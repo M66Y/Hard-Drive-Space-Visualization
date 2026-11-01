@@ -1,0 +1,24 @@
+{
+  "baseline": {
+    "path": "AGENTS.md",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "bytes": 18751,
+      "sha256": "05b84fc2759ed33401c82b5ff2d189a1dc44c6ca1f25c2cb0cad3f1ad5703f1b"
+    },
+    {
+      "path": "iterations/2026-11-01-01-project-rules/changes.patch",
+      "bytes": 18986,
+      "sha256": "360915adb6f4c3723cea6192e13dd0fbf1cb19dff281c3cb98382eb4da0cd9fd"
+    },
+    {
+      "path": "iterations/2026-11-01-01-project-rules/README.md",
+      "bytes": 6318,
+      "sha256": "64603fac1d5958688197cb3be52c12f637e7a2fc9e2caa1770022a3d7eeb5f5b"
+    }
+  ]
+}
