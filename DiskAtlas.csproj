@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <TargetPlatformDisplayName>Windows</TargetPlatformDisplayName>
+    <RestoreConfigFile>$(MSBuildThisFileDirectory)NuGet.Config</RestoreConfigFile>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>DiskAtlas</AssemblyName>
+    <RootNamespace>DiskAtlas</RootNamespace>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationIcon>assets\app.ico</ApplicationIcon>
+    <Version>1.4.2</Version>
+    <AssemblyTitle>AsukaLens</AssemblyTitle>
+    <Product>AsukaLens</Product>
+    <Description>本地硬盘空间可视化工具</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="tests\**;artifacts\**" />
+    <EmbeddedResource Include="assets\background.png" LogicalName="DiskAtlas.Background" />
+  </ItemGroup>
+</Project>

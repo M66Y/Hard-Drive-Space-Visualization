@@ -1,0 +1,203 @@
+using System.Drawing.Drawing2D;
+using System.ComponentModel;
+
+namespace DiskAtlas;
+
+internal static class Theme
+{
+    public static readonly Color Background = Color.FromArgb(252, 246, 242);
+    public static readonly Color Sidebar = Color.FromArgb(250, 239, 232);
+    public static readonly Color Surface = Color.FromArgb(255, 252, 249);
+    public static readonly Color Border = Color.FromArgb(228, 205, 195);
+    public static readonly Color Text = Color.FromArgb(75, 54, 52);
+    public static readonly Color Muted = Color.FromArgb(121, 96, 90);
+    public static readonly Color Accent = Color.FromArgb(165, 68, 62);
+    public static readonly Color Selection = Color.FromArgb(248, 222, 212);
+    public static readonly (string Name, Color Color)[] Categories =
+    [
+        ("文件夹", Color.FromArgb(235, 177, 153)),
+        ("视频", Color.FromArgb(232, 160, 156)),
+        ("图片", Color.FromArgb(239, 207, 154)),
+        ("音频", Color.FromArgb(222, 177, 194)),
+        ("压缩包", Color.FromArgb(201, 184, 213)),
+        ("文档", Color.FromArgb(171, 199, 193)),
+        ("代码", Color.FromArgb(178, 196, 216)),
+        ("其他", Color.FromArgb(207, 198, 187))
+    ];
+    public static string Category(string extension) => FileKinds.Category(extension);
+    public static Color CategoryColor(string category) => Categories.FirstOrDefault(c => c.Name == category, Categories[^1]).Color;
+    public static Font Font(float size, FontStyle style = FontStyle.Regular) => new("Microsoft YaHei UI", size, style);
+    public static void TextAt(Graphics g, string text, Font font, Color color, Rectangle rect, TextFormatFlags flags = TextFormatFlags.Left)
+        => TextRenderer.DrawText(g, text, font, rect, color, flags | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter);
+    public static GraphicsPath Round(RectangleF rect, float radius)
+    {
+        var path = new GraphicsPath();
+        if (rect.Width <= 0 || rect.Height <= 0) return path;
+        float d = Math.Min(radius * 2, Math.Min(rect.Width, rect.Height));
+        if (d <= 0) { path.AddRectangle(rect); return path; }
+        path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+        path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+        path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+        path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
+}
+
+internal sealed class ActionButton : Button
+{
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool Primary { get; set; }
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool Selected { get; set; }
+    private bool hovered;
+    public ActionButton(string text, bool primary = false)
+    {
+        Text = text; Primary = primary; FlatStyle = FlatStyle.Flat;
+        FlatAppearance.BorderSize = primary ? 0 : 1; Cursor = Cursors.Hand; BackColor = Theme.Surface;
+        Font = Theme.Font(9, FontStyle.Bold); Height = 38;
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+    }
+    protected override void OnSizeChanged(EventArgs e)
+    {
+        base.OnSizeChanged(e);
+        if (Width < 4 || Height < 4) return;
+        using var path = Theme.Round(new RectangleF(1, 1, Width - 3, Height - 3), 7 * DeviceDpi / 96f);
+        var previous = Region;
+        Region = new Region(path);
+        previous?.Dispose();
+        Invalidate();
+    }
+    protected override void OnMouseEnter(EventArgs e) { hovered = true; Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { hovered = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        Wallpaper.Paint(this, e.Graphics, 100);
+    }
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        if (Width < 4 || Height < 4) return;
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        var rect = new Rectangle(1, 1, Width - 3, Height - 3);
+        using var path = Theme.Round(rect, 7 * DeviceDpi / 96f);
+        Color fill = Primary ? (hovered ? Color.FromArgb(145, 55, 51) : Theme.Accent) : Selected ? Theme.Selection : hovered ? Color.FromArgb(251, 234, 226) : BackColor;
+        using var brush = new SolidBrush(Enabled ? fill : Theme.Border);
+        e.Graphics.FillPath(brush, path);
+        if (!Primary && FlatAppearance.BorderSize > 0) { using var pen = new Pen(Theme.Border); e.Graphics.DrawPath(pen, path); }
+        var textRect = TextAlign == ContentAlignment.MiddleLeft ? new Rectangle(rect.X + (int)(16 * DeviceDpi / 96f), rect.Y, Math.Max(0, rect.Width - (int)(24 * DeviceDpi / 96f)), rect.Height) : rect;
+        Theme.TextAt(e.Graphics, Text, Font, !Enabled ? Theme.Muted : Primary ? Color.White : Selected ? Theme.Accent : Theme.Text, textRect, TextAlign == ContentAlignment.MiddleLeft ? TextFormatFlags.Left : TextFormatFlags.HorizontalCenter);
+        if (Focused) { using var pen = new Pen(Theme.Muted) { DashStyle = DashStyle.Dot }; e.Graphics.DrawRectangle(pen, Rectangle.Inflate(rect, -5, -5)); }
+    }
+}
+
+internal sealed class StatCard : Control
+{
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public string Title { get; set; } = "";
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public string Value { get; set; } = "—";
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public string Caption { get; set; } = "";
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool Highlight { get; set; }
+    public StatCard() { DoubleBuffered = true; BackColor = Theme.Background; }
+    protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics);
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        if (Width < 2 || Height < 2) return;
+        float s = DeviceDpi / 96f;
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = Theme.Round(new RectangleF(0, 0, Width - 1, Height - 1), 10 * s);
+        using var brush = new SolidBrush(Color.FromArgb(218, Theme.Surface));
+        e.Graphics.FillPath(brush, path);
+        using var pen = new Pen(Theme.Border);
+        e.Graphics.DrawPath(pen, path);
+        using var titleFont = Theme.Font(9);
+        using var valueFont = Theme.Font(23, FontStyle.Bold);
+        using var captionFont = Theme.Font(8);
+        int x = (int)(18 * s);
+        Theme.TextAt(e.Graphics, Title, titleFont, Theme.Muted, new Rectangle(x, (int)(13 * s), Width - x * 2, (int)(22 * s)));
+        Theme.TextAt(e.Graphics, Value, valueFont, Highlight ? Theme.Accent : Theme.Text, new Rectangle(x, (int)(38 * s), Width - x * 2, (int)(42 * s)));
+        Theme.TextAt(e.Graphics, Caption, captionFont, Theme.Muted, new Rectangle(x, (int)(84 * s), Width - x * 2, (int)(22 * s)));
+    }
+}
+
+internal sealed class NavigationPanel : Control
+{
+    private ActionButton[] buttons = [];
+    private int selectedIndex;
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public int SelectedIndex
+    {
+        get => selectedIndex;
+        set
+        {
+            selectedIndex = value;
+            for (int i = 0; i < buttons.Length; i++) { buttons[i].Selected = i == value; buttons[i].Invalidate(); }
+            Invalidate();
+        }
+    }
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public string RootName { get; set; } = "尚未选择文件夹";
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public string RootPath { get; set; } = "从一个文件夹开始探索";
+    public event Action<int>? Navigate;
+    public NavigationPanel()
+    {
+        DoubleBuffered = true; BackColor = Theme.Sidebar; TabStop = false;
+        string[] names = ["▦    空间分布", "↗    大文件", "≡    文件类型"];
+        buttons = new ActionButton[3];
+        for (int i = 0; i < 3; i++)
+        {
+            int index = i;
+            buttons[i] = new ActionButton(names[i]) { TextAlign = ContentAlignment.MiddleLeft, BackColor = Theme.Sidebar, AccessibleName = names[i].Substring(5), TabIndex = i };
+            buttons[i].FlatAppearance.BorderSize = 0;
+            buttons[i].Click += (_, _) => Navigate?.Invoke(index);
+            Controls.Add(buttons[i]);
+        }
+        SelectedIndex = 0; LayoutButtons();
+    }
+    private void LayoutButtons()
+    {
+        float s = DeviceDpi / 96f;
+        for (int i = 0; i < buttons.Length; i++) buttons[i].Bounds = new Rectangle((int)(14 * s), (int)((166 + i * 52) * s), Math.Max(0, Width - (int)(28 * s)), (int)(44 * s));
+    }
+    protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics, 225);
+    protected override void OnResize(EventArgs e) { base.OnResize(e); LayoutButtons(); }
+    protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); LayoutButtons(); }
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        float s = DeviceDpi / 96f;
+        Rectangle R(float x, float y, float w, float h) => new((int)(x * s), (int)(y * s), (int)(w * s), (int)(h * s));
+        using var logoFont = Theme.Font(16, FontStyle.Bold);
+        using var smallFont = Theme.Font(8);
+        using var navFont = Theme.Font(10, FontStyle.Bold);
+        using var labelFont = Theme.Font(9);
+        using var accentBrush = new SolidBrush(Theme.Accent);
+        g.FillRectangle(accentBrush, R(24, 31, 12, 12));
+        g.FillRectangle(accentBrush, R(39, 31, 7, 22));
+        g.FillRectangle(accentBrush, R(24, 46, 12, 7));
+        Theme.TextAt(g, "AsukaLens", logoFont, Theme.Text, R(57, 26, 160, 32));
+        Theme.TextAt(g, "磁 盘 空 间 可 视 化", smallFont, Theme.Muted, R(25, 67, 185, 22));
+        using var borderPen = new Pen(Theme.Border);
+        g.DrawLine(borderPen, 24 * s, 113 * s, Width - 24 * s, 113 * s);
+        Theme.TextAt(g, "工作空间", smallFont, Theme.Muted, R(25, 132, 180, 22));
+        Theme.TextAt(g, "当前扫描", smallFont, Theme.Muted, R(25, 350, 180, 22));
+        Theme.TextAt(g, RootName, navFont, Theme.Text, R(25, 380, 180, 26));
+        Theme.TextAt(g, RootPath, smallFont, Theme.Muted, R(25, 409, 180, 40), TextFormatFlags.WordBreak);
+        Theme.TextAt(g, "颜色索引", smallFont, Theme.Muted, R(25, 479, 180, 22));
+        for (int i = 0; i < Theme.Categories.Length; i++)
+        {
+            int column = i % 2, row = i / 2;
+            using var brush = new SolidBrush(Theme.Categories[i].Color);
+            g.FillEllipse(brush, R(26 + column * 99, 519 + row * 30, 8, 8));
+            Theme.TextAt(g, Theme.Categories[i].Name, labelFont, Theme.Muted, R(42 + column * 99, 511 + row * 30, 74, 24));
+        }
+        if (Height > 740 * s)
+        {
+            Theme.TextAt(g, "看清空间，让文件井然有序。", smallFont, Theme.Muted, new Rectangle((int)(25 * s), Height - (int)(70 * s), Width - (int)(40 * s), (int)(25 * s)));
+            Theme.TextAt(g, "本地扫描  ·  文件不上传", smallFont, Theme.Muted, new Rectangle((int)(25 * s), Height - (int)(46 * s), Width - (int)(40 * s), (int)(25 * s)));
+        }
+    }
+}
