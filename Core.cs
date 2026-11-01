@@ -135,7 +135,8 @@ public sealed class DiskEntry
     }
 }
 
-public record ScanProgress(long Files, long Folders, long Bytes, string CurrentPath);
+public record ScanProgress(long Files, long Folders, long Bytes, string CurrentPath,
+    ScanPhase Phase = ScanPhase.Scanning, int WorkerLimit = 0);
 public record ScanIssue(string Path, string Reason);
 public record ScanResult(DiskEntry Root, TimeSpan Elapsed, long Skipped, IReadOnlyList<ScanIssue> Issues)
 {
@@ -190,6 +191,8 @@ public sealed class DiskScanner
         long files = 0, folders = 0, bytes = 0, skipped = 0, lastReport = -100;
         long outstanding = 1;
         long readDirectories = 0, reusedFiles = 0;
+        var pacer = new ScanWorkPacer(profile);
+        var concurrency = new ScanConcurrencyMeter();
 
         void Issue(string itemPath, string reason, DiskEntry container)
         {
@@ -200,21 +203,24 @@ public sealed class DiskScanner
             lock (issues)
                 if (issues.Count < 2000) issues.Add(new ScanIssue(itemPath, reason));
         }
-        void Report(string current, bool force = false)
+        void Report(string current, bool force = false, ScanPhase phase = ScanPhase.Scanning)
         {
             if (progress == null || (!force && timer.ElapsedMilliseconds - Volatile.Read(ref lastReport) < 100)) return;
             lock (reportGate)
             {
                 if (!force && timer.ElapsedMilliseconds - lastReport < 100) return;
                 Volatile.Write(ref lastReport, timer.ElapsedMilliseconds);
-                progress.Report(new ScanProgress(Interlocked.Read(ref files), Interlocked.Read(ref folders), Interlocked.Read(ref bytes), current));
+                progress.Report(new ScanProgress(Interlocked.Read(ref files), Interlocked.Read(ref folders), Interlocked.Read(ref bytes), current, phase, profile.Workers));
             }
         }
 
         void ScanDirectory(DiskEntry current, CancellationToken workToken)
         {
             workToken.ThrowIfCancellationRequested();
-            Report(current.Path);
+            pacer.Worked(workToken);
+            var phase = refresh != null && refresh.PreviousDirectories.ContainsKey(current.Path) && !refresh.ScanDirectories.Contains(current.Path)
+                ? ScanPhase.Reusing : ScanPhase.Scanning;
+            Report(current.Path, phase: phase);
             workToken.ThrowIfCancellationRequested();
             long localFiles = 0, localFolders = 0, localBytes = 0;
             int batch = 0;
@@ -231,8 +237,7 @@ public sealed class DiskScanner
                 }
                 Interlocked.Add(ref files, localFiles); Interlocked.Add(ref folders, localFolders); Interlocked.Add(ref bytes, localBytes);
                 localFiles = localFolders = localBytes = 0;
-                Report(current.Path);
-                if (profile.BatchDelayMilliseconds > 0 && workToken.WaitHandle.WaitOne(profile.BatchDelayMilliseconds)) workToken.ThrowIfCancellationRequested();
+                Report(current.Path, phase: phase);
             }
             void Schedule(DiskEntry entry)
             {
@@ -298,6 +303,7 @@ public sealed class DiskScanner
                 foreach (var info in entries)
                 {
                     workToken.ThrowIfCancellationRequested();
+                    pacer.Worked(workToken);
                     try
                     {
                         var attributes = info.Attributes;
@@ -351,11 +357,17 @@ public sealed class DiskScanner
             MaxDegreeOfParallelism = profile.Workers, CancellationToken = token
         }, (current, workToken) =>
         {
-            ScanDirectory(current, workToken);
-            if (Interlocked.Decrement(ref outstanding) == 0) pending.Writer.TryComplete();
+            concurrency.Enter();
+            try
+            {
+                ScanDirectory(current, workToken);
+                if (Interlocked.Decrement(ref outstanding) == 0) pending.Writer.TryComplete();
+            }
+            finally { concurrency.Exit(); }
             return ValueTask.CompletedTask;
         }).GetAwaiter().GetResult();
 
+        Report(root.Path, true, ScanPhase.Finalizing);
         StorageMetrics.Calculate(root, token);
 
         var toSort = new Stack<DiskEntry>();
@@ -372,12 +384,12 @@ public sealed class DiskScanner
                 if (child.IsDirectory) toSort.Push(child);
             }
         }
-        Report(root.Path, true);
+        Report(root.Path, true, ScanPhase.Finalizing);
         token.ThrowIfCancellationRequested();
         return new ScanResult(root, timer.Elapsed, skipped, issues)
         {
             AllocationIssues = allocationIssues,
-            Statistics = new(options?.Mode ?? ScanMode.HighSpeed, profile.Workers, refresh != null, readDirectories, reusedFiles, refresh == null ? "完整扫描" : "NTFS 日志增量刷新")
+            Statistics = new(options?.Mode ?? ScanMode.HighSpeed, profile.Workers, refresh != null, readDirectories, reusedFiles, refresh == null ? "完整扫描" : "NTFS 日志增量刷新", PeakDirectoryWorkers: concurrency.Peak)
         };
     }
 }

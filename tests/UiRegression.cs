@@ -93,6 +93,8 @@ internal static class UiRegression
                         await ProductScan();
                         await Wait(() => Product<DataGridView>("grid").Enabled, "Product scan did not settle");
                         Check(Product<ScanResult>("scan").Statistics is { Mode: ScanMode.LowImpact, Workers: 1 }, "UI strategy not passed to the scanner");
+                        Check(Product<Label>("refreshInfo").Text.Contains("目录峰值 1/1"), "UI confuses the worker limit with observed concurrency");
+                        Check(Product<ToolTip>("scanTip").GetToolTip(Product<ComboBox>("strategyCombo"))?.Contains("256") == true, "Low-impact explanation missing");
                         Product<ComboBox>("metricCombo").SelectedIndex = 1;
                         await Wait(() => Product<StatCard>("totalCard").Title == "实际占用空间" && Product<DataGridView>("grid").Enabled, "Allocated metric did not render");
                         Check(Product<List<MapItem>>("sortedRows").Sum(i => i.Size) == Product<ScanResult>("scan").Root.AllocatedSize, "UI allocated rows do not match deduplicated total");
@@ -100,6 +102,7 @@ internal static class UiRegression
                         await ProductScan();
                         await Wait(() => Product<DataGridView>("grid").Enabled, "Product refresh did not settle");
                         Check(Product<ScanResult>("scan").Root.FileCount == 1107 && Product<ScanResult>("scan").Statistics is { Incremental: true, ReusedFiles: > 1000 }, "UI did not use incremental refresh");
+                        Check(Product<Label>("refreshInfo").Text.Contains("核验峰值 1"), "UI does not distinguish verification concurrency");
                         Check(Product<ComboBox>("metricCombo").SelectedIndex == 1 && Product<StatCard>("totalCard").Title == "实际占用空间", "Refresh lost the size metric");
                         Product<ComboBox>("strategyCombo").SelectedIndex = 2; await ProductScan("ForceRefresh");
                         Check(Product<ScanResult>("scan").Statistics is { Incremental: false, Mode: ScanMode.HighSpeed, Workers: 8 }, "Force full / high-speed UI path failed");

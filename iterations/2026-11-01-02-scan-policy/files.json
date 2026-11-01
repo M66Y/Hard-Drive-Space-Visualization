@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "base_commit": "67b831add1e127dce1fdfd4356c39d6810a979fe",
+  "key_files": [
+    {
+      "path": ".gitignore",
+      "bytes": 109,
+      "sha256": "bcc1fa856faf0c68a59a4ff8cd52de92021143d3bc060c469b3c77a64ec30e51"
+    },
+    {
+      "path": "Core.cs",
+      "bytes": 24525,
+      "sha256": "e25e619893a78e1cbb4646e490627bf4833fff96769b83546214385dfdad7678"
+    },
+    {
+      "path": "ScanPolicy.cs",
+      "bytes": 3226,
+      "sha256": "28fd9db41c5f9478115b4a6125f8a974e9a25742074b85f8b93206c91e1fe7bf"
+    },
+    {
+      "path": "ScanCoordinator.cs",
+      "bytes": 5585,
+      "sha256": "53d1648df13cf502c885fd1630812bcdea9e559ee7288d9193a6e22f267a4a88"
+    },
+    {
+      "path": "MetadataVerifier.cs",
+      "bytes": 5743,
+      "sha256": "49bada47c2d4ee7b64d6d48e55aef072151ddbf30da113769f1514f676792d9a"
+    },
+    {
+      "path": "MainForm.cs",
+      "bytes": 54355,
+      "sha256": "faf7f6bdeb593ef650f91c78fed7b1e184e65e8847dc7a7a85427425ed3113f3"
+    },
+    {
+      "path": "README.md",
+      "bytes": 9123,
+      "sha256": "5c6820c6c3152a32fd38d4af506fca9d7ee0d51880213fb3fa3fcbcc7c05d68a"
+    },
+    {
+      "path": "使用说明.txt",
+      "bytes": 6672,
+      "sha256": "0a82c597ac1bbfc1a85f1a969ca6be36758b5a391ccf8ae832175df96511e799"
+    },
+    {
+      "path": "tests/Program.cs",
+      "bytes": 41384,
+      "sha256": "05e074777e4d320d9a2189f9eafcf3536d7fcbca9fb069d73dd942a9209c62b7"
+    },
+    {
+      "path": "tests/AdvancedFeatures.cs",
+      "bytes": 27658,
+      "sha256": "be253397d385c75350a752ac65be7a349809fd54ca1454b8ede9ab4fb3b4b7b3"
+    },
+    {
+      "path": "tests/UiRegression.cs",
+      "bytes": 12437,
+      "sha256": "efeb941b9a30dd09577c2acb9efd0ec42221578b6e140e3834b70324c5f511c9"
+    },
+    {
+      "path": "tests/ScanPolicyBenchmark.cs",
+      "bytes": 11940,
+      "sha256": "0b73c8f39e3f29801a869e158059ab66b2b35029422b41dba21ebd6f91d43825"
+    }
+  ],
+  "archive_files": [
+    {
+      "path": "iterations/2026-11-01-02-scan-policy/README.md",
+      "bytes": 9530,
+      "sha256": "6b6af6f44fa9ee60be76d3ffcfdb5deb4723c59a66332752e6262bcd06ceae57"
+    },
+    {
+      "path": "iterations/2026-11-01-02-scan-policy/before.json",
+      "bytes": 28356,
+      "sha256": "f6facb342a5a9fa79028e8e7ad037e5c90b2bae97a289ad849ac2e2169c24746"
+    },
+    {
+      "path": "iterations/2026-11-01-02-scan-policy/after.json",
+      "bytes": 34042,
+      "sha256": "181fb82dd44fad5728cc0bb3a9a9aa5c1f9dec067249fc7ddd0588f8bb54857d"
+    },
+    {
+      "path": "iterations/2026-11-01-02-scan-policy/benchmark-before.cs.txt",
+      "bytes": 11773,
+      "sha256": "30cbf1bbc9a5dedd560fca6710bc7d42a56b41dbc69acc2b0b2e0914a56bf5a2"
+    },
+    {
+      "path": "iterations/2026-11-01-02-scan-policy/changes.patch",
+      "bytes": 52337,
+      "sha256": "c14a788ef408ccae033285ebd8afd9e9f89025a70fe4f62f466c3cb8b7369865"
+    }
+  ]
+}

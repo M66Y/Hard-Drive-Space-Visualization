@@ -10,6 +10,7 @@ internal sealed class MainForm : Form
     private readonly ComboBox strategyCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
     private readonly ComboBox metricCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
     private readonly Label refreshInfo = LabelOf("首次完整扫描，刷新时自动检查变化", 8, false, true);
+    private readonly ToolTip scanTip = new() { AutoPopDelay = 20000, InitialDelay = 300 };
     private SizeMetric metric;
     private bool changingMetric, forceFullNext;
     private readonly NavigationPanel navigation = new() { Dock = DockStyle.Fill };
@@ -80,6 +81,8 @@ internal sealed class MainForm : Form
         BuildInterface();
         ConfigureGrid();
         strategyCombo.Items.AddRange(["自动", "低占用", "高速"]); strategyCombo.SelectedIndex = 0;
+        strategyCombo.SelectedIndexChanged += (_, _) => { if (scanCancellation == null) UpdateStrategyHint(); };
+        UpdateStrategyHint();
         metricCombo.Items.AddRange(["文件大小", "实际占用"]); metricCombo.SelectedIndex = 0;
         metricCombo.SelectedIndexChanged += (_, _) => { if (!changingMetric) { metric = (SizeMetric)metricCombo.SelectedIndex; UpdateView(true); } };
         var refreshMenu = new ContextMenuStrip();
@@ -135,6 +138,17 @@ internal sealed class MainForm : Form
     };
 
     protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics);
+
+    private string StrategyName => strategyCombo.SelectedIndex switch { 1 => "低占用", 2 => "高速", _ => "自动" };
+    private void UpdateStrategyHint()
+    {
+        var mode = (ScanMode)Math.Max(0, strategyCombo.SelectedIndex);
+        string explanation = ScanPolicy.Explain(mode);
+        refreshInfo.Text = mode == ScanMode.Automatic ? "自动 · 按设备选择目录并发" :
+            $"{StrategyName} · 目录并发上限 {ScanPolicy.Resolve(mode, DiskKind.Unknown).Workers}";
+        scanTip.SetToolTip(strategyCombo, explanation);
+        scanTip.SetToolTip(refreshInfo, explanation);
+    }
 
     protected override void OnResize(EventArgs e)
     {
@@ -367,12 +381,14 @@ internal sealed class MainForm : Form
         map.Scanning = scan == null;
         map.Invalidate();
         status.Text = $"开始扫描：{path}";
+        refreshInfo.Text = $"{StrategyName} · 准备扫描";
+        scanTip.SetToolTip(refreshInfo, ScanPolicy.Explain(options.Mode));
         var progress = new Progress<ScanProgress>(p =>
         {
             if (IsDisposed || Disposing || !ReferenceEquals(scanCancellation, cancellation) || cancellation.IsCancellationRequested) return;
-            status.Text = p.CurrentPath.StartsWith("核验缓存：", StringComparison.Ordinal)
-                ? $"正在核验元信息 · {SizeFormat.Number(p.Files)} 个文件 · {p.CurrentPath}"
-                : $"扫描中  ·  {SizeFormat.Number(p.Files)} 个文件  ·  {SizeFormat.Bytes(p.Bytes)}  ·  {p.CurrentPath}";
+            string stage = p.Phase switch { ScanPhase.Verifying => "核验元信息", ScanPhase.Reusing => "复用缓存", ScanPhase.Finalizing => "统计与整理", _ => "读取目录" };
+            status.Text = $"{stage} · {SizeFormat.Number(p.Files)} 个文件 · {(p.Phase == ScanPhase.Verifying ? p.CurrentPath : SizeFormat.Bytes(p.Bytes) + " · " + p.CurrentPath)}";
+            if (p.WorkerLimit > 0) refreshInfo.Text = $"{StrategyName} · {stage} · 目录并发上限 {p.WorkerLimit}";
             if (scan == null && !showingPreview)
             {
                 totalCard.Value = SizeFormat.Bytes(p.Bytes); filesCard.Value = SizeFormat.Number(p.Files); foldersCard.Value = SizeFormat.Number(p.Folders);
@@ -399,7 +415,12 @@ internal sealed class MainForm : Form
             }
             else SetMode(0);
             issues.Visible = scan.Skipped > 0 || scan.Root.UnknownAllocationFiles > 0;
-            refreshInfo.Text = scan.Statistics is { } stats ? $"{(stats.Incremental ? "增量" : "完整")} · {(stats.VerifiedDirectories > 0 ? $"核验 {stats.VerifiedDirectories:N0} 目录 · " : "")}重扫 {stats.ReadDirectories:N0} 目录 · 复用 {stats.ReusedFiles:N0} 文件 · {stats.Workers} 路" : "扫描完成";
+            if (scan.Statistics is { } stats)
+            {
+                refreshInfo.Text = $"{(stats.Incremental ? "增量" : "完整")} · {(stats.VerifiedDirectories > 0 ? $"核验峰值 {stats.PeakVerificationWorkers} · " : "")}目录峰值 {stats.PeakDirectoryWorkers}/{stats.Workers} · 重扫 {stats.ReadDirectories:N0} · 复用 {stats.ReusedFiles:N0}";
+                scanTip.SetToolTip(refreshInfo, $"{stats.Reason}\n核验 {stats.VerifiedDirectories:N0} 目录、{stats.VerifiedFiles:N0} 文件；核验任务峰值 {stats.PeakVerificationWorkers}；目录任务峰值 {stats.PeakDirectoryWorkers}；并发上限 {stats.Workers}。\n任务峰值包含等待，不表示 CPU 核数或瞬时磁盘 I/O 数。\n" + ScanPolicy.Explain(stats.Mode));
+            }
+            else refreshInfo.Text = "扫描完成";
             status.Text = $"扫描完成 · {SizeFormat.Number(scan.Root.FileCount)} 个文件 · " + (scan.Statistics?.Reason ?? "") +
                 (scan.Skipped > 0 ? $" · {scan.Skipped:N0} 项已跳过" : "") + (scan.Root.UnknownAllocationFiles > 0 ? $" · {scan.Root.UnknownAllocationFiles:N0} 项占用未知" : "");
         }
@@ -430,6 +451,7 @@ internal sealed class MainForm : Form
                 choose.Enabled = true; refresh.Enabled = scan != null; cancel.Visible = false;
                 strategyCombo.Enabled = metricCombo.Enabled = true;
                 progressBar.Visible = false; map.Scanning = false; map.Invalidate();
+                if (cancellation.IsCancellationRequested || scan == previousScan) UpdateStrategyHint();
             }
         }
 
@@ -822,7 +844,7 @@ internal sealed class MainForm : Form
     {
         if (disposing)
         {
-            searchTimer.Dispose(); previewTimer.Dispose(); scanCancellation?.Cancel(); viewCancellation?.Cancel();
+            searchTimer.Dispose(); previewTimer.Dispose(); scanTip.Dispose(); scanCancellation?.Cancel(); viewCancellation?.Cancel();
             var image = BackgroundImage; BackgroundImage = null; image?.Dispose();
         }
         base.Dispose(disposing);

@@ -1,0 +1,174 @@
+using DiskAtlas;
+using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+
+// Optional diagnostic: exercise the actual UI coordinator's three policies with
+// identical workloads. No user files, OS cache flushes, background UI or journal changes.
+internal static class ScanPolicyBenchmark
+{
+    private sealed record Sample(double WallMs, double CpuMs, long AllocatedBytes,
+        double PreparationMs, double ScanAndFinalizeMs, int Workers,
+        long VerifiedFiles, long ReadDirectories, long ReusedFiles);
+    private sealed record Measurement(string Shape, string Phase, string Mode,
+        double WallMedianMs, double CpuMedianMs, double AllocationMedianBytes,
+        double PreparationMedianMs, double ScanAndFinalizeMedianMs,
+        IReadOnlyList<Sample> Samples);
+
+    public static int Run()
+    {
+        string workspace = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+        string artifacts = Path.Combine(workspace, "artifacts");
+        string fixture = Path.Combine(artifacts, "policy-benchmark-" + Guid.NewGuid().ToString("N"));
+        string report = Path.Combine(artifacts, "policy-benchmark-results.json");
+        var measurements = new List<Measurement>();
+        using var process = Process.GetCurrentProcess();
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+        var token = cancellation.Token;
+        try
+        {
+            if (File.Exists(report)) throw new IOException("Benchmark output already exists.");
+            var modeValues = Enum.GetValues<ScanMode>();
+            foreach (var shape in new[] { "wide", "flat" })
+            {
+                string root = Path.Combine(fixture, shape); Directory.CreateDirectory(root);
+                int directories = shape == "wide" ? 180 : 1;
+                int count = shape == "wide" ? 40 : 8000;
+                for (int d = 0; d < directories; d++)
+                {
+                    string dir = directories == 1 ? root : Path.Combine(root, $"folder-{d:000}");
+                    Directory.CreateDirectory(dir);
+                    for (int f = 0; f < count; f++)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        File.WriteAllBytes(Path.Combine(dir, $"file-{f:0000}.bin"), new byte[(f * 37 + d) % 512]);
+                    }
+                }
+                // Stabilize directory timestamps after fixture creation. Immediate
+                // enumeration can otherwise observe delayed directory write times.
+                foreach (string directory in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories).Append(root))
+                    Directory.SetLastWriteTimeUtc(directory, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                // Force the no-journal path for refresh: identical evidence and work
+                // on every mode, independent of this machine's USN availability.
+                var coordinator = new ScanCoordinator(_ => null);
+                var baseline = coordinator.Scan(root, null, new(ScanMode.HighSpeed), null, token);
+                if (baseline.Skipped != 0 || baseline.Root.UnknownAllocationFiles != 0)
+                    throw new IOException("Synthetic baseline is incomplete.");
+                string reference = Fingerprint(baseline.Root);
+                Console.WriteLine($"DATA {shape}: {baseline.Root.FileCount} files; {baseline.Root.FolderCount} folders; device {NativeStorage.DetectDisk(root)}");
+                foreach (string phase in new[] { "full", "unchanged-refresh" })
+                {
+                    foreach (var mode in modeValues) _ = Scan(mode, null);
+                    var samples = modeValues.Select(_ => new List<Sample>()).ToArray();
+                    for (int run = 0; run < 6; run++)
+                    {
+                        // Balanced order: each mode appears twice at each position.
+                        var order = Enumerable.Range(0, 3).Select(i => (i + run % 3) % 3);
+                        if (run >= 3) order = order.Reverse();
+                        foreach (int index in order)
+                        {
+                            GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                            var progress = new ProbeProgress();
+                            long beforeAllocation = GC.GetTotalAllocatedBytes(true);
+                            var beforeCpu = process.TotalProcessorTime;
+                            progress.Clock.Start();
+                            var result = Scan(modeValues[index], progress);
+                            progress.Clock.Stop();
+                            double cpu = (process.TotalProcessorTime - beforeCpu).TotalMilliseconds;
+                            long allocated = GC.GetTotalAllocatedBytes(true) - beforeAllocation;
+                            if (Fingerprint(result.Root) != reference || result.Skipped != baseline.Skipped)
+                            {
+                                DescribeDifference(baseline.Root, result.Root);
+                                throw new InvalidOperationException("Mode results differ.");
+                            }
+                            if (phase == "unchanged-refresh" && result.Statistics is not { Incremental: true, ReadDirectories: 0, VerifiedFiles: > 0 })
+                                throw new InvalidOperationException("Refresh did not take the expected metadata-verification path.");
+                            double wall = progress.Clock.Elapsed.TotalMilliseconds;
+                            double preparation = progress.FirstScanTicks < 0 ? wall : progress.FirstScanTicks * 1000d / Stopwatch.Frequency;
+                            var stats = result.Statistics!;
+                            samples[index].Add(new(wall, cpu, allocated, preparation, Math.Max(0, wall - preparation),
+                                stats.Workers, stats.VerifiedFiles, stats.ReadDirectories, stats.ReusedFiles));
+                        }
+                    }
+                    for (int i = 0; i < samples.Length; i++)
+                    {
+                        var s = samples[i];
+                        var entry = new Measurement(shape, phase, modeValues[i].ToString(),
+                            Median(s.Select(x => x.WallMs)), Median(s.Select(x => x.CpuMs)), Median(s.Select(x => (double)x.AllocatedBytes)),
+                            Median(s.Select(x => x.PreparationMs)), Median(s.Select(x => x.ScanAndFinalizeMs)), s);
+                        measurements.Add(entry);
+                        Console.WriteLine($"BENCH {shape} {phase} {entry.Mode}: wall {entry.WallMedianMs:F2} ms; CPU {entry.CpuMedianMs:F2} ms; allocation {entry.AllocationMedianBytes:F0} B; preparation {entry.PreparationMedianMs:F2} ms");
+                    }
+
+                    ScanResult Scan(ScanMode mode, IProgress<ScanProgress>? progress) => coordinator.Scan(root,
+                        phase == "full" ? null : baseline, new(mode), progress, token, new LiveScanSession(), forceFull: phase == "full");
+                }
+            }
+            var resultReport = new
+            {
+                SchemaVersion = 1, BaselineVersion = "v1.4.2", RunsPerMode = 6,
+                Cache = "Warm metadata cache; no OS cache flush; synthetic files on workspace volume. Directory write times fixed after creation to avoid delayed directory metadata updates.",
+                Order = "Three cyclic orders followed by their reversals; two occurrences at every position.",
+                Scope = "Actual coordinator, synchronous bounded progress and live-session recording. Excludes UI rendering, fixture creation, GC preparation and fingerprint validation.",
+                Preparation = "Time until first scanner progress callback; includes refresh planning/metadata verification. Not a separate native-I/O profiler.",
+                ResourceLimits = "CPU is process CPU time and can be coarse on short runs. Allocated bytes are total managed allocations, not retained or peak memory. Physical disk I/O and foreground-app responsiveness are not measured.",
+                Correctness = "All timed scans match baseline entries by relative path, logical/allocated size, counts, modified time, sharing, incomplete and unknown state; refresh verifies all files and rescans no directories.",
+                Measurements = measurements
+            };
+            File.WriteAllText(report, JsonSerializer.Serialize(resultReport, new JsonSerializerOptions { WriteIndented = true }) + "\n");
+            Console.WriteLine("PASS policy diagnostics and per-entry equality; report: artifacts/policy-benchmark-results.json");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            // Public diagnostics must not include workstation paths or raw exception stacks.
+            Console.Error.WriteLine("FAIL policy benchmark: " + ex.GetType().Name +
+                (ex is InvalidOperationException && ex.Message is "Mode results differ." or "Refresh did not take the expected metadata-verification path." ? " / " + ex.Message : "")); return 1;
+        }
+        finally
+        {
+            string prefix = Path.GetFullPath(artifacts) + Path.DirectorySeparatorChar + "policy-benchmark-";
+            if (!Path.GetFullPath(fixture).StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Unsafe benchmark cleanup target.");
+            if (Directory.Exists(fixture)) Directory.Delete(fixture, recursive: true);
+        }
+    }
+
+    private static double Median(IEnumerable<double> source)
+    {
+        var values = source.Order().ToArray(); return (values[values.Length / 2 - 1] + values[values.Length / 2]) / 2;
+    }
+    private static void DescribeDifference(DiskEntry expected, DiskEntry actual)
+    {
+        var a = expected.Descendants().Prepend(expected).OrderBy(e => e.Path, StringComparer.OrdinalIgnoreCase).ToArray();
+        var b = actual.Descendants().Prepend(actual).OrderBy(e => e.Path, StringComparer.OrdinalIgnoreCase).ToArray();
+        for (int i = 0; i < Math.Min(a.Length, b.Length); i++)
+        {
+            string Fields(DiskEntry x) => $"{x.Size}/{x.AllocatedSize}/{x.FileCount}/{x.FolderCount}/{x.Modified.Ticks}/{x.UnknownAllocationFiles}/{x.SharedAllocation}/{x.Incomplete}";
+            if (Fields(a[i]) == Fields(b[i])) continue;
+            Console.WriteLine($"MISMATCH synthetic entry {i}: expected {Fields(a[i])}; actual {Fields(b[i])}");
+            return;
+        }
+        Console.WriteLine($"MISMATCH entry counts: {a.Length}/{b.Length}");
+    }
+    private static string Fingerprint(DiskEntry root)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var entry in root.Descendants().Prepend(root).OrderBy(e => e.Path, StringComparer.OrdinalIgnoreCase))
+        {
+            string path = Path.GetRelativePath(root.Path, entry.Path);
+            hash.AppendData(Encoding.UTF8.GetBytes($"{path}\t{entry.IsDirectory}\t{entry.Size}\t{entry.AllocatedSize}\t{entry.FileCount}\t{entry.FolderCount}\t{entry.Modified.Ticks}\t{entry.UnknownAllocationFiles}\t{entry.SharedAllocation}\t{entry.Incomplete}\n"));
+        }
+        return Convert.ToHexString(hash.GetHashAndReset());
+    }
+    private sealed class ProbeProgress : IProgress<ScanProgress>
+    {
+        public Stopwatch Clock { get; } = new();
+        public long FirstScanTicks = -1;
+        public void Report(ScanProgress value)
+        {
+            if (!value.CurrentPath.StartsWith("核验缓存：", StringComparison.Ordinal))
+                Interlocked.CompareExchange(ref FirstScanTicks, Clock.ElapsedTicks, -1);
+        }
+    }
+}

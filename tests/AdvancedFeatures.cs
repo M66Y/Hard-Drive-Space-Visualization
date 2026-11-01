@@ -1,5 +1,6 @@
 using DiskAtlas;
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 
 internal static class AdvancedFeatures
@@ -32,6 +33,37 @@ internal static class AdvancedFeatures
                 Check(ScanPolicy.Resolve(ScanMode.Automatic, DiskKind.Network).Workers == 2, "Network automatic policy");
                 Check(ScanPolicy.Resolve(ScanMode.LowImpact, DiskKind.Unknown) is { Workers: 1, BatchDelayMilliseconds: > 0 }, "Low-impact policy");
                 Check(ScanPolicy.Resolve(ScanMode.HighSpeed, DiskKind.Mechanical).Workers == 8, "High-speed policy");
+            });
+            Test("low-impact work pacing carries batches across directory boundaries", () =>
+            {
+                int waits = 0;
+                var pacer = new ScanWorkPacer(ScanPolicy.Resolve(ScanMode.LowImpact, DiskKind.Unknown), (delay, _) =>
+                { Check(delay == 3, "Configured yield duration changed"); waits++; });
+                for (int directory = 0; directory < 25; directory++)
+                    for (int entry = 0; entry < 10; entry++) pacer.Worked(CancellationToken.None);
+                Check(waits == 0, "Small directories each triggered a wait");
+                for (int entry = 0; entry < 6; entry++) pacer.Worked(CancellationToken.None);
+                Check(waits == 1, "Cross-directory work did not complete a batch");
+                for (int entry = 0; entry < 255; entry++) pacer.Worked(CancellationToken.None);
+                Check(waits == 1, "Partial final batch triggered a wait");
+                pacer.Worked(CancellationToken.None); Check(waits == 2, "Second batch was lost");
+            });
+            Test("low-impact pacing honors cancellation at a yield boundary", () =>
+            {
+                using var cts = new CancellationTokenSource();
+                var pacer = new ScanWorkPacer(ScanPolicy.Resolve(ScanMode.LowImpact, DiskKind.Unknown), (_, _) => cts.Cancel());
+                for (int i = 0; i < ScanWorkPacer.BatchSize - 1; i++) pacer.Worked(cts.Token);
+                try { pacer.Worked(cts.Token); throw new Exception("Cancellation was ignored"); }
+                catch (OperationCanceledException) { }
+            });
+            Test("unpaced strategies never introduce batch waits and concurrency records a peak", () =>
+            {
+                var pacer = new ScanWorkPacer(ScanPolicy.Resolve(ScanMode.HighSpeed, DiskKind.SolidState), (_, _) => throw new Exception("Unexpected wait"));
+                for (int i = 0; i < 1024; i++) pacer.Worked(CancellationToken.None);
+                var meter = new ScanConcurrencyMeter();
+                meter.Enter(); meter.Enter(); meter.Exit(); meter.Exit(); meter.Enter(); meter.Exit();
+                Check(meter.Peak == 2, "Peak was confused with configured or final concurrency");
+                Check(ScanPolicy.Explain(ScanMode.Automatic).Contains("上限相同"), "SSD policy equivalence missing");
             });
             string physical = Path.Combine(root, "physical"); Directory.CreateDirectory(physical);
             File.WriteAllBytes(Path.Combine(physical, "a.bin"), new byte[12000]);
@@ -77,7 +109,29 @@ internal static class AdvancedFeatures
                 {
                     var scan = new DiskScanner().Scan(physical, null, CancellationToken.None, options: new(mode)); Equal(reference.Root, scan.Root);
                     Check(scan.Statistics!.Mode == mode, "Mode not recorded");
+                    Check(scan.Statistics.PeakDirectoryWorkers is > 0 && scan.Statistics.PeakDirectoryWorkers <= scan.Statistics.Workers, "Measured concurrency exceeds the policy limit");
                 }
+            });
+            Test("typed phases and per-stage peaks distinguish verification from cache reuse", () =>
+            {
+                string scope = Path.Combine(root, "phases");
+                for (int d = 0; d < 5; d++)
+                {
+                    string dir = Path.Combine(scope, $"folder-{d}"); Directory.CreateDirectory(dir);
+                    File.WriteAllBytes(Path.Combine(dir, "sample.bin"), new byte[64]);
+                    Directory.SetLastWriteTimeUtc(dir, new DateTime(2020, 1, 1));
+                }
+                Directory.SetLastWriteTimeUtc(scope, new DateTime(2020, 1, 1));
+                var phases = new ConcurrentQueue<ScanPhase>();
+                var progress = new Inline(p => { Check(p.WorkerLimit == 1, "Progress lost the effective policy limit"); phases.Enqueue(p.Phase); });
+                var coordinator = new ScanCoordinator(_ => null);
+                var before = coordinator.Scan(scope, null, new(ScanMode.LowImpact), progress, CancellationToken.None);
+                Check(phases.Contains(ScanPhase.Scanning) && phases.Contains(ScanPhase.Finalizing), "Full-scan stages missing");
+                phases.Clear();
+                var after = coordinator.Scan(scope, before, new(ScanMode.LowImpact), progress, CancellationToken.None);
+                Check(phases.Contains(ScanPhase.Verifying) && phases.Contains(ScanPhase.Reusing) && phases.Contains(ScanPhase.Finalizing), "Refresh stages missing");
+                Check(after.Statistics is { Incremental: true, ReadDirectories: 0, PeakVerificationWorkers: 1, PeakDirectoryWorkers: 1 }, "Stage peaks are not measured separately");
+                Equal(before.Root, after.Root);
             });
             Test("allocated queries preserve deduplicated totals and expose unknown values", () =>
             {

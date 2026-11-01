@@ -5,3 +5,6 @@ tests/obj/
 artifacts/
 软件/
 *.user
+/AsukaLens*.zip
+/AsukaLens*.exe
+/AsukaLens*.tar.gz

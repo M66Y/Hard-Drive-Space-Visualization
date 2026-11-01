@@ -2,6 +2,7 @@ using DiskAtlas;
 using System.Drawing;
 
 if (args.Contains("--scan-benchmark")) return ScanBenchmark.Run();
+if (args.Contains("--policy-benchmark")) return ScanPolicyBenchmark.Run();
 if (args.Contains("--memory-benchmark")) return MemoryBenchmark.Run();
 if (args.Contains("--ui-regression")) return UiRegression.Run();
 if (args.Contains("--advanced-tests")) return AdvancedFeatures.Run();

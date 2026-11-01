@@ -57,6 +57,7 @@ public sealed class ScanCoordinator
         JournalCheckpoint? start = null;
         RefreshPlan? plan = null;
         long verifiedDirectories = 0, verifiedFiles = 0;
+        int peakVerificationWorkers = 0;
         string reason = forceFull ? "已强制完整扫描" : previous == null ? "首次完整扫描" : "变化日志不可用，完整扫描";
         try
         {
@@ -75,7 +76,7 @@ public sealed class ScanCoordinator
                 else
                 {
                     var verified = MetadataVerifier.Verify(previous.Root, options, progress, token);
-                    plan = verified.Plan; verifiedDirectories = verified.Directories; verifiedFiles = verified.Files;
+                    plan = verified.Plan; verifiedDirectories = verified.Directories; verifiedFiles = verified.Files; peakVerificationWorkers = verified.PeakWorkers;
                     reason = "无可用日志：已核验目录及文件元信息，复用未变部分";
                 }
             }
@@ -89,6 +90,6 @@ public sealed class ScanCoordinator
         var result = new DiskScanner().Scan(path, progress, token, live, options, plan);
         token.ThrowIfCancellationRequested();
         // Keep the START cursor: changes during this scan are replayed on the next refresh.
-        return result with { Elapsed = watch.Elapsed, Checkpoint = start, Statistics = result.Statistics! with { Reason = reason, VerifiedDirectories = verifiedDirectories, VerifiedFiles = verifiedFiles } };
+        return result with { Elapsed = watch.Elapsed, Checkpoint = start, Statistics = result.Statistics! with { Reason = reason, VerifiedDirectories = verifiedDirectories, VerifiedFiles = verifiedFiles, PeakVerificationWorkers = peakVerificationWorkers } };
     }
 }

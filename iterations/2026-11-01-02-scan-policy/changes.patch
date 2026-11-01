@@ -1,0 +1,754 @@
+diff --git a/.gitignore b/.gitignore
+index 7da664b..f21e024 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -5,3 +5,6 @@ tests/obj/
+ artifacts/
+ 软件/
+ *.user
++/AsukaLens*.zip
++/AsukaLens*.exe
++/AsukaLens*.tar.gz
+diff --git a/Core.cs b/Core.cs
+index 8b77206..152c5f1 100644
+--- a/Core.cs
++++ b/Core.cs
+@@ -135,7 +135,8 @@ public sealed class DiskEntry
+     }
+ }
+ 
+-public record ScanProgress(long Files, long Folders, long Bytes, string CurrentPath);
++public record ScanProgress(long Files, long Folders, long Bytes, string CurrentPath,
++    ScanPhase Phase = ScanPhase.Scanning, int WorkerLimit = 0);
+ public record ScanIssue(string Path, string Reason);
+ public record ScanResult(DiskEntry Root, TimeSpan Elapsed, long Skipped, IReadOnlyList<ScanIssue> Issues)
+ {
+@@ -190,6 +191,8 @@ public sealed class DiskScanner
+         long files = 0, folders = 0, bytes = 0, skipped = 0, lastReport = -100;
+         long outstanding = 1;
+         long readDirectories = 0, reusedFiles = 0;
++        var pacer = new ScanWorkPacer(profile);
++        var concurrency = new ScanConcurrencyMeter();
+ 
+         void Issue(string itemPath, string reason, DiskEntry container)
+         {
+@@ -200,21 +203,24 @@ public sealed class DiskScanner
+             lock (issues)
+                 if (issues.Count < 2000) issues.Add(new ScanIssue(itemPath, reason));
+         }
+-        void Report(string current, bool force = false)
++        void Report(string current, bool force = false, ScanPhase phase = ScanPhase.Scanning)
+         {
+             if (progress == null || (!force && timer.ElapsedMilliseconds - Volatile.Read(ref lastReport) < 100)) return;
+             lock (reportGate)
+             {
+                 if (!force && timer.ElapsedMilliseconds - lastReport < 100) return;
+                 Volatile.Write(ref lastReport, timer.ElapsedMilliseconds);
+-                progress.Report(new ScanProgress(Interlocked.Read(ref files), Interlocked.Read(ref folders), Interlocked.Read(ref bytes), current));
++                progress.Report(new ScanProgress(Interlocked.Read(ref files), Interlocked.Read(ref folders), Interlocked.Read(ref bytes), current, phase, profile.Workers));
+             }
+         }
+ 
+         void ScanDirectory(DiskEntry current, CancellationToken workToken)
+         {
+             workToken.ThrowIfCancellationRequested();
+-            Report(current.Path);
++            pacer.Worked(workToken);
++            var phase = refresh != null && refresh.PreviousDirectories.ContainsKey(current.Path) && !refresh.ScanDirectories.Contains(current.Path)
++                ? ScanPhase.Reusing : ScanPhase.Scanning;
++            Report(current.Path, phase: phase);
+             workToken.ThrowIfCancellationRequested();
+             long localFiles = 0, localFolders = 0, localBytes = 0;
+             int batch = 0;
+@@ -231,8 +237,7 @@ public sealed class DiskScanner
+                 }
+                 Interlocked.Add(ref files, localFiles); Interlocked.Add(ref folders, localFolders); Interlocked.Add(ref bytes, localBytes);
+                 localFiles = localFolders = localBytes = 0;
+-                Report(current.Path);
+-                if (profile.BatchDelayMilliseconds > 0 && workToken.WaitHandle.WaitOne(profile.BatchDelayMilliseconds)) workToken.ThrowIfCancellationRequested();
++                Report(current.Path, phase: phase);
+             }
+             void Schedule(DiskEntry entry)
+             {
+@@ -298,6 +303,7 @@ public sealed class DiskScanner
+                 foreach (var info in entries)
+                 {
+                     workToken.ThrowIfCancellationRequested();
++                    pacer.Worked(workToken);
+                     try
+                     {
+                         var attributes = info.Attributes;
+@@ -351,11 +357,17 @@ public sealed class DiskScanner
+             MaxDegreeOfParallelism = profile.Workers, CancellationToken = token
+         }, (current, workToken) =>
+         {
+-            ScanDirectory(current, workToken);
+-            if (Interlocked.Decrement(ref outstanding) == 0) pending.Writer.TryComplete();
++            concurrency.Enter();
++            try
++            {
++                ScanDirectory(current, workToken);
++                if (Interlocked.Decrement(ref outstanding) == 0) pending.Writer.TryComplete();
++            }
++            finally { concurrency.Exit(); }
+             return ValueTask.CompletedTask;
+         }).GetAwaiter().GetResult();
+ 
++        Report(root.Path, true, ScanPhase.Finalizing);
+         StorageMetrics.Calculate(root, token);
+ 
+         var toSort = new Stack<DiskEntry>();
+@@ -372,12 +384,12 @@ public sealed class DiskScanner
+                 if (child.IsDirectory) toSort.Push(child);
+             }
+         }
+-        Report(root.Path, true);
++        Report(root.Path, true, ScanPhase.Finalizing);
+         token.ThrowIfCancellationRequested();
+         return new ScanResult(root, timer.Elapsed, skipped, issues)
+         {
+             AllocationIssues = allocationIssues,
+-            Statistics = new(options?.Mode ?? ScanMode.HighSpeed, profile.Workers, refresh != null, readDirectories, reusedFiles, refresh == null ? "完整扫描" : "NTFS 日志增量刷新")
++            Statistics = new(options?.Mode ?? ScanMode.HighSpeed, profile.Workers, refresh != null, readDirectories, reusedFiles, refresh == null ? "完整扫描" : "NTFS 日志增量刷新", PeakDirectoryWorkers: concurrency.Peak)
+         };
+     }
+ }
+diff --git a/MainForm.cs b/MainForm.cs
+index c13689b..eb0097e 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -10,6 +10,7 @@ internal sealed class MainForm : Form
+     private readonly ComboBox strategyCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
+     private readonly ComboBox metricCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
+     private readonly Label refreshInfo = LabelOf("首次完整扫描，刷新时自动检查变化", 8, false, true);
++    private readonly ToolTip scanTip = new() { AutoPopDelay = 20000, InitialDelay = 300 };
+     private SizeMetric metric;
+     private bool changingMetric, forceFullNext;
+     private readonly NavigationPanel navigation = new() { Dock = DockStyle.Fill };
+@@ -80,6 +81,8 @@ internal sealed class MainForm : Form
+         BuildInterface();
+         ConfigureGrid();
+         strategyCombo.Items.AddRange(["自动", "低占用", "高速"]); strategyCombo.SelectedIndex = 0;
++        strategyCombo.SelectedIndexChanged += (_, _) => { if (scanCancellation == null) UpdateStrategyHint(); };
++        UpdateStrategyHint();
+         metricCombo.Items.AddRange(["文件大小", "实际占用"]); metricCombo.SelectedIndex = 0;
+         metricCombo.SelectedIndexChanged += (_, _) => { if (!changingMetric) { metric = (SizeMetric)metricCombo.SelectedIndex; UpdateView(true); } };
+         var refreshMenu = new ContextMenuStrip();
+@@ -136,6 +139,17 @@ internal sealed class MainForm : Form
+ 
+     protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics);
+ 
++    private string StrategyName => strategyCombo.SelectedIndex switch { 1 => "低占用", 2 => "高速", _ => "自动" };
++    private void UpdateStrategyHint()
++    {
++        var mode = (ScanMode)Math.Max(0, strategyCombo.SelectedIndex);
++        string explanation = ScanPolicy.Explain(mode);
++        refreshInfo.Text = mode == ScanMode.Automatic ? "自动 · 按设备选择目录并发" :
++            $"{StrategyName} · 目录并发上限 {ScanPolicy.Resolve(mode, DiskKind.Unknown).Workers}";
++        scanTip.SetToolTip(strategyCombo, explanation);
++        scanTip.SetToolTip(refreshInfo, explanation);
++    }
++
+     protected override void OnResize(EventArgs e)
+     {
+         base.OnResize(e);
+@@ -367,12 +381,14 @@ internal sealed class MainForm : Form
+         map.Scanning = scan == null;
+         map.Invalidate();
+         status.Text = $"开始扫描：{path}";
++        refreshInfo.Text = $"{StrategyName} · 准备扫描";
++        scanTip.SetToolTip(refreshInfo, ScanPolicy.Explain(options.Mode));
+         var progress = new Progress<ScanProgress>(p =>
+         {
+             if (IsDisposed || Disposing || !ReferenceEquals(scanCancellation, cancellation) || cancellation.IsCancellationRequested) return;
+-            status.Text = p.CurrentPath.StartsWith("核验缓存：", StringComparison.Ordinal)
+-                ? $"正在核验元信息 · {SizeFormat.Number(p.Files)} 个文件 · {p.CurrentPath}"
+-                : $"扫描中  ·  {SizeFormat.Number(p.Files)} 个文件  ·  {SizeFormat.Bytes(p.Bytes)}  ·  {p.CurrentPath}";
++            string stage = p.Phase switch { ScanPhase.Verifying => "核验元信息", ScanPhase.Reusing => "复用缓存", ScanPhase.Finalizing => "统计与整理", _ => "读取目录" };
++            status.Text = $"{stage} · {SizeFormat.Number(p.Files)} 个文件 · {(p.Phase == ScanPhase.Verifying ? p.CurrentPath : SizeFormat.Bytes(p.Bytes) + " · " + p.CurrentPath)}";
++            if (p.WorkerLimit > 0) refreshInfo.Text = $"{StrategyName} · {stage} · 目录并发上限 {p.WorkerLimit}";
+             if (scan == null && !showingPreview)
+             {
+                 totalCard.Value = SizeFormat.Bytes(p.Bytes); filesCard.Value = SizeFormat.Number(p.Files); foldersCard.Value = SizeFormat.Number(p.Folders);
+@@ -399,7 +415,12 @@ internal sealed class MainForm : Form
+             }
+             else SetMode(0);
+             issues.Visible = scan.Skipped > 0 || scan.Root.UnknownAllocationFiles > 0;
+-            refreshInfo.Text = scan.Statistics is { } stats ? $"{(stats.Incremental ? "增量" : "完整")} · {(stats.VerifiedDirectories > 0 ? $"核验 {stats.VerifiedDirectories:N0} 目录 · " : "")}重扫 {stats.ReadDirectories:N0} 目录 · 复用 {stats.ReusedFiles:N0} 文件 · {stats.Workers} 路" : "扫描完成";
++            if (scan.Statistics is { } stats)
++            {
++                refreshInfo.Text = $"{(stats.Incremental ? "增量" : "完整")} · {(stats.VerifiedDirectories > 0 ? $"核验峰值 {stats.PeakVerificationWorkers} · " : "")}目录峰值 {stats.PeakDirectoryWorkers}/{stats.Workers} · 重扫 {stats.ReadDirectories:N0} · 复用 {stats.ReusedFiles:N0}";
++                scanTip.SetToolTip(refreshInfo, $"{stats.Reason}\n核验 {stats.VerifiedDirectories:N0} 目录、{stats.VerifiedFiles:N0} 文件；核验任务峰值 {stats.PeakVerificationWorkers}；目录任务峰值 {stats.PeakDirectoryWorkers}；并发上限 {stats.Workers}。\n任务峰值包含等待，不表示 CPU 核数或瞬时磁盘 I/O 数。\n" + ScanPolicy.Explain(stats.Mode));
++            }
++            else refreshInfo.Text = "扫描完成";
+             status.Text = $"扫描完成 · {SizeFormat.Number(scan.Root.FileCount)} 个文件 · " + (scan.Statistics?.Reason ?? "") +
+                 (scan.Skipped > 0 ? $" · {scan.Skipped:N0} 项已跳过" : "") + (scan.Root.UnknownAllocationFiles > 0 ? $" · {scan.Root.UnknownAllocationFiles:N0} 项占用未知" : "");
+         }
+@@ -430,6 +451,7 @@ internal sealed class MainForm : Form
+                 choose.Enabled = true; refresh.Enabled = scan != null; cancel.Visible = false;
+                 strategyCombo.Enabled = metricCombo.Enabled = true;
+                 progressBar.Visible = false; map.Scanning = false; map.Invalidate();
++                if (cancellation.IsCancellationRequested || scan == previousScan) UpdateStrategyHint();
+             }
+         }
+ 
+@@ -822,7 +844,7 @@ internal sealed class MainForm : Form
+     {
+         if (disposing)
+         {
+-            searchTimer.Dispose(); previewTimer.Dispose(); scanCancellation?.Cancel(); viewCancellation?.Cancel();
++            searchTimer.Dispose(); previewTimer.Dispose(); scanTip.Dispose(); scanCancellation?.Cancel(); viewCancellation?.Cancel();
+             var image = BackgroundImage; BackgroundImage = null; image?.Dispose();
+         }
+         base.Dispose(disposing);
+diff --git a/MetadataVerifier.cs b/MetadataVerifier.cs
+index 3beea0f..b28ff01 100644
+--- a/MetadataVerifier.cs
++++ b/MetadataVerifier.cs
+@@ -7,7 +7,7 @@ namespace DiskAtlas;
+ internal static class MetadataVerifier
+ {
+     private readonly record struct Entry(string Name, FileAttributes Attributes);
+-    public static (RefreshPlan Plan, long Directories, long Files) Verify(DiskEntry root, ScanOptions options, IProgress<ScanProgress>? progress, CancellationToken token)
++    public static (RefreshPlan Plan, long Directories, long Files, int PeakWorkers) Verify(DiskEntry root, ScanOptions options, IProgress<ScanProgress>? progress, CancellationToken token)
+     {
+         var directories = root.Descendants().Prepend(root).Where(e => e.IsDirectory).ToDictionary(e => e.Path, StringComparer.OrdinalIgnoreCase);
+         if (directories.Values.Any(d => d.Storage == null)) throw new IOException("旧快照的目录身份不完整");
+@@ -17,6 +17,8 @@ internal static class MetadataVerifier
+         var verifiedPaths = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
+         var unverifiedFiles = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
+         var profile = ScanPolicy.Resolve(options.Mode, NativeStorage.DetectDisk(root.Path));
++        var pacer = new ScanWorkPacer(profile);
++        var concurrency = new ScanConcurrencyMeter();
+         long checkedDirs = 0, checkedFiles = 0, lastReport = -100;
+         var clock = Stopwatch.StartNew(); var gate = new object();
+         Parallel.ForEach(directories.Values, new ParallelOptions { MaxDegreeOfParallelism = profile.Workers, CancellationToken = token }, directory =>
+@@ -27,11 +29,13 @@ internal static class MetadataVerifier
+                 if (clock.ElapsedMilliseconds - lastReport >= 100)
+                 {
+                     lastReport = clock.ElapsedMilliseconds;
+-                    progress?.Report(new(Interlocked.Read(ref checkedFiles), Interlocked.Read(ref checkedDirs), 0, "核验缓存：" + directory.Path));
++                    progress?.Report(new(Interlocked.Read(ref checkedFiles), Interlocked.Read(ref checkedDirs), 0, "核验缓存：" + directory.Path, ScanPhase.Verifying, profile.Workers));
+                 }
+             }
++            concurrency.Enter();
+             try
+             {
++                pacer.Worked(token);
+                 var info = new DirectoryInfo(directory.Path); info.Refresh();
+                 if (!info.Exists || (info.Attributes & FileAttributes.ReparsePoint) != 0 ||
+                     !NativeStorage.TryReadSnapshot(directory.Path, true, info.Attributes, out var identity, out _) || identity.Identity != directory.Storage!.Identity)
+@@ -40,12 +44,13 @@ internal static class MetadataVerifier
+                 }
+                 if (info.LastWriteTime != directory.Modified) dirty[directory.Path] = 0;
+                 var old = directory.Children.ToDictionary(e => e.Name, StringComparer.OrdinalIgnoreCase);
+-                int seen = 0, batch = 0;
++                int seen = 0;
+                 var entries = new FileSystemEnumerable<Entry>(directory.Path, (ref FileSystemEntry entry) => new(entry.FileName.ToString(), entry.Attributes),
+                     new EnumerationOptions { AttributesToSkip = 0, IgnoreInaccessible = false, BufferSize = 64 * 1024 });
+                 foreach (var item in entries)
+                 {
+                     token.ThrowIfCancellationRequested();
++                    pacer.Worked(token);
+                     bool isDirectory = (item.Attributes & FileAttributes.Directory) != 0;
+                     if ((item.Attributes & FileAttributes.ReparsePoint) != 0 || !old.TryGetValue(item.Name, out var cached) || cached.Name != item.Name || cached.IsDirectory != isDirectory)
+                     { dirty[directory.Path] = 0; continue; }
+@@ -62,18 +67,13 @@ internal static class MetadataVerifier
+                             else unverifiedFiles[cached.Path] = 0;
+                         }
+                     }
+-                    if (++batch == 256)
+-                    {
+-                        batch = 0;
+-                        if (profile.BatchDelayMilliseconds > 0 && token.WaitHandle.WaitOne(profile.BatchDelayMilliseconds)) token.ThrowIfCancellationRequested();
+-                    }
+                 }
+                 if (seen != directory.Children.Count) dirty[directory.Path] = 0;
+                 verifiedPaths[directory.Path] = 0;
+             }
+             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+             { dirty[directory.Path] = 0; if (directory.Parent != null) dirty[directory.Parent.Path] = 0; }
+-            finally { Interlocked.Increment(ref checkedDirs); }
++            finally { concurrency.Exit(); Interlocked.Increment(ref checkedDirs); }
+         });
+         // A write through any alias invalidates every known in-scope hard-link path.
+         foreach (var entry in root.Descendants())
+@@ -83,6 +83,6 @@ internal static class MetadataVerifier
+         }
+         return (RefreshPlan.FromDirty(root, directories, dirty.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase)) with
+             { MetadataValidated = true, VerifiedChanges = changedStorage, VerifiedDirectoryPaths = verifiedPaths.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase),
+-                UnverifiedFiles = unverifiedFiles.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase) }, checkedDirs, checkedFiles);
++                UnverifiedFiles = unverifiedFiles.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase) }, checkedDirs, checkedFiles, concurrency.Peak);
+     }
+ }
+diff --git a/README.md b/README.md
+index 92036dd..50dcce9 100644
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,6 @@
+-# AsukaLens 1.4.2
++# AsukaLens v1.4.2
++
++开发分支已包含尚未正式发布的扫描策略修正；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。详见[本轮验证记录](iterations/2026-11-01-02-scan-policy/README.md)。
+ 
+ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，点击“选择文件夹”，即可查看文件名称、大小和分布。
+ 
+@@ -14,7 +16,9 @@ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，
+ - 文件条目不保存重复的目录前缀，不创建空子项列表；同次扫描共享重复扩展名，降低大目录内存占用。
+ - 增量刷新：可读的 NTFS 变化日志用于定位变化；日志不可用时核验全部目录项及文件元信息，再复用未变部分。结果不完整、日志断档等情况会完整重扫；Ctrl+F5 可强制完整重扫。
+ - 统计口径可切换“文件大小 / 实际占用”。占用读取 Windows 分配信息，处理压缩 / 稀疏文件；硬链接按文件身份去重，未知占用明确标注。
+-- 扫描策略可选“自动 / 低占用 / 高速”。自动检测本地盘的寻道特性；低占用为单路并让出时间，高速最多 8 路。
++- 扫描策略可选“自动 / 低占用 / 高速”。自动检测本地盘的寻道特性；低占用为单路，扫描和核验均跨目录累计每 256 个工作项让步；高速最多 8 路目录任务。
++
++固态盘上自动与高速的目录并发上限均为 8，单个目录内部的文件仍逐项读取。界面区分读取、核验、复用和统计整理，并分别显示核验任务峰值、目录任务峰值与并发上限；峰值包含等待，不代表 CPU 核数或瞬时磁盘 I/O 数。悬停扫描策略或统计提示可查看说明。刷新可能核验并复用旧结果，不能直接与首次完整扫描比较速度。
+ 
+ 完整说明见 [使用说明.txt](使用说明.txt)。默认按文件逻辑大小展示，可切换为文件数据的实际分配空间；不包含目录记录、备用数据流等文件系统开销，也不代表删除后可释放的大小。扫描结果是一次快照，使用“重新扫描”更新。
+ 
+@@ -23,23 +27,25 @@ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，
+ 项目使用 C# / .NET 9 Windows Forms，无第三方包、无网络请求。开发需要 .NET 9 SDK；运行需要 .NET 9 Windows Desktop Runtime。
+ 
+ ```powershell
+-# 编译、执行核心测试并输出可运行文件夹与版本压缩包
+-.\build.ps1 -Test
++# 普通迭代：只编译，不打包
++dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
+ 
+-# 仅编译可运行版本
+-.\build.ps1
++# 核心检查（另外两组检查入口见下文）
++dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
+ 
+ # 直接调试，可选传入初始目录
+ dotnet run --project DiskAtlas.csproj -- "D:\你的文件夹"
+ ```
+ 
+-`NuGet.Config` 清空外部包源，使用本机 SDK 引用包离线构建。构建脚本把 .NET CLI 的临时配置写入系统临时目录。
++`NuGet.Config` 清空外部包源，使用本机 SDK 引用包离线构建。现有 `build.ps1` / `build.ps1 -Test` 会生成软件目录和 ZIP，仅在明确需要打包时使用；它尚未实现 AGENTS.md 要求的 EXE 安装器与完整 Release 流程。
+ 
+ ## 验证
+ 
+ `tests` 为无需测试框架依赖的断言程序，38 项检查覆盖扫描、隐藏文件、根目录消失、取消、140 层目录、联接循环及扫描期间链接替换、查询与排序、精确类型筛选、分页和极端图块边界；检查并行 / 串行结果逐项一致、修改时间、并发取消、错误传播及跳过统计；还检查文件存储、无分配路径比较、完成前预览、快照隔离、并发预览查询和目录浏览。80 组随机矩形图检查面积比例、完整覆盖、边界和不重叠。10 万文件固定种子基准同时与参考算法核对结果，并输出内存分配和耗时。
+ 
+-另外 19 项功能检查覆盖硬链接去重、压缩 / 稀疏占用、未知占用、三种策略、日志解析与断档回退、保留时间戳的深层修改、目录移动 / 新增 / 替换、根目录外硬链接写入、持续打开的写句柄、刷新期间变更重放及取消隔离。`build.ps1 -Test` 执行这两组共 57 项检查。`--ui-regression` 包含 4 组界面集成检查，其中一组直接使用正式扫描协调器。
++另外 23 项功能检查覆盖硬链接去重、压缩 / 稀疏占用、未知占用、三种策略、日志解析与断档回退、保留时间戳的深层修改、目录移动 / 新增 / 替换、根目录外硬链接写入、持续打开的写句柄、刷新期间变更重放及取消隔离，以及跨目录让步计数、取消边界、无节拍模式、任务峰值与扫描阶段。构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --advanced-tests`；两组共 61 项检查。`--ui-regression` 包含 4 组界面集成检查，其中一组直接使用正式扫描协调器。
++
++三种真实策略的可选诊断基准：构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --policy-benchmark`。它创建并自动删除 15,200 个合成小文件，分别测量完整扫描和无日志的无变化刷新，预热后按平衡顺序每模式运行 6 次并逐项比对结果。汇总墙钟、进程 CPU、总托管分配与任务峰值；不测量实际前台应用响应或物理磁盘 I/O。结果保存在 `artifacts/policy-benchmark-results.json`；再次运行前应先归档并移除上一份同名结果，避免覆盖证据。
+ 
+ 增量刷新只在本次运行保留的完整快照上进行。元信息核验模式仍走访所有目录和文件元信息，主要复用树节点内容及已核实的存储信息，不能保证像日志模式一样显著减少磁盘访问。界面分别显示核验、重扫及复用数量。Ctrl+F5 或重新扫描按钮的右键菜单可强制完整扫描。
+ 
+diff --git a/ScanCoordinator.cs b/ScanCoordinator.cs
+index baa424d..1dd27ae 100644
+--- a/ScanCoordinator.cs
++++ b/ScanCoordinator.cs
+@@ -57,6 +57,7 @@ public sealed class ScanCoordinator
+         JournalCheckpoint? start = null;
+         RefreshPlan? plan = null;
+         long verifiedDirectories = 0, verifiedFiles = 0;
++        int peakVerificationWorkers = 0;
+         string reason = forceFull ? "已强制完整扫描" : previous == null ? "首次完整扫描" : "变化日志不可用，完整扫描";
+         try
+         {
+@@ -75,7 +76,7 @@ public sealed class ScanCoordinator
+                 else
+                 {
+                     var verified = MetadataVerifier.Verify(previous.Root, options, progress, token);
+-                    plan = verified.Plan; verifiedDirectories = verified.Directories; verifiedFiles = verified.Files;
++                    plan = verified.Plan; verifiedDirectories = verified.Directories; verifiedFiles = verified.Files; peakVerificationWorkers = verified.PeakWorkers;
+                     reason = "无可用日志：已核验目录及文件元信息，复用未变部分";
+                 }
+             }
+@@ -89,6 +90,6 @@ public sealed class ScanCoordinator
+         var result = new DiskScanner().Scan(path, progress, token, live, options, plan);
+         token.ThrowIfCancellationRequested();
+         // Keep the START cursor: changes during this scan are replayed on the next refresh.
+-        return result with { Elapsed = watch.Elapsed, Checkpoint = start, Statistics = result.Statistics! with { Reason = reason, VerifiedDirectories = verifiedDirectories, VerifiedFiles = verifiedFiles } };
++        return result with { Elapsed = watch.Elapsed, Checkpoint = start, Statistics = result.Statistics! with { Reason = reason, VerifiedDirectories = verifiedDirectories, VerifiedFiles = verifiedFiles, PeakVerificationWorkers = peakVerificationWorkers } };
+     }
+ }
+diff --git a/ScanPolicy.cs b/ScanPolicy.cs
+index b571482..38d69ae 100644
+--- a/ScanPolicy.cs
++++ b/ScanPolicy.cs
+@@ -3,15 +3,17 @@ namespace DiskAtlas;
+ public enum ScanMode { Automatic, LowImpact, HighSpeed }
+ public enum DiskKind { Unknown, SolidState, Mechanical, Network }
+ public enum SizeMetric { Logical, Allocated }
++public enum ScanPhase { Scanning, Verifying, Reusing, Finalizing }
+ public record ScanOptions(ScanMode Mode = ScanMode.Automatic);
+ public record ScanProfile(int Workers, int BatchDelayMilliseconds, string Description);
+-public record ScanStatistics(ScanMode Mode, int Workers, bool Incremental, long ReadDirectories, long ReusedFiles, string Reason, long VerifiedDirectories = 0, long VerifiedFiles = 0);
++public record ScanStatistics(ScanMode Mode, int Workers, bool Incremental, long ReadDirectories, long ReusedFiles, string Reason,
++    long VerifiedDirectories = 0, long VerifiedFiles = 0, int PeakDirectoryWorkers = 0, int PeakVerificationWorkers = 0);
+ 
+ public static class ScanPolicy
+ {
+     public static ScanProfile Resolve(ScanMode mode, DiskKind kind) => mode switch
+     {
+-        ScanMode.LowImpact => new(1, 3, "低占用 · 单路扫描并适度让出时间"),
++        ScanMode.LowImpact => new(1, 3, "低占用 · 单路，按累计工作项让步"),
+         ScanMode.HighSpeed => new(8, 0, "高速 · 最多 8 路扫描"),
+         _ => kind switch
+         {
+@@ -21,4 +23,40 @@ public static class ScanPolicy
+             _ => new(4, 0, "自动 · 类型未知，最多 4 路")
+         }
+     };
++
++    public static string Explain(ScanMode mode)
++    {
++        string extra = mode == ScanMode.LowImpact ? "低占用单路执行；扫描与核验均跨目录累计，每 256 个目录任务或目录项让步一次；不足一批不额外等待。" :
++            mode == ScanMode.Automatic ? "自动按设备选择目录并发：固态 8、机械 1、网络 2、未知 4；固态盘上与高速上限相同。" : "高速使用最多 8 路目录任务。";
++        return extra + "并发上限不是实际并发数，单个目录内的文件仍逐项读取。重新扫描可能先核验并复用上次结果，与首次完整扫描的工作量不同。";
++    }
++}
++
++// One counter per phase, shared across directory boundaries. Do not tie pacing
++// to flushing totals: empty folders and cached subtree publication are not batches.
++internal sealed class ScanWorkPacer(ScanProfile profile, Action<int, CancellationToken>? wait = null)
++{
++    private int completed;
++    internal const int BatchSize = 256;
++    public void Worked(CancellationToken token)
++    {
++        if (profile.BatchDelayMilliseconds <= 0 || (Interlocked.Increment(ref completed) & (BatchSize - 1)) != 0) return;
++        token.ThrowIfCancellationRequested();
++        if (wait != null) wait(profile.BatchDelayMilliseconds, token);
++        else if (token.WaitHandle.WaitOne(profile.BatchDelayMilliseconds)) token.ThrowIfCancellationRequested();
++        token.ThrowIfCancellationRequested();
++    }
++}
++
++internal sealed class ScanConcurrencyMeter
++{
++    private int active, peak;
++    public int Peak => Volatile.Read(ref peak);
++    public void Enter()
++    {
++        int count = Interlocked.Increment(ref active), observed;
++        while (count > (observed = Volatile.Read(ref peak)))
++            if (Interlocked.CompareExchange(ref peak, count, observed) == observed) break;
++    }
++    public void Exit() => Interlocked.Decrement(ref active);
+ }
+diff --git a/tests/AdvancedFeatures.cs b/tests/AdvancedFeatures.cs
+index 2b5c33e..c100aba 100644
+--- a/tests/AdvancedFeatures.cs
++++ b/tests/AdvancedFeatures.cs
+@@ -1,5 +1,6 @@
+ using DiskAtlas;
+ using System.Buffers.Binary;
++using System.Collections.Concurrent;
+ using System.Runtime.InteropServices;
+ 
+ internal static class AdvancedFeatures
+@@ -33,6 +34,37 @@ internal static class AdvancedFeatures
+                 Check(ScanPolicy.Resolve(ScanMode.LowImpact, DiskKind.Unknown) is { Workers: 1, BatchDelayMilliseconds: > 0 }, "Low-impact policy");
+                 Check(ScanPolicy.Resolve(ScanMode.HighSpeed, DiskKind.Mechanical).Workers == 8, "High-speed policy");
+             });
++            Test("low-impact work pacing carries batches across directory boundaries", () =>
++            {
++                int waits = 0;
++                var pacer = new ScanWorkPacer(ScanPolicy.Resolve(ScanMode.LowImpact, DiskKind.Unknown), (delay, _) =>
++                { Check(delay == 3, "Configured yield duration changed"); waits++; });
++                for (int directory = 0; directory < 25; directory++)
++                    for (int entry = 0; entry < 10; entry++) pacer.Worked(CancellationToken.None);
++                Check(waits == 0, "Small directories each triggered a wait");
++                for (int entry = 0; entry < 6; entry++) pacer.Worked(CancellationToken.None);
++                Check(waits == 1, "Cross-directory work did not complete a batch");
++                for (int entry = 0; entry < 255; entry++) pacer.Worked(CancellationToken.None);
++                Check(waits == 1, "Partial final batch triggered a wait");
++                pacer.Worked(CancellationToken.None); Check(waits == 2, "Second batch was lost");
++            });
++            Test("low-impact pacing honors cancellation at a yield boundary", () =>
++            {
++                using var cts = new CancellationTokenSource();
++                var pacer = new ScanWorkPacer(ScanPolicy.Resolve(ScanMode.LowImpact, DiskKind.Unknown), (_, _) => cts.Cancel());
++                for (int i = 0; i < ScanWorkPacer.BatchSize - 1; i++) pacer.Worked(cts.Token);
++                try { pacer.Worked(cts.Token); throw new Exception("Cancellation was ignored"); }
++                catch (OperationCanceledException) { }
++            });
++            Test("unpaced strategies never introduce batch waits and concurrency records a peak", () =>
++            {
++                var pacer = new ScanWorkPacer(ScanPolicy.Resolve(ScanMode.HighSpeed, DiskKind.SolidState), (_, _) => throw new Exception("Unexpected wait"));
++                for (int i = 0; i < 1024; i++) pacer.Worked(CancellationToken.None);
++                var meter = new ScanConcurrencyMeter();
++                meter.Enter(); meter.Enter(); meter.Exit(); meter.Exit(); meter.Enter(); meter.Exit();
++                Check(meter.Peak == 2, "Peak was confused with configured or final concurrency");
++                Check(ScanPolicy.Explain(ScanMode.Automatic).Contains("上限相同"), "SSD policy equivalence missing");
++            });
+             string physical = Path.Combine(root, "physical"); Directory.CreateDirectory(physical);
+             File.WriteAllBytes(Path.Combine(physical, "a.bin"), new byte[12000]);
+             Test("actual allocation and file identities recognize hard links without double counting", () =>
+@@ -77,7 +109,29 @@ internal static class AdvancedFeatures
+                 {
+                     var scan = new DiskScanner().Scan(physical, null, CancellationToken.None, options: new(mode)); Equal(reference.Root, scan.Root);
+                     Check(scan.Statistics!.Mode == mode, "Mode not recorded");
++                    Check(scan.Statistics.PeakDirectoryWorkers is > 0 && scan.Statistics.PeakDirectoryWorkers <= scan.Statistics.Workers, "Measured concurrency exceeds the policy limit");
++                }
++            });
++            Test("typed phases and per-stage peaks distinguish verification from cache reuse", () =>
++            {
++                string scope = Path.Combine(root, "phases");
++                for (int d = 0; d < 5; d++)
++                {
++                    string dir = Path.Combine(scope, $"folder-{d}"); Directory.CreateDirectory(dir);
++                    File.WriteAllBytes(Path.Combine(dir, "sample.bin"), new byte[64]);
++                    Directory.SetLastWriteTimeUtc(dir, new DateTime(2020, 1, 1));
+                 }
++                Directory.SetLastWriteTimeUtc(scope, new DateTime(2020, 1, 1));
++                var phases = new ConcurrentQueue<ScanPhase>();
++                var progress = new Inline(p => { Check(p.WorkerLimit == 1, "Progress lost the effective policy limit"); phases.Enqueue(p.Phase); });
++                var coordinator = new ScanCoordinator(_ => null);
++                var before = coordinator.Scan(scope, null, new(ScanMode.LowImpact), progress, CancellationToken.None);
++                Check(phases.Contains(ScanPhase.Scanning) && phases.Contains(ScanPhase.Finalizing), "Full-scan stages missing");
++                phases.Clear();
++                var after = coordinator.Scan(scope, before, new(ScanMode.LowImpact), progress, CancellationToken.None);
++                Check(phases.Contains(ScanPhase.Verifying) && phases.Contains(ScanPhase.Reusing) && phases.Contains(ScanPhase.Finalizing), "Refresh stages missing");
++                Check(after.Statistics is { Incremental: true, ReadDirectories: 0, PeakVerificationWorkers: 1, PeakDirectoryWorkers: 1 }, "Stage peaks are not measured separately");
++                Equal(before.Root, after.Root);
+             });
+             Test("allocated queries preserve deduplicated totals and expose unknown values", () =>
+             {
+diff --git a/tests/Program.cs b/tests/Program.cs
+index fa3f796..751f898 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -2,6 +2,7 @@ using DiskAtlas;
+ using System.Drawing;
+ 
+ if (args.Contains("--scan-benchmark")) return ScanBenchmark.Run();
++if (args.Contains("--policy-benchmark")) return ScanPolicyBenchmark.Run();
+ if (args.Contains("--memory-benchmark")) return MemoryBenchmark.Run();
+ if (args.Contains("--ui-regression")) return UiRegression.Run();
+ if (args.Contains("--advanced-tests")) return AdvancedFeatures.Run();
+diff --git a/tests/ScanPolicyBenchmark.cs b/tests/ScanPolicyBenchmark.cs
+new file mode 100644
+index 0000000..3f50ca3
+--- /dev/null
++++ b/tests/ScanPolicyBenchmark.cs
+@@ -0,0 +1,174 @@
++using DiskAtlas;
++using System.Diagnostics;
++using System.Security.Cryptography;
++using System.Text;
++using System.Text.Json;
++
++// Optional diagnostic: exercise the actual UI coordinator's three policies with
++// identical workloads. No user files, OS cache flushes, background UI or journal changes.
++internal static class ScanPolicyBenchmark
++{
++    private sealed record Sample(double WallMs, double CpuMs, long AllocatedBytes,
++        double PreparationMs, double ScanAndFinalizeMs, int Workers,
++        long VerifiedFiles, long ReadDirectories, long ReusedFiles, int PeakDirectoryWorkers, int PeakVerificationWorkers);
++    private sealed record Measurement(string Shape, string Phase, string Mode,
++        double WallMedianMs, double CpuMedianMs, double AllocationMedianBytes,
++        double PreparationMedianMs, double ScanAndFinalizeMedianMs,
++        IReadOnlyList<Sample> Samples);
++
++    public static int Run()
++    {
++        string workspace = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
++        string artifacts = Path.Combine(workspace, "artifacts");
++        string fixture = Path.Combine(artifacts, "policy-benchmark-" + Guid.NewGuid().ToString("N"));
++        string report = Path.Combine(artifacts, "policy-benchmark-results.json");
++        var measurements = new List<Measurement>();
++        using var process = Process.GetCurrentProcess();
++        using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(3));
++        var token = cancellation.Token;
++        try
++        {
++            if (File.Exists(report)) throw new IOException("Benchmark output already exists.");
++            var modeValues = Enum.GetValues<ScanMode>();
++            foreach (var shape in new[] { "wide", "flat" })
++            {
++                string root = Path.Combine(fixture, shape); Directory.CreateDirectory(root);
++                int directories = shape == "wide" ? 180 : 1;
++                int count = shape == "wide" ? 40 : 8000;
++                for (int d = 0; d < directories; d++)
++                {
++                    string dir = directories == 1 ? root : Path.Combine(root, $"folder-{d:000}");
++                    Directory.CreateDirectory(dir);
++                    for (int f = 0; f < count; f++)
++                    {
++                        token.ThrowIfCancellationRequested();
++                        File.WriteAllBytes(Path.Combine(dir, $"file-{f:0000}.bin"), new byte[(f * 37 + d) % 512]);
++                    }
++                }
++                // Stabilize directory timestamps after fixture creation. Immediate
++                // enumeration can otherwise observe delayed directory write times.
++                foreach (string directory in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories).Append(root))
++                    Directory.SetLastWriteTimeUtc(directory, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
++                // Force the no-journal path for refresh: identical evidence and work
++                // on every mode, independent of this machine's USN availability.
++                var coordinator = new ScanCoordinator(_ => null);
++                var baseline = coordinator.Scan(root, null, new(ScanMode.HighSpeed), null, token);
++                if (baseline.Skipped != 0 || baseline.Root.UnknownAllocationFiles != 0)
++                    throw new IOException("Synthetic baseline is incomplete.");
++                string reference = Fingerprint(baseline.Root);
++                Console.WriteLine($"DATA {shape}: {baseline.Root.FileCount} files; {baseline.Root.FolderCount} folders; device {NativeStorage.DetectDisk(root)}");
++                foreach (string phase in new[] { "full", "unchanged-refresh" })
++                {
++                    foreach (var mode in modeValues) _ = Scan(mode, null);
++                    var samples = modeValues.Select(_ => new List<Sample>()).ToArray();
++                    for (int run = 0; run < 6; run++)
++                    {
++                        // Balanced order: each mode appears twice at each position.
++                        var order = Enumerable.Range(0, 3).Select(i => (i + run % 3) % 3);
++                        if (run >= 3) order = order.Reverse();
++                        foreach (int index in order)
++                        {
++                            GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
++                            var progress = new ProbeProgress();
++                            long beforeAllocation = GC.GetTotalAllocatedBytes(true);
++                            var beforeCpu = process.TotalProcessorTime;
++                            progress.Clock.Start();
++                            var result = Scan(modeValues[index], progress);
++                            progress.Clock.Stop();
++                            double cpu = (process.TotalProcessorTime - beforeCpu).TotalMilliseconds;
++                            long allocated = GC.GetTotalAllocatedBytes(true) - beforeAllocation;
++                            if (Fingerprint(result.Root) != reference || result.Skipped != baseline.Skipped)
++                            {
++                                DescribeDifference(baseline.Root, result.Root);
++                                throw new InvalidOperationException("Mode results differ.");
++                            }
++                            if (phase == "unchanged-refresh" && result.Statistics is not { Incremental: true, ReadDirectories: 0, VerifiedFiles: > 0 })
++                                throw new InvalidOperationException("Refresh did not take the expected metadata-verification path.");
++                            double wall = progress.Clock.Elapsed.TotalMilliseconds;
++                            double preparation = progress.FirstScanTicks < 0 ? wall : progress.FirstScanTicks * 1000d / Stopwatch.Frequency;
++                            var stats = result.Statistics!;
++                            samples[index].Add(new(wall, cpu, allocated, preparation, Math.Max(0, wall - preparation),
++                                stats.Workers, stats.VerifiedFiles, stats.ReadDirectories, stats.ReusedFiles, stats.PeakDirectoryWorkers, stats.PeakVerificationWorkers));
++                        }
++                    }
++                    for (int i = 0; i < samples.Length; i++)
++                    {
++                        var s = samples[i];
++                        var entry = new Measurement(shape, phase, modeValues[i].ToString(),
++                            Median(s.Select(x => x.WallMs)), Median(s.Select(x => x.CpuMs)), Median(s.Select(x => (double)x.AllocatedBytes)),
++                            Median(s.Select(x => x.PreparationMs)), Median(s.Select(x => x.ScanAndFinalizeMs)), s);
++                        measurements.Add(entry);
++                        Console.WriteLine($"BENCH {shape} {phase} {entry.Mode}: wall {entry.WallMedianMs:F2} ms; CPU {entry.CpuMedianMs:F2} ms; allocation {entry.AllocationMedianBytes:F0} B; preparation {entry.PreparationMedianMs:F2} ms");
++                    }
++
++                    ScanResult Scan(ScanMode mode, IProgress<ScanProgress>? progress) => coordinator.Scan(root,
++                        phase == "full" ? null : baseline, new(mode), progress, token, new LiveScanSession(), forceFull: phase == "full");
++                }
++            }
++            var resultReport = new
++            {
++                SchemaVersion = 2, BaselineVersion = "v1.4.2", Implementation = "Unreleased scan-policy iteration", RunsPerMode = 6,
++                Cache = "Warm metadata cache; no OS cache flush; synthetic files on workspace volume. Directory write times fixed after creation to avoid delayed directory metadata updates.",
++                Order = "Three cyclic orders followed by their reversals; two occurrences at every position.",
++                Scope = "Actual coordinator, synchronous bounded progress and live-session recording. Excludes UI rendering, fixture creation, GC preparation and fingerprint validation.",
++                Preparation = "Time until first scanner progress callback; includes refresh planning/metadata verification. Not a separate native-I/O profiler.",
++                ResourceLimits = "CPU is process CPU time and can be coarse on short runs. Allocated bytes are total managed allocations, not retained or peak memory. Physical disk I/O and foreground-app responsiveness are not measured.",
++                Correctness = "All timed scans match baseline entries by relative path, logical/allocated size, counts, modified time, sharing, incomplete and unknown state; refresh verifies all files and rescans no directories.",
++                Measurements = measurements
++            };
++            File.WriteAllText(report, JsonSerializer.Serialize(resultReport, new JsonSerializerOptions { WriteIndented = true }) + "\n");
++            Console.WriteLine("PASS policy diagnostics and per-entry equality; report: artifacts/policy-benchmark-results.json");
++            return 0;
++        }
++        catch (Exception ex)
++        {
++            // Public diagnostics must not include workstation paths or raw exception stacks.
++            Console.Error.WriteLine("FAIL policy benchmark: " + ex.GetType().Name +
++                (ex is InvalidOperationException && ex.Message is "Mode results differ." or "Refresh did not take the expected metadata-verification path." ? " / " + ex.Message : "")); return 1;
++        }
++        finally
++        {
++            string prefix = Path.GetFullPath(artifacts) + Path.DirectorySeparatorChar + "policy-benchmark-";
++            if (!Path.GetFullPath(fixture).StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Unsafe benchmark cleanup target.");
++            if (Directory.Exists(fixture)) Directory.Delete(fixture, recursive: true);
++        }
++    }
++
++    private static double Median(IEnumerable<double> source)
++    {
++        var values = source.Order().ToArray(); return (values[values.Length / 2 - 1] + values[values.Length / 2]) / 2;
++    }
++    private static void DescribeDifference(DiskEntry expected, DiskEntry actual)
++    {
++        var a = expected.Descendants().Prepend(expected).OrderBy(e => e.Path, StringComparer.OrdinalIgnoreCase).ToArray();
++        var b = actual.Descendants().Prepend(actual).OrderBy(e => e.Path, StringComparer.OrdinalIgnoreCase).ToArray();
++        for (int i = 0; i < Math.Min(a.Length, b.Length); i++)
++        {
++            string Fields(DiskEntry x) => $"{x.Size}/{x.AllocatedSize}/{x.FileCount}/{x.FolderCount}/{x.Modified.Ticks}/{x.UnknownAllocationFiles}/{x.SharedAllocation}/{x.Incomplete}";
++            if (Fields(a[i]) == Fields(b[i])) continue;
++            Console.WriteLine($"MISMATCH synthetic entry {i}: expected {Fields(a[i])}; actual {Fields(b[i])}");
++            return;
++        }
++        Console.WriteLine($"MISMATCH entry counts: {a.Length}/{b.Length}");
++    }
++    private static string Fingerprint(DiskEntry root)
++    {
++        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
++        foreach (var entry in root.Descendants().Prepend(root).OrderBy(e => e.Path, StringComparer.OrdinalIgnoreCase))
++        {
++            string path = Path.GetRelativePath(root.Path, entry.Path);
++            hash.AppendData(Encoding.UTF8.GetBytes($"{path}\t{entry.IsDirectory}\t{entry.Size}\t{entry.AllocatedSize}\t{entry.FileCount}\t{entry.FolderCount}\t{entry.Modified.Ticks}\t{entry.UnknownAllocationFiles}\t{entry.SharedAllocation}\t{entry.Incomplete}\n"));
++        }
++        return Convert.ToHexString(hash.GetHashAndReset());
++    }
++    private sealed class ProbeProgress : IProgress<ScanProgress>
++    {
++        public Stopwatch Clock { get; } = new();
++        public long FirstScanTicks = -1;
++        public void Report(ScanProgress value)
++        {
++            if (!value.CurrentPath.StartsWith("核验缓存：", StringComparison.Ordinal))
++                Interlocked.CompareExchange(ref FirstScanTicks, Clock.ElapsedTicks, -1);
++        }
++    }
++}
+diff --git a/tests/UiRegression.cs b/tests/UiRegression.cs
+index 61365be..9035d8d 100644
+--- a/tests/UiRegression.cs
++++ b/tests/UiRegression.cs
+@@ -93,6 +93,8 @@ internal static class UiRegression
+                         await ProductScan();
+                         await Wait(() => Product<DataGridView>("grid").Enabled, "Product scan did not settle");
+                         Check(Product<ScanResult>("scan").Statistics is { Mode: ScanMode.LowImpact, Workers: 1 }, "UI strategy not passed to the scanner");
++                        Check(Product<Label>("refreshInfo").Text.Contains("目录峰值 1/1"), "UI confuses the worker limit with observed concurrency");
++                        Check(Product<ToolTip>("scanTip").GetToolTip(Product<ComboBox>("strategyCombo"))?.Contains("256") == true, "Low-impact explanation missing");
+                         Product<ComboBox>("metricCombo").SelectedIndex = 1;
+                         await Wait(() => Product<StatCard>("totalCard").Title == "实际占用空间" && Product<DataGridView>("grid").Enabled, "Allocated metric did not render");
+                         Check(Product<List<MapItem>>("sortedRows").Sum(i => i.Size) == Product<ScanResult>("scan").Root.AllocatedSize, "UI allocated rows do not match deduplicated total");
+@@ -100,6 +102,7 @@ internal static class UiRegression
+                         await ProductScan();
+                         await Wait(() => Product<DataGridView>("grid").Enabled, "Product refresh did not settle");
+                         Check(Product<ScanResult>("scan").Root.FileCount == 1107 && Product<ScanResult>("scan").Statistics is { Incremental: true, ReusedFiles: > 1000 }, "UI did not use incremental refresh");
++                        Check(Product<Label>("refreshInfo").Text.Contains("核验峰值 1"), "UI does not distinguish verification concurrency");
+                         Check(Product<ComboBox>("metricCombo").SelectedIndex == 1 && Product<StatCard>("totalCard").Title == "实际占用空间", "Refresh lost the size metric");
+                         Product<ComboBox>("strategyCombo").SelectedIndex = 2; await ProductScan("ForceRefresh");
+                         Check(Product<ScanResult>("scan").Statistics is { Incremental: false, Mode: ScanMode.HighSpeed, Workers: 8 }, "Force full / high-speed UI path failed");
+diff --git a/使用说明.txt b/使用说明.txt
+index 4366042..3081655 100644
+--- a/使用说明.txt
++++ b/使用说明.txt
+@@ -1,4 +1,7 @@
+-AsukaLens 1.4.2
++AsukaLens v1.4.2
++
++开发分支提示：下述扫描策略与并发提示包含未发布的开发改进。
++现有“软件”目录与 v1.4.2 ZIP 尚未更新，开发预览由源码构建。
+ 
+ 浅色界面
+ 使用参考插画作整窗背景，搭配暖白面板和珊瑚色控件。
+@@ -12,8 +15,14 @@ AsukaLens 1.4.2
+ 扫描策略与统计口径
+ 顶部“扫描策略”可选择自动、低占用或高速。
+ 自动：固态硬盘最多 8 路；机械硬盘 1 路；网络目录 2 路；未知类型 4 路。
+-低占用：单路读取并适度让出时间，方便同时做其他工作。
+-高速：最多 8 路读取目录；实际速度受目录结构和设备影响。
++低占用：单路读取，扫描与核验都跨目录累计工作项，每 256 项让步一次。
++不足一批不额外等待，也不在每个目录结束时固定等待。
++高速：最多 8 路目录任务；单个目录的文件仍逐项读取。
++固态盘上的自动与高速并发上限相同，实际速度受目录结构和设备影响。
++扫描时分别显示读取目录、核验元信息、复用缓存和统计整理阶段。
++完成后显示实际任务峰值与策略上限，核验和目录任务分别统计。
++任务峰值包含等待，不是 CPU 核数或瞬时磁盘 I/O 数；悬停提示可查看详情。
++刷新可能核验并复用旧结果，不宜与首次完整扫描直接比较速度。
+ 扫描开始后暂时锁定策略，下次扫描前可重新选择。
+ “统计口径”可切换文件大小或实际占用，图块、排序、大小和类型汇总同步切换。
+ 文件大小按每条路径的逻辑长度统计；实际占用读取文件数据的分配大小，

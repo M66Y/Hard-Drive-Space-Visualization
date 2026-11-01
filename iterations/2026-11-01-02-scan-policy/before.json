@@ -1,0 +1,949 @@
+{
+  "SchemaVersion": 1,
+  "BaselineVersion": "v1.4.2",
+  "RunsPerMode": 6,
+  "Cache": "Warm metadata cache; no OS cache flush; synthetic files on workspace volume. Directory write times fixed after creation to avoid delayed directory metadata updates.",
+  "Order": "Three cyclic orders followed by their reversals; two occurrences at every position.",
+  "Scope": "Actual coordinator, synchronous bounded progress and live-session recording. Excludes UI rendering, fixture creation, GC preparation and fingerprint validation.",
+  "Preparation": "Time until first scanner progress callback; includes refresh planning/metadata verification. Not a separate native-I/O profiler.",
+  "ResourceLimits": "CPU is process CPU time and can be coarse on short runs. Allocated bytes are total managed allocations, not retained or peak memory. Physical disk I/O and foreground-app responsiveness are not measured.",
+  "Correctness": "All timed scans match baseline entries by relative path, logical/allocated size, counts, modified time, sharing, incomplete and unknown state; refresh verifies all files and rescans no directories.",
+  "Measurements": [
+    {
+      "Shape": "wide",
+      "Phase": "full",
+      "Mode": "Automatic",
+      "WallMedianMs": 42.49605,
+      "CpuMedianMs": 312.5,
+      "AllocationMedianBytes": 6383176,
+      "PreparationMedianMs": 0.28325,
+      "ScanAndFinalizeMedianMs": 42.1768,
+      "Samples": [
+        {
+          "WallMs": 43.6935,
+          "CpuMs": 265.625,
+          "AllocatedBytes": 6382216,
+          "PreparationMs": 0.4633,
+          "ScanAndFinalizeMs": 43.2302,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 43.0176,
+          "CpuMs": 375,
+          "AllocatedBytes": 6383176,
+          "PreparationMs": 0.2838,
+          "ScanAndFinalizeMs": 42.7338,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 37.4912,
+          "CpuMs": 281.25,
+          "AllocatedBytes": 6383176,
+          "PreparationMs": 0.233,
+          "ScanAndFinalizeMs": 37.2582,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 42.6131,
+          "CpuMs": 343.75,
+          "AllocatedBytes": 6383264,
+          "PreparationMs": 0.3558,
+          "ScanAndFinalizeMs": 42.2573,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 42.379,
+          "CpuMs": 265.625,
+          "AllocatedBytes": 6383176,
+          "PreparationMs": 0.2827,
+          "ScanAndFinalizeMs": 42.0963,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 41.1443,
+          "CpuMs": 375,
+          "AllocatedBytes": 6383400,
+          "PreparationMs": 0.2189,
+          "ScanAndFinalizeMs": 40.9254,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        }
+      ]
+    },
+    {
+      "Shape": "wide",
+      "Phase": "full",
+      "Mode": "LowImpact",
+      "WallMedianMs": 2820.1240500000004,
+      "CpuMedianMs": 171.875,
+      "AllocationMedianBytes": 6380872,
+      "PreparationMedianMs": 0.2392,
+      "ScanAndFinalizeMedianMs": 2819.8848500000004,
+      "Samples": [
+        {
+          "WallMs": 2820.409,
+          "CpuMs": 93.75,
+          "AllocatedBytes": 6380872,
+          "PreparationMs": 0.2142,
+          "ScanAndFinalizeMs": 2820.1948,
+          "Workers": 1,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 2797.6204,
+          "CpuMs": 140.625,
+          "AllocatedBytes": 6380872,
+          "PreparationMs": 0.3191,
+          "ScanAndFinalizeMs": 2797.3012999999996,
+          "Workers": 1,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 2819.8391,
+          "CpuMs": 0,
+          "AllocatedBytes": 6380872,
+          "PreparationMs": 0.2642,
+          "ScanAndFinalizeMs": 2819.5749,
+          "Workers": 1,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 2812.6193,
+          "CpuMs": 203.125,
+          "AllocatedBytes": 6380872,
+          "PreparationMs": 0.1788,
+          "ScanAndFinalizeMs": 2812.4404999999997,
+          "Workers": 1,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 2827.0353,
+          "CpuMs": 1250,
+          "AllocatedBytes": 6380872,
+          "PreparationMs": 0.2035,
+          "ScanAndFinalizeMs": 2826.8318,
+          "Workers": 1,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 2826.3435,
+          "CpuMs": 546.875,
+          "AllocatedBytes": 6380872,
+          "PreparationMs": 0.2808,
+          "ScanAndFinalizeMs": 2826.0627,
+          "Workers": 1,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        }
+      ]
+    },
+    {
+      "Shape": "wide",
+      "Phase": "full",
+      "Mode": "HighSpeed",
+      "WallMedianMs": 42.2292,
+      "CpuMedianMs": 304.6875,
+      "AllocationMedianBytes": 6383288,
+      "PreparationMedianMs": 0.28055,
+      "ScanAndFinalizeMedianMs": 41.9903,
+      "Samples": [
+        {
+          "WallMs": 42.7187,
+          "CpuMs": 375,
+          "AllocatedBytes": 6383224,
+          "PreparationMs": 0.2093,
+          "ScanAndFinalizeMs": 42.5094,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 46.0378,
+          "CpuMs": 343.75,
+          "AllocatedBytes": 6383264,
+          "PreparationMs": 0.2926,
+          "ScanAndFinalizeMs": 45.7452,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 41.7397,
+          "CpuMs": 250,
+          "AllocatedBytes": 6383024,
+          "PreparationMs": 0.2685,
+          "ScanAndFinalizeMs": 41.471199999999996,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 38.0893,
+          "CpuMs": 375,
+          "AllocatedBytes": 6383312,
+          "PreparationMs": 0.2324,
+          "ScanAndFinalizeMs": 37.8569,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 43.0451,
+          "CpuMs": 265.625,
+          "AllocatedBytes": 6383488,
+          "PreparationMs": 0.3542,
+          "ScanAndFinalizeMs": 42.6909,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 41.1464,
+          "CpuMs": 250,
+          "AllocatedBytes": 6383312,
+          "PreparationMs": 0.4085,
+          "ScanAndFinalizeMs": 40.7379,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 181,
+          "ReusedFiles": 0
+        }
+      ]
+    },
+    {
+      "Shape": "wide",
+      "Phase": "unchanged-refresh",
+      "Mode": "Automatic",
+      "WallMedianMs": 47.72665,
+      "CpuMedianMs": 351.5625,
+      "AllocationMedianBytes": 5915200,
+      "PreparationMedianMs": 46.36855,
+      "ScanAndFinalizeMedianMs": 1.2295999999999978,
+      "Samples": [
+        {
+          "WallMs": 55.7133,
+          "CpuMs": 265.625,
+          "AllocatedBytes": 5914208,
+          "PreparationMs": 54.5033,
+          "ScanAndFinalizeMs": 1.2099999999999937,
+          "Workers": 8,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 44.1631,
+          "CpuMs": 375,
+          "AllocatedBytes": 5895592,
+          "PreparationMs": 42.7405,
+          "ScanAndFinalizeMs": 1.4226000000000028,
+          "Workers": 8,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 47.9722,
+          "CpuMs": 375,
+          "AllocatedBytes": 5915800,
+          "PreparationMs": 46.4909,
+          "ScanAndFinalizeMs": 1.4812999999999974,
+          "Workers": 8,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 47.4811,
+          "CpuMs": 312.5,
+          "AllocatedBytes": 5915328,
+          "PreparationMs": 46.2462,
+          "ScanAndFinalizeMs": 1.2348999999999961,
+          "Workers": 8,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 55.622,
+          "CpuMs": 406.25,
+          "AllocatedBytes": 5915376,
+          "PreparationMs": 54.4002,
+          "ScanAndFinalizeMs": 1.2218000000000018,
+          "Workers": 8,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 47.2812,
+          "CpuMs": 328.125,
+          "AllocatedBytes": 5915072,
+          "PreparationMs": 46.0569,
+          "ScanAndFinalizeMs": 1.2242999999999995,
+          "Workers": 8,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        }
+      ]
+    },
+    {
+      "Shape": "wide",
+      "Phase": "unchanged-refresh",
+      "Mode": "LowImpact",
+      "WallMedianMs": 238.93895,
+      "CpuMedianMs": 226.5625,
+      "AllocationMedianBytes": 5905584,
+      "PreparationMedianMs": 224.2427,
+      "ScanAndFinalizeMedianMs": 13.790599999999998,
+      "Samples": [
+        {
+          "WallMs": 251.5085,
+          "CpuMs": 187.5,
+          "AllocatedBytes": 5905584,
+          "PreparationMs": 232.7421,
+          "ScanAndFinalizeMs": 18.766400000000004,
+          "Workers": 1,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 269.4362,
+          "CpuMs": 250,
+          "AllocatedBytes": 5905584,
+          "PreparationMs": 252.4811,
+          "ScanAndFinalizeMs": 16.955099999999987,
+          "Workers": 1,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 273.6111,
+          "CpuMs": 281.25,
+          "AllocatedBytes": 5905584,
+          "PreparationMs": 255.3636,
+          "ScanAndFinalizeMs": 18.24750000000003,
+          "Workers": 1,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 226.3694,
+          "CpuMs": 234.375,
+          "AllocatedBytes": 5905584,
+          "PreparationMs": 215.7433,
+          "ScanAndFinalizeMs": 10.626100000000008,
+          "Workers": 1,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 222.4725,
+          "CpuMs": 218.75,
+          "AllocatedBytes": 5905584,
+          "PreparationMs": 214.86,
+          "ScanAndFinalizeMs": 7.612499999999983,
+          "Workers": 1,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 208.0541,
+          "CpuMs": 203.125,
+          "AllocatedBytes": 5905584,
+          "PreparationMs": 202.2675,
+          "ScanAndFinalizeMs": 5.786599999999993,
+          "Workers": 1,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        }
+      ]
+    },
+    {
+      "Shape": "wide",
+      "Phase": "unchanged-refresh",
+      "Mode": "HighSpeed",
+      "WallMedianMs": 48.56385,
+      "CpuMedianMs": 257.8125,
+      "AllocationMedianBytes": 5914964,
+      "PreparationMedianMs": 46.0742,
+      "ScanAndFinalizeMedianMs": 1.3588500000000003,
+      "Samples": [
+        {
+          "WallMs": 45.0479,
+          "CpuMs": 250,
+          "AllocatedBytes": 5915608,
+          "PreparationMs": 43.7318,
+          "ScanAndFinalizeMs": 1.3160999999999987,
+          "Workers": 8,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 49.2351,
+          "CpuMs": 390.625,
+          "AllocatedBytes": 5914080,
+          "PreparationMs": 47.8335,
+          "ScanAndFinalizeMs": 1.401600000000002,
+          "Workers": 8,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 47.8926,
+          "CpuMs": 265.625,
+          "AllocatedBytes": 5914984,
+          "PreparationMs": 45.6136,
+          "ScanAndFinalizeMs": 2.2790000000000035,
+          "Workers": 8,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 51.7016,
+          "CpuMs": 250,
+          "AllocatedBytes": 5915544,
+          "PreparationMs": 46.5348,
+          "ScanAndFinalizeMs": 5.166800000000002,
+          "Workers": 8,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 42.7824,
+          "CpuMs": 250,
+          "AllocatedBytes": 5895176,
+          "PreparationMs": 41.6602,
+          "ScanAndFinalizeMs": 1.1221999999999994,
+          "Workers": 8,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        },
+        {
+          "WallMs": 50.99,
+          "CpuMs": 281.25,
+          "AllocatedBytes": 5914944,
+          "PreparationMs": 49.7678,
+          "ScanAndFinalizeMs": 1.2222000000000008,
+          "Workers": 8,
+          "VerifiedFiles": 7200,
+          "ReadDirectories": 0,
+          "ReusedFiles": 7200
+        }
+      ]
+    },
+    {
+      "Shape": "flat",
+      "Phase": "full",
+      "Mode": "Automatic",
+      "WallMedianMs": 248.92735,
+      "CpuMedianMs": 242.1875,
+      "AllocationMedianBytes": 6475320,
+      "PreparationMedianMs": 0.2472,
+      "ScanAndFinalizeMedianMs": 248.6803,
+      "Samples": [
+        {
+          "WallMs": 245.1013,
+          "CpuMs": 234.375,
+          "AllocatedBytes": 6475320,
+          "PreparationMs": 0.2442,
+          "ScanAndFinalizeMs": 244.8571,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 220.8461,
+          "CpuMs": 218.75,
+          "AllocatedBytes": 6475320,
+          "PreparationMs": 0.1952,
+          "ScanAndFinalizeMs": 220.6509,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 220.4383,
+          "CpuMs": 218.75,
+          "AllocatedBytes": 6475320,
+          "PreparationMs": 0.2798,
+          "ScanAndFinalizeMs": 220.1585,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 310.2687,
+          "CpuMs": 296.875,
+          "AllocatedBytes": 6475320,
+          "PreparationMs": 0.2445,
+          "ScanAndFinalizeMs": 310.0242,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 252.7534,
+          "CpuMs": 250,
+          "AllocatedBytes": 6475320,
+          "PreparationMs": 0.2499,
+          "ScanAndFinalizeMs": 252.5035,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 277.0229,
+          "CpuMs": 281.25,
+          "AllocatedBytes": 6475216,
+          "PreparationMs": 0.2525,
+          "ScanAndFinalizeMs": 276.7704,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        }
+      ]
+    },
+    {
+      "Shape": "flat",
+      "Phase": "full",
+      "Mode": "LowImpact",
+      "WallMedianMs": 519.4140500000001,
+      "CpuMedianMs": 304.6875,
+      "AllocationMedianBytes": 6474696,
+      "PreparationMedianMs": 0.22585,
+      "ScanAndFinalizeMedianMs": 519.14195,
+      "Samples": [
+        {
+          "WallMs": 516.4074,
+          "CpuMs": 187.5,
+          "AllocatedBytes": 6474696,
+          "PreparationMs": 0.2925,
+          "ScanAndFinalizeMs": 516.1149,
+          "Workers": 1,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 522.4207,
+          "CpuMs": 93.75,
+          "AllocatedBytes": 6474696,
+          "PreparationMs": 0.2517,
+          "ScanAndFinalizeMs": 522.169,
+          "Workers": 1,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 535.8031,
+          "CpuMs": 484.375,
+          "AllocatedBytes": 6474696,
+          "PreparationMs": 0.2,
+          "ScanAndFinalizeMs": 535.6030999999999,
+          "Workers": 1,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 498.3438,
+          "CpuMs": 484.375,
+          "AllocatedBytes": 6474696,
+          "PreparationMs": 0.1716,
+          "ScanAndFinalizeMs": 498.1722,
+          "Workers": 1,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 540.1727,
+          "CpuMs": 62.5,
+          "AllocatedBytes": 6474744,
+          "PreparationMs": 0.1681,
+          "ScanAndFinalizeMs": 540.0046,
+          "Workers": 1,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 498.0621,
+          "CpuMs": 421.875,
+          "AllocatedBytes": 6474696,
+          "PreparationMs": 0.2809,
+          "ScanAndFinalizeMs": 497.7812,
+          "Workers": 1,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        }
+      ]
+    },
+    {
+      "Shape": "flat",
+      "Phase": "full",
+      "Mode": "HighSpeed",
+      "WallMedianMs": 242.7748,
+      "CpuMedianMs": 250,
+      "AllocationMedianBytes": 6475320,
+      "PreparationMedianMs": 0.2449,
+      "ScanAndFinalizeMedianMs": 242.50525,
+      "Samples": [
+        {
+          "WallMs": 214.6833,
+          "CpuMs": 218.75,
+          "AllocatedBytes": 6475320,
+          "PreparationMs": 0.2996,
+          "ScanAndFinalizeMs": 214.3837,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 240.6389,
+          "CpuMs": 234.375,
+          "AllocatedBytes": 6475320,
+          "PreparationMs": 0.1793,
+          "ScanAndFinalizeMs": 240.4596,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 244.0555,
+          "CpuMs": 250,
+          "AllocatedBytes": 6475320,
+          "PreparationMs": 0.2246,
+          "ScanAndFinalizeMs": 243.83089999999999,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 241.4941,
+          "CpuMs": 250,
+          "AllocatedBytes": 6475320,
+          "PreparationMs": 0.3145,
+          "ScanAndFinalizeMs": 241.1796,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 267.7886,
+          "CpuMs": 281.25,
+          "AllocatedBytes": 6475320,
+          "PreparationMs": 0.2004,
+          "ScanAndFinalizeMs": 267.5882,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        },
+        {
+          "WallMs": 288.121,
+          "CpuMs": 296.875,
+          "AllocatedBytes": 6475216,
+          "PreparationMs": 0.2652,
+          "ScanAndFinalizeMs": 287.8558,
+          "Workers": 8,
+          "VerifiedFiles": 0,
+          "ReadDirectories": 1,
+          "ReusedFiles": 0
+        }
+      ]
+    },
+    {
+      "Shape": "flat",
+      "Phase": "unchanged-refresh",
+      "Mode": "Automatic",
+      "WallMedianMs": 201.04534999999998,
+      "CpuMedianMs": 218.75,
+      "AllocationMedianBytes": 5833576,
+      "PreparationMedianMs": 199.51585,
+      "ScanAndFinalizeMedianMs": 1.8781000000000034,
+      "Samples": [
+        {
+          "WallMs": 241.4947,
+          "CpuMs": 234.375,
+          "AllocatedBytes": 5833576,
+          "PreparationMs": 239.5639,
+          "ScanAndFinalizeMs": 1.930800000000005,
+          "Workers": 8,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 195.7263,
+          "CpuMs": 218.75,
+          "AllocatedBytes": 5833576,
+          "PreparationMs": 193.7556,
+          "ScanAndFinalizeMs": 1.970700000000022,
+          "Workers": 8,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 206.3644,
+          "CpuMs": 218.75,
+          "AllocatedBytes": 5833576,
+          "PreparationMs": 205.2761,
+          "ScanAndFinalizeMs": 1.0882999999999754,
+          "Workers": 8,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 185.5683,
+          "CpuMs": 187.5,
+          "AllocatedBytes": 5833576,
+          "PreparationMs": 183.4724,
+          "ScanAndFinalizeMs": 2.0959000000000003,
+          "Workers": 8,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 190.1503,
+          "CpuMs": 171.875,
+          "AllocatedBytes": 5833576,
+          "PreparationMs": 188.6145,
+          "ScanAndFinalizeMs": 1.5357999999999947,
+          "Workers": 8,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 317.0598,
+          "CpuMs": 328.125,
+          "AllocatedBytes": 5833576,
+          "PreparationMs": 315.2344,
+          "ScanAndFinalizeMs": 1.825400000000002,
+          "Workers": 8,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        }
+      ]
+    },
+    {
+      "Shape": "flat",
+      "Phase": "unchanged-refresh",
+      "Mode": "LowImpact",
+      "WallMedianMs": 522.4915000000001,
+      "CpuMedianMs": 171.875,
+      "AllocationMedianBytes": 5830232,
+      "PreparationMedianMs": 508.32124999999996,
+      "ScanAndFinalizeMedianMs": 13.674050000000022,
+      "Samples": [
+        {
+          "WallMs": 520.1717,
+          "CpuMs": 171.875,
+          "AllocatedBytes": 5830232,
+          "PreparationMs": 505.5737,
+          "ScanAndFinalizeMs": 14.598000000000013,
+          "Workers": 1,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 522.311,
+          "CpuMs": 171.875,
+          "AllocatedBytes": 5830232,
+          "PreparationMs": 508.7055,
+          "ScanAndFinalizeMs": 13.605500000000063,
+          "Workers": 1,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 578.1547,
+          "CpuMs": 328.125,
+          "AllocatedBytes": 5830232,
+          "PreparationMs": 564.4848,
+          "ScanAndFinalizeMs": 13.669900000000098,
+          "Workers": 1,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 522.672,
+          "CpuMs": 31.25,
+          "AllocatedBytes": 5830232,
+          "PreparationMs": 507.937,
+          "ScanAndFinalizeMs": 14.735000000000014,
+          "Workers": 1,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 516.2081,
+          "CpuMs": 390.625,
+          "AllocatedBytes": 5830232,
+          "PreparationMs": 502.713,
+          "ScanAndFinalizeMs": 13.495099999999923,
+          "Workers": 1,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 540.5988,
+          "CpuMs": 109.375,
+          "AllocatedBytes": 5830232,
+          "PreparationMs": 526.9206,
+          "ScanAndFinalizeMs": 13.678199999999947,
+          "Workers": 1,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        }
+      ]
+    },
+    {
+      "Shape": "flat",
+      "Phase": "unchanged-refresh",
+      "Mode": "HighSpeed",
+      "WallMedianMs": 252.42385,
+      "CpuMedianMs": 257.8125,
+      "AllocationMedianBytes": 5833576,
+      "PreparationMedianMs": 251.1294,
+      "ScanAndFinalizeMedianMs": 1.0151499999999771,
+      "Samples": [
+        {
+          "WallMs": 306.0282,
+          "CpuMs": 312.5,
+          "AllocatedBytes": 5833576,
+          "PreparationMs": 305.0488,
+          "ScanAndFinalizeMs": 0.9793999999999983,
+          "Workers": 8,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 234.157,
+          "CpuMs": 218.75,
+          "AllocatedBytes": 5833576,
+          "PreparationMs": 233.0644,
+          "ScanAndFinalizeMs": 1.0926000000000045,
+          "Workers": 8,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 239.9511,
+          "CpuMs": 234.375,
+          "AllocatedBytes": 5833576,
+          "PreparationMs": 239.1751,
+          "ScanAndFinalizeMs": 0.7760000000000105,
+          "Workers": 8,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 269.7972,
+          "CpuMs": 265.625,
+          "AllocatedBytes": 5833576,
+          "PreparationMs": 268.7595,
+          "ScanAndFinalizeMs": 1.0376999999999725,
+          "Workers": 8,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 245.3166,
+          "CpuMs": 250,
+          "AllocatedBytes": 5833576,
+          "PreparationMs": 244.324,
+          "ScanAndFinalizeMs": 0.9925999999999817,
+          "Workers": 8,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        },
+        {
+          "WallMs": 259.5311,
+          "CpuMs": 265.625,
+          "AllocatedBytes": 5833576,
+          "PreparationMs": 257.9348,
+          "ScanAndFinalizeMs": 1.5962999999999852,
+          "Workers": 8,
+          "VerifiedFiles": 8000,
+          "ReadDirectories": 0,
+          "ReusedFiles": 8000
+        }
+      ]
+    }
+  ]
+}
