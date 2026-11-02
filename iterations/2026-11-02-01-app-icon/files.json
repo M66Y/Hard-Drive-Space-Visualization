@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "base_commit": "f786544543bca8592189b9f18788d99e396a9aaf",
+  "key_files": [
+    {
+      "path": "assets/app-icon.png",
+      "bytes": 1585422,
+      "sha256": "f4e997dc4147a79540b1597019a7d28d40ed5e7d4321f273b12d95727eccdfc3"
+    },
+    {
+      "path": "assets/app.ico",
+      "bytes": 156380,
+      "sha256": "2048a6d7c54d77ee9e0772739967957a91d85555d41c2dad9b6d1ed07140a0b8"
+    },
+    {
+      "path": "scripts/Update-AppIcon.ps1",
+      "bytes": 3257,
+      "sha256": "1aee8d8628b91da0ea6fe2934e63fb192a420107e789079d746f8bf13b0863a6"
+    },
+    {
+      "path": "iterations/2026-11-02-01-app-icon/changes.patch",
+      "bytes": 1911693,
+      "sha256": "cefccb5ae036eb393dfc19fcda299d6f13306bbf0bf676820508c9bfdbb97f15"
+    }
+  ]
+}
