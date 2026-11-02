@@ -1,0 +1,46 @@
+{
+  "build": {
+    "configuration": "Release",
+    "output": "bin/Preview",
+    "warnings": 0,
+    "errors": 0
+  },
+  "checks": {
+    "core": 38,
+    "advanced": 25,
+    "ui_groups": 6,
+    "status": "passed"
+  },
+  "render_dpi": 144,
+  "manual_checks": [
+    "480 synthetic files in four child folders; avatar and red-orange progress track visible at 100%",
+    "default motion enabled; pronounced internal sheen visible on click, original hit rectangles retained",
+    "refresh completes and preserves logical statistics",
+    "own demo windows closed; existing user window retained"
+  ],
+  "cache": {
+    "max_pixels": 8000000,
+    "max_bitmap_bytes": 32000000,
+    "oversized_viewport_test": [
+      4096,
+      2048
+    ],
+    "invalidation_checked": [
+      "hover and selection are local",
+      "layout",
+      "size",
+      "metric",
+      "wallpaper reference",
+      "relative offset",
+      "hide",
+      "dispose"
+    ],
+    "fallback_drawing_difference_limit": 0.01
+  },
+  "limitations": [
+    "warm offscreen GDI timing excludes OS presentation and physical cursor latency",
+    "timer interval is a target, not guaranteed 60 FPS",
+    "other DPI values and cross-monitor changes not manually verified",
+    "old running preview remains in bin/Release; no formal release generated"
+  ]
+}

@@ -13,7 +13,11 @@ internal sealed class ScanProgressControl : Control
     private readonly Stopwatch clock = Stopwatch.StartNew();
     private readonly ToolTip tip = new() { AutoPopDelay = 20000 };
     private ScanProgress? latest;
-    private bool animationsEnabled = SystemInformation.IsMinimizeRestoreAnimationEnabled;
+    private bool animationsEnabled = true;
+    private Bitmap? marker;
+    private int markerPixels;
+    internal static readonly Color TrackStart = Color.FromArgb(166, 59, 61);
+    internal static readonly Color TrackEnd = Color.FromArgb(237, 156, 104);
     internal const string Explanation = "当前阶段估算 = 已处理目录任务 / 当前已发现目录任务；包含根目录。\n新目录出现时估算可能下降；核验与读取/复用分别计数，整理阶段沿用读取计数。\n不代表文件、字节或剩余时间比例。核验以旧快照目录数为分母，整个缓存子树复用算一个任务。\n统计整理结束前最多 99%；总量未知时显示往返指示。取消、失败或结果不完整不显示成功的 100%。";
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -94,17 +98,17 @@ internal sealed class ScanProgressControl : Control
         var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
         using var font = Theme.Font(8);
         int rightWidth = Math.Min(Width / 3, (int)(110 * s));
-        int textHeight = Math.Min(Height, (int)(24 * s));
+        int textHeight = Math.Min(Height, (int)(20 * s));
         Theme.TextAt(g, Description, font, Theme.Text, new Rectangle(0, 0, Math.Max(0, Width - rightWidth - (int)(10 * s)), textHeight));
         Theme.TextAt(g, PercentText, font, Theme.Accent, new Rectangle(Width - rightWidth, 0, rightWidth, textHeight), TextFormatFlags.Right);
-        float pad = 9 * s, y = Math.Min(Height - 7 * s, 33 * s);
+        float pad = 15 * s, y = Math.Min(Height - 14 * s, 34 * s);
         var track = new RectangleF(pad, y - 3 * s, Math.Max(1, Width - 2 * pad), 6 * s);
         using var path = Theme.Round(track, 3 * s);
         using var border = new Pen(Theme.Border, s);
         g.DrawPath(border, path); // No fill on the unprocessed part: wallpaper stays visible.
         bool running = State == ScanDisplayState.Running;
         float end = track.Left;
-        using var fill = new SolidBrush(Theme.Accent);
+        using var fill = new LinearGradientBrush(track, TrackStart, TrackEnd, LinearGradientMode.Horizontal);
         if (Percent is int percent)
         {
             float width = track.Width * percent / 100f;
@@ -122,17 +126,32 @@ internal sealed class ScanProgressControl : Control
         }
         if (running || State == ScanDisplayState.Completed)
         {
-            // Lens marker follows the measured estimate (or the unknown-work segment).
-            using var face = new SolidBrush(Theme.Surface);
-            g.FillEllipse(face, end - 5 * s, y - 5 * s, 10 * s, 10 * s);
-            using var pen = new Pen(Theme.Accent, 2 * s);
-            g.DrawEllipse(pen, end - 5 * s, y - 5 * s, 10 * s, 10 * s);
-            g.DrawLine(pen, end + 3 * s, y + 3 * s, end + 7 * s, y + 7 * s);
+            // Reuse the actual app artwork; decode/resize only when the DPI changes.
+            int pixels = Math.Clamp((int)Math.Round(26 * s), 16, 96);
+            var avatar = GetMarker(pixels);
+            using var halo = new SolidBrush(Color.FromArgb(215, Theme.Surface));
+            g.FillEllipse(halo, end - pixels / 2f, y - pixels / 2f, pixels, pixels);
+            g.DrawImageUnscaled(avatar, (int)Math.Round(end - pixels / 2f), (int)Math.Round(y - pixels / 2f));
         }
+    }
+    private Bitmap GetMarker(int pixels)
+    {
+        if (marker != null && markerPixels == pixels) return marker;
+        using var source = typeof(ScanProgressControl).Assembly.GetManifestResourceStream("DiskAtlas.AppIcon")
+            ?? throw new InvalidOperationException("Missing app icon resource.");
+        using var icon = new Icon(source, pixels, pixels);
+        using var bitmap = icon.ToBitmap();
+        var next = new Bitmap(pixels, pixels, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+        using (var g = Graphics.FromImage(next))
+        {
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.DrawImage(bitmap, new Rectangle(0, 0, pixels, pixels));
+        }
+        marker?.Dispose(); marker = next; markerPixels = pixels; return next;
     }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { pulse.Dispose(); tip.Dispose(); }
+        if (disposing) { pulse.Dispose(); tip.Dispose(); marker?.Dispose(); }
         base.Dispose(disposing);
     }
 }

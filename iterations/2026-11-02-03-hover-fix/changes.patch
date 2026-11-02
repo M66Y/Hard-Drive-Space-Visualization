@@ -1,0 +1,661 @@
+diff --git a/DiskAtlas.csproj b/DiskAtlas.csproj
+index 8ade2e3..1333fb1 100644
+--- a/DiskAtlas.csproj
++++ b/DiskAtlas.csproj
+@@ -19,5 +19,6 @@
+   <ItemGroup>
+     <Compile Remove="tests\**;artifacts\**" />
+     <EmbeddedResource Include="assets\background.png" LogicalName="DiskAtlas.Background" />
++    <EmbeddedResource Include="assets\app.ico" LogicalName="DiskAtlas.AppIcon" />
+   </ItemGroup>
+ </Project>
+diff --git a/MainForm.cs b/MainForm.cs
+index 0c07314..bfdb1d7 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -80,7 +80,7 @@ internal sealed class MainForm : Form
+         DoubleBuffered = true;
+         AllowDrop = true;
+         BuildInterface();
+-        reduceMotion.Checked = !SystemInformation.IsMinimizeRestoreAnimationEnabled;
++        reduceMotion.Checked = false;
+         reduceMotion.CheckedChanged += (_, _) => ApplyMotionPreference();
+         ApplyMotionPreference();
+         scanTip.SetToolTip(reduceMotion, "关闭图块回弹和进度往返动画；保留真实进度与静态高亮。本次运行有效。");
+diff --git a/README.md b/README.md
+index 5920780..0bec46f 100644
+--- a/README.md
++++ b/README.md
+@@ -1,6 +1,6 @@
+ # AsukaLens v1.4.2
+ 
+-开发分支已包含尚未正式发布的扫描策略修正、扫描进度与图块反馈；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。详见[扫描策略记录](iterations/2026-11-01-02-scan-policy/README.md)和[第 2 轮交互记录](iterations/2026-11-02-02-scan-feedback/README.md)。
++开发分支已包含尚未正式发布的扫描策略修正、扫描进度与图块反馈；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。本次交互修正使用独立的 `bin/Preview/DiskAtlas.exe` 预览目录，以保留正在运行的旧窗口。详见[扫描策略记录](iterations/2026-11-01-02-scan-policy/README.md)、[第 2 轮交互记录](iterations/2026-11-02-02-scan-feedback/README.md)和[本次修正记录](iterations/2026-11-02-03-hover-fix/README.md)。
+ 
+ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，点击“选择文件夹”，即可查看文件名称、大小和分布。
+ 
+@@ -18,9 +18,9 @@ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，
+ - 统计口径可切换“文件大小 / 实际占用”。占用读取 Windows 分配信息，处理压缩 / 稀疏文件；硬链接按文件身份去重，未知占用明确标注。
+ - 扫描策略可选“自动 / 低占用 / 高速”。自动检测本地盘的寻道特性；低占用为单路，扫描和核验均跨目录累计每 256 个工作项让步；高速最多 8 路目录任务。
+ 
+-扫描时底部显示透明轨道、深色已处理段和随估算移动的透镜图标，百分比位于最右侧。它是**当前阶段的目录任务估算**，按“已处理 / 已发现”计算（含根目录），不是文件大小、文件数量或剩余时间比例。新目录出现时允许下降；核验以旧快照的目录数计数，切到读取/复用后重新计数，整理阶段沿用读取计数；整个缓存子树复用算一个任务。单个大目录可能长时间保持较低估算，目录读取结束后整理阶段最多 99%，只有结果完整才显示 100%。总量未知时显示往返指示；取消、失败或结果不完整保留明确终态，不显示成功的 100%。悬停进度区域可查看计算说明。
++扫描时底部显示透明轨道、红橙渐变的已处理段和随估算移动的明日香头像，百分比位于最右侧。它是**当前阶段的目录任务估算**，按“已处理 / 已发现”计算（含根目录），不是文件大小、文件数量或剩余时间比例。新目录出现时允许下降；核验以旧快照的目录数计数，切到读取/复用后重新计数，整理阶段沿用读取计数；整个缓存子树复用算一个任务。单个大目录可能长时间保持较低估算，目录读取结束后整理阶段最多 99%，只有结果完整才显示 100%。总量未知时显示往返指示；取消、失败或结果不完整保留明确终态，不显示成功的 100%。悬停进度区域可查看计算说明。
+ 
+-图块悬停、点击时，内层高光轮廓轻微回弹，数据面积、文字与点击边界保持固定；最多一个图块动画，目标时长 360 ms、40 ms 更新间隔，只重绘对应区域，使用缓存布局。空间分布标题右侧的“减弱动效”可关闭回弹和未知进度的往返动画，保留静态提示；初始值跟随启动时系统的窗口动画偏好，勾选仅对本次运行有效。
++图块悬停、点击时，内部高光面与轮廓产生更明显的挤压和回弹，数据面积、文字位置与点击边界保持固定；最多一个图块动画，目标时长 620 ms、16 ms 定时器间隔，实际帧率取决于系统调度。静态图表和背景复用一张视口缓存，悬停及选中仅刷新相关区块；布局、DPI、口径、背景或相对位置变化时更新缓存。缓存像素上限 800 万（约 30.5 MiB），超限或分配失败时降级为局部直接绘制，隐藏/销毁时释放。空间分布标题右侧的“减弱动效”可关闭回弹和未知进度往返动画，保留静态提示；本轮改为默认开启动效，勾选仅对本次运行有效。
+ 
+ 固态盘上自动与高速的目录并发上限均为 8，单个目录内部的文件仍逐项读取。界面区分读取、核验、复用和统计整理，并分别显示核验任务峰值、目录任务峰值与并发上限；峰值包含等待，不代表 CPU 核数或瞬时磁盘 I/O 数。悬停扫描策略或统计提示可查看说明。刷新可能核验并复用旧结果，不能直接与首次完整扫描比较速度。
+ 
+@@ -34,6 +34,9 @@ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，
+ # 普通迭代：只编译，不打包
+ dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
+ 
++# 原开发预览仍在运行时，使用独立输出目录
++dotnet build DiskAtlas.csproj --configuration Release --output bin/Preview -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
++
+ # 核心检查（另外两组检查入口见下文）
+ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
+ 
+@@ -47,7 +50,9 @@ dotnet run --project DiskAtlas.csproj -- "D:\你的文件夹"
+ 
+ `tests` 为无需测试框架依赖的断言程序，38 项检查覆盖扫描、隐藏文件、根目录消失、取消、140 层目录、联接循环及扫描期间链接替换、查询与排序、精确类型筛选、分页和极端图块边界；检查并行 / 串行结果逐项一致、修改时间、并发取消、错误传播及跳过统计；还检查文件存储、无分配路径比较、完成前预览、快照隔离、并发预览查询和目录浏览。80 组随机矩形图检查面积比例、完整覆盖、边界和不重叠。10 万文件固定种子基准同时与参考算法核对结果，并输出内存分配和耗时。
+ 
+-另外 25 项功能检查覆盖硬链接去重、压缩 / 稀疏占用、未知占用、三种策略、日志解析与断档回退、保留时间戳的深层修改、目录移动 / 新增 / 替换、根目录外硬链接写入、持续打开的写句柄、刷新期间变更重放及取消隔离，以及跨目录让步计数、取消边界、无节拍模式、任务峰值、阶段估算和真实目录任务计数。构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --advanced-tests`；两组共 63 项检查。`--ui-regression` 包含 5 组界面集成检查，其中一组直接使用正式扫描协调器，另覆盖进度终态与迟到回调、阶段切换、动效关闭、图块面积和命中稳定性以及尺寸变化。
++另外 25 项功能检查覆盖硬链接去重、压缩 / 稀疏占用、未知占用、三种策略、日志解析与断档回退、保留时间戳的深层修改、目录移动 / 新增 / 替换、根目录外硬链接写入、持续打开的写句柄、刷新期间变更重放及取消隔离，以及跨目录让步计数、取消边界、无节拍模式、任务峰值、阶段估算和真实目录任务计数。构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --advanced-tests`；两组共 63 项检查。`--ui-regression` 包含 6 组界面集成检查，其中一组直接使用正式扫描协调器，另覆盖进度终态与迟到回调、阶段切换、动效关闭、图块面积和命中稳定性以及尺寸变化。另检查头像透明度与缩放复用、局部重绘、静态缓存复用/失效/容量上限/释放及降级绘制一致性。
++
++可选的合成图表绘制基准：`dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --treemap-benchmark after`。使用正常桌面环境，测量 12 个带嵌套内容的文件夹和 241 个平坦文件的悬停处理、离屏绘制耗时、托管分配和刷新范围。结果保存在 `artifacts/treemap-after.json`，已有报告需先归档再运行。它关闭动效，只测已预热的绘制成本，不等于实际鼠标到屏幕延迟或完整扫描性能。历史基线与方法见本次修正记录。
+ 
+ 三种真实策略的可选诊断基准：构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --policy-benchmark`。它创建并自动删除 15,200 个合成小文件，分别测量完整扫描和无日志的无变化刷新，预热后按平衡顺序每模式运行 6 次并逐项比对结果。汇总墙钟、进程 CPU、总托管分配与任务峰值；不测量实际前台应用响应或物理磁盘 I/O。结果保存在 `artifacts/policy-benchmark-results.json`；再次运行前应先归档并移除上一份同名结果，避免覆盖证据。
+ 
+diff --git a/ScanProgressControl.cs b/ScanProgressControl.cs
+index b521d91..cbd6891 100644
+--- a/ScanProgressControl.cs
++++ b/ScanProgressControl.cs
+@@ -13,7 +13,11 @@ internal sealed class ScanProgressControl : Control
+     private readonly Stopwatch clock = Stopwatch.StartNew();
+     private readonly ToolTip tip = new() { AutoPopDelay = 20000 };
+     private ScanProgress? latest;
+-    private bool animationsEnabled = SystemInformation.IsMinimizeRestoreAnimationEnabled;
++    private bool animationsEnabled = true;
++    private Bitmap? marker;
++    private int markerPixels;
++    internal static readonly Color TrackStart = Color.FromArgb(166, 59, 61);
++    internal static readonly Color TrackEnd = Color.FromArgb(237, 156, 104);
+     internal const string Explanation = "当前阶段估算 = 已处理目录任务 / 当前已发现目录任务；包含根目录。\n新目录出现时估算可能下降；核验与读取/复用分别计数，整理阶段沿用读取计数。\n不代表文件、字节或剩余时间比例。核验以旧快照目录数为分母，整个缓存子树复用算一个任务。\n统计整理结束前最多 99%；总量未知时显示往返指示。取消、失败或结果不完整不显示成功的 100%。";
+ 
+     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+@@ -94,17 +98,17 @@ internal sealed class ScanProgressControl : Control
+         var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+         using var font = Theme.Font(8);
+         int rightWidth = Math.Min(Width / 3, (int)(110 * s));
+-        int textHeight = Math.Min(Height, (int)(24 * s));
++        int textHeight = Math.Min(Height, (int)(20 * s));
+         Theme.TextAt(g, Description, font, Theme.Text, new Rectangle(0, 0, Math.Max(0, Width - rightWidth - (int)(10 * s)), textHeight));
+         Theme.TextAt(g, PercentText, font, Theme.Accent, new Rectangle(Width - rightWidth, 0, rightWidth, textHeight), TextFormatFlags.Right);
+-        float pad = 9 * s, y = Math.Min(Height - 7 * s, 33 * s);
++        float pad = 15 * s, y = Math.Min(Height - 14 * s, 34 * s);
+         var track = new RectangleF(pad, y - 3 * s, Math.Max(1, Width - 2 * pad), 6 * s);
+         using var path = Theme.Round(track, 3 * s);
+         using var border = new Pen(Theme.Border, s);
+         g.DrawPath(border, path); // No fill on the unprocessed part: wallpaper stays visible.
+         bool running = State == ScanDisplayState.Running;
+         float end = track.Left;
+-        using var fill = new SolidBrush(Theme.Accent);
++        using var fill = new LinearGradientBrush(track, TrackStart, TrackEnd, LinearGradientMode.Horizontal);
+         if (Percent is int percent)
+         {
+             float width = track.Width * percent / 100f;
+@@ -122,17 +126,32 @@ internal sealed class ScanProgressControl : Control
+         }
+         if (running || State == ScanDisplayState.Completed)
+         {
+-            // Lens marker follows the measured estimate (or the unknown-work segment).
+-            using var face = new SolidBrush(Theme.Surface);
+-            g.FillEllipse(face, end - 5 * s, y - 5 * s, 10 * s, 10 * s);
+-            using var pen = new Pen(Theme.Accent, 2 * s);
+-            g.DrawEllipse(pen, end - 5 * s, y - 5 * s, 10 * s, 10 * s);
+-            g.DrawLine(pen, end + 3 * s, y + 3 * s, end + 7 * s, y + 7 * s);
++            // Reuse the actual app artwork; decode/resize only when the DPI changes.
++            int pixels = Math.Clamp((int)Math.Round(26 * s), 16, 96);
++            var avatar = GetMarker(pixels);
++            using var halo = new SolidBrush(Color.FromArgb(215, Theme.Surface));
++            g.FillEllipse(halo, end - pixels / 2f, y - pixels / 2f, pixels, pixels);
++            g.DrawImageUnscaled(avatar, (int)Math.Round(end - pixels / 2f), (int)Math.Round(y - pixels / 2f));
+         }
+     }
++    private Bitmap GetMarker(int pixels)
++    {
++        if (marker != null && markerPixels == pixels) return marker;
++        using var source = typeof(ScanProgressControl).Assembly.GetManifestResourceStream("DiskAtlas.AppIcon")
++            ?? throw new InvalidOperationException("Missing app icon resource.");
++        using var icon = new Icon(source, pixels, pixels);
++        using var bitmap = icon.ToBitmap();
++        var next = new Bitmap(pixels, pixels, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
++        using (var g = Graphics.FromImage(next))
++        {
++            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
++            g.DrawImage(bitmap, new Rectangle(0, 0, pixels, pixels));
++        }
++        marker?.Dispose(); marker = next; markerPixels = pixels; return next;
++    }
+     protected override void Dispose(bool disposing)
+     {
+-        if (disposing) { pulse.Dispose(); tip.Dispose(); }
++        if (disposing) { pulse.Dispose(); tip.Dispose(); marker?.Dispose(); }
+         base.Dispose(disposing);
+     }
+ }
+diff --git a/TreemapControl.cs b/TreemapControl.cs
+index d3e4317..5d86dec 100644
+--- a/TreemapControl.cs
++++ b/TreemapControl.cs
+@@ -9,13 +9,21 @@ internal sealed class TreemapControl : Control
+     private IReadOnlyList<MapItem> items = [];
+     private List<MapTile> tiles = [];
+     private readonly Dictionary<MapItem, List<MapTile>> nestedLayouts = [];
++    private readonly Dictionary<MapItem, MapTile> tileLookup = [];
++    private Bitmap? staticLayer;
++    private CacheKey? cacheKey, rejectedKey;
++    internal const long MaxCachePixels = 8_000_000;
++    internal const int MotionDurationMilliseconds = 620;
++    internal int StaticLayerBuilds { get; private set; }
++    internal long StaticLayerBytes => staticLayer == null ? 0 : (long)staticLayer.Width * staticLayer.Height * 4;
++    private readonly record struct CacheKey(Size ViewSize, Size WindowSize, Point Offset, Image? Wallpaper, int Dpi);
+     private MapItem? hovered;
+     private MapItem? selected;
+-    private readonly System.Windows.Forms.Timer motionTimer = new() { Interval = 40 };
++    private readonly System.Windows.Forms.Timer motionTimer = new() { Interval = 16 };
+     private readonly Stopwatch motionClock = new();
+     private MapItem? motionItem;
+     private RectangleF motionBounds;
+-    private bool animationsEnabled = SystemInformation.IsMinimizeRestoreAnimationEnabled;
++    private bool animationsEnabled = true;
+     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+     public bool AnimationsEnabled
+     {
+@@ -27,9 +35,11 @@ internal sealed class TreemapControl : Control
+     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+     public long TotalSize { get; set; }
+     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+-    public bool ShowNested { get; set; } = true;
++    public bool ShowNested { get => showNested; set { if (showNested == value) return; showNested = value; LayoutTiles(); Invalidate(); } }
++    private bool showNested = true;
+     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+-    public SizeMetric Metric { get; set; }
++    public SizeMetric Metric { get => metric; set { if (metric == value) return; metric = value; LayoutTiles(); Invalidate(); } }
++    private SizeMetric metric;
+     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+     public bool Scanning { get; set; }
+     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+@@ -47,7 +57,7 @@ internal sealed class TreemapControl : Control
+         Cursor = Cursors.Hand;
+         motionTimer.Tick += (_, _) =>
+         {
+-            if (motionClock.ElapsedMilliseconds >= 360 || !Visible || !Enabled) StopMotion();
++            if (motionClock.ElapsedMilliseconds >= MotionDurationMilliseconds || !Visible || !Enabled) StopMotion();
+             else InvalidateMotion();
+         };
+     }
+@@ -56,15 +66,24 @@ internal sealed class TreemapControl : Control
+         items = value; hovered = selected = null; tip.SetToolTip(this, null);
+         LayoutTiles(); Invalidate();
+     }
+-    public void SelectItem(MapItem? value) { selected = value; Invalidate(); }
+-    protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics, tiles.Count == 0 ? 130 : 215);
++    public void SelectItem(MapItem? value)
++    {
++        if (selected == value) return;
++        var previous = selected; selected = value; InvalidateItem(previous); InvalidateItem(value);
++    }
++    protected override void OnPaintBackground(PaintEventArgs e)
++    {
++        // Non-empty views restore the clipped static layer in OnPaint, without rescaling wallpaper.
++        if (tiles.Count == 0) Wallpaper.Paint(this, e.Graphics, 130);
++    }
+     protected override void OnResize(EventArgs e) { base.OnResize(e); LayoutTiles(); }
+     private void LayoutTiles()
+     {
+-        StopMotion();
++        StopMotion(); ReleaseStaticLayer();
+         float pad = 10 * DeviceDpi / 96f;
+         tiles = TreemapLayout.Build(items, new RectangleF(pad, pad, Math.Max(0, Width - 2 * pad), Math.Max(0, Height - 2 * pad)));
+-        nestedLayouts.Clear();
++        nestedLayouts.Clear(); tileLookup.Clear();
++        foreach (var tile in tiles) tileLookup[tile.Item] = tile;
+         float s = DeviceDpi / 96f;
+         if (!ShowNested) return;
+         foreach (var tile in tiles)
+@@ -99,17 +118,34 @@ internal sealed class TreemapControl : Control
+                 new Rectangle((int)(30 * s), cy + (int)(108 * s), Width - (int)(60 * s), (int)(62 * s)), TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak);
+             return;
+         }
++        var clip = Rectangle.Intersect(ClientRectangle, e.ClipRectangle);
++        if (clip.IsEmpty) return;
++        if (EnsureStaticLayer())
++            g.DrawImage(staticLayer!, clip, clip, GraphicsUnit.Pixel);
++        else
++        {
++            Wallpaper.Paint(this, g, 215);
++            DrawStaticTiles(g, clip);
++        }
++        DrawInteraction(g, hovered, false);
++        if (selected != hovered) DrawInteraction(g, selected, true);
++        if (motionItem != null && tileLookup.TryGetValue(motionItem, out var moving)) DrawJelly(g, moving.Bounds);
++    }
++
++    private void DrawStaticTiles(Graphics g, Rectangle clip)
++    {
++        float s = DeviceDpi / 96f;
++        g.SmoothingMode = SmoothingMode.AntiAlias;
+         using var nameFont = Theme.Font(10, FontStyle.Bold);
+         using var sizeFont = Theme.Font(9);
+         using var miniFont = Theme.Font(8);
+         foreach (var tile in tiles)
+         {
+-            if (!e.ClipRectangle.IntersectsWith(Rectangle.Ceiling(tile.Bounds))) continue;
++            if (!clip.IntersectsWith(Rectangle.Ceiling(tile.Bounds))) continue;
+             RectangleF rect = tile.Bounds;
+             rect.Inflate(-2 * s, -2 * s);
+             if (rect.Width < 1 || rect.Height < 1) continue;
+             Color baseColor = Theme.CategoryColor(tile.Item.Category);
+-            if (tile.Item == hovered) baseColor = ControlPaint.Light(baseColor, .13f);
+             using var fill = new SolidBrush(baseColor);
+             using var path = Theme.Round(rect, Math.Min(5 * s, Math.Min(rect.Width, rect.Height) / 4));
+             g.FillPath(fill, path);
+@@ -135,41 +171,98 @@ internal sealed class TreemapControl : Control
+                 if (rect.Height > 52 * s)
+                     Theme.TextAt(g, SizeFormat.Bytes(tile.Item.Size), sizeFont, Theme.Text, new Rectangle(x, y + (int)(26 * s), w, (int)(21 * s)));
+             }
+-            if (tile.Item == selected || tile.Item == hovered)
+-            {
+-                using var pen = new Pen(tile.Item == selected ? Theme.Accent : Theme.Muted, (tile.Item == selected ? 2.5f : 1.5f) * s);
+-                g.DrawPath(pen, path);
+-            }
+-            if (tile.Item == motionItem && rect.Width > 18 * s && rect.Height > 18 * s)
+-            {
+-                // Animate only an INTERNAL highlight contour. The area-bearing fill,
+-                // nested layout, labels and hit rectangles never move or scale.
+-                float t = Math.Clamp(motionClock.ElapsedMilliseconds / 360f, 0, 1);
+-                float spring = (float)(Math.Sin(t * Math.PI * 3) * (1 - t) * (1 - t));
+-                float dx = (4 + 1.5f * spring) * s, dy = (4 - 1.5f * spring) * s;
+-                var inner = RectangleF.Inflate(rect, -dx, -dy);
+-                using var contour = Theme.Round(inner, 7 * s);
+-                using var shine = new Pen(Color.FromArgb((int)(140 * (1 - t)), Color.White), 2 * s);
+-                g.DrawPath(shine, contour);
+-            }
+         }
+     }
++
++    private void DrawInteraction(Graphics g, MapItem? item, bool isSelected)
++    {
++        if (item == null || !tileLookup.TryGetValue(item, out var tile)) return;
++        float s = DeviceDpi / 96f;
++        var rect = RectangleF.Inflate(tile.Bounds, -2 * s, -2 * s);
++        if (rect.Width < 1 || rect.Height < 1) return;
++        using var path = Theme.Round(rect, Math.Min(5 * s, Math.Min(rect.Width, rect.Height) / 4));
++        if (item == hovered)
++        {
++            using var wash = new SolidBrush(Color.FromArgb(22, Color.White)); g.FillPath(wash, path);
++        }
++        using var pen = new Pen(isSelected || item == selected ? Theme.Accent : Theme.Muted, (isSelected || item == selected ? 2.5f : 1.5f) * s);
++        g.DrawPath(pen, path);
++    }
++
++    private void DrawJelly(Graphics g, RectangleF bounds)
++    {
++        float s = DeviceDpi / 96f;
++        var rect = RectangleF.Inflate(bounds, -2 * s, -2 * s);
++        if (rect.Width < 12 * s || rect.Height < 12 * s) return;
++        float t = Math.Clamp(motionClock.ElapsedMilliseconds / (float)MotionDurationMilliseconds, 0, 1);
++        float spring = (float)(Math.Sin(3 * Math.PI * t) * Math.Exp(-4 * t) * (1 - t));
++        // A clearly visible squash/stretch of the internal sheen, never the area-bearing fill.
++        float dx = Math.Clamp(Math.Min(8 * s, rect.Width * .16f) + 9 * s * spring, 2 * s, rect.Width * .28f);
++        float dy = Math.Clamp(Math.Min(8 * s, rect.Height * .16f) - 7 * s * spring, 2 * s, rect.Height * .28f);
++        var inner = RectangleF.Inflate(rect, -dx, -dy);
++        using var contour = Theme.Round(inner, Math.Min(12 * s, Math.Min(inner.Width, inner.Height) / 3));
++        using var glow = new LinearGradientBrush(inner, Color.FromArgb((int)(62 * (1 - t)), Color.White), Color.FromArgb(0, Color.White), LinearGradientMode.Vertical);
++        g.FillPath(glow, contour);
++        using var shine = new Pen(Color.FromArgb((int)(220 * (1 - t)), Color.White), 2.5f * s);
++        g.DrawPath(shine, contour);
++    }
++
++    private CacheKey CurrentCacheKey()
++    {
++        var form = FindForm(); var offset = Point.Empty;
++        for (Control? node = this; node != null && node != form; node = node.Parent) offset.Offset(node.Left, node.Top);
++        return new(ClientSize, form?.ClientSize ?? Size.Empty, offset, form?.BackgroundImage, DeviceDpi);
++    }
++    private bool EnsureStaticLayer()
++    {
++        var key = CurrentCacheKey();
++        if (staticLayer != null && cacheKey == key) return true;
++        if (rejectedKey == key) return false;
++        ReleaseStaticLayer();
++        // One 32-bit viewport bitmap, capped at about 30.5 MiB. Oversized views use clipped direct drawing.
++        if (Width <= 0 || Height <= 0 || (long)Width * Height > MaxCachePixels) { rejectedKey = key; return false; }
++        Bitmap? next = null;
++        try
++        {
++            next = new Bitmap(Width, Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
++            next.SetResolution(DeviceDpi, DeviceDpi);
++            using (var graphics = Graphics.FromImage(next)) { Wallpaper.Paint(this, graphics, 215); DrawStaticTiles(graphics, ClientRectangle); }
++            staticLayer = next; cacheKey = key; StaticLayerBuilds++; return true;
++        }
++        catch (Exception ex) when (ex is OutOfMemoryException or System.Runtime.InteropServices.ExternalException)
++        {
++            next?.Dispose(); rejectedKey = key; return false;
++        }
++    }
++    private void ReleaseStaticLayer()
++    {
++        staticLayer?.Dispose(); staticLayer = null; cacheKey = rejectedKey = null;
++    }
++    private void InvalidateItem(MapItem? item)
++    {
++        if (item != null && tileLookup.TryGetValue(item, out var tile))
++            Invalidate(Rectangle.Ceiling(RectangleF.Inflate(tile.Bounds, 2 * DeviceDpi / 96f, 2 * DeviceDpi / 96f)));
++    }
+     protected override void OnMouseMove(MouseEventArgs e)
+     {
+         base.OnMouseMove(e);
+         var item = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
+         if (item == hovered) return;
+-        hovered = item;
+-        StartMotion(item);
++        var previous = hovered; hovered = item;
++        InvalidateItem(previous); InvalidateItem(item); StartMotion(item);
+         string? text = item == null ? null : $"{item.Name}\n{SizeFormat.Bytes(item.Size)}  ·  {SizeFormat.Percent(item.Size, TotalSize)}\n{item.Entry?.Path ?? (item.IsAggregate ? $"合并 {SizeFormat.Number(item.Count)} 项，请查看右侧列表" : $"共 {SizeFormat.Number(item.Count)} 个文件")}\n{(item.Entry?.IsDirectory == true ? "双击进入文件夹" : item.Entry != null ? "双击在资源管理器中定位" : item.IsAggregate ? "" : "双击查看该类型文件")} ";
+-        tip.SetToolTip(this, text); Invalidate();
++        tip.SetToolTip(this, text);
++    }
++    protected override void OnMouseLeave(EventArgs e)
++    {
++        base.OnMouseLeave(e); var previous = hovered; hovered = null; StopMotion(); InvalidateItem(previous);
++        tip.SetToolTip(this, null);
+     }
+-    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); hovered = null; StopMotion(); Invalidate(); }
+     protected override void OnMouseClick(MouseEventArgs e)
+     {
+         base.OnMouseClick(e);
+-        selected = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
+-        ItemSelected?.Invoke(selected); Invalidate();
++        SelectItem(tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item);
++        ItemSelected?.Invoke(selected);
+         StartMotion(selected);
+     }
+     protected override void OnMouseDoubleClick(MouseEventArgs e)
+@@ -182,9 +275,8 @@ internal sealed class TreemapControl : Control
+     {
+         StopMotion();
+         if (!AnimationsEnabled || !Visible || !Enabled || item == null) return;
+-        var tile = tiles.FirstOrDefault(t => t.Item == item);
+-        if (tile == null || tile.Bounds.Width < 20 || tile.Bounds.Height < 20) return;
+-        // One tile at 25 FPS, at most 360 ms, independent of tree size.
++        if (!tileLookup.TryGetValue(item, out var tile) || tile.Bounds.Width < 20 || tile.Bounds.Height < 20) return;
++        // One tile; 16 ms target ticks for a 620 ms damped response. Scheduling can run slower.
+         motionItem = item; motionBounds = tile.Bounds;
+         motionClock.Restart(); motionTimer.Start(); InvalidateMotion();
+     }
+@@ -195,7 +287,9 @@ internal sealed class TreemapControl : Control
+         if (motionItem != null) InvalidateMotion();
+         motionItem = null; motionClock.Reset();
+     }
+-    protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (!Visible) StopMotion(); }
++    protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (!Visible) { StopMotion(); ReleaseStaticLayer(); } }
+     protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); if (!Enabled) StopMotion(); }
+-    protected override void Dispose(bool disposing) { if (disposing) { motionTimer.Dispose(); tip.Dispose(); } base.Dispose(disposing); }
++    protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); LayoutTiles(); Invalidate(); }
++    protected override void OnParentChanged(EventArgs e) { base.OnParentChanged(e); ReleaseStaticLayer(); }
++    protected override void Dispose(bool disposing) { if (disposing) { motionTimer.Dispose(); tip.Dispose(); ReleaseStaticLayer(); } base.Dispose(disposing); }
+ }
+diff --git a/tests/DiskAtlas.Tests.csproj b/tests/DiskAtlas.Tests.csproj
+index 37be5f9..fbdf64f 100644
+--- a/tests/DiskAtlas.Tests.csproj
++++ b/tests/DiskAtlas.Tests.csproj
+@@ -24,5 +24,6 @@
+     <Compile Include="..\Theme.cs" Link="Theme.cs" />
+     <Compile Include="..\Wallpaper.cs" Link="Wallpaper.cs" />
+     <EmbeddedResource Include="..\assets\background.png" LogicalName="DiskAtlas.Background" />
++    <EmbeddedResource Include="..\assets\app.ico" LogicalName="DiskAtlas.AppIcon" />
+   </ItemGroup>
+ </Project>
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 751f898..2e87fb7 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -1,6 +1,8 @@
+ using DiskAtlas;
+ using System.Drawing;
+ 
++if (args.Contains("--treemap-benchmark")) return TreemapBenchmark.Run(args.Last());
++
+ if (args.Contains("--scan-benchmark")) return ScanBenchmark.Run();
+ if (args.Contains("--policy-benchmark")) return ScanPolicyBenchmark.Run();
+ if (args.Contains("--memory-benchmark")) return MemoryBenchmark.Run();
+diff --git a/tests/TreemapBenchmark.cs b/tests/TreemapBenchmark.cs
+new file mode 100644
+index 0000000..d252ba0
+--- /dev/null
++++ b/tests/TreemapBenchmark.cs
+@@ -0,0 +1,103 @@
++using DiskAtlas;
++using System.Diagnostics;
++using System.Reflection;
++using System.Text.Json;
++
++// Synthetic in-process drawing cost, not physical mouse-to-screen latency.
++internal static class TreemapBenchmark
++{
++    public static int Run(string label)
++    {
++        if (label is not ("before" or "after")) throw new ArgumentException("Use before or after.");
++        Exception? failure = null; var results = new List<object>();
++        var thread = new Thread(() =>
++        {
++            try
++            {
++                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++                Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); Application.EnableVisualStyles();
++                using var form = new Form { ClientSize = new Size(1280, 760), BackgroundImage = Wallpaper.Load(), Text = "AsukaLens drawing benchmark" };
++                using var map = new TreemapControl { Dock = DockStyle.Fill, AnimationsEnabled = false };
++                form.Controls.Add(map); form.Show(); Application.DoEvents();
++                var flags = BindingFlags.Instance | BindingFlags.NonPublic;
++                var move = typeof(TreemapControl).GetMethod("OnMouseMove", flags)!;
++                var background = typeof(TreemapControl).GetMethod("OnPaintBackground", flags)!;
++                var paint = typeof(TreemapControl).GetMethod("OnPaint", flags)!;
++                foreach (bool nested in new[] { true, false })
++                {
++                    map.ShowNested = nested;
++                    map.SetItems(CreateItems(nested)); Application.DoEvents();
++                    var tiles = (List<MapTile>)typeof(TreemapControl).GetField("tiles", flags)!.GetValue(map)!;
++                    var points = tiles.Select(t => Point.Round(new PointF(t.Bounds.X + t.Bounds.Width / 2, t.Bounds.Y + t.Bounds.Height / 2))).ToArray();
++                    using var bitmap = new Bitmap(map.Width, map.Height); bitmap.SetResolution(map.DeviceDpi, map.DeviceDpi);
++                    using var g = Graphics.FromImage(bitmap);
++                    Rectangle dirty = Rectangle.Empty;
++                    InvalidateEventHandler invalidated = (_, e) => dirty = dirty.IsEmpty ? e.InvalidRect : Rectangle.Union(dirty, e.InvalidRect);
++                    map.Invalidated += invalidated;
++                    var samples = new List<double>(); var areas = new List<double>();
++                    long allocated = 0;
++                    for (int cycle = 0; cycle < 6; cycle++)
++                    {
++                        foreach (var point in cycle % 2 == 0 ? points : points.Reverse())
++                        {
++                            dirty = Rectangle.Empty;
++                            long bytes = GC.GetAllocatedBytesForCurrentThread(); long start = Stopwatch.GetTimestamp();
++                            move.Invoke(map, [new MouseEventArgs(MouseButtons.None, 0, point.X, point.Y, 0)]);
++                            if (!dirty.IsEmpty)
++                            {
++                                var state = g.Save(); g.SetClip(dirty);
++                                using var e = new PaintEventArgs(g, dirty);
++                                background.Invoke(map, [e]); paint.Invoke(map, [e]);
++                                g.Restore(state);
++                            }
++                            double elapsed = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
++                            if (cycle > 0)
++                            {
++                                allocated += GC.GetAllocatedBytesForCurrentThread() - bytes;
++                                samples.Add(elapsed); areas.Add((double)dirty.Width * dirty.Height / (map.Width * map.Height));
++                            }
++                        }
++                    }
++                    map.Invalidated -= invalidated;
++                    samples.Sort(); areas.Sort();
++                    var result = new { shape = nested ? "12-folders-with-36-nested-tiles" : "241-flat-files", dpi = map.DeviceDpi,
++                        width = map.Width, height = map.Height, samples = samples.Count,
++                        median_ms = samples[samples.Count / 2], p95_ms = samples[(int)Math.Ceiling(samples.Count * .95) - 1],
++                        allocated_bytes_per_event = allocated / samples.Count, median_dirty_fraction = areas[areas.Count / 2] };
++                    results.Add(result); Console.WriteLine(JsonSerializer.Serialize(result));
++                }
++                var image = form.BackgroundImage; form.BackgroundImage = null; image?.Dispose(); form.Close();
++            }
++            catch (Exception ex) { failure = ex; }
++        }) { IsBackground = true };
++        thread.SetApartmentState(ApartmentState.STA); thread.Start();
++        if (!thread.Join(TimeSpan.FromSeconds(45))) throw new Exception("Drawing benchmark timed out.");
++        if (failure != null) throw new Exception("Drawing benchmark failed.", failure);
++        string output = Path.Combine("artifacts", $"treemap-{label}.json");
++        if (File.Exists(output)) throw new IOException("Archive the previous benchmark first.");
++        Directory.CreateDirectory("artifacts");
++        File.WriteAllText(output, JsonSerializer.Serialize(new { label, method = "warm synthetic handler plus clipped offscreen GDI drawing, animations disabled; excludes OS presentation latency", results }, new JsonSerializerOptions { WriteIndented = true }));
++        return 0;
++    }
++
++    internal static List<MapItem> CreateItems(bool nested)
++    {
++        var items = new List<MapItem>();
++        for (int i = 0; i < (nested ? 12 : 241); i++)
++        {
++            DiskEntry? directory = null;
++            if (nested)
++            {
++                directory = new DiskEntry(Path.GetFullPath($"synthetic-folder-{i:00}"), true);
++                for (int j = 0; j < 36; j++)
++                {
++                    var child = DiskEntry.FromName($"sample-{j:00}.dat", false, directory, ".dat");
++                    child.Size = 100; child.FileCount = 1; directory.MutableChildren.Add(child);
++                }
++                directory.Size = 3600;
++            }
++            items.Add(new MapItem($"sample-{i:000}", nested ? 3600 : 100, directory, "图片"));
++        }
++        return items;
++    }
++}
+diff --git a/tests/UiRegression.cs b/tests/UiRegression.cs
+index ea4ead3..d802f5a 100644
+--- a/tests/UiRegression.cs
++++ b/tests/UiRegression.cs
+@@ -117,6 +117,7 @@ internal static class UiRegression
+                         Console.WriteLine("PASS UI actual coordinator, low/high strategy selection, allocated metric, incremental refresh and force-full action");
+ 
+                         await CheckInteractions(form, Check);
++                        CheckRenderCache(form, Check);
+                     }
+                     catch (Exception ex) { failure = ex; }
+                     finally { gate.Release.Set(); form.Close(); }
+@@ -179,7 +180,7 @@ internal static class UiRegression
+         Input("OnMouseMove", point); check(map.MotionRunning, "Hover did not start feedback");
+         Input("OnMouseClick", point); check(hit == first.Item && map.MotionRunning, "Animated hit target changed");
+         using (var bitmap = new Bitmap(map.Width, map.Height)) map.DrawToBitmap(bitmap, map.ClientRectangle);
+-        await Task.Delay(450);
++        await Task.Delay(TreemapControl.MotionDurationMilliseconds + 100);
+         check(!map.MotionRunning && before.SequenceEqual(Tiles().Select(t => t.Bounds)), "Animation moved area/hit rectangles or did not stop");
+         Input("OnMouseClick", point); map.AnimationsEnabled = false;
+         check(!map.MotionRunning, "Reduced motion retained tile animation");
+@@ -212,6 +213,81 @@ internal static class UiRegression
+         Console.WriteLine("PASS UI honest progress states, phase reset, reduced motion, stable animated hits/area, bounded animation and resizing");
+     }
+ 
++    private static void CheckRenderCache(Form owner, Action<bool, string> check)
++    {
++        using var fixture = new Form { ClientSize = new Size(1000, 700), Text = "AsukaLens render cache checks", BackgroundImage = Wallpaper.Load() };
++        using var map = new TreemapControl { Dock = DockStyle.Fill, AnimationsEnabled = false };
++        fixture.Controls.Add(map); fixture.Show(owner); map.SetItems(TreemapBenchmark.CreateItems(true));
++        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
++        object? Call(string name, params object[] args) => typeof(TreemapControl).GetMethod(name, flags)!.Invoke(map, args);
++        List<MapTile> Tiles() => (List<MapTile>)typeof(TreemapControl).GetField("tiles", flags)!.GetValue(map)!;
++        Bitmap Capture()
++        {
++            var image = new Bitmap(map.Width, map.Height); image.SetResolution(map.DeviceDpi, map.DeviceDpi);
++            map.DrawToBitmap(image, map.ClientRectangle); return image;
++        }
++        using var initial = Capture();
++        int builds = map.StaticLayerBuilds;
++        check(builds > 0 && map.StaticLayerBytes == (long)map.Width * map.Height * 4 && map.StaticLayerBytes <= TreemapControl.MaxCachePixels * 4, "Static cache is missing or unbounded");
++        var dirty = new List<Rectangle>(); InvalidateEventHandler changed = (_, e) => dirty.Add(e.InvalidRect);
++        map.Invalidated += changed;
++        foreach (var tile in Tiles().Take(3))
++        {
++            var point = Point.Round(new PointF(tile.Bounds.X + tile.Bounds.Width / 2, tile.Bounds.Y + tile.Bounds.Height / 2));
++            Call("OnMouseMove", new MouseEventArgs(MouseButtons.None, 0, point.X, point.Y, 0));
++            using var frame = Capture();
++        }
++        map.SelectItem(Tiles()[1].Item); using (var frame = Capture()) { }
++        check(dirty.Count > 0 && dirty.All(r => (long)r.Width * r.Height < (long)map.Width * map.Height / 2), "Hover/selection still invalidate the whole map");
++        check(map.StaticLayerBuilds == builds, "Hover/selection rebuild static labels or wallpaper");
++        map.Invalidated -= changed;
++        Call("OnMouseLeave", EventArgs.Empty); map.SelectItem(null);
++        using var cached = Capture();
++        Call("ReleaseStaticLayer");
++        typeof(TreemapControl).GetField("rejectedKey", flags)!.SetValue(map, Call("CurrentCacheKey"));
++        using var direct = Capture();
++        long different = 0;
++        for (int y = 0; y < cached.Height; y++) for (int x = 0; x < cached.Width; x++)
++        {
++            var a = cached.GetPixel(x, y); var b = direct.GetPixel(x, y);
++            if (Math.Abs(a.R - b.R) + Math.Abs(a.G - b.G) + Math.Abs(a.B - b.B) > 12) different++;
++        }
++        check(different < (long)map.Width * map.Height / 100, "Cached and direct drawing differ materially");
++        Call("ReleaseStaticLayer"); using (var frame = Capture()) { }
++        builds = map.StaticLayerBuilds;
++        map.ShowNested = false; using (var frame = Capture()) { }
++        check(map.StaticLayerBuilds > builds, "Nested layout change retained stale cache"); builds = map.StaticLayerBuilds;
++        map.Metric = SizeMetric.Allocated; using (var frame = Capture()) { }
++        check(map.StaticLayerBuilds > builds, "Metric change retained stale cache"); builds = map.StaticLayerBuilds;
++        var old = fixture.BackgroundImage; fixture.BackgroundImage = new Bitmap(10, 10); old?.Dispose();
++        using (var frame = Capture()) { }
++        check(map.StaticLayerBuilds > builds, "Wallpaper change retained stale pixels"); builds = map.StaticLayerBuilds;
++        fixture.ClientSize = new Size(800, 500); using (var frame = Capture()) { }
++        check(map.StaticLayerBuilds > builds, "Viewport resize retained stale cache"); builds = map.StaticLayerBuilds;
++        map.Dock = DockStyle.None; map.Size = new Size(760, 440); map.Location = new Point(9, 13); using (var frame = Capture()) { }
++        check(map.StaticLayerBuilds > builds, "Wallpaper offset change retained stale cache");
++        map.Size = new Size(4096, 2048);
++        check(map.StaticLayerBytes == 0 && Call("EnsureStaticLayer") is false && map.StaticLayerBytes == 0, "Oversized viewport allocated a bitmap above the cap");
++        map.Hide(); check(map.StaticLayerBytes == 0, "Hidden map retains static bitmap");
++        map.Dispose(); check(map.StaticLayerBytes == 0, "Disposed map retains static bitmap");
++        var wallpaper = fixture.BackgroundImage; fixture.BackgroundImage = null; wallpaper?.Dispose(); fixture.Close();
++
++        using var meter = new ScanProgressControl { Size = new Size(800, 72) };
++        var load = typeof(ScanProgressControl).GetMethod("GetMarker", flags)!;
++        var avatar = (Bitmap)load.Invoke(meter, [39])!;
++        check(avatar.Width == 39 && avatar.Height == 39 && avatar.GetPixel(0, 0).A == 0, "Avatar resource lost transparency or DPI size");
++        check(ReferenceEquals(avatar, load.Invoke(meter, [39])), "Avatar decodes on every frame");
++        check(!ReferenceEquals(avatar, load.Invoke(meter, [52])), "Avatar does not rebuild for a different DPI size");
++        foreach (int completed in new[] { 0, 5, 10 })
++        {
++            meter.BeginScan(); meter.Report(new(0, 0, 0, "", CompletedDirectories: completed, DiscoveredDirectories: 10));
++            using var bitmap = new Bitmap(meter.Width, meter.Height); meter.DrawToBitmap(bitmap, meter.ClientRectangle);
++        }
++        meter.Finish(ScanDisplayState.Completed);
++        using (var bitmap = new Bitmap(meter.Width, meter.Height)) meter.DrawToBitmap(bitmap, meter.ClientRectangle);
++        Console.WriteLine("PASS UI avatar transparency/reuse, partial hover invalidation, cache reuse/cap/disposal and layout/background/metric invalidation");
++    }
++
+     private sealed class ScanGate : IDisposable
+     {
+         public bool Pause;
+diff --git a/使用说明.txt b/使用说明.txt
+index db21cc4..749770d 100644
+--- a/使用说明.txt
++++ b/使用说明.txt
+@@ -96,5 +96,9 @@ Windows 10/11，.NET 9 Desktop Runtime。本机已具备，无需额外安装。
+ 
+ 开发预览：第 2 轮扫描反馈
+ 底部右侧百分比是当前阶段目录任务的估算，不是剩余时间或字节进度；新目录出现时可能下降，核验与读取/复用分别计数，整理阶段沿用读取计数。完整结果结束前最多 99%，取消、失败或结果不完整不显示成功的 100%。未知总量以往返指示表示，悬停可查看说明。
+-图块悬停和点击时内层高光回弹，不改变面积或点击位置。空间分布标题右侧“减弱动效”关闭回弹和往返动画，本次运行有效；启动时跟随系统窗口动画偏好。
++图块悬停和点击时内层高光回弹，不改变面积或点击位置。空间分布标题右侧“减弱动效”关闭回弹和往返动画，本次运行有效；本次修正默认开启动效。
+ 本轮为普通开发构建，不覆盖“软件”目录中的历史稳定版，不生成正式发布包。
++
++第 2 轮交互修正
++进度标记改为明日香软件头像，已处理部分采用红橙渐变。图块内部高光回弹增强为约 620 ms；默认开启，可通过“减弱动效”关闭。悬停/选中改为局部刷新，复用静态图表与背景缓存；缓存有容量上限并会在失效或关闭时释放。
++本次修正版入口：bin/Preview/DiskAtlas.exe。旧开发窗口被占用时，使用独立输出目录保留其运行状态。

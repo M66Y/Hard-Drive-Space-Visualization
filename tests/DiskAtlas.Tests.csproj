@@ -24,5 +24,6 @@
     <Compile Include="..\Theme.cs" Link="Theme.cs" />
     <Compile Include="..\Wallpaper.cs" Link="Wallpaper.cs" />
     <EmbeddedResource Include="..\assets\background.png" LogicalName="DiskAtlas.Background" />
+    <EmbeddedResource Include="..\assets\app.ico" LogicalName="DiskAtlas.AppIcon" />
   </ItemGroup>
 </Project>

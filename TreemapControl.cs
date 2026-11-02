@@ -9,13 +9,21 @@ internal sealed class TreemapControl : Control
     private IReadOnlyList<MapItem> items = [];
     private List<MapTile> tiles = [];
     private readonly Dictionary<MapItem, List<MapTile>> nestedLayouts = [];
+    private readonly Dictionary<MapItem, MapTile> tileLookup = [];
+    private Bitmap? staticLayer;
+    private CacheKey? cacheKey, rejectedKey;
+    internal const long MaxCachePixels = 8_000_000;
+    internal const int MotionDurationMilliseconds = 620;
+    internal int StaticLayerBuilds { get; private set; }
+    internal long StaticLayerBytes => staticLayer == null ? 0 : (long)staticLayer.Width * staticLayer.Height * 4;
+    private readonly record struct CacheKey(Size ViewSize, Size WindowSize, Point Offset, Image? Wallpaper, int Dpi);
     private MapItem? hovered;
     private MapItem? selected;
-    private readonly System.Windows.Forms.Timer motionTimer = new() { Interval = 40 };
+    private readonly System.Windows.Forms.Timer motionTimer = new() { Interval = 16 };
     private readonly Stopwatch motionClock = new();
     private MapItem? motionItem;
     private RectangleF motionBounds;
-    private bool animationsEnabled = SystemInformation.IsMinimizeRestoreAnimationEnabled;
+    private bool animationsEnabled = true;
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool AnimationsEnabled
     {
@@ -27,9 +35,11 @@ internal sealed class TreemapControl : Control
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public long TotalSize { get; set; }
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public bool ShowNested { get; set; } = true;
+    public bool ShowNested { get => showNested; set { if (showNested == value) return; showNested = value; LayoutTiles(); Invalidate(); } }
+    private bool showNested = true;
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public SizeMetric Metric { get; set; }
+    public SizeMetric Metric { get => metric; set { if (metric == value) return; metric = value; LayoutTiles(); Invalidate(); } }
+    private SizeMetric metric;
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool Scanning { get; set; }
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -47,7 +57,7 @@ internal sealed class TreemapControl : Control
         Cursor = Cursors.Hand;
         motionTimer.Tick += (_, _) =>
         {
-            if (motionClock.ElapsedMilliseconds >= 360 || !Visible || !Enabled) StopMotion();
+            if (motionClock.ElapsedMilliseconds >= MotionDurationMilliseconds || !Visible || !Enabled) StopMotion();
             else InvalidateMotion();
         };
     }
@@ -56,15 +66,24 @@ internal sealed class TreemapControl : Control
         items = value; hovered = selected = null; tip.SetToolTip(this, null);
         LayoutTiles(); Invalidate();
     }
-    public void SelectItem(MapItem? value) { selected = value; Invalidate(); }
-    protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics, tiles.Count == 0 ? 130 : 215);
+    public void SelectItem(MapItem? value)
+    {
+        if (selected == value) return;
+        var previous = selected; selected = value; InvalidateItem(previous); InvalidateItem(value);
+    }
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        // Non-empty views restore the clipped static layer in OnPaint, without rescaling wallpaper.
+        if (tiles.Count == 0) Wallpaper.Paint(this, e.Graphics, 130);
+    }
     protected override void OnResize(EventArgs e) { base.OnResize(e); LayoutTiles(); }
     private void LayoutTiles()
     {
-        StopMotion();
+        StopMotion(); ReleaseStaticLayer();
         float pad = 10 * DeviceDpi / 96f;
         tiles = TreemapLayout.Build(items, new RectangleF(pad, pad, Math.Max(0, Width - 2 * pad), Math.Max(0, Height - 2 * pad)));
-        nestedLayouts.Clear();
+        nestedLayouts.Clear(); tileLookup.Clear();
+        foreach (var tile in tiles) tileLookup[tile.Item] = tile;
         float s = DeviceDpi / 96f;
         if (!ShowNested) return;
         foreach (var tile in tiles)
@@ -99,17 +118,34 @@ internal sealed class TreemapControl : Control
                 new Rectangle((int)(30 * s), cy + (int)(108 * s), Width - (int)(60 * s), (int)(62 * s)), TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak);
             return;
         }
+        var clip = Rectangle.Intersect(ClientRectangle, e.ClipRectangle);
+        if (clip.IsEmpty) return;
+        if (EnsureStaticLayer())
+            g.DrawImage(staticLayer!, clip, clip, GraphicsUnit.Pixel);
+        else
+        {
+            Wallpaper.Paint(this, g, 215);
+            DrawStaticTiles(g, clip);
+        }
+        DrawInteraction(g, hovered, false);
+        if (selected != hovered) DrawInteraction(g, selected, true);
+        if (motionItem != null && tileLookup.TryGetValue(motionItem, out var moving)) DrawJelly(g, moving.Bounds);
+    }
+
+    private void DrawStaticTiles(Graphics g, Rectangle clip)
+    {
+        float s = DeviceDpi / 96f;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
         using var nameFont = Theme.Font(10, FontStyle.Bold);
         using var sizeFont = Theme.Font(9);
         using var miniFont = Theme.Font(8);
         foreach (var tile in tiles)
         {
-            if (!e.ClipRectangle.IntersectsWith(Rectangle.Ceiling(tile.Bounds))) continue;
+            if (!clip.IntersectsWith(Rectangle.Ceiling(tile.Bounds))) continue;
             RectangleF rect = tile.Bounds;
             rect.Inflate(-2 * s, -2 * s);
             if (rect.Width < 1 || rect.Height < 1) continue;
             Color baseColor = Theme.CategoryColor(tile.Item.Category);
-            if (tile.Item == hovered) baseColor = ControlPaint.Light(baseColor, .13f);
             using var fill = new SolidBrush(baseColor);
             using var path = Theme.Round(rect, Math.Min(5 * s, Math.Min(rect.Width, rect.Height) / 4));
             g.FillPath(fill, path);
@@ -135,41 +171,98 @@ internal sealed class TreemapControl : Control
                 if (rect.Height > 52 * s)
                     Theme.TextAt(g, SizeFormat.Bytes(tile.Item.Size), sizeFont, Theme.Text, new Rectangle(x, y + (int)(26 * s), w, (int)(21 * s)));
             }
-            if (tile.Item == selected || tile.Item == hovered)
-            {
-                using var pen = new Pen(tile.Item == selected ? Theme.Accent : Theme.Muted, (tile.Item == selected ? 2.5f : 1.5f) * s);
-                g.DrawPath(pen, path);
-            }
-            if (tile.Item == motionItem && rect.Width > 18 * s && rect.Height > 18 * s)
-            {
-                // Animate only an INTERNAL highlight contour. The area-bearing fill,
-                // nested layout, labels and hit rectangles never move or scale.
-                float t = Math.Clamp(motionClock.ElapsedMilliseconds / 360f, 0, 1);
-                float spring = (float)(Math.Sin(t * Math.PI * 3) * (1 - t) * (1 - t));
-                float dx = (4 + 1.5f * spring) * s, dy = (4 - 1.5f * spring) * s;
-                var inner = RectangleF.Inflate(rect, -dx, -dy);
-                using var contour = Theme.Round(inner, 7 * s);
-                using var shine = new Pen(Color.FromArgb((int)(140 * (1 - t)), Color.White), 2 * s);
-                g.DrawPath(shine, contour);
-            }
         }
+    }
+
+    private void DrawInteraction(Graphics g, MapItem? item, bool isSelected)
+    {
+        if (item == null || !tileLookup.TryGetValue(item, out var tile)) return;
+        float s = DeviceDpi / 96f;
+        var rect = RectangleF.Inflate(tile.Bounds, -2 * s, -2 * s);
+        if (rect.Width < 1 || rect.Height < 1) return;
+        using var path = Theme.Round(rect, Math.Min(5 * s, Math.Min(rect.Width, rect.Height) / 4));
+        if (item == hovered)
+        {
+            using var wash = new SolidBrush(Color.FromArgb(22, Color.White)); g.FillPath(wash, path);
+        }
+        using var pen = new Pen(isSelected || item == selected ? Theme.Accent : Theme.Muted, (isSelected || item == selected ? 2.5f : 1.5f) * s);
+        g.DrawPath(pen, path);
+    }
+
+    private void DrawJelly(Graphics g, RectangleF bounds)
+    {
+        float s = DeviceDpi / 96f;
+        var rect = RectangleF.Inflate(bounds, -2 * s, -2 * s);
+        if (rect.Width < 12 * s || rect.Height < 12 * s) return;
+        float t = Math.Clamp(motionClock.ElapsedMilliseconds / (float)MotionDurationMilliseconds, 0, 1);
+        float spring = (float)(Math.Sin(3 * Math.PI * t) * Math.Exp(-4 * t) * (1 - t));
+        // A clearly visible squash/stretch of the internal sheen, never the area-bearing fill.
+        float dx = Math.Clamp(Math.Min(8 * s, rect.Width * .16f) + 9 * s * spring, 2 * s, rect.Width * .28f);
+        float dy = Math.Clamp(Math.Min(8 * s, rect.Height * .16f) - 7 * s * spring, 2 * s, rect.Height * .28f);
+        var inner = RectangleF.Inflate(rect, -dx, -dy);
+        using var contour = Theme.Round(inner, Math.Min(12 * s, Math.Min(inner.Width, inner.Height) / 3));
+        using var glow = new LinearGradientBrush(inner, Color.FromArgb((int)(62 * (1 - t)), Color.White), Color.FromArgb(0, Color.White), LinearGradientMode.Vertical);
+        g.FillPath(glow, contour);
+        using var shine = new Pen(Color.FromArgb((int)(220 * (1 - t)), Color.White), 2.5f * s);
+        g.DrawPath(shine, contour);
+    }
+
+    private CacheKey CurrentCacheKey()
+    {
+        var form = FindForm(); var offset = Point.Empty;
+        for (Control? node = this; node != null && node != form; node = node.Parent) offset.Offset(node.Left, node.Top);
+        return new(ClientSize, form?.ClientSize ?? Size.Empty, offset, form?.BackgroundImage, DeviceDpi);
+    }
+    private bool EnsureStaticLayer()
+    {
+        var key = CurrentCacheKey();
+        if (staticLayer != null && cacheKey == key) return true;
+        if (rejectedKey == key) return false;
+        ReleaseStaticLayer();
+        // One 32-bit viewport bitmap, capped at about 30.5 MiB. Oversized views use clipped direct drawing.
+        if (Width <= 0 || Height <= 0 || (long)Width * Height > MaxCachePixels) { rejectedKey = key; return false; }
+        Bitmap? next = null;
+        try
+        {
+            next = new Bitmap(Width, Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+            next.SetResolution(DeviceDpi, DeviceDpi);
+            using (var graphics = Graphics.FromImage(next)) { Wallpaper.Paint(this, graphics, 215); DrawStaticTiles(graphics, ClientRectangle); }
+            staticLayer = next; cacheKey = key; StaticLayerBuilds++; return true;
+        }
+        catch (Exception ex) when (ex is OutOfMemoryException or System.Runtime.InteropServices.ExternalException)
+        {
+            next?.Dispose(); rejectedKey = key; return false;
+        }
+    }
+    private void ReleaseStaticLayer()
+    {
+        staticLayer?.Dispose(); staticLayer = null; cacheKey = rejectedKey = null;
+    }
+    private void InvalidateItem(MapItem? item)
+    {
+        if (item != null && tileLookup.TryGetValue(item, out var tile))
+            Invalidate(Rectangle.Ceiling(RectangleF.Inflate(tile.Bounds, 2 * DeviceDpi / 96f, 2 * DeviceDpi / 96f)));
     }
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
         var item = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
         if (item == hovered) return;
-        hovered = item;
-        StartMotion(item);
+        var previous = hovered; hovered = item;
+        InvalidateItem(previous); InvalidateItem(item); StartMotion(item);
         string? text = item == null ? null : $"{item.Name}\n{SizeFormat.Bytes(item.Size)}  ·  {SizeFormat.Percent(item.Size, TotalSize)}\n{item.Entry?.Path ?? (item.IsAggregate ? $"合并 {SizeFormat.Number(item.Count)} 项，请查看右侧列表" : $"共 {SizeFormat.Number(item.Count)} 个文件")}\n{(item.Entry?.IsDirectory == true ? "双击进入文件夹" : item.Entry != null ? "双击在资源管理器中定位" : item.IsAggregate ? "" : "双击查看该类型文件")} ";
-        tip.SetToolTip(this, text); Invalidate();
+        tip.SetToolTip(this, text);
     }
-    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); hovered = null; StopMotion(); Invalidate(); }
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e); var previous = hovered; hovered = null; StopMotion(); InvalidateItem(previous);
+        tip.SetToolTip(this, null);
+    }
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
-        selected = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
-        ItemSelected?.Invoke(selected); Invalidate();
+        SelectItem(tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item);
+        ItemSelected?.Invoke(selected);
         StartMotion(selected);
     }
     protected override void OnMouseDoubleClick(MouseEventArgs e)
@@ -182,9 +275,8 @@ internal sealed class TreemapControl : Control
     {
         StopMotion();
         if (!AnimationsEnabled || !Visible || !Enabled || item == null) return;
-        var tile = tiles.FirstOrDefault(t => t.Item == item);
-        if (tile == null || tile.Bounds.Width < 20 || tile.Bounds.Height < 20) return;
-        // One tile at 25 FPS, at most 360 ms, independent of tree size.
+        if (!tileLookup.TryGetValue(item, out var tile) || tile.Bounds.Width < 20 || tile.Bounds.Height < 20) return;
+        // One tile; 16 ms target ticks for a 620 ms damped response. Scheduling can run slower.
         motionItem = item; motionBounds = tile.Bounds;
         motionClock.Restart(); motionTimer.Start(); InvalidateMotion();
     }
@@ -195,7 +287,9 @@ internal sealed class TreemapControl : Control
         if (motionItem != null) InvalidateMotion();
         motionItem = null; motionClock.Reset();
     }
-    protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (!Visible) StopMotion(); }
+    protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (!Visible) { StopMotion(); ReleaseStaticLayer(); } }
     protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); if (!Enabled) StopMotion(); }
-    protected override void Dispose(bool disposing) { if (disposing) { motionTimer.Dispose(); tip.Dispose(); } base.Dispose(disposing); }
+    protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); LayoutTiles(); Invalidate(); }
+    protected override void OnParentChanged(EventArgs e) { base.OnParentChanged(e); ReleaseStaticLayer(); }
+    protected override void Dispose(bool disposing) { if (disposing) { motionTimer.Dispose(); tip.Dispose(); ReleaseStaticLayer(); } base.Dispose(disposing); }
 }

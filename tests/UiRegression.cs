@@ -117,6 +117,7 @@ internal static class UiRegression
                         Console.WriteLine("PASS UI actual coordinator, low/high strategy selection, allocated metric, incremental refresh and force-full action");
 
                         await CheckInteractions(form, Check);
+                        CheckRenderCache(form, Check);
                     }
                     catch (Exception ex) { failure = ex; }
                     finally { gate.Release.Set(); form.Close(); }
@@ -179,7 +180,7 @@ internal static class UiRegression
         Input("OnMouseMove", point); check(map.MotionRunning, "Hover did not start feedback");
         Input("OnMouseClick", point); check(hit == first.Item && map.MotionRunning, "Animated hit target changed");
         using (var bitmap = new Bitmap(map.Width, map.Height)) map.DrawToBitmap(bitmap, map.ClientRectangle);
-        await Task.Delay(450);
+        await Task.Delay(TreemapControl.MotionDurationMilliseconds + 100);
         check(!map.MotionRunning && before.SequenceEqual(Tiles().Select(t => t.Bounds)), "Animation moved area/hit rectangles or did not stop");
         Input("OnMouseClick", point); map.AnimationsEnabled = false;
         check(!map.MotionRunning, "Reduced motion retained tile animation");
@@ -210,6 +211,81 @@ internal static class UiRegression
         fixture.Close();
         Console.WriteLine($"UI render DPI: {owner.DeviceDpi}; main window sizes 1120x780 and 1600x1000 (subject to minimum size).");
         Console.WriteLine("PASS UI honest progress states, phase reset, reduced motion, stable animated hits/area, bounded animation and resizing");
+    }
+
+    private static void CheckRenderCache(Form owner, Action<bool, string> check)
+    {
+        using var fixture = new Form { ClientSize = new Size(1000, 700), Text = "AsukaLens render cache checks", BackgroundImage = Wallpaper.Load() };
+        using var map = new TreemapControl { Dock = DockStyle.Fill, AnimationsEnabled = false };
+        fixture.Controls.Add(map); fixture.Show(owner); map.SetItems(TreemapBenchmark.CreateItems(true));
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        object? Call(string name, params object[] args) => typeof(TreemapControl).GetMethod(name, flags)!.Invoke(map, args);
+        List<MapTile> Tiles() => (List<MapTile>)typeof(TreemapControl).GetField("tiles", flags)!.GetValue(map)!;
+        Bitmap Capture()
+        {
+            var image = new Bitmap(map.Width, map.Height); image.SetResolution(map.DeviceDpi, map.DeviceDpi);
+            map.DrawToBitmap(image, map.ClientRectangle); return image;
+        }
+        using var initial = Capture();
+        int builds = map.StaticLayerBuilds;
+        check(builds > 0 && map.StaticLayerBytes == (long)map.Width * map.Height * 4 && map.StaticLayerBytes <= TreemapControl.MaxCachePixels * 4, "Static cache is missing or unbounded");
+        var dirty = new List<Rectangle>(); InvalidateEventHandler changed = (_, e) => dirty.Add(e.InvalidRect);
+        map.Invalidated += changed;
+        foreach (var tile in Tiles().Take(3))
+        {
+            var point = Point.Round(new PointF(tile.Bounds.X + tile.Bounds.Width / 2, tile.Bounds.Y + tile.Bounds.Height / 2));
+            Call("OnMouseMove", new MouseEventArgs(MouseButtons.None, 0, point.X, point.Y, 0));
+            using var frame = Capture();
+        }
+        map.SelectItem(Tiles()[1].Item); using (var frame = Capture()) { }
+        check(dirty.Count > 0 && dirty.All(r => (long)r.Width * r.Height < (long)map.Width * map.Height / 2), "Hover/selection still invalidate the whole map");
+        check(map.StaticLayerBuilds == builds, "Hover/selection rebuild static labels or wallpaper");
+        map.Invalidated -= changed;
+        Call("OnMouseLeave", EventArgs.Empty); map.SelectItem(null);
+        using var cached = Capture();
+        Call("ReleaseStaticLayer");
+        typeof(TreemapControl).GetField("rejectedKey", flags)!.SetValue(map, Call("CurrentCacheKey"));
+        using var direct = Capture();
+        long different = 0;
+        for (int y = 0; y < cached.Height; y++) for (int x = 0; x < cached.Width; x++)
+        {
+            var a = cached.GetPixel(x, y); var b = direct.GetPixel(x, y);
+            if (Math.Abs(a.R - b.R) + Math.Abs(a.G - b.G) + Math.Abs(a.B - b.B) > 12) different++;
+        }
+        check(different < (long)map.Width * map.Height / 100, "Cached and direct drawing differ materially");
+        Call("ReleaseStaticLayer"); using (var frame = Capture()) { }
+        builds = map.StaticLayerBuilds;
+        map.ShowNested = false; using (var frame = Capture()) { }
+        check(map.StaticLayerBuilds > builds, "Nested layout change retained stale cache"); builds = map.StaticLayerBuilds;
+        map.Metric = SizeMetric.Allocated; using (var frame = Capture()) { }
+        check(map.StaticLayerBuilds > builds, "Metric change retained stale cache"); builds = map.StaticLayerBuilds;
+        var old = fixture.BackgroundImage; fixture.BackgroundImage = new Bitmap(10, 10); old?.Dispose();
+        using (var frame = Capture()) { }
+        check(map.StaticLayerBuilds > builds, "Wallpaper change retained stale pixels"); builds = map.StaticLayerBuilds;
+        fixture.ClientSize = new Size(800, 500); using (var frame = Capture()) { }
+        check(map.StaticLayerBuilds > builds, "Viewport resize retained stale cache"); builds = map.StaticLayerBuilds;
+        map.Dock = DockStyle.None; map.Size = new Size(760, 440); map.Location = new Point(9, 13); using (var frame = Capture()) { }
+        check(map.StaticLayerBuilds > builds, "Wallpaper offset change retained stale cache");
+        map.Size = new Size(4096, 2048);
+        check(map.StaticLayerBytes == 0 && Call("EnsureStaticLayer") is false && map.StaticLayerBytes == 0, "Oversized viewport allocated a bitmap above the cap");
+        map.Hide(); check(map.StaticLayerBytes == 0, "Hidden map retains static bitmap");
+        map.Dispose(); check(map.StaticLayerBytes == 0, "Disposed map retains static bitmap");
+        var wallpaper = fixture.BackgroundImage; fixture.BackgroundImage = null; wallpaper?.Dispose(); fixture.Close();
+
+        using var meter = new ScanProgressControl { Size = new Size(800, 72) };
+        var load = typeof(ScanProgressControl).GetMethod("GetMarker", flags)!;
+        var avatar = (Bitmap)load.Invoke(meter, [39])!;
+        check(avatar.Width == 39 && avatar.Height == 39 && avatar.GetPixel(0, 0).A == 0, "Avatar resource lost transparency or DPI size");
+        check(ReferenceEquals(avatar, load.Invoke(meter, [39])), "Avatar decodes on every frame");
+        check(!ReferenceEquals(avatar, load.Invoke(meter, [52])), "Avatar does not rebuild for a different DPI size");
+        foreach (int completed in new[] { 0, 5, 10 })
+        {
+            meter.BeginScan(); meter.Report(new(0, 0, 0, "", CompletedDirectories: completed, DiscoveredDirectories: 10));
+            using var bitmap = new Bitmap(meter.Width, meter.Height); meter.DrawToBitmap(bitmap, meter.ClientRectangle);
+        }
+        meter.Finish(ScanDisplayState.Completed);
+        using (var bitmap = new Bitmap(meter.Width, meter.Height)) meter.DrawToBitmap(bitmap, meter.ClientRectangle);
+        Console.WriteLine("PASS UI avatar transparency/reuse, partial hover invalidation, cache reuse/cap/disposal and layout/background/metric invalidation");
     }
 
     private sealed class ScanGate : IDisposable

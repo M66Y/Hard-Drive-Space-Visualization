@@ -1,6 +1,8 @@
 using DiskAtlas;
 using System.Drawing;
 
+if (args.Contains("--treemap-benchmark")) return TreemapBenchmark.Run(args.Last());
+
 if (args.Contains("--scan-benchmark")) return ScanBenchmark.Run();
 if (args.Contains("--policy-benchmark")) return ScanPolicyBenchmark.Run();
 if (args.Contains("--memory-benchmark")) return MemoryBenchmark.Run();

@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "base_commit": "ee7f8edb266690e624c2b40c967cdb59593ebc39",
+  "key_files": [
+    {
+      "path": "DiskAtlas.csproj",
+      "bytes": 1096,
+      "sha256": "bf890847c41baae3cf08eb1e3fb061119401186dd45fde4776b723a6a195abb7"
+    },
+    {
+      "path": "MainForm.cs",
+      "bytes": 55196,
+      "sha256": "286bd8686b7e44c600800ff053deed7c709b7aaab38e30f0851a368645b72486"
+    },
+    {
+      "path": "README.md",
+      "bytes": 11957,
+      "sha256": "ee6bf3d076e90c554f84d89a00ec21c086fdf84f2f42d44d6f8eb480df378590"
+    },
+    {
+      "path": "ScanProgressControl.cs",
+      "bytes": 8593,
+      "sha256": "d0c8241aa81fb3b59524fa59ce7308b614af0335616756fb84b96225f0c423ee"
+    },
+    {
+      "path": "TreemapControl.cs",
+      "bytes": 16564,
+      "sha256": "4ad806690823afde01c63755e1af46faf5d0555ae4bd2d1a2cff000f5667a83b"
+    },
+    {
+      "path": "tests/DiskAtlas.Tests.csproj",
+      "bytes": 1619,
+      "sha256": "021dbd9bdcb4c0909ca23b9df6635da3354d65db3ff02c0c41df2ad7b26860d2"
+    },
+    {
+      "path": "tests/Program.cs",
+      "bytes": 41469,
+      "sha256": "81f2d39e0cbba509f719f3bd60bc237d39a33cd787d113e24b3cd912f0c23cdb"
+    },
+    {
+      "path": "tests/UiRegression.cs",
+      "bytes": 25708,
+      "sha256": "b1c84c66b89380bbaea1a46c9ebd4035318f2ff662c4a9ebc6e7e3a37a3ebb60"
+    },
+    {
+      "path": "tests/TreemapBenchmark.cs",
+      "bytes": 6238,
+      "sha256": "f9f5c81b44285b9667f82f39e96be8d34d5ef62b96e5f08c59f0d7a2b5fa96f3"
+    },
+    {
+      "path": "使用说明.txt",
+      "bytes": 7834,
+      "sha256": "017149a14809a8d49ca215c106010bee27bc8f3b15f14eaec8661b9a7483cf74"
+    },
+    {
+      "path": "iterations/2026-11-02-03-hover-fix/changes.patch",
+      "bytes": 47044,
+      "sha256": "ed352b40821d75c2210dee76d3abe0ca8a30243bbc18774d91db6f76b8c5b3ac"
+    },
+    {
+      "path": "iterations/2026-11-02-03-hover-fix/benchmark-before.json",
+      "bytes": 726,
+      "sha256": "a56f95f0de707e6413c4c4a121310d60b090901a5f06d0813c7c5e2f1580f207"
+    },
+    {
+      "path": "iterations/2026-11-02-03-hover-fix/benchmark-after.json",
+      "bytes": 747,
+      "sha256": "a4d7a2f15b63eb73be90721e14157f50794d9e56532b6a42b5c2049655cdc449"
+    },
+    {
+      "path": "iterations/2026-11-02-03-hover-fix/validation.json",
+      "bytes": 1303,
+      "sha256": "8688eefb8a70168cfe74516f40452f944dad2f45f5fc108a34087ed1290f7819"
+    }
+  ]
+}

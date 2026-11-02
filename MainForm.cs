@@ -80,7 +80,7 @@ internal sealed class MainForm : Form
         DoubleBuffered = true;
         AllowDrop = true;
         BuildInterface();
-        reduceMotion.Checked = !SystemInformation.IsMinimizeRestoreAnimationEnabled;
+        reduceMotion.Checked = false;
         reduceMotion.CheckedChanged += (_, _) => ApplyMotionPreference();
         ApplyMotionPreference();
         scanTip.SetToolTip(reduceMotion, "关闭图块回弹和进度往返动画；保留真实进度与静态高亮。本次运行有效。");

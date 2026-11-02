@@ -19,5 +19,6 @@
   <ItemGroup>
     <Compile Remove="tests\**;artifacts\**" />
     <EmbeddedResource Include="assets\background.png" LogicalName="DiskAtlas.Background" />
+    <EmbeddedResource Include="assets\app.ico" LogicalName="DiskAtlas.AppIcon" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,28 @@
+{
+  "label": "after",
+  "method": "warm synthetic handler plus clipped offscreen GDI drawing, animations disabled; excludes OS presentation latency",
+  "results": [
+    {
+      "shape": "12-folders-with-36-nested-tiles",
+      "dpi": 144,
+      "width": 1280,
+      "height": 760,
+      "samples": 60,
+      "median_ms": 0.6836,
+      "p95_ms": 1.3216,
+      "allocated_bytes_per_event": 864,
+      "median_dirty_fraction": 0.1619921875
+    },
+    {
+      "shape": "241-flat-files",
+      "dpi": 144,
+      "width": 1280,
+      "height": 760,
+      "samples": 1205,
+      "median_ms": 0.1308,
+      "p95_ms": 0.4249,
+      "allocated_bytes_per_event": 925,
+      "median_dirty_fraction": 0.009078947368421053
+    }
+  ]
+}
