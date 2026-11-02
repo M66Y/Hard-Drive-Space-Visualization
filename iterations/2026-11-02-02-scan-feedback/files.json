@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "base_commit": "4814d20e4b96e5de8de4f9892245404734716b09",
+  "key_files": [
+    {
+      "path": "AGENTS.md",
+      "bytes": 18784,
+      "sha256": "bab969278e94670f27314f57b9d2628d9ecb284875c0a154df4f24fb4828e201"
+    },
+    {
+      "path": "Core.cs",
+      "bytes": 25467,
+      "sha256": "c618670874c2b59a22f40ae697de2bcec33a209ecb9bb3e0c2d8a9fcdb8ff57e"
+    },
+    {
+      "path": "MainForm.cs",
+      "bytes": 55243,
+      "sha256": "752de6800f5141fd8af90271efc44b2fba61b37187b9f5d8e514747f4579e0be"
+    },
+    {
+      "path": "MetadataVerifier.cs",
+      "bytes": 6215,
+      "sha256": "2a5e5573ad4b8110bfcf7d06e843208577bafd517a601fdeaf08bfd90ac22309"
+    },
+    {
+      "path": "README.md",
+      "bytes": 10628,
+      "sha256": "49cbf3c625c6d2d6497f2301ba6f1a06c93c613ce342e02f1807c09a82c02506"
+    },
+    {
+      "path": "ScanProgressControl.cs",
+      "bytes": 7496,
+      "sha256": "dfdaa8fe3721c38a510389e479530f080562be809620d5f59fd971bc69841177"
+    },
+    {
+      "path": "TreemapControl.cs",
+      "bytes": 11603,
+      "sha256": "3f7054ad801c400dde4693ab2c41af09fbb80d2c5a0f5dc633b3f12c45d9ca73"
+    },
+    {
+      "path": "tests/AdvancedFeatures.cs",
+      "bytes": 30992,
+      "sha256": "c84537096fce86cda8d74933517eb7205a6483d151793500adf9af2db279d507"
+    },
+    {
+      "path": "tests/DiskAtlas.Tests.csproj",
+      "bytes": 1533,
+      "sha256": "1ceb2d8f02b98384f2dac5cddf0cb16c5bdcdce60ee187c419b1d1388fe04602"
+    },
+    {
+      "path": "tests/UiRegression.cs",
+      "bytes": 19881,
+      "sha256": "57079584fffa663963c242b9fc7f435f53e85758a26847af0b383f8f9558c455"
+    },
+    {
+      "path": "使用说明.txt",
+      "bytes": 7386,
+      "sha256": "725e2bcfe7d534f8c494201590c3cca3d83caae56561efd397ebffa70efbbc05"
+    },
+    {
+      "path": "iterations/2026-11-02-02-scan-feedback/changes.patch",
+      "bytes": 55050,
+      "sha256": "90b29011d417d88468da0019f05ad57bf2ee3e60de368608d4be995c039aeb3c"
+    },
+    {
+      "path": "iterations/2026-11-02-02-scan-feedback/validation.json",
+      "bytes": 1139,
+      "sha256": "e7e6c74c4c93e4d97f59a8025528109aa63b915102d661c941ae52498d2794f7"
+    }
+  ]
+}

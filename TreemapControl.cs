@@ -1,5 +1,6 @@
 using System.Drawing.Drawing2D;
 using System.ComponentModel;
+using System.Diagnostics;
 
 namespace DiskAtlas;
 
@@ -10,6 +11,18 @@ internal sealed class TreemapControl : Control
     private readonly Dictionary<MapItem, List<MapTile>> nestedLayouts = [];
     private MapItem? hovered;
     private MapItem? selected;
+    private readonly System.Windows.Forms.Timer motionTimer = new() { Interval = 40 };
+    private readonly Stopwatch motionClock = new();
+    private MapItem? motionItem;
+    private RectangleF motionBounds;
+    private bool animationsEnabled = SystemInformation.IsMinimizeRestoreAnimationEnabled;
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool AnimationsEnabled
+    {
+        get => animationsEnabled;
+        set { animationsEnabled = value; if (!value) StopMotion(); }
+    }
+    internal bool MotionRunning => motionTimer.Enabled;
     private readonly ToolTip tip = new() { InitialDelay = 300, ReshowDelay = 100, AutoPopDelay = 20000 };
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public long TotalSize { get; set; }
@@ -32,6 +45,11 @@ internal sealed class TreemapControl : Control
         DoubleBuffered = true; BackColor = Theme.Surface;
         SetStyle(ControlStyles.ResizeRedraw, true);
         Cursor = Cursors.Hand;
+        motionTimer.Tick += (_, _) =>
+        {
+            if (motionClock.ElapsedMilliseconds >= 360 || !Visible || !Enabled) StopMotion();
+            else InvalidateMotion();
+        };
     }
     public void SetItems(IReadOnlyList<MapItem> value)
     {
@@ -43,6 +61,7 @@ internal sealed class TreemapControl : Control
     protected override void OnResize(EventArgs e) { base.OnResize(e); LayoutTiles(); }
     private void LayoutTiles()
     {
+        StopMotion();
         float pad = 10 * DeviceDpi / 96f;
         tiles = TreemapLayout.Build(items, new RectangleF(pad, pad, Math.Max(0, Width - 2 * pad), Math.Max(0, Height - 2 * pad)));
         nestedLayouts.Clear();
@@ -85,6 +104,7 @@ internal sealed class TreemapControl : Control
         using var miniFont = Theme.Font(8);
         foreach (var tile in tiles)
         {
+            if (!e.ClipRectangle.IntersectsWith(Rectangle.Ceiling(tile.Bounds))) continue;
             RectangleF rect = tile.Bounds;
             rect.Inflate(-2 * s, -2 * s);
             if (rect.Width < 1 || rect.Height < 1) continue;
@@ -120,6 +140,18 @@ internal sealed class TreemapControl : Control
                 using var pen = new Pen(tile.Item == selected ? Theme.Accent : Theme.Muted, (tile.Item == selected ? 2.5f : 1.5f) * s);
                 g.DrawPath(pen, path);
             }
+            if (tile.Item == motionItem && rect.Width > 18 * s && rect.Height > 18 * s)
+            {
+                // Animate only an INTERNAL highlight contour. The area-bearing fill,
+                // nested layout, labels and hit rectangles never move or scale.
+                float t = Math.Clamp(motionClock.ElapsedMilliseconds / 360f, 0, 1);
+                float spring = (float)(Math.Sin(t * Math.PI * 3) * (1 - t) * (1 - t));
+                float dx = (4 + 1.5f * spring) * s, dy = (4 - 1.5f * spring) * s;
+                var inner = RectangleF.Inflate(rect, -dx, -dy);
+                using var contour = Theme.Round(inner, 7 * s);
+                using var shine = new Pen(Color.FromArgb((int)(140 * (1 - t)), Color.White), 2 * s);
+                g.DrawPath(shine, contour);
+            }
         }
     }
     protected override void OnMouseMove(MouseEventArgs e)
@@ -128,15 +160,17 @@ internal sealed class TreemapControl : Control
         var item = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
         if (item == hovered) return;
         hovered = item;
+        StartMotion(item);
         string? text = item == null ? null : $"{item.Name}\n{SizeFormat.Bytes(item.Size)}  ·  {SizeFormat.Percent(item.Size, TotalSize)}\n{item.Entry?.Path ?? (item.IsAggregate ? $"合并 {SizeFormat.Number(item.Count)} 项，请查看右侧列表" : $"共 {SizeFormat.Number(item.Count)} 个文件")}\n{(item.Entry?.IsDirectory == true ? "双击进入文件夹" : item.Entry != null ? "双击在资源管理器中定位" : item.IsAggregate ? "" : "双击查看该类型文件")} ";
         tip.SetToolTip(this, text); Invalidate();
     }
-    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); hovered = null; Invalidate(); }
+    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); hovered = null; StopMotion(); Invalidate(); }
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
         selected = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
         ItemSelected?.Invoke(selected); Invalidate();
+        StartMotion(selected);
     }
     protected override void OnMouseDoubleClick(MouseEventArgs e)
     {
@@ -144,5 +178,24 @@ internal sealed class TreemapControl : Control
         var item = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
         if (item != null) ItemActivated?.Invoke(item);
     }
-    protected override void Dispose(bool disposing) { if (disposing) tip.Dispose(); base.Dispose(disposing); }
+    private void StartMotion(MapItem? item)
+    {
+        StopMotion();
+        if (!AnimationsEnabled || !Visible || !Enabled || item == null) return;
+        var tile = tiles.FirstOrDefault(t => t.Item == item);
+        if (tile == null || tile.Bounds.Width < 20 || tile.Bounds.Height < 20) return;
+        // One tile at 25 FPS, at most 360 ms, independent of tree size.
+        motionItem = item; motionBounds = tile.Bounds;
+        motionClock.Restart(); motionTimer.Start(); InvalidateMotion();
+    }
+    private void InvalidateMotion() => Invalidate(Rectangle.Ceiling(RectangleF.Inflate(motionBounds, 2, 2)));
+    private void StopMotion()
+    {
+        motionTimer.Stop();
+        if (motionItem != null) InvalidateMotion();
+        motionItem = null; motionClock.Reset();
+    }
+    protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (!Visible) StopMotion(); }
+    protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); if (!Enabled) StopMotion(); }
+    protected override void Dispose(bool disposing) { if (disposing) { motionTimer.Dispose(); tip.Dispose(); } base.Dispose(disposing); }
 }

@@ -20,6 +20,7 @@
     <Compile Include="..\ViewQuery.cs" Link="ViewQuery.cs" />
     <Compile Include="..\MainForm.cs" Link="MainForm.cs" />
     <Compile Include="..\TreemapControl.cs" Link="TreemapControl.cs" />
+    <Compile Include="..\ScanProgressControl.cs" Link="ScanProgressControl.cs" />
     <Compile Include="..\Theme.cs" Link="Theme.cs" />
     <Compile Include="..\Wallpaper.cs" Link="Wallpaper.cs" />
     <EmbeddedResource Include="..\assets\background.png" LogicalName="DiskAtlas.Background" />

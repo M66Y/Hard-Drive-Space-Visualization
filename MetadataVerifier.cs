@@ -21,17 +21,22 @@ internal static class MetadataVerifier
         var concurrency = new ScanConcurrencyMeter();
         long checkedDirs = 0, checkedFiles = 0, lastReport = -100;
         var clock = Stopwatch.StartNew(); var gate = new object();
+        void Report(string path, bool force = false)
+        {
+            if (progress == null || (!force && clock.ElapsedMilliseconds - Volatile.Read(ref lastReport) < 100)) return;
+            lock (gate)
+            {
+                if (!force && clock.ElapsedMilliseconds - lastReport < 100) return;
+                Volatile.Write(ref lastReport, clock.ElapsedMilliseconds);
+                long completed = Interlocked.Read(ref checkedDirs);
+                progress.Report(new(Interlocked.Read(ref checkedFiles), completed, 0, "核验缓存：" + path,
+                    ScanPhase.Verifying, profile.Workers, completed, directories.Count));
+            }
+        }
         Parallel.ForEach(directories.Values, new ParallelOptions { MaxDegreeOfParallelism = profile.Workers, CancellationToken = token }, directory =>
         {
             token.ThrowIfCancellationRequested();
-            lock (gate)
-            {
-                if (clock.ElapsedMilliseconds - lastReport >= 100)
-                {
-                    lastReport = clock.ElapsedMilliseconds;
-                    progress?.Report(new(Interlocked.Read(ref checkedFiles), Interlocked.Read(ref checkedDirs), 0, "核验缓存：" + directory.Path, ScanPhase.Verifying, profile.Workers));
-                }
-            }
+            Report(directory.Path);
             concurrency.Enter();
             try
             {
@@ -45,12 +50,14 @@ internal static class MetadataVerifier
                 if (info.LastWriteTime != directory.Modified) dirty[directory.Path] = 0;
                 var old = directory.Children.ToDictionary(e => e.Name, StringComparer.OrdinalIgnoreCase);
                 int seen = 0;
+                int batch = 0;
                 var entries = new FileSystemEnumerable<Entry>(directory.Path, (ref FileSystemEntry entry) => new(entry.FileName.ToString(), entry.Attributes),
                     new EnumerationOptions { AttributesToSkip = 0, IgnoreInaccessible = false, BufferSize = 64 * 1024 });
                 foreach (var item in entries)
                 {
                     token.ThrowIfCancellationRequested();
                     pacer.Worked(token);
+                    if (++batch == 256) { Report(directory.Path); batch = 0; }
                     bool isDirectory = (item.Attributes & FileAttributes.Directory) != 0;
                     if ((item.Attributes & FileAttributes.ReparsePoint) != 0 || !old.TryGetValue(item.Name, out var cached) || cached.Name != item.Name || cached.IsDirectory != isDirectory)
                     { dirty[directory.Path] = 0; continue; }
@@ -73,8 +80,9 @@ internal static class MetadataVerifier
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             { dirty[directory.Path] = 0; if (directory.Parent != null) dirty[directory.Parent.Path] = 0; }
-            finally { concurrency.Exit(); Interlocked.Increment(ref checkedDirs); }
+            finally { concurrency.Exit(); Interlocked.Increment(ref checkedDirs); Report(directory.Path); }
         });
+        Report(root.Path, true);
         // A write through any alias invalidates every known in-scope hard-link path.
         foreach (var entry in root.Descendants())
         {

@@ -1,0 +1,49 @@
+{
+  "application_build": {
+    "configuration": "Release",
+    "warnings": 0,
+    "errors": 0
+  },
+  "test_build": {
+    "configuration": "Release",
+    "warnings": 0,
+    "errors": 0
+  },
+  "checks": {
+    "core": 38,
+    "advanced": 25,
+    "ui_groups": 5,
+    "status": "passed"
+  },
+  "render": {
+    "dpi": 144,
+    "requested_main_window_sizes": [
+      [
+        1120,
+        780
+      ],
+      [
+        1600,
+        1000
+      ]
+    ],
+    "minimum_size_clamp": true,
+    "component_widths": [
+      420,
+      1440
+    ],
+    "maximum_test_tiles": 241
+  },
+  "manual_checks": [
+    "synthetic directory scan: 600 files, 4 child folders",
+    "refresh: metadata verification and cache reuse, terminal 100%",
+    "reduced motion toggle and tile selection",
+    "removed synthetic root: failed state, no successful 100%, previous result retained"
+  ],
+  "not_verified": [
+    "other DPI configurations and cross-monitor DPI changes",
+    "physical I/O, external application responsiveness and full-disk performance",
+    "manual visual observation of intermediate percentages during a long scan"
+  ],
+  "release_created": false
+}

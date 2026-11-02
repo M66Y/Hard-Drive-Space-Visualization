@@ -1,0 +1,759 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 88e4286..61047f4 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -145,6 +145,6 @@
+ 
+ ## 当前实现与目标的差距
+ 
+-基线软件为 v1.4.2。当前仍使用根目录源码、固定内嵌背景、有限的原生扫描反馈和日志不可用时的全量元信息核验；完整日志系统、背景设置、双语 README、EXE 安装器及四类资产的快照发布流程尚未实现。首次核查时本地未初始化 Git，指定 GitHub 仓库为空；该状态会随后续接入改变，应以实际检查为准。
++基线软件为 v1.4.2。开发分支已提供目录任务估算进度和有限图块动效，仍使用根目录源码、固定内嵌背景和日志不可用时的全量元信息核验；完整日志系统、背景设置、双语 README、EXE 安装器及四类资产的快照发布流程尚未实现。首次核查时本地未初始化 Git，指定 GitHub 仓库为空；该状态会随后续接入改变，应以实际检查为准。
+ 
+ 本文件建立这些要求，不将既有软件或旧版 ZIP 追认成满足全部新发布规范的正式 Release；新增开发按已选方案逐项验收。
+diff --git a/Core.cs b/Core.cs
+index 152c5f1..107913a 100644
+--- a/Core.cs
++++ b/Core.cs
+@@ -136,7 +136,14 @@ public sealed class DiskEntry
+ }
+ 
+ public record ScanProgress(long Files, long Folders, long Bytes, string CurrentPath,
+-    ScanPhase Phase = ScanPhase.Scanning, int WorkerLimit = 0);
++    ScanPhase Phase = ScanPhase.Scanning, int WorkerLimit = 0,
++    long CompletedDirectories = 0, long DiscoveredDirectories = 0)
++{
++    // This describes directory tasks in the CURRENT phase, never elapsed time,
++    // bytes, remaining duration or overall completion. Newly found work can lower it.
++    public int? EstimatedPercent => DiscoveredDirectories <= 0 || CompletedDirectories < 0 || CompletedDirectories > DiscoveredDirectories
++        ? null : (int)Math.Min(99, 100.0 * CompletedDirectories / DiscoveredDirectories);
++}
+ public record ScanIssue(string Path, string Reason);
+ public record ScanResult(DiskEntry Root, TimeSpan Elapsed, long Skipped, IReadOnlyList<ScanIssue> Issues)
+ {
+@@ -190,6 +197,7 @@ public sealed class DiskScanner
+         var timer = Stopwatch.StartNew();
+         long files = 0, folders = 0, bytes = 0, skipped = 0, lastReport = -100;
+         long outstanding = 1;
++        long completedDirectories = 0, scheduledDirectories = 1;
+         long readDirectories = 0, reusedFiles = 0;
+         var pacer = new ScanWorkPacer(profile);
+         var concurrency = new ScanConcurrencyMeter();
+@@ -210,7 +218,9 @@ public sealed class DiskScanner
+             {
+                 if (!force && timer.ElapsedMilliseconds - lastReport < 100) return;
+                 Volatile.Write(ref lastReport, timer.ElapsedMilliseconds);
+-                progress.Report(new ScanProgress(Interlocked.Read(ref files), Interlocked.Read(ref folders), Interlocked.Read(ref bytes), current, phase, profile.Workers));
++                long completed = Interlocked.Read(ref completedDirectories);
++                long discovered = Interlocked.Read(ref scheduledDirectories);
++                progress.Report(new ScanProgress(Interlocked.Read(ref files), Interlocked.Read(ref folders), Interlocked.Read(ref bytes), current, phase, profile.Workers, completed, discovered));
+             }
+         }
+ 
+@@ -241,6 +251,7 @@ public sealed class DiskScanner
+             }
+             void Schedule(DiskEntry entry)
+             {
++                Interlocked.Increment(ref scheduledDirectories);
+                 Interlocked.Increment(ref outstanding); pending.Writer.TryWrite(entry);
+             }
+             void Publish(DiskEntry entry)
+@@ -361,7 +372,9 @@ public sealed class DiskScanner
+             try
+             {
+                 ScanDirectory(current, workToken);
++                Interlocked.Increment(ref completedDirectories);
+                 if (Interlocked.Decrement(ref outstanding) == 0) pending.Writer.TryComplete();
++                Report(current.Path, phase: refresh != null ? ScanPhase.Reusing : ScanPhase.Scanning);
+             }
+             finally { concurrency.Exit(); }
+             return ValueTask.CompletedTask;
+diff --git a/MainForm.cs b/MainForm.cs
+index eb0097e..0c07314 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -40,7 +40,8 @@ internal sealed class MainForm : Form
+     private readonly Label status = LabelOf("就绪  ·  仅扫描本地文件，文件不会上传", 8, false, true);
+     private readonly TextBox pathBox = new() { ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = Theme.Surface, ForeColor = Theme.Text, Dock = DockStyle.Fill };
+     private readonly TextBox search = new() { PlaceholderText = "搜索名称或扩展名…", BorderStyle = BorderStyle.None, BackColor = Theme.Surface, ForeColor = Theme.Text, Dock = DockStyle.Fill };
+-    private readonly ProgressBar progressBar = new() { Dock = DockStyle.Fill, Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 25, Visible = false };
++    private readonly ScanProgressControl progressBar = new() { Dock = DockStyle.Fill };
++    private readonly CheckBox reduceMotion = new() { Text = "减弱动效", AutoSize = true, Anchor = AnchorStyles.Right, BackColor = Color.Transparent };
+     private readonly DataGridView grid = new WallpaperGrid();
+     private readonly StatCard totalCard = new() { Title = "当前目录大小", Caption = "文件逻辑大小 · 1024 进制", Highlight = true, Dock = DockStyle.Fill };
+     private readonly StatCard filesCard = new() { Title = "文件数量", Caption = "包含所有子文件夹", Dock = DockStyle.Fill };
+@@ -79,6 +80,10 @@ internal sealed class MainForm : Form
+         DoubleBuffered = true;
+         AllowDrop = true;
+         BuildInterface();
++        reduceMotion.Checked = !SystemInformation.IsMinimizeRestoreAnimationEnabled;
++        reduceMotion.CheckedChanged += (_, _) => ApplyMotionPreference();
++        ApplyMotionPreference();
++        scanTip.SetToolTip(reduceMotion, "关闭图块回弹和进度往返动画；保留真实进度与静态高亮。本次运行有效。");
+         ConfigureGrid();
+         strategyCombo.Items.AddRange(["自动", "低占用", "高速"]); strategyCombo.SelectedIndex = 0;
+         strategyCombo.SelectedIndexChanged += (_, _) => { if (scanCancellation == null) UpdateStrategyHint(); };
+@@ -175,7 +180,7 @@ internal sealed class MainForm : Form
+         foreach (float height in new float[] { 85, 46, 124, 62 }) main.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+         main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
+-        main.RowStyles.Add(new RowStyle(SizeType.Absolute, 4));
++        main.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+         shell.Controls.Add(main, 1, 0);
+         Controls.Add(shell);
+@@ -233,12 +238,14 @@ internal sealed class MainForm : Form
+         mapPanel.Wash = 180;
+         mapPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
+         mapPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+-        var mapHeading = Table(2, 1); mapHeading.Wash = 210;
++        var mapHeading = Table(3, 1); mapHeading.Wash = 210;
+         mapHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+         filterColumn = new ColumnStyle(SizeType.Absolute, 0);
+         mapHeading.ColumnStyles.Add(filterColumn);
++        mapHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 98));
+         mapHeading.Controls.Add(PanelHeader(mapTitle, mapCaption), 0, 0);
+         mapHeading.Controls.Add(clearType, 1, 0);
++        mapHeading.Controls.Add(reduceMotion, 2, 0);
+         mapPanel.Controls.Add(mapHeading, 0, 0);
+         mapPanel.Controls.Add(map, 0, 1);
+         split.Panel1.Controls.Add(mapPanel);
+@@ -377,7 +384,7 @@ internal sealed class MainForm : Form
+         choose.Enabled = refresh.Enabled = false;
+         strategyCombo.Enabled = metricCombo.Enabled = false;
+         cancel.Visible = cancel.Enabled = true;
+-        progressBar.Visible = true;
++        progressBar.BeginScan();
+         map.Scanning = scan == null;
+         map.Invalidate();
+         status.Text = $"开始扫描：{path}";
+@@ -386,7 +393,8 @@ internal sealed class MainForm : Form
+         var progress = new Progress<ScanProgress>(p =>
+         {
+             if (IsDisposed || Disposing || !ReferenceEquals(scanCancellation, cancellation) || cancellation.IsCancellationRequested) return;
+-            string stage = p.Phase switch { ScanPhase.Verifying => "核验元信息", ScanPhase.Reusing => "复用缓存", ScanPhase.Finalizing => "统计与整理", _ => "读取目录" };
++            progressBar.Report(p);
++            string stage = ScanProgressControl.PhaseName(p.Phase);
+             status.Text = $"{stage} · {SizeFormat.Number(p.Files)} 个文件 · {(p.Phase == ScanPhase.Verifying ? p.CurrentPath : SizeFormat.Bytes(p.Bytes) + " · " + p.CurrentPath)}";
+             if (p.WorkerLimit > 0) refreshInfo.Text = $"{StrategyName} · {stage} · 目录并发上限 {p.WorkerLimit}";
+             if (scan == null && !showingPreview)
+@@ -423,12 +431,14 @@ internal sealed class MainForm : Form
+             else refreshInfo.Text = "扫描完成";
+             status.Text = $"扫描完成 · {SizeFormat.Number(scan.Root.FileCount)} 个文件 · " + (scan.Statistics?.Reason ?? "") +
+                 (scan.Skipped > 0 ? $" · {scan.Skipped:N0} 项已跳过" : "") + (scan.Root.UnknownAllocationFiles > 0 ? $" · {scan.Root.UnknownAllocationFiles:N0} 项占用未知" : "");
++            progressBar.Finish(scan.Skipped > 0 || scan.Root.Incomplete || scan.Root.UnknownAllocationFiles > 0 ? ScanDisplayState.Incomplete : ScanDisplayState.Completed);
+         }
+         catch (OperationCanceledException)
+         {
+             if (!IsDisposed)
+             {
+                 RestorePrevious();
++                progressBar.Finish(ScanDisplayState.Cancelled);
+                 status.Text = scan == null ? "扫描已取消。选择文件夹可重新开始。" : "扫描已取消，仍显示上一次完成的结果。";
+             }
+         }
+@@ -437,6 +447,7 @@ internal sealed class MainForm : Form
+             if (!IsDisposed)
+             {
+                 RestorePrevious();
++                progressBar.Finish(ScanDisplayState.Failed);
+                 status.Text = "扫描未完成：" + ex.Message;
+                 MessageBox.Show(this, ex.Message, "无法扫描该文件夹", MessageBoxButtons.OK, MessageBoxIcon.Information);
+             }
+@@ -450,7 +461,7 @@ internal sealed class MainForm : Form
+             {
+                 choose.Enabled = true; refresh.Enabled = scan != null; cancel.Visible = false;
+                 strategyCombo.Enabled = metricCombo.Enabled = true;
+-                progressBar.Visible = false; map.Scanning = false; map.Invalidate();
++                map.Scanning = false; map.Invalidate();
+                 if (cancellation.IsCancellationRequested || scan == previousScan) UpdateStrategyHint();
+             }
+         }
+@@ -493,6 +504,11 @@ internal sealed class MainForm : Form
+         try { metricCombo.SelectedIndex = (int)value; } finally { changingMetric = false; }
+     }
+ 
++    private void ApplyMotionPreference()
++    {
++        map.AnimationsEnabled = progressBar.AnimationsEnabled = !reduceMotion.Checked;
++    }
++
+     private async Task ForceRefresh()
+     {
+         if (scanCancellation != null || scan == null) return;
+diff --git a/MetadataVerifier.cs b/MetadataVerifier.cs
+index b28ff01..83ec718 100644
+--- a/MetadataVerifier.cs
++++ b/MetadataVerifier.cs
+@@ -21,17 +21,22 @@ internal static class MetadataVerifier
+         var concurrency = new ScanConcurrencyMeter();
+         long checkedDirs = 0, checkedFiles = 0, lastReport = -100;
+         var clock = Stopwatch.StartNew(); var gate = new object();
+-        Parallel.ForEach(directories.Values, new ParallelOptions { MaxDegreeOfParallelism = profile.Workers, CancellationToken = token }, directory =>
++        void Report(string path, bool force = false)
+         {
+-            token.ThrowIfCancellationRequested();
++            if (progress == null || (!force && clock.ElapsedMilliseconds - Volatile.Read(ref lastReport) < 100)) return;
+             lock (gate)
+             {
+-                if (clock.ElapsedMilliseconds - lastReport >= 100)
+-                {
+-                    lastReport = clock.ElapsedMilliseconds;
+-                    progress?.Report(new(Interlocked.Read(ref checkedFiles), Interlocked.Read(ref checkedDirs), 0, "核验缓存：" + directory.Path, ScanPhase.Verifying, profile.Workers));
+-                }
++                if (!force && clock.ElapsedMilliseconds - lastReport < 100) return;
++                Volatile.Write(ref lastReport, clock.ElapsedMilliseconds);
++                long completed = Interlocked.Read(ref checkedDirs);
++                progress.Report(new(Interlocked.Read(ref checkedFiles), completed, 0, "核验缓存：" + path,
++                    ScanPhase.Verifying, profile.Workers, completed, directories.Count));
+             }
++        }
++        Parallel.ForEach(directories.Values, new ParallelOptions { MaxDegreeOfParallelism = profile.Workers, CancellationToken = token }, directory =>
++        {
++            token.ThrowIfCancellationRequested();
++            Report(directory.Path);
+             concurrency.Enter();
+             try
+             {
+@@ -45,12 +50,14 @@ internal static class MetadataVerifier
+                 if (info.LastWriteTime != directory.Modified) dirty[directory.Path] = 0;
+                 var old = directory.Children.ToDictionary(e => e.Name, StringComparer.OrdinalIgnoreCase);
+                 int seen = 0;
++                int batch = 0;
+                 var entries = new FileSystemEnumerable<Entry>(directory.Path, (ref FileSystemEntry entry) => new(entry.FileName.ToString(), entry.Attributes),
+                     new EnumerationOptions { AttributesToSkip = 0, IgnoreInaccessible = false, BufferSize = 64 * 1024 });
+                 foreach (var item in entries)
+                 {
+                     token.ThrowIfCancellationRequested();
+                     pacer.Worked(token);
++                    if (++batch == 256) { Report(directory.Path); batch = 0; }
+                     bool isDirectory = (item.Attributes & FileAttributes.Directory) != 0;
+                     if ((item.Attributes & FileAttributes.ReparsePoint) != 0 || !old.TryGetValue(item.Name, out var cached) || cached.Name != item.Name || cached.IsDirectory != isDirectory)
+                     { dirty[directory.Path] = 0; continue; }
+@@ -73,8 +80,9 @@ internal static class MetadataVerifier
+             }
+             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+             { dirty[directory.Path] = 0; if (directory.Parent != null) dirty[directory.Parent.Path] = 0; }
+-            finally { concurrency.Exit(); Interlocked.Increment(ref checkedDirs); }
++            finally { concurrency.Exit(); Interlocked.Increment(ref checkedDirs); Report(directory.Path); }
+         });
++        Report(root.Path, true);
+         // A write through any alias invalidates every known in-scope hard-link path.
+         foreach (var entry in root.Descendants())
+         {
+diff --git a/README.md b/README.md
+index 50dcce9..5920780 100644
+--- a/README.md
++++ b/README.md
+@@ -1,6 +1,6 @@
+ # AsukaLens v1.4.2
+ 
+-开发分支已包含尚未正式发布的扫描策略修正；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。详见[本轮验证记录](iterations/2026-11-01-02-scan-policy/README.md)。
++开发分支已包含尚未正式发布的扫描策略修正、扫描进度与图块反馈；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。详见[扫描策略记录](iterations/2026-11-01-02-scan-policy/README.md)和[第 2 轮交互记录](iterations/2026-11-02-02-scan-feedback/README.md)。
+ 
+ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，点击“选择文件夹”，即可查看文件名称、大小和分布。
+ 
+@@ -18,6 +18,10 @@ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，
+ - 统计口径可切换“文件大小 / 实际占用”。占用读取 Windows 分配信息，处理压缩 / 稀疏文件；硬链接按文件身份去重，未知占用明确标注。
+ - 扫描策略可选“自动 / 低占用 / 高速”。自动检测本地盘的寻道特性；低占用为单路，扫描和核验均跨目录累计每 256 个工作项让步；高速最多 8 路目录任务。
+ 
++扫描时底部显示透明轨道、深色已处理段和随估算移动的透镜图标，百分比位于最右侧。它是**当前阶段的目录任务估算**，按“已处理 / 已发现”计算（含根目录），不是文件大小、文件数量或剩余时间比例。新目录出现时允许下降；核验以旧快照的目录数计数，切到读取/复用后重新计数，整理阶段沿用读取计数；整个缓存子树复用算一个任务。单个大目录可能长时间保持较低估算，目录读取结束后整理阶段最多 99%，只有结果完整才显示 100%。总量未知时显示往返指示；取消、失败或结果不完整保留明确终态，不显示成功的 100%。悬停进度区域可查看计算说明。
++
++图块悬停、点击时，内层高光轮廓轻微回弹，数据面积、文字与点击边界保持固定；最多一个图块动画，目标时长 360 ms、40 ms 更新间隔，只重绘对应区域，使用缓存布局。空间分布标题右侧的“减弱动效”可关闭回弹和未知进度的往返动画，保留静态提示；初始值跟随启动时系统的窗口动画偏好，勾选仅对本次运行有效。
++
+ 固态盘上自动与高速的目录并发上限均为 8，单个目录内部的文件仍逐项读取。界面区分读取、核验、复用和统计整理，并分别显示核验任务峰值、目录任务峰值与并发上限；峰值包含等待，不代表 CPU 核数或瞬时磁盘 I/O 数。悬停扫描策略或统计提示可查看说明。刷新可能核验并复用旧结果，不能直接与首次完整扫描比较速度。
+ 
+ 完整说明见 [使用说明.txt](使用说明.txt)。默认按文件逻辑大小展示，可切换为文件数据的实际分配空间；不包含目录记录、备用数据流等文件系统开销，也不代表删除后可释放的大小。扫描结果是一次快照，使用“重新扫描”更新。
+@@ -43,7 +47,7 @@ dotnet run --project DiskAtlas.csproj -- "D:\你的文件夹"
+ 
+ `tests` 为无需测试框架依赖的断言程序，38 项检查覆盖扫描、隐藏文件、根目录消失、取消、140 层目录、联接循环及扫描期间链接替换、查询与排序、精确类型筛选、分页和极端图块边界；检查并行 / 串行结果逐项一致、修改时间、并发取消、错误传播及跳过统计；还检查文件存储、无分配路径比较、完成前预览、快照隔离、并发预览查询和目录浏览。80 组随机矩形图检查面积比例、完整覆盖、边界和不重叠。10 万文件固定种子基准同时与参考算法核对结果，并输出内存分配和耗时。
+ 
+-另外 23 项功能检查覆盖硬链接去重、压缩 / 稀疏占用、未知占用、三种策略、日志解析与断档回退、保留时间戳的深层修改、目录移动 / 新增 / 替换、根目录外硬链接写入、持续打开的写句柄、刷新期间变更重放及取消隔离，以及跨目录让步计数、取消边界、无节拍模式、任务峰值与扫描阶段。构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --advanced-tests`；两组共 61 项检查。`--ui-regression` 包含 4 组界面集成检查，其中一组直接使用正式扫描协调器。
++另外 25 项功能检查覆盖硬链接去重、压缩 / 稀疏占用、未知占用、三种策略、日志解析与断档回退、保留时间戳的深层修改、目录移动 / 新增 / 替换、根目录外硬链接写入、持续打开的写句柄、刷新期间变更重放及取消隔离，以及跨目录让步计数、取消边界、无节拍模式、任务峰值、阶段估算和真实目录任务计数。构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --advanced-tests`；两组共 63 项检查。`--ui-regression` 包含 5 组界面集成检查，其中一组直接使用正式扫描协调器，另覆盖进度终态与迟到回调、阶段切换、动效关闭、图块面积和命中稳定性以及尺寸变化。
+ 
+ 三种真实策略的可选诊断基准：构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --policy-benchmark`。它创建并自动删除 15,200 个合成小文件，分别测量完整扫描和无日志的无变化刷新，预热后按平衡顺序每模式运行 6 次并逐项比对结果。汇总墙钟、进程 CPU、总托管分配与任务峰值；不测量实际前台应用响应或物理磁盘 I/O。结果保存在 `artifacts/policy-benchmark-results.json`；再次运行前应先归档并移除上一份同名结果，避免覆盖证据。
+ 
+@@ -73,6 +77,6 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
+ 
+ ## 结构
+ 
+-`Core.cs` 扫描、紧凑文件条目、大小格式与矩形布局；`LiveScanSession.cs` 可取消的有限预览快照；`ViewQuery.cs` 可取消的查询、有限堆筛选与分页；`FileKinds.cs` 文件分类；`MainForm.cs` 界面和异步状态；`TreemapControl.cs` 缓存图块绘制；`Theme.cs` 配色和可用键盘操作的导航控件。扫描使用目录队列和最多 8 个工作线程，跳过重解析点并记录错误。`new DiskScanner(1)` 可用于串行验证，最大并行数可在 1–16 之间设置。
++`Core.cs` 扫描、紧凑文件条目、大小格式与矩形布局；`LiveScanSession.cs` 可取消的有限预览快照；`ViewQuery.cs` 可取消的查询、有限堆筛选与分页；`FileKinds.cs` 文件分类；`MainForm.cs` 界面和异步状态；`TreemapControl.cs` 缓存图块绘制及有限动效；`ScanProgressControl.cs` 阶段估算与进度显示；`Theme.cs` 配色和可用键盘操作的导航控件。扫描使用目录队列和最多 8 个工作线程，跳过重解析点并记录错误。`new DiskScanner(1)` 可用于串行验证，最大并行数可在 1–16 之间设置。
+ 
+ `ScanCoordinator.cs` 选择刷新路径并生成复用计划；`ChangeJournal.cs` 只读解析 NTFS 日志；`MetadataVerifier.cs` 无日志时核验元信息；`NativeStorage.cs` 查询 Windows 文件身份、分配及磁盘特性；`StorageMetrics.cs` 对硬链接确定唯一计入路径并汇总；`ScanPolicy.cs` 定义扫描策略。缓存仅在内存中，不创建或修改系统变化日志，不要求提升软件权限。
+diff --git a/ScanProgressControl.cs b/ScanProgressControl.cs
+new file mode 100644
+index 0000000..b521d91
+--- /dev/null
++++ b/ScanProgressControl.cs
+@@ -0,0 +1,138 @@
++using System.ComponentModel;
++using System.Diagnostics;
++using System.Drawing.Drawing2D;
++
++namespace DiskAtlas;
++
++internal enum ScanDisplayState { Idle, Running, Completed, Incomplete, Cancelled, Failed }
++
++// A bounded UI-only pulse denotes unknown work; it never changes the estimate.
++internal sealed class ScanProgressControl : Control
++{
++    private readonly System.Windows.Forms.Timer pulse = new() { Interval = 50 };
++    private readonly Stopwatch clock = Stopwatch.StartNew();
++    private readonly ToolTip tip = new() { AutoPopDelay = 20000 };
++    private ScanProgress? latest;
++    private bool animationsEnabled = SystemInformation.IsMinimizeRestoreAnimationEnabled;
++    internal const string Explanation = "当前阶段估算 = 已处理目录任务 / 当前已发现目录任务；包含根目录。\n新目录出现时估算可能下降；核验与读取/复用分别计数，整理阶段沿用读取计数。\n不代表文件、字节或剩余时间比例。核验以旧快照目录数为分母，整个缓存子树复用算一个任务。\n统计整理结束前最多 99%；总量未知时显示往返指示。取消、失败或结果不完整不显示成功的 100%。";
++
++    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
++    public bool AnimationsEnabled
++    {
++        get => animationsEnabled;
++        set { animationsEnabled = value; RefreshPulse(); Invalidate(); }
++    }
++    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
++    public ScanDisplayState State { get; private set; }
++    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
++    public int? Percent { get; private set; }
++    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
++    public string StageText { get; private set; } = "选择文件夹开始扫描";
++    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
++    public string PercentText => State == ScanDisplayState.Completed ? "100%" : State == ScanDisplayState.Running
++        ? Percent is int p ? $"估算 {p}%" : "总量未知" : "—";
++    internal bool PulseRunning => pulse.Enabled;
++
++    public ScanProgressControl()
++    {
++        DoubleBuffered = true; TabStop = false; Margin = Padding.Empty;
++        SetStyle(ControlStyles.ResizeRedraw, true);
++        // Generic controls expose a spurious editable numeric range for ProgressBar.
++        // Publish the actual phase/estimate as read-only text, including unknown work.
++        AccessibleRole = AccessibleRole.StaticText;
++        tip.SetToolTip(this, Explanation);
++        pulse.Tick += (_, _) => Invalidate();
++        UpdateAccessibility();
++    }
++    public void BeginScan()
++    {
++        latest = null; State = ScanDisplayState.Running; Percent = null;
++        StageText = "准备扫描"; Changed();
++    }
++    public void Report(ScanProgress value)
++    {
++        // Queued callbacks are also guarded by the form's scan identity.
++        if (State != ScanDisplayState.Running) return;
++        latest = value; Percent = value.EstimatedPercent;
++        StageText = PhaseName(value.Phase); Changed();
++    }
++    public void Finish(ScanDisplayState state)
++    {
++        if (state is ScanDisplayState.Running or ScanDisplayState.Idle) throw new ArgumentOutOfRangeException(nameof(state));
++        State = state; Percent = state == ScanDisplayState.Completed ? 100 : null;
++        StageText = state switch
++        {
++            ScanDisplayState.Completed => "扫描完成",
++            ScanDisplayState.Incomplete => "扫描结束 · 结果不完整，请查看未读取项",
++            ScanDisplayState.Cancelled => "扫描已取消",
++            _ => "扫描失败 · 未完成"
++        };
++        Changed();
++    }
++    internal static string PhaseName(ScanPhase phase) => phase switch
++    {
++        ScanPhase.Verifying => "核验元信息", ScanPhase.Reusing => "读取与复用缓存",
++        ScanPhase.Finalizing => "统计与整理", _ => "读取目录"
++    };
++    private string Description => State == ScanDisplayState.Running && latest is { DiscoveredDirectories: > 0 } p && Percent != null
++        ? $"{StageText} · 当前阶段 {p.CompletedDirectories:N0} / {p.DiscoveredDirectories:N0} 个目录任务"
++        : StageText;
++    private void UpdateAccessibility()
++    {
++        AccessibleName = $"{Description} · {PercentText}";
++        AccessibleDescription = Explanation;
++    }
++    private void Changed() { UpdateAccessibility(); RefreshPulse(); Invalidate(); }
++    private void RefreshPulse() => pulse.Enabled = !IsDisposed && Visible && AnimationsEnabled && State == ScanDisplayState.Running && Percent == null;
++    protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); RefreshPulse(); }
++    protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics, 165);
++    protected override void OnPaint(PaintEventArgs e)
++    {
++        base.OnPaint(e);
++        if (Width < 40 || Height < 12) return;
++        float s = DeviceDpi / 96f;
++        var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
++        using var font = Theme.Font(8);
++        int rightWidth = Math.Min(Width / 3, (int)(110 * s));
++        int textHeight = Math.Min(Height, (int)(24 * s));
++        Theme.TextAt(g, Description, font, Theme.Text, new Rectangle(0, 0, Math.Max(0, Width - rightWidth - (int)(10 * s)), textHeight));
++        Theme.TextAt(g, PercentText, font, Theme.Accent, new Rectangle(Width - rightWidth, 0, rightWidth, textHeight), TextFormatFlags.Right);
++        float pad = 9 * s, y = Math.Min(Height - 7 * s, 33 * s);
++        var track = new RectangleF(pad, y - 3 * s, Math.Max(1, Width - 2 * pad), 6 * s);
++        using var path = Theme.Round(track, 3 * s);
++        using var border = new Pen(Theme.Border, s);
++        g.DrawPath(border, path); // No fill on the unprocessed part: wallpaper stays visible.
++        bool running = State == ScanDisplayState.Running;
++        float end = track.Left;
++        using var fill = new SolidBrush(Theme.Accent);
++        if (Percent is int percent)
++        {
++            float width = track.Width * percent / 100f;
++            if (width > 0) { using var done = Theme.Round(new RectangleF(track.X, track.Y, width, track.Height), 3 * s); g.FillPath(fill, done); }
++            end += width;
++        }
++        else if (running)
++        {
++            // Short travelling segment, never a filled percentage.
++            float t = AnimationsEnabled ? (float)(.5 - .5 * Math.Cos(clock.Elapsed.TotalSeconds * Math.PI)) : .5f;
++            float width = Math.Min(track.Width, 45 * s);
++            float start = track.Left + (track.Width - width) * t;
++            using var segment = Theme.Round(new RectangleF(start, track.Y, width, track.Height), 3 * s);
++            g.FillPath(fill, segment); end = start + width;
++        }
++        if (running || State == ScanDisplayState.Completed)
++        {
++            // Lens marker follows the measured estimate (or the unknown-work segment).
++            using var face = new SolidBrush(Theme.Surface);
++            g.FillEllipse(face, end - 5 * s, y - 5 * s, 10 * s, 10 * s);
++            using var pen = new Pen(Theme.Accent, 2 * s);
++            g.DrawEllipse(pen, end - 5 * s, y - 5 * s, 10 * s, 10 * s);
++            g.DrawLine(pen, end + 3 * s, y + 3 * s, end + 7 * s, y + 7 * s);
++        }
++    }
++    protected override void Dispose(bool disposing)
++    {
++        if (disposing) { pulse.Dispose(); tip.Dispose(); }
++        base.Dispose(disposing);
++    }
++}
+diff --git a/TreemapControl.cs b/TreemapControl.cs
+index eb2488f..d3e4317 100644
+--- a/TreemapControl.cs
++++ b/TreemapControl.cs
+@@ -1,5 +1,6 @@
+ using System.Drawing.Drawing2D;
+ using System.ComponentModel;
++using System.Diagnostics;
+ 
+ namespace DiskAtlas;
+ 
+@@ -10,6 +11,18 @@ internal sealed class TreemapControl : Control
+     private readonly Dictionary<MapItem, List<MapTile>> nestedLayouts = [];
+     private MapItem? hovered;
+     private MapItem? selected;
++    private readonly System.Windows.Forms.Timer motionTimer = new() { Interval = 40 };
++    private readonly Stopwatch motionClock = new();
++    private MapItem? motionItem;
++    private RectangleF motionBounds;
++    private bool animationsEnabled = SystemInformation.IsMinimizeRestoreAnimationEnabled;
++    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
++    public bool AnimationsEnabled
++    {
++        get => animationsEnabled;
++        set { animationsEnabled = value; if (!value) StopMotion(); }
++    }
++    internal bool MotionRunning => motionTimer.Enabled;
+     private readonly ToolTip tip = new() { InitialDelay = 300, ReshowDelay = 100, AutoPopDelay = 20000 };
+     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+     public long TotalSize { get; set; }
+@@ -32,6 +45,11 @@ internal sealed class TreemapControl : Control
+         DoubleBuffered = true; BackColor = Theme.Surface;
+         SetStyle(ControlStyles.ResizeRedraw, true);
+         Cursor = Cursors.Hand;
++        motionTimer.Tick += (_, _) =>
++        {
++            if (motionClock.ElapsedMilliseconds >= 360 || !Visible || !Enabled) StopMotion();
++            else InvalidateMotion();
++        };
+     }
+     public void SetItems(IReadOnlyList<MapItem> value)
+     {
+@@ -43,6 +61,7 @@ internal sealed class TreemapControl : Control
+     protected override void OnResize(EventArgs e) { base.OnResize(e); LayoutTiles(); }
+     private void LayoutTiles()
+     {
++        StopMotion();
+         float pad = 10 * DeviceDpi / 96f;
+         tiles = TreemapLayout.Build(items, new RectangleF(pad, pad, Math.Max(0, Width - 2 * pad), Math.Max(0, Height - 2 * pad)));
+         nestedLayouts.Clear();
+@@ -85,6 +104,7 @@ internal sealed class TreemapControl : Control
+         using var miniFont = Theme.Font(8);
+         foreach (var tile in tiles)
+         {
++            if (!e.ClipRectangle.IntersectsWith(Rectangle.Ceiling(tile.Bounds))) continue;
+             RectangleF rect = tile.Bounds;
+             rect.Inflate(-2 * s, -2 * s);
+             if (rect.Width < 1 || rect.Height < 1) continue;
+@@ -120,6 +140,18 @@ internal sealed class TreemapControl : Control
+                 using var pen = new Pen(tile.Item == selected ? Theme.Accent : Theme.Muted, (tile.Item == selected ? 2.5f : 1.5f) * s);
+                 g.DrawPath(pen, path);
+             }
++            if (tile.Item == motionItem && rect.Width > 18 * s && rect.Height > 18 * s)
++            {
++                // Animate only an INTERNAL highlight contour. The area-bearing fill,
++                // nested layout, labels and hit rectangles never move or scale.
++                float t = Math.Clamp(motionClock.ElapsedMilliseconds / 360f, 0, 1);
++                float spring = (float)(Math.Sin(t * Math.PI * 3) * (1 - t) * (1 - t));
++                float dx = (4 + 1.5f * spring) * s, dy = (4 - 1.5f * spring) * s;
++                var inner = RectangleF.Inflate(rect, -dx, -dy);
++                using var contour = Theme.Round(inner, 7 * s);
++                using var shine = new Pen(Color.FromArgb((int)(140 * (1 - t)), Color.White), 2 * s);
++                g.DrawPath(shine, contour);
++            }
+         }
+     }
+     protected override void OnMouseMove(MouseEventArgs e)
+@@ -128,15 +160,17 @@ internal sealed class TreemapControl : Control
+         var item = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
+         if (item == hovered) return;
+         hovered = item;
++        StartMotion(item);
+         string? text = item == null ? null : $"{item.Name}\n{SizeFormat.Bytes(item.Size)}  ·  {SizeFormat.Percent(item.Size, TotalSize)}\n{item.Entry?.Path ?? (item.IsAggregate ? $"合并 {SizeFormat.Number(item.Count)} 项，请查看右侧列表" : $"共 {SizeFormat.Number(item.Count)} 个文件")}\n{(item.Entry?.IsDirectory == true ? "双击进入文件夹" : item.Entry != null ? "双击在资源管理器中定位" : item.IsAggregate ? "" : "双击查看该类型文件")} ";
+         tip.SetToolTip(this, text); Invalidate();
+     }
+-    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); hovered = null; Invalidate(); }
++    protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); hovered = null; StopMotion(); Invalidate(); }
+     protected override void OnMouseClick(MouseEventArgs e)
+     {
+         base.OnMouseClick(e);
+         selected = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
+         ItemSelected?.Invoke(selected); Invalidate();
++        StartMotion(selected);
+     }
+     protected override void OnMouseDoubleClick(MouseEventArgs e)
+     {
+@@ -144,5 +178,24 @@ internal sealed class TreemapControl : Control
+         var item = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
+         if (item != null) ItemActivated?.Invoke(item);
+     }
+-    protected override void Dispose(bool disposing) { if (disposing) tip.Dispose(); base.Dispose(disposing); }
++    private void StartMotion(MapItem? item)
++    {
++        StopMotion();
++        if (!AnimationsEnabled || !Visible || !Enabled || item == null) return;
++        var tile = tiles.FirstOrDefault(t => t.Item == item);
++        if (tile == null || tile.Bounds.Width < 20 || tile.Bounds.Height < 20) return;
++        // One tile at 25 FPS, at most 360 ms, independent of tree size.
++        motionItem = item; motionBounds = tile.Bounds;
++        motionClock.Restart(); motionTimer.Start(); InvalidateMotion();
++    }
++    private void InvalidateMotion() => Invalidate(Rectangle.Ceiling(RectangleF.Inflate(motionBounds, 2, 2)));
++    private void StopMotion()
++    {
++        motionTimer.Stop();
++        if (motionItem != null) InvalidateMotion();
++        motionItem = null; motionClock.Reset();
++    }
++    protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (!Visible) StopMotion(); }
++    protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); if (!Enabled) StopMotion(); }
++    protected override void Dispose(bool disposing) { if (disposing) { motionTimer.Dispose(); tip.Dispose(); } base.Dispose(disposing); }
+ }
+diff --git a/tests/AdvancedFeatures.cs b/tests/AdvancedFeatures.cs
+index c100aba..8c29dd6 100644
+--- a/tests/AdvancedFeatures.cs
++++ b/tests/AdvancedFeatures.cs
+@@ -26,6 +26,46 @@ internal static class AdvancedFeatures
+         }
+         try
+         {
++            Test("directory estimates are phase-local, bounded and honest when work grows", () =>
++            {
++                Check(new ScanProgress(0, 0, 0, "").EstimatedPercent == null, "Unknown work has a percentage");
++                ScanProgress Work(long done, long total) => new(0, 0, 0, "", CompletedDirectories: done, DiscoveredDirectories: total);
++                Check(Work(0, 1).EstimatedPercent == 0 && Work(3, 4).EstimatedPercent == 75, "Estimate is not directory-based");
++                Check(Work(3, 8).EstimatedPercent == 37, "Discovery did not lower the estimate");
++                Check(Work(4, 4).EstimatedPercent == 99, "Work counters claimed full completion before finalization");
++                Check(Work(-1, 4).EstimatedPercent == null && Work(5, 4).EstimatedPercent == null, "Invalid counters became valid progress");
++                Check(Work(long.MaxValue - 1, long.MaxValue).EstimatedPercent == 99, "Large counts overflowed");
++            });
++            Test("scan and verification report completed task counts without claiming success", () =>
++            {
++                string scope = Path.Combine(root, "progress");
++                Directory.CreateDirectory(Path.Combine(scope, "one", "two"));
++                File.WriteAllText(Path.Combine(scope, "sample.txt"), "sample");
++                foreach (string directory in Directory.EnumerateDirectories(scope, "*", SearchOption.AllDirectories).Prepend(scope))
++                    Directory.SetLastWriteTimeUtc(directory, new DateTime(2020, 1, 1));
++                var reports = new ConcurrentQueue<ScanProgress>();
++                var coordinator = new ScanCoordinator(_ => null);
++                var observer = new Inline(p =>
++                {
++                    Check(p.DiscoveredDirectories > 0 && p.CompletedDirectories >= 0 && p.CompletedDirectories <= p.DiscoveredDirectories, "Inconsistent counters");
++                    Check(p.EstimatedPercent is >= 0 and <= 99, "Scanner published successful 100%");
++                    reports.Enqueue(p);
++                });
++                var full = coordinator.Scan(scope, null, new(ScanMode.HighSpeed), observer, CancellationToken.None);
++                Check(reports.Last() is { Phase: ScanPhase.Finalizing, CompletedDirectories: 3, DiscoveredDirectories: 3 }, "Full scan omitted root/completed tasks");
++                reports.Clear();
++                var refresh = coordinator.Scan(scope, full, new(ScanMode.LowImpact), observer, CancellationToken.None);
++                Check(reports.Any(p => p.Phase == ScanPhase.Verifying && p.CompletedDirectories == 3 && p.DiscoveredDirectories == 3), "Verification final count missing");
++                Check(reports.Last() is { Phase: ScanPhase.Finalizing, CompletedDirectories: 1, DiscoveredDirectories: 1 }, "Whole-subtree reuse is not one task");
++                Equal(full.Root, refresh.Root);
++                using var cancellation = new CancellationTokenSource();
++                try
++                {
++                    coordinator.Scan(scope, null, new(), new Inline(p => { if (p.Phase == ScanPhase.Finalizing) cancellation.Cancel(); }), cancellation.Token);
++                    throw new Exception("Cancellation during finalization returned success");
++                }
++                catch (OperationCanceledException) { }
++            });
+             Test("scan policies have explicit worker limits and low-impact yielding", () =>
+             {
+                 Check(ScanPolicy.Resolve(ScanMode.Automatic, DiskKind.SolidState).Workers == 8, "SSD automatic policy");
+diff --git a/tests/DiskAtlas.Tests.csproj b/tests/DiskAtlas.Tests.csproj
+index f530248..37be5f9 100644
+--- a/tests/DiskAtlas.Tests.csproj
++++ b/tests/DiskAtlas.Tests.csproj
+@@ -20,6 +20,7 @@
+     <Compile Include="..\ViewQuery.cs" Link="ViewQuery.cs" />
+     <Compile Include="..\MainForm.cs" Link="MainForm.cs" />
+     <Compile Include="..\TreemapControl.cs" Link="TreemapControl.cs" />
++    <Compile Include="..\ScanProgressControl.cs" Link="ScanProgressControl.cs" />
+     <Compile Include="..\Theme.cs" Link="Theme.cs" />
+     <Compile Include="..\Wallpaper.cs" Link="Wallpaper.cs" />
+     <EmbeddedResource Include="..\assets\background.png" LogicalName="DiskAtlas.Background" />
+diff --git a/tests/UiRegression.cs b/tests/UiRegression.cs
+index 9035d8d..ea4ead3 100644
+--- a/tests/UiRegression.cs
++++ b/tests/UiRegression.cs
+@@ -15,6 +15,7 @@ internal static class UiRegression
+             File.WriteAllBytes(Path.Combine(root, "A-child", "leaf.txt"), new byte[31]);
+             var thread = new Thread(() =>
+             {
++                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+                 Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); Application.EnableVisualStyles();
+                 Application.SetCompatibleTextRenderingDefault(false);
+                 using var gate = new ScanGate();
+@@ -43,6 +44,8 @@ internal static class UiRegression
+                         Check(Field<List<MapItem>>("sortedRows").Count is > 0 and <= 1000, "Preview has no rows or exceeds its limit");
+                         Check(!Field<TextBox>("search").Enabled && !Field<NavigationPanel>("navigation").Enabled, "Full queries enabled during preview");
+                         Check(Field<Label>("subtitle").Text.Contains("尚未完成"), "Partial statistics label missing");
++                        var meter = Field<ScanProgressControl>("progressBar");
++                        Check(meter.State == ScanDisplayState.Running && meter.Percent is >= 0 and <= 99, "Preview has no honest live progress");
+                         var previewGrid = Field<DataGridView>("grid");
+                         previewGrid.ClearSelection(); previewGrid.Rows[100].Selected = true;
+                         previewGrid.FirstDisplayedScrollingRowIndex = 80;
+@@ -50,12 +53,14 @@ internal static class UiRegression
+                         await Task.Delay(1100);
+                         Check(previewGrid.FirstDisplayedScrollingRowIndex == 80 && Field<MapItem>("selection").Name == selectedName, "Automatic preview update lost scroll position or selection");
+                         Field<ActionButton>("cancel").PerformClick(); await first;
++                        Check(meter.State == ScanDisplayState.Cancelled && meter.Percent == null && !meter.PulseRunning, "Cancelled scan left successful progress/animation");
+                         Check(Field<DiskEntry?>("current") == null && Field<List<MapItem>>("sortedRows").Count == 0 && Field<TextBox>("search").Enabled, "First cancellation left a partial result behind");
+                         Console.WriteLine("PASS UI first preview, bounded rows, partial labels and first-scan cancellation");
+ 
+                         gate.Pause = false; await Scan();
+                         await Wait(() => Field<DataGridView>("grid").Enabled && Field<List<MapItem>>("sortedRows").Count == 1106, "Completed scan did not restore all rows");
+                         var baseline = Field<ScanResult>("scan");
++                        Check(meter.State == ScanDisplayState.Completed && meter.Percent == 100 && !meter.PulseRunning, "Success did not publish terminal 100%");
+                         Check(baseline.Root.FileCount == 1106 && baseline.Root.Size == 18816, "Completed totals mismatch");
+                         Invoke("SetMode", 2); Field<TextBox>("search").Text = "txt";
+                         await Wait(() => Field<List<MapItem>>("sortedRows").Count == 1 && Field<List<MapItem>>("sortedRows")[0].Name == ".txt", "Type query did not settle");
+@@ -83,6 +88,7 @@ internal static class UiRegression
+                         Check(Field<int>("mode") == 2 && Field<TextBox>("search").Text == "txt", "Successful refresh lost query context");
+                         await Task.Delay(700);
+                         Check(!Field<bool>("showingPreview") && Field<Label>("status").Text.Contains("扫描完成"), "Late preview overwrote the completed view");
++                        Check(meter.State == ScanDisplayState.Completed && meter.Percent == 100, "Late progress overwrote completion");
+                         Console.WriteLine("PASS UI final handoff, controls restored, no stale preview, refresh context preserved");
+ 
+                         // Exercise the shipped coordinator (without the deterministic scan gate).
+@@ -109,6 +115,8 @@ internal static class UiRegression
+                         Check(Product<Label>("status").Text.Contains("强制"), "Force full reason missing");
+                         product.Close();
+                         Console.WriteLine("PASS UI actual coordinator, low/high strategy selection, allocated metric, incremental refresh and force-full action");
++
++                        await CheckInteractions(form, Check);
+                     }
+                     catch (Exception ex) { failure = ex; }
+                     finally { gate.Release.Set(); form.Close(); }
+@@ -129,6 +137,81 @@ internal static class UiRegression
+         }
+     }
+ 
++    private static async Task CheckInteractions(Form owner, Action<bool, string> check)
++    {
++        using var fixture = new Form { Size = new Size(960, 620), Text = "AsukaLens interaction checks" };
++        using var meter = new ScanProgressControl { Dock = DockStyle.Bottom, Height = 48, AnimationsEnabled = true };
++        using var map = new TreemapControl { Dock = DockStyle.Fill, ShowNested = false, AnimationsEnabled = true };
++        fixture.Controls.Add(map); fixture.Controls.Add(meter); fixture.Show(owner);
++        meter.BeginScan();
++        check(meter.AccessibleRole == AccessibleRole.StaticText && meter.AccessibleName!.Contains("总量未知"), "Unknown progress exposes a misleading numeric range");
++        check(meter.Percent == null && meter.PercentText == "总量未知" && meter.PulseRunning, "Unknown work did not start a distinct indicator");
++        await Task.Delay(100);
++        check(meter.Percent == null, "Time advanced the percentage");
++        meter.Report(new(1, 2, 3, "", CompletedDirectories: 3, DiscoveredDirectories: 4));
++        check(meter.Percent == 75 && !meter.PulseRunning, "Measured progress retained the unknown animation");
++        meter.Report(new(1, 2, 3, "", CompletedDirectories: 3, DiscoveredDirectories: 8));
++        check(meter.Percent == 37, "Growing work is hidden by monotonic animation");
++        meter.Report(new(1, 2, 3, "", ScanPhase.Verifying, CompletedDirectories: 0, DiscoveredDirectories: 3));
++        check(meter.Percent == 0 && meter.StageText.Contains("核验"), "New phase did not reset its estimate");
++        meter.Report(new(1, 2, 3, "", ScanPhase.Finalizing, CompletedDirectories: 3, DiscoveredDirectories: 3));
++        check(meter.Percent == 99, "Finalization claimed premature completion");
++        foreach (var state in new[] { ScanDisplayState.Incomplete, ScanDisplayState.Cancelled, ScanDisplayState.Failed, ScanDisplayState.Completed })
++        {
++            meter.Finish(state); meter.Report(new(0, 0, 0, "", CompletedDirectories: 0, DiscoveredDirectories: 1));
++            check(meter.State == state && meter.Percent == (state == ScanDisplayState.Completed ? 100 : null) && !meter.PulseRunning, "Terminal state accepted stale progress or animated");
++            meter.BeginScan();
++        }
++        meter.AnimationsEnabled = false;
++        check(!meter.PulseRunning && meter.PercentText == "总量未知", "Reduced motion removed the unknown state or kept animating");
++        meter.AnimationsEnabled = true; meter.Hide();
++        check(!meter.PulseRunning, "Hidden progress kept animating"); meter.Show();
++        meter.Finish(ScanDisplayState.Completed);
++
++        var items = Enumerable.Range(0, ViewQuery.MapLimit + 1).Select(i => new MapItem(i == 0 ? "long-file-name-中文-" + new string('x', 100) : $"file-{i}", 100, null, "图片")).ToList();
++        map.SetItems(items);
++        List<MapTile> Tiles() => (List<MapTile>)typeof(TreemapControl).GetField("tiles", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(map)!;
++        void Input(string method, Point point) => typeof(TreemapControl).GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(map, [new MouseEventArgs(MouseButtons.Left, 1, point.X, point.Y, 0)]);
++        var before = Tiles().Select(t => t.Bounds).ToArray();
++        var first = Tiles().First(t => t.Bounds.Width > 22 && t.Bounds.Height > 22);
++        var point = Point.Round(new PointF(first.Bounds.X + first.Bounds.Width / 2, first.Bounds.Y + first.Bounds.Height / 2));
++        MapItem? hit = null; map.ItemSelected += value => hit = value;
++        Input("OnMouseMove", point); check(map.MotionRunning, "Hover did not start feedback");
++        Input("OnMouseClick", point); check(hit == first.Item && map.MotionRunning, "Animated hit target changed");
++        using (var bitmap = new Bitmap(map.Width, map.Height)) map.DrawToBitmap(bitmap, map.ClientRectangle);
++        await Task.Delay(450);
++        check(!map.MotionRunning && before.SequenceEqual(Tiles().Select(t => t.Bounds)), "Animation moved area/hit rectangles or did not stop");
++        Input("OnMouseClick", point); map.AnimationsEnabled = false;
++        check(!map.MotionRunning, "Reduced motion retained tile animation");
++        Input("OnMouseClick", point); check(hit == first.Item && !map.MotionRunning, "Static interaction regressed");
++        map.AnimationsEnabled = true; Input("OnMouseClick", point); map.Hide();
++        check(!map.MotionRunning, "Hidden treemap kept animating"); map.Show();
++        foreach (int width in new[] { 420, 1440 })
++        {
++            fixture.ClientSize = new Size(width, 420);
++            using var image = new Bitmap(fixture.Width, fixture.Height); fixture.DrawToBitmap(image, fixture.ClientRectangle);
++            check(meter.Width > 0 && map.Height > 0, "Resized interaction area collapsed");
++        }
++        var reduced = (CheckBox)typeof(MainForm).GetField("reduceMotion", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(owner)!;
++        var actualMap = (TreemapControl)typeof(MainForm).GetField("map", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(owner)!;
++        var actualMeter = (ScanProgressControl)typeof(MainForm).GetField("progressBar", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(owner)!;
++        reduced.Checked = true; check(!actualMap.AnimationsEnabled && !actualMeter.AnimationsEnabled, "Visible motion preference not wired to both controls");
++        reduced.Checked = false; check(actualMap.AnimationsEnabled && actualMeter.AnimationsEnabled, "Motion preference cannot be restored");
++        var originalSize = owner.Size;
++        foreach (var size in new[] { new Size(1120, 780), new Size(1600, 1000) })
++        {
++            owner.Size = size; await Task.Delay(40);
++            check(actualMeter.Height > 20 && actualMeter.Width > 200 && actualMap.Height > 0, "Main window lost progress or map when resized");
++            check(actualMeter.Bottom <= actualMeter.Parent!.ClientSize.Height && reduced.Right <= reduced.Parent!.ClientSize.Width,
++                "Main window clipped progress or motion preference");
++            using var image = new Bitmap(owner.Width, owner.Height); owner.DrawToBitmap(image, owner.ClientRectangle);
++        }
++        owner.Size = originalSize;
++        fixture.Close();
++        Console.WriteLine($"UI render DPI: {owner.DeviceDpi}; main window sizes 1120x780 and 1600x1000 (subject to minimum size).");
++        Console.WriteLine("PASS UI honest progress states, phase reset, reduced motion, stable animated hits/area, bounded animation and resizing");
++    }
++
+     private sealed class ScanGate : IDisposable
+     {
+         public bool Pause;
+diff --git a/使用说明.txt b/使用说明.txt
+index 3081655..db21cc4 100644
+--- a/使用说明.txt
++++ b/使用说明.txt
+@@ -93,3 +93,8 @@ Windows 10/11，.NET 9 Desktop Runtime。本机已具备，无需额外安装。
+ 移动到另一台电脑时，请完整复制本文件夹，保留 .dll 和 .json 文件。
+ 
+ 本程序仅读取文件元信息，不修改或删除扫描内容，不联网、不上传文件。
++
++开发预览：第 2 轮扫描反馈
++底部右侧百分比是当前阶段目录任务的估算，不是剩余时间或字节进度；新目录出现时可能下降，核验与读取/复用分别计数，整理阶段沿用读取计数。完整结果结束前最多 99%，取消、失败或结果不完整不显示成功的 100%。未知总量以往返指示表示，悬停可查看说明。
++图块悬停和点击时内层高光回弹，不改变面积或点击位置。空间分布标题右侧“减弱动效”关闭回弹和往返动画，本次运行有效；启动时跟随系统窗口动画偏好。
++本轮为普通开发构建，不覆盖“软件”目录中的历史稳定版，不生成正式发布包。

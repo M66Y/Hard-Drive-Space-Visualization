@@ -26,6 +26,46 @@ internal static class AdvancedFeatures
         }
         try
         {
+            Test("directory estimates are phase-local, bounded and honest when work grows", () =>
+            {
+                Check(new ScanProgress(0, 0, 0, "").EstimatedPercent == null, "Unknown work has a percentage");
+                ScanProgress Work(long done, long total) => new(0, 0, 0, "", CompletedDirectories: done, DiscoveredDirectories: total);
+                Check(Work(0, 1).EstimatedPercent == 0 && Work(3, 4).EstimatedPercent == 75, "Estimate is not directory-based");
+                Check(Work(3, 8).EstimatedPercent == 37, "Discovery did not lower the estimate");
+                Check(Work(4, 4).EstimatedPercent == 99, "Work counters claimed full completion before finalization");
+                Check(Work(-1, 4).EstimatedPercent == null && Work(5, 4).EstimatedPercent == null, "Invalid counters became valid progress");
+                Check(Work(long.MaxValue - 1, long.MaxValue).EstimatedPercent == 99, "Large counts overflowed");
+            });
+            Test("scan and verification report completed task counts without claiming success", () =>
+            {
+                string scope = Path.Combine(root, "progress");
+                Directory.CreateDirectory(Path.Combine(scope, "one", "two"));
+                File.WriteAllText(Path.Combine(scope, "sample.txt"), "sample");
+                foreach (string directory in Directory.EnumerateDirectories(scope, "*", SearchOption.AllDirectories).Prepend(scope))
+                    Directory.SetLastWriteTimeUtc(directory, new DateTime(2020, 1, 1));
+                var reports = new ConcurrentQueue<ScanProgress>();
+                var coordinator = new ScanCoordinator(_ => null);
+                var observer = new Inline(p =>
+                {
+                    Check(p.DiscoveredDirectories > 0 && p.CompletedDirectories >= 0 && p.CompletedDirectories <= p.DiscoveredDirectories, "Inconsistent counters");
+                    Check(p.EstimatedPercent is >= 0 and <= 99, "Scanner published successful 100%");
+                    reports.Enqueue(p);
+                });
+                var full = coordinator.Scan(scope, null, new(ScanMode.HighSpeed), observer, CancellationToken.None);
+                Check(reports.Last() is { Phase: ScanPhase.Finalizing, CompletedDirectories: 3, DiscoveredDirectories: 3 }, "Full scan omitted root/completed tasks");
+                reports.Clear();
+                var refresh = coordinator.Scan(scope, full, new(ScanMode.LowImpact), observer, CancellationToken.None);
+                Check(reports.Any(p => p.Phase == ScanPhase.Verifying && p.CompletedDirectories == 3 && p.DiscoveredDirectories == 3), "Verification final count missing");
+                Check(reports.Last() is { Phase: ScanPhase.Finalizing, CompletedDirectories: 1, DiscoveredDirectories: 1 }, "Whole-subtree reuse is not one task");
+                Equal(full.Root, refresh.Root);
+                using var cancellation = new CancellationTokenSource();
+                try
+                {
+                    coordinator.Scan(scope, null, new(), new Inline(p => { if (p.Phase == ScanPhase.Finalizing) cancellation.Cancel(); }), cancellation.Token);
+                    throw new Exception("Cancellation during finalization returned success");
+                }
+                catch (OperationCanceledException) { }
+            });
             Test("scan policies have explicit worker limits and low-impact yielding", () =>
             {
                 Check(ScanPolicy.Resolve(ScanMode.Automatic, DiskKind.SolidState).Workers == 8, "SSD automatic policy");

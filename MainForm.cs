@@ -40,7 +40,8 @@ internal sealed class MainForm : Form
     private readonly Label status = LabelOf("就绪  ·  仅扫描本地文件，文件不会上传", 8, false, true);
     private readonly TextBox pathBox = new() { ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = Theme.Surface, ForeColor = Theme.Text, Dock = DockStyle.Fill };
     private readonly TextBox search = new() { PlaceholderText = "搜索名称或扩展名…", BorderStyle = BorderStyle.None, BackColor = Theme.Surface, ForeColor = Theme.Text, Dock = DockStyle.Fill };
-    private readonly ProgressBar progressBar = new() { Dock = DockStyle.Fill, Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 25, Visible = false };
+    private readonly ScanProgressControl progressBar = new() { Dock = DockStyle.Fill };
+    private readonly CheckBox reduceMotion = new() { Text = "减弱动效", AutoSize = true, Anchor = AnchorStyles.Right, BackColor = Color.Transparent };
     private readonly DataGridView grid = new WallpaperGrid();
     private readonly StatCard totalCard = new() { Title = "当前目录大小", Caption = "文件逻辑大小 · 1024 进制", Highlight = true, Dock = DockStyle.Fill };
     private readonly StatCard filesCard = new() { Title = "文件数量", Caption = "包含所有子文件夹", Dock = DockStyle.Fill };
@@ -79,6 +80,10 @@ internal sealed class MainForm : Form
         DoubleBuffered = true;
         AllowDrop = true;
         BuildInterface();
+        reduceMotion.Checked = !SystemInformation.IsMinimizeRestoreAnimationEnabled;
+        reduceMotion.CheckedChanged += (_, _) => ApplyMotionPreference();
+        ApplyMotionPreference();
+        scanTip.SetToolTip(reduceMotion, "关闭图块回弹和进度往返动画；保留真实进度与静态高亮。本次运行有效。");
         ConfigureGrid();
         strategyCombo.Items.AddRange(["自动", "低占用", "高速"]); strategyCombo.SelectedIndex = 0;
         strategyCombo.SelectedIndexChanged += (_, _) => { if (scanCancellation == null) UpdateStrategyHint(); };
@@ -175,7 +180,7 @@ internal sealed class MainForm : Form
         foreach (float height in new float[] { 85, 46, 124, 62 }) main.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
         main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
-        main.RowStyles.Add(new RowStyle(SizeType.Absolute, 4));
+        main.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
         shell.Controls.Add(main, 1, 0);
         Controls.Add(shell);
@@ -233,12 +238,14 @@ internal sealed class MainForm : Form
         mapPanel.Wash = 180;
         mapPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
         mapPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        var mapHeading = Table(2, 1); mapHeading.Wash = 210;
+        var mapHeading = Table(3, 1); mapHeading.Wash = 210;
         mapHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         filterColumn = new ColumnStyle(SizeType.Absolute, 0);
         mapHeading.ColumnStyles.Add(filterColumn);
+        mapHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 98));
         mapHeading.Controls.Add(PanelHeader(mapTitle, mapCaption), 0, 0);
         mapHeading.Controls.Add(clearType, 1, 0);
+        mapHeading.Controls.Add(reduceMotion, 2, 0);
         mapPanel.Controls.Add(mapHeading, 0, 0);
         mapPanel.Controls.Add(map, 0, 1);
         split.Panel1.Controls.Add(mapPanel);
@@ -377,7 +384,7 @@ internal sealed class MainForm : Form
         choose.Enabled = refresh.Enabled = false;
         strategyCombo.Enabled = metricCombo.Enabled = false;
         cancel.Visible = cancel.Enabled = true;
-        progressBar.Visible = true;
+        progressBar.BeginScan();
         map.Scanning = scan == null;
         map.Invalidate();
         status.Text = $"开始扫描：{path}";
@@ -386,7 +393,8 @@ internal sealed class MainForm : Form
         var progress = new Progress<ScanProgress>(p =>
         {
             if (IsDisposed || Disposing || !ReferenceEquals(scanCancellation, cancellation) || cancellation.IsCancellationRequested) return;
-            string stage = p.Phase switch { ScanPhase.Verifying => "核验元信息", ScanPhase.Reusing => "复用缓存", ScanPhase.Finalizing => "统计与整理", _ => "读取目录" };
+            progressBar.Report(p);
+            string stage = ScanProgressControl.PhaseName(p.Phase);
             status.Text = $"{stage} · {SizeFormat.Number(p.Files)} 个文件 · {(p.Phase == ScanPhase.Verifying ? p.CurrentPath : SizeFormat.Bytes(p.Bytes) + " · " + p.CurrentPath)}";
             if (p.WorkerLimit > 0) refreshInfo.Text = $"{StrategyName} · {stage} · 目录并发上限 {p.WorkerLimit}";
             if (scan == null && !showingPreview)
@@ -423,12 +431,14 @@ internal sealed class MainForm : Form
             else refreshInfo.Text = "扫描完成";
             status.Text = $"扫描完成 · {SizeFormat.Number(scan.Root.FileCount)} 个文件 · " + (scan.Statistics?.Reason ?? "") +
                 (scan.Skipped > 0 ? $" · {scan.Skipped:N0} 项已跳过" : "") + (scan.Root.UnknownAllocationFiles > 0 ? $" · {scan.Root.UnknownAllocationFiles:N0} 项占用未知" : "");
+            progressBar.Finish(scan.Skipped > 0 || scan.Root.Incomplete || scan.Root.UnknownAllocationFiles > 0 ? ScanDisplayState.Incomplete : ScanDisplayState.Completed);
         }
         catch (OperationCanceledException)
         {
             if (!IsDisposed)
             {
                 RestorePrevious();
+                progressBar.Finish(ScanDisplayState.Cancelled);
                 status.Text = scan == null ? "扫描已取消。选择文件夹可重新开始。" : "扫描已取消，仍显示上一次完成的结果。";
             }
         }
@@ -437,6 +447,7 @@ internal sealed class MainForm : Form
             if (!IsDisposed)
             {
                 RestorePrevious();
+                progressBar.Finish(ScanDisplayState.Failed);
                 status.Text = "扫描未完成：" + ex.Message;
                 MessageBox.Show(this, ex.Message, "无法扫描该文件夹", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -450,7 +461,7 @@ internal sealed class MainForm : Form
             {
                 choose.Enabled = true; refresh.Enabled = scan != null; cancel.Visible = false;
                 strategyCombo.Enabled = metricCombo.Enabled = true;
-                progressBar.Visible = false; map.Scanning = false; map.Invalidate();
+                map.Scanning = false; map.Invalidate();
                 if (cancellation.IsCancellationRequested || scan == previousScan) UpdateStrategyHint();
             }
         }
@@ -491,6 +502,11 @@ internal sealed class MainForm : Form
     {
         metric = value; changingMetric = true;
         try { metricCombo.SelectedIndex = (int)value; } finally { changingMetric = false; }
+    }
+
+    private void ApplyMotionPreference()
+    {
+        map.AnimationsEnabled = progressBar.AnimationsEnabled = !reduceMotion.Checked;
     }
 
     private async Task ForceRefresh()

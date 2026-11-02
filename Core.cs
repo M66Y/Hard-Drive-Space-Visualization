@@ -136,7 +136,14 @@ public sealed class DiskEntry
 }
 
 public record ScanProgress(long Files, long Folders, long Bytes, string CurrentPath,
-    ScanPhase Phase = ScanPhase.Scanning, int WorkerLimit = 0);
+    ScanPhase Phase = ScanPhase.Scanning, int WorkerLimit = 0,
+    long CompletedDirectories = 0, long DiscoveredDirectories = 0)
+{
+    // This describes directory tasks in the CURRENT phase, never elapsed time,
+    // bytes, remaining duration or overall completion. Newly found work can lower it.
+    public int? EstimatedPercent => DiscoveredDirectories <= 0 || CompletedDirectories < 0 || CompletedDirectories > DiscoveredDirectories
+        ? null : (int)Math.Min(99, 100.0 * CompletedDirectories / DiscoveredDirectories);
+}
 public record ScanIssue(string Path, string Reason);
 public record ScanResult(DiskEntry Root, TimeSpan Elapsed, long Skipped, IReadOnlyList<ScanIssue> Issues)
 {
@@ -190,6 +197,7 @@ public sealed class DiskScanner
         var timer = Stopwatch.StartNew();
         long files = 0, folders = 0, bytes = 0, skipped = 0, lastReport = -100;
         long outstanding = 1;
+        long completedDirectories = 0, scheduledDirectories = 1;
         long readDirectories = 0, reusedFiles = 0;
         var pacer = new ScanWorkPacer(profile);
         var concurrency = new ScanConcurrencyMeter();
@@ -210,7 +218,9 @@ public sealed class DiskScanner
             {
                 if (!force && timer.ElapsedMilliseconds - lastReport < 100) return;
                 Volatile.Write(ref lastReport, timer.ElapsedMilliseconds);
-                progress.Report(new ScanProgress(Interlocked.Read(ref files), Interlocked.Read(ref folders), Interlocked.Read(ref bytes), current, phase, profile.Workers));
+                long completed = Interlocked.Read(ref completedDirectories);
+                long discovered = Interlocked.Read(ref scheduledDirectories);
+                progress.Report(new ScanProgress(Interlocked.Read(ref files), Interlocked.Read(ref folders), Interlocked.Read(ref bytes), current, phase, profile.Workers, completed, discovered));
             }
         }
 
@@ -241,6 +251,7 @@ public sealed class DiskScanner
             }
             void Schedule(DiskEntry entry)
             {
+                Interlocked.Increment(ref scheduledDirectories);
                 Interlocked.Increment(ref outstanding); pending.Writer.TryWrite(entry);
             }
             void Publish(DiskEntry entry)
@@ -361,7 +372,9 @@ public sealed class DiskScanner
             try
             {
                 ScanDirectory(current, workToken);
+                Interlocked.Increment(ref completedDirectories);
                 if (Interlocked.Decrement(ref outstanding) == 0) pending.Writer.TryComplete();
+                Report(current.Path, phase: refresh != null ? ScanPhase.Reusing : ScanPhase.Scanning);
             }
             finally { concurrency.Exit(); }
             return ValueTask.CompletedTask;
