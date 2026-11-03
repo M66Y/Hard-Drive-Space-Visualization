@@ -2,6 +2,8 @@
 
 开发分支已包含尚未正式发布的扫描策略修正、扫描进度与图块反馈；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。本次交互修正使用独立的 `bin/Preview/DiskAtlas.exe` 预览目录，以保留正在运行的旧窗口。详见[扫描策略记录](iterations/2026-11-01-02-scan-policy/README.md)、[第 2 轮交互记录](iterations/2026-11-02-02-scan-feedback/README.md)和[本次修正记录](iterations/2026-11-02-03-hover-fix/README.md)。
 
+第 3 轮开发预览新增实际刷新方式与诊断详情，修正只读日志协议兼容和连续性检查。点击顶部“点击详情”，或右键“重新扫描”选择“最近完成的扫描详情”，可查看实际方式、原因、核验/重扫/复用数量、日志错误码和分阶段耗时。详见[第 3 轮记录](iterations/2026-11-03-01-incremental-refresh/README.md)。本机卷日志仍不可读，实际刷新使用元信息核验；没有承诺无日志时免除全量核验或必然加速。
+
 Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，点击“选择文件夹”，即可查看文件名称、大小和分布。
 
 界面使用用户提供的水彩插画作为背景，搭配暖白面板、珊瑚色按钮和浅色图表。背景等比例铺满窗口，边缘会随窗口比例裁切；原图内嵌在程序中，无需额外图片文件。数据行保持实色底，列表空白处透出背景。
@@ -37,7 +39,7 @@ dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayNa
 # 原开发预览仍在运行时，使用独立输出目录
 dotnet build DiskAtlas.csproj --configuration Release --output bin/Preview -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
 
-# 核心检查（另外两组检查入口见下文）
+# 核心检查（其他检查入口见下文）
 dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
 
 # 直接调试，可选传入初始目录
@@ -56,7 +58,11 @@ dotnet run --project DiskAtlas.csproj -- "D:\你的文件夹"
 
 三种真实策略的可选诊断基准：构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --policy-benchmark`。它创建并自动删除 15,200 个合成小文件，分别测量完整扫描和无日志的无变化刷新，预热后按平衡顺序每模式运行 6 次并逐项比对结果。汇总墙钟、进程 CPU、总托管分配与任务峰值；不测量实际前台应用响应或物理磁盘 I/O。结果保存在 `artifacts/policy-benchmark-results.json`；再次运行前应先归档并移除上一份同名结果，避免覆盖证据。
 
-增量刷新只在本次运行保留的完整快照上进行。元信息核验模式仍走访所有目录和文件元信息，主要复用树节点内容及已核实的存储信息，不能保证像日志模式一样显著减少磁盘访问。界面分别显示核验、重扫及复用数量。Ctrl+F5 或重新扫描按钮的右键菜单可强制完整扫描。
+另有 16 项日志边界检查：构建后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --journal-tests`，覆盖只读请求 V1/V0 协商、V2/V3 记录、128 位身份、截断/重建/回退游标、卷不一致、未知格式、读取上限、取消及保守回退；三组共 79 项检查。界面集成另验证最近完成扫描的详情窗口与实际刷新方式。真实卷日志不可读时，模拟协议检查不能证明真实卷日志读取成功。
+
+增量刷新只在本次运行保留的完整快照上进行，关闭后不保存缓存，重启后的第一次扫描为完整扫描。界面区分“日志增量”“元信息核验”“完整扫描”。元信息核验模式仍走访所有目录和文件元信息，主要复用树节点内容及已核实的存储信息，不能保证像日志模式一样显著减少磁盘访问。日志丢失连续性、格式无效、记录超限、旧快照不完整或身份异常时采用保守回退。详情提供核验目录/文件、重扫目录、复用文件、处理日志记录、原因和系统错误码，以及准备/读取整理耗时。Ctrl+F5 或重新扫描按钮的右键菜单可强制完整扫描。
+
+可选刷新对比：`dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --refresh-benchmark`。同一组 2,400 文件、61 目录，预热后按轮换和反向顺序各运行 8 次，逐项比对完整扫描、无日志核验、模拟连续日志与本机实际路径。结果保存在 `artifacts/refresh-benchmark.json`，再次运行前先归档原报告。它测量墙钟、进程 CPU 和总托管分配，不测物理 I/O 或整盘冷启动；模拟日志仅验证复用工作量，不能当作本机实测加速。没有更改系统权限、日志设置或创建驻留服务。
 
 可选的真实文件系统扫描基准（会创建并自动删除 72,000 个小文件，耗时较长）：
 
@@ -84,4 +90,4 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
 
 `Core.cs` 扫描、紧凑文件条目、大小格式与矩形布局；`LiveScanSession.cs` 可取消的有限预览快照；`ViewQuery.cs` 可取消的查询、有限堆筛选与分页；`FileKinds.cs` 文件分类；`MainForm.cs` 界面和异步状态；`TreemapControl.cs` 缓存图块绘制及有限动效；`ScanProgressControl.cs` 阶段估算与进度显示；`Theme.cs` 配色和可用键盘操作的导航控件。扫描使用目录队列和最多 8 个工作线程，跳过重解析点并记录错误。`new DiskScanner(1)` 可用于串行验证，最大并行数可在 1–16 之间设置。
 
-`ScanCoordinator.cs` 选择刷新路径并生成复用计划；`ChangeJournal.cs` 只读解析 NTFS 日志；`MetadataVerifier.cs` 无日志时核验元信息；`NativeStorage.cs` 查询 Windows 文件身份、分配及磁盘特性；`StorageMetrics.cs` 对硬链接确定唯一计入路径并汇总；`ScanPolicy.cs` 定义扫描策略。缓存仅在内存中，不创建或修改系统变化日志，不要求提升软件权限。
+`ScanCoordinator.cs` 选择刷新路径并生成复用计划；`ChangeJournal.cs` 只读解析 NTFS 日志；`RefreshStatus.cs` 定义实际方式、脱敏诊断及详情文本；`MetadataVerifier.cs` 无日志时核验元信息；`NativeStorage.cs` 查询 Windows 文件身份、分配及磁盘特性；`StorageMetrics.cs` 对硬链接确定唯一计入路径并汇总；`ScanPolicy.cs` 定义扫描策略。缓存仅在内存中，不创建或修改系统变化日志，不要求提升软件权限。

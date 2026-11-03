@@ -1,0 +1,31 @@
+{
+  "build": {
+    "application": "Release / bin/Preview",
+    "tests": "Release",
+    "warnings": 0,
+    "errors": 0
+  },
+  "checks": {
+    "core": 38,
+    "advanced": 25,
+    "journal": 16,
+    "ui_groups": 6,
+    "status": "passed"
+  },
+  "native": {
+    "actual_method": "MetadataVerification",
+    "query_error": 1,
+    "read_only_open_error": 5,
+    "elevation": false,
+    "journal_settings_modified": false
+  },
+  "limits": [
+    "Real readable native journal unavailable in this environment; protocol and continuous route tested with controlled inputs.",
+    "External visual inspection incomplete because desktop helper returned inconsistent screenshots/control state.",
+    "Earlier UI timeout excluded; isolated reruns passed without extending timeouts.",
+    "Earlier benchmark possibly overlapped UI; final benchmark ran separately; unrelated background load uncontrolled.",
+    "Cache is process-local; no persisted or service-based tracking."
+  ],
+  "benchmark": "benchmark.json",
+  "release_created": false
+}

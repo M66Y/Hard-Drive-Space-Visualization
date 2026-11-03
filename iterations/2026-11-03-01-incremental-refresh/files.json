@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "base_commit": "6f8cee18c169bdc7f6f8b3eccf245ed5b68bc690",
+  "key_files": [
+    {
+      "path": "AGENTS.md",
+      "bytes": 19263,
+      "sha256": "ce58b79a09815190d334f8823ff6ac5ae93fff84bc7b66510b1e2ac07be7b7d6"
+    },
+    {
+      "path": "ChangeJournal.cs",
+      "bytes": 10107,
+      "sha256": "1553c8d18a6cd714e991f3b240f251107a58a1267d4c68c1e116d1b9e2b1f743"
+    },
+    {
+      "path": "Core.cs",
+      "bytes": 25666,
+      "sha256": "41ad8d5e38efdedb7ee6e1ed289bbc878c4f0fb302e74914e1ba9c2500b65d22"
+    },
+    {
+      "path": "MainForm.cs",
+      "bytes": 56330,
+      "sha256": "233ccfc2c5937de2c00035d6d6a12890023025588438945ed73f5f0b1e3cfe86"
+    },
+    {
+      "path": "README.md",
+      "bytes": 13977,
+      "sha256": "cd1f8f6ea4b91952de33167fd51e98b1b98639e01433c9ceff935608986e99c6"
+    },
+    {
+      "path": "RefreshStatus.cs",
+      "bytes": 3686,
+      "sha256": "b3e3e8e01a8f34b3c9684e97388146925608dc63fbd9cd9f5ca43ab066c5fb6b"
+    },
+    {
+      "path": "ScanCoordinator.cs",
+      "bytes": 9310,
+      "sha256": "7aa334e5a863dfab27bbc4f93771082a0bcfe3fec81b8d38b00484d0c8a0e87d"
+    },
+    {
+      "path": "ScanPolicy.cs",
+      "bytes": 3413,
+      "sha256": "da059e87ef006c25ea042c4a5f8a21fb0d004ee6ede473d63ad0fad6b8088ceb"
+    },
+    {
+      "path": "ScanProgressControl.cs",
+      "bytes": 8646,
+      "sha256": "4662149738f24bf6a072fa5de620d8151b78b79237139ced1a24b62ed202b723"
+    },
+    {
+      "path": "tests/AdvancedFeatures.cs",
+      "bytes": 30387,
+      "sha256": "f5fec28f1650d6cbfe70c0f6384184c3761ee3a6299431572b8a9c5182110dc2"
+    },
+    {
+      "path": "tests/DiskAtlas.Tests.csproj",
+      "bytes": 1690,
+      "sha256": "d934482d5420afd89dc374f92257a106178da15c5ebfbf77cf3d63aeadfea4c6"
+    },
+    {
+      "path": "tests/JournalRegression.cs",
+      "bytes": 16813,
+      "sha256": "7050f46546bd50222e6e08d716c21ec61df0e083a0ebb4565922fc95149a4ba1"
+    },
+    {
+      "path": "tests/Program.cs",
+      "bytes": 41612,
+      "sha256": "b69ed467857f613ec8072a4ac04625b5e7e0a4bea996f7aa6ff73d2c17f0d7f1"
+    },
+    {
+      "path": "tests/RefreshBenchmark.cs",
+      "bytes": 6701,
+      "sha256": "f74cc61e4c4851dd10e74bd370ace69343bc2111d852dbee709642b14e97a800"
+    },
+    {
+      "path": "tests/ScanPolicyBenchmark.cs",
+      "bytes": 11929,
+      "sha256": "ded25b7ff2b97202b376dbfe09eb2cf43f756b6d9500ea0e6071f2fd48258887"
+    },
+    {
+      "path": "tests/UiRegression.cs",
+      "bytes": 27127,
+      "sha256": "458a1a2c04055c77d1d4ef3c5dba8e57efae077303c1d3edab6980a55cd4375f"
+    },
+    {
+      "path": "优化审查记录.md",
+      "bytes": 23768,
+      "sha256": "d4de66ed91bfd86ecfcaee9c739bb3d3e92adc83eb49acb789521005e66201c3"
+    },
+    {
+      "path": "使用说明.txt",
+      "bytes": 8870,
+      "sha256": "79072dc23e8ea3aa57650a3e6bbbeef34d4e9a729bf5a27cf154aadedefced53"
+    },
+    {
+      "path": "iterations/2026-11-03-01-incremental-refresh/README.md",
+      "bytes": 8045,
+      "sha256": "20694e49e1cff28e4f43280a67f757e073e8a8463cfe1f36600a5433157ad7bb"
+    },
+    {
+      "path": "iterations/2026-11-03-01-incremental-refresh/changes.patch",
+      "bytes": 84680,
+      "sha256": "fe85fe77a3ff51c973b9e8c1607139e5353b24e8cbe99c108b397e882f84f594"
+    },
+    {
+      "path": "iterations/2026-11-03-01-incremental-refresh/benchmark.json",
+      "bytes": 14876,
+      "sha256": "2c53f9adb095fac0d99be8aa606ba9f597868c5e03e6bf7b06c5eb9a9afd8eb3"
+    },
+    {
+      "path": "iterations/2026-11-03-01-incremental-refresh/validation.json",
+      "bytes": 1057,
+      "sha256": "365a229005d613fe51e877d9ea2faab9e10188ad170f162aaabf0bf8848c478b"
+    }
+  ]
+}

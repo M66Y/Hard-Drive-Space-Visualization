@@ -80,7 +80,7 @@
 - 检查与改动相称。纯文档改动检查覆盖、事实、链接、相互矛盾与隐私，不为文档改动重新构建软件。涉及核心扫描、缓存和统计逻辑时，增加必要边界测试并运行对应检查。
 - 界面改动验证实际使用流程、布局和状态；算法或性能改动核对结果正确性与同条件基准。检查通过后，无新改动或疑点不反复扩大测试。
 - 当前普通构建入口：`dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。
-- 当前核心检查：`dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`；构建后可运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --advanced-tests` 和 `--ui-regression`。
+- 当前核心检查：`dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`；构建后可运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --advanced-tests`、`--journal-tests` 和 `--ui-regression`。刷新相关同条件诊断使用可选 `--refresh-benchmark`，方法与限制见 README。
 - 只有有性能疑点或相关改动时才运行 `--scan-benchmark`；历史 `--memory-benchmark` 在缺少旧基准包时可能跳过，跳过不算验证通过该对比。
 - 当前 `build.ps1` 会生成程序文件夹与 ZIP，`build.ps1 -Test` 还会运行两组核心检查；因此它们属于现阶段的打包入口，不用于普通迭代的无条件检查。脚本尚未实现本文件要求的完整正式发布流程。
 - 调整目录或构建方式时同步更新上述命令、项目引用、测试链接文件、资源路径及文档。不得写入本机绝对路径作为公共运行要求。
@@ -146,5 +146,7 @@
 ## 当前实现与目标的差距
 
 基线软件为 v1.4.2。开发分支已提供目录任务估算进度和有限图块动效，仍使用根目录源码、固定内嵌背景和日志不可用时的全量元信息核验；完整日志系统、背景设置、双语 README、EXE 安装器及四类资产的快照发布流程尚未实现。首次核查时本地未初始化 Git，指定 GitHub 仓库为空；该状态会随后续接入改变，应以实际检查为准。
+
+第 3 轮已增加实际刷新方式、详情和只读日志协议/连续性检查；本机查询日志仍返回错误码 1、只读句柄尝试返回错误码 5，未解除无日志时全量元信息核验的限制。缓存仍仅在本次进程内，无新增权限、驻留服务或持久存储。Git 已接入 main；具体提交与验证见本轮迭代记录。
 
 本文件建立这些要求，不将既有软件或旧版 ZIP 追认成满足全部新发布规范的正式 Release；新增开发按已选方案逐项验收。

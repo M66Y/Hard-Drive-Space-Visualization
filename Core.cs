@@ -137,7 +137,7 @@ public sealed class DiskEntry
 
 public record ScanProgress(long Files, long Folders, long Bytes, string CurrentPath,
     ScanPhase Phase = ScanPhase.Scanning, int WorkerLimit = 0,
-    long CompletedDirectories = 0, long DiscoveredDirectories = 0)
+    long CompletedDirectories = 0, long DiscoveredDirectories = 0, RefreshMethod? Method = null, string? Message = null)
 {
     // This describes directory tasks in the CURRENT phase, never elapsed time,
     // bytes, remaining duration or overall completion. Newly found work can lower it.
@@ -402,7 +402,7 @@ public sealed class DiskScanner
         return new ScanResult(root, timer.Elapsed, skipped, issues)
         {
             AllocationIssues = allocationIssues,
-            Statistics = new(options?.Mode ?? ScanMode.HighSpeed, profile.Workers, refresh != null, readDirectories, reusedFiles, refresh == null ? "完整扫描" : "NTFS 日志增量刷新", PeakDirectoryWorkers: concurrency.Peak)
+            Statistics = new(options?.Mode ?? ScanMode.HighSpeed, profile.Workers, refresh != null, readDirectories, reusedFiles, refresh == null ? "完整扫描" : "NTFS 日志增量刷新", PeakDirectoryWorkers: concurrency.Peak, Method: refresh == null ? RefreshMethod.FullScan : refresh.MetadataValidated ? RefreshMethod.MetadataVerification : RefreshMethod.ChangeJournal)
         };
     }
 }

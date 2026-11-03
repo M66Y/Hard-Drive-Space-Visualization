@@ -3,11 +3,13 @@ namespace DiskAtlas;
 public enum ScanMode { Automatic, LowImpact, HighSpeed }
 public enum DiskKind { Unknown, SolidState, Mechanical, Network }
 public enum SizeMetric { Logical, Allocated }
-public enum ScanPhase { Scanning, Verifying, Reusing, Finalizing }
+public enum ScanPhase { Scanning, Verifying, Reusing, Finalizing, Preparing }
 public record ScanOptions(ScanMode Mode = ScanMode.Automatic);
 public record ScanProfile(int Workers, int BatchDelayMilliseconds, string Description);
 public record ScanStatistics(ScanMode Mode, int Workers, bool Incremental, long ReadDirectories, long ReusedFiles, string Reason,
-    long VerifiedDirectories = 0, long VerifiedFiles = 0, int PeakDirectoryWorkers = 0, int PeakVerificationWorkers = 0);
+    long VerifiedDirectories = 0, long VerifiedFiles = 0, int PeakDirectoryWorkers = 0, int PeakVerificationWorkers = 0,
+    RefreshMethod Method = RefreshMethod.FullScan, JournalStatus? Journal = null, long JournalRecords = 0,
+    double PreparationMilliseconds = 0, double ScanMilliseconds = 0);
 
 public static class ScanPolicy
 {

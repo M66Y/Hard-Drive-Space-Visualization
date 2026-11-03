@@ -167,7 +167,7 @@ internal static class ScanPolicyBenchmark
         public long FirstScanTicks = -1;
         public void Report(ScanProgress value)
         {
-            if (!value.CurrentPath.StartsWith("核验缓存：", StringComparison.Ordinal))
+            if (value.Phase is not (ScanPhase.Preparing or ScanPhase.Verifying))
                 Interlocked.CompareExchange(ref FirstScanTicks, Clock.ElapsedTicks, -1);
         }
     }

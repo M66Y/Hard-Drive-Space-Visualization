@@ -11,6 +11,7 @@
     <Compile Include="..\Core.cs" Link="Core.cs" />
     <Compile Include="..\NativeStorage.cs" Link="NativeStorage.cs" />
     <Compile Include="..\ScanPolicy.cs" Link="ScanPolicy.cs" />
+    <Compile Include="..\RefreshStatus.cs" Link="RefreshStatus.cs" />
     <Compile Include="..\ChangeJournal.cs" Link="ChangeJournal.cs" />
     <Compile Include="..\ScanCoordinator.cs" Link="ScanCoordinator.cs" />
     <Compile Include="..\StorageMetrics.cs" Link="StorageMetrics.cs" />

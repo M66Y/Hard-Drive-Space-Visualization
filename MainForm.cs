@@ -92,7 +92,9 @@ internal sealed class MainForm : Form
         metricCombo.SelectedIndexChanged += (_, _) => { if (!changingMetric) { metric = (SizeMetric)metricCombo.SelectedIndex; UpdateView(true); } };
         var refreshMenu = new ContextMenuStrip();
         refreshMenu.Items.Add("强制完整重新扫描（Ctrl+F5）", null, async (_, _) => await ForceRefresh());
+        refreshMenu.Items.Add("最近完成的扫描详情", null, (_, _) => ShowRefreshDetails());
         refresh.ContextMenuStrip = refreshMenu;
+        refreshInfo.Click += (_, _) => { if (scanCancellation == null) ShowRefreshDetails(); };
         choose.Click += async (_, _) => await ChooseFolder();
         refresh.Click += async (_, _) => { if (scan != null) await ScanFolder(scan.Root.Path); };
         cancel.Click += (_, _) => { scanCancellation?.Cancel(); cancel.Enabled = false; status.Text = "正在取消扫描…"; };
@@ -389,14 +391,19 @@ internal sealed class MainForm : Form
         map.Invalidate();
         status.Text = $"开始扫描：{path}";
         refreshInfo.Text = $"{StrategyName} · 准备扫描";
+        refreshInfo.Cursor = Cursors.Default;
         scanTip.SetToolTip(refreshInfo, ScanPolicy.Explain(options.Mode));
+        RefreshMethod? activeRefreshMethod = null;
         var progress = new Progress<ScanProgress>(p =>
         {
             if (IsDisposed || Disposing || !ReferenceEquals(scanCancellation, cancellation) || cancellation.IsCancellationRequested) return;
             progressBar.Report(p);
             string stage = ScanProgressControl.PhaseName(p.Phase);
+            if (p.Method is { } selectedMethod) activeRefreshMethod = selectedMethod;
+            if (p.Message != null) scanTip.SetToolTip(refreshInfo, p.Message);
             status.Text = $"{stage} · {SizeFormat.Number(p.Files)} 个文件 · {(p.Phase == ScanPhase.Verifying ? p.CurrentPath : SizeFormat.Bytes(p.Bytes) + " · " + p.CurrentPath)}";
-            if (p.WorkerLimit > 0) refreshInfo.Text = $"{StrategyName} · {stage} · 目录并发上限 {p.WorkerLimit}";
+            refreshInfo.Text = $"{(activeRefreshMethod is { } method ? RefreshPresentation.MethodName(method) : StrategyName)} · {stage}" +
+                (p.WorkerLimit > 0 ? $" · 并发上限 {p.WorkerLimit}" : "");
             if (scan == null && !showingPreview)
             {
                 totalCard.Value = SizeFormat.Bytes(p.Bytes); filesCard.Value = SizeFormat.Number(p.Files); foldersCard.Value = SizeFormat.Number(p.Folders);
@@ -425,8 +432,8 @@ internal sealed class MainForm : Form
             issues.Visible = scan.Skipped > 0 || scan.Root.UnknownAllocationFiles > 0;
             if (scan.Statistics is { } stats)
             {
-                refreshInfo.Text = $"{(stats.Incremental ? "增量" : "完整")} · {(stats.VerifiedDirectories > 0 ? $"核验峰值 {stats.PeakVerificationWorkers} · " : "")}目录峰值 {stats.PeakDirectoryWorkers}/{stats.Workers} · 重扫 {stats.ReadDirectories:N0} · 复用 {stats.ReusedFiles:N0}";
-                scanTip.SetToolTip(refreshInfo, $"{stats.Reason}\n核验 {stats.VerifiedDirectories:N0} 目录、{stats.VerifiedFiles:N0} 文件；核验任务峰值 {stats.PeakVerificationWorkers}；目录任务峰值 {stats.PeakDirectoryWorkers}；并发上限 {stats.Workers}。\n任务峰值包含等待，不表示 CPU 核数或瞬时磁盘 I/O 数。\n" + ScanPolicy.Explain(stats.Mode));
+                refreshInfo.Text = $"{RefreshPresentation.MethodName(stats.Method)} · 重扫 {stats.ReadDirectories:N0} 目录 · 复用 {stats.ReusedFiles:N0} 文件 · 点击详情";
+                scanTip.SetToolTip(refreshInfo, "点击查看最近完成的扫描详情\n" + RefreshPresentation.Details(stats));
             }
             else refreshInfo.Text = "扫描完成";
             status.Text = $"扫描完成 · {SizeFormat.Number(scan.Root.FileCount)} 个文件 · " + (scan.Statistics?.Reason ?? "") +
@@ -461,6 +468,7 @@ internal sealed class MainForm : Form
             {
                 choose.Enabled = true; refresh.Enabled = scan != null; cancel.Visible = false;
                 strategyCombo.Enabled = metricCombo.Enabled = true;
+                refreshInfo.Cursor = scan?.Statistics != null ? Cursors.Hand : Cursors.Default;
                 map.Scanning = false; map.Invalidate();
                 if (cancellation.IsCancellationRequested || scan == previousScan) UpdateStrategyHint();
             }
@@ -836,6 +844,17 @@ internal sealed class MainForm : Form
         try { action(); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or System.Runtime.InteropServices.ExternalException)
         { MessageBox.Show(this, ex.Message, "操作未完成", MessageBoxButtons.OK, MessageBoxIcon.Information); }
+    }
+
+    private void ShowRefreshDetails()
+    {
+        if (scan?.Statistics is not { } stats) return;
+        using var dialog = new Form { Text = "最近完成的扫描 · 刷新详情", Size = new Size(780, 520), StartPosition = FormStartPosition.CenterParent,
+            BackColor = Theme.Surface, ForeColor = Theme.Text, MinimizeBox = false, Font = Theme.Font(9), Padding = new Padding(18) };
+        var text = new TextBox { Multiline = true, ReadOnly = true, Dock = DockStyle.Fill, ScrollBars = ScrollBars.Vertical, WordWrap = true,
+            BackColor = Theme.Surface, ForeColor = Theme.Text, BorderStyle = BorderStyle.None, Font = Theme.Font(10) };
+        text.Text = (RefreshPresentation.Details(stats) + "\n\n" + ScanPolicy.Explain(stats.Mode)).Replace("\n", "\r\n");
+        dialog.Controls.Add(text); dialog.ShowDialog(this);
     }
 
     private void ShowIssues()

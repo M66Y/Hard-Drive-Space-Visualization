@@ -99,7 +99,7 @@ internal static class UiRegression
                         await ProductScan();
                         await Wait(() => Product<DataGridView>("grid").Enabled, "Product scan did not settle");
                         Check(Product<ScanResult>("scan").Statistics is { Mode: ScanMode.LowImpact, Workers: 1 }, "UI strategy not passed to the scanner");
-                        Check(Product<Label>("refreshInfo").Text.Contains("目录峰值 1/1"), "UI confuses the worker limit with observed concurrency");
+                        Check(Product<ToolTip>("scanTip").GetToolTip(Product<Label>("refreshInfo"))?.Contains("目录峰值 1/1") == true, "Concurrency missing from refresh details");
                         Check(Product<ToolTip>("scanTip").GetToolTip(Product<ComboBox>("strategyCombo"))?.Contains("256") == true, "Low-impact explanation missing");
                         Product<ComboBox>("metricCombo").SelectedIndex = 1;
                         await Wait(() => Product<StatCard>("totalCard").Title == "实际占用空间" && Product<DataGridView>("grid").Enabled, "Allocated metric did not render");
@@ -108,11 +108,27 @@ internal static class UiRegression
                         await ProductScan();
                         await Wait(() => Product<DataGridView>("grid").Enabled, "Product refresh did not settle");
                         Check(Product<ScanResult>("scan").Root.FileCount == 1107 && Product<ScanResult>("scan").Statistics is { Incremental: true, ReusedFiles: > 1000 }, "UI did not use incremental refresh");
-                        Check(Product<Label>("refreshInfo").Text.Contains("核验峰值 1"), "UI does not distinguish verification concurrency");
+                        Check((Product<ScanResult>("scan").Statistics!.Method is RefreshMethod.MetadataVerification or RefreshMethod.ChangeJournal) && Product<Label>("refreshInfo").Text.Contains("详情"), "Actual refresh method/details missing");
                         Check(Product<ComboBox>("metricCombo").SelectedIndex == 1 && Product<StatCard>("totalCard").Title == "实际占用空间", "Refresh lost the size metric");
                         Product<ComboBox>("strategyCombo").SelectedIndex = 2; await ProductScan("ForceRefresh");
                         Check(Product<ScanResult>("scan").Statistics is { Incremental: false, Mode: ScanMode.HighSpeed, Workers: 8 }, "Force full / high-speed UI path failed");
                         Check(Product<Label>("status").Text.Contains("强制"), "Force full reason missing");
+                        bool detailsRead = false;
+                        using (var closeDetails = new System.Windows.Forms.Timer { Interval = 50 })
+                        {
+                            closeDetails.Tick += (_, _) =>
+                            {
+                                var dialog = Application.OpenForms.Cast<Form>().FirstOrDefault(f => f.Text == "最近完成的扫描 · 刷新详情");
+                                if (dialog == null) return;
+                                string text = dialog.Controls.OfType<TextBox>().Single().Text;
+                                // Do not require a native journal to be available on the test machine.
+                                detailsRead = text.Contains("完整扫描") && text.Contains("原因：") && text.Contains("核验目录") && text.Contains("处理记录");
+                                dialog.Close(); closeDetails.Stop();
+                            };
+                            closeDetails.Start();
+                            typeof(MainForm).GetMethod("ShowRefreshDetails", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(product, null);
+                        }
+                        Check(detailsRead, "Refresh details dialog is missing the actual method/counts/reason");
                         product.Close();
                         Console.WriteLine("PASS UI actual coordinator, low/high strategy selection, allocated metric, incremental refresh and force-full action");
 

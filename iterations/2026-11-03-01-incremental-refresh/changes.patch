@@ -1,0 +1,1095 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 61047f4..ced280b 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -80,7 +80,7 @@
+ - 检查与改动相称。纯文档改动检查覆盖、事实、链接、相互矛盾与隐私，不为文档改动重新构建软件。涉及核心扫描、缓存和统计逻辑时，增加必要边界测试并运行对应检查。
+ - 界面改动验证实际使用流程、布局和状态；算法或性能改动核对结果正确性与同条件基准。检查通过后，无新改动或疑点不反复扩大测试。
+ - 当前普通构建入口：`dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。
+-- 当前核心检查：`dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`；构建后可运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --advanced-tests` 和 `--ui-regression`。
++- 当前核心检查：`dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`；构建后可运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --advanced-tests`、`--journal-tests` 和 `--ui-regression`。刷新相关同条件诊断使用可选 `--refresh-benchmark`，方法与限制见 README。
+ - 只有有性能疑点或相关改动时才运行 `--scan-benchmark`；历史 `--memory-benchmark` 在缺少旧基准包时可能跳过，跳过不算验证通过该对比。
+ - 当前 `build.ps1` 会生成程序文件夹与 ZIP，`build.ps1 -Test` 还会运行两组核心检查；因此它们属于现阶段的打包入口，不用于普通迭代的无条件检查。脚本尚未实现本文件要求的完整正式发布流程。
+ - 调整目录或构建方式时同步更新上述命令、项目引用、测试链接文件、资源路径及文档。不得写入本机绝对路径作为公共运行要求。
+@@ -147,4 +147,6 @@
+ 
+ 基线软件为 v1.4.2。开发分支已提供目录任务估算进度和有限图块动效，仍使用根目录源码、固定内嵌背景和日志不可用时的全量元信息核验；完整日志系统、背景设置、双语 README、EXE 安装器及四类资产的快照发布流程尚未实现。首次核查时本地未初始化 Git，指定 GitHub 仓库为空；该状态会随后续接入改变，应以实际检查为准。
+ 
++第 3 轮已增加实际刷新方式、详情和只读日志协议/连续性检查；本机查询日志仍返回错误码 1、只读句柄尝试返回错误码 5，未解除无日志时全量元信息核验的限制。缓存仍仅在本次进程内，无新增权限、驻留服务或持久存储。Git 已接入 main；具体提交与验证见本轮迭代记录。
++
+ 本文件建立这些要求，不将既有软件或旧版 ZIP 追认成满足全部新发布规范的正式 Release；新增开发按已选方案逐项验收。
+diff --git a/ChangeJournal.cs b/ChangeJournal.cs
+index 620d1d8..b9a4500 100644
+--- a/ChangeJournal.cs
++++ b/ChangeJournal.cs
+@@ -1,10 +1,11 @@
+ using Microsoft.Win32.SafeHandles;
+ using System.Buffers.Binary;
+-using System.ComponentModel;
++using System.Runtime.InteropServices;
++using System.Text;
+ 
+ namespace DiskAtlas;
+ 
+-public record JournalCheckpoint(ulong JournalId, long NextUsn, long FirstUsn);
++public record JournalCheckpoint(ulong JournalId, long NextUsn, long FirstUsn, ulong? VolumeSerial = null);
+ public readonly record struct JournalChange(ulong IdLow, ulong IdHigh, ulong ParentLow, ulong ParentHigh, uint Reason, bool Directory);
+ public interface IChangeJournal : IDisposable
+ {
+@@ -12,78 +13,167 @@ public interface IChangeJournal : IDisposable
+     IReadOnlyList<JournalChange> Read(JournalCheckpoint from, JournalCheckpoint to, CancellationToken token);
+ }
+ 
+-internal sealed class NtfsChangeJournal(SafeFileHandle handle) : IChangeJournal
++internal sealed class NtfsChangeJournal : IChangeJournal
+ {
+-    public static IChangeJournal? TryOpen(string path)
++    internal const uint QueryControl = 0x900f4, UnprivilegedReadControl = 0x903ab, ReadControl = 0x900bb;
++    internal const int ChangeLimit = 200000;
++    private readonly SafeFileHandle? handle;
++    private readonly JournalControl control;
++    private readonly ulong? volumeSerial;
++    private (uint Code, bool V1)? reader;
++
++    private NtfsChangeJournal(SafeFileHandle handle, ulong volumeSerial)
++    {
++        this.handle = handle; this.volumeSerial = volumeSerial;
++        control = (code, input, output) =>
++        {
++            bool ok = NativeStorage.DeviceIoControl(handle, code, input, input?.Length ?? 0, output, output.Length, out int bytes, IntPtr.Zero);
++            int error = ok ? 0 : Marshal.GetLastWin32Error();
++            return new(ok, bytes, error);
++        };
++    }
++    // Deterministic protocol tests exercise the same decoder/negotiation without system changes.
++    internal NtfsChangeJournal(JournalControl control, ulong? volumeSerial = null) { this.control = control; this.volumeSerial = volumeSerial; }
++
++    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
++    private static extern bool GetVolumePathNameW(string path, StringBuilder volume, int size);
++
++    public static IChangeJournal? TryOpen(string path) => Open(path).Journal;
++    internal static JournalOpenResult Open(string path)
+     {
+         try
+         {
+-            string root = Path.GetPathRoot(Path.GetFullPath(path))!;
+-            if (root.Length != 3 || root[1] != ':' || !new DriveInfo(root).DriveFormat.Equals("NTFS", StringComparison.OrdinalIgnoreCase)) return null;
+-            var handle = NativeStorage.CreateFileW(@"\\.\" + root[..2], 0, NativeStorage.ShareAll, IntPtr.Zero, 3, 0, IntPtr.Zero);
+-            if (handle.IsInvalid) { handle.Dispose(); return null; }
+-            var journal = new NtfsChangeJournal(handle);
+-            try { _ = journal.Capture(); return journal; } catch { journal.Dispose(); return null; }
++            path = Path.GetFullPath(path);
++            string root = Path.GetPathRoot(path)!;
++            if (root.Length != 3 || root[1] != ':') return new(null, new(JournalState.UnsupportedPath));
++            var drive = new DriveInfo(root);
++            if (drive.DriveType == DriveType.Network || !drive.DriveFormat.Equals("NTFS", StringComparison.OrdinalIgnoreCase))
++                return new(null, new(JournalState.NotNtfs));
++            var mount = new StringBuilder(Math.Max(512, path.Length + 2));
++            if (!GetVolumePathNameW(path, mount, mount.Capacity)) return new(null, new(JournalState.VolumeUnknown, Marshal.GetLastWin32Error()));
++            // A path below another mounted volume must not consume the containing drive's journal.
++            if (!root.Equals(mount.ToString(), StringComparison.OrdinalIgnoreCase)) return new(null, new(JournalState.UnsupportedPath));
++            if (!NativeStorage.TryRead(root, true, FileAttributes.Directory, out var rootStorage, out _) || rootStorage == null)
++                return new(null, new(JournalState.VolumeUnknown));
++            JournalStatus? firstFailure = null;
++            foreach (uint access in new uint[] { 0, 0x80000000 })
++            {
++                // Same process identity, metadata-only first, then read-only. Never request write access or elevation.
++                var handle = NativeStorage.CreateFileW(@"\\.\" + root[..2], access, NativeStorage.ShareAll, IntPtr.Zero, 3, 0, IntPtr.Zero);
++                if (handle.IsInvalid)
++                {
++                    int error = Marshal.GetLastWin32Error(); handle.Dispose();
++                    return new(null, firstFailure == null ? JournalStatus.FromNative(error) : firstFailure with { ReadOnlyOpenError = error });
++                }
++                var journal = new NtfsChangeJournal(handle, rootStorage.Identity.Volume);
++                try { return new(journal, new(JournalState.Available), journal.Capture()); }
++                catch (JournalException ex)
++                {
++                    journal.Dispose(); firstFailure ??= ex.Status;
++                    if (access != 0 || ex.Status.State is JournalState.NotActive or JournalState.InvalidData)
++                        return new(null, ex.Status);
++                }
++            }
++            return new(null, firstFailure ?? new(JournalState.Unavailable));
+         }
+-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { return null; }
++        catch (UnauthorizedAccessException) { return new(null, new(JournalState.AccessDenied)); }
++        catch (Exception ex) when (ex is IOException or ArgumentException or System.Security.SecurityException)
++        { return new(null, new(JournalState.VolumeUnknown)); }
+     }
+ 
+     public JournalCheckpoint Capture()
+     {
+-        byte[] output = new byte[128];
+-        if (!NativeStorage.DeviceIoControl(handle, 0x000900f4, null, 0, output, output.Length, out int read, IntPtr.Zero))
+-            throw new IOException("无法读取 NTFS 变化日志：" + new Win32Exception(System.Runtime.InteropServices.Marshal.GetLastWin32Error()).Message);
+-        if (read < 56) throw new IOException("变化日志头不完整");
+-        return new(BinaryPrimitives.ReadUInt64LittleEndian(output), BinaryPrimitives.ReadInt64LittleEndian(output.AsSpan(16)),
+-            Math.Max(BinaryPrimitives.ReadInt64LittleEndian(output.AsSpan(8)), BinaryPrimitives.ReadInt64LittleEndian(output.AsSpan(24))));
++        byte[] output = new byte[128]; var result = control(QueryControl, null, output);
++        if (!result.Success) throw new JournalException(JournalStatus.FromNative(result.Error));
++        if (result.Bytes < 56 || result.Bytes > output.Length) throw InvalidData();
++        long next = BinaryPrimitives.ReadInt64LittleEndian(output.AsSpan(16));
++        long first = Math.Max(BinaryPrimitives.ReadInt64LittleEndian(output.AsSpan(8)), BinaryPrimitives.ReadInt64LittleEndian(output.AsSpan(24)));
++        if (first < 0 || next < first) throw InvalidData();
++        return new(BinaryPrimitives.ReadUInt64LittleEndian(output), next, first, volumeSerial);
+     }
+ 
+-    public IReadOnlyList<JournalChange> Read(JournalCheckpoint from, JournalCheckpoint to, CancellationToken token)
++    internal static byte[] CreateReadInput(long cursor, ulong journalId, bool v1)
+     {
+-        if (from.JournalId != to.JournalId || from.NextUsn < to.FirstUsn || from.NextUsn > to.NextUsn)
+-            throw new IOException("变化日志已重建、截断或游标失效");
+-        var result = new List<JournalChange>();
+-        long cursor = from.NextUsn;
+-        byte[] input = new byte[40], output = new byte[64 * 1024];
++        var input = new byte[v1 ? 48 : 40];
++        BinaryPrimitives.WriteInt64LittleEndian(input, cursor);
+         BinaryPrimitives.WriteUInt32LittleEndian(input.AsSpan(8), uint.MaxValue);
+-        BinaryPrimitives.WriteUInt64LittleEndian(input.AsSpan(32), from.JournalId);
++        BinaryPrimitives.WriteUInt64LittleEndian(input.AsSpan(32), journalId);
++        if (v1)
++        {
++            BinaryPrimitives.WriteUInt16LittleEndian(input.AsSpan(40), 2);
++            BinaryPrimitives.WriteUInt16LittleEndian(input.AsSpan(42), 3);
++        }
++        return input;
++    }
++
++    private JournalIoResult ReadChunk(long cursor, ulong journalId, byte[] output)
++    {
++        if (reader is { } known)
++        {
++            var result = control(known.Code, CreateReadInput(cursor, journalId, known.V1), output);
++            if (!result.Success) throw new JournalException(JournalStatus.FromNative(result.Error, true));
++            return result;
++        }
++        JournalIoResult last = default;
++        foreach (var candidate in new[] { (UnprivilegedReadControl, true), (UnprivilegedReadControl, false), (ReadControl, true), (ReadControl, false) })
++        {
++            last = control(candidate.Item1, CreateReadInput(cursor, journalId, candidate.Item2), output);
++            if (last.Success) { reader = candidate; return last; }
++            if (last.Error is not (1 or 5 or 50 or 87)) break;
++        }
++        throw new JournalException(JournalStatus.FromNative(last.Error, true));
++    }
++
++    public IReadOnlyList<JournalChange> Read(JournalCheckpoint from, JournalCheckpoint to, CancellationToken token)
++    {
++        token.ThrowIfCancellationRequested();
++        if (from.JournalId != to.JournalId || from.NextUsn < to.FirstUsn || from.NextUsn > to.NextUsn || from.NextUsn < 0 ||
++            from.VolumeSerial != to.VolumeSerial)
++            throw new JournalException(new(JournalState.Discontinuous));
++        var changes = new List<JournalChange>(); long cursor = from.NextUsn;
++        byte[] output = new byte[64 * 1024];
+         while (cursor < to.NextUsn)
+         {
+             token.ThrowIfCancellationRequested();
+-            BinaryPrimitives.WriteInt64LittleEndian(input, cursor);
+-            if (!NativeStorage.DeviceIoControl(handle, 0x000903ab, input, input.Length, output, output.Length, out int read, IntPtr.Zero) &&
+-                !NativeStorage.DeviceIoControl(handle, 0x000900bb, input, input.Length, output, output.Length, out read, IntPtr.Zero))
+-                throw new IOException("无法连续读取变化日志：" + new Win32Exception(System.Runtime.InteropServices.Marshal.GetLastWin32Error()).Message);
+-            if (read < 8) throw new IOException("变化日志缓冲不完整");
++            var result = ReadChunk(cursor, from.JournalId, output);
++            if (result.Bytes < 8 || result.Bytes > output.Length) throw InvalidData();
+             long next = BinaryPrimitives.ReadInt64LittleEndian(output);
+-            Parse(output.AsSpan(8, read - 8), to.NextUsn, result);
+-            if (next <= cursor) throw new IOException("变化日志游标没有前进");
++            if (next <= cursor) throw InvalidData();
++            Parse(output.AsSpan(8, result.Bytes - 8), to.NextUsn, changes, cursor, next);
+             cursor = next;
+-            if (result.Count > 200000) throw new IOException("变化过多，改用完整扫描");
+         }
++        token.ThrowIfCancellationRequested();
+         var after = Capture();
+-        if (after.JournalId != to.JournalId || after.FirstUsn > from.NextUsn) throw new IOException("读取期间变化日志失效");
+-        return result;
++        if (after.JournalId != to.JournalId || after.FirstUsn > from.NextUsn || after.NextUsn < to.NextUsn || after.VolumeSerial != to.VolumeSerial)
++            throw new JournalException(new(JournalState.Discontinuous));
++        return changes;
+     }
+ 
+-    internal static void Parse(ReadOnlySpan<byte> buffer, long endUsn, List<JournalChange> changes)
++    private static JournalException InvalidData() => new(new(JournalState.InvalidData));
++    internal static void Parse(ReadOnlySpan<byte> buffer, long endUsn, List<JournalChange> changes, long startUsn = 0, long chunkEnd = long.MaxValue)
+     {
++        long previousUsn = -1;
+         while (!buffer.IsEmpty)
+         {
+-            if (buffer.Length < 8) throw new IOException("变化日志记录不完整");
++            if (buffer.Length < 8) throw InvalidData();
+             int length = BinaryPrimitives.ReadInt32LittleEndian(buffer);
+             int version = BinaryPrimitives.ReadUInt16LittleEndian(buffer[4..]);
+-            int minimum = version == 2 ? 60 : version == 3 ? 76 : throw new IOException("不支持的变化日志记录版本");
+-            if (length < minimum || length > buffer.Length) throw new IOException("变化日志记录长度无效");
++            int minimum = version == 2 ? 60 : version == 3 ? 76 : throw InvalidData();
++            if (length < minimum || length > buffer.Length || (length & 7) != 0) throw InvalidData();
+             var record = buffer[..length];
+             int usnOffset = version == 2 ? 24 : 40, reasonOffset = version == 2 ? 40 : 56, attributesOffset = version == 2 ? 52 : 68;
+             long usn = BinaryPrimitives.ReadInt64LittleEndian(record[usnOffset..]);
+-            if (usn < endUsn)
++            if (usn < 0 || usn < previousUsn || usn >= chunkEnd) throw InvalidData();
++            previousUsn = usn;
++            if (usn >= startUsn && usn < endUsn)
++            {
++                if (changes.Count >= ChangeLimit) throw new JournalException(new(JournalState.TooManyChanges));
+                 changes.Add(new(BinaryPrimitives.ReadUInt64LittleEndian(record[8..]), version == 2 ? 0 : BinaryPrimitives.ReadUInt64LittleEndian(record[16..]),
+                     BinaryPrimitives.ReadUInt64LittleEndian(record[(version == 2 ? 16 : 24)..]), version == 2 ? 0 : BinaryPrimitives.ReadUInt64LittleEndian(record[32..]),
+                     BinaryPrimitives.ReadUInt32LittleEndian(record[reasonOffset..]), (BinaryPrimitives.ReadUInt32LittleEndian(record[attributesOffset..]) & 0x10) != 0));
++            }
+             buffer = buffer[length..];
+         }
+     }
+-    public void Dispose() => handle.Dispose();
++    public void Dispose() => handle?.Dispose();
+ }
+diff --git a/Core.cs b/Core.cs
+index 107913a..e593fee 100644
+--- a/Core.cs
++++ b/Core.cs
+@@ -137,7 +137,7 @@ public sealed class DiskEntry
+ 
+ public record ScanProgress(long Files, long Folders, long Bytes, string CurrentPath,
+     ScanPhase Phase = ScanPhase.Scanning, int WorkerLimit = 0,
+-    long CompletedDirectories = 0, long DiscoveredDirectories = 0)
++    long CompletedDirectories = 0, long DiscoveredDirectories = 0, RefreshMethod? Method = null, string? Message = null)
+ {
+     // This describes directory tasks in the CURRENT phase, never elapsed time,
+     // bytes, remaining duration or overall completion. Newly found work can lower it.
+@@ -402,7 +402,7 @@ public sealed class DiskScanner
+         return new ScanResult(root, timer.Elapsed, skipped, issues)
+         {
+             AllocationIssues = allocationIssues,
+-            Statistics = new(options?.Mode ?? ScanMode.HighSpeed, profile.Workers, refresh != null, readDirectories, reusedFiles, refresh == null ? "完整扫描" : "NTFS 日志增量刷新", PeakDirectoryWorkers: concurrency.Peak)
++            Statistics = new(options?.Mode ?? ScanMode.HighSpeed, profile.Workers, refresh != null, readDirectories, reusedFiles, refresh == null ? "完整扫描" : "NTFS 日志增量刷新", PeakDirectoryWorkers: concurrency.Peak, Method: refresh == null ? RefreshMethod.FullScan : refresh.MetadataValidated ? RefreshMethod.MetadataVerification : RefreshMethod.ChangeJournal)
+         };
+     }
+ }
+diff --git a/MainForm.cs b/MainForm.cs
+index bfdb1d7..3e3f102 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -92,7 +92,9 @@ internal sealed class MainForm : Form
+         metricCombo.SelectedIndexChanged += (_, _) => { if (!changingMetric) { metric = (SizeMetric)metricCombo.SelectedIndex; UpdateView(true); } };
+         var refreshMenu = new ContextMenuStrip();
+         refreshMenu.Items.Add("强制完整重新扫描（Ctrl+F5）", null, async (_, _) => await ForceRefresh());
++        refreshMenu.Items.Add("最近完成的扫描详情", null, (_, _) => ShowRefreshDetails());
+         refresh.ContextMenuStrip = refreshMenu;
++        refreshInfo.Click += (_, _) => { if (scanCancellation == null) ShowRefreshDetails(); };
+         choose.Click += async (_, _) => await ChooseFolder();
+         refresh.Click += async (_, _) => { if (scan != null) await ScanFolder(scan.Root.Path); };
+         cancel.Click += (_, _) => { scanCancellation?.Cancel(); cancel.Enabled = false; status.Text = "正在取消扫描…"; };
+@@ -389,14 +391,19 @@ internal sealed class MainForm : Form
+         map.Invalidate();
+         status.Text = $"开始扫描：{path}";
+         refreshInfo.Text = $"{StrategyName} · 准备扫描";
++        refreshInfo.Cursor = Cursors.Default;
+         scanTip.SetToolTip(refreshInfo, ScanPolicy.Explain(options.Mode));
++        RefreshMethod? activeRefreshMethod = null;
+         var progress = new Progress<ScanProgress>(p =>
+         {
+             if (IsDisposed || Disposing || !ReferenceEquals(scanCancellation, cancellation) || cancellation.IsCancellationRequested) return;
+             progressBar.Report(p);
+             string stage = ScanProgressControl.PhaseName(p.Phase);
++            if (p.Method is { } selectedMethod) activeRefreshMethod = selectedMethod;
++            if (p.Message != null) scanTip.SetToolTip(refreshInfo, p.Message);
+             status.Text = $"{stage} · {SizeFormat.Number(p.Files)} 个文件 · {(p.Phase == ScanPhase.Verifying ? p.CurrentPath : SizeFormat.Bytes(p.Bytes) + " · " + p.CurrentPath)}";
+-            if (p.WorkerLimit > 0) refreshInfo.Text = $"{StrategyName} · {stage} · 目录并发上限 {p.WorkerLimit}";
++            refreshInfo.Text = $"{(activeRefreshMethod is { } method ? RefreshPresentation.MethodName(method) : StrategyName)} · {stage}" +
++                (p.WorkerLimit > 0 ? $" · 并发上限 {p.WorkerLimit}" : "");
+             if (scan == null && !showingPreview)
+             {
+                 totalCard.Value = SizeFormat.Bytes(p.Bytes); filesCard.Value = SizeFormat.Number(p.Files); foldersCard.Value = SizeFormat.Number(p.Folders);
+@@ -425,8 +432,8 @@ internal sealed class MainForm : Form
+             issues.Visible = scan.Skipped > 0 || scan.Root.UnknownAllocationFiles > 0;
+             if (scan.Statistics is { } stats)
+             {
+-                refreshInfo.Text = $"{(stats.Incremental ? "增量" : "完整")} · {(stats.VerifiedDirectories > 0 ? $"核验峰值 {stats.PeakVerificationWorkers} · " : "")}目录峰值 {stats.PeakDirectoryWorkers}/{stats.Workers} · 重扫 {stats.ReadDirectories:N0} · 复用 {stats.ReusedFiles:N0}";
+-                scanTip.SetToolTip(refreshInfo, $"{stats.Reason}\n核验 {stats.VerifiedDirectories:N0} 目录、{stats.VerifiedFiles:N0} 文件；核验任务峰值 {stats.PeakVerificationWorkers}；目录任务峰值 {stats.PeakDirectoryWorkers}；并发上限 {stats.Workers}。\n任务峰值包含等待，不表示 CPU 核数或瞬时磁盘 I/O 数。\n" + ScanPolicy.Explain(stats.Mode));
++                refreshInfo.Text = $"{RefreshPresentation.MethodName(stats.Method)} · 重扫 {stats.ReadDirectories:N0} 目录 · 复用 {stats.ReusedFiles:N0} 文件 · 点击详情";
++                scanTip.SetToolTip(refreshInfo, "点击查看最近完成的扫描详情\n" + RefreshPresentation.Details(stats));
+             }
+             else refreshInfo.Text = "扫描完成";
+             status.Text = $"扫描完成 · {SizeFormat.Number(scan.Root.FileCount)} 个文件 · " + (scan.Statistics?.Reason ?? "") +
+@@ -461,6 +468,7 @@ internal sealed class MainForm : Form
+             {
+                 choose.Enabled = true; refresh.Enabled = scan != null; cancel.Visible = false;
+                 strategyCombo.Enabled = metricCombo.Enabled = true;
++                refreshInfo.Cursor = scan?.Statistics != null ? Cursors.Hand : Cursors.Default;
+                 map.Scanning = false; map.Invalidate();
+                 if (cancellation.IsCancellationRequested || scan == previousScan) UpdateStrategyHint();
+             }
+@@ -838,6 +846,17 @@ internal sealed class MainForm : Form
+         { MessageBox.Show(this, ex.Message, "操作未完成", MessageBoxButtons.OK, MessageBoxIcon.Information); }
+     }
+ 
++    private void ShowRefreshDetails()
++    {
++        if (scan?.Statistics is not { } stats) return;
++        using var dialog = new Form { Text = "最近完成的扫描 · 刷新详情", Size = new Size(780, 520), StartPosition = FormStartPosition.CenterParent,
++            BackColor = Theme.Surface, ForeColor = Theme.Text, MinimizeBox = false, Font = Theme.Font(9), Padding = new Padding(18) };
++        var text = new TextBox { Multiline = true, ReadOnly = true, Dock = DockStyle.Fill, ScrollBars = ScrollBars.Vertical, WordWrap = true,
++            BackColor = Theme.Surface, ForeColor = Theme.Text, BorderStyle = BorderStyle.None, Font = Theme.Font(10) };
++        text.Text = (RefreshPresentation.Details(stats) + "\n\n" + ScanPolicy.Explain(stats.Mode)).Replace("\n", "\r\n");
++        dialog.Controls.Add(text); dialog.ShowDialog(this);
++    }
++
+     private void ShowIssues()
+     {
+         if (scan == null) return;
+diff --git a/README.md b/README.md
+index 0bec46f..9b5d96b 100644
+--- a/README.md
++++ b/README.md
+@@ -2,6 +2,8 @@
+ 
+ 开发分支已包含尚未正式发布的扫描策略修正、扫描进度与图块反馈；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。本次交互修正使用独立的 `bin/Preview/DiskAtlas.exe` 预览目录，以保留正在运行的旧窗口。详见[扫描策略记录](iterations/2026-11-01-02-scan-policy/README.md)、[第 2 轮交互记录](iterations/2026-11-02-02-scan-feedback/README.md)和[本次修正记录](iterations/2026-11-02-03-hover-fix/README.md)。
+ 
++第 3 轮开发预览新增实际刷新方式与诊断详情，修正只读日志协议兼容和连续性检查。点击顶部“点击详情”，或右键“重新扫描”选择“最近完成的扫描详情”，可查看实际方式、原因、核验/重扫/复用数量、日志错误码和分阶段耗时。详见[第 3 轮记录](iterations/2026-11-03-01-incremental-refresh/README.md)。本机卷日志仍不可读，实际刷新使用元信息核验；没有承诺无日志时免除全量核验或必然加速。
++
+ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，点击“选择文件夹”，即可查看文件名称、大小和分布。
+ 
+ 界面使用用户提供的水彩插画作为背景，搭配暖白面板、珊瑚色按钮和浅色图表。背景等比例铺满窗口，边缘会随窗口比例裁切；原图内嵌在程序中，无需额外图片文件。数据行保持实色底，列表空白处透出背景。
+@@ -37,7 +39,7 @@ dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayNa
+ # 原开发预览仍在运行时，使用独立输出目录
+ dotnet build DiskAtlas.csproj --configuration Release --output bin/Preview -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
+ 
+-# 核心检查（另外两组检查入口见下文）
++# 核心检查（其他检查入口见下文）
+ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
+ 
+ # 直接调试，可选传入初始目录
+@@ -56,7 +58,11 @@ dotnet run --project DiskAtlas.csproj -- "D:\你的文件夹"
+ 
+ 三种真实策略的可选诊断基准：构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --policy-benchmark`。它创建并自动删除 15,200 个合成小文件，分别测量完整扫描和无日志的无变化刷新，预热后按平衡顺序每模式运行 6 次并逐项比对结果。汇总墙钟、进程 CPU、总托管分配与任务峰值；不测量实际前台应用响应或物理磁盘 I/O。结果保存在 `artifacts/policy-benchmark-results.json`；再次运行前应先归档并移除上一份同名结果，避免覆盖证据。
+ 
+-增量刷新只在本次运行保留的完整快照上进行。元信息核验模式仍走访所有目录和文件元信息，主要复用树节点内容及已核实的存储信息，不能保证像日志模式一样显著减少磁盘访问。界面分别显示核验、重扫及复用数量。Ctrl+F5 或重新扫描按钮的右键菜单可强制完整扫描。
++另有 16 项日志边界检查：构建后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --journal-tests`，覆盖只读请求 V1/V0 协商、V2/V3 记录、128 位身份、截断/重建/回退游标、卷不一致、未知格式、读取上限、取消及保守回退；三组共 79 项检查。界面集成另验证最近完成扫描的详情窗口与实际刷新方式。真实卷日志不可读时，模拟协议检查不能证明真实卷日志读取成功。
++
++增量刷新只在本次运行保留的完整快照上进行，关闭后不保存缓存，重启后的第一次扫描为完整扫描。界面区分“日志增量”“元信息核验”“完整扫描”。元信息核验模式仍走访所有目录和文件元信息，主要复用树节点内容及已核实的存储信息，不能保证像日志模式一样显著减少磁盘访问。日志丢失连续性、格式无效、记录超限、旧快照不完整或身份异常时采用保守回退。详情提供核验目录/文件、重扫目录、复用文件、处理日志记录、原因和系统错误码，以及准备/读取整理耗时。Ctrl+F5 或重新扫描按钮的右键菜单可强制完整扫描。
++
++可选刷新对比：`dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --refresh-benchmark`。同一组 2,400 文件、61 目录，预热后按轮换和反向顺序各运行 8 次，逐项比对完整扫描、无日志核验、模拟连续日志与本机实际路径。结果保存在 `artifacts/refresh-benchmark.json`，再次运行前先归档原报告。它测量墙钟、进程 CPU 和总托管分配，不测物理 I/O 或整盘冷启动；模拟日志仅验证复用工作量，不能当作本机实测加速。没有更改系统权限、日志设置或创建驻留服务。
+ 
+ 可选的真实文件系统扫描基准（会创建并自动删除 72,000 个小文件，耗时较长）：
+ 
+@@ -84,4 +90,4 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
+ 
+ `Core.cs` 扫描、紧凑文件条目、大小格式与矩形布局；`LiveScanSession.cs` 可取消的有限预览快照；`ViewQuery.cs` 可取消的查询、有限堆筛选与分页；`FileKinds.cs` 文件分类；`MainForm.cs` 界面和异步状态；`TreemapControl.cs` 缓存图块绘制及有限动效；`ScanProgressControl.cs` 阶段估算与进度显示；`Theme.cs` 配色和可用键盘操作的导航控件。扫描使用目录队列和最多 8 个工作线程，跳过重解析点并记录错误。`new DiskScanner(1)` 可用于串行验证，最大并行数可在 1–16 之间设置。
+ 
+-`ScanCoordinator.cs` 选择刷新路径并生成复用计划；`ChangeJournal.cs` 只读解析 NTFS 日志；`MetadataVerifier.cs` 无日志时核验元信息；`NativeStorage.cs` 查询 Windows 文件身份、分配及磁盘特性；`StorageMetrics.cs` 对硬链接确定唯一计入路径并汇总；`ScanPolicy.cs` 定义扫描策略。缓存仅在内存中，不创建或修改系统变化日志，不要求提升软件权限。
++`ScanCoordinator.cs` 选择刷新路径并生成复用计划；`ChangeJournal.cs` 只读解析 NTFS 日志；`RefreshStatus.cs` 定义实际方式、脱敏诊断及详情文本；`MetadataVerifier.cs` 无日志时核验元信息；`NativeStorage.cs` 查询 Windows 文件身份、分配及磁盘特性；`StorageMetrics.cs` 对硬链接确定唯一计入路径并汇总；`ScanPolicy.cs` 定义扫描策略。缓存仅在内存中，不创建或修改系统变化日志，不要求提升软件权限。
+diff --git a/RefreshStatus.cs b/RefreshStatus.cs
+new file mode 100644
+index 0000000..43d634d
+--- /dev/null
++++ b/RefreshStatus.cs
+@@ -0,0 +1,66 @@
++namespace DiskAtlas;
++
++public enum RefreshMethod { FullScan, ChangeJournal, MetadataVerification }
++public enum JournalState
++{
++    Available, Unavailable, UnsupportedPath, NotNtfs, VolumeUnknown, VolumeMismatch,
++    AccessDenied, NotActive, UnsupportedOperation, QueryFailed, ReadFailed,
++    Discontinuous, InvalidData, TooManyChanges
++}
++
++// Only stable categories/codes: no paths, file names, volume IDs or raw exception text.
++public record JournalStatus(JournalState State, int NativeError = 0, int ReadOnlyOpenError = 0)
++{
++    public string Description => (State switch
++    {
++        JournalState.Available => "NTFS 变化日志可用",
++        JournalState.UnsupportedPath => "此路径形式或挂载方式未启用卷日志读取",
++        JournalState.NotNtfs => "文件系统不是本地 NTFS",
++        JournalState.VolumeUnknown => "无法确认目录所属卷",
++        JournalState.VolumeMismatch => "目录与日志卷不一致",
++        JournalState.AccessDenied => "当前权限无法读取卷日志",
++        JournalState.NotActive => "卷变化日志未启用或正在删除",
++        JournalState.UnsupportedOperation => "卷不支持当前日志查询或读取",
++        JournalState.QueryFailed => "无法查询卷变化日志",
++        JournalState.ReadFailed => "无法读取连续变化记录",
++        JournalState.Discontinuous => "变化日志已重建、截断或游标失效",
++        JournalState.InvalidData => "变化日志数据或记录格式无效",
++        JournalState.TooManyChanges => "变化记录超出本次处理上限",
++        _ => "没有可用的变化日志"
++    }) + (NativeError != 0 ? $"（错误码 {NativeError}）" : "") +
++        (ReadOnlyOpenError != 0 ? $"；只读句柄尝试失败（错误码 {ReadOnlyOpenError}）" : "");
++
++    internal static JournalStatus FromNative(int error, bool reading = false) => new(error switch
++    {
++        5 => JournalState.AccessDenied,
++        1178 or 1179 => JournalState.NotActive,
++        1181 => JournalState.Discontinuous,
++        1 or 50 => JournalState.UnsupportedOperation,
++        _ => reading ? JournalState.ReadFailed : JournalState.QueryFailed
++    }, error);
++}
++
++internal sealed class JournalException(JournalStatus status) : IOException(status.Description)
++{
++    internal JournalStatus Status { get; } = status;
++}
++
++internal sealed record JournalOpenResult(IChangeJournal? Journal, JournalStatus Status, JournalCheckpoint? InitialCheckpoint = null);
++internal readonly record struct JournalIoResult(bool Success, int Bytes, int Error = 0);
++internal delegate JournalIoResult JournalControl(uint code, byte[]? input, byte[] output);
++
++public static class RefreshPresentation
++{
++    public static string MethodName(RefreshMethod method) => method switch
++    {
++        RefreshMethod.ChangeJournal => "日志增量", RefreshMethod.MetadataVerification => "元信息核验", _ => "完整扫描"
++    };
++
++    public static string Summary(ScanStatistics stats) =>
++        $"{MethodName(stats.Method)} · 核验目录 {stats.VerifiedDirectories:N0} / 文件 {stats.VerifiedFiles:N0} · 重扫目录 {stats.ReadDirectories:N0} · 复用文件 {stats.ReusedFiles:N0}";
++
++    public static string Details(ScanStatistics stats) =>
++        $"{Summary(stats)}\n原因：{stats.Reason}\n日志：{stats.Journal?.Description ?? "未提供诊断"}；处理记录 {stats.JournalRecords:N0} 条。\n" +
++        $"准备与核验 {stats.PreparationMilliseconds:N1} ms；读取与整理 {stats.ScanMilliseconds:N1} ms。\n" +
++        $"核验峰值 {stats.PeakVerificationWorkers}；目录峰值 {stats.PeakDirectoryWorkers}/{stats.Workers}。任务峰值含等待，不表示 CPU 核数或瞬时磁盘 I/O。";
++}
+diff --git a/ScanCoordinator.cs b/ScanCoordinator.cs
+index 1dd27ae..4716039 100644
+--- a/ScanCoordinator.cs
++++ b/ScanCoordinator.cs
+@@ -45,51 +45,109 @@ public sealed record RefreshPlan(DiskEntry PreviousRoot, Dictionary<string, Disk
+ 
+ public sealed class ScanCoordinator
+ {
+-    private readonly Func<string, IChangeJournal?> openJournal;
+-    public ScanCoordinator() : this(NtfsChangeJournal.TryOpen) { }
+-    internal ScanCoordinator(Func<string, IChangeJournal?> openJournal) => this.openJournal = openJournal;
++    private readonly Func<string, JournalOpenResult> openJournal;
++    public ScanCoordinator() => openJournal = NtfsChangeJournal.Open;
++    internal ScanCoordinator(Func<string, IChangeJournal?> openJournal) => this.openJournal = path =>
++    {
++        var journal = openJournal(path);
++        return new(journal, new(journal == null ? JournalState.Unavailable : JournalState.Available));
++    };
+ 
+     public ScanResult Scan(string path, ScanResult? previous, ScanOptions options, IProgress<ScanProgress>? progress,
+         CancellationToken token, LiveScanSession? live = null, bool forceFull = false)
+     {
+         var watch = Stopwatch.StartNew(); token.ThrowIfCancellationRequested(); path = Path.GetFullPath(path);
+-        using var journal = openJournal(path);
+-        JournalCheckpoint? start = null;
++        JournalOpenResult opening;
++        try { opening = openJournal(path); }
++        catch (UnauthorizedAccessException) { opening = new(null, new(JournalState.AccessDenied)); }
++        catch (IOException) { opening = new(null, new(JournalState.Unavailable)); }
++        using var journal = opening.Journal;
++        var journalStatus = opening.Status;
++        JournalCheckpoint? start = opening.InitialCheckpoint;
++        if (start == null && journal != null)
++        {
++            try { start = journal.Capture(); }
++            catch (JournalException ex) { journalStatus = ex.Status; }
++            catch (IOException) { journalStatus = new(JournalState.QueryFailed); }
++            catch (UnauthorizedAccessException) { journalStatus = new(JournalState.AccessDenied); }
++        }
++        token.ThrowIfCancellationRequested();
++        void Announce(RefreshMethod? method, string message)
++        {
++            token.ThrowIfCancellationRequested();
++            progress?.Report(new(0, 0, 0, "检查刷新方式", ScanPhase.Preparing, Method: method, Message: message));
++        }
++        // Capture the start cursor before callbacks: writes during planning must be replayable.
++        Announce(null, journalStatus.Description);
+         RefreshPlan? plan = null;
+-        long verifiedDirectories = 0, verifiedFiles = 0;
++        var method = RefreshMethod.FullScan;
++        long verifiedDirectories = 0, verifiedFiles = 0, records = 0;
+         int peakVerificationWorkers = 0;
+-        string reason = forceFull ? "已强制完整扫描" : previous == null ? "首次完整扫描" : "变化日志不可用，完整扫描";
++        bool readingJournal = false;
++        string reason = forceFull ? "已强制完整扫描" : previous == null ? "首次完整扫描" : "扫描目录已切换，采用完整扫描";
+         try
+         {
+-            start = journal?.Capture();
+             if (!forceFull && previous != null && previous.Root.Path.Equals(path, StringComparison.OrdinalIgnoreCase))
+             {
+-                if (previous.Skipped > 0 || previous.Root.UnknownAllocationFiles > 0) throw new IOException("旧结果不完整，重新完整扫描");
++                if (previous.Skipped > 0 || previous.Root.Incomplete || previous.Root.UnknownAllocationFiles > 0)
++                    throw new IOException("旧结果不完整");
+                 if (!NativeStorage.TryRead(path, true, FileAttributes.Directory, out var currentRoot, out _) || previous.Root.Storage?.Identity != currentRoot!.Identity)
+-                    throw new IOException("根目录身份已变化");
++                    throw new IOException("根目录身份已变化或无法核实");
++                if (start?.VolumeSerial is ulong volume && currentRoot.Identity.Volume != volume)
++                { journalStatus = new(JournalState.VolumeMismatch); start = null; }
+                 if (previous.Checkpoint != null && start != null && journal != null)
+                 {
+-                    var changes = journal.Read(previous.Checkpoint, start, token);
++                    readingJournal = true;
++                    Announce(RefreshMethod.ChangeJournal, "检查两次扫描之间的日志连续性");
++                    var changes = journal.Read(previous.Checkpoint, start, token); records = changes.Count;
++                    readingJournal = false;
+                     plan = RefreshPlan.Build(previous.Root, changes, token);
++                    method = RefreshMethod.ChangeJournal;
+                     reason = "NTFS 变化日志连续，优先重扫变化目录";
+                 }
+                 else
+                 {
++                    string unavailable = start != null && previous.Checkpoint == null ? "上次扫描没有有效日志游标" : journalStatus.Description;
++                    Announce(RefreshMethod.MetadataVerification, unavailable + "；将核验目录及文件元信息");
+                     var verified = MetadataVerifier.Verify(previous.Root, options, progress, token);
+                     plan = verified.Plan; verifiedDirectories = verified.Directories; verifiedFiles = verified.Files; peakVerificationWorkers = verified.PeakWorkers;
+-                    reason = "无可用日志：已核验目录及文件元信息，复用未变部分";
++                    method = RefreshMethod.MetadataVerification;
++                    reason = unavailable + "；已核验目录及文件元信息，复用未变部分";
+                 }
+             }
+         }
+-        catch (Exception ex) when (ex is IOException or ArgumentException || ex is AggregateException aggregate &&
++        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Security.SecurityException || ex is AggregateException aggregate &&
+             aggregate.InnerExceptions.All(inner => inner is IOException or ArgumentException or UnauthorizedAccessException))
+         {
+             token.ThrowIfCancellationRequested();
+-            reason = ex.Message + "；已回退完整扫描"; plan = null;
++            if (ex is JournalException native) journalStatus = native.Status;
++            else if (readingJournal && journalStatus.State == JournalState.Available)
++                journalStatus = new(JournalState.ReadFailed);
++            string detail = ex is JournalException ? journalStatus.Description :
++                ex is IOException && ex.Message is "旧结果不完整" or "根目录身份已变化或无法核实" or "旧快照中存在无法识别的文件或目录" ? ex.Message : "刷新准备或核验未能完成";
++            reason = detail + "；已回退完整扫描"; plan = null; method = RefreshMethod.FullScan;
+         }
++        Announce(method, reason);
++        double preparation = watch.Elapsed.TotalMilliseconds;
+         var result = new DiskScanner().Scan(path, progress, token, live, options, plan);
+         token.ThrowIfCancellationRequested();
+-        // Keep the START cursor: changes during this scan are replayed on the next refresh.
+-        return result with { Elapsed = watch.Elapsed, Checkpoint = start, Statistics = result.Statistics! with { Reason = reason, VerifiedDirectories = verifiedDirectories, VerifiedFiles = verifiedFiles, PeakVerificationWorkers = peakVerificationWorkers } };
++        if (start?.VolumeSerial is ulong serial && result.Root.Storage?.Identity.Volume != serial)
++        {
++            journalStatus = new(JournalState.VolumeMismatch); start = null;
++            if (method == RefreshMethod.ChangeJournal)
++            {
++                reason = journalStatus.Description + "；已回退完整扫描"; method = RefreshMethod.FullScan;
++                Announce(method, reason);
++                result = new DiskScanner().Scan(path, progress, token, live, options);
++            }
++        }
++        token.ThrowIfCancellationRequested();
++        // No persistence: only a completed snapshot in this process can become a baseline.
++        return result with { Elapsed = watch.Elapsed, Checkpoint = start, Statistics = result.Statistics! with
++        {
++            Reason = reason, Method = method, Journal = journalStatus, JournalRecords = records,
++            VerifiedDirectories = verifiedDirectories, VerifiedFiles = verifiedFiles, PeakVerificationWorkers = peakVerificationWorkers,
++            PreparationMilliseconds = preparation, ScanMilliseconds = Math.Max(0, watch.Elapsed.TotalMilliseconds - preparation)
++        } };
+     }
+ }
+diff --git a/ScanPolicy.cs b/ScanPolicy.cs
+index 38d69ae..9e35046 100644
+--- a/ScanPolicy.cs
++++ b/ScanPolicy.cs
+@@ -3,11 +3,13 @@ namespace DiskAtlas;
+ public enum ScanMode { Automatic, LowImpact, HighSpeed }
+ public enum DiskKind { Unknown, SolidState, Mechanical, Network }
+ public enum SizeMetric { Logical, Allocated }
+-public enum ScanPhase { Scanning, Verifying, Reusing, Finalizing }
++public enum ScanPhase { Scanning, Verifying, Reusing, Finalizing, Preparing }
+ public record ScanOptions(ScanMode Mode = ScanMode.Automatic);
+ public record ScanProfile(int Workers, int BatchDelayMilliseconds, string Description);
+ public record ScanStatistics(ScanMode Mode, int Workers, bool Incremental, long ReadDirectories, long ReusedFiles, string Reason,
+-    long VerifiedDirectories = 0, long VerifiedFiles = 0, int PeakDirectoryWorkers = 0, int PeakVerificationWorkers = 0);
++    long VerifiedDirectories = 0, long VerifiedFiles = 0, int PeakDirectoryWorkers = 0, int PeakVerificationWorkers = 0,
++    RefreshMethod Method = RefreshMethod.FullScan, JournalStatus? Journal = null, long JournalRecords = 0,
++    double PreparationMilliseconds = 0, double ScanMilliseconds = 0);
+ 
+ public static class ScanPolicy
+ {
+diff --git a/ScanProgressControl.cs b/ScanProgressControl.cs
+index cbd6891..47f9779 100644
+--- a/ScanProgressControl.cs
++++ b/ScanProgressControl.cs
+@@ -75,6 +75,7 @@ internal sealed class ScanProgressControl : Control
+     }
+     internal static string PhaseName(ScanPhase phase) => phase switch
+     {
++        ScanPhase.Preparing => "检查刷新条件",
+         ScanPhase.Verifying => "核验元信息", ScanPhase.Reusing => "读取与复用缓存",
+         ScanPhase.Finalizing => "统计与整理", _ => "读取目录"
+     };
+diff --git a/tests/AdvancedFeatures.cs b/tests/AdvancedFeatures.cs
+index 8c29dd6..537909b 100644
+--- a/tests/AdvancedFeatures.cs
++++ b/tests/AdvancedFeatures.cs
+@@ -47,6 +47,7 @@ internal static class AdvancedFeatures
+                 var coordinator = new ScanCoordinator(_ => null);
+                 var observer = new Inline(p =>
+                 {
++                    if (p.Phase == ScanPhase.Preparing) { Check(p.EstimatedPercent == null, "Preparation has invented totals"); reports.Enqueue(p); return; }
+                     Check(p.DiscoveredDirectories > 0 && p.CompletedDirectories >= 0 && p.CompletedDirectories <= p.DiscoveredDirectories, "Inconsistent counters");
+                     Check(p.EstimatedPercent is >= 0 and <= 99, "Scanner published successful 100%");
+                     reports.Enqueue(p);
+@@ -163,7 +164,7 @@ internal static class AdvancedFeatures
+                 }
+                 Directory.SetLastWriteTimeUtc(scope, new DateTime(2020, 1, 1));
+                 var phases = new ConcurrentQueue<ScanPhase>();
+-                var progress = new Inline(p => { Check(p.WorkerLimit == 1, "Progress lost the effective policy limit"); phases.Enqueue(p.Phase); });
++                var progress = new Inline(p => { Check(p.Phase == ScanPhase.Preparing || p.WorkerLimit == 1, "Progress lost the effective policy limit"); phases.Enqueue(p.Phase); });
+                 var coordinator = new ScanCoordinator(_ => null);
+                 var before = coordinator.Scan(scope, null, new(ScanMode.LowImpact), progress, CancellationToken.None);
+                 Check(phases.Contains(ScanPhase.Scanning) && phases.Contains(ScanPhase.Finalizing), "Full-scan stages missing");
+@@ -297,18 +298,7 @@ internal static class AdvancedFeatures
+                 File.WriteAllBytes(Path.Combine(scope, "A", "real.txt"), new byte[35000]);
+                 var next = actual.Scan(scope, first, options, null, CancellationToken.None);
+                 Equal(next.Root, new DiskScanner().Scan(scope, null, CancellationToken.None).Root);
+-                Console.WriteLine($"REAL journal: {next.Statistics!.Incremental}; directories {next.Statistics.ReadDirectories}; reused {next.Statistics.ReusedFiles}; reason {next.Statistics.Reason}; automatic disk {NativeStorage.DetectDisk(scope)}");
+-                if (!next.Statistics.Incremental)
+-                {
+-                    string volume = @"\\.\" + Path.GetPathRoot(scope)![..2];
+-                    foreach (uint access in new uint[] { 0, 0x80, 1, 0x80000000 })
+-                    {
+-                        using var handle = NativeStorage.CreateFileW(volume, access, 7, IntPtr.Zero, 3, 0, IntPtr.Zero);
+-                        int openError = handle.IsInvalid ? Marshal.GetLastWin32Error() : 0;
+-                        byte[] data = new byte[128]; bool queried = !handle.IsInvalid && NativeStorage.DeviceIoControl(handle, 0x900f4, null, 0, data, data.Length, out _, IntPtr.Zero);
+-                        Console.WriteLine($"JOURNAL DIAG access {access:X}: open error {openError}; query {queried}; query error {(queried ? 0 : Marshal.GetLastWin32Error())}");
+-                    }
+-                }
++                Console.WriteLine($"REAL refresh: {next.Statistics!.Method}; directories {next.Statistics.ReadDirectories}; reused {next.Statistics.ReusedFiles}; journal {next.Statistics.Journal?.State}; native error {next.Statistics.Journal?.NativeError}; read-only error {next.Statistics.Journal?.ReadOnlyOpenError}");
+             });
+             Test("metadata verification catches deep edits with restored timestamps and hard-link alias writes", () =>
+             {
+diff --git a/tests/DiskAtlas.Tests.csproj b/tests/DiskAtlas.Tests.csproj
+index fbdf64f..6c247bd 100644
+--- a/tests/DiskAtlas.Tests.csproj
++++ b/tests/DiskAtlas.Tests.csproj
+@@ -11,6 +11,7 @@
+     <Compile Include="..\Core.cs" Link="Core.cs" />
+     <Compile Include="..\NativeStorage.cs" Link="NativeStorage.cs" />
+     <Compile Include="..\ScanPolicy.cs" Link="ScanPolicy.cs" />
++    <Compile Include="..\RefreshStatus.cs" Link="RefreshStatus.cs" />
+     <Compile Include="..\ChangeJournal.cs" Link="ChangeJournal.cs" />
+     <Compile Include="..\ScanCoordinator.cs" Link="ScanCoordinator.cs" />
+     <Compile Include="..\StorageMetrics.cs" Link="StorageMetrics.cs" />
+diff --git a/tests/JournalRegression.cs b/tests/JournalRegression.cs
+new file mode 100644
+index 0000000..117f31c
+--- /dev/null
++++ b/tests/JournalRegression.cs
+@@ -0,0 +1,212 @@
++using DiskAtlas;
++using System.Buffers.Binary;
++
++internal static class JournalRegression
++{
++    private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
++    private static void Reject(Action action, JournalState state)
++    {
++        try { action(); throw new InvalidOperationException("Expected safe journal rejection."); }
++        catch (JournalException ex) { Check(ex.Status.State == state, "Wrong rejection category."); }
++    }
++    internal static byte[] Header(ulong id = 9, long next = 20, long first = 0)
++    {
++        var b = new byte[56]; BinaryPrimitives.WriteUInt64LittleEndian(b, id);
++        BinaryPrimitives.WriteInt64LittleEndian(b.AsSpan(8), first);
++        BinaryPrimitives.WriteInt64LittleEndian(b.AsSpan(16), next); return b;
++    }
++    internal static byte[] Record(long usn, int version = 2, ulong low = 123, ulong parent = 456)
++    {
++        var b = new byte[version == 2 ? 64 : 80]; BinaryPrimitives.WriteInt32LittleEndian(b, b.Length);
++        BinaryPrimitives.WriteUInt16LittleEndian(b.AsSpan(4), (ushort)version);
++        BinaryPrimitives.WriteUInt64LittleEndian(b.AsSpan(8), low);
++        if (version == 2) BinaryPrimitives.WriteUInt64LittleEndian(b.AsSpan(16), parent);
++        else { BinaryPrimitives.WriteUInt64LittleEndian(b.AsSpan(16), 8); BinaryPrimitives.WriteUInt64LittleEndian(b.AsSpan(24), parent); BinaryPrimitives.WriteUInt64LittleEndian(b.AsSpan(32), 7); }
++        BinaryPrimitives.WriteInt64LittleEndian(b.AsSpan(version == 2 ? 24 : 40), usn);
++        BinaryPrimitives.WriteUInt32LittleEndian(b.AsSpan(version == 2 ? 40 : 56), 2); return b;
++    }
++    internal static JournalIoResult Reply(byte[] output, long next, params byte[][] records)
++    {
++        BinaryPrimitives.WriteInt64LittleEndian(output, next); int offset = 8;
++        foreach (var record in records) { record.CopyTo(output, offset); offset += record.Length; }
++        return new(true, offset);
++    }
++    private static JournalIoResult QueryReply(byte[] output, ulong id = 9, long next = 20, long first = 0)
++    { var b = Header(id, next, first); b.CopyTo(output, 0); return new(true, b.Length); }
++
++    public static int Run()
++    {
++        string parent = Path.GetFullPath("artifacts"), root = Path.Combine(parent, "journal-tests-" + Guid.NewGuid().ToString("N"));
++        Directory.CreateDirectory(root); int passed = 0;
++        void Test(string name, Action action) { action(); passed++; Console.WriteLine("PASS " + name); }
++        try
++        {
++            Test("V1 request advertises supported formats and does not wait for close or future data", () =>
++            {
++                var b = NtfsChangeJournal.CreateReadInput(10, 9, true);
++                Check(b.Length == 48 && BinaryPrimitives.ReadInt64LittleEndian(b) == 10 && BinaryPrimitives.ReadUInt64LittleEndian(b.AsSpan(32)) == 9, "Wrong V1 layout.");
++                Check(BinaryPrimitives.ReadUInt32LittleEndian(b.AsSpan(8)) == uint.MaxValue && b.AsSpan(12, 20).IndexOfAnyExcept((byte)0) == -1, "Request hides open writers or blocks at EOF.");
++                Check(BinaryPrimitives.ReadUInt16LittleEndian(b.AsSpan(40)) == 2 && BinaryPrimitives.ReadUInt16LittleEndian(b.AsSpan(42)) == 3, "Wrong accepted record versions.");
++                Check(NtfsChangeJournal.CreateReadInput(10, 9, false).Length == 40, "V0 fallback layout missing.");
++            });
++            Test("native diagnostics keep categories and numeric errors without exception paths", () =>
++            {
++                Check(JournalStatus.FromNative(5).State == JournalState.AccessDenied && JournalStatus.FromNative(1).State == JournalState.UnsupportedOperation, "Native errors collapsed.");
++                Check(JournalStatus.FromNative(1179).State == JournalState.NotActive && JournalStatus.FromNative(1181).State == JournalState.Discontinuous, "Journal lifecycle errors collapsed.");
++                var s = new JournalStatus(JournalState.UnsupportedOperation, 1, 5);
++                Check(s.Description.Contains("1") && s.Description.Contains("5") && !s.Description.Contains(Path.DirectorySeparatorChar), "Public diagnostic leaks paths or drops attempts.");
++            });
++            Test("query failures and invalid headers cannot create a usable checkpoint", () =>
++            {
++                using var denied = new NtfsChangeJournal((_, _, _) => new(false, 0, 5));
++                Reject(() => denied.Capture(), JournalState.AccessDenied);
++                using var shortHeader = new NtfsChangeJournal((_, _, _) => new(true, 8));
++                Reject(() => shortHeader.Capture(), JournalState.InvalidData);
++                using var backwards = new NtfsChangeJournal((_, _, output) => QueryReply(output, next: 2, first: 3));
++                Reject(() => backwards.Capture(), JournalState.InvalidData);
++            });
++            Test("V1 unprivileged read decodes 128-bit IDs and clips to the captured interval", () =>
++            {
++                using var journal = new NtfsChangeJournal((code, input, output) =>
++                {
++                    if (code == NtfsChangeJournal.QueryControl) return QueryReply(output, next: 22);
++                    Check(code == NtfsChangeJournal.UnprivilegedReadControl && input?.Length == 48, "V1 not attempted first.");
++                    return Reply(output, 22, Record(11, 3), Record(20));
++                }, 12);
++                var records = journal.Read(new(9, 10, 0, 12), new(9, 20, 0, 12), CancellationToken.None);
++                Check(records.Count == 1 && records[0].IdHigh == 8 && records[0].ParentHigh == 7, "Bounds or V3 IDs lost.");
++            });
++            Test("V0 compatibility fallback reuses the successful reader across chunks", () =>
++            {
++                int failed = 0, reads = 0;
++                using var journal = new NtfsChangeJournal((code, input, output) =>
++                {
++                    if (code == NtfsChangeJournal.QueryControl) return QueryReply(output);
++                    if (input!.Length == 48) { failed++; return new(false, 0, 87); }
++                    reads++; long cursor = BinaryPrimitives.ReadInt64LittleEndian(input);
++                    return Reply(output, cursor == 10 ? 15 : 20, Record(cursor + 1));
++                });
++                Check(journal.Read(new(9, 10, 0), new(9, 20, 0), CancellationToken.None).Count == 2 && failed == 1 && reads == 2, "Reader negotiation repeated or skipped records.");
++            });
++            Test("standard read fallback stays on the existing handle and reports failures", () =>
++            {
++                using var journal = new NtfsChangeJournal((code, _, output) => code == NtfsChangeJournal.QueryControl ? QueryReply(output) :
++                    code == NtfsChangeJournal.UnprivilegedReadControl ? new(false, 0, 1) : Reply(output, 20, Record(11)));
++                Check(journal.Read(new(9, 10, 0), new(9, 20, 0), CancellationToken.None).Count == 1, "Standard fallback unavailable.");
++                using var denied = new NtfsChangeJournal((_, _, _) => new(false, 0, 5));
++                Reject(() => denied.Read(new(9, 10, 0), new(9, 20, 0), CancellationToken.None), JournalState.AccessDenied);
++            });
++            Test("journal gaps, rollback and volume replacement are rejected before reading", () =>
++            {
++                using var journal = new NtfsChangeJournal((_, _, _) => throw new InvalidOperationException("Read after invalid cursor."));
++                foreach (var pair in new[] { (new JournalCheckpoint(8, 10, 0), new JournalCheckpoint(9, 20, 0)),
++                    (new JournalCheckpoint(9, 10, 0), new JournalCheckpoint(9, 20, 11)),
++                    (new JournalCheckpoint(9, 21, 0), new JournalCheckpoint(9, 20, 0)),
++                    (new JournalCheckpoint(9, 10, 0, 12), new JournalCheckpoint(9, 20, 0, 13)) })
++                    Reject(() => journal.Read(pair.Item1, pair.Item2, CancellationToken.None), JournalState.Discontinuous);
++            });
++            Test("stalled cursors and malformed or unknown records never become an empty change set", () =>
++            {
++                using var stalled = new NtfsChangeJournal((_, _, output) => Reply(output, 10));
++                Reject(() => stalled.Read(new(9, 10, 0), new(9, 20, 0), CancellationToken.None), JournalState.InvalidData);
++                foreach (var b in new[] { Record(11, 4), Record(-1), Record(21), Record(12).Concat(Record(11)).ToArray() })
++                    Reject(() => NtfsChangeJournal.Parse(b, 20, [], 10, 20), JournalState.InvalidData);
++                using var truncated = new NtfsChangeJournal((_, _, _) => new(true, 7));
++                Reject(() => truncated.Read(new(9, 10, 0), new(9, 20, 0), CancellationToken.None), JournalState.InvalidData);
++            });
++            Test("post-read journal reset is detected and change lists stay bounded", () =>
++            {
++                using var journal = new NtfsChangeJournal((code, _, output) => code == NtfsChangeJournal.QueryControl ? QueryReply(output, id: 10) : Reply(output, 20, Record(11)));
++                Reject(() => journal.Read(new(9, 10, 0), new(9, 20, 0), CancellationToken.None), JournalState.Discontinuous);
++                var records = Enumerable.Repeat(default(JournalChange), NtfsChangeJournal.ChangeLimit).ToList();
++                Reject(() => NtfsChangeJournal.Parse(Record(11), 20, records), JournalState.TooManyChanges);
++            });
++            Test("cancelled native reads do not return successful cached changes", () =>
++            {
++                using var token = new CancellationTokenSource();
++                using var journal = new NtfsChangeJournal((_, _, output) => { token.Cancel(); return Reply(output, 20, Record(11)); });
++                try { journal.Read(new(9, 10, 0), new(9, 20, 0), token.Token); throw new InvalidOperationException("Cancelled read returned success."); }
++                catch (OperationCanceledException) { }
++            });
++
++            string scope = Path.Combine(root, "scope"); Directory.CreateDirectory(Path.Combine(scope, "nested"));
++            File.WriteAllBytes(Path.Combine(scope, "nested", "sample.bin"), new byte[123]);
++            var options = new ScanOptions(ScanMode.HighSpeed);
++            var unavailable = new ScanCoordinator(_ => null);
++            var baseline = unavailable.Scan(scope, null, options, null, CancellationToken.None);
++            Test("capture errors use full metadata verification and are not mislabeled journal incrementals", () =>
++            {
++                var broken = new ControlledJournal { CaptureError = new JournalStatus(JournalState.UnsupportedOperation, 1, 5) };
++                var after = new ScanCoordinator(_ => broken).Scan(scope, baseline, options, null, CancellationToken.None);
++                Check(after.Statistics is { Method: RefreshMethod.MetadataVerification, VerifiedDirectories: 2, VerifiedFiles: 1 }, "Capture failure skipped verification.");
++                Check(after.Statistics!.Journal is { NativeError: 1, ReadOnlyOpenError: 5 } && after.Checkpoint == null, "Failure details/checkpoint incorrect.");
++                Check(RefreshPresentation.Summary(after.Statistics).StartsWith("元信息核验") && !RefreshPresentation.Summary(after.Statistics).Contains("日志增量"), "Reuse mislabeled as journal acceleration.");
++            });
++            Test("missing checkpoint verifies once, then continuous no-change journal avoids enumeration", () =>
++            {
++                var source = new ControlledJournal(); var coordinator = new ScanCoordinator(_ => source);
++                var verified = coordinator.Scan(scope, baseline, options, null, CancellationToken.None);
++                Check(verified.Statistics?.Method == RefreshMethod.MetadataVerification && verified.Checkpoint != null, "Missing baseline cursor ignored.");
++                var fast = coordinator.Scan(scope, verified, options, null, CancellationToken.None);
++                Check(fast.Statistics is { Method: RefreshMethod.ChangeJournal, VerifiedFiles: 0, ReadDirectories: 0, ReusedFiles: 1 }, "Continuous no-change refresh enumerated files.");
++                Check(RefreshPresentation.Details(fast.Statistics!).Contains("处理记录 0"), "Change count missing.");
++            });
++            Test("read failure or lost continuity invalidates the plan and performs a full scan", () =>
++            {
++                var source = new ControlledJournal(); var coordinator = new ScanCoordinator(_ => source);
++                var before = coordinator.Scan(scope, null, options, null, CancellationToken.None);
++                source.ReadError = new(JournalState.Discontinuous);
++                File.WriteAllBytes(Path.Combine(scope, "new.bin"), new byte[456]);
++                var after = coordinator.Scan(scope, before, options, null, CancellationToken.None);
++                Check(after.Statistics is { Method: RefreshMethod.FullScan, Incremental: false } && after.Root.Size == 579 && after.Statistics.Journal?.State == JournalState.Discontinuous, "Gap reused stale data.");
++            });
++            Test("foreign-volume checkpoint cannot authorize reuse", () =>
++            {
++                var source = new ControlledJournal(); var coordinator = new ScanCoordinator(_ => source);
++                var before = coordinator.Scan(scope, null, options, null, CancellationToken.None);
++                source.Volume = before.Root.Storage!.Identity.Volume ^ 1;
++                var after = coordinator.Scan(scope, before, options, null, CancellationToken.None);
++                Check(source.Reads == 0 && after.Statistics?.Method == RefreshMethod.MetadataVerification && after.Statistics.Journal?.State == JournalState.VolumeMismatch && after.Checkpoint == null, "Wrong volume authorized cached content.");
++            });
++            Test("unusable cached identities fall back without misreporting a journal read failure", () =>
++            {
++                var source = new ControlledJournal(); var coordinator = new ScanCoordinator(_ => source);
++                var before = coordinator.Scan(scope, null, options, null, CancellationToken.None);
++                before.Root.Descendants().First(e => !e.IsDirectory).Storage = null;
++                var after = coordinator.Scan(scope, before, options, null, CancellationToken.None);
++                Check(after.Statistics is { Method: RefreshMethod.FullScan, Journal.State: JournalState.Available } &&
++                    after.Statistics.Reason.Contains("旧快照") && after.Root.Size == before.Root.Size,
++                    "Snapshot failure was hidden as a journal read failure or reused.");
++            });
++            Test("root replacement cannot reuse old identities and force-full remains explicit", () =>
++            {
++                var source = new ControlledJournal(); var coordinator = new ScanCoordinator(_ => source);
++                var before = coordinator.Scan(scope, null, options, null, CancellationToken.None);
++                Directory.Move(scope, Path.Combine(root, "old-scope")); Directory.CreateDirectory(scope);
++                File.WriteAllBytes(Path.Combine(scope, "replacement.bin"), new byte[17]);
++                var after = coordinator.Scan(scope, before, options, null, CancellationToken.None);
++                Check(after.Root.Size == 17 && after.Statistics?.Method == RefreshMethod.FullScan && source.Reads == 0, "Root replacement reused old tree.");
++                var forced = coordinator.Scan(scope, after, options, null, CancellationToken.None, forceFull: true);
++                Check(forced.Statistics?.Reason.Contains("强制") == true && forced.Statistics.Method == RefreshMethod.FullScan, "Forced full scan ignored.");
++            });
++            Console.WriteLine($"All {passed} journal checks passed."); return 0;
++        }
++        catch (Exception ex) { Console.Error.WriteLine("FAIL journal regression: " + ex.GetType().Name + " / " + ex.Message); return 1; }
++        finally
++        {
++            if (!Path.GetFullPath(root).StartsWith(parent + Path.DirectorySeparatorChar + "journal-tests-", StringComparison.OrdinalIgnoreCase)) throw new IOException("Unsafe fixture cleanup.");
++            Directory.Delete(root, true);
++        }
++    }
++
++    internal sealed class ControlledJournal : IChangeJournal
++    {
++        public JournalStatus? CaptureError, ReadError;
++        public ulong? Volume;
++        public int Reads;
++        public JournalCheckpoint Capture() => CaptureError != null ? throw new JournalException(CaptureError) : new(9, 20, 0, Volume);
++        public IReadOnlyList<JournalChange> Read(JournalCheckpoint from, JournalCheckpoint to, CancellationToken token)
++        { token.ThrowIfCancellationRequested(); Reads++; if (ReadError != null) throw new JournalException(ReadError); return []; }
++        public void Dispose() { }
++    }
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 2e87fb7..d19e9f6 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -8,6 +8,8 @@ if (args.Contains("--policy-benchmark")) return ScanPolicyBenchmark.Run();
+ if (args.Contains("--memory-benchmark")) return MemoryBenchmark.Run();
+ if (args.Contains("--ui-regression")) return UiRegression.Run();
+ if (args.Contains("--advanced-tests")) return AdvancedFeatures.Run();
++if (args.Contains("--journal-tests")) return JournalRegression.Run();
++if (args.Contains("--refresh-benchmark")) return RefreshBenchmark.Run();
+ 
+ int passed = 0;
+ var temp = Path.Combine(Path.GetTempPath(), "DiskAtlas-tests-" + Guid.NewGuid().ToString("N"));
+diff --git a/tests/RefreshBenchmark.cs b/tests/RefreshBenchmark.cs
+new file mode 100644
+index 0000000..0e60e36
+--- /dev/null
++++ b/tests/RefreshBenchmark.cs
+@@ -0,0 +1,93 @@
++using DiskAtlas;
++using System.Diagnostics;
++using System.Text.Json;
++
++// Compares equal, warm, unchanged synthetic snapshots. A simulated journal is
++// explicitly separate from the native route; it proves skipped work, not native availability.
++internal static class RefreshBenchmark
++{
++    private sealed record Sample(string Route, string ActualMethod, double WallMs, double CpuMs, long AllocatedBytes,
++        long VerifiedDirectories, long VerifiedFiles, long ReadDirectories, long ReusedFiles, string JournalState, int NativeError, int ReadOnlyOpenError);
++    public static int Run()
++    {
++        string parent = Path.GetFullPath("artifacts"), report = Path.Combine(parent, "refresh-benchmark.json");
++        if (File.Exists(report)) throw new IOException("Archive the previous report before running.");
++        string root = Path.Combine(parent, "refresh-benchmark-" + Guid.NewGuid().ToString("N"));
++        Directory.CreateDirectory(root);
++        try
++        {
++            for (int d = 0; d < 60; d++)
++            {
++                string dir = Path.Combine(root, $"folder-{d:00}"); Directory.CreateDirectory(dir);
++                for (int f = 0; f < 40; f++) File.WriteAllBytes(Path.Combine(dir, $"sample-{f:00}.dat"), new byte[64 + f]);
++                Directory.SetLastWriteTimeUtc(dir, new DateTime(2020, 1, 1));
++            }
++            Directory.SetLastWriteTimeUtc(root, new DateTime(2020, 1, 1));
++            var native = new ScanCoordinator(); var metadata = new ScanCoordinator(_ => null);
++            var simulated = new ScanCoordinator(_ => new JournalRegression.ControlledJournal());
++            var options = new ScanOptions(ScanMode.HighSpeed);
++            var baseline = native.Scan(root, null, options, null, CancellationToken.None);
++            var simulatedBaseline = baseline with { Checkpoint = new(9, 20, 0) };
++            var expected = Entries(baseline.Root);
++            var samples = new List<Sample>();
++            ScanResult Run(int route) => route switch
++            {
++                0 => native.Scan(root, baseline, options, null, CancellationToken.None, forceFull: true),
++                1 => metadata.Scan(root, baseline, options, null, CancellationToken.None),
++                2 => simulated.Scan(root, simulatedBaseline, options, null, CancellationToken.None),
++                _ => native.Scan(root, baseline, options, null, CancellationToken.None)
++            };
++            void Equal(ScanResult result)
++            {
++                if (!expected.SequenceEqual(Entries(result.Root)) || result.Skipped != 0) throw new InvalidOperationException("Refresh differs from full scan.");
++            }
++            for (int route = 0; route < 4; route++) Equal(Run(route));
++            using var process = Process.GetCurrentProcess();
++            for (int round = 0; round < 8; round++)
++            {
++                var order = Enumerable.Range(0, 4).Select(i => (i + round % 4) % 4);
++                if (round >= 4) order = order.Reverse();
++                foreach (int route in order)
++                {
++                    process.Refresh(); var cpu = process.TotalProcessorTime;
++                    long allocated = GC.GetTotalAllocatedBytes(true); var clock = Stopwatch.StartNew();
++                    var result = Run(route); clock.Stop(); process.Refresh();
++                    var s = result.Statistics!;
++                    samples.Add(new(new[] { "forced-full", "metadata-verification", "simulated-continuous-journal", "actual-native" }[route],
++                        s.Method.ToString(), clock.Elapsed.TotalMilliseconds, (process.TotalProcessorTime - cpu).TotalMilliseconds,
++                        GC.GetTotalAllocatedBytes(true) - allocated, s.VerifiedDirectories, s.VerifiedFiles, s.ReadDirectories, s.ReusedFiles,
++                        s.Journal?.State.ToString() ?? "Unavailable", s.Journal?.NativeError ?? 0, s.Journal?.ReadOnlyOpenError ?? 0));
++                    Equal(result);
++                    if (route == 2 && (s.VerifiedFiles != 0 || s.ReadDirectories != 0)) throw new InvalidOperationException("Simulated no-change journal did filesystem enumeration.");
++                }
++            }
++            double Median(IEnumerable<double> values) { var b = values.Order().ToArray(); return (b[3] + b[4]) / 2; }
++            var summaries = samples.GroupBy(s => s.Route).Select(g => new
++            {
++                route = g.Key, actual_method = g.First().ActualMethod, median_ms = Median(g.Select(s => s.WallMs)),
++                median_cpu_ms = Median(g.Select(s => s.CpuMs)), median_allocated_bytes = Median(g.Select(s => (double)s.AllocatedBytes)),
++                verified_directories = g.First().VerifiedDirectories, verified_files = g.First().VerifiedFiles,
++                read_directories = g.First().ReadDirectories, reused_files = g.First().ReusedFiles,
++                journal_state = g.First().JournalState, native_error = g.First().NativeError, read_only_error = g.First().ReadOnlyOpenError
++            }).ToArray();
++            foreach (var summary in summaries) Console.WriteLine(JsonSerializer.Serialize(summary));
++            File.WriteAllText(report, JsonSerializer.Serialize(new
++            {
++                schema_version = 1, files = 2400, directories = 61, runs_per_route = 8,
++                method = "Warm metadata cache; four cyclic orders and reversals. Actual coordinator, HighSpeed mode. No OS cache flush or external-load control. Fixture creation and equality checks excluded.",
++                limits = "Simulated journal is not a native speed claim. CPU time can be coarse; allocation is managed bytes, not peak memory or physical I/O.",
++                correctness = "Every entry compared by relative path, logical/allocated size, modification time, counts, unknown/incomplete/shared state.",
++                summaries, samples
++            }, new JsonSerializerOptions { WriteIndented = true }));
++            return 0;
++        }
++        catch (Exception ex) { Console.Error.WriteLine("FAIL refresh benchmark: " + ex.GetType().Name); return 1; }
++        finally
++        {
++            if (!Path.GetFullPath(root).StartsWith(parent + Path.DirectorySeparatorChar + "refresh-benchmark-", StringComparison.OrdinalIgnoreCase)) throw new IOException("Unsafe benchmark cleanup.");
++            Directory.Delete(root, true);
++        }
++    }
++    private static string[] Entries(DiskEntry root) => root.Descendants().Prepend(root).OrderBy(e => e.Path, StringComparer.OrdinalIgnoreCase)
++        .Select(e => $"{Path.GetRelativePath(root.Path, e.Path)}|{e.IsDirectory}|{e.Size}|{e.AllocatedSize}|{e.Modified.Ticks}|{e.FileCount}|{e.FolderCount}|{e.UnknownAllocationFiles}|{e.Incomplete}|{e.SharedAllocation}").ToArray();
++}
+diff --git a/tests/ScanPolicyBenchmark.cs b/tests/ScanPolicyBenchmark.cs
+index 3f50ca3..0308415 100644
+--- a/tests/ScanPolicyBenchmark.cs
++++ b/tests/ScanPolicyBenchmark.cs
+@@ -167,7 +167,7 @@ internal static class ScanPolicyBenchmark
+         public long FirstScanTicks = -1;
+         public void Report(ScanProgress value)
+         {
+-            if (!value.CurrentPath.StartsWith("核验缓存：", StringComparison.Ordinal))
++            if (value.Phase is not (ScanPhase.Preparing or ScanPhase.Verifying))
+                 Interlocked.CompareExchange(ref FirstScanTicks, Clock.ElapsedTicks, -1);
+         }
+     }
+diff --git a/tests/UiRegression.cs b/tests/UiRegression.cs
+index d802f5a..57ce422 100644
+--- a/tests/UiRegression.cs
++++ b/tests/UiRegression.cs
+@@ -99,7 +99,7 @@ internal static class UiRegression
+                         await ProductScan();
+                         await Wait(() => Product<DataGridView>("grid").Enabled, "Product scan did not settle");
+                         Check(Product<ScanResult>("scan").Statistics is { Mode: ScanMode.LowImpact, Workers: 1 }, "UI strategy not passed to the scanner");
+-                        Check(Product<Label>("refreshInfo").Text.Contains("目录峰值 1/1"), "UI confuses the worker limit with observed concurrency");
++                        Check(Product<ToolTip>("scanTip").GetToolTip(Product<Label>("refreshInfo"))?.Contains("目录峰值 1/1") == true, "Concurrency missing from refresh details");
+                         Check(Product<ToolTip>("scanTip").GetToolTip(Product<ComboBox>("strategyCombo"))?.Contains("256") == true, "Low-impact explanation missing");
+                         Product<ComboBox>("metricCombo").SelectedIndex = 1;
+                         await Wait(() => Product<StatCard>("totalCard").Title == "实际占用空间" && Product<DataGridView>("grid").Enabled, "Allocated metric did not render");
+@@ -108,11 +108,27 @@ internal static class UiRegression
+                         await ProductScan();
+                         await Wait(() => Product<DataGridView>("grid").Enabled, "Product refresh did not settle");
+                         Check(Product<ScanResult>("scan").Root.FileCount == 1107 && Product<ScanResult>("scan").Statistics is { Incremental: true, ReusedFiles: > 1000 }, "UI did not use incremental refresh");
+-                        Check(Product<Label>("refreshInfo").Text.Contains("核验峰值 1"), "UI does not distinguish verification concurrency");
++                        Check((Product<ScanResult>("scan").Statistics!.Method is RefreshMethod.MetadataVerification or RefreshMethod.ChangeJournal) && Product<Label>("refreshInfo").Text.Contains("详情"), "Actual refresh method/details missing");
+                         Check(Product<ComboBox>("metricCombo").SelectedIndex == 1 && Product<StatCard>("totalCard").Title == "实际占用空间", "Refresh lost the size metric");
+                         Product<ComboBox>("strategyCombo").SelectedIndex = 2; await ProductScan("ForceRefresh");
+                         Check(Product<ScanResult>("scan").Statistics is { Incremental: false, Mode: ScanMode.HighSpeed, Workers: 8 }, "Force full / high-speed UI path failed");
+                         Check(Product<Label>("status").Text.Contains("强制"), "Force full reason missing");
++                        bool detailsRead = false;
++                        using (var closeDetails = new System.Windows.Forms.Timer { Interval = 50 })
++                        {
++                            closeDetails.Tick += (_, _) =>
++                            {
++                                var dialog = Application.OpenForms.Cast<Form>().FirstOrDefault(f => f.Text == "最近完成的扫描 · 刷新详情");
++                                if (dialog == null) return;
++                                string text = dialog.Controls.OfType<TextBox>().Single().Text;
++                                // Do not require a native journal to be available on the test machine.
++                                detailsRead = text.Contains("完整扫描") && text.Contains("原因：") && text.Contains("核验目录") && text.Contains("处理记录");
++                                dialog.Close(); closeDetails.Stop();
++                            };
++                            closeDetails.Start();
++                            typeof(MainForm).GetMethod("ShowRefreshDetails", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(product, null);
++                        }
++                        Check(detailsRead, "Refresh details dialog is missing the actual method/counts/reason");
+                         product.Close();
+                         Console.WriteLine("PASS UI actual coordinator, low/high strategy selection, allocated metric, incremental refresh and force-full action");
+ 
+diff --git a/优化审查记录.md b/优化审查记录.md
+index fef14b7..791fbcd 100644
+--- a/优化审查记录.md
++++ b/优化审查记录.md
+@@ -146,3 +146,11 @@ API 依据：[FILE_STANDARD_INFO](https://learn.microsoft.com/en-us/windows/win3
+ 使用用户提供的原始 PNG 作为内嵌背景，按窗口尺寸等比例铺满；各面板使用同一窗口坐标绘制，保持图案连续。界面改为暖白底、深棕文字、珊瑚色按钮与浅色分类图块，选中轮廓使用深珊瑚色。列表实色数据行保持可读，空白区域显示淡化背景。窗口尺寸变化时重绘背景，关闭窗口时释放图片。
+ 
+ 验证：Release 构建 0 警告、0 错误；现有 4 组界面集成检查通过，包含扫描预览、取消恢复、实际占用与增量刷新。通过实际 Windows 窗口检查初始界面、文件夹选择及扫描后的树图和列表。此版本仅调整界面，扫描逻辑与 1.4.0 相同。
++
++## 第 3 轮开发迭代：刷新方式与日志诊断（2026-11-03）
++
++本轮未正式发布，版本仍为 v1.4.2。修正只读日志 V1/V0 请求兼容，验证 V2/V3 记录、卷归属、日志连续性和处理上限；无法安全复用时采用元信息核验或完整扫描。界面明确区分日志增量、元信息核验与完整扫描，增加最近完成扫描的详情入口，保留计数、阶段、原因、错误码与分阶段耗时。
++
++本机卷元信息句柄可打开，日志查询返回错误码 1，普通只读句柄尝试返回错误码 5。未修改权限或系统日志，未新增持久缓存或服务；实际刷新仍是全量元信息核验。79 项核心/功能/日志检查、6 组界面集成检查通过，应用与测试构建均 0 警告、0 错误。暂停前界面检查超时未计通过；本次隔离重跑通过，未放宽超时。桌面控制工具的截图与控件状态不一致，新增详情界面只完成程序内集成验证，外部视觉验收未完成。
++
++同一组 2,400 文件、61 目录，预热后交替各 8 次：完整扫描中位约 18.39 ms；本机刷新核验约 20.98 ms，复用 2,400 文件但核验全部 61 目录/2,400 文件，不宣称提速。连续日志模拟约 1.66 ms、无枚举，仅证明对应工作量可跳过，不能当作本机日志可读或真实加速证据。逐项结果与完整扫描一致。较早一份测量与界面测试可能重叠，已明确弃用其耗时结论并单独重测。方法、边界、原始合成样本计数与恢复补丁见 [本轮记录](iterations/2026-11-03-01-incremental-refresh/README.md)。
+diff --git a/使用说明.txt b/使用说明.txt
+index 749770d..ba56358 100644
+--- a/使用说明.txt
++++ b/使用说明.txt
+@@ -75,7 +75,12 @@ AsukaLens v1.4.2
+ 日志不可用时，会核验全部目录项、文件身份、长度、时间、分配和链接数，
+ 然后复用未变部分。这种模式仍会访问全部元信息，不保证固定加速倍数。
+ 日志断档、目录身份异常或旧结果不完整等情况会完整重扫。
+-界面分别显示核验目录、重扫目录和复用文件的数量，底部说明刷新路径。
++界面区分“日志增量”“元信息核验”“完整扫描”，准备阶段显示正在检查刷新条件。
++扫描完成后，点击顶部“点击详情”，或右键“重新扫描”选择“最近完成的扫描详情”。
++详情包含实际方式、原因、系统错误码、核验目录及文件数、重扫及复用数，
++以及处理日志记录数、准备与读取整理耗时、任务峰值和策略说明。
++日志不可用不会伪装为日志增量；不支持的记录、日志断档或身份异常会保守回退。
++没有驻留服务、持久化缓存或自动提权；退出后缓存丢弃，重启第一次完整扫描。
+ Ctrl+F5 或右键“重新扫描”选择“强制完整重新扫描”可绕过复用。
+ 
+ 大小使用 1024 进制。符号链接、联接点及其他重解析点不跟随。
+@@ -102,3 +107,9 @@ Windows 10/11，.NET 9 Desktop Runtime。本机已具备，无需额外安装。
+ 第 2 轮交互修正
+ 进度标记改为明日香软件头像，已处理部分采用红橙渐变。图块内部高光回弹增强为约 620 ms；默认开启，可通过“减弱动效”关闭。悬停/选中改为局部刷新，复用静态图表与背景缓存；缓存有容量上限并会在失效或关闭时释放。
+ 本次修正版入口：bin/Preview/DiskAtlas.exe。旧开发窗口被占用时，使用独立输出目录保留其运行状态。
++
++第 3 轮：刷新方式与日志诊断
++开发预览仍使用 bin/Preview/DiskAtlas.exe，历史稳定目录和 ZIP 未更新。
++本机实际卷日志查询返回错误码 1，只读句柄尝试返回错误码 5，因此仍核验全部元信息。
++本轮修正日志协议兼容、连续性和卷身份检查，增加可查看的诊断，并未解除本机权限限制。
++详情只展示计数、阶段、类别和错误码，不包含卷标识或扫描路径，不上传诊断。

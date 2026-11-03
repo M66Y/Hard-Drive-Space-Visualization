@@ -8,6 +8,8 @@ if (args.Contains("--policy-benchmark")) return ScanPolicyBenchmark.Run();
 if (args.Contains("--memory-benchmark")) return MemoryBenchmark.Run();
 if (args.Contains("--ui-regression")) return UiRegression.Run();
 if (args.Contains("--advanced-tests")) return AdvancedFeatures.Run();
+if (args.Contains("--journal-tests")) return JournalRegression.Run();
+if (args.Contains("--refresh-benchmark")) return RefreshBenchmark.Run();
 
 int passed = 0;
 var temp = Path.Combine(Path.GetTempPath(), "DiskAtlas-tests-" + Guid.NewGuid().ToString("N"));

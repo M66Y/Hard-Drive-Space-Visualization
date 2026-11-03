@@ -45,51 +45,109 @@ public sealed record RefreshPlan(DiskEntry PreviousRoot, Dictionary<string, Disk
 
 public sealed class ScanCoordinator
 {
-    private readonly Func<string, IChangeJournal?> openJournal;
-    public ScanCoordinator() : this(NtfsChangeJournal.TryOpen) { }
-    internal ScanCoordinator(Func<string, IChangeJournal?> openJournal) => this.openJournal = openJournal;
+    private readonly Func<string, JournalOpenResult> openJournal;
+    public ScanCoordinator() => openJournal = NtfsChangeJournal.Open;
+    internal ScanCoordinator(Func<string, IChangeJournal?> openJournal) => this.openJournal = path =>
+    {
+        var journal = openJournal(path);
+        return new(journal, new(journal == null ? JournalState.Unavailable : JournalState.Available));
+    };
 
     public ScanResult Scan(string path, ScanResult? previous, ScanOptions options, IProgress<ScanProgress>? progress,
         CancellationToken token, LiveScanSession? live = null, bool forceFull = false)
     {
         var watch = Stopwatch.StartNew(); token.ThrowIfCancellationRequested(); path = Path.GetFullPath(path);
-        using var journal = openJournal(path);
-        JournalCheckpoint? start = null;
+        JournalOpenResult opening;
+        try { opening = openJournal(path); }
+        catch (UnauthorizedAccessException) { opening = new(null, new(JournalState.AccessDenied)); }
+        catch (IOException) { opening = new(null, new(JournalState.Unavailable)); }
+        using var journal = opening.Journal;
+        var journalStatus = opening.Status;
+        JournalCheckpoint? start = opening.InitialCheckpoint;
+        if (start == null && journal != null)
+        {
+            try { start = journal.Capture(); }
+            catch (JournalException ex) { journalStatus = ex.Status; }
+            catch (IOException) { journalStatus = new(JournalState.QueryFailed); }
+            catch (UnauthorizedAccessException) { journalStatus = new(JournalState.AccessDenied); }
+        }
+        token.ThrowIfCancellationRequested();
+        void Announce(RefreshMethod? method, string message)
+        {
+            token.ThrowIfCancellationRequested();
+            progress?.Report(new(0, 0, 0, "检查刷新方式", ScanPhase.Preparing, Method: method, Message: message));
+        }
+        // Capture the start cursor before callbacks: writes during planning must be replayable.
+        Announce(null, journalStatus.Description);
         RefreshPlan? plan = null;
-        long verifiedDirectories = 0, verifiedFiles = 0;
+        var method = RefreshMethod.FullScan;
+        long verifiedDirectories = 0, verifiedFiles = 0, records = 0;
         int peakVerificationWorkers = 0;
-        string reason = forceFull ? "已强制完整扫描" : previous == null ? "首次完整扫描" : "变化日志不可用，完整扫描";
+        bool readingJournal = false;
+        string reason = forceFull ? "已强制完整扫描" : previous == null ? "首次完整扫描" : "扫描目录已切换，采用完整扫描";
         try
         {
-            start = journal?.Capture();
             if (!forceFull && previous != null && previous.Root.Path.Equals(path, StringComparison.OrdinalIgnoreCase))
             {
-                if (previous.Skipped > 0 || previous.Root.UnknownAllocationFiles > 0) throw new IOException("旧结果不完整，重新完整扫描");
+                if (previous.Skipped > 0 || previous.Root.Incomplete || previous.Root.UnknownAllocationFiles > 0)
+                    throw new IOException("旧结果不完整");
                 if (!NativeStorage.TryRead(path, true, FileAttributes.Directory, out var currentRoot, out _) || previous.Root.Storage?.Identity != currentRoot!.Identity)
-                    throw new IOException("根目录身份已变化");
+                    throw new IOException("根目录身份已变化或无法核实");
+                if (start?.VolumeSerial is ulong volume && currentRoot.Identity.Volume != volume)
+                { journalStatus = new(JournalState.VolumeMismatch); start = null; }
                 if (previous.Checkpoint != null && start != null && journal != null)
                 {
-                    var changes = journal.Read(previous.Checkpoint, start, token);
+                    readingJournal = true;
+                    Announce(RefreshMethod.ChangeJournal, "检查两次扫描之间的日志连续性");
+                    var changes = journal.Read(previous.Checkpoint, start, token); records = changes.Count;
+                    readingJournal = false;
                     plan = RefreshPlan.Build(previous.Root, changes, token);
+                    method = RefreshMethod.ChangeJournal;
                     reason = "NTFS 变化日志连续，优先重扫变化目录";
                 }
                 else
                 {
+                    string unavailable = start != null && previous.Checkpoint == null ? "上次扫描没有有效日志游标" : journalStatus.Description;
+                    Announce(RefreshMethod.MetadataVerification, unavailable + "；将核验目录及文件元信息");
                     var verified = MetadataVerifier.Verify(previous.Root, options, progress, token);
                     plan = verified.Plan; verifiedDirectories = verified.Directories; verifiedFiles = verified.Files; peakVerificationWorkers = verified.PeakWorkers;
-                    reason = "无可用日志：已核验目录及文件元信息，复用未变部分";
+                    method = RefreshMethod.MetadataVerification;
+                    reason = unavailable + "；已核验目录及文件元信息，复用未变部分";
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or ArgumentException || ex is AggregateException aggregate &&
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Security.SecurityException || ex is AggregateException aggregate &&
             aggregate.InnerExceptions.All(inner => inner is IOException or ArgumentException or UnauthorizedAccessException))
         {
             token.ThrowIfCancellationRequested();
-            reason = ex.Message + "；已回退完整扫描"; plan = null;
+            if (ex is JournalException native) journalStatus = native.Status;
+            else if (readingJournal && journalStatus.State == JournalState.Available)
+                journalStatus = new(JournalState.ReadFailed);
+            string detail = ex is JournalException ? journalStatus.Description :
+                ex is IOException && ex.Message is "旧结果不完整" or "根目录身份已变化或无法核实" or "旧快照中存在无法识别的文件或目录" ? ex.Message : "刷新准备或核验未能完成";
+            reason = detail + "；已回退完整扫描"; plan = null; method = RefreshMethod.FullScan;
         }
+        Announce(method, reason);
+        double preparation = watch.Elapsed.TotalMilliseconds;
         var result = new DiskScanner().Scan(path, progress, token, live, options, plan);
         token.ThrowIfCancellationRequested();
-        // Keep the START cursor: changes during this scan are replayed on the next refresh.
-        return result with { Elapsed = watch.Elapsed, Checkpoint = start, Statistics = result.Statistics! with { Reason = reason, VerifiedDirectories = verifiedDirectories, VerifiedFiles = verifiedFiles, PeakVerificationWorkers = peakVerificationWorkers } };
+        if (start?.VolumeSerial is ulong serial && result.Root.Storage?.Identity.Volume != serial)
+        {
+            journalStatus = new(JournalState.VolumeMismatch); start = null;
+            if (method == RefreshMethod.ChangeJournal)
+            {
+                reason = journalStatus.Description + "；已回退完整扫描"; method = RefreshMethod.FullScan;
+                Announce(method, reason);
+                result = new DiskScanner().Scan(path, progress, token, live, options);
+            }
+        }
+        token.ThrowIfCancellationRequested();
+        // No persistence: only a completed snapshot in this process can become a baseline.
+        return result with { Elapsed = watch.Elapsed, Checkpoint = start, Statistics = result.Statistics! with
+        {
+            Reason = reason, Method = method, Journal = journalStatus, JournalRecords = records,
+            VerifiedDirectories = verifiedDirectories, VerifiedFiles = verifiedFiles, PeakVerificationWorkers = peakVerificationWorkers,
+            PreparationMilliseconds = preparation, ScanMilliseconds = Math.Max(0, watch.Elapsed.TotalMilliseconds - preparation)
+        } };
     }
 }

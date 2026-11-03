@@ -47,6 +47,7 @@ internal static class AdvancedFeatures
                 var coordinator = new ScanCoordinator(_ => null);
                 var observer = new Inline(p =>
                 {
+                    if (p.Phase == ScanPhase.Preparing) { Check(p.EstimatedPercent == null, "Preparation has invented totals"); reports.Enqueue(p); return; }
                     Check(p.DiscoveredDirectories > 0 && p.CompletedDirectories >= 0 && p.CompletedDirectories <= p.DiscoveredDirectories, "Inconsistent counters");
                     Check(p.EstimatedPercent is >= 0 and <= 99, "Scanner published successful 100%");
                     reports.Enqueue(p);
@@ -163,7 +164,7 @@ internal static class AdvancedFeatures
                 }
                 Directory.SetLastWriteTimeUtc(scope, new DateTime(2020, 1, 1));
                 var phases = new ConcurrentQueue<ScanPhase>();
-                var progress = new Inline(p => { Check(p.WorkerLimit == 1, "Progress lost the effective policy limit"); phases.Enqueue(p.Phase); });
+                var progress = new Inline(p => { Check(p.Phase == ScanPhase.Preparing || p.WorkerLimit == 1, "Progress lost the effective policy limit"); phases.Enqueue(p.Phase); });
                 var coordinator = new ScanCoordinator(_ => null);
                 var before = coordinator.Scan(scope, null, new(ScanMode.LowImpact), progress, CancellationToken.None);
                 Check(phases.Contains(ScanPhase.Scanning) && phases.Contains(ScanPhase.Finalizing), "Full-scan stages missing");
@@ -297,18 +298,7 @@ internal static class AdvancedFeatures
                 File.WriteAllBytes(Path.Combine(scope, "A", "real.txt"), new byte[35000]);
                 var next = actual.Scan(scope, first, options, null, CancellationToken.None);
                 Equal(next.Root, new DiskScanner().Scan(scope, null, CancellationToken.None).Root);
-                Console.WriteLine($"REAL journal: {next.Statistics!.Incremental}; directories {next.Statistics.ReadDirectories}; reused {next.Statistics.ReusedFiles}; reason {next.Statistics.Reason}; automatic disk {NativeStorage.DetectDisk(scope)}");
-                if (!next.Statistics.Incremental)
-                {
-                    string volume = @"\\.\" + Path.GetPathRoot(scope)![..2];
-                    foreach (uint access in new uint[] { 0, 0x80, 1, 0x80000000 })
-                    {
-                        using var handle = NativeStorage.CreateFileW(volume, access, 7, IntPtr.Zero, 3, 0, IntPtr.Zero);
-                        int openError = handle.IsInvalid ? Marshal.GetLastWin32Error() : 0;
-                        byte[] data = new byte[128]; bool queried = !handle.IsInvalid && NativeStorage.DeviceIoControl(handle, 0x900f4, null, 0, data, data.Length, out _, IntPtr.Zero);
-                        Console.WriteLine($"JOURNAL DIAG access {access:X}: open error {openError}; query {queried}; query error {(queried ? 0 : Marshal.GetLastWin32Error())}");
-                    }
-                }
+                Console.WriteLine($"REAL refresh: {next.Statistics!.Method}; directories {next.Statistics.ReadDirectories}; reused {next.Statistics.ReusedFiles}; journal {next.Statistics.Journal?.State}; native error {next.Statistics.Journal?.NativeError}; read-only error {next.Statistics.Journal?.ReadOnlyOpenError}");
             });
             Test("metadata verification catches deep edits with restored timestamps and hard-link alias writes", () =>
             {

@@ -75,6 +75,7 @@ internal sealed class ScanProgressControl : Control
     }
     internal static string PhaseName(ScanPhase phase) => phase switch
     {
+        ScanPhase.Preparing => "检查刷新条件",
         ScanPhase.Verifying => "核验元信息", ScanPhase.Reusing => "读取与复用缓存",
         ScanPhase.Finalizing => "统计与整理", _ => "读取目录"
     };
