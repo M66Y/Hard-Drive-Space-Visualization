@@ -1,0 +1,166 @@
+diff --git a/MainForm.cs b/MainForm.cs
+index 1fc5102..9afce00 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -6,6 +6,7 @@ internal sealed class MainForm : Form
+ {
+     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+     internal Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult>? ScanRunner { get; init; }
++    internal readonly WallpaperRaster WallpaperRaster = new();
+     private readonly ScanCoordinator coordinator = new();
+     private readonly ComboBox strategyCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
+     private readonly ComboBox metricCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
+@@ -125,17 +126,16 @@ internal sealed class MainForm : Form
+         Shown += async (_, _) => { if (!string.IsNullOrWhiteSpace(initialPath)) await ScanFolder(initialPath); };
+     }
+ 
+-    protected override void OnShown(EventArgs e)
++    private void PrepareInitialLayout()
+     {
+-        // Dynamic layouts are authored at 96 DPI; scale once after the real window
+-        // has moved to its target monitor (system DPI can differ from monitor DPI).
++        // The handle has its monitor DPI by Load. Finish scaling before the window paints.
+         float scale = DeviceDpi / 96f;
+         if (Math.Abs(scale - 1) > .01f) Scale(new SizeF(scale, scale));
+         var area = Screen.FromControl(this).WorkingArea;
+         MinimumSize = new Size(Math.Min((int)(1120 * scale), area.Width), Math.Min((int)(780 * scale), area.Height));
+         Size = new Size(Math.Min((int)(1440 * scale), area.Width), Math.Min((int)(940 * scale), area.Height));
+         Location = new Point(area.X + (area.Width - Width) / 2, area.Y + (area.Height - Height) / 2);
+-        base.OnShown(e);
++        WallpaperRaster.Get(BackgroundImage, ClientSize);
+     }
+ 
+     private static Label LabelOf(string text, float size, bool bold = false, bool muted = false) => new()
+@@ -775,6 +775,7 @@ internal sealed class MainForm : Form
+ 
+     protected override void OnLoad(EventArgs e)
+     {
++        PrepareInitialLayout();
+         base.OnLoad(e);
+         grid.CellValueNeeded += (_, args) =>
+         {
+@@ -889,6 +890,7 @@ internal sealed class MainForm : Form
+         if (disposing)
+         {
+             searchTimer.Dispose(); previewTimer.Dispose(); scanTip.Dispose(); scanCancellation?.Cancel(); viewCancellation?.Cancel();
++            WallpaperRaster.Dispose();
+             var image = BackgroundImage; BackgroundImage = null; image?.Dispose();
+         }
+         base.Dispose(disposing);
+diff --git a/Wallpaper.cs b/Wallpaper.cs
+index 72c00cc..256a02a 100644
+--- a/Wallpaper.cs
++++ b/Wallpaper.cs
+@@ -24,14 +24,65 @@ internal static class Wallpaper
+         var offset = Point.Empty;
+         for (Control? node = control; node != null && node != form; node = node.Parent)
+             offset.Offset(node.Left, node.Top);
+-        float scale = Math.Max((float)form.ClientSize.Width / image.Width, (float)form.ClientSize.Height / image.Height);
+-        float width = image.Width * scale, height = image.Height * scale;
+-        var target = new RectangleF((form.ClientSize.Width - width) / 2 - offset.X,
+-            (form.ClientSize.Height - height) / 2 - offset.Y, width, height);
+-        graphics.DrawImage(image, target);
++        if (form is MainForm main && main.WallpaperRaster.Get(image, form.ClientSize) is { } raster)
++            graphics.DrawImageUnscaled(raster, -offset.X, -offset.Y);
++        else
++            graphics.DrawImage(image, CoverBounds(image, form.ClientSize, offset));
+         using var veil = new SolidBrush(Color.FromArgb(wash, Theme.Surface));
+         graphics.FillRectangle(veil, control.ClientRectangle);
+     }
++
++    internal static RectangleF CoverBounds(Image image, Size size, Point offset)
++    {
++        float scale = Math.Max((float)size.Width / image.Width, (float)size.Height / image.Height);
++        float width = image.Width * scale, height = image.Height * scale;
++        return new RectangleF((size.Width - width) / 2 - offset.X,
++            (size.Height - height) / 2 - offset.Y, width, height);
++    }
++}
++
++internal sealed class WallpaperRaster : IDisposable
++{
++    internal const long MaxPixels = 8_000_000;
++    private Image? source;
++    private Size size;
++    private Bitmap? raster;
++
++    public Bitmap? Get(Image? image, Size clientSize)
++    {
++        if (ReferenceEquals(image, source) && clientSize == size) return raster;
++        Dispose();
++        source = image;
++        size = clientSize;
++        if (image == null || size.Width <= 0 || size.Height <= 0 || (long)size.Width * size.Height > MaxPixels)
++            return null;
++
++        Bitmap? candidate = null;
++        try
++        {
++            candidate = new Bitmap(size.Width, size.Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
++            using var graphics = Graphics.FromImage(candidate);
++            graphics.Clear(Theme.Background);
++            graphics.DrawImage(image, Wallpaper.CoverBounds(image, size, Point.Empty));
++            raster = candidate;
++            candidate = null;
++            return raster;
++        }
++        catch (Exception ex) when (ex is OutOfMemoryException or System.Runtime.InteropServices.ExternalException)
++        {
++            return null;
++        }
++        finally { candidate?.Dispose(); }
++    }
++
++    public void Dispose()
++    {
++        raster?.Dispose();
++        raster = null;
++        source = null;
++        size = Size.Empty;
++    }
++
+ }
+ 
+ internal sealed class WallpaperTable : TableLayoutPanel
+diff --git a/tests/UiRegression.cs b/tests/UiRegression.cs
+index b2a3758..81ab4fd 100644
+--- a/tests/UiRegression.cs
++++ b/tests/UiRegression.cs
+@@ -33,10 +33,37 @@ internal static class UiRegression
+                     }
+                 }
+                 void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
++                Size firstClientSize = Size.Empty;
++                Point firstLocation = Point.Empty;
++                Bitmap? firstBackground = null;
++                form.Load += (_, _) =>
++                {
++                    firstClientSize = form.ClientSize;
++                    firstLocation = form.Location;
++                    firstBackground = form.WallpaperRaster.Get(form.BackgroundImage, firstClientSize);
++                };
+                 form.Shown += async (_, _) =>
+                 {
+                     try
+                     {
++                        Check(firstClientSize == form.ClientSize && firstLocation == form.Location,
++                            "Window layout moved between Load and Shown");
++                        Check(firstBackground != null && ReferenceEquals(firstBackground,
++                            form.WallpaperRaster.Get(form.BackgroundImage, form.ClientSize)),
++                            "First frame did not reuse the background prepared at Load");
++                        using (var raster = new WallpaperRaster())
++                        using (var source = new Bitmap(10, 10))
++                        {
++                            using (var graphics = Graphics.FromImage(source)) graphics.Clear(Color.PeachPuff);
++                            var initial = raster.Get(source, new Size(20, 10));
++                            Check(initial?.Size == new Size(20, 10) && initial.GetPixel(0, 0).ToArgb() == Color.PeachPuff.ToArgb(),
++                                "Wallpaper raster did not cover the client area");
++                            Check(ReferenceEquals(initial, raster.Get(source, new Size(20, 10))), "Stable wallpaper was rescaled");
++                            Check(raster.Get(source, new Size(25, 10))?.Size == new Size(25, 10), "Resized wallpaper retained stale dimensions");
++                            Check(raster.Get(source, new Size(4096, 2160)) == null, "Oversized wallpaper allocated a cache");
++                        }
++                        Console.WriteLine("PASS UI startup layout ready at Load and one reusable bounded wallpaper raster");
++
+                         gate.Pause = true;
+                         var first = Scan();
+                         await Wait(() => Field<bool>("showingPreview"), "First scan never displayed a preview");

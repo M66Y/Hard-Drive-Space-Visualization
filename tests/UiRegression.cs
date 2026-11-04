@@ -33,10 +33,37 @@ internal static class UiRegression
                     }
                 }
                 void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
+                Size firstClientSize = Size.Empty;
+                Point firstLocation = Point.Empty;
+                Bitmap? firstBackground = null;
+                form.Load += (_, _) =>
+                {
+                    firstClientSize = form.ClientSize;
+                    firstLocation = form.Location;
+                    firstBackground = form.WallpaperRaster.Get(form.BackgroundImage, firstClientSize);
+                };
                 form.Shown += async (_, _) =>
                 {
                     try
                     {
+                        Check(firstClientSize == form.ClientSize && firstLocation == form.Location,
+                            "Window layout moved between Load and Shown");
+                        Check(firstBackground != null && ReferenceEquals(firstBackground,
+                            form.WallpaperRaster.Get(form.BackgroundImage, form.ClientSize)),
+                            "First frame did not reuse the background prepared at Load");
+                        using (var raster = new WallpaperRaster())
+                        using (var source = new Bitmap(10, 10))
+                        {
+                            using (var graphics = Graphics.FromImage(source)) graphics.Clear(Color.PeachPuff);
+                            var initial = raster.Get(source, new Size(20, 10));
+                            Check(initial?.Size == new Size(20, 10) && initial.GetPixel(0, 0).ToArgb() == Color.PeachPuff.ToArgb(),
+                                "Wallpaper raster did not cover the client area");
+                            Check(ReferenceEquals(initial, raster.Get(source, new Size(20, 10))), "Stable wallpaper was rescaled");
+                            Check(raster.Get(source, new Size(25, 10))?.Size == new Size(25, 10), "Resized wallpaper retained stale dimensions");
+                            Check(raster.Get(source, new Size(4096, 2160)) == null, "Oversized wallpaper allocated a cache");
+                        }
+                        Console.WriteLine("PASS UI startup layout ready at Load and one reusable bounded wallpaper raster");
+
                         gate.Pause = true;
                         var first = Scan();
                         await Wait(() => Field<bool>("showingPreview"), "First scan never displayed a preview");

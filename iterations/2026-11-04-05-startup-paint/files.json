@@ -1,0 +1,25 @@
+{
+  "base": "68c41da9bdb3bedc2f36a49175ddbf71b2a0a387",
+  "files": [
+    {
+      "path": "MainForm.cs",
+      "sha256": "89d6cdae7ecb7a70165d0f7bc7cb1d83fd9e7dab59a10d78dea5e9005b6f1dd1"
+    },
+    {
+      "path": "Wallpaper.cs",
+      "sha256": "8964ca5bf5e5b16e4926ad5f5d6750342f0fe0027b2143bae75ebd2677b77228"
+    },
+    {
+      "path": "tests/UiRegression.cs",
+      "sha256": "b30f151f08b155e68d0085a4adaf771e5bfefab41d1fa52e92487584feddf9cc"
+    },
+    {
+      "path": "iterations/2026-11-04-05-startup-paint/README.md",
+      "sha256": "8f7fbfc79b9c46714f988e74c9ec151c3d7a0cbc2bb0953a175c29e0ae3ca4b1"
+    },
+    {
+      "path": "iterations/2026-11-04-05-startup-paint/changes.patch",
+      "sha256": "c669b601af67b194f45cf95c14139da93bba8c13348336673b8734d8efa8be4d"
+    }
+  ]
+}

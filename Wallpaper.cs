@@ -24,14 +24,65 @@ internal static class Wallpaper
         var offset = Point.Empty;
         for (Control? node = control; node != null && node != form; node = node.Parent)
             offset.Offset(node.Left, node.Top);
-        float scale = Math.Max((float)form.ClientSize.Width / image.Width, (float)form.ClientSize.Height / image.Height);
-        float width = image.Width * scale, height = image.Height * scale;
-        var target = new RectangleF((form.ClientSize.Width - width) / 2 - offset.X,
-            (form.ClientSize.Height - height) / 2 - offset.Y, width, height);
-        graphics.DrawImage(image, target);
+        if (form is MainForm main && main.WallpaperRaster.Get(image, form.ClientSize) is { } raster)
+            graphics.DrawImageUnscaled(raster, -offset.X, -offset.Y);
+        else
+            graphics.DrawImage(image, CoverBounds(image, form.ClientSize, offset));
         using var veil = new SolidBrush(Color.FromArgb(wash, Theme.Surface));
         graphics.FillRectangle(veil, control.ClientRectangle);
     }
+
+    internal static RectangleF CoverBounds(Image image, Size size, Point offset)
+    {
+        float scale = Math.Max((float)size.Width / image.Width, (float)size.Height / image.Height);
+        float width = image.Width * scale, height = image.Height * scale;
+        return new RectangleF((size.Width - width) / 2 - offset.X,
+            (size.Height - height) / 2 - offset.Y, width, height);
+    }
+}
+
+internal sealed class WallpaperRaster : IDisposable
+{
+    internal const long MaxPixels = 8_000_000;
+    private Image? source;
+    private Size size;
+    private Bitmap? raster;
+
+    public Bitmap? Get(Image? image, Size clientSize)
+    {
+        if (ReferenceEquals(image, source) && clientSize == size) return raster;
+        Dispose();
+        source = image;
+        size = clientSize;
+        if (image == null || size.Width <= 0 || size.Height <= 0 || (long)size.Width * size.Height > MaxPixels)
+            return null;
+
+        Bitmap? candidate = null;
+        try
+        {
+            candidate = new Bitmap(size.Width, size.Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+            using var graphics = Graphics.FromImage(candidate);
+            graphics.Clear(Theme.Background);
+            graphics.DrawImage(image, Wallpaper.CoverBounds(image, size, Point.Empty));
+            raster = candidate;
+            candidate = null;
+            return raster;
+        }
+        catch (Exception ex) when (ex is OutOfMemoryException or System.Runtime.InteropServices.ExternalException)
+        {
+            return null;
+        }
+        finally { candidate?.Dispose(); }
+    }
+
+    public void Dispose()
+    {
+        raster?.Dispose();
+        raster = null;
+        source = null;
+        size = Size.Empty;
+    }
+
 }
 
 internal sealed class WallpaperTable : TableLayoutPanel

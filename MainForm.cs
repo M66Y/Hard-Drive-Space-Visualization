@@ -6,6 +6,7 @@ internal sealed class MainForm : Form
 {
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     internal Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult>? ScanRunner { get; init; }
+    internal readonly WallpaperRaster WallpaperRaster = new();
     private readonly ScanCoordinator coordinator = new();
     private readonly ComboBox strategyCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
     private readonly ComboBox metricCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
@@ -125,17 +126,16 @@ internal sealed class MainForm : Form
         Shown += async (_, _) => { if (!string.IsNullOrWhiteSpace(initialPath)) await ScanFolder(initialPath); };
     }
 
-    protected override void OnShown(EventArgs e)
+    private void PrepareInitialLayout()
     {
-        // Dynamic layouts are authored at 96 DPI; scale once after the real window
-        // has moved to its target monitor (system DPI can differ from monitor DPI).
+        // The handle has its monitor DPI by Load. Finish scaling before the window paints.
         float scale = DeviceDpi / 96f;
         if (Math.Abs(scale - 1) > .01f) Scale(new SizeF(scale, scale));
         var area = Screen.FromControl(this).WorkingArea;
         MinimumSize = new Size(Math.Min((int)(1120 * scale), area.Width), Math.Min((int)(780 * scale), area.Height));
         Size = new Size(Math.Min((int)(1440 * scale), area.Width), Math.Min((int)(940 * scale), area.Height));
         Location = new Point(area.X + (area.Width - Width) / 2, area.Y + (area.Height - Height) / 2);
-        base.OnShown(e);
+        WallpaperRaster.Get(BackgroundImage, ClientSize);
     }
 
     private static Label LabelOf(string text, float size, bool bold = false, bool muted = false) => new()
@@ -775,6 +775,7 @@ internal sealed class MainForm : Form
 
     protected override void OnLoad(EventArgs e)
     {
+        PrepareInitialLayout();
         base.OnLoad(e);
         grid.CellValueNeeded += (_, args) =>
         {
@@ -889,6 +890,7 @@ internal sealed class MainForm : Form
         if (disposing)
         {
             searchTimer.Dispose(); previewTimer.Dispose(); scanTip.Dispose(); scanCancellation?.Cancel(); viewCancellation?.Cancel();
+            WallpaperRaster.Dispose();
             var image = BackgroundImage; BackgroundImage = null; image?.Dispose();
         }
         base.Dispose(disposing);
