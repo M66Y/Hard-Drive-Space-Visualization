@@ -56,14 +56,22 @@ internal sealed class NtfsChangeJournal : IChangeJournal
             if (!NativeStorage.TryRead(root, true, FileAttributes.Directory, out var rootStorage, out _) || rootStorage == null)
                 return new(null, new(JournalState.VolumeUnknown));
             JournalStatus? firstFailure = null;
-            foreach (uint access in new uint[] { 0, 0x80000000 })
+            foreach (var (target, access, flags) in new[]
             {
-                // Same process identity, metadata-only first, then read-only. Never request write access or elevation.
-                var handle = NativeStorage.CreateFileW(@"\\.\" + root[..2], access, NativeStorage.ShareAll, IntPtr.Zero, 3, 0, IntPtr.Zero);
+                (root, 0u, 0x02000000u),
+                (@"\\.\" + root[..2], 0u, 0u),
+                (@"\\.\" + root[..2], 0x80000000u, 0u)
+            })
+            {
+                // NTFS supports journal queries and unprivileged reads on a root directory handle.
+                var handle = NativeStorage.CreateFileW(target, access, NativeStorage.ShareAll, IntPtr.Zero, 3, flags, IntPtr.Zero);
                 if (handle.IsInvalid)
                 {
                     int error = Marshal.GetLastWin32Error(); handle.Dispose();
-                    return new(null, firstFailure == null ? JournalStatus.FromNative(error) : firstFailure with { ReadOnlyOpenError = error });
+                    if (access != 0)
+                        return new(null, firstFailure == null ? JournalStatus.FromNative(error) : firstFailure with { ReadOnlyOpenError = error });
+                    firstFailure ??= JournalStatus.FromNative(error);
+                    continue;
                 }
                 var journal = new NtfsChangeJournal(handle, rootStorage.Identity.Volume);
                 try { return new(journal, new(JournalState.Available), journal.Capture()); }

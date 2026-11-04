@@ -1,0 +1,69 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index ced280b..c1c070a 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -147,6 +147,6 @@
+ 
+ 基线软件为 v1.4.2。开发分支已提供目录任务估算进度和有限图块动效，仍使用根目录源码、固定内嵌背景和日志不可用时的全量元信息核验；完整日志系统、背景设置、双语 README、EXE 安装器及四类资产的快照发布流程尚未实现。首次核查时本地未初始化 Git，指定 GitHub 仓库为空；该状态会随后续接入改变，应以实际检查为准。
+ 
+-第 3 轮已增加实际刷新方式、详情和只读日志协议/连续性检查；本机查询日志仍返回错误码 1、只读句柄尝试返回错误码 5，未解除无日志时全量元信息核验的限制。缓存仍仅在本次进程内，无新增权限、驻留服务或持久存储。Git 已接入 main；具体提交与验证见本轮迭代记录。
++第 3 轮已增加实际刷新方式、详情和只读日志协议/连续性检查；后续修正已通过 NTFS 根目录句柄在本机普通权限下验证真实日志增量。日志不可读时仍全量核验元信息。缓存仍仅在本次进程内，无新增权限、驻留服务或持久存储。Git 已接入 main；具体提交与验证见本轮迭代记录。
+ 
+ 本文件建立这些要求，不将既有软件或旧版 ZIP 追认成满足全部新发布规范的正式 Release；新增开发按已选方案逐项验收。
+diff --git a/ChangeJournal.cs b/ChangeJournal.cs
+index b9a4500..31535fe 100644
+--- a/ChangeJournal.cs
++++ b/ChangeJournal.cs
+@@ -56,14 +56,22 @@ internal sealed class NtfsChangeJournal : IChangeJournal
+             if (!NativeStorage.TryRead(root, true, FileAttributes.Directory, out var rootStorage, out _) || rootStorage == null)
+                 return new(null, new(JournalState.VolumeUnknown));
+             JournalStatus? firstFailure = null;
+-            foreach (uint access in new uint[] { 0, 0x80000000 })
++            foreach (var (target, access, flags) in new[]
+             {
+-                // Same process identity, metadata-only first, then read-only. Never request write access or elevation.
+-                var handle = NativeStorage.CreateFileW(@"\\.\" + root[..2], access, NativeStorage.ShareAll, IntPtr.Zero, 3, 0, IntPtr.Zero);
++                (root, 0u, 0x02000000u),
++                (@"\\.\" + root[..2], 0u, 0u),
++                (@"\\.\" + root[..2], 0x80000000u, 0u)
++            })
++            {
++                // NTFS supports journal queries and unprivileged reads on a root directory handle.
++                var handle = NativeStorage.CreateFileW(target, access, NativeStorage.ShareAll, IntPtr.Zero, 3, flags, IntPtr.Zero);
+                 if (handle.IsInvalid)
+                 {
+                     int error = Marshal.GetLastWin32Error(); handle.Dispose();
+-                    return new(null, firstFailure == null ? JournalStatus.FromNative(error) : firstFailure with { ReadOnlyOpenError = error });
++                    if (access != 0)
++                        return new(null, firstFailure == null ? JournalStatus.FromNative(error) : firstFailure with { ReadOnlyOpenError = error });
++                    firstFailure ??= JournalStatus.FromNative(error);
++                    continue;
+                 }
+                 var journal = new NtfsChangeJournal(handle, rootStorage.Identity.Volume);
+                 try { return new(journal, new(JournalState.Available), journal.Capture()); }
+diff --git a/README.md b/README.md
+index 9b5d96b..c5b3bfb 100644
+--- a/README.md
++++ b/README.md
+@@ -2,7 +2,7 @@
+ 
+ 开发分支已包含尚未正式发布的扫描策略修正、扫描进度与图块反馈；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。本次交互修正使用独立的 `bin/Preview/DiskAtlas.exe` 预览目录，以保留正在运行的旧窗口。详见[扫描策略记录](iterations/2026-11-01-02-scan-policy/README.md)、[第 2 轮交互记录](iterations/2026-11-02-02-scan-feedback/README.md)和[本次修正记录](iterations/2026-11-02-03-hover-fix/README.md)。
+ 
+-第 3 轮开发预览新增实际刷新方式与诊断详情，修正只读日志协议兼容和连续性检查。点击顶部“点击详情”，或右键“重新扫描”选择“最近完成的扫描详情”，可查看实际方式、原因、核验/重扫/复用数量、日志错误码和分阶段耗时。详见[第 3 轮记录](iterations/2026-11-03-01-incremental-refresh/README.md)。本机卷日志仍不可读，实际刷新使用元信息核验；没有承诺无日志时免除全量核验或必然加速。
++第 3 轮开发预览新增实际刷新方式与诊断详情，修正只读日志协议兼容和连续性检查。点击顶部“点击详情”，或右键“重新扫描”选择“最近完成的扫描详情”，可查看实际方式、原因、核验/重扫/复用数量、日志错误码和分阶段耗时。详见[第 3 轮记录](iterations/2026-11-03-01-incremental-refresh/README.md)。第 3 轮后续修正通过 NTFS 根目录句柄在本机普通权限下读取真实日志。日志不可读时仍执行元信息核验。修复预览为 `bin/JournalPreview/DiskAtlas.exe`，验证见[只读日志修正记录](iterations/2026-11-04-01-journal-root/README.md)。
+ 
+ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，点击“选择文件夹”，即可查看文件名称、大小和分布。
+ 
+diff --git a/使用说明.txt b/使用说明.txt
+index ba56358..3f23989 100644
+--- a/使用说明.txt
++++ b/使用说明.txt
+@@ -110,6 +110,6 @@ Windows 10/11，.NET 9 Desktop Runtime。本机已具备，无需额外安装。
+ 
+ 第 3 轮：刷新方式与日志诊断
+ 开发预览仍使用 bin/Preview/DiskAtlas.exe，历史稳定目录和 ZIP 未更新。
+-本机实际卷日志查询返回错误码 1，只读句柄尝试返回错误码 5，因此仍核验全部元信息。
+-本轮修正日志协议兼容、连续性和卷身份检查，增加可查看的诊断，并未解除本机权限限制。
++后续修正已在本机普通权限下验证真实日志增量。修复预览为 bin/JournalPreview/DiskAtlas.exe。
++日志不可读时仍核验元信息。
+ 详情只展示计数、阶段、类别和错误码，不包含卷标识或扫描路径，不上传诊断。

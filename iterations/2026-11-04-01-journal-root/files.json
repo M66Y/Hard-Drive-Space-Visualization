@@ -1,0 +1,33 @@
+{
+  "base": "f96f2aa41dc74268ff2a09de1c5dfd135877d604",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "cd06beb6305af9385707ed540a7e943c405f81cbb0a9d0f4bb551560428dbd3a"
+    },
+    {
+      "path": "ChangeJournal.cs",
+      "sha256": "6507fa46df10b4b4e10a9dafd6c9d51e1bb5e11cda4a31bffe794ea00e82852b"
+    },
+    {
+      "path": "README.md",
+      "sha256": "33cc28d360a0c5f5a915927a4ca92ff19a15bc8eab610c52d623c24fce71d721"
+    },
+    {
+      "path": "使用说明.txt",
+      "sha256": "5c0e8b6bcca8c1d52777edb51059f3f3fbe7b04cdfed2edd2d719566916b74af"
+    },
+    {
+      "path": "iterations/2026-11-04-01-journal-root/benchmark.json",
+      "sha256": "9cf47f952fce5f9259e92b380dddd8f32decb4ca5b1c8e657ccabfb420b77487"
+    },
+    {
+      "path": "iterations/2026-11-04-01-journal-root/changes.patch",
+      "sha256": "7d144c862cdb56f422c8525abdfd37d0f2357ba6de6754dd2a75cba91177ebbc"
+    },
+    {
+      "path": "iterations/2026-11-04-01-journal-root/README.md",
+      "sha256": "1619f791017d069ccaf2fb1e8e557dd3d05c9bc6f8c7a086b23581208c406e90"
+    }
+  ]
+}
