@@ -50,7 +50,7 @@ internal sealed class ActionButton : Button
     public bool Primary { get; set; }
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool Selected { get; set; }
-    private bool hovered;
+    private bool hovered, mousePressed, spacePressed;
     public ActionButton(string text, bool primary = false)
     {
         Text = text; Primary = primary; FlatStyle = FlatStyle.Flat;
@@ -70,6 +70,45 @@ internal sealed class ActionButton : Button
     }
     protected override void OnMouseEnter(EventArgs e) { hovered = true; Invalidate(); base.OnMouseEnter(e); }
     protected override void OnMouseLeave(EventArgs e) { hovered = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        base.OnMouseDown(e);
+        if (e.Button == MouseButtons.Left) { mousePressed = true; Invalidate(); }
+    }
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        mousePressed = false;
+        Invalidate();
+        base.OnMouseUp(e);
+    }
+    protected override void OnMouseCaptureChanged(EventArgs e)
+    {
+        if (!Capture) mousePressed = false;
+        Invalidate();
+        base.OnMouseCaptureChanged(e);
+    }
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.KeyCode == Keys.Space) { spacePressed = true; Invalidate(); }
+    }
+    protected override void OnKeyUp(KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.Space) { spacePressed = false; Invalidate(); }
+        base.OnKeyUp(e);
+    }
+    protected override void OnLostFocus(EventArgs e)
+    {
+        spacePressed = false;
+        Invalidate();
+        base.OnLostFocus(e);
+    }
+    protected override void OnEnabledChanged(EventArgs e)
+    {
+        if (!Enabled) { mousePressed = spacePressed = false; hovered = false; }
+        Invalidate();
+        base.OnEnabledChanged(e);
+    }
     protected override void OnPaintBackground(PaintEventArgs e)
     {
         Wallpaper.Paint(this, e.Graphics, 100);
@@ -80,13 +119,64 @@ internal sealed class ActionButton : Button
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         var rect = new Rectangle(1, 1, Width - 3, Height - 3);
         using var path = Theme.Round(rect, 7 * DeviceDpi / 96f);
-        Color fill = Primary ? (hovered ? Color.FromArgb(145, 55, 51) : Theme.Accent) : Selected ? Theme.Selection : hovered ? Color.FromArgb(251, 234, 226) : BackColor;
-        using var brush = new SolidBrush(Enabled ? fill : Theme.Border);
+        bool pressed = spacePressed || mousePressed && hovered;
+        Color fill = !Enabled ? Theme.Sidebar : Primary
+            ? pressed ? Color.FromArgb(119, 43, 40) : hovered ? Color.FromArgb(145, 55, 51) : Theme.Accent
+            : pressed ? Color.FromArgb(235, 199, 186) : Selected ? Theme.Selection : hovered ? Color.FromArgb(251, 234, 226) : BackColor;
+        using var brush = new SolidBrush(fill);
         e.Graphics.FillPath(brush, path);
         if (!Primary && FlatAppearance.BorderSize > 0) { using var pen = new Pen(Theme.Border); e.Graphics.DrawPath(pen, path); }
         var textRect = TextAlign == ContentAlignment.MiddleLeft ? new Rectangle(rect.X + (int)(16 * DeviceDpi / 96f), rect.Y, Math.Max(0, rect.Width - (int)(24 * DeviceDpi / 96f)), rect.Height) : rect;
         Theme.TextAt(e.Graphics, Text, Font, !Enabled ? Theme.Muted : Primary ? Color.White : Selected ? Theme.Accent : Theme.Text, textRect, TextAlign == ContentAlignment.MiddleLeft ? TextFormatFlags.Left : TextFormatFlags.HorizontalCenter);
-        if (Focused) { using var pen = new Pen(Theme.Muted) { DashStyle = DashStyle.Dot }; e.Graphics.DrawRectangle(pen, Rectangle.Inflate(rect, -5, -5)); }
+        if (Focused && Enabled && rect.Width > 12 && rect.Height > 12)
+        {
+            using var focus = Theme.Round(Rectangle.Inflate(rect, -4, -4), 3 * DeviceDpi / 96f);
+            using var pen = new Pen(Primary ? Color.White : Theme.Accent, Math.Max(1, DeviceDpi / 96f));
+            e.Graphics.DrawPath(pen, focus);
+        }
+    }
+}
+
+// Keep the input native so keyboard, IME, selection and dropdown behavior are preserved.
+internal sealed class InputFrame : Panel
+{
+    private readonly Control input;
+
+    public InputFrame(Control input)
+    {
+        this.input = input;
+        BackColor = Theme.Surface;
+        Dock = DockStyle.Fill;
+        TabStop = false;
+        SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        input.Dock = DockStyle.None;
+        Controls.Add(input);
+        input.GotFocus += (_, _) => Invalidate();
+        input.LostFocus += (_, _) => Invalidate();
+        input.EnabledChanged += (_, _) =>
+        {
+            BackColor = input.Enabled ? Theme.Surface : Theme.Sidebar;
+            input.BackColor = BackColor;
+            Invalidate();
+        };
+    }
+
+    protected override void OnLayout(LayoutEventArgs e)
+    {
+        base.OnLayout(e);
+        if (input == null) return;
+        int inset = (int)Math.Round(8 * DeviceDpi / 96f);
+        input.SetBounds(inset, Math.Max(1, (ClientSize.Height - input.PreferredSize.Height) / 2),
+            Math.Max(0, ClientSize.Width - 2 * inset), input.PreferredSize.Height);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        if (Width < 3 || Height < 3) return;
+        using var pen = new Pen(input.Focused ? Theme.Accent : Theme.Border);
+        e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+        if (input.Focused) e.Graphics.DrawRectangle(pen, 1, 1, Width - 3, Height - 3);
     }
 }
 

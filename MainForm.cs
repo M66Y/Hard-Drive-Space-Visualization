@@ -207,9 +207,8 @@ internal sealed class MainForm : Form
         var settings = Table(5, 1); settings.Padding = new Padding(0, 2, 0, 8);
         foreach (float width in new float[] { 68, 138, 82, 148 }) settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, width));
         settings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        settings.Controls.Add(LabelOf("扫描策略", 9), 0, 0); settings.Controls.Add(strategyCombo, 1, 0);
-        settings.Controls.Add(LabelOf("统计口径", 9), 2, 0); settings.Controls.Add(metricCombo, 3, 0);
-        strategyCombo.Margin = new Padding(0, 2, 20, 0); metricCombo.Margin = new Padding(0, 2, 15, 0);
+        settings.Controls.Add(LabelOf("扫描策略", 9), 0, 0); settings.Controls.Add(new InputFrame(strategyCombo) { Margin = new Padding(0, 0, 20, 0) }, 1, 0);
+        settings.Controls.Add(LabelOf("统计口径", 9), 2, 0); settings.Controls.Add(new InputFrame(metricCombo) { Margin = new Padding(0, 0, 15, 0) }, 3, 0);
         settings.Controls.Add(refreshInfo, 4, 0); main.Controls.Add(settings, 0, 1);
 
         var cards = Table(4, 1);
@@ -225,10 +224,8 @@ internal sealed class MainForm : Form
         toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 230));
         toolbar.Controls.Add(up, 0, 0); toolbar.Controls.Add(home, 1, 0);
-        var pathPanel = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Padding = new Padding(12, 11, 10, 7), Margin = new Padding(6, 2, 10, 3) };
-        pathPanel.Controls.Add(pathBox); toolbar.Controls.Add(pathPanel, 2, 0);
-        var searchPanel = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Padding = new Padding(12, 11, 10, 7), Margin = new Padding(0, 2, 0, 3) };
-        searchPanel.Controls.Add(search); toolbar.Controls.Add(searchPanel, 3, 0);
+        toolbar.Controls.Add(new InputFrame(pathBox) { Margin = new Padding(6, 2, 10, 3) }, 2, 0);
+        toolbar.Controls.Add(new InputFrame(search) { Margin = new Padding(0, 2, 0, 3) }, 3, 0);
         pathBox.Text = "未选择文件夹（支持拖入文件夹）";
         main.Controls.Add(toolbar, 0, 3);
 
