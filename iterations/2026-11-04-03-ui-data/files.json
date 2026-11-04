@@ -1,0 +1,21 @@
+{
+  "base": "e6694f6d166ee686c20004f624c84e5979647fe2",
+  "files": [
+    {
+      "path": "Theme.cs",
+      "sha256": "8d2b633fc55b891e61fc6b1361645912fa8a1019b07f5eaef28534cbe081a2f1"
+    },
+    {
+      "path": "MainForm.cs",
+      "sha256": "3a0ec7e60c507f5f672f9ec79ea1a335e1382d49a0128290f6fb09d55942bc8c"
+    },
+    {
+      "path": "iterations/2026-11-04-03-ui-data/README.md",
+      "sha256": "20abbf72fa7960275d7427784123e676345389a071843c014070d4425a460445"
+    },
+    {
+      "path": "iterations/2026-11-04-03-ui-data/changes.patch",
+      "sha256": "a7ccd79c9a507f75e701c85fcd78ac3de669e7d289d68a7c14c447fb8baf0d0b"
+    }
+  ]
+}

@@ -90,7 +90,7 @@ internal sealed class MainForm : Form
         UpdateStrategyHint();
         metricCombo.Items.AddRange(["文件大小", "实际占用"]); metricCombo.SelectedIndex = 0;
         metricCombo.SelectedIndexChanged += (_, _) => { if (!changingMetric) { metric = (SizeMetric)metricCombo.SelectedIndex; UpdateView(true); } };
-        var refreshMenu = new ContextMenuStrip();
+        var refreshMenu = Theme.CreateContextMenu();
         refreshMenu.Items.Add("强制完整重新扫描（Ctrl+F5）", null, async (_, _) => await ForceRefresh());
         refreshMenu.Items.Add("最近完成的扫描详情", null, (_, _) => ShowRefreshDetails());
         refresh.ContextMenuStrip = refreshMenu;
@@ -310,11 +310,11 @@ internal sealed class MainForm : Form
         grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-        grid.GridColor = Theme.Border;
+        grid.GridColor = Color.FromArgb(239, 224, 217);
         grid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
         grid.ColumnHeadersHeight = 34;
         grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-        grid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Theme.Sidebar, ForeColor = Theme.Muted, Font = Theme.Font(8), SelectionBackColor = Theme.Sidebar, Padding = new Padding(10, 0, 0, 0) };
+        grid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Theme.Sidebar, ForeColor = Theme.Text, Font = Theme.Font(8, FontStyle.Bold), SelectionBackColor = Theme.Sidebar, Padding = new Padding(10, 0, 0, 0) };
         grid.DefaultCellStyle = new DataGridViewCellStyle { BackColor = Theme.Surface, ForeColor = Theme.Text, SelectionBackColor = Theme.Selection, SelectionForeColor = Theme.Text, Font = Theme.Font(9), Padding = new Padding(10, 0, 4, 0) };
         grid.RowTemplate.Height = 40;
         grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "name", HeaderText = "名称", FillWeight = 55, MinimumWidth = 100, SortMode = DataGridViewColumnSortMode.Programmatic });
@@ -322,6 +322,15 @@ internal sealed class MainForm : Form
         grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "percent", HeaderText = "占比", FillWeight = 18, MinimumWidth = 65, SortMode = DataGridViewColumnSortMode.Programmatic });
         grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "count", HeaderText = "文件数", FillWeight = 22, MinimumWidth = 70, Visible = false, SortMode = DataGridViewColumnSortMode.Programmatic });
         grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "location", HeaderText = "所在位置", FillWeight = 38, MinimumWidth = 140, Visible = false, SortMode = DataGridViewColumnSortMode.Programmatic });
+        grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(252, 245, 240);
+        foreach (string columnName in new[] { "size", "percent", "count" })
+        {
+            var column = grid.Columns[columnName]!;
+            column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            column.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleRight;
+            column.DefaultCellStyle.Padding = new Padding(2, 0, 10, 0);
+            column.HeaderCell.Style.Padding = column.DefaultCellStyle.Padding;
+        }
         grid.SelectionChanged += (_, _) => { if (!updating) SelectItem(grid.SelectedRows.Count > 0 ? RowItem(grid.SelectedRows[0].Index) : null, false); };
         grid.CellDoubleClick += (_, e) => { if (RowItem(e.RowIndex) is { } item) ActivateItem(item); };
         grid.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter && selection != null) { ActivateItem(selection); e.Handled = e.SuppressKeyPress = true; } };
@@ -341,10 +350,13 @@ internal sealed class MainForm : Form
             using var brush = new SolidBrush(Theme.CategoryColor(item.Category));
             var dot = new Rectangle(e.CellBounds.X + (int)(12 * s), e.CellBounds.Y + e.CellBounds.Height / 2 - (int)(4 * s), (int)(8 * s), (int)(8 * s));
             e.Graphics!.FillRectangle(brush, dot);
-            Theme.TextAt(e.Graphics, item.Name, grid.Font, Theme.Text, new Rectangle(dot.Right + (int)(8 * s), e.CellBounds.Y, Math.Max(0, e.CellBounds.Right - dot.Right - (int)(14 * s)), e.CellBounds.Height));
+            Theme.TextAt(e.Graphics, item.Name, e.CellStyle!.Font ?? grid.Font, Theme.Text, new Rectangle(dot.Right + (int)(8 * s), e.CellBounds.Y, Math.Max(0, e.CellBounds.Right - dot.Right - (int)(14 * s)), e.CellBounds.Height));
+            if ((e.State & DataGridViewElementStates.Selected) != 0 && grid.Focused &&
+                grid.CurrentCellAddress == new Point(e.ColumnIndex, e.RowIndex))
+                e.Paint(e.ClipBounds, DataGridViewPaintParts.Focus);
             e.Handled = true;
         };
-        var menu = new ContextMenuStrip { BackColor = Theme.Surface, ForeColor = Theme.Text };
+        var menu = Theme.CreateContextMenu();
         menu.Items.Add("进入文件夹 / 定位文件", null, (_, _) => { if (selection != null) ActivateItem(selection); });
         menu.Items.Add("在资源管理器中定位", null, (_, _) => RevealSelection());
         menu.Items.Add("复制完整路径", null, (_, _) => { if (selection?.Entry is { } entry) TryAction(() => Clipboard.SetText(entry.Path)); });

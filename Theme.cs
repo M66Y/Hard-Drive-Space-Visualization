@@ -24,6 +24,43 @@ internal static class Theme
         ("代码", Color.FromArgb(178, 196, 216)),
         ("其他", Color.FromArgb(207, 198, 187))
     ];
+    public static ContextMenuStrip CreateContextMenu()
+    {
+        var menu = new ContextMenuStrip
+        {
+            BackColor = Surface,
+            ForeColor = Text,
+            ShowImageMargin = false,
+            Renderer = new MenuRenderer() { RoundedEdges = false }
+        };
+        return menu;
+    }
+
+    private sealed class MenuRenderer() : ToolStripProfessionalRenderer(new MenuColors())
+    {
+        protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
+        {
+            if (!e.Item.Selected || !e.Item.Enabled || SystemInformation.HighContrast)
+            {
+                base.OnRenderMenuItemBackground(e);
+                return;
+            }
+            var bounds = new Rectangle(Point.Empty, e.Item.Size);
+            bounds.Inflate(-1, -1);
+            using var brush = new SolidBrush(Selection);
+            e.Graphics.FillRectangle(brush, bounds);
+        }
+    }
+
+    private sealed class MenuColors : ProfessionalColorTable
+    {
+        public override Color ToolStripDropDownBackground => Surface;
+        public override Color MenuBorder => Border;
+        public override Color MenuItemBorder => Border;
+        public override Color SeparatorDark => Border;
+        public override Color SeparatorLight => Surface;
+    }
+
     public static string Category(string extension) => FileKinds.Category(extension);
     public static Color CategoryColor(string category) => Categories.FirstOrDefault(c => c.Name == category, Categories[^1]).Color;
     public static Font Font(float size, FontStyle style = FontStyle.Regular) => new("Microsoft YaHei UI", size, style);
@@ -198,15 +235,15 @@ internal sealed class StatCard : Control
         float s = DeviceDpi / 96f;
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         using var path = Theme.Round(new RectangleF(0, 0, Width - 1, Height - 1), 10 * s);
-        using var brush = new SolidBrush(Color.FromArgb(218, Theme.Surface));
+        using var brush = new SolidBrush(Color.FromArgb(240, Theme.Surface));
         e.Graphics.FillPath(brush, path);
         using var pen = new Pen(Theme.Border);
         e.Graphics.DrawPath(pen, path);
-        using var titleFont = Theme.Font(9);
+        using var titleFont = Theme.Font(9, FontStyle.Bold);
         using var valueFont = Theme.Font(23, FontStyle.Bold);
-        using var captionFont = Theme.Font(8);
+        using var captionFont = Theme.Font(8.5f);
         int x = (int)(18 * s);
-        Theme.TextAt(e.Graphics, Title, titleFont, Theme.Muted, new Rectangle(x, (int)(13 * s), Width - x * 2, (int)(22 * s)));
+        Theme.TextAt(e.Graphics, Title, titleFont, Theme.Text, new Rectangle(x, (int)(13 * s), Width - x * 2, (int)(22 * s)));
         Theme.TextAt(e.Graphics, Value, valueFont, Highlight ? Theme.Accent : Theme.Text, new Rectangle(x, (int)(38 * s), Width - x * 2, (int)(42 * s)));
         Theme.TextAt(e.Graphics, Caption, captionFont, Theme.Muted, new Rectangle(x, (int)(84 * s), Width - x * 2, (int)(22 * s)));
     }
