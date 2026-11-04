@@ -1,0 +1,25 @@
+{
+  "base": "bbb7ed3de16dfe7bb460487d647058db00291ac9",
+  "files": [
+    {
+      "path": "Theme.cs",
+      "sha256": "09596a0d69948479bc4840acf038ad363ad298058eaf2d6a68dc14afc7a5d8c5"
+    },
+    {
+      "path": "tests/UiRegression.cs",
+      "sha256": "ceb190dd38eb529d8f1fcbfd387c99b803e81341d58bb5293596cdbe40276c57"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "83ed3467e904a17b318d0ce30c6ae6d10c95888365881121b3454e3e65b6354d"
+    },
+    {
+      "path": "iterations/2026-11-04-04-ui-verification/README.md",
+      "sha256": "0729dac28de8d539f6f25b78e54b25ca033f687c93e74455ce104071a6bde68c"
+    },
+    {
+      "path": "iterations/2026-11-04-04-ui-verification/changes.patch",
+      "sha256": "99cfbe8347b398ed334572a97221942f3b21665a2b27802aeffed97ad269340f"
+    }
+  ]
+}

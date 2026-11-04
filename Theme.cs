@@ -24,15 +24,23 @@ internal static class Theme
         ("代码", Color.FromArgb(178, 196, 216)),
         ("其他", Color.FromArgb(207, 198, 187))
     ];
-    public static ContextMenuStrip CreateContextMenu()
+    public static ContextMenuStrip CreateContextMenu(Func<bool>? isHighContrast = null)
     {
-        var menu = new ContextMenuStrip
+        isHighContrast ??= () => SystemInformation.HighContrast;
+        var menu = new ContextMenuStrip { ShowImageMargin = false };
+        var themedRenderer = new MenuRenderer { RoundedEdges = false };
+
+        void ApplyPalette()
         {
-            BackColor = Surface,
-            ForeColor = Text,
-            ShowImageMargin = false,
-            Renderer = new MenuRenderer() { RoundedEdges = false }
-        };
+            bool highContrast = isHighContrast();
+            if (highContrast) menu.RenderMode = ToolStripRenderMode.System;
+            else menu.Renderer = themedRenderer;
+            menu.BackColor = highContrast ? SystemColors.Menu : Surface;
+            menu.ForeColor = highContrast ? SystemColors.MenuText : Text;
+        }
+
+        ApplyPalette();
+        menu.Opening += (_, _) => ApplyPalette();
         return menu;
     }
 
@@ -40,7 +48,7 @@ internal static class Theme
     {
         protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
         {
-            if (!e.Item.Selected || !e.Item.Enabled || SystemInformation.HighContrast)
+            if (!e.Item.Selected || !e.Item.Enabled)
             {
                 base.OnRenderMenuItemBackground(e);
                 return;

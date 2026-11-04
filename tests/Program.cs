@@ -6,7 +6,7 @@ if (args.Contains("--treemap-benchmark")) return TreemapBenchmark.Run(args.Last(
 if (args.Contains("--scan-benchmark")) return ScanBenchmark.Run();
 if (args.Contains("--policy-benchmark")) return ScanPolicyBenchmark.Run();
 if (args.Contains("--memory-benchmark")) return MemoryBenchmark.Run();
-if (args.Contains("--ui-regression")) return UiRegression.Run();
+if (args.Contains("--ui-regression")) return UiRegression.Run(args.Contains("--dpi-96"));
 if (args.Contains("--advanced-tests")) return AdvancedFeatures.Run();
 if (args.Contains("--journal-tests")) return JournalRegression.Run();
 if (args.Contains("--refresh-benchmark")) return RefreshBenchmark.Run();

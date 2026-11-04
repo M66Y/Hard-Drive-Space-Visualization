@@ -4,7 +4,7 @@ using System.Reflection;
 // In-process WinForms integration tests. No external app, Windows settings or user files are controlled.
 internal static class UiRegression
 {
-    public static int Run()
+    public static int Run(bool virtualized96Dpi = false)
     {
         string root = Path.Combine(Path.GetTempPath(), "DiskAtlas-ui-regression-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(root, "A-child"));
@@ -16,7 +16,7 @@ internal static class UiRegression
             var thread = new Thread(() =>
             {
                 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
-                Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); Application.EnableVisualStyles();
+                Application.SetHighDpiMode(virtualized96Dpi ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2); Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 using var gate = new ScanGate();
                 using var form = new MainForm(null) { ScanRunner = gate.Scan };
@@ -134,6 +134,8 @@ internal static class UiRegression
 
                         await CheckInteractions(form, Check);
                         CheckRenderCache(form, Check);
+                        await CheckLongPath(form, root, Check);
+                        CheckDpiAndMenu(form, virtualized96Dpi, Check);
                     }
                     catch (Exception ex) { failure = ex; }
                     finally { gate.Release.Set(); form.Close(); }
@@ -152,6 +154,72 @@ internal static class UiRegression
             if (!Path.GetFullPath(root).StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) throw new Exception("Unsafe UI regression cleanup path");
             Directory.Delete(root, true);
         }
+    }
+
+    private static async Task CheckLongPath(MainForm owner, string root, Action<bool, string> check)
+    {
+        string folder = Path.Combine(root, "long-path");
+        while (folder.Length <= 270)
+            folder = Path.Combine(folder, "长路径-" + new string('x', 36));
+        Directory.CreateDirectory(folder);
+        string file = Path.Combine(folder, "中英文-long-file.txt");
+        File.WriteAllBytes(file, new byte[64]);
+        using var product = new MainForm(null);
+        product.Show(owner);
+        var fields = BindingFlags.Instance | BindingFlags.NonPublic;
+        T Field<T>(string name) => (T)typeof(MainForm).GetField(name, fields)!.GetValue(product)!;
+        await (Task)typeof(MainForm).GetMethod("ScanFolder", fields)!.Invoke(product, [folder])!;
+        var grid = Field<DataGridView>("grid");
+        var deadline = DateTime.UtcNow.AddSeconds(8);
+        while ((!grid.Enabled || grid.Rows.Count != 1) && DateTime.UtcNow < deadline)
+            await Task.Delay(25);
+        var pathBox = Field<TextBox>("pathBox");
+        check(grid.Enabled && grid.Rows.Count == 1 && pathBox.Text == folder, "Long directory path lost in scan or path input");
+        check(Field<List<MapItem>>("sortedRows").Single().Entry?.Path == file, "Long file path lost in the list model");
+        pathBox.Focus();
+        pathBox.SelectAll();
+        check(pathBox.SelectedText == folder, "Full long path is not selectable in the path input");
+        using var frame = new Bitmap(product.Width, product.Height);
+        product.DrawToBitmap(frame, product.ClientRectangle);
+        product.Close();
+        Console.WriteLine("PASS UI scanned, rendered and selected a mixed-language path longer than 270 characters");
+    }
+
+    private static void CheckDpiAndMenu(MainForm owner, bool virtualized96Dpi, Action<bool, string> check)
+    {
+        void CheckInputs(MainForm form)
+        {
+            foreach (string name in new[] { "pathBox", "search", "strategyCombo", "metricCombo" })
+            {
+                var input = (Control)typeof(MainForm).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(form)!;
+                check(input.Parent is InputFrame && input.Width > 0 && input.Left > 0 && input.Top > 0 &&
+                    input.Right < input.Parent.ClientSize.Width && input.Bottom < input.Parent.ClientSize.Height,
+                    "Input is clipped by its themed frame at " + form.DeviceDpi + " DPI: " + name);
+            }
+        }
+
+        CheckInputs(owner);
+        if (virtualized96Dpi) check(owner.DeviceDpi == 96, "Virtualized process did not get 96 DPI");
+
+        bool highContrast = false;
+        using var menu = Theme.CreateContextMenu(() => highContrast);
+        menu.Items.Add("复制完整路径");
+        menu.Show(owner, new Point(20, 20));
+        check(menu.Visible && menu.BackColor == Theme.Surface, "Normal menu did not use the theme");
+        menu.Close();
+        highContrast = true;
+        menu.Show(owner, new Point(20, 20));
+        check(menu.Visible && menu.RenderMode == ToolStripRenderMode.System &&
+            menu.BackColor == SystemColors.Menu && menu.ForeColor == SystemColors.MenuText,
+            "High-contrast menu still uses app colors or custom rendering");
+        using (var image = new Bitmap(menu.Width, menu.Height)) menu.DrawToBitmap(image, menu.ClientRectangle);
+        menu.Close();
+        highContrast = false;
+        menu.Show(owner, new Point(20, 20));
+        check(menu.Visible && menu.RenderMode == ToolStripRenderMode.Custom && menu.ForeColor == Theme.Text,
+            "Menu did not restore theme after high contrast was disabled");
+        menu.Close();
+        Console.WriteLine($"PASS UI input layout at {owner.DeviceDpi} DPI, system menu palette and theme restoration");
     }
 
     private static async Task CheckInteractions(Form owner, Action<bool, string> check)
