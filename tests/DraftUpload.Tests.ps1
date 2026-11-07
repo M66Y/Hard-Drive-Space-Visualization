@@ -20,11 +20,14 @@ function New-Case([string]$Scenario='normal') {
     [IO.File]::WriteAllText((Join-Path $script:case 'offline-fixture'),'offline synthetic content; never a distributable package')
     $files=@('AsukaLens v1.4.2.zip','AsukaLens v1.4.2.exe','AsukaLens v1.4.2-source.zip','AsukaLens v1.4.2-source.tar.gz')
     foreach($name in $files){ [IO.File]::WriteAllText((Join-Path $script:assets $name),'NONEXECUTABLE SYNTHETIC TEST FIXTURE '+$name) }
-    $manifest=[ordered]@{version='v1.4.2';commit=('b'*40);local_test=$false;assets=@(Get-FileInventory $script:assets)}
+    $manifest=[ordered]@{version='v1.4.2';commit=('b'*40);runtime='10.0.14';local_test=$false;assets=@(Get-FileInventory $script:assets)}
     Write-ReleaseJson $manifest (Join-Path $script:assets 'release-manifest.json')
     [IO.File]::WriteAllText((Join-Path $script:assets 'SHA256SUMS.txt'),'synthetic checksums; validator double used')
     $script:notes=Join-Path $script:case 'notes.md'
-    [IO.File]::WriteAllText($script:notes,"# AsukaLens v1.4.2`n## 简体中文`n合成测试`n## English`nSynthetic test`n")
+    $template=[IO.File]::ReadAllText((Join-Path $repository 'docs/release-notes.template.md'))
+    $noteFixture=$template.Replace('{{VERSION}}',$manifest.version).Replace('{{RUNTIME}}',$manifest.runtime).Replace('{{COMMIT}}',$manifest.commit).
+        Replace('{{CHANGES_ZH}}','合成测试内容。').Replace('{{FIXES_ZH}}','合成修复内容。').Replace('{{CHANGES_EN}}','Synthetic changes.').Replace('{{FIXES_EN}}','Synthetic fixes.')
+    [IO.File]::WriteAllText($script:notes,$noteFixture)
     $script:acceptance=Join-Path $script:case 'acceptance.json'
     Write-ReleaseJson @{commit=$manifest.commit;manifest_sha256=(Get-FileHash -LiteralPath (Join-Path $script:assets 'release-manifest.json')).Hash.ToLowerInvariant();checks=@{clean_windows_no_dotnet='passed';portable_workflow='passed';install_upgrade_uninstall='passed';failure_recovery='passed';source_builds='passed';privacy_and_licenses='passed'}} $script:acceptance
     Save @{scenario=$Scenario;commit=$manifest.commit;version=$manifest.version;release=$null;calls=@();created=0;uploaded=@();downloaded=0;interrupted=$false}
@@ -81,6 +84,12 @@ foreach($f in $m.assets){ if((Get-FileHash -LiteralPath (Join-Path $Directory $f
         [IO.File]::WriteAllText($script:notes,"# AsukaLens $wrongVersion`n## 简体中文`n测试`n## English`nTest`n")
         Reject { Upload } ('wrong notes version '+$wrongVersion); Check ((State).calls.Count -eq 0) 'wrong notes version rejected before credentials'
     }
+    New-Case
+    [IO.File]::WriteAllText($script:notes,"# AsukaLens v1.4.2`n## 简体中文`n短说明`n## English`nShort notes`n")
+    Reject { Upload } 'incomplete bilingual notes rejected'; Check ((State).calls.Count -eq 0) 'missing content rejected before GitHub'
+    New-Case
+    [IO.File]::WriteAllText($script:notes,([IO.File]::ReadAllText($script:notes).Replace('/releases/download/v1.4.2/','/releases/download/v1.4.20/')))
+    Reject { Upload } 'wrong asset version rejected'; Check ((State).calls.Count -eq 0) 'wrong links rejected before GitHub'
     foreach($scenario in @('wrong-commit','missing-tag','wrong-tag','list-error')) {
         New-Case $scenario; Reject { Upload } $scenario; No-Writes ($scenario+' makes no remote changes')
     }

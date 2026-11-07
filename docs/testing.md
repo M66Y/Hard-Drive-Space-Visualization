@@ -72,4 +72,6 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
 
 上传控制流程可独立执行 `pwsh -File tests/DraftUpload.Tests.ps1`：实际生产脚本搭配本地 CLI 与包校验替身，检查目标、版本、草稿内容、断点续传、资产冲突、下载复核、错误传播和清理。无须构建应用、生成发行包或登录 GitHub；不把离线测试通过当成真实远程验收。
 
+发布说明模板与必需内容检查使用 `pwsh -File tests/ReleaseNotes.Tests.ps1`，可传 `-Summary <新报告.json>` 保存汇总。检查中英文栏目、占位符、精确版本/运行时、六类下载校验链接和源码提交；不访问这些示例 URL，不创建资产。上传回归同时确认说明不完整时尚未调用 GitHub。
+
 离线验收工具检查使用 **64 位 Windows PowerShell 5.1**：`powershell.exe -NoProfile -File tests/OfflineAcceptance.Tests.ps1`，可用 `-Summary <新报告.json>` 保存白名单汇总。它在已有现代 .NET 的开发机验证真实环境探测，生成小型合成资产与 .NET Framework 子进程，检查校验、隔离、CLI、状态与清理；无需重新构建应用或生成发行包。目标机只需复制两个验收脚本，按[操作手册](offline-acceptance.md)执行。合成子进程不是 AsukaLens，不能据此填写真实发行入口或干净系统通过。

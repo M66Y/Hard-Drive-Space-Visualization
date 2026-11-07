@@ -1,0 +1,14 @@
+{
+  "date": "2026-11-07",
+  "artifacts_directory_empty": true,
+  "owned_test_fixtures_removed": true,
+  "patch_restore_directory_removed": true,
+  "software_packages_generated": false,
+  "system_dependencies_installed": false,
+  "preserved": [
+    "Current development build",
+    "User data",
+    "System dependencies",
+    "Historical archives"
+  ]
+}

@@ -14,6 +14,8 @@
 
 [View Releases](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases) (no formal download yet) · [Detailed guide in Chinese](使用说明.txt)
 
+See the [release-readiness checklist](docs/release-readiness.md) (Chinese) for current evidence and remaining acceptance work.
+
 ## Requirements
 
 | Item | Current requirement |

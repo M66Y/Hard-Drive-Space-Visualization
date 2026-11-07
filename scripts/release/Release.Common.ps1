@@ -185,6 +185,69 @@ function Assert-DraftState($Releases, [switch]$Resume) {
     }
 }
 
+function Assert-ReleaseNotes([string]$Text, $Manifest) {
+    [void](Assert-ReleaseVersion $Manifest.version)
+    if ($Manifest.commit -cnotmatch '^[0-9a-f]{40}$' -or $Manifest.runtime -cnotmatch '^[0-9]+\.[0-9]+\.[0-9]+$') { throw 'Invalid notes identity.' }
+    if ([string]::IsNullOrWhiteSpace($Text) -or $Text.Length -gt 100000 -or
+        $Text -match '\{\{[^{}]*\}\}|REPLACE_WITH_[A-Z_]+|\bTODO\b|\bTBD\b|待填写') { throw 'Release notes contain missing content or unresolved placeholders.' }
+    # Comments and fenced examples cannot satisfy actual release-note sections/links.
+    $visible=[regex]::Replace($Text,'(?s)<!--.*?-->','')
+    if ($visible.Contains('<!--') -or $visible.Contains('-->')) { throw 'Unclosed release-note comment.' }
+    $lines=[Collections.Generic.List[string]]::new(); $fence=$null
+    foreach ($line in $visible.Replace("`r`n","`n").Split("`n")) {
+        $match=[regex]::Match($line,'^ {0,3}(`{3,}|~{3,})(.*)$')
+        if ($null -ne $fence) {
+            if ($match.Success -and $match.Groups[1].Value[0] -eq $fence[0] -and
+                $match.Groups[1].Value.Length -ge $fence.Length -and [string]::IsNullOrWhiteSpace($match.Groups[2].Value)) { $fence=$null }
+            continue
+        }
+        if ($match.Success) { $fence=$match.Groups[1].Value; continue }
+        $lines.Add($line)
+    }
+    if ($null -ne $fence) { throw 'Unclosed release-note code fence.' }
+    $visible=$lines -join "`n"
+    $titles=[regex]::Matches($visible,'(?m)^# ([^\n]+)$')
+    if ($titles.Count -ne 1 -or $titles[0].Groups[1].Value.TrimEnd() -cne ('AsukaLens '+$Manifest.version)) { throw 'Provide the exact AsukaLens release title.' }
+    $languages=[regex]::Matches($visible,'(?m)^## ([^\n]+)$')
+    if ($languages.Count -ne 2 -or (Compare-Object @('English','简体中文') @($languages | ForEach-Object {$_.Groups[1].Value.TrimEnd()}) -CaseSensitive)) {
+        throw 'Provide exactly one Simplified Chinese and one English section.'
+    }
+    $base='https://github.com/M66Y/Hard-Drive-Space-Visualization'
+    $downloadBase=$base+'/releases/download/'+$Manifest.version+'/'
+    $files=@("AsukaLens $($Manifest.version).zip","AsukaLens $($Manifest.version).exe","AsukaLens $($Manifest.version)-source.zip",
+        "AsukaLens $($Manifest.version)-source.tar.gz",'SHA256SUMS.txt','release-manifest.json')
+    $expectedLinks=@($files | ForEach-Object { $downloadBase+[Uri]::EscapeDataString($_) })
+    for ($i=0;$i -lt $languages.Count;$i++) {
+        $end=if ($i+1 -lt $languages.Count) {$languages[$i+1].Index} else {$visible.Length}
+        $section=$visible.Substring($languages[$i].Index+$languages[$i].Length,$end-$languages[$i].Index-$languages[$i].Length)
+        $chinese=$languages[$i].Groups[1].Value.TrimEnd() -ceq '简体中文'
+        $required=if ($chinese) {@('更新内容','修复','已知限制','适用环境与依赖','安装与便携使用','下载与校验','源码与许可')}
+            else {@('Changes','Fixes','Known limitations','Requirements','Installation and portable use','Downloads and checksums','Source and licensing')}
+        $headings=[regex]::Matches($section,'(?m)^### ([^\n]+)$'); $bodies=@{}
+        for ($h=0;$h -lt $headings.Count;$h++) {
+            $name=$headings[$h].Groups[1].Value.TrimEnd()
+            if ($bodies.ContainsKey($name)) { throw 'Duplicate release-note subsection.' }
+            $limit=if ($h+1 -lt $headings.Count) {$headings[$h+1].Index} else {$section.Length}
+            $bodies[$name]=$section.Substring($headings[$h].Index+$headings[$h].Length,$limit-$headings[$h].Index-$headings[$h].Length).Trim()
+        }
+        foreach ($name in $required) {
+            if ($name -cnotin @($bodies.Keys) -or [string]::IsNullOrWhiteSpace($bodies[$name])) { throw 'Release notes are missing a required subsection or its content.' }
+        }
+        $requirements=$bodies[$required[3]]
+        $runtimeToken='\.NET '+[regex]::Escape($Manifest.runtime)+'(?![A-Za-z0-9_.+-])'
+        if (-not $requirements.Contains('Windows 11 x64') -or $requirements -cnotmatch $runtimeToken -or
+            $requirements -notmatch $(if ($chinese) {'内含|包含'} else {'(?i)include|bundled'}) -or
+            $requirements -notmatch $(if ($chinese) {'签名'} else {'(?i)sign(?:ed|ing|ature)'})) { throw 'State the platform, bundled runtime version and signing status in both languages.' }
+        $links=@([regex]::Matches($bodies[$required[5]],'(?<!!)\[[^\]\n]+\]\((https://[^\s)]+)\)') | ForEach-Object {$_.Groups[1].Value})
+        foreach ($link in $expectedLinks) {
+            if (@($links | Where-Object { $_ -ceq $link }).Count -ne 1) { throw 'Provide all six canonical asset/checksum links in each language.' }
+        }
+        if (@($links | Where-Object { $_.Contains('/releases/download/') -and $_ -cnotin $expectedLinks }).Count) { throw 'Unexpected release asset link.' }
+        $commitLink=$base+'/tree/'+$Manifest.commit
+        if ($bodies[$required[6]] -cnotmatch ('\]\('+[regex]::Escape($commitLink)+'\)')) { throw 'Source notes must link to the exact release commit.' }
+    }
+}
+
 function Get-MissingDraftFiles([string[]]$Files, $Assets) {
     $names = @($Files | ForEach-Object { [IO.Path]::GetFileName($_) })
     foreach ($asset in $Assets) {

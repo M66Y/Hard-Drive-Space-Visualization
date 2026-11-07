@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "date": "2026-11-07",
+  "baseline": "9ac05ce5cb3a5eef3dff6a297652a729abb3cd4b",
+  "record_source": "Summarized from observed command exit codes and assertion totals",
+  "tests": [
+    {
+      "passed": 46,
+      "script": "tests/ReleaseNotes.Tests.ps1",
+      "exit_code": 0
+    },
+    {
+      "passed": 47,
+      "script": "tests/ReleaseScripts.Tests.ps1",
+      "exit_code": 0
+    },
+    {
+      "passed": 74,
+      "script": "tests/DraftUpload.Tests.ps1",
+      "exit_code": 0
+    }
+  ],
+  "total_assertions": 167,
+  "tracked_text_privacy_scan_files": 219,
+  "asset_provenance_hashes_matched": 3,
+  "remote_read_only": {
+    "releases": 0,
+    "github_cli_on_path": false,
+    "tags": 0
+  },
+  "application_built": false,
+  "software_packages_generated": false,
+  "clean_windows_tested": false,
+  "real_upload_tested": false,
+  "formal_release": false
+}

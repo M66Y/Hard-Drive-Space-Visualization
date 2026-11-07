@@ -1,0 +1,80 @@
+{
+  "baseline": "9ac05ce5cb3a5eef3dff6a297652a729abb3cd4b",
+  "patch_verified": true,
+  "verification": "All 13 work files restored from the baseline and content-hash matched",
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "69b5dcfcf72517e761ab38a7efbce4a27460a409396ea0523ea46338e0dee36c"
+    },
+    {
+      "path": "README.md",
+      "sha256": "a09691a6c923a5507a860cd6a1326561c34d839d1a3a337b22747010d87fcfeb"
+    },
+    {
+      "path": "README.en.md",
+      "sha256": "93fd41cb8321d5278e0603400646fbbb2c870dec101ce6a7805c9c456197e40b"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "e091b7b36c3336251929fd6b2bd7f01a51b7962ecc3eb4af6e1031e8ee961e2d"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "391655cd296f7cdf60631eb148470e8612ad85098b79ce73bba7976c5fa51285"
+    },
+    {
+      "path": "docs/releasing.md",
+      "sha256": "1d4c091e6407a98a6baa9dfd0b4d24c91e32bfe10237d43b1d920a62e85f8cbc"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "ddb83da9c571bc42dc48f7655f0f267ed3859eb2ed5fac502132a35c2b5ec360"
+    },
+    {
+      "path": "docs/release-readiness.md",
+      "sha256": "dda97af6f254f5d484e4c41da068c92d2c04698f3404c90b1fad5e6b83e3f63a"
+    },
+    {
+      "path": "docs/release-notes.template.md",
+      "sha256": "28adb2b115ab4d516b8c7246bcfeb178d2be4a791e433a82e276c430f6dad7ec"
+    },
+    {
+      "path": "scripts/release/Release.Common.ps1",
+      "sha256": "0b66e19babcfe76029f63969a36ef875cabe1a831a1760a6e9a80420714bd5e3"
+    },
+    {
+      "path": "scripts/release/Upload-Draft.ps1",
+      "sha256": "e3b053afcd7305f74abbd9c2e8773fd3efaf2fc19f41940f0ff5175aeb691bd7"
+    },
+    {
+      "path": "tests/DraftUpload.Tests.ps1",
+      "sha256": "349957e754f67ba2edec672a23dc17790489396130db4700b122f8eb2e17c62d"
+    },
+    {
+      "path": "tests/ReleaseNotes.Tests.ps1",
+      "sha256": "168e6d0426999759b69b5eb1f973ceb12e624f09026d136c0ae9899bfcdb4323"
+    },
+    {
+      "path": "iterations/2026-11-07-19-release-readiness/changes.patch",
+      "sha256": "1ae51bc733b512090f9bffc4f02deb1f7917a2d47f7c27686ad721479355f31f"
+    },
+    {
+      "path": "iterations/2026-11-07-19-release-readiness/checks.json",
+      "sha256": "76de6311d09aea42fd2ba8f490e88abec2a321d4157ceb8bb01f8c5a08ac312b"
+    },
+    {
+      "path": "iterations/2026-11-07-19-release-readiness/cleanup.json",
+      "sha256": "41cd4c7be0eded528c24cd0dfb70e8e3fcbd19cce952dc08e8aea86dd4ad22c7"
+    },
+    {
+      "path": "iterations/2026-11-07-19-release-readiness/README.md",
+      "sha256": "d28f5467671b25f297d5efcfc72555dc64eb7fa717cbd30c0afcd40ea2c31161"
+    },
+    {
+      "path": "iterations/2026-11-07-19-release-readiness/validation.json",
+      "sha256": "125cc50945bb3e5c0a5069c0edd61808509c81557e7abf5e37a4f3d9a5377826"
+    }
+  ]
+}

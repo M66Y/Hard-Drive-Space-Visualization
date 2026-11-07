@@ -14,6 +14,8 @@
 
 [查看 Release 页面](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases)（当前无正式下载） · [详细使用说明](使用说明.txt)
 
+当前发行准备进度与待验收项见[发布前缺口清单](docs/release-readiness.md)。
+
 ## 适用环境
 
 | 项目 | 当前要求 |

@@ -1,0 +1,423 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 67bddc7a5c4e3a3b1244075920e2eb7c139f5b2d..7b541b32b8a18c1c383180c2dc4cc4f75cac2770 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -128,6 +128,7 @@
+ - 只有有性能疑点或相关改动时才运行 `--scan-benchmark`；历史 `--memory-benchmark` 在缺少旧基准包时可能跳过，跳过不算验证通过该对比。
+ - 根目录 `build.ps1` 是保留的旧框架依赖打包入口，不用于普通迭代检查，也不是新的正式发布入口。新的自包含/安装器/源码快照脚本位于 `scripts/release/`，用法和验收边界见 [发布说明](docs/releasing.md)。运行 `tests/ReleaseScripts.Tests.ps1` 检查边界；包级验证用 `tests/PackageAcceptance.ps1`，不能把静态检查当运行通过。
+ - 草稿上传控制流程改动运行 `tests/DraftUpload.Tests.ps1`；它使用本地替身，不调用 GitHub，不替代真实远程或安装包验收。
++- 发布前缺口与证据见 [发布准备清单](docs/release-readiness.md)。双语发布说明使用 `docs/release-notes.template.md`，模板/内容校验改动运行 `tests/ReleaseNotes.Tests.ps1`，并对接入上传入口的改动运行上述上传回归；不把格式检查当真实功能、环境或远程验收。
+ - 离线验收入口位于 `scripts/acceptance/`，操作见 [离线验收手册](docs/offline-acceptance.md)。改动时使用 64 位 Windows PowerShell 5.1 运行 `powershell.exe -NoProfile -File tests/OfflineAcceptance.Tests.ps1`；目标入口不依赖 PowerShell 7、Git 或现代 .NET。测试的合成子进程不是软件发行 EXE；本机工具检查、人工观察和干净系统发布门槛分开，不由工具报告自动批准上传。
+ - 直接发行入口验收运行包内 `AsukaLens.exe`，按[发布说明](docs/releasing.md#直接发行-exe-的本机使用流程)仅在该进程设置 `ASUKALENS_DATA_DIR`，不能依赖 LOCAL TEST 安装身份隔离个人数据。修改数据目录解析时运行 `--app-data-location-tests`，不在测试中读取或覆盖真实个人配置。
+ - 调整目录或构建方式时同步更新上述命令、项目引用、测试链接文件、资源路径及文档。不得写入本机绝对路径作为公共运行要求。
+diff --git a/README.en.md b/README.en.md
+index 7c76d053f46cef28995d4f53bfe2117ff5cb7f1d..4f7772dcd8f6c251ff7199e324d2479805a8ba95 100644
+--- a/README.en.md
++++ b/README.en.md
+@@ -14,6 +14,8 @@
+ 
+ [View Releases](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases) (no formal download yet) · [Detailed guide in Chinese](使用说明.txt)
+ 
++See the [release-readiness checklist](docs/release-readiness.md) (Chinese) for current evidence and remaining acceptance work.
++
+ ## Requirements
+ 
+ | Item | Current requirement |
+diff --git a/README.md b/README.md
+index b6a313e90373aa993c02e34c3394e5672310d2b9..b96132ad191379d5da0cb847aad91818f7da5e72 100644
+--- a/README.md
++++ b/README.md
+@@ -14,6 +14,8 @@
+ 
+ [查看 Release 页面](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases)（当前无正式下载） · [详细使用说明](使用说明.txt)
+ 
++当前发行准备进度与待验收项见[发布前缺口清单](docs/release-readiness.md)。
++
+ ## 适用环境
+ 
+ | 项目 | 当前要求 |
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index f35385e9850fa7cbaff3295db9dc9bddd9e4bdf5..60d98a8c7897987d495e7f34d48f8affb684194f 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -18,6 +18,8 @@ PERF-001 的公开依据为[调度修正与验证](../iterations/2026-11-07-10-m
+ 
+ 用户已确认并完成[干净系统离线验收工具方案](offline-acceptance-plan.md)的开发范围：Windows PowerShell 5.1 入口提供资产核对、隔离样本、进程启动、人工状态与安全清理，见[操作手册](offline-acceptance.md)。工具验证与真正干净系统验收分开；下一步仍需可用的干净环境、确切正式候选资产和发布任务，不自动安装虚拟机或发布版本。
+ 
++发布前审查已整理为[缺口与证据清单](release-readiness.md)，并补齐双语发布说明模板及上传前必需内容校验。本机已有证据不自动覆盖新的正式候选资产；后续按清单确认版本、候选包、干净环境、CLI 登录和真实远程草稿，PERF-001 / MAINT-001 继续延期。
++
+ ## 已完成：第 5 轮收尾与异常报告修复
+ 
+ 目标是让用户能可靠地更换背景、重新打开软件后保留设置，遇到失败能理解原因并继续使用。先完成现有功能闭环，再开始新功能。背景功能延续此前确认的方向；日志管理、权限、框架迁移和发布均另立方案。框架迁移现已另行确认，见下文。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index a876bc2c261020080b08d5c516fd40a618d715b4..b2bef6dd43242b10bad7172bc9a5947f69a21f9d 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -8,6 +8,8 @@
+ 
+ ## 当前判断
+ 
++最新[发布前缺口审查](release-readiness.md)已补齐中英文发布说明模板，并修复上传入口仅检查版本/语言标题而漏检必需内容的问题。正式版本与候选资产、干净 Windows、CLI 执行环境和真实远程草稿仍待对应任务完成；本轮只读核查远程无 Release/标签，没有正式发布。
++
+ 后续已按确认范围实现 Windows PowerShell 5.1 [离线验收工具](offline-acceptance.md)，用于资产核对、隔离样本、实际进程启动、人工状态记录和受归属约束的清理；本机 98 项工具检查通过。它不依赖目标机的现代 .NET SDK，也不把本机结果转换为干净系统通过；具体边界见本文末尾。
+ 
+ 核心扫描与查看流程已经具备，现有回归可通过，适合继续迭代。第 5 轮背景功能已完成开发收尾，异常报告的最小隐私修复也已完成，并完成了 .NET 10 LTS 系统安装与迁移验证；本地诊断管理随后已完成；正式发布仍按计划推进。
+diff --git a/docs/release-notes.template.md b/docs/release-notes.template.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..49b2c9bcfea031eb0c0dcbebd5ac13ab3bdce9c9
+--- /dev/null
++++ b/docs/release-notes.template.md
+@@ -0,0 +1,97 @@
++# AsukaLens {{VERSION}}
++
++## 简体中文
++
++### 更新内容
++
++{{CHANGES_ZH}}
++
++### 修复
++
++{{FIXES_ZH}}
++
++### 已知限制
++
++- 高速模式并非在所有目录上都快于自动模式，稳定提速问题留待初版后的同级优化。
++- 系统变化日志不可用时仍需核验目录和文件元信息；扫描缓存仅在本次进程内保留。
++- 实际占用不包含所有文件系统开销，不等于删除文件后释放的空间；未知占用与未读取项会单独提示。
++- 界面为简体中文。其他 Windows 版本与架构、跨显示器 DPI 等未覆盖情形不属于已验证范围。
++
++### 适用环境与依赖
++
++Windows 11 x64，普通用户权限。本版便携包与安装器内含 .NET {{RUNTIME}} Windows Desktop 运行时，无需另外安装现代 .NET；从源码构建仍需要仓库 `global.json` 指定的 .NET SDK。
++
++当前文件未代码签名，系统可能显示未知发行者提示。许可、运行环境和验收范围以本次确切资产为准。
++
++### 安装与便携使用
++
++- 便携版：完整解压 ZIP，运行 `AsukaLens.exe`，选择目录开始扫描。便携版的设置仍位于当前用户 AppData，不随程序文件夹移动。
++- 安装版：运行 EXE 安装器，按当前用户安装。升级前正常退出所有 AsukaLens 窗口；卸载保留背景、诊断和问题记录。
++- 这是本项目按当前快照规范提供的首次正式发行；旧本地预览的手动替换不代表已验证历史安装器迁移。后续版本发布时按实际迁移证据更新此说明。
++
++### 下载与校验
++
++| 文件 | 用途 |
++| --- | --- |
++| [AsukaLens {{VERSION}}.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}.zip) | 自包含便携版 |
++| [AsukaLens {{VERSION}}.exe](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}.exe) | 当前用户安装器 |
++| [AsukaLens {{VERSION}}-source.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}-source.zip) | 源码 ZIP |
++| [AsukaLens {{VERSION}}-source.tar.gz](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}-source.tar.gz) | 同一源码的 tar.gz |
++| [SHA256SUMS.txt](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/SHA256SUMS.txt) | 四类资产的 SHA-256 |
++| [release-manifest.json](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/release-manifest.json) | 版本、提交、工具链及逐文件清单 |
++
++下载后用 PowerShell 的 `Get-FileHash -Algorithm SHA256 -LiteralPath '下载文件'` 对照 `SHA256SUMS.txt`。草稿阶段链接不代表公众可下载；正式公开后才可作为下载入口。
++
++### 源码与许可
++
++对应提交：[{{COMMIT}}](https://github.com/M66Y/Hard-Drive-Space-Visualization/tree/{{COMMIT}})。两种源码包来自同一提交；从源码构建步骤见包内中英文 README。
++
++AsukaLens — M66Y。项目代码使用 PolyForm Noncommercial 1.0.0；文档和 AI 生成的主题图片使用 CC BY-NC 4.0。第三方运行时与安装器组件保留原许可，完整内容随包提供。项目是源码可用的非商业软件，不宣称 OSI 开源。
++
++## English
++
++### Changes
++
++{{CHANGES_EN}}
++
++### Fixes
++
++{{FIXES_EN}}
++
++### Known limitations
++
++- High-speed mode is not consistently faster than Automatic for every folder. Further tuning is deferred until after the initial delivery.
++- When the system change journal is unavailable, refresh still verifies folder and file metadata. Scan caches last only for the current process.
++- Allocated size excludes some filesystem overhead and is not the space freed by deletion. Unknown allocation and unread entries are reported separately.
++- The application UI is Simplified Chinese. Other Windows versions and architectures, and untested cross-monitor DPI scenarios, are outside the validated scope.
++
++### Requirements
++
++Windows 11 x64, using a standard user account. Both the portable package and installer include the .NET {{RUNTIME}} Windows Desktop runtime; no separate modern .NET installation is required. Source builds require the SDK specified by the repository's `global.json`.
++
++These files are currently unsigned; Windows may display an unknown-publisher prompt. License, platform and acceptance statements apply to these exact assets.
++
++### Installation and portable use
++
++- Portable: extract the entire ZIP, run `AsukaLens.exe`, and choose a folder. Settings remain in the current user's AppData; they do not travel with the portable program folder.
++- Installer: run the EXE to install for the current user. Close all AsukaLens windows before upgrading. Uninstall preserves backgrounds, diagnostics and problem notes.
++- This is the first formal release under the current snapshot rules. Replacing historical local previews manually is not evidence of migration from a historical installer. Update this statement against actual migration evidence for later releases.
++
++### Downloads and checksums
++
++| File | Purpose |
++| --- | --- |
++| [AsukaLens {{VERSION}}.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}.zip) | Self-contained portable package |
++| [AsukaLens {{VERSION}}.exe](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}.exe) | Per-user installer |
++| [AsukaLens {{VERSION}}-source.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}-source.zip) | Source ZIP |
++| [AsukaLens {{VERSION}}-source.tar.gz](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}-source.tar.gz) | Identical source in tar.gz format |
++| [SHA256SUMS.txt](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/SHA256SUMS.txt) | SHA-256 for all four assets |
++| [release-manifest.json](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/release-manifest.json) | Version, commit, toolchain and file inventory |
++
++Use PowerShell `Get-FileHash -Algorithm SHA256 -LiteralPath 'downloaded-file'` and compare with `SHA256SUMS.txt`. Draft links do not imply public availability; downloads become public only after publication.
++
++### Source and licensing
++
++Source commit: [{{COMMIT}}](https://github.com/M66Y/Hard-Drive-Space-Visualization/tree/{{COMMIT}}). Both source archives represent this commit. See the included bilingual READMEs for build instructions.
++
++AsukaLens — M66Y. Project code uses PolyForm Noncommercial 1.0.0; documentation and AI-generated theme artwork use CC BY-NC 4.0. Third-party runtime and installer components retain their own licenses, included in the packages. This is source-available, noncommercial software, not OSI-approved open source.
+diff --git a/docs/release-readiness.md b/docs/release-readiness.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..42a10f331544ae183d82522cc5b308be3d66de4f
+--- /dev/null
++++ b/docs/release-readiness.md
+@@ -0,0 +1,38 @@
++# 正式发布前缺口清单
++
++核查日期：2026-11-07；本轮基线：`9ac05ce5cb3a5eef3dff6a297652a729abb3cd4b`。这是发布准备审查，不是正式发布批准，也不是某一份候选资产的全通过证明。当前七项核心功能与真实 EXE 的本机使用流程已有证据；**仍不能将所有发布门槛填写为 passed**。
++
++## 本机已具备的能力
++
++| 项目 | 当前证据与实际边界 |
++| --- | --- |
++| 核心使用流程 | [真实 EXE 本机验收](../iterations/2026-11-07-16-executable-workflow/README.md)覆盖便携/安装入口、扫描浏览、视图、两口径、刷新取消、背景和诊断；验证对象是当轮 LOCAL TEST 包 |
++| 四类资产与安装机制 | [交付迭代](../iterations/2026-11-07-14-release-tooling/README.md)记录便携 ZIP、真正安装器、两种源码包、清单/校验、源码构建与本机安装/合成升级/降级/回退/卸载；正式候选包需绑定新清单再验收 |
++| 源码及主题许可说明 | `NOTICE.md` 和 `assets/README.md` 已记录维护者授权与公开署名；本轮三个主题文件哈希与来源清单一致。未更改许可，也未独立推定第三方角色权利 |
++| 离线验收入口 | [工具验收](../iterations/2026-11-07-18-offline-acceptance/README.md)完成 Windows PowerShell 5.1 的 98 项检查；报告区分自动事实与人工结果，干净系统仍待实际操作 |
++| 发布说明完整性 | 本轮新增[中英文模板](release-notes.template.md)，并将必需内容检查接入真实上传入口。缺栏目、空内容、占位符、错误版本/运行时/下载链接/源码提交会在 GitHub 调用前拒绝 |
++| 源码公开内容检查 | 本轮扫描 219 个已跟踪文本文件，检查本机目录前缀及常见凭据标记，未命中；这不是所有形式敏感信息的自动证明，最终包内容仍需审查 |
++| 上传流程保护 | 本地 CLI 替身验证创建草稿、续传、冲突拒绝、下载核对和草稿状态变化；不能据此宣布真实凭据、网络或远程接口验收成功 |
++
++## 仍需完成的事项
++
++| 缺口 | 为什么尚未完成 | 完成方式与顺序 |
++| --- | --- | --- |
++| 正式版本和发布范围 | 项目仍为数字版本 `1.4.2`，历史预览未追认为当前规范下的正式发行。用户本轮要求补发布准备，并未要求正式打包/发布 | 正式发布任务中确定 `vX.X.X` 与更新范围，更新唯一版本来源、填写模板的实际更新/修复并复核中英文一致性；不要自行移动旧标签 |
++| 确切候选资产 | 既有包是可丢弃本机验收包，且已清理；后续脚本/文档提交不应冒充这些旧包的验收对象 | 冻结已提交快照，生成四类正式候选资产和清单，完整静态校验、两类源码独立构建、便携与安装流程、失败恢复、隐私及许可复验；每项绑定实际提交与清单 SHA-256 |
++| 干净 Windows 11 x64 | 当前没有独立电脑/虚拟机，本机已有现代 .NET。离线工具的存在不能代替环境 | 使用未额外安装现代 .NET SDK/共享运行时的新装系统或已知干净快照，按[离线手册](offline-acceptance.md)实际使用确切候选包。若使用本机 VM，先确定虚拟化软件、镜像、许可与磁盘空间方案 |
++| GitHub CLI 执行环境与登录 | 本轮在 PATH 未找到 `gh`，未验证该 CLI 的凭据或发布权限。Git 推送和连接器只读成功不等于 CLI 可上传 | 进入正式上传准备时选定 CLI 版本并核验来源，在实际执行环境运行 `gh --version`、`gh auth status --hostname github.com`；只记录成功/失败和必要版本，凭据留在凭据管理器，不抄录令牌 |
++| 真实草稿上传与下载 | 本轮连接器只读查询 Release 返回空列表，Git 远程标签列表为空；没有创建草稿、标签或上传资产 | 所有前置验收真实通过、正式任务明确后，创建绑定提交的新标签，上传草稿、下载六个文件复核，确认仍是草稿，再按正式授权公开；失败保留草稿和已完成资产 |
++| 对外入口同步 | README 仍正确标注开发预览和暂无正式下载；模板中的下载 URL 含占位符，并非现有资产 | 正式公开后同步中英文 README 的版本/下载入口、说明与校验链接。未公开前不写“已有下载”，不把模板当发布说明定稿 |
++
++当前指定仓库没有可供真实迁移验收的正式旧版。首次按当前规范发布时，历史正式安装器迁移项记为“不适用，并说明原因”；本机合成旧版升级的证据仍可参考。后续有正式版本后，该项应按实际旧版到新版重新验收，不能沿用“不适用”。
++
++## 本轮修补与验证边界
++
++发现上传脚本此前只验证版本号和中英文标题，过短的说明也可通过；现要求两种语言分别含更新、修复、限制、环境、使用、下载校验、源码许可，核对 Windows 11 x64、实际清单的运行时、签名状态说明、六个准确下载链接及源码提交。占位符、注释或代码块不能充当正文。校验确保必需结构与标识相符；功能描述是否真实、两种语言是否等义仍由发布前人工审阅。
++
++本轮不重建或打包未改动的应用，不重复旧包安装流程；新增说明检查和受影响的发布/上传脚本回归结果见[迭代记录](../iterations/2026-11-07-19-release-readiness/README.md)。本次仅查询远程状态，未安装 CLI、改动系统环境、创建 VM、标签或 Release。签名状态当前为未代码签名，已经纳入模板披露，不把付费代码签名另加为发布硬门槛。
++
++PERF-001 高速模式不能稳定提速、MAINT-001 非阻塞重构和额外视觉打磨继续留待初版后处理。不能通过本轮准备任务自动重启这些优化。
++
++接口依据：上传脚本使用的 `2026-03-10` 仍在 [GitHub 支持的 REST API 版本](https://docs.github.com/en/rest/about-the-rest-api/api-versions)列表中；分页所需的 `--paginate --slurp` 见 [GitHub CLI 官方 API 手册](https://cli.github.com/manual/gh_api)。这只确认当前文档契约，真实远程验收仍未完成。
+diff --git a/docs/releasing.md b/docs/releasing.md
+index 733fc1c5ce1ae2110e90893f703d6c6005d49723..b597f39da799ffb29a675e21a97bfd6b17886dee 100644
+--- a/docs/releasing.md
++++ b/docs/releasing.md
+@@ -97,6 +97,10 @@ $app = [Diagnostics.Process]::Start($start)
+ 
+ 完成正式任务要求的受控验证后，按 [验收模板](release-acceptance.example.json)填写真实结果，并填入此次 `release-manifest.json` 的 SHA-256。所有门槛必须是 `passed`；不能把 `not tested` 或本机替代测量改写为通过。发布说明另写 UTF-8 文件，含 `## 简体中文`、`## English`、精确版本、环境、运行时内含、变更、已知限制、安装/便携方法与四类下载链接。
+ 
++发布说明从[双语模板](release-notes.template.md)另存，按确切清单填写 `{{VERSION}}`、`{{RUNTIME}}`、`{{COMMIT}}` 及两种语言的更新/修复内容，逐项复核固定文字是否仍适用。当前模板供首次正式发布准备，不能直接上传占位符。保留两种语言各自的七个三级标题；下载区分别提供四类资产、SHA256SUMS 和清单的准确链接。上传入口会在 GitHub 调用前校验这些内容，也会拒绝用注释、空栏目或代码示例填充必需说明。校验不替代人工核对文案、签名状态及下载实际可用性。
++
++可先单独运行 `pwsh -File tests/ReleaseNotes.Tests.ps1` 检查模板与校验边界；完整入口控制回归仍使用 `tests/DraftUpload.Tests.ps1`。本机证据与仍需正式任务/独立环境完成的事项集中列在[发布前缺口清单](release-readiness.md)。
++
+ **本轮未创建标签。** 未来仅在明确的正式发布任务中创建并推送 `vX.X.X` 标签，必须指向上述提交；已存在标签只核查，绝不移动。上传脚本要求远程已经存在正确标签，本身不创建或重写标签。
+ 
+ ```powershell
+diff --git a/docs/testing.md b/docs/testing.md
+index a319a433c59c18528bda5fa4384fa1e94ea970bf..a9dcc7bc3d143e4fdac6bce844b4dd07b8bc6c88 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -72,4 +72,6 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
+ 
+ 上传控制流程可独立执行 `pwsh -File tests/DraftUpload.Tests.ps1`：实际生产脚本搭配本地 CLI 与包校验替身，检查目标、版本、草稿内容、断点续传、资产冲突、下载复核、错误传播和清理。无须构建应用、生成发行包或登录 GitHub；不把离线测试通过当成真实远程验收。
+ 
++发布说明模板与必需内容检查使用 `pwsh -File tests/ReleaseNotes.Tests.ps1`，可传 `-Summary <新报告.json>` 保存汇总。检查中英文栏目、占位符、精确版本/运行时、六类下载校验链接和源码提交；不访问这些示例 URL，不创建资产。上传回归同时确认说明不完整时尚未调用 GitHub。
++
+ 离线验收工具检查使用 **64 位 Windows PowerShell 5.1**：`powershell.exe -NoProfile -File tests/OfflineAcceptance.Tests.ps1`，可用 `-Summary <新报告.json>` 保存白名单汇总。它在已有现代 .NET 的开发机验证真实环境探测，生成小型合成资产与 .NET Framework 子进程，检查校验、隔离、CLI、状态与清理；无需重新构建应用或生成发行包。目标机只需复制两个验收脚本，按[操作手册](offline-acceptance.md)执行。合成子进程不是 AsukaLens，不能据此填写真实发行入口或干净系统通过。
+diff --git a/scripts/release/Release.Common.ps1 b/scripts/release/Release.Common.ps1
+index 7db6a3da4cd3453a95109e6dfcbdafb2931339a8..3e10b94633a14fb0bab23c0e0c6a0242a451f63d 100644
+--- a/scripts/release/Release.Common.ps1
++++ b/scripts/release/Release.Common.ps1
+@@ -185,6 +185,69 @@ function Assert-DraftState($Releases, [switch]$Resume) {
+     }
+ }
+ 
++function Assert-ReleaseNotes([string]$Text, $Manifest) {
++    [void](Assert-ReleaseVersion $Manifest.version)
++    if ($Manifest.commit -cnotmatch '^[0-9a-f]{40}$' -or $Manifest.runtime -cnotmatch '^[0-9]+\.[0-9]+\.[0-9]+$') { throw 'Invalid notes identity.' }
++    if ([string]::IsNullOrWhiteSpace($Text) -or $Text.Length -gt 100000 -or
++        $Text -match '\{\{[^{}]*\}\}|REPLACE_WITH_[A-Z_]+|\bTODO\b|\bTBD\b|待填写') { throw 'Release notes contain missing content or unresolved placeholders.' }
++    # Comments and fenced examples cannot satisfy actual release-note sections/links.
++    $visible=[regex]::Replace($Text,'(?s)<!--.*?-->','')
++    if ($visible.Contains('<!--') -or $visible.Contains('-->')) { throw 'Unclosed release-note comment.' }
++    $lines=[Collections.Generic.List[string]]::new(); $fence=$null
++    foreach ($line in $visible.Replace("`r`n","`n").Split("`n")) {
++        $match=[regex]::Match($line,'^ {0,3}(`{3,}|~{3,})(.*)$')
++        if ($null -ne $fence) {
++            if ($match.Success -and $match.Groups[1].Value[0] -eq $fence[0] -and
++                $match.Groups[1].Value.Length -ge $fence.Length -and [string]::IsNullOrWhiteSpace($match.Groups[2].Value)) { $fence=$null }
++            continue
++        }
++        if ($match.Success) { $fence=$match.Groups[1].Value; continue }
++        $lines.Add($line)
++    }
++    if ($null -ne $fence) { throw 'Unclosed release-note code fence.' }
++    $visible=$lines -join "`n"
++    $titles=[regex]::Matches($visible,'(?m)^# ([^\n]+)$')
++    if ($titles.Count -ne 1 -or $titles[0].Groups[1].Value.TrimEnd() -cne ('AsukaLens '+$Manifest.version)) { throw 'Provide the exact AsukaLens release title.' }
++    $languages=[regex]::Matches($visible,'(?m)^## ([^\n]+)$')
++    if ($languages.Count -ne 2 -or (Compare-Object @('English','简体中文') @($languages | ForEach-Object {$_.Groups[1].Value.TrimEnd()}) -CaseSensitive)) {
++        throw 'Provide exactly one Simplified Chinese and one English section.'
++    }
++    $base='https://github.com/M66Y/Hard-Drive-Space-Visualization'
++    $downloadBase=$base+'/releases/download/'+$Manifest.version+'/'
++    $files=@("AsukaLens $($Manifest.version).zip","AsukaLens $($Manifest.version).exe","AsukaLens $($Manifest.version)-source.zip",
++        "AsukaLens $($Manifest.version)-source.tar.gz",'SHA256SUMS.txt','release-manifest.json')
++    $expectedLinks=@($files | ForEach-Object { $downloadBase+[Uri]::EscapeDataString($_) })
++    for ($i=0;$i -lt $languages.Count;$i++) {
++        $end=if ($i+1 -lt $languages.Count) {$languages[$i+1].Index} else {$visible.Length}
++        $section=$visible.Substring($languages[$i].Index+$languages[$i].Length,$end-$languages[$i].Index-$languages[$i].Length)
++        $chinese=$languages[$i].Groups[1].Value.TrimEnd() -ceq '简体中文'
++        $required=if ($chinese) {@('更新内容','修复','已知限制','适用环境与依赖','安装与便携使用','下载与校验','源码与许可')}
++            else {@('Changes','Fixes','Known limitations','Requirements','Installation and portable use','Downloads and checksums','Source and licensing')}
++        $headings=[regex]::Matches($section,'(?m)^### ([^\n]+)$'); $bodies=@{}
++        for ($h=0;$h -lt $headings.Count;$h++) {
++            $name=$headings[$h].Groups[1].Value.TrimEnd()
++            if ($bodies.ContainsKey($name)) { throw 'Duplicate release-note subsection.' }
++            $limit=if ($h+1 -lt $headings.Count) {$headings[$h+1].Index} else {$section.Length}
++            $bodies[$name]=$section.Substring($headings[$h].Index+$headings[$h].Length,$limit-$headings[$h].Index-$headings[$h].Length).Trim()
++        }
++        foreach ($name in $required) {
++            if ($name -cnotin @($bodies.Keys) -or [string]::IsNullOrWhiteSpace($bodies[$name])) { throw 'Release notes are missing a required subsection or its content.' }
++        }
++        $requirements=$bodies[$required[3]]
++        $runtimeToken='\.NET '+[regex]::Escape($Manifest.runtime)+'(?![A-Za-z0-9_.+-])'
++        if (-not $requirements.Contains('Windows 11 x64') -or $requirements -cnotmatch $runtimeToken -or
++            $requirements -notmatch $(if ($chinese) {'内含|包含'} else {'(?i)include|bundled'}) -or
++            $requirements -notmatch $(if ($chinese) {'签名'} else {'(?i)sign(?:ed|ing|ature)'})) { throw 'State the platform, bundled runtime version and signing status in both languages.' }
++        $links=@([regex]::Matches($bodies[$required[5]],'(?<!!)\[[^\]\n]+\]\((https://[^\s)]+)\)') | ForEach-Object {$_.Groups[1].Value})
++        foreach ($link in $expectedLinks) {
++            if (@($links | Where-Object { $_ -ceq $link }).Count -ne 1) { throw 'Provide all six canonical asset/checksum links in each language.' }
++        }
++        if (@($links | Where-Object { $_.Contains('/releases/download/') -and $_ -cnotin $expectedLinks }).Count) { throw 'Unexpected release asset link.' }
++        $commitLink=$base+'/tree/'+$Manifest.commit
++        if ($bodies[$required[6]] -cnotmatch ('\]\('+[regex]::Escape($commitLink)+'\)')) { throw 'Source notes must link to the exact release commit.' }
++    }
++}
++
+ function Get-MissingDraftFiles([string[]]$Files, $Assets) {
+     $names = @($Files | ForEach-Object { [IO.Path]::GetFileName($_) })
+     foreach ($asset in $Assets) {
+diff --git a/scripts/release/Upload-Draft.ps1 b/scripts/release/Upload-Draft.ps1
+index 8accc61fcd6e7863b4a750165115cdef0e2a2fa4..dfb76005ee0deac8a98c84bf6ebfb146416c72fb 100644
+--- a/scripts/release/Upload-Draft.ps1
++++ b/scripts/release/Upload-Draft.ps1
+@@ -14,8 +14,7 @@ if ($manifest.local_test) { throw 'Local-test assets can never be uploaded by th
+ $repository = 'M66Y/Hard-Drive-Space-Visualization'
+ $qualifiedRepository = 'github.com/' + $repository
+ $notesText = Get-Content -LiteralPath $Notes -Raw -Encoding utf8
+-$versionToken = '(?<![A-Za-z0-9_.+-])' + [regex]::Escape($manifest.version) + '(?![A-Za-z0-9_.+-])'
+-if ($notesText -notmatch '(?m)^## 简体中文(?:\s|$)' -or $notesText -notmatch '(?m)^## English(?:\s|$)' -or $notesText -cnotmatch $versionToken) { throw 'Provide reviewed bilingual release notes with the exact version.' }
++Assert-ReleaseNotes $notesText $manifest
+ $accepted = Get-Content -LiteralPath $Acceptance -Raw | ConvertFrom-Json
+ if ($accepted.commit -ne $manifest.commit -or $accepted.manifest_sha256 -ne (Get-FileHash -LiteralPath (Join-Path $Directory 'release-manifest.json')).Hash.ToLowerInvariant()) { throw 'Acceptance does not cover these assets.' }
+ foreach ($check in @('clean_windows_no_dotnet','portable_workflow','install_upgrade_uninstall','failure_recovery','source_builds','privacy_and_licenses')) {
+diff --git a/tests/DraftUpload.Tests.ps1 b/tests/DraftUpload.Tests.ps1
+index 578af7328e493e01a53b0c1b8931717bb5c30c4a..e004ea43bf3745f68154cb55bb4474ef0b9a7088 100644
+--- a/tests/DraftUpload.Tests.ps1
++++ b/tests/DraftUpload.Tests.ps1
+@@ -20,11 +20,14 @@ function New-Case([string]$Scenario='normal') {
+     [IO.File]::WriteAllText((Join-Path $script:case 'offline-fixture'),'offline synthetic content; never a distributable package')
+     $files=@('AsukaLens v1.4.2.zip','AsukaLens v1.4.2.exe','AsukaLens v1.4.2-source.zip','AsukaLens v1.4.2-source.tar.gz')
+     foreach($name in $files){ [IO.File]::WriteAllText((Join-Path $script:assets $name),'NONEXECUTABLE SYNTHETIC TEST FIXTURE '+$name) }
+-    $manifest=[ordered]@{version='v1.4.2';commit=('b'*40);local_test=$false;assets=@(Get-FileInventory $script:assets)}
++    $manifest=[ordered]@{version='v1.4.2';commit=('b'*40);runtime='10.0.14';local_test=$false;assets=@(Get-FileInventory $script:assets)}
+     Write-ReleaseJson $manifest (Join-Path $script:assets 'release-manifest.json')
+     [IO.File]::WriteAllText((Join-Path $script:assets 'SHA256SUMS.txt'),'synthetic checksums; validator double used')
+     $script:notes=Join-Path $script:case 'notes.md'
+-    [IO.File]::WriteAllText($script:notes,"# AsukaLens v1.4.2`n## 简体中文`n合成测试`n## English`nSynthetic test`n")
++    $template=[IO.File]::ReadAllText((Join-Path $repository 'docs/release-notes.template.md'))
++    $noteFixture=$template.Replace('{{VERSION}}',$manifest.version).Replace('{{RUNTIME}}',$manifest.runtime).Replace('{{COMMIT}}',$manifest.commit).
++        Replace('{{CHANGES_ZH}}','合成测试内容。').Replace('{{FIXES_ZH}}','合成修复内容。').Replace('{{CHANGES_EN}}','Synthetic changes.').Replace('{{FIXES_EN}}','Synthetic fixes.')
++    [IO.File]::WriteAllText($script:notes,$noteFixture)
+     $script:acceptance=Join-Path $script:case 'acceptance.json'
+     Write-ReleaseJson @{commit=$manifest.commit;manifest_sha256=(Get-FileHash -LiteralPath (Join-Path $script:assets 'release-manifest.json')).Hash.ToLowerInvariant();checks=@{clean_windows_no_dotnet='passed';portable_workflow='passed';install_upgrade_uninstall='passed';failure_recovery='passed';source_builds='passed';privacy_and_licenses='passed'}} $script:acceptance
+     Save @{scenario=$Scenario;commit=$manifest.commit;version=$manifest.version;release=$null;calls=@();created=0;uploaded=@();downloaded=0;interrupted=$false}
+@@ -81,6 +84,12 @@ foreach($f in $m.assets){ if((Get-FileHash -LiteralPath (Join-Path $Directory $f
+         [IO.File]::WriteAllText($script:notes,"# AsukaLens $wrongVersion`n## 简体中文`n测试`n## English`nTest`n")
+         Reject { Upload } ('wrong notes version '+$wrongVersion); Check ((State).calls.Count -eq 0) 'wrong notes version rejected before credentials'
+     }
++    New-Case
++    [IO.File]::WriteAllText($script:notes,"# AsukaLens v1.4.2`n## 简体中文`n短说明`n## English`nShort notes`n")
++    Reject { Upload } 'incomplete bilingual notes rejected'; Check ((State).calls.Count -eq 0) 'missing content rejected before GitHub'
++    New-Case
++    [IO.File]::WriteAllText($script:notes,([IO.File]::ReadAllText($script:notes).Replace('/releases/download/v1.4.2/','/releases/download/v1.4.20/')))
++    Reject { Upload } 'wrong asset version rejected'; Check ((State).calls.Count -eq 0) 'wrong links rejected before GitHub'
+     foreach($scenario in @('wrong-commit','missing-tag','wrong-tag','list-error')) {
+         New-Case $scenario; Reject { Upload } $scenario; No-Writes ($scenario+' makes no remote changes')
+     }
+diff --git a/tests/ReleaseNotes.Tests.ps1 b/tests/ReleaseNotes.Tests.ps1
+new file mode 100644
+index 0000000000000000000000000000000000000000..abf2f3bbf6a5a68de0a7ecd6c4c884263395730d
+--- /dev/null
++++ b/tests/ReleaseNotes.Tests.ps1
+@@ -0,0 +1,58 @@
++#requires -Version 7.4
++[CmdletBinding()]
++param([string]$Summary)
++. (Join-Path $PSScriptRoot '../scripts/release/Release.Common.ps1')
++$manifest=[pscustomobject]@{version='v1.4.2';runtime='10.0.14';commit=('b'*40)}
++$template=[IO.File]::ReadAllText((Join-Path $PSScriptRoot '../docs/release-notes.template.md'))
++$valid=$template.Replace('{{VERSION}}',$manifest.version).Replace('{{RUNTIME}}',$manifest.runtime).Replace('{{COMMIT}}',$manifest.commit).
++    Replace('{{CHANGES_ZH}}','合成测试内容。').Replace('{{FIXES_ZH}}','合成修复内容。').Replace('{{CHANGES_EN}}','Synthetic changes.').Replace('{{FIXES_EN}}','Synthetic fixes.')
++$checks=[Collections.Generic.List[string]]::new()
++function Check([bool]$Condition,[string]$Name) {
++    if (-not $Condition) { throw ('FAIL '+$Name) }
++    $checks.Add($Name); Write-Host ('PASS '+$Name)
++}
++function Reject([string]$Text,[string]$Name) {
++    $failed=$false
++    try { Assert-ReleaseNotes $Text $manifest } catch { $failed=$true }
++    Check $failed $Name
++}
++Assert-ReleaseNotes $valid $manifest; Check $true 'completed production template accepted'
++Assert-ReleaseNotes ($valid.Replace("`r`n","`n").Replace("`n","`r`n")) $manifest; Check $true 'CRLF accepted'
++Assert-ReleaseNotes ($valid+"`n``````powershell`nGet-FileHash -Algorithm SHA256 'synthetic.zip'`n```````n") $manifest
++Check $true 'additional fenced usage example accepted'
++Reject $template 'unresolved production template rejected'
++Reject "# AsukaLens v1.4.2`n## 简体中文`n示例`n## English`nExample" 'old minimum-only notes rejected'
++foreach ($bad in @('v1.4.20','v1.4.2-preview','v1.4.2.0','V1.4.2')) { Reject ($valid.Replace('# AsukaLens v1.4.2',"# AsukaLens $bad")) ('wrong title '+$bad) }
++foreach ($heading in @('更新内容','修复','已知限制','适用环境与依赖','安装与便携使用','下载与校验','源码与许可',
++    'Changes','Fixes','Known limitations','Requirements','Installation and portable use','Downloads and checksums','Source and licensing')) {
++    Reject ($valid.Replace('### '+$heading,'### Missing section')) ('missing subsection '+$heading)
++}
++Reject ($valid.Replace('合成测试内容。','')) 'empty changes rejected'
++Reject ($valid.Replace('Synthetic fixes.','<!-- No actual content -->')) 'comment-only fixes rejected'
++Reject ($valid.Replace('Synthetic changes.',"``````text`nOnly in a code example`n``````")) 'code-only changes rejected'
++Reject ($valid+"`n``````text`nunterminated") 'unterminated code fence rejected'
++Reject ($valid+"`n<!-- unterminated") 'unterminated comment rejected'
++Reject ($valid.Replace('## English','## ENGLISH')) 'explicit English section required'
++Reject ($valid+"`n## English`nDuplicate") 'duplicate language rejected'
++Reject ($valid+"`n### Changes`nDuplicate") 'duplicate subsection rejected'
++Reject ($valid.Replace('Windows 11 x64','Windows 10 x64')) 'wrong supported platform rejected'
++Reject ($valid.Replace('.NET 10.0.14','.NET 10.0.140')) 'runtime substring mismatch rejected'
++Reject ($valid.Replace('未代码签名','未确认发行者')) 'Chinese signing disclosure required'
++Reject ($valid.Replace('unsigned','unverified')) 'English signing disclosure required'
++$base='https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.4.2/'
++foreach ($file in @('AsukaLens v1.4.2.zip','AsukaLens v1.4.2.exe','AsukaLens v1.4.2-source.zip','AsukaLens v1.4.2-source.tar.gz','SHA256SUMS.txt','release-manifest.json')) {
++    $link=$base+[Uri]::EscapeDataString($file)
++    Reject ($valid.Replace($link,'https://example.invalid/missing')) ('missing asset link '+$file)
++}
++Reject ($valid.Replace('/releases/download/v1.4.2/','/releases/download/v1.4.20/')) 'wrong version asset URLs rejected'
++Reject ($valid.Replace('/M66Y/Hard-Drive-Space-Visualization/releases/','/fixture/other/releases/')) 'wrong repository asset URLs rejected'
++$extra='[unexpected]('+ $base +'unexpected.zip)'
++Reject ($valid.Replace('### 源码与许可',$extra+"`n`n### 源码与许可")) 'unexpected download rejected'
++Reject ($valid.Replace('/tree/'+$manifest.commit,'/tree/'+('c'*40))) 'wrong source commit rejected'
++$chineseEnd=$valid.IndexOf('## English')
++Reject ($valid.Substring(0,$chineseEnd)+$valid.Substring($chineseEnd).Replace('/releases/download/v1.4.2/','/releases/download/v1.4.20/')) 'each language needs matching links'
++if ($Summary) {
++    if (Test-Path -LiteralPath $Summary) { throw 'Summary exists; refusing overwrite.' }
++    Write-ReleaseJson ([ordered]@{schema=1;passed=$checks.Count;checks=$checks.ToArray();network_used=$false;software_packages_generated=$false}) ([IO.Path]::GetFullPath($Summary))
++}
++Write-Host ('PASS release notes checks: '+$checks.Count)

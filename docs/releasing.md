@@ -97,6 +97,10 @@ $app = [Diagnostics.Process]::Start($start)
 
 完成正式任务要求的受控验证后，按 [验收模板](release-acceptance.example.json)填写真实结果，并填入此次 `release-manifest.json` 的 SHA-256。所有门槛必须是 `passed`；不能把 `not tested` 或本机替代测量改写为通过。发布说明另写 UTF-8 文件，含 `## 简体中文`、`## English`、精确版本、环境、运行时内含、变更、已知限制、安装/便携方法与四类下载链接。
 
+发布说明从[双语模板](release-notes.template.md)另存，按确切清单填写 `{{VERSION}}`、`{{RUNTIME}}`、`{{COMMIT}}` 及两种语言的更新/修复内容，逐项复核固定文字是否仍适用。当前模板供首次正式发布准备，不能直接上传占位符。保留两种语言各自的七个三级标题；下载区分别提供四类资产、SHA256SUMS 和清单的准确链接。上传入口会在 GitHub 调用前校验这些内容，也会拒绝用注释、空栏目或代码示例填充必需说明。校验不替代人工核对文案、签名状态及下载实际可用性。
+
+可先单独运行 `pwsh -File tests/ReleaseNotes.Tests.ps1` 检查模板与校验边界；完整入口控制回归仍使用 `tests/DraftUpload.Tests.ps1`。本机证据与仍需正式任务/独立环境完成的事项集中列在[发布前缺口清单](release-readiness.md)。
+
 **本轮未创建标签。** 未来仅在明确的正式发布任务中创建并推送 `vX.X.X` 标签，必须指向上述提交；已存在标签只核查，绝不移动。上传脚本要求远程已经存在正确标签，本身不创建或重写标签。
 
 ```powershell

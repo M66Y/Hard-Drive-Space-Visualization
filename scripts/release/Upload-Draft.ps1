@@ -14,8 +14,7 @@ if ($manifest.local_test) { throw 'Local-test assets can never be uploaded by th
 $repository = 'M66Y/Hard-Drive-Space-Visualization'
 $qualifiedRepository = 'github.com/' + $repository
 $notesText = Get-Content -LiteralPath $Notes -Raw -Encoding utf8
-$versionToken = '(?<![A-Za-z0-9_.+-])' + [regex]::Escape($manifest.version) + '(?![A-Za-z0-9_.+-])'
-if ($notesText -notmatch '(?m)^## 简体中文(?:\s|$)' -or $notesText -notmatch '(?m)^## English(?:\s|$)' -or $notesText -cnotmatch $versionToken) { throw 'Provide reviewed bilingual release notes with the exact version.' }
+Assert-ReleaseNotes $notesText $manifest
 $accepted = Get-Content -LiteralPath $Acceptance -Raw | ConvertFrom-Json
 if ($accepted.commit -ne $manifest.commit -or $accepted.manifest_sha256 -ne (Get-FileHash -LiteralPath (Join-Path $Directory 'release-manifest.json')).Hash.ToLowerInvariant()) { throw 'Acceptance does not cover these assets.' }
 foreach ($check in @('clean_windows_no_dotnet','portable_workflow','install_upgrade_uninstall','failure_recovery','source_builds','privacy_and_licenses')) {
