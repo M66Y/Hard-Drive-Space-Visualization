@@ -289,24 +289,34 @@ public sealed class DiskScanner
                 {
                     readFailed ??= new bool[FileReadBudget.BatchSize];
                     Array.Clear(readFailed);
-                    await Parallel.ForEachAsync(Enumerable.Range(0, buffered.Count), new ParallelOptions
+                    using (var helpers = fileReads!.TryRentHelpers(Interlocked.Read(ref outstanding), buffered.Count - 1))
                     {
-                        MaxDegreeOfParallelism = FileReadBudget.WorkerLimit, CancellationToken = workToken
-                    }, async (index, readToken) =>
-                    {
-                        var item = buffered[index];
-                        try
+                        void ReadOne(int index, CancellationToken readToken)
                         {
-                            var read = await fileReads!.ReadAsync(item.Entry.Path, item.Attributes, readToken).ConfigureAwait(false);
-                            fileReads.RecordParallelRead();
-                            ApplyStorage(item.Entry, read.Storage, read.Error);
+                            var item = buffered[index];
+                            try
+                            {
+                                var read = fileReads.Read(item.Entry.Path, item.Attributes, readToken);
+                                if (helpers.Count > 0) fileReads.RecordParallelRead();
+                                ApplyStorage(item.Entry, read.Storage, read.Error);
+                            }
+                            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+                            {
+                                Issue(item.Entry.Path, ex.Message, current);
+                                readFailed[index] = true;
+                            }
                         }
-                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+                        if (helpers.Count == 0)
                         {
-                            Issue(item.Entry.Path, ex.Message, current);
-                            readFailed[index] = true;
+                            // A directory may have appeared after buffering started. Keep
+                            // its priority instead of queuing a batch of extra readers.
+                            for (int index = 0; index < buffered.Count; index++) ReadOne(index, workToken);
                         }
-                    }).ConfigureAwait(false);
+                        else await Parallel.ForEachAsync(Enumerable.Range(0, buffered.Count), new ParallelOptions
+                        {
+                            MaxDegreeOfParallelism = helpers.Count + 1, CancellationToken = workToken
+                        }, (index, readToken) => { ReadOne(index, readToken); return ValueTask.CompletedTask; }).ConfigureAwait(false);
+                    }
                     workToken.ThrowIfCancellationRequested();
                     for (int index = 0; index < buffered.Count; index++)
                     {
@@ -389,7 +399,8 @@ public sealed class DiskScanner
                         if (!isDirectory)
                         {
                             entry.Size = info.Length; entry.FileCount = 1;
-                            if (fileReads != null && ++discoveredFiles > FileReadBudget.LargeDirectoryThreshold)
+                            if (fileReads != null && ++discoveredFiles > FileReadBudget.LargeDirectoryThreshold &&
+                                (buffered is { Count: > 0 } || fileReads.CanSupplement(Interlocked.Read(ref outstanding))))
                             {
                                 buffered ??= new(FileReadBudget.BatchSize);
                                 buffered.Add((entry, attributes)); fileReads.BufferAdded();
@@ -404,7 +415,7 @@ public sealed class DiskScanner
                             { storage = oldFile.Storage; Interlocked.Increment(ref reusedFiles); }
                             else if (fileReads != null)
                             {
-                                var read = await fileReads.ReadAsync(filePath, attributes, workToken).ConfigureAwait(false);
+                                var read = fileReads.Read(filePath, attributes, workToken);
                                 storage = read.Storage; storageError = read.Error;
                             }
                             else NativeStorage.TryRead(filePath, false, attributes, out storage, out storageError);
@@ -444,6 +455,7 @@ public sealed class DiskScanner
             MaxDegreeOfParallelism = profile.Workers, CancellationToken = token
         }, async (current, workToken) =>
         {
+            using var directorySlot = fileReads != null ? await fileReads.EnterDirectoryAsync(workToken).ConfigureAwait(false) : default;
             concurrency.Enter();
             try
             {
@@ -482,7 +494,8 @@ public sealed class DiskScanner
                 FileReaderLimit = fileReads == null ? 0 : FileReadBudget.WorkerLimit,
                 PeakFileReaders = fileReads?.PeakReaders ?? 0,
                 PeakBufferedFiles = fileReads?.PeakBufferedFiles ?? 0,
-                ParallelFileReads = fileReads?.ParallelFiles ?? 0
+                ParallelFileReads = fileReads?.ParallelFiles ?? 0,
+                PeakSupplementalReaders = fileReads?.PeakHelpers ?? 0
             }
         };
     }

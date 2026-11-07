@@ -2,8 +2,8 @@ namespace DiskAtlas;
 
 internal readonly record struct FileReadResult(FileStorageInfo? Storage, string? Error);
 
-// One budget per full scan. A directory buffers at most one batch and awaits its
-// completion before enumerating more files; eight directory workers retain <= 2048 items.
+// Directory owners and temporary file helpers share eight execution slots.
+// Owners never wait for helpers: they borrow only idle slots, with no directory backlog.
 internal sealed class FileReadBudget : IDisposable
 {
     internal const int LargeDirectoryThreshold = 512;
@@ -13,12 +13,15 @@ internal sealed class FileReadBudget : IDisposable
     private readonly SemaphoreSlim permits = new(WorkerLimit, WorkerLimit);
     private readonly ScanConcurrencyMeter reading = new();
     private readonly Func<string, FileAttributes, FileReadResult> read;
-    private int buffered, peakBuffered;
+    private int buffered, peakBuffered, directories, helpers, peakHelpers;
     private long parallelFiles;
     public int PeakReaders => reading.Peak;
     public int PeakBufferedFiles => Volatile.Read(ref peakBuffered);
     internal int BufferedFiles => Volatile.Read(ref buffered);
     public long ParallelFiles => Interlocked.Read(ref parallelFiles);
+    public int PeakHelpers => Volatile.Read(ref peakHelpers);
+    internal int ActiveDirectories => Volatile.Read(ref directories);
+    internal int AvailableSlots => permits.CurrentCount;
 
     internal FileReadBudget(Func<string, FileAttributes, FileReadResult>? read = null) => this.read = read ?? ReadNative;
 
@@ -28,17 +31,51 @@ internal sealed class FileReadBudget : IDisposable
         return new(storage, error);
     }
 
-    public async ValueTask<FileReadResult> ReadAsync(string path, FileAttributes attributes, CancellationToken token)
+    public async ValueTask<Lease> EnterDirectoryAsync(CancellationToken token)
     {
         await permits.WaitAsync(token).ConfigureAwait(false);
-        try
+        Interlocked.Increment(ref directories);
+        return new(this, 1, true);
+    }
+
+    public bool CanSupplement(long outstandingDirectories) => outstandingDirectories <= ActiveDirectories && permits.CurrentCount > 0;
+
+    public Lease TryRentHelpers(long outstandingDirectories, int requested = WorkerLimit - 1)
+    {
+        int count = 0;
+        // This is a conservative instantaneous hint, not a correctness dependency.
+        // Newly discovered directories may wait for the current bounded batch; the
+        // shared slots still cap every native call and helpers never wait for slots.
+        if (outstandingDirectories <= ActiveDirectories)
+            while (count < Math.Clamp(requested, 0, WorkerLimit - 1) && permits.Wait(0)) count++;
+        if (count != 0)
         {
-            token.ThrowIfCancellationRequested();
-            reading.Enter();
-            try { return read(path, attributes); }
-            finally { reading.Exit(); }
+            int current = Interlocked.Add(ref helpers, count), observed;
+            while (current > (observed = Volatile.Read(ref peakHelpers)))
+                if (Interlocked.CompareExchange(ref peakHelpers, current, observed) == observed) break;
         }
-        finally { permits.Release(); }
+        return new(this, count, false);
+    }
+
+    // Call only while owning a directory/helper slot; no per-file gate or queue.
+    public FileReadResult Read(string path, FileAttributes attributes, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested(); reading.Enter();
+        try { return read(path, attributes); }
+        finally { reading.Exit(); }
+    }
+
+    internal readonly struct Lease(FileReadBudget owner, int count, bool directory) : IDisposable
+    {
+        public int Count => count;
+        // Single-owner lexical using; never copy/dispose the lease twice.
+        public void Dispose()
+        {
+            if (count == 0) return;
+            if (directory) Interlocked.Decrement(ref owner.directories);
+            else Interlocked.Add(ref owner.helpers, -count);
+            owner.permits.Release(count);
+        }
     }
 
     public void BufferAdded()

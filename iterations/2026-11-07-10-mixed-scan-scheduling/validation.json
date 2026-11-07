@@ -1,0 +1,54 @@
+{
+  "baseline": "7e519f1172ffed4f6f075fb67ca7b698498d6d5e",
+  "runtime": {
+    "sdk": "10.0.403",
+    "runtime": "10.0.14",
+    "platform": "Windows x64"
+  },
+  "build": {
+    "application": "PASS: zero warnings/errors",
+    "tests": "PASS: zero warnings/errors"
+  },
+  "regression": {
+    "core": 38,
+    "advanced": 25,
+    "journal": 16,
+    "parallel_file": 11,
+    "ui_144_dpi_groups": 11,
+    "ui_96_dpi_groups": 11,
+    "native_ntfs_refresh": "ChangeJournal / Available"
+  },
+  "synthetic_benchmark": {
+    "before_timed_scans": 36,
+    "after_timed_scans": 36,
+    "all_entry_comparisons_passed": true,
+    "native_file_call_limit": 8,
+    "file_buffer_limit": 2048
+  },
+  "comparison_tool": {
+    "four_scan_smoke": "PASS",
+    "metadata_difference_checks": "PASS",
+    "drive_root_and_parent_output_guards": "PASS",
+    "final_normal_benchmark_smoke": "PASS: four synthetic full scans, equal fingerprints, no retained per-entry diagnostic baseline"
+  },
+  "private_directory_validation": {
+    "four_full_scans_completed": true,
+    "full_fingerprints_equal": false,
+    "targeted_diagnostic_completed": true,
+    "targeted_equal_except_directory_modified_time": true,
+    "incomplete_state_preserved": true,
+    "stable_speedup_proven": false,
+    "privacy": "No actual directory names, paths, statistics, times, fingerprints or raw logs in this archive. Diagnostic pair retains an additional snapshot; do not merge its timing into the four-run performance comparison."
+  },
+  "preview": [
+    {
+      "path": "bin/Release/net10.0-windows/DiskAtlas.exe",
+      "sha256": "24bcbff7035572c58a2713ccf7e58d3f3813eaa3b243ab2fc823ffd0e9635a1b"
+    },
+    {
+      "path": "bin/Release/net10.0-windows/DiskAtlas.dll",
+      "sha256": "428c4b26c865c2696f3f34c8f677047be25c861c0422b233dbfb9a2af175302d"
+    }
+  ],
+  "release": false
+}

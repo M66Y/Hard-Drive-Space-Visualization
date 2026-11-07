@@ -1,0 +1,58 @@
+[
+  {
+    "kind": "mixed synthetic dataset",
+    "bytes": 140279808.0
+  },
+  {
+    "kind": "comparison smoke fixture",
+    "bytes": 655360.0
+  },
+  {
+    "kind": "ownership marker",
+    "bytes": 32.0
+  },
+  {
+    "kind": "duplicate synthetic before report",
+    "bytes": 11059
+  },
+  {
+    "kind": "duplicate synthetic after report",
+    "bytes": 11786
+  },
+  {
+    "kind": "owned CLI cache",
+    "bytes": 0
+  },
+  {
+    "kind": "application build intermediates",
+    "bytes": 4007862
+  },
+  {
+    "kind": "test build intermediates",
+    "bytes": 3855348
+  },
+  {
+    "kind": "test executable output",
+    "bytes": 3565466
+  },
+  {
+    "kind": "synthetic comparison report and diagnostics",
+    "bytes": 8363
+  },
+  {
+    "kind": "synthetic comparison report and diagnostics",
+    "bytes": 8679
+  },
+  {
+    "kind": "isolated private runtime diagnostics",
+    "bytes": 6212
+  },
+  {
+    "kind": "isolated private runtime diagnostics",
+    "bytes": 3288
+  },
+  {
+    "kind": "owned documentation drafts and archive helper",
+    "bytes": 51674
+  }
+]

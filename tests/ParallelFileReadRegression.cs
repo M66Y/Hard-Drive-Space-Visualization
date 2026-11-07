@@ -46,27 +46,54 @@ internal static class ParallelFileReadRegression
                     if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
                     return new(null, "synthetic");
                 });
+                async Task<FileReadResult> Work(CancellationToken token)
+                { using var owner = await budget.EnterDirectoryAsync(token); return budget.Read("synthetic", 0, token); }
                 var workers = Enumerable.Range(0, 16).Select(_ => Task.Factory.StartNew(
-                    () => budget.ReadAsync("synthetic", 0, cancel.Token).AsTask(), CancellationToken.None,
+                    () => Work(cancel.Token), CancellationToken.None,
                     TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap()).ToArray();
                 try { Check(entered.Wait(TimeSpan.FromSeconds(8))); Check(calls == 8 && budget.PeakReaders == 8); }
                 finally { cancel.Cancel(); release.Set(); }
                 try { Task.WhenAll(workers).WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult(); }
                 catch (OperationCanceledException) { }
                 Check(workers.All(t => t.IsCompleted) && calls == 8);
-                budget.ReadAsync("synthetic", 0, CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
-                Check(calls == 9);
+                Work(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
+                Check(calls == 9 && budget.ActiveDirectories == 0 && budget.AvailableSlots == 8);
             });
             Test("native read exceptions release all permits", () =>
             {
                 int calls = 0;
                 using var budget = new FileReadBudget((_, _) =>
                 { if (Interlocked.Increment(ref calls) <= 16) throw new IOException("synthetic"); return new(null, "synthetic"); });
+                async Task<FileReadResult> Work()
+                { using var owner = await budget.EnterDirectoryAsync(CancellationToken.None); return budget.Read("synthetic", 0, CancellationToken.None); }
                 for (int i = 0; i < 16; i++)
-                    try { budget.ReadAsync("synthetic", 0, CancellationToken.None).GetAwaiter().GetResult(); throw new InvalidOperationException(); }
+                    try { Work().GetAwaiter().GetResult(); throw new InvalidOperationException(); }
                     catch (IOException) { }
-                budget.ReadAsync("synthetic", 0, CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
-                Check(calls == 17 && budget.PeakReaders == 1);
+                Work().WaitAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
+                Check(calls == 17 && budget.PeakReaders == 1 && budget.AvailableSlots == 8);
+            });
+            Test("directory backlog prevents helper queues and idle slots return to directory owners", () =>
+            {
+                using var budget = new FileReadBudget();
+                using (var first = budget.EnterDirectoryAsync(CancellationToken.None).GetAwaiter().GetResult())
+                {
+                    using (var denied = budget.TryRentHelpers(2)) Check(denied.Count == 0 && budget.AvailableSlots == 7);
+                    using (var single = budget.TryRentHelpers(1, 0)) Check(single.Count == 0 && budget.AvailableSlots == 7);
+                    Task<FileReadBudget.Lease> waiting;
+                    using (var helpers = budget.TryRentHelpers(1))
+                    {
+                        Check(helpers.Count == 7 && budget.AvailableSlots == 0 && budget.PeakHelpers == 7);
+                        waiting = budget.EnterDirectoryAsync(CancellationToken.None).AsTask();
+                        Check(!waiting.IsCompleted);
+                        using var denied = budget.TryRentHelpers(2); Check(denied.Count == 0);
+                    }
+                    using (var second = waiting.WaitAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult())
+                    {
+                        Check(budget.ActiveDirectories == 2 && budget.AvailableSlots == 6);
+                        using var helpers = budget.TryRentHelpers(2); Check(helpers.Count == 6);
+                    }
+                }
+                Check(budget.ActiveDirectories == 0 && budget.AvailableSlots == 8);
             });
             string flat = Path.Combine(root, "flat"); Create(flat, 1200);
             Test("flat full scan matches serial metadata including hard-link ownership", () =>
@@ -77,6 +104,7 @@ internal static class ParallelFileReadRegression
                 Equal(result.Root, serial.Root);
                 Check(result.Skipped == 0 && result.Root.UnknownAllocationFiles == 0 && result.Root.Descendants().Any(e => e.SharedAllocation));
                 Check(result.Statistics is { FileReaderLimit: 8, ParallelFileReads: 689, PeakFileReaders: > 0 and <= 8, PeakBufferedFiles: 256 });
+                Check(result.Statistics!.PeakSupplementalReaders == 7);
                 Check(RefreshPresentation.Details(result.Statistics!).Contains("文件读取调用峰值"));
             });
             Test("other modes and metadata refresh retain the prior strategy", () =>
@@ -103,7 +131,8 @@ internal static class ParallelFileReadRegression
                 var result = scanner.Scan(wide, null, CancellationToken.None, options: new(ScanMode.HighSpeed));
                 Equal(result.Root, new DiskScanner(1).Scan(wide, null, CancellationToken.None).Root);
                 Check(active == 0 && peak is > 1 and <= 8 && result.Statistics!.PeakFileReaders == peak &&
-                    result.Statistics.PeakBufferedFiles is > 256 and <= 2048 && result.Statistics.ParallelFileReads == 12 * 289);
+                    result.Statistics.PeakBufferedFiles is >= 0 and <= 2048 && result.Statistics.ParallelFileReads is >= 0 and < 12 * 289 &&
+                    result.Statistics.PeakSupplementalReaders is >= 0 and <= 7);
             });
             Test("cancellation waits for active batch reads and stops publication", () =>
             {

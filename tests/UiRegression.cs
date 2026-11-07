@@ -150,7 +150,7 @@ internal static class UiRegression
                                 string text = dialog.Controls.OfType<TextBox>().Single().Text;
                                 // Do not require a native journal to be available on the test machine.
                                 detailsRead = text.Contains("完整扫描") && text.Contains("原因：") && text.Contains("核验目录") && text.Contains("处理记录") &&
-                                    text.Contains("文件读取调用峰值") && text.Contains("并行批次读取");
+                                    text.Contains("文件读取调用峰值") && text.Contains("并行批次读取") && text.Contains("补充读取额度峰值");
                                 dialog.Close(); closeDetails.Stop();
                             };
                             closeDetails.Start();

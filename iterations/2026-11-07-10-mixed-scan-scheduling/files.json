@@ -1,0 +1,107 @@
+{
+  "baseline": "7e519f1172ffed4f6f075fb67ca7b698498d6d5e",
+  "patch_files": [
+    "AGENTS.md",
+    "Core.cs",
+    "README.md",
+    "RefreshStatus.cs",
+    "ScanPolicy.cs",
+    "src/Scanning/FileReadBudget.cs",
+    "tests/ParallelFileReadRegression.cs",
+    "tests/Program.cs",
+    "tests/UiRegression.cs",
+    "使用说明.txt",
+    "docs/development-plan.md",
+    "docs/project-status.md",
+    "docs/scan-performance-plan.md",
+    "tests/MixedScanBenchmark.cs",
+    "tests/FolderComparison.cs"
+  ],
+  "restoration": "Isolated baseline: git apply --check, actual apply, LF-normalized content equality. No parent repository discovery.",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256_lf": "7709d73ced620053b600e30eed4d9c5297bc32d29c6ead3ed60938e29a377633"
+    },
+    {
+      "path": "Core.cs",
+      "sha256_lf": "09636b7f407b4237ee487752ae354cfb0588d1283072842f9f53d92e7b53d3ed"
+    },
+    {
+      "path": "README.md",
+      "sha256_lf": "4ebf4c190597f0ca31aaf6d5ead78507c86fff2c37eafe053bbd1a760e1d8091"
+    },
+    {
+      "path": "RefreshStatus.cs",
+      "sha256_lf": "a5913e278e4694107817aefac05b7ea9ae3956750ec8edbc200298bab58be7cf"
+    },
+    {
+      "path": "ScanPolicy.cs",
+      "sha256_lf": "3e18c412b5466d82e92e9c089011902b5e1017c7824c2936aa8f1f32033352ba"
+    },
+    {
+      "path": "src/Scanning/FileReadBudget.cs",
+      "sha256_lf": "c7a0bcc4675a816affd3daacd18275415aaf11305eeae941f0685c329d5dd93c"
+    },
+    {
+      "path": "tests/ParallelFileReadRegression.cs",
+      "sha256_lf": "e16b02edc2276e4e2232bac621eca7976e1c329a8508baffde14d057f4eae673"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256_lf": "0a1618e87d7f4b6622a27fa80be63e77457115e76563501bd9beebb4bee403c0"
+    },
+    {
+      "path": "tests/UiRegression.cs",
+      "sha256_lf": "3d7c1f6b4eb4acfcdded60f7cd6006232eacb1cad09d35e876d1d460e4b6883b"
+    },
+    {
+      "path": "使用说明.txt",
+      "sha256_lf": "e6dfeb61d71c346d978516bc446b06f9352cbbdcb83d0e1c3f7e0cfc424627ea"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256_lf": "7e581d4fa9d3d37098df4ea7f0da86f14e81d7aed1342a05e79ad89bac16f24d"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256_lf": "a02404f894deceef2d252d46c32386edc94d3db28db2c1fbe33794de61477fdb"
+    },
+    {
+      "path": "docs/scan-performance-plan.md",
+      "sha256_lf": "04dfebe588021fc90005313636af7ddf7e79c115fa7ffcae6cd6e1e62356fe67"
+    },
+    {
+      "path": "tests/MixedScanBenchmark.cs",
+      "sha256_lf": "1bee4476721c950f3692f607546ce8d9afdd0a6a9b466529990ccd6263cd1ebc"
+    },
+    {
+      "path": "tests/FolderComparison.cs",
+      "sha256_lf": "b52714a97ad88333328dd351be364de1af3f10de4e1bb525ccaef1fc2df1168b"
+    },
+    {
+      "path": "iterations/2026-11-07-10-mixed-scan-scheduling/changes.patch",
+      "sha256_lf": "40d339d5b2f6d7aa4d64b7a5c5c12e22e0c3918561c4d023059bf71e14781bb3"
+    },
+    {
+      "path": "iterations/2026-11-07-10-mixed-scan-scheduling/cleanup.json",
+      "sha256_lf": "f942eb2b6b3ce972164bfbd6f1e4c052cdceae7ca0909c3391c8b1ad93c701a1"
+    },
+    {
+      "path": "iterations/2026-11-07-10-mixed-scan-scheduling/mixed-scan-after.json",
+      "sha256_lf": "73878e1543abe5d9c15ffc6109f6744ba52ec500c675a85b6196d14ccc75bc8c"
+    },
+    {
+      "path": "iterations/2026-11-07-10-mixed-scan-scheduling/mixed-scan-before.json",
+      "sha256_lf": "208d24f124071ef208a61db4ad332c5602ebaa830401f1b329240cb7f9c7f83d"
+    },
+    {
+      "path": "iterations/2026-11-07-10-mixed-scan-scheduling/README.md",
+      "sha256_lf": "3015178b3b2bee4525617d6eeba6a9db84a24ae022991d3a5d853f8730bba731"
+    },
+    {
+      "path": "iterations/2026-11-07-10-mixed-scan-scheduling/validation.json",
+      "sha256_lf": "598be351c49c5423de0b7d11daf37e49ad071cd82e0f6078ccae25ad457af2a1"
+    }
+  ]
+}
