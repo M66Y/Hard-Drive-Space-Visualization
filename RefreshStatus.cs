@@ -62,5 +62,8 @@ public static class RefreshPresentation
     public static string Details(ScanStatistics stats) =>
         $"{Summary(stats)}\n原因：{stats.Reason}\n日志：{stats.Journal?.Description ?? "未提供诊断"}；处理记录 {stats.JournalRecords:N0} 条。\n" +
         $"准备与核验 {stats.PreparationMilliseconds:N1} ms；读取与整理 {stats.ScanMilliseconds:N1} ms。\n" +
-        $"核验峰值 {stats.PeakVerificationWorkers}；目录峰值 {stats.PeakDirectoryWorkers}/{stats.Workers}。任务峰值含等待，不表示 CPU 核数或瞬时磁盘 I/O。";
+        $"核验峰值 {stats.PeakVerificationWorkers}；目录峰值 {stats.PeakDirectoryWorkers}/{stats.Workers}。任务峰值含等待，不表示 CPU 核数或瞬时磁盘 I/O。\n" +
+        (stats.FileReaderLimit > 0
+            ? $"文件读取调用峰值 {stats.PeakFileReaders}/{stats.FileReaderLimit}；并行批次读取 {stats.ParallelFileReads:N0} 个文件；待发布文件缓冲峰值 {stats.PeakBufferedFiles}/{FileReadBudget.BufferLimit}。"
+            : "文件元信息在各目录任务内逐项读取。此扫描未启用目录内并行批次。");
 }

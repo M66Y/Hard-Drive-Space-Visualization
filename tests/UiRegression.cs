@@ -149,7 +149,8 @@ internal static class UiRegression
                                 if (dialog == null) return;
                                 string text = dialog.Controls.OfType<TextBox>().Single().Text;
                                 // Do not require a native journal to be available on the test machine.
-                                detailsRead = text.Contains("完整扫描") && text.Contains("原因：") && text.Contains("核验目录") && text.Contains("处理记录");
+                                detailsRead = text.Contains("完整扫描") && text.Contains("原因：") && text.Contains("核验目录") && text.Contains("处理记录") &&
+                                    text.Contains("文件读取调用峰值") && text.Contains("并行批次读取");
                                 dialog.Close(); closeDetails.Stop();
                             };
                             closeDetails.Start();
@@ -158,6 +159,7 @@ internal static class UiRegression
                         Check(detailsRead, "Refresh details dialog is missing the actual method/counts/reason");
                         product.Close();
                         Console.WriteLine("PASS UI actual coordinator, low/high strategy selection, allocated metric, incremental refresh and force-full action");
+                        await CheckParallelClose(root, Check);
 
                         await CheckInteractions(form, Check);
                         CheckRenderCache(form, Check);
@@ -464,6 +466,35 @@ internal static class UiRegression
         meter.Finish(ScanDisplayState.Completed);
         using (var bitmap = new Bitmap(meter.Width, meter.Height)) meter.DrawToBitmap(bitmap, meter.ClientRectangle);
         Console.WriteLine("PASS UI avatar transparency/reuse, partial hover invalidation, cache reuse/cap/disposal and layout/background/metric invalidation");
+    }
+
+    private static async Task CheckParallelClose(string root, Action<bool, string> check)
+    {
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        int calls = 0, active = 0;
+        var scanner = new DiskScanner((path, attributes) =>
+        {
+            Interlocked.Increment(ref active);
+            try
+            {
+                if (Interlocked.Increment(ref calls) > 512)
+                { entered.TrySetResult(); if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException(); }
+                NativeStorage.TryRead(path, false, attributes, out var storage, out var error); return new(storage, error);
+            }
+            finally { Interlocked.Decrement(ref active); }
+        });
+        using var product = new MainForm(null)
+        { ScanRunner = (path, progress, token, live) => scanner.Scan(path, progress, token, live, new(ScanMode.HighSpeed)) };
+        product.Show();
+        var task = (Task)typeof(MainForm).GetMethod("ScanFolder", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(product, [root])!;
+        try { await entered.Task.WaitAsync(TimeSpan.FromSeconds(8)); product.Close(); }
+        finally { release.Set(); }
+        await task.WaitAsync(TimeSpan.FromSeconds(10));
+        check(product.IsDisposed && active == 0, "Closing during a file batch retained active readers");
+        check(typeof(MainForm).GetField("scan", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(product) == null,
+            "A closed window received a completed scan");
+        Console.WriteLine("PASS UI closing during a high-speed file batch cancels, joins readers and ignores late results");
     }
 
     private sealed class ScanGate : IDisposable

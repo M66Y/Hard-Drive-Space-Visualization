@@ -11,7 +11,8 @@ internal static class ScanResponseBenchmark
     private sealed record UiSample(string Shape, string Mode, int Run, double ScanMs, double SettledMs,
         double? FirstPreviewMs, double CpuMs, long AllocatedBytes, long SampledWorkingSetBytes,
         double TickGapP95Ms, double TickGapMaxMs, double SearchRoundTripMs,
-        double? CancelDispatchMs, double? CancelCompletionMs, int DirectoryWorkers);
+        double? CancelDispatchMs, double? CancelCompletionMs, int DirectoryWorkers,
+        int FileReaderLimit, int PeakFileReaders, int PeakBufferedFiles, long ParallelFileReads);
     private sealed record ReadSample(string Shape, int Workers, int Run, double WallMs, double CpuMs, long AllocatedBytes);
     private static T Field<T>(object target, string name) => (T)typeof(MainForm).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(target)!;
     private static void Set(object target, string name, object value) => typeof(MainForm).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(target, value);
@@ -158,7 +159,8 @@ internal static class ScanResponseBenchmark
                                         if (requested.HasValue) Check(ReferenceEquals(completed, Field<ScanResult>(form, "scan")) && Field<ScanProgressControl>(form, "progressBar").State == ScanDisplayState.Cancelled);
                                         await Wait(() => Field<DataGridView>(form, "grid").Enabled && Field<CancellationTokenSource?>(form, "viewCancellation") == null);
                                         samples.Add(new(dataset.Shape, ((ScanMode)mode).ToString(), run + 1, scanMs, settled, first, cpuMs, allocated, workingSet,
-                                            Percentile(gaps, .95), gaps.DefaultIfEmpty(0).Max(), searchMs, requested, cancelMs, completed.Statistics!.PeakDirectoryWorkers));
+                                            Percentile(gaps, .95), gaps.DefaultIfEmpty(0).Max(), searchMs, requested, cancelMs, completed.Statistics!.PeakDirectoryWorkers,
+                                            completed.Statistics.FileReaderLimit, completed.Statistics.PeakFileReaders, completed.Statistics.PeakBufferedFiles, completed.Statistics.ParallelFileReads));
                                     }
                                 }
                                 foreach (var group in samples.Where(s => s.Shape == dataset.Shape).GroupBy(s => s.Mode))
@@ -166,7 +168,7 @@ internal static class ScanResponseBenchmark
                             }
                             File.WriteAllText(report, JsonSerializer.Serialize(new
                             {
-                                Schema = 1, Source = "Production baseline before scan architecture changes", FilesPerShape = 32000, RunsPerMode = 6, Dpi = form.DeviceDpi,
+                                Schema = 2, Source = "Production pipeline; implementation revision is recorded in the enclosing iteration", FilesPerShape = 32000, RunsPerMode = 6, Dpi = form.DeviceDpi,
                                 Cache = "Warm synthetic metadata; fixture creation, warmup, explicit GC and equality checks outside timed scans. OS cache not flushed. No controlled external workload.",
                                 Ui = "Real MainForm with isolated enabled diagnostics. ScanMs ends at ScanFolder return; SettledMs includes completion of final list query. FirstPreviewMs is first 20ms UI timer observation of a nonempty partial list, not first physical painted frame; null means no interim preview observed.",
                                 Response = "Tick gaps are UI timer dispatch intervals, not FPS/input latency. Search includes existing 220ms debounce. CancelDispatchMs is actual UI request time after a 75ms target; CancelCompletionMs is request to scan unwind, not arbitrary native I/O cancellation guarantee.",

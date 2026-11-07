@@ -1,0 +1,89 @@
+{
+  "baseline": "55b112d95bf9a058f08c664cfde3f78ff3995666",
+  "date": "2026-11-07",
+  "sdk": "10.0.403",
+  "runtime": "10.0.14",
+  "framework": "net10.0-windows",
+  "architecture": "x64",
+  "build": {
+    "application": "bin/ScanPerformance",
+    "warnings": 0,
+    "errors": 0,
+    "defaultOutputBlockedByRunningApp": true
+  },
+  "checks": {
+    "core": 38,
+    "advanced": 25,
+    "journal": 16,
+    "parallelFiles": 10,
+    "ui144": 11,
+    "ui96": 11,
+    "completedUiBenchmarkScans": 36,
+    "cancelledUiBenchmarkScans": 36,
+    "nativeReadSamples": 36,
+    "policyBenchmarkRuns": 2,
+    "realRefresh": "ChangeJournal/Available"
+  },
+  "manual": {
+    "syntheticFiles": 8001,
+    "highSpeedForceFull": true,
+    "completedGrid": true,
+    "readPeak": "8/8",
+    "batchFiles": 7489,
+    "bufferPeak": "256/2048",
+    "closedOwnWindow": true,
+    "existingWindowKept": true,
+    "screenshotsArchived": false
+  },
+  "packaging": false,
+  "release": false,
+  "cleanup": {
+    "removed": [
+      {
+        "path": "artifacts/scan-performance-preview",
+        "bytes": 8287516
+      },
+      {
+        "path": "artifacts/scan-response-cli",
+        "bytes": 0
+      },
+      {
+        "path": "artifacts/scan-response-results.json",
+        "bytes": 29775
+      },
+      {
+        "path": "artifacts/policy-benchmark-results.json",
+        "bytes": 34022
+      },
+      {
+        "path": "obj",
+        "bytes": 4004864
+      },
+      {
+        "path": "tests/obj",
+        "bytes": 3791529
+      },
+      {
+        "path": "tests/bin",
+        "bytes": 3516986
+      }
+    ],
+    "bytes": 19664692,
+    "retained": [
+      "bin/ScanPerformance",
+      "bin/Release/net10.0-windows",
+      "bin/Release/net9.0-windows"
+    ],
+    "note": "Benchmark-owned temporary datasets were already removed by their harnesses; archive helper is removed after restoration verification."
+  },
+  "previewFiles": [
+    {
+      "path": "bin/ScanPerformance/DiskAtlas.exe",
+      "sha256": "cce13dc8f1bc04dc5699c7c2446396ff74adc97bc60aa39f7e266da9962a3db5"
+    },
+    {
+      "path": "bin/ScanPerformance/DiskAtlas.dll",
+      "sha256": "1d7150d1dc377f7b3b2a0acd98428872bb3642db28c3b734d1674bf790286b72"
+    }
+  ]
+}

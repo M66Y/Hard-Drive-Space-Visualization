@@ -155,6 +155,7 @@ public record ScanResult(DiskEntry Root, TimeSpan Elapsed, long Skipped, IReadOn
 public sealed class DiskScanner
 {
     private readonly int maxConcurrency;
+    private readonly Func<string, FileAttributes, FileReadResult>? fileReadOverride;
 
     // A small worker pool overlaps SSD directory reads without opening a task per folder.
     public DiskScanner(int maxConcurrency = 8)
@@ -162,6 +163,8 @@ public sealed class DiskScanner
         if (maxConcurrency is < 1 or > 16) throw new ArgumentOutOfRangeException(nameof(maxConcurrency));
         this.maxConcurrency = maxConcurrency;
     }
+
+    internal DiskScanner(Func<string, FileAttributes, FileReadResult> fileRead) : this() => fileReadOverride = fileRead;
 
     private readonly record struct ScanEntry(string Name, FileAttributes Attributes, long Length, DateTime Modified);
 
@@ -201,6 +204,9 @@ public sealed class DiskScanner
         long readDirectories = 0, reusedFiles = 0;
         var pacer = new ScanWorkPacer(profile);
         var concurrency = new ScanConcurrencyMeter();
+        // Explicit high-speed full scans only. Refresh verification/reuse and other
+        // modes retain their existing path, including low-impact pacing.
+        using var fileReads = options?.Mode == ScanMode.HighSpeed && refresh == null ? new FileReadBudget(fileReadOverride) : null;
 
         void Issue(string itemPath, string reason, DiskEntry container)
         {
@@ -224,7 +230,7 @@ public sealed class DiskScanner
             }
         }
 
-        void ScanDirectory(DiskEntry current, CancellationToken workToken)
+        async ValueTask ScanDirectory(DiskEntry current, CancellationToken workToken)
         {
             workToken.ThrowIfCancellationRequested();
             pacer.Worked(workToken);
@@ -234,6 +240,9 @@ public sealed class DiskScanner
             workToken.ThrowIfCancellationRequested();
             long localFiles = 0, localFolders = 0, localBytes = 0;
             int batch = 0;
+            long discoveredFiles = 0;
+            List<(DiskEntry Entry, FileAttributes Attributes)>? buffered = null;
+            bool[]? readFailed = null;
             void Flush()
             {
                 if (localFiles != 0 || localFolders != 0 || localBytes != 0)
@@ -260,6 +269,56 @@ public sealed class DiskScanner
                 if (entry.IsDirectory) { localFolders++; Schedule(entry); }
                 else { localFiles++; localBytes += entry.Size; }
                 if (++batch == 256) { Flush(); batch = 0; }
+            }
+            void ApplyStorage(DiskEntry entry, FileStorageInfo? storage, string? error)
+            {
+                if (storage != null)
+                {
+                    entry.Storage = storage;
+                    entry.Size = storage.LogicalBytes;
+                    entry.Modified = storage.Modified ?? entry.Modified;
+                }
+                else lock (allocationIssues) if (allocationIssues.Count < 2000) allocationIssues.Add(new(entry.Path, "占用空间未知：" + error));
+            }
+            async ValueTask ReadBuffered()
+            {
+                if (buffered is not { Count: > 0 }) return;
+                // No tree mutation or counter publication in file workers. The directory
+                // publishes in enumeration order only after every worker has joined.
+                try
+                {
+                    readFailed ??= new bool[FileReadBudget.BatchSize];
+                    Array.Clear(readFailed);
+                    await Parallel.ForEachAsync(Enumerable.Range(0, buffered.Count), new ParallelOptions
+                    {
+                        MaxDegreeOfParallelism = FileReadBudget.WorkerLimit, CancellationToken = workToken
+                    }, async (index, readToken) =>
+                    {
+                        var item = buffered[index];
+                        try
+                        {
+                            var read = await fileReads!.ReadAsync(item.Entry.Path, item.Attributes, readToken).ConfigureAwait(false);
+                            fileReads.RecordParallelRead();
+                            ApplyStorage(item.Entry, read.Storage, read.Error);
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+                        {
+                            Issue(item.Entry.Path, ex.Message, current);
+                            readFailed[index] = true;
+                        }
+                    }).ConfigureAwait(false);
+                    workToken.ThrowIfCancellationRequested();
+                    for (int index = 0; index < buffered.Count; index++)
+                    {
+                        workToken.ThrowIfCancellationRequested();
+                        if (!readFailed[index]) Publish(buffered[index].Entry);
+                    }
+                }
+                finally
+                {
+                    fileReads!.BufferRemoved(buffered.Count);
+                    buffered.Clear();
+                }
             }
             // Keep enumeration exceptions inside this directory so other folders still finish.
             try
@@ -330,20 +389,26 @@ public sealed class DiskScanner
                         if (!isDirectory)
                         {
                             entry.Size = info.Length; entry.FileCount = 1;
+                            if (fileReads != null && ++discoveredFiles > FileReadBudget.LargeDirectoryThreshold)
+                            {
+                                buffered ??= new(FileReadBudget.BatchSize);
+                                buffered.Add((entry, attributes)); fileReads.BufferAdded();
+                                if (buffered.Count == FileReadBudget.BatchSize) await ReadBuffered().ConfigureAwait(false);
+                                continue;
+                            }
                             string filePath = entry.Path;
                             FileStorageInfo? storage = null; string? storageError = null;
                             if (refresh?.MetadataValidated == true && refresh.VerifiedChanges.TryGetValue(filePath, out var changedStorage)) storage = changedStorage;
                             else if (verifiedFiles != null && verifiedFiles.TryGetValue(entry.Name, out var oldFile) && oldFile.Storage != null &&
                                 !refresh!.UnverifiedFiles.Contains(filePath) && oldFile.Size == info.Length && oldFile.Modified == info.Modified)
                             { storage = oldFile.Storage; Interlocked.Increment(ref reusedFiles); }
-                            else NativeStorage.TryRead(filePath, false, attributes, out storage, out storageError);
-                            if (storage != null)
+                            else if (fileReads != null)
                             {
-                                entry.Storage = storage;
-                                entry.Size = storage.LogicalBytes;
-                                entry.Modified = storage.Modified ?? entry.Modified;
+                                var read = await fileReads.ReadAsync(filePath, attributes, workToken).ConfigureAwait(false);
+                                storage = read.Storage; storageError = read.Error;
                             }
-                            else lock (allocationIssues) if (allocationIssues.Count < 2000) allocationIssues.Add(new(entry.Path, "占用空间未知：" + storageError));
+                            else NativeStorage.TryRead(filePath, false, attributes, out storage, out storageError);
+                            ApplyStorage(entry, storage, storageError);
                         }
                         Publish(entry);
                     }
@@ -352,13 +417,24 @@ public sealed class DiskScanner
                         Issue(System.IO.Path.Join(current.Path, info.Name), ex.Message, current);
                     }
                 }
+                await ReadBuffered().ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
                 if (current == root) throw new IOException("无法读取所选文件夹，请确认目录仍然存在且具有访问权限。", ex);
                 Issue(current.Path, ex.Message, current);
             }
-            finally { Flush(); }
+            finally
+            {
+                // Enumeration may fail with a partially filled batch. All previously
+                // enumerated files still get the same metadata/error handling as inline reads.
+                try { await ReadBuffered().ConfigureAwait(false); }
+                finally
+                {
+                    if (buffered is { Count: > 0 }) { fileReads!.BufferRemoved(buffered.Count); buffered.Clear(); }
+                    Flush();
+                }
+            }
         }
 
         // Newly discovered folders are available immediately, even while the root is still enumerating.
@@ -366,18 +442,17 @@ public sealed class DiskScanner
         Parallel.ForEachAsync(pending.Reader.ReadAllAsync(token), new ParallelOptions
         {
             MaxDegreeOfParallelism = profile.Workers, CancellationToken = token
-        }, (current, workToken) =>
+        }, async (current, workToken) =>
         {
             concurrency.Enter();
             try
             {
-                ScanDirectory(current, workToken);
+                await ScanDirectory(current, workToken).ConfigureAwait(false);
                 Interlocked.Increment(ref completedDirectories);
                 if (Interlocked.Decrement(ref outstanding) == 0) pending.Writer.TryComplete();
                 Report(current.Path, phase: refresh != null ? ScanPhase.Reusing : ScanPhase.Scanning);
             }
             finally { concurrency.Exit(); }
-            return ValueTask.CompletedTask;
         }).GetAwaiter().GetResult();
 
         Report(root.Path, true, ScanPhase.Finalizing);
@@ -403,6 +478,12 @@ public sealed class DiskScanner
         {
             AllocationIssues = allocationIssues,
             Statistics = new(options?.Mode ?? ScanMode.HighSpeed, profile.Workers, refresh != null, readDirectories, reusedFiles, refresh == null ? "完整扫描" : "NTFS 日志增量刷新", PeakDirectoryWorkers: concurrency.Peak, Method: refresh == null ? RefreshMethod.FullScan : refresh.MetadataValidated ? RefreshMethod.MetadataVerification : RefreshMethod.ChangeJournal)
+            {
+                FileReaderLimit = fileReads == null ? 0 : FileReadBudget.WorkerLimit,
+                PeakFileReaders = fileReads?.PeakReaders ?? 0,
+                PeakBufferedFiles = fileReads?.PeakBufferedFiles ?? 0,
+                ParallelFileReads = fileReads?.ParallelFiles ?? 0
+            }
         };
     }
 }

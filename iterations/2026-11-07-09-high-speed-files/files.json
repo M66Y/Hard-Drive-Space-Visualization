@@ -1,0 +1,107 @@
+{
+  "baseline": "55b112d95bf9a058f08c664cfde3f78ff3995666",
+  "patch_files": [
+    "AGENTS.md",
+    "Core.cs",
+    "README.md",
+    "RefreshStatus.cs",
+    "ScanPolicy.cs",
+    "docs/development-plan.md",
+    "docs/project-status.md",
+    "docs/scan-performance-plan.md",
+    "tests/DiskAtlas.Tests.csproj",
+    "tests/Program.cs",
+    "tests/ScanResponseBenchmark.cs",
+    "tests/UiRegression.cs",
+    "使用说明.txt",
+    "src/Scanning/FileReadBudget.cs",
+    "tests/ParallelFileReadRegression.cs"
+  ],
+  "restoration": "git apply --check and actual apply; LF-normalized content equality",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256_lf": "922cd6d7932cbaacdadee74c7e43b21a4373ab56c9580551006b6ec31827ed10"
+    },
+    {
+      "path": "Core.cs",
+      "sha256_lf": "834532941ffaabf757ea8a9ed52ccc80f72d2b69601d5db8ec7fd385a469c0cf"
+    },
+    {
+      "path": "README.md",
+      "sha256_lf": "b8d5de0e2eee5ed4aa0749290f3d495c7fe48f5dd3c113720c4ca65ec3c7334e"
+    },
+    {
+      "path": "RefreshStatus.cs",
+      "sha256_lf": "65d8fb6111b1a648c2829df20d7a80495ab3345196f3397171f0b85ffc5a9b78"
+    },
+    {
+      "path": "ScanPolicy.cs",
+      "sha256_lf": "842508e905850b50f8ee5a8e385510058cfe10bec0673b6a72a8a543308836a5"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256_lf": "873b82d0f50ca87e7a3f1068b385f2801ea0eda4461d6c0ad1671b27871aee4e"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256_lf": "712a9dabb10831c6aee09f7b82795274e558a3763e04bd0112f4c89d83338ce7"
+    },
+    {
+      "path": "docs/scan-performance-plan.md",
+      "sha256_lf": "e2edbcbcbe70d4909168a25de63720a6fabb79e4945bb430053607ad39937516"
+    },
+    {
+      "path": "tests/DiskAtlas.Tests.csproj",
+      "sha256_lf": "2815b0d4a69c4a1f861ca5d3ee110d4395935e949c52142debcac0eb70d96d22"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256_lf": "f8cb775d627e5a5b81e3bedcb26c648b83417d866f72bb8a1d45bbb4c7c9e735"
+    },
+    {
+      "path": "tests/ScanResponseBenchmark.cs",
+      "sha256_lf": "93b35ab864a0f503aa12c772a46bee17b31b5d84c866dbd677d36a0d9082bb41"
+    },
+    {
+      "path": "tests/UiRegression.cs",
+      "sha256_lf": "b655005f4329ce6285c01cedc9a07be4b234b3a66731f024c4b6e0a54d0dcc46"
+    },
+    {
+      "path": "使用说明.txt",
+      "sha256_lf": "643279619dd26f7d5dd16c80e3e1229e2eb7b2fb3f157a689873e6ec70393064"
+    },
+    {
+      "path": "src/Scanning/FileReadBudget.cs",
+      "sha256_lf": "beaf302bc4acafcdc9cd4a8fd591b5a1d875c2a145089f5bef665c1de62cc288"
+    },
+    {
+      "path": "tests/ParallelFileReadRegression.cs",
+      "sha256_lf": "70bdfb8ac86790df05cd0512bf66c58f62e2d617b0d0be6dede24c65f754142b"
+    },
+    {
+      "path": "iterations/2026-11-07-09-high-speed-files/changes.patch",
+      "sha256_lf": "c1f076056e4f900c53756be2d82ac26a10fec28bf568cc936f638c41bc8e8fd7"
+    },
+    {
+      "path": "iterations/2026-11-07-09-high-speed-files/policy-benchmark-first.json",
+      "sha256_lf": "1a363f22f7eb55f3fa15e4c2d27e51879cc214ecbb520246003e3afc42dd8e62"
+    },
+    {
+      "path": "iterations/2026-11-07-09-high-speed-files/policy-benchmark-recheck.json",
+      "sha256_lf": "b9139bb4bcc1cf9149662f1e6155934c6d47da4cfdda2d1f89d3515d3611b4b4"
+    },
+    {
+      "path": "iterations/2026-11-07-09-high-speed-files/README.md",
+      "sha256_lf": "169187dc850c6c72d074efbd2d78ef2639519b931aa3fee6dadcfb0351958b0d"
+    },
+    {
+      "path": "iterations/2026-11-07-09-high-speed-files/scan-response-results.json",
+      "sha256_lf": "89df9dd4f40b84016b5444910049586c4cb40dad78010bba219564004bac83bc"
+    },
+    {
+      "path": "iterations/2026-11-07-09-high-speed-files/validation.json",
+      "sha256_lf": "d2d16e02628386468f57d23d68719767cc47694541b260d266cb62f342553ddc"
+    }
+  ]
+}

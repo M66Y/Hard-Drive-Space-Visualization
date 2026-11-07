@@ -12,6 +12,10 @@ public record ScanStatistics(ScanMode Mode, int Workers, bool Incremental, long 
     double PreparationMilliseconds = 0, double ScanMilliseconds = 0)
 {
     public RefreshReason? ReasonCode { get; init; }
+    public int FileReaderLimit { get; init; }
+    public int PeakFileReaders { get; init; }
+    public int PeakBufferedFiles { get; init; }
+    public long ParallelFileReads { get; init; }
 }
 
 public static class ScanPolicy
@@ -32,8 +36,8 @@ public static class ScanPolicy
     public static string Explain(ScanMode mode)
     {
         string extra = mode == ScanMode.LowImpact ? "低占用单路执行；扫描与核验均跨目录累计，每 256 个目录任务或目录项让步一次；不足一批不额外等待。" :
-            mode == ScanMode.Automatic ? "自动按设备选择目录并发：固态 8、机械 1、网络 2、未知 4；固态盘上与高速上限相同。" : "高速使用最多 8 路目录任务。";
-        return extra + "并发上限不是实际并发数，单个目录内的文件仍逐项读取。重新扫描可能先核验并复用上次结果，与首次完整扫描的工作量不同。";
+            mode == ScanMode.Automatic ? "自动按设备选择目录并发：固态 8、机械 1、网络 2、未知 4；固态盘上目录任务与高速上限相同，目录内逐项读取。" : "高速最多 8 路目录任务；完整扫描遇到超过 512 个文件的目录时分批并行读取，所有目录共享最多 8 路文件读取额度。";
+        return extra + "并发上限不是实际并发数。自动和低占用仍在各目录内逐项读取；增量刷新及元信息核验沿用原有策略，工作量与完整扫描不同。";
     }
 }
 
