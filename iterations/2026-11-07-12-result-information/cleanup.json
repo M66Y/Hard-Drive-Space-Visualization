@@ -1,0 +1,33 @@
+{
+  "date": "2026-11-07",
+  "boundary": "Resolved paths within workspace; rejected reparse points",
+  "removed": [
+    {
+      "path": "artifacts/result-info-cli",
+      "logical_bytes": 0,
+      "removed": true
+    },
+    {
+      "path": "obj",
+      "logical_bytes": 4010941,
+      "removed": true
+    },
+    {
+      "path": "tests/obj",
+      "logical_bytes": 3875675,
+      "removed": true
+    },
+    {
+      "path": "tests/bin",
+      "logical_bytes": 3582714,
+      "removed": true
+    }
+  ],
+  "preserved": [
+    "bin/Release/net10.0-windows",
+    "historical outputs",
+    "user app data",
+    "previous private reports"
+  ],
+  "fixtures": "UI test synthetic folders self-cleaned; manual preview uses in-memory snapshots"
+}

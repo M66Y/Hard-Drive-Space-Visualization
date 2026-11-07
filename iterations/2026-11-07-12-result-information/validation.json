@@ -1,0 +1,22 @@
+{
+  "date": "2026-11-07",
+  "baseline": "cb4cb742ac6b8cd4e225460375c4d79c9f745c3e",
+  "scope": "UI-001",
+  "runtime": ".NET 10.0.14 / WinForms 10.0.0.0 / x64",
+  "build": {
+    "app": "pass, 0 warnings, 0 errors",
+    "tests": "pass, 0 warnings, 0 errors"
+  },
+  "ui_regression": {
+    "144_dpi": 14,
+    "96_dpi_virtualized": 14
+  },
+  "manual": "Synthetic production MainForm: partial result, IO failure retaining result, F5 recovery, normal close. No user directory scan or personal configuration.",
+  "performance": "Not run; PERF-001 deferred.",
+  "not_verified": [
+    "cross-monitor DPI transition",
+    "system high-contrast transition",
+    "formal package/install/release"
+  ],
+  "release": false
+}

@@ -1,0 +1,64 @@
+{
+  "baseline": "cb4cb742ac6b8cd4e225460375c4d79c9f745c3e",
+  "patch_files": [
+    "MainForm.cs",
+    "README.md",
+    "docs/development-plan.md",
+    "docs/project-status.md",
+    "tests/Program.cs",
+    "tests/UiRegression.cs",
+    "使用说明.txt",
+    "tests/ResultInformationRegression.cs"
+  ],
+  "restoration": "Independent baseline: git apply --check, actual apply, LF-normalized file equality.",
+  "files": [
+    {
+      "path": "MainForm.cs",
+      "sha256_lf": "4fb942e136db06e68cce266be86d0b962d657b2599f875c1f9a4aca26b3d81ab"
+    },
+    {
+      "path": "README.md",
+      "sha256_lf": "f508d53b79a5730ab5b1a56dda57fa8f773334f4b49b07f72fc940e5f6033348"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256_lf": "f867aaa7889169a7be505f2e9aff7cbc5b6a7e7b6f8e4001347eb93f15597854"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256_lf": "e8f3929a0b3e77016283352d420f5afdc0296969d97876f7e10dc5737cba7f6b"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256_lf": "7886b79abc2c1e208c37739aeed0513e9da96e43a58a9553461f6187fbc504da"
+    },
+    {
+      "path": "tests/UiRegression.cs",
+      "sha256_lf": "3c37dfe2d8c13e8f5840589aa6c8cae4c74cb3711e053be058d82db1e684b3ed"
+    },
+    {
+      "path": "使用说明.txt",
+      "sha256_lf": "632485c99a89ee0c4eb25e634100f9c72f5c05fe516c8431752bafab070c61f7"
+    },
+    {
+      "path": "tests/ResultInformationRegression.cs",
+      "sha256_lf": "207e7e3e86c2b3b212fa398a36b9afc1e7878d09b788c934f745d33c75126ac0"
+    },
+    {
+      "path": "iterations/2026-11-07-12-result-information/README.md",
+      "sha256_lf": "683d03191711854df25e931a7a603b31d5f743a2482a26342bdc620df16ce03f"
+    },
+    {
+      "path": "iterations/2026-11-07-12-result-information/validation.json",
+      "sha256_lf": "c81627cbfa6aa954f8a7f780e3c3ac7cd35e8dde3578f1dec55ba8a11467e133"
+    },
+    {
+      "path": "iterations/2026-11-07-12-result-information/cleanup.json",
+      "sha256_lf": "eba5941d637e69bd1173b92cbf045b762686519c98e853fd562efe906d0b9e1b"
+    },
+    {
+      "path": "iterations/2026-11-07-12-result-information/changes.patch",
+      "sha256_lf": "09e78bd3f0026e1052a251ab29a889136acf6b286c134ed4bc6510ebc600909b"
+    }
+  ]
+}

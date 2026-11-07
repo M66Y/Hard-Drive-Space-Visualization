@@ -161,6 +161,7 @@ internal static class UiRegression
                         Console.WriteLine("PASS UI actual coordinator, low/high strategy selection, allocated metric, incremental refresh and force-full action");
                         await CheckParallelClose(root, Check);
 
+                        await ResultInformationRegression.Check(form, root, Check);
                         await CheckInteractions(form, Check);
                         CheckRenderCache(form, Check);
                         await CheckLongPath(form, root, Check);

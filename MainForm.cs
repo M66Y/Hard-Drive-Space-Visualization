@@ -96,6 +96,15 @@ internal sealed class MainForm : Form
         ApplyMotionPreference();
         scanTip.SetToolTip(reduceMotion, "关闭图块回弹和进度往返动画；保留真实进度与静态高亮。本次运行有效。");
         ConfigureGrid();
+        metricCombo.AccessibleName = "统计口径";
+        metricCombo.AccessibleDescription = "文件大小按路径计数；实际占用按扫描范围内硬链接去重，不等于删除后释放空间。未知占用不按零计算。";
+        scanTip.SetToolTip(metricCombo, metricCombo.AccessibleDescription + "\n实际占用只统计文件数据分配，不含目录记录、备用数据流等开销。");
+        search.AccessibleName = "搜索当前视图";
+        pathBox.AccessibleName = "当前目录路径";
+        grid.AccessibleName = "当前视图结果列表";
+        foreach (var label in new[] { subtitle, mapCaption, listCaption, status })
+            label.TextChanged += (_, _) => scanTip.SetToolTip(label, label.Text);
+        scanTip.SetToolTip(totalCard, "统计卡始终包含当前目录及全部子目录，不随搜索、类型筛选或列表分页改变。\n实际占用按整个扫描范围去重；共享路径不重复计入，不等于删除后释放空间。");
         strategyCombo.Items.AddRange(["自动", "低占用", "高速"]); strategyCombo.SelectedIndex = 0;
         strategyCombo.SelectedIndexChanged += (_, _) => { if (scanCancellation == null) UpdateStrategyHint(); };
         UpdateStrategyHint();
@@ -430,6 +439,7 @@ internal sealed class MainForm : Form
         map.Scanning = scan == null;
         map.Invalidate();
         status.Text = $"开始扫描：{path}";
+        if (scan != null) subtitle.Text = "正在准备新结果 · 以下暂为上一次扫描结果";
         refreshInfo.Text = $"{StrategyName} · 准备扫描";
         refreshInfo.Cursor = Cursors.Default;
         scanTip.SetToolTip(refreshInfo, ScanPolicy.Explain(options.Mode));
@@ -465,7 +475,7 @@ internal sealed class MainForm : Form
             cancellation.Token.ThrowIfCancellationRequested();
             diagnostics?.Record(new()
             {
-                Kind = result.Skipped > 0 || result.Root.Incomplete || result.Root.UnknownAllocationFiles > 0 ? DiagnosticKind.ScanIncomplete : DiagnosticKind.ScanCompleted,
+                Kind = IsIncomplete(result) ? DiagnosticKind.ScanIncomplete : DiagnosticKind.ScanCompleted,
                 Scan = diagnosticScan, Mode = options.Mode, Files = result.Root.FileCount, Directories = result.Root.FolderCount,
                 Skipped = result.Skipped, UnknownAllocation = result.Root.UnknownAllocationFiles, Milliseconds = result.Elapsed.TotalMilliseconds,
                 Method = result.Statistics?.Method, Reason = result.Statistics?.ReasonCode, Journal = result.Statistics?.Journal?.State,
@@ -487,16 +497,16 @@ internal sealed class MainForm : Form
                 RestoreQuery(); UpdateView();
             }
             else SetMode(0);
-            issues.Visible = scan.Skipped > 0 || scan.Root.UnknownAllocationFiles > 0;
+            issues.Visible = IsIncomplete(scan);
             if (scan.Statistics is { } stats)
             {
                 refreshInfo.Text = $"{RefreshPresentation.MethodName(stats.Method)} · 重扫 {stats.ReadDirectories:N0} 目录 · 复用 {stats.ReusedFiles:N0} 文件 · 点击详情";
                 scanTip.SetToolTip(refreshInfo, "点击查看最近完成的扫描详情\n" + RefreshPresentation.Details(stats));
             }
-            else refreshInfo.Text = "扫描完成";
-            status.Text = $"扫描完成 · {SizeFormat.Number(scan.Root.FileCount)} 个文件 · " + (scan.Statistics?.Reason ?? "") +
+            else refreshInfo.Text = IsIncomplete(scan) ? "扫描结束 · 结果不完整" : "扫描完成";
+            status.Text = $"{(IsIncomplete(scan) ? "扫描结束 · 结果不完整" : "扫描完成")} · {SizeFormat.Number(scan.Root.FileCount)} 个文件" + (scan.Statistics is { } finished ? " · " + finished.Reason : "") +
                 (scan.Skipped > 0 ? $" · {scan.Skipped:N0} 项已跳过" : "") + (scan.Root.UnknownAllocationFiles > 0 ? $" · {scan.Root.UnknownAllocationFiles:N0} 项占用未知" : "");
-            progressBar.Finish(scan.Skipped > 0 || scan.Root.Incomplete || scan.Root.UnknownAllocationFiles > 0 ? ScanDisplayState.Incomplete : ScanDisplayState.Completed);
+            progressBar.Finish(IsIncomplete(scan) ? ScanDisplayState.Incomplete : ScanDisplayState.Completed);
         }
         catch (OperationCanceledException)
         {
@@ -505,7 +515,7 @@ internal sealed class MainForm : Form
             {
                 RestorePrevious();
                 progressBar.Finish(ScanDisplayState.Cancelled);
-                status.Text = scan == null ? "扫描已取消。选择文件夹可重新开始。" : "扫描已取消，仍显示上一次完成的结果。";
+                status.Text = scan == null ? "扫描已取消。选择文件夹可重新开始。" : "扫描已取消，仍显示上一次扫描结果；完整性见统计卡与未读取项。";
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Security.SecurityException)
@@ -515,7 +525,7 @@ internal sealed class MainForm : Form
             {
                 RestorePrevious();
                 progressBar.Finish(ScanDisplayState.Failed);
-                status.Text = "扫描未完成：" + ex.Message;
+                status.Text = (scan == null ? "扫描失败，暂无结果：" : "扫描失败，仍显示上一次扫描结果：") + ex.Message;
                 MessageBox.Show(this, ex.Message, "无法扫描该文件夹", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
@@ -562,9 +572,12 @@ internal sealed class MainForm : Form
                 navigation.RootName = "尚未选择文件夹"; navigation.RootPath = "从一个文件夹，开始探索"; navigation.Invalidate();
                 up.Enabled = home.Enabled = false;
             }
-            issues.Visible = scan?.Skipped > 0 || scan?.Root.UnknownAllocationFiles > 0;
+            issues.Visible = scan != null && IsIncomplete(scan);
         }
     }
+
+    private static bool IsIncomplete(ScanResult result) =>
+        result.Skipped > 0 || result.Root.Incomplete || result.Root.UnknownAllocationFiles > 0;
 
     private void SetMetric(SizeMetric value)
     {
@@ -642,7 +655,7 @@ internal sealed class MainForm : Form
             pathBox.Text = current.Path;
             totalCard.Value = SizeFormat.Bytes(current.Size); filesCard.Value = SizeFormat.Number(current.FileCount); foldersCard.Value = SizeFormat.Number(current.FolderCount);
             timeCard.Value = $"{preview.Elapsed.TotalSeconds:0.0} s";
-            totalCard.Caption = "已读取部分 · 非最终大小";
+            totalCard.Caption = "文件大小 · 已读取部分，非最终";
             totalCard.Title = "当前目录大小";
             timeCard.Caption = preview.Skipped > 0 ? $"仍在扫描 · {preview.Skipped:N0} 项已跳过" : "仍在扫描 · 约每 0.5 秒更新预览";
             foreach (var card in new[] { totalCard, filesCard, foldersCard, timeCard }) card.Invalidate();
@@ -717,16 +730,20 @@ internal sealed class MainForm : Form
         var request = new ViewRequest(directory, (ViewMode)requestedMode, search.Text, sort, sortAscending, typeFilter, metric);
         pathBox.Text = current.Path;
         title.Text = mode switch { 1 => "找到空间里的大块头", 2 => "按文件类型，理解空间", _ => "文件夹空间，一目了然" };
-        subtitle.Text = $"{current.Name}  /  " + (typeFilter != null ? $"仅显示 {typeFilter} 文件 · " : "") + (current.Incomplete ? "部分内容未读取，统计不完整。" : "浏览文件分布，双击文件夹继续深入。");
+        subtitle.Text = "统计卡含当前目录全部子目录，不受筛选影响" +
+            (current.Incomplete ? " · 当前目录未读全" : "") +
+            (current.UnknownAllocationFiles > 0 ? $" · {current.UnknownAllocationFiles:N0} 项占用未知" : "") +
+            (typeFilter != null ? $" · 筛选 {typeFilter}" : "");
         clearType.Visible = typeFilter != null;
         if (filterColumn != null) filterColumn.Width = typeFilter != null ? 142 * DeviceDpi / 96f : 0;
         totalCard.Value = SizeFormat.Bytes(current.Bytes(metric)) + (metric == SizeMetric.Allocated && current.UnknownAllocationFiles > 0 ? " + 未知" : "");
         totalCard.Title = metric == SizeMetric.Allocated ? "实际占用空间" : "当前目录大小";
-        totalCard.Caption = metric == SizeMetric.Allocated ? "文件数据分配 · 硬链接只计一次" : "文件逻辑大小 · 1024 进制";
+        totalCard.Caption = (metric == SizeMetric.Allocated ? "已知分配量 · 硬链接去重" : "文件逻辑大小 · 1024 进制") +
+            (current.Incomplete ? " · 未读全" : "");
         filesCard.Value = SizeFormat.Number(current.FileCount);
         foldersCard.Value = SizeFormat.Number(current.FolderCount);
         timeCard.Value = scan.Elapsed.TotalSeconds < .01 ? "< 0.01 s" : scan.Elapsed.TotalSeconds < 1 ? $"{scan.Elapsed.TotalSeconds:0.00} s" : $"{scan.Elapsed.TotalSeconds:0.0} s";
-        timeCard.Caption = scan.Skipped > 0 ? $"{scan.Skipped:N0} 项已跳过 · 见底部详情" : "扫描完成 · 可随时重新扫描";
+        timeCard.Caption = IsIncomplete(scan) ? "结果不完整 · 查看未读取项" : "扫描完成 · 可随时重新扫描";
         foreach (var card in new[] { totalCard, filesCard, foldersCard, timeCard }) card.Invalidate();
         up.Enabled = current.Parent != null; home.Enabled = current != scan.Root;
         updating = true;
@@ -749,15 +766,22 @@ internal sealed class MainForm : Form
             if (requestedMode == 2)
             {
                 mapTitle.Text = "类型分布"; listTitle.Text = "文件类型";
-                mapCaption.Text = $"包含子目录 · {result.Rows.Count:N0} 种类型 · 双击查看该类型文件";
+                mapCaption.Text = $"含子目录 · {result.Rows.Count:N0} 种类型 · 双击筛选";
             }
             else
             {
                 mapTitle.Text = requestedMode == 1 ? "大文件分布" : "空间分布";
                 listTitle.Text = requestedMode == 1 ? request.ExtensionFilter != null ? $"{request.ExtensionFilter} 文件" : "最大的 500 个文件" : "文件与文件夹";
-                mapCaption.Text = requestedMode == 1 ? $"包含所有子目录 · {result.MatchedCount:N0} 个匹配文件，显示前 {result.Rows.Count:N0} 个" : "当前层级 · 双击文件夹进入 · 小矩形合并展示";
+                mapCaption.Text = requestedMode == 1 ? $"含子目录 · 匹配 {result.MatchedCount:N0} 个，显示最大 {result.Rows.Count:N0} 个" : "当前层级 · 双击进入 · 小矩形合并";
             }
-            listCaption.Text = $"{result.Rows.Count:N0} 项 · {(request.Metric == SizeMetric.Allocated ? "实际占用" : "文件大小")} · 占当前目录 {SizeFormat.Percent(result.VisibleBytes, directory.Bytes(request.Metric))}" + (request.Metric == SizeMetric.Allocated && directory.UnknownAllocationFiles > 0 ? " · 含未知" : "");
+            search.PlaceholderText = requestedMode switch { 1 => "搜索所有子目录的文件名…", 2 => "搜索扩展名或类型…", _ => "搜索当前层级名称…" };
+            search.AccessibleDescription = search.PlaceholderText;
+            if (request.Search.Trim().Length > 0) mapCaption.Text += " · 已搜索";
+            listCaption.Text = $"{result.Rows.Count:N0} 项 · {(request.Metric == SizeMetric.Allocated ? "实际占用" : "文件大小")} · 占目录 {SizeFormat.Percent(result.VisibleBytes, directory.Bytes(request.Metric))}" + (request.Metric == SizeMetric.Allocated && directory.UnknownAllocationFiles > 0 ? " · 含未知" : "");
+            listCaption.AccessibleDescription = "当前视图所列项目的数量与大小占比（大文件最多 500 个），分页只改变列表显示；分母为当前目录未筛选的大小。" +
+                (request.Metric == SizeMetric.Allocated ? "占比仅按已知分配量计算，未知不计为零。" : "");
+            scanTip.SetToolTip(listCaption, listCaption.Text + "\n" + listCaption.AccessibleDescription);
+            grid.Columns["percent"]!.ToolTipText = listCaption.AccessibleDescription;
             map.TotalSize = directory.Bytes(request.Metric); map.Metric = request.Metric; map.ShowNested = requestedMode == 0;
             bool searched = request.Search.Trim().Length > 0;
             map.EmptyTitle = result.Rows.Count == 0 ? (searched ? "没有找到匹配项" : directory.Incomplete ? "当前目录的内容未能读取" : "这里还是空的") : "这些文件的大小为 0 B";
@@ -931,7 +955,8 @@ internal sealed class MainForm : Form
         if (scan == null) return;
         using var dialog = new Form { Text = $"未读取项 · 跳过 {scan.Skipped:N0}，占用未知 {scan.Root.UnknownAllocationFiles:N0}", Size = new Size(850, 520), StartPosition = FormStartPosition.CenterParent, BackColor = Theme.Surface, ForeColor = Theme.Text, MinimizeBox = false, Font = Theme.Font(9) };
         var text = new TextBox { Multiline = true, ReadOnly = true, Dock = DockStyle.Fill, ScrollBars = ScrollBars.Both, WordWrap = false, BackColor = Theme.Surface, ForeColor = Theme.Text, BorderStyle = BorderStyle.None, Font = Theme.Font(9) };
-        text.Text = "跳过项未纳入文件大小统计；占用未知的文件仍计入文件大小，但不假定其占用为 0。\r\n两类各最多保留 2,000 条详情。\r\n\r\n" + string.Join("\r\n\r\n", scan.Issues.Concat(scan.AllocationIssues).Select(i => $"{i.Path}\r\n{i.Reason}"));
+        text.Text = "范围：本次扫描根目录及其全部子目录，不受当前视图筛选影响。\r\n跳过项未纳入文件大小统计；占用未知的文件仍计入文件大小，但不假定其占用为 0。\r\n两类各最多保留 2,000 条详情；条数可能少于实际未读取项。\r\n" +
+            (scan.Root.Incomplete && scan.Issues.Count == 0 ? "目录标记为未读全，但没有保留逐项原因；请重新扫描核验。\r\n" : "") + "\r\n" + string.Join("\r\n\r\n", scan.Issues.Concat(scan.AllocationIssues).Select(i => $"{i.Path}\r\n{i.Reason}"));
         dialog.Padding = new Padding(18); dialog.Controls.Add(text); dialog.ShowDialog(this);
     }
 

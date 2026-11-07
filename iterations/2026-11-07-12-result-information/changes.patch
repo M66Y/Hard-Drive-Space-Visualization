@@ -1,0 +1,440 @@
+diff --git a/MainForm.cs b/MainForm.cs
+index f34dc63..ca1e38e 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -96,6 +96,15 @@ internal sealed class MainForm : Form
+         ApplyMotionPreference();
+         scanTip.SetToolTip(reduceMotion, "关闭图块回弹和进度往返动画；保留真实进度与静态高亮。本次运行有效。");
+         ConfigureGrid();
++        metricCombo.AccessibleName = "统计口径";
++        metricCombo.AccessibleDescription = "文件大小按路径计数；实际占用按扫描范围内硬链接去重，不等于删除后释放空间。未知占用不按零计算。";
++        scanTip.SetToolTip(metricCombo, metricCombo.AccessibleDescription + "\n实际占用只统计文件数据分配，不含目录记录、备用数据流等开销。");
++        search.AccessibleName = "搜索当前视图";
++        pathBox.AccessibleName = "当前目录路径";
++        grid.AccessibleName = "当前视图结果列表";
++        foreach (var label in new[] { subtitle, mapCaption, listCaption, status })
++            label.TextChanged += (_, _) => scanTip.SetToolTip(label, label.Text);
++        scanTip.SetToolTip(totalCard, "统计卡始终包含当前目录及全部子目录，不随搜索、类型筛选或列表分页改变。\n实际占用按整个扫描范围去重；共享路径不重复计入，不等于删除后释放空间。");
+         strategyCombo.Items.AddRange(["自动", "低占用", "高速"]); strategyCombo.SelectedIndex = 0;
+         strategyCombo.SelectedIndexChanged += (_, _) => { if (scanCancellation == null) UpdateStrategyHint(); };
+         UpdateStrategyHint();
+@@ -430,6 +439,7 @@ internal sealed class MainForm : Form
+         map.Scanning = scan == null;
+         map.Invalidate();
+         status.Text = $"开始扫描：{path}";
++        if (scan != null) subtitle.Text = "正在准备新结果 · 以下暂为上一次扫描结果";
+         refreshInfo.Text = $"{StrategyName} · 准备扫描";
+         refreshInfo.Cursor = Cursors.Default;
+         scanTip.SetToolTip(refreshInfo, ScanPolicy.Explain(options.Mode));
+@@ -465,7 +475,7 @@ internal sealed class MainForm : Form
+             cancellation.Token.ThrowIfCancellationRequested();
+             diagnostics?.Record(new()
+             {
+-                Kind = result.Skipped > 0 || result.Root.Incomplete || result.Root.UnknownAllocationFiles > 0 ? DiagnosticKind.ScanIncomplete : DiagnosticKind.ScanCompleted,
++                Kind = IsIncomplete(result) ? DiagnosticKind.ScanIncomplete : DiagnosticKind.ScanCompleted,
+                 Scan = diagnosticScan, Mode = options.Mode, Files = result.Root.FileCount, Directories = result.Root.FolderCount,
+                 Skipped = result.Skipped, UnknownAllocation = result.Root.UnknownAllocationFiles, Milliseconds = result.Elapsed.TotalMilliseconds,
+                 Method = result.Statistics?.Method, Reason = result.Statistics?.ReasonCode, Journal = result.Statistics?.Journal?.State,
+@@ -487,16 +497,16 @@ internal sealed class MainForm : Form
+                 RestoreQuery(); UpdateView();
+             }
+             else SetMode(0);
+-            issues.Visible = scan.Skipped > 0 || scan.Root.UnknownAllocationFiles > 0;
++            issues.Visible = IsIncomplete(scan);
+             if (scan.Statistics is { } stats)
+             {
+                 refreshInfo.Text = $"{RefreshPresentation.MethodName(stats.Method)} · 重扫 {stats.ReadDirectories:N0} 目录 · 复用 {stats.ReusedFiles:N0} 文件 · 点击详情";
+                 scanTip.SetToolTip(refreshInfo, "点击查看最近完成的扫描详情\n" + RefreshPresentation.Details(stats));
+             }
+-            else refreshInfo.Text = "扫描完成";
+-            status.Text = $"扫描完成 · {SizeFormat.Number(scan.Root.FileCount)} 个文件 · " + (scan.Statistics?.Reason ?? "") +
++            else refreshInfo.Text = IsIncomplete(scan) ? "扫描结束 · 结果不完整" : "扫描完成";
++            status.Text = $"{(IsIncomplete(scan) ? "扫描结束 · 结果不完整" : "扫描完成")} · {SizeFormat.Number(scan.Root.FileCount)} 个文件" + (scan.Statistics is { } finished ? " · " + finished.Reason : "") +
+                 (scan.Skipped > 0 ? $" · {scan.Skipped:N0} 项已跳过" : "") + (scan.Root.UnknownAllocationFiles > 0 ? $" · {scan.Root.UnknownAllocationFiles:N0} 项占用未知" : "");
+-            progressBar.Finish(scan.Skipped > 0 || scan.Root.Incomplete || scan.Root.UnknownAllocationFiles > 0 ? ScanDisplayState.Incomplete : ScanDisplayState.Completed);
++            progressBar.Finish(IsIncomplete(scan) ? ScanDisplayState.Incomplete : ScanDisplayState.Completed);
+         }
+         catch (OperationCanceledException)
+         {
+@@ -505,7 +515,7 @@ internal sealed class MainForm : Form
+             {
+                 RestorePrevious();
+                 progressBar.Finish(ScanDisplayState.Cancelled);
+-                status.Text = scan == null ? "扫描已取消。选择文件夹可重新开始。" : "扫描已取消，仍显示上一次完成的结果。";
++                status.Text = scan == null ? "扫描已取消。选择文件夹可重新开始。" : "扫描已取消，仍显示上一次扫描结果；完整性见统计卡与未读取项。";
+             }
+         }
+         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Security.SecurityException)
+@@ -515,7 +525,7 @@ internal sealed class MainForm : Form
+             {
+                 RestorePrevious();
+                 progressBar.Finish(ScanDisplayState.Failed);
+-                status.Text = "扫描未完成：" + ex.Message;
++                status.Text = (scan == null ? "扫描失败，暂无结果：" : "扫描失败，仍显示上一次扫描结果：") + ex.Message;
+                 MessageBox.Show(this, ex.Message, "无法扫描该文件夹", MessageBoxButtons.OK, MessageBoxIcon.Information);
+             }
+         }
+@@ -562,10 +572,13 @@ internal sealed class MainForm : Form
+                 navigation.RootName = "尚未选择文件夹"; navigation.RootPath = "从一个文件夹，开始探索"; navigation.Invalidate();
+                 up.Enabled = home.Enabled = false;
+             }
+-            issues.Visible = scan?.Skipped > 0 || scan?.Root.UnknownAllocationFiles > 0;
++            issues.Visible = scan != null && IsIncomplete(scan);
+         }
+     }
+ 
++    private static bool IsIncomplete(ScanResult result) =>
++        result.Skipped > 0 || result.Root.Incomplete || result.Root.UnknownAllocationFiles > 0;
++
+     private void SetMetric(SizeMetric value)
+     {
+         metric = value; changingMetric = true;
+@@ -642,7 +655,7 @@ internal sealed class MainForm : Form
+             pathBox.Text = current.Path;
+             totalCard.Value = SizeFormat.Bytes(current.Size); filesCard.Value = SizeFormat.Number(current.FileCount); foldersCard.Value = SizeFormat.Number(current.FolderCount);
+             timeCard.Value = $"{preview.Elapsed.TotalSeconds:0.0} s";
+-            totalCard.Caption = "已读取部分 · 非最终大小";
++            totalCard.Caption = "文件大小 · 已读取部分，非最终";
+             totalCard.Title = "当前目录大小";
+             timeCard.Caption = preview.Skipped > 0 ? $"仍在扫描 · {preview.Skipped:N0} 项已跳过" : "仍在扫描 · 约每 0.5 秒更新预览";
+             foreach (var card in new[] { totalCard, filesCard, foldersCard, timeCard }) card.Invalidate();
+@@ -717,16 +730,20 @@ internal sealed class MainForm : Form
+         var request = new ViewRequest(directory, (ViewMode)requestedMode, search.Text, sort, sortAscending, typeFilter, metric);
+         pathBox.Text = current.Path;
+         title.Text = mode switch { 1 => "找到空间里的大块头", 2 => "按文件类型，理解空间", _ => "文件夹空间，一目了然" };
+-        subtitle.Text = $"{current.Name}  /  " + (typeFilter != null ? $"仅显示 {typeFilter} 文件 · " : "") + (current.Incomplete ? "部分内容未读取，统计不完整。" : "浏览文件分布，双击文件夹继续深入。");
++        subtitle.Text = "统计卡含当前目录全部子目录，不受筛选影响" +
++            (current.Incomplete ? " · 当前目录未读全" : "") +
++            (current.UnknownAllocationFiles > 0 ? $" · {current.UnknownAllocationFiles:N0} 项占用未知" : "") +
++            (typeFilter != null ? $" · 筛选 {typeFilter}" : "");
+         clearType.Visible = typeFilter != null;
+         if (filterColumn != null) filterColumn.Width = typeFilter != null ? 142 * DeviceDpi / 96f : 0;
+         totalCard.Value = SizeFormat.Bytes(current.Bytes(metric)) + (metric == SizeMetric.Allocated && current.UnknownAllocationFiles > 0 ? " + 未知" : "");
+         totalCard.Title = metric == SizeMetric.Allocated ? "实际占用空间" : "当前目录大小";
+-        totalCard.Caption = metric == SizeMetric.Allocated ? "文件数据分配 · 硬链接只计一次" : "文件逻辑大小 · 1024 进制";
++        totalCard.Caption = (metric == SizeMetric.Allocated ? "已知分配量 · 硬链接去重" : "文件逻辑大小 · 1024 进制") +
++            (current.Incomplete ? " · 未读全" : "");
+         filesCard.Value = SizeFormat.Number(current.FileCount);
+         foldersCard.Value = SizeFormat.Number(current.FolderCount);
+         timeCard.Value = scan.Elapsed.TotalSeconds < .01 ? "< 0.01 s" : scan.Elapsed.TotalSeconds < 1 ? $"{scan.Elapsed.TotalSeconds:0.00} s" : $"{scan.Elapsed.TotalSeconds:0.0} s";
+-        timeCard.Caption = scan.Skipped > 0 ? $"{scan.Skipped:N0} 项已跳过 · 见底部详情" : "扫描完成 · 可随时重新扫描";
++        timeCard.Caption = IsIncomplete(scan) ? "结果不完整 · 查看未读取项" : "扫描完成 · 可随时重新扫描";
+         foreach (var card in new[] { totalCard, filesCard, foldersCard, timeCard }) card.Invalidate();
+         up.Enabled = current.Parent != null; home.Enabled = current != scan.Root;
+         updating = true;
+@@ -749,15 +766,22 @@ internal sealed class MainForm : Form
+             if (requestedMode == 2)
+             {
+                 mapTitle.Text = "类型分布"; listTitle.Text = "文件类型";
+-                mapCaption.Text = $"包含子目录 · {result.Rows.Count:N0} 种类型 · 双击查看该类型文件";
++                mapCaption.Text = $"含子目录 · {result.Rows.Count:N0} 种类型 · 双击筛选";
+             }
+             else
+             {
+                 mapTitle.Text = requestedMode == 1 ? "大文件分布" : "空间分布";
+                 listTitle.Text = requestedMode == 1 ? request.ExtensionFilter != null ? $"{request.ExtensionFilter} 文件" : "最大的 500 个文件" : "文件与文件夹";
+-                mapCaption.Text = requestedMode == 1 ? $"包含所有子目录 · {result.MatchedCount:N0} 个匹配文件，显示前 {result.Rows.Count:N0} 个" : "当前层级 · 双击文件夹进入 · 小矩形合并展示";
++                mapCaption.Text = requestedMode == 1 ? $"含子目录 · 匹配 {result.MatchedCount:N0} 个，显示最大 {result.Rows.Count:N0} 个" : "当前层级 · 双击进入 · 小矩形合并";
+             }
+-            listCaption.Text = $"{result.Rows.Count:N0} 项 · {(request.Metric == SizeMetric.Allocated ? "实际占用" : "文件大小")} · 占当前目录 {SizeFormat.Percent(result.VisibleBytes, directory.Bytes(request.Metric))}" + (request.Metric == SizeMetric.Allocated && directory.UnknownAllocationFiles > 0 ? " · 含未知" : "");
++            search.PlaceholderText = requestedMode switch { 1 => "搜索所有子目录的文件名…", 2 => "搜索扩展名或类型…", _ => "搜索当前层级名称…" };
++            search.AccessibleDescription = search.PlaceholderText;
++            if (request.Search.Trim().Length > 0) mapCaption.Text += " · 已搜索";
++            listCaption.Text = $"{result.Rows.Count:N0} 项 · {(request.Metric == SizeMetric.Allocated ? "实际占用" : "文件大小")} · 占目录 {SizeFormat.Percent(result.VisibleBytes, directory.Bytes(request.Metric))}" + (request.Metric == SizeMetric.Allocated && directory.UnknownAllocationFiles > 0 ? " · 含未知" : "");
++            listCaption.AccessibleDescription = "当前视图所列项目的数量与大小占比（大文件最多 500 个），分页只改变列表显示；分母为当前目录未筛选的大小。" +
++                (request.Metric == SizeMetric.Allocated ? "占比仅按已知分配量计算，未知不计为零。" : "");
++            scanTip.SetToolTip(listCaption, listCaption.Text + "\n" + listCaption.AccessibleDescription);
++            grid.Columns["percent"]!.ToolTipText = listCaption.AccessibleDescription;
+             map.TotalSize = directory.Bytes(request.Metric); map.Metric = request.Metric; map.ShowNested = requestedMode == 0;
+             bool searched = request.Search.Trim().Length > 0;
+             map.EmptyTitle = result.Rows.Count == 0 ? (searched ? "没有找到匹配项" : directory.Incomplete ? "当前目录的内容未能读取" : "这里还是空的") : "这些文件的大小为 0 B";
+@@ -931,7 +955,8 @@ internal sealed class MainForm : Form
+         if (scan == null) return;
+         using var dialog = new Form { Text = $"未读取项 · 跳过 {scan.Skipped:N0}，占用未知 {scan.Root.UnknownAllocationFiles:N0}", Size = new Size(850, 520), StartPosition = FormStartPosition.CenterParent, BackColor = Theme.Surface, ForeColor = Theme.Text, MinimizeBox = false, Font = Theme.Font(9) };
+         var text = new TextBox { Multiline = true, ReadOnly = true, Dock = DockStyle.Fill, ScrollBars = ScrollBars.Both, WordWrap = false, BackColor = Theme.Surface, ForeColor = Theme.Text, BorderStyle = BorderStyle.None, Font = Theme.Font(9) };
+-        text.Text = "跳过项未纳入文件大小统计；占用未知的文件仍计入文件大小，但不假定其占用为 0。\r\n两类各最多保留 2,000 条详情。\r\n\r\n" + string.Join("\r\n\r\n", scan.Issues.Concat(scan.AllocationIssues).Select(i => $"{i.Path}\r\n{i.Reason}"));
++        text.Text = "范围：本次扫描根目录及其全部子目录，不受当前视图筛选影响。\r\n跳过项未纳入文件大小统计；占用未知的文件仍计入文件大小，但不假定其占用为 0。\r\n两类各最多保留 2,000 条详情；条数可能少于实际未读取项。\r\n" +
++            (scan.Root.Incomplete && scan.Issues.Count == 0 ? "目录标记为未读全，但没有保留逐项原因；请重新扫描核验。\r\n" : "") + "\r\n" + string.Join("\r\n\r\n", scan.Issues.Concat(scan.AllocationIssues).Select(i => $"{i.Path}\r\n{i.Reason}"));
+         dialog.Padding = new Padding(18); dialog.Controls.Add(text); dialog.ShowDialog(this);
+     }
+ 
+diff --git a/README.md b/README.md
+index ebd1c00..6328c1d 100644
+--- a/README.md
++++ b/README.md
+@@ -28,6 +28,8 @@ Windows 本地磁盘空间可视化软件，提供目录扫描、空间分布、
+ 
+ 固态盘上自动与高速的目录并发上限均为 8。高速完整扫描优先分配额度给目录；当没有排队目录且有空余额度时，超过 512 个文件的目录才按最多 256 项分批补充文件读取。目录任务和辅助读取总共最多占用 8 个执行额度，文件缓冲仍最多 2,048 项；目录充足时沿用逐项读取，避免逐文件竞争全局信号量。自动、低占用及增量/元信息刷新保持原策略。扫描详情显示目录/核验任务峰值、文件读取调用峰值、补充额度峰值及批次文件数；这些不是物理 I/O 或 CPU 核数。普通刷新可能复用结果，比较两种策略时应对同一目录分别使用 `Ctrl+F5` 强制完整扫描。
+ 
++统计卡始终统计当前目录及其全部子目录，不随搜索、类型筛选或分页改变。搜索框提示当前视图的搜索范围；列表占比以当前目录未筛选的大小为分母，大文件只计算列出的最多 500 个文件。口径选择器和列表说明可悬停查看限制。遇到跳过项、占用未知或目录未读全时显示“结果不完整”，通过底部“查看未读取项”了解本次整棵扫描树的问题。取消或失败后会明确说明是否仍在显示上一次扫描结果。
++
+ 完整说明见 [使用说明.txt](使用说明.txt)。默认按文件逻辑大小展示，可切换为文件数据的实际分配空间；不包含目录记录、备用数据流等文件系统开销，也不代表删除后可释放的大小。扫描结果是一次快照，使用“重新扫描”更新。
+ 
+ 开发预览支持自定义背景。主窗口右上角选择“背景设置”，导入 PNG、JPEG 或 BMP 后可以缩放、拖动或输入焦点百分比。预览按主窗口比例展示，改变窗口比例时围绕焦点裁切，边缘会限制在图片范围内。可以自动取色或手动指定强调色。点击“应用”才保存，取消会保留当前背景。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index b9261f8..02254e0 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -11,7 +11,7 @@
+ | PERF-001 | P2 / 初版后处理 | 高速扫描尚不能在真实混合目录稳定快于自动；已完成目录优先修正，不能标为已解决 | 初版完成后，与同级问题统一排序；区分 UI、元信息读取、缓存与系统负载，保持等工作量并报告波动，不能通过跳过核验制造提速 |
+ | MAINT-001 | P2 / 初版后处理 | 非阻塞的主窗职责拆分、目录整体重组与额外视觉打磨 | 与 PERF-001 同阶段评估收益；修复 P0/P1 所必需的小范围整理不受此限制 |
+ | DEV-001 | P1 / 已完成本轮验收 | 多个历史预览容易误开，版本号不足以辨认构建；统一开发启动入口与当前程序身份 | 从任意工作目录可构建并启动当前源码；构建失败不启动旧程序，重复启动有提示；标题显示版本，诊断显示构建标识 |
+-| UI-001 | P1 / 后续核查 | 初版需明确统计口径、当前结果范围、部分/取消/未读取状态与基本键盘操作 | 先核对已有行为和具体缺口，仅补初版必须项；大范围视觉方向仍需方案 |
++| UI-001 | P1 / 已完成本轮验收 | 补齐卡片与筛选范围、搜索层级、结果不完整及取消/失败保留旧结果的说明；核查基本键盘操作 | 144/96 DPI 各 14 组主窗回归及合成窗口失败恢复观察通过；[验收记录](../iterations/2026-11-07-12-result-information/README.md) |
+ | DELIVERY-001 | P1 / 初版交付准备 | 双语用户说明、素材来源/分发条件、便携与安装交付及源码快照 | 按独立方案备齐并验证交付，不将旧 ZIP 追认为已符合规范 |
+ 
+ PERF-001 的公开依据为[调度修正与验证](../iterations/2026-11-07-10-mixed-scan-scheduling/README.md)。真实目录路径、文件清单、耗时报告与诊断留在本机，不复制到待办、提交或 Release。本阶段不继续性能追测；初版之后再按用户要求处理同级问题。
+@@ -49,14 +49,14 @@ PERF-001 的公开依据为[调度修正与验证](../iterations/2026-11-07-10-m
+ 
+ ## 后续顺序
+ 
+-当前已形成可审查的 [.NET 10 迁移方案](dotnet10-migration.md)，包含环境选择、代码范围、兼容性检查、验收和回退基线。静态核查完成，用户明确选择系统安装 SDK，现已完成安装、迁移和全部自动回归，见[验收记录](../iterations/2026-11-07-05-dotnet10-migration/README.md)。本地诊断管理和高速完整扫描的大型单目录优化随后按各自确认范围完成；当前顺序以顶部优先级表为准：统一使用入口与构建身份已经完成，下一步核查初版必要的界面信息和交付缺口。
++当前已形成可审查的 [.NET 10 迁移方案](dotnet10-migration.md)，包含环境选择、代码范围、兼容性检查、验收和回退基线。静态核查完成，用户明确选择系统安装 SDK，现已完成安装、迁移和全部自动回归，见[验收记录](../iterations/2026-11-07-05-dotnet10-migration/README.md)。本地诊断管理和高速完整扫描的大型单目录优化随后按各自确认范围完成；当前顺序以顶部优先级表为准：统一使用入口、构建身份与本轮必要界面信息均已完成验收；下一步为 DELIVERY-001，先核查双语说明、素材分发条件和安装/快照方案，正式发布仍需明确任务范围。
+ 
+ | 顺序 | 建议方向 | 开始前需要明确 | 验收重点 |
+ | --- | --- | --- | --- |
+ | 已完成 | .NET 10 LTS 迁移 | 支持的 Windows 版本、开发 SDK、运行依赖与回退基线 | 核心/日志/UI 全部回归、启动与背景兼容；按用户选择系统安装 SDK，保留 .NET 9 |
+ | 已完成 | 本地诊断管理 | 用户确认默认开启最小诊断及主动问题记录 | 白名单、轮转/期限、查看清空、固定预览导出、问题记录；自动与 UI 回归通过 |
+ | 已完成首轮 | 扫描策略与响应优化 | 同条件测量后，按确认范围完成高速完整扫描的有界单目录并行；自动策略与刷新核验未扩展 | 逐项一致、取消/关闭回收；平坦 32,000 文件真实主窗扫描中位数减少约 74%，[完整证据](../iterations/2026-11-07-09-high-speed-files/README.md) |
+-| 初版内 | 启动入口与必要界面信息 | DEV-001 已完成，再核查 UI-001 的具体缺口 | 当前源码入口、版本辨识、口径/范围/不完整状态、键盘可用；额外重构移至初版后 |
++| 已完成本轮验收 | 启动入口与必要界面信息 | DEV-001、UI-001 均有实现与证据 | 当前源码入口、版本辨识、口径/范围/不完整状态、键盘可用；额外重构移至初版后 |
+ | 发布前 | 用户文档与交付 | 中英文结构、资源许可、正式版本范围、安装方案 | 干净源码可构建，便携/安装/源码四类资产实测，Release 快照与校验完整 |
+ 
+ 不为日志不可用场景直接采用“跳过核验”的近似缓存。若后续确需持久扫描缓存或监听器，单独设计连续性证据、失效及退出/重启语义，再讨论收益与成本。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 9ec5dc4..048baa0 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -4,7 +4,7 @@
+ 
+ ## 当前阶段
+ 
+-2026-11-07 用户明确将“高速扫描不能稳定提速”记为 **PERF-001，P2，初版后处理**，同级非阻塞优化一起后移。调度修正已经提交，真实目录稳定提速尚未证实，两者分开记录。当前优先完成初版使用入口与功能闭环，详见[阶段与待办](development-plan.md#当前阶段与优先级2026-11-07-用户调整)。DEV-001 的统一开发版启动与构建辨识已完成本轮验收，见[开发入口记录](../iterations/2026-11-07-11-development-entry/README.md)。
++2026-11-07 用户明确将“高速扫描不能稳定提速”记为 **PERF-001，P2，初版后处理**，同级非阻塞优化一起后移。调度修正已经提交，真实目录稳定提速尚未证实，两者分开记录。当前优先完成初版使用入口与功能闭环，详见[阶段与待办](development-plan.md#当前阶段与优先级2026-11-07-用户调整)。DEV-001 的统一开发版启动与构建辨识已完成本轮验收，见[开发入口记录](../iterations/2026-11-07-11-development-entry/README.md)。UI-001 已补齐必要结果信息，144/96 DPI 各 14 组主窗回归通过，见[结果信息记录](../iterations/2026-11-07-12-result-information/README.md)。下一步为初版交付准备，不能将此视为已经完成正式发布。
+ 
+ ## 当前判断
+ 
+@@ -28,7 +28,7 @@
+ | 文件操作辅助 | 资源管理器定位、复制路径 | 没有删除、移动或自动清理功能，扫描默认只读 |
+ | 两种大小 | 文件逻辑大小、实际分配量，压缩/稀疏文件，硬链接去重 | 未知占用单独标识；不含目录记录、备用数据流等全部开销，不等于删除释放空间 |
+ | 扫描策略 | 自动、低占用、高速，阶段及实际任务峰值；高速完整扫描支持大目录文件并发 | 自动仍按设备选目录并发；高速完整扫描优先处理目录；超过 512 文件且没有排队目录时才借用空余额度分批读取，目录与补充读取共用 8 路，缓冲最多 2,048 项 |
+-| 过程反馈 | 目录任务估算、移动头像、取消、部分预览、明确终态 | 预览约每 0.5 秒获取，最多当前目录先发现的 1,000 项；百分比不是字节或剩余时间 |
++| 过程反馈 | 目录任务估算、移动头像、取消、部分预览、明确终态；统计卡/筛选范围、搜索层级与不完整提示，取消/失败标明保留旧结果 | 预览约每 0.5 秒获取，最多当前目录先发现的 1,000 项；百分比不是字节或剩余时间 |
+ | 增量刷新 | 连续 NTFS 日志优先定位变化、元信息核验与完整扫描回退、详情、强制重扫 | 缓存仅在本次进程内；无日志时仍核验全部目录和文件元信息 |
+ | 界面与动效 | 浅色组件、自绘输入框、菜单、有限果冻反馈、减弱动效、局部重绘缓存 | 动效偏好仅当前运行有效；启动首帧准备已修正，尚无完整冷启动逐帧测量 |
+ | 自定义背景 | 本地 PNG/JPEG/BMP、缩放与焦点、自动/手动强调色、保存/恢复/默认重置 | 已完成开发验收；导入上限 24 MiB、4,000 万像素，副本最长边 2,048 像素 |
+@@ -64,6 +64,7 @@
+ | --- | --- | --- |
+ | 已处理：运行环境 | 已迁移 .NET 10 LTS，SDK 10.0.403 / 桌面运行时 10.0.14，全部自动回归通过 | 后续跟进同 feature band 补丁；更换 feature band 或框架大版本另行核验 |
+ | P1 使用入口 / DEV-001 | 本轮提供 `run.cmd` / `run.ps1`，启动前构建当前源码；标题与诊断显示版本及构建标识 | [入口验证](../iterations/2026-11-07-11-development-entry/README.md)；历史预览保留时不作为当前入口 |
++| P1 界面信息 / UI-001 | 统计卡含当前目录全部子目录，不随搜索/类型/分页改变；三类不完整结果统一提示；未读取详情标明整次扫描范围，基本键盘流程通过 | [结果信息验收](../iterations/2026-11-07-12-result-information/README.md)；保留布局与扫描算法 |
+ | P2 延期：PERF-001 | 高速完整扫描改为目录优先、空闲额度补充文件读取，减少混合目录中的重复调度和分配；自动及刷新核验保留原策略 | [混合目录证据](../iterations/2026-11-07-10-mixed-scan-scheduling/README.md)；稳定提速未证实；按用户要求初版后再处理，自动负载适应或刷新并行仍需独立方案 |
+ | P2 延期：MAINT-001 | `MainForm.cs` 约 1,000 行，集中 UI、扫描状态、查询和设置；测试通过链接源文件构建 | 非阻塞的整体整理移至初版后；修复必要问题时按边界渐进抽取，避免一次性目录搬迁或框架替换 |
+ | 已处理：本地诊断 | 完整确认范围已实现，运行/问题/开发记录职责明确 | 见[诊断说明](diagnostics.md)与[验收记录](../iterations/2026-11-07-07-local-diagnostics/README.md)；后续新增字段继续严格控制隐私 |
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 8d1c2a6..416eded 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -25,6 +25,7 @@ if (args.Contains("--mixed-benchmark")) return MixedScanBenchmark.Run(args.Last(
+ if (args.Contains("--folder-comparison-tests")) return FolderComparison.RunChecks();
+ if (args.Contains("--folder-benchmark")) return FolderComparison.Run(args.Last(), args.Contains("--pair"));
+ if (args.Contains("--memory-benchmark")) return MemoryBenchmark.Run();
++if (args.Contains("--result-info-preview")) return ResultInformationRegression.Preview();
+ if (args.Contains("--ui-regression")) return UiRegression.Run(args.Contains("--dpi-96"));
+ if (args.Contains("--advanced-tests")) return AdvancedFeatures.Run();
+ if (args.Contains("--journal-tests")) return JournalRegression.Run();
+diff --git a/tests/UiRegression.cs b/tests/UiRegression.cs
+index 54fe8a8..078cfdf 100644
+--- a/tests/UiRegression.cs
++++ b/tests/UiRegression.cs
+@@ -161,6 +161,7 @@ internal static class UiRegression
+                         Console.WriteLine("PASS UI actual coordinator, low/high strategy selection, allocated metric, incremental refresh and force-full action");
+                         await CheckParallelClose(root, Check);
+ 
++                        await ResultInformationRegression.Check(form, root, Check);
+                         await CheckInteractions(form, Check);
+                         CheckRenderCache(form, Check);
+                         await CheckLongPath(form, root, Check);
+diff --git a/使用说明.txt b/使用说明.txt
+index a7d5b5f..84d838b 100644
+--- a/使用说明.txt
++++ b/使用说明.txt
+@@ -61,7 +61,10 @@ AsukaLens v1.4.2
+ 大文件列表的“所在位置”显示相对当前目录的路径，悬停可查看完整路径。
+ 超过 1,000 项时列表分页，底部用“上一页 / 下一页”查看全部项目。
+ 排序作用于全部结果；从图块选中项目时，列表自动转到该项目所在页。
+-搜索作用于当前视图；大文件视图会搜索所有子目录中的文件名。
++搜索作用于当前视图：空间分布只搜索当前层级名称；大文件搜索所有子目录的文件名；文件类型搜索扩展名或类别。
++统计卡一直包含当前目录及全部子目录，不随搜索、类型筛选或分页改变。
++列表占比的分母是当前目录未筛选大小；大文件只计算列出的最多 500 项，实际占用只按已知分配量计算。
++悬停统计口径、大小卡片或列表说明可查看范围与限制。
+ 
+ 扫描与统计
+ 扫描在后台运行，底部显示文件数和已扫描大小，可点击“取消扫描”。
+@@ -75,12 +78,14 @@ AsukaLens v1.4.2
+ 预览按文件大小展示；实际占用在完成后统一去重，再恢复所选口径。
+ 自动更新会尽量保留当前目录的选择与滚动位置。
+ 快速扫描可能在第一帧预览前就已完成，此时直接显示完整结果。
+-取消或失败时保留上一次完成的扫描结果。文件变化后点击“重新扫描”。
++取消或失败时保留上一次扫描结果，并明确提示；旧结果若不完整，其提示和未读取详情仍保留。
++文件变化后点击“重新扫描”。
+ 重新扫描相同根目录时保留当前子目录、视图、搜索、类型筛选和排序；
+ 如果原来的子目录已不存在，则回到扫描根目录。
+ 搜索、排序和汇总在后台计算，快速切换时会取消旧查询。
+ 无法访问、已删除的项目和链接/联接点会跳过，底部可查看原因。
+-遇到跳过项时，已读取部分仍可显示，但不能视为完整统计。
++遇到跳过项、占用未知或目录未读全时，显示“结果不完整”，已读取部分仍可查看。
++“查看未读取项”覆盖整次扫描，不受当前目录或筛选影响；两类原因各最多保留 2,000 条。
+ 
+ 增量刷新
+ 点击“重新扫描”优先复用已核实的未变部分，只保留本次运行中的缓存。
+diff --git a/tests/ResultInformationRegression.cs b/tests/ResultInformationRegression.cs
+new file mode 100644
+index 0000000..b966dbb
+--- /dev/null
++++ b/tests/ResultInformationRegression.cs
+@@ -0,0 +1,144 @@
++using DiskAtlas;
++using System.Reflection;
++
++// Synthetic snapshots exercise UI states without scanning user folders or changing app data.
++internal static class ResultInformationRegression
++{
++    private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
++    private static T Field<T>(MainForm form, string name) => (T)typeof(MainForm).GetField(name, Private)!.GetValue(form)!;
++    private static object? Invoke(MainForm form, string name, params object[] args) =>
++        typeof(MainForm).GetMethod(name, Private)!.Invoke(form, args);
++    private static Task Scan(MainForm form, string path) => (Task)Invoke(form, "ScanFolder", path)!;
++    private static Task View(MainForm form) => (Task)Invoke(form, "UpdateViewAsync", false)!;
++
++    private static ScanResult Snapshot(string path, int kind)
++    {
++        var root = new DiskEntry(path, true) { FileCount = 1101, FolderCount = 1, Size = 1100 * 1024 + 2048,
++            AllocatedSize = 1101 * 4096, Incomplete = kind is 1 or 3 };
++        for (int i = 0; i < 1100; i++)
++            root.MutableChildren.Add(new DiskEntry(Path.Combine(path, $"sample-{i:0000}.txt"), false, root)
++            { Size = 1024, AllocatedSize = 4096, FileCount = 1, Storage = new(new(1, (ulong)i, 0), 4096, 1, false) });
++        var child = new DiskEntry(Path.Combine(path, "图片 Pictures"), true, root)
++        { FileCount = 1, Size = 2048, AllocatedSize = 4096 };
++        var file = new DiskEntry(Path.Combine(child.Path, "photo.jpg"), false, child)
++        { Size = 2048, FileCount = 1, AllocatedSize = 4096, Storage = new(new(1, 2000, 0), 4096, 1, false) };
++        child.MutableChildren.Add(file); root.MutableChildren.Add(child);
++        if (kind == 2)
++        {
++            file.Storage = null; file.AllocatedSize = child.AllocatedSize = 0;
++            file.UnknownAllocationFiles = child.UnknownAllocationFiles = root.UnknownAllocationFiles = 1;
++            root.AllocatedSize -= 4096;
++        }
++        return new(root, TimeSpan.FromSeconds(.2), kind == 1 ? 1 : 0,
++            kind == 1 ? [new(Path.Combine(path, "unread-demo"), "合成未读取项")] : [])
++        { AllocationIssues = kind == 2 ? [new(file.Path, "合成占用读取失败")] : [] };
++    }
++
++    public static async Task Check(Form owner, string path, Action<bool, string> check)
++    {
++        int kind = 0;
++        using var form = new MainForm(null)
++        { ScanRunner = (p, _, token, _) =>
++            { if (kind == 4) { token.WaitHandle.WaitOne(); token.ThrowIfCancellationRequested(); }
++              return Snapshot(p, kind); } };
++        form.Show(owner); await Scan(form, path); await View(form);
++        var search = Field<TextBox>(form, "search");
++        var grid = Field<DataGridView>(form, "grid");
++        var total = Field<StatCard>(form, "totalCard");
++        string originalTotal = total.Value;
++        check(grid.RowCount == 1000 && Field<List<MapItem>>(form, "sortedRows").Count == 1101, "Full list pagination incorrect");
++        Field<ActionButton>(form, "nextPage").PerformClick();
++        check(grid.RowCount == 101 && total.Value == originalTotal, "Page altered totals");
++        search.Text = "sample-0000"; await View(form);
++        check(grid.RowCount == 1 && total.Value == originalTotal &&
++            Field<Label>(form, "subtitle").Text.Contains("不受筛选影响") &&
++            Field<Label>(form, "mapCaption").Text.Contains("已搜索"), "Filtered view hides unfiltered scope");
++        search.Text = "no-such-name"; await View(form);
++        check(grid.RowCount == 0 && Field<TreemapControl>(form, "map").EmptyTitle.Contains("没有找到") && total.Value == originalTotal,
++            "Empty search claimed empty directory or changed totals");
++        Invoke(form, "SetMode", 1); await View(form);
++        check(grid.RowCount == 500 && Field<Label>(form, "mapCaption").Text.Contains("1,101") &&
++            search.PlaceholderText.Contains("所有子目录"), "Largest-file limit or recursive search scope missing");
++        Invoke(form, "SetMode", 2); await View(form);
++        var type = Field<List<MapItem>>(form, "sortedRows").Single(i => i.Name == ".jpg");
++        Invoke(form, "ActivateItem", type); await View(form);
++        check(grid.RowCount == 1 && total.Value == originalTotal && Field<ActionButton>(form, "clearType").Visible &&
++            Field<Label>(form, "subtitle").Text.Contains("筛选 .jpg"), "Type filter lost scope or totals");
++        Field<ActionButton>(form, "clearType").PerformClick(); await View(form);
++        check(grid.RowCount == 500, "Cannot clear type filter");
++        Console.WriteLine("PASS UI result scope, search, no matches, recursive top-500, type filter and pagination");
++
++        foreach (int incompleteKind in new[] { 1, 2, 3 })
++        {
++            kind = incompleteKind; await Scan(form, path); await View(form);
++            check(Field<ScanProgressControl>(form, "progressBar").State == ScanDisplayState.Incomplete &&
++                Field<Label>(form, "status").Text.Contains("结果不完整") &&
++                Field<StatCard>(form, "timeCard").Caption.Contains("结果不完整") && Field<ActionButton>(form, "issues").Visible,
++                "Incomplete scan presented as successful or has no details entry");
++            bool inspected = false;
++            using var closer = new System.Windows.Forms.Timer { Interval = 30 };
++            closer.Tick += (_, _) =>
++            {
++                var dialog = Application.OpenForms.Cast<Form>().FirstOrDefault(f => f.Text.StartsWith("未读取项"));
++                if (dialog == null) return;
++                string details = dialog.Controls.OfType<TextBox>().Single().Text;
++                inspected = details.Contains("不受当前视图筛选影响") && details.Contains("2,000") &&
++                    (incompleteKind != 3 || details.Contains("没有保留逐项原因"));
++                closer.Stop(); dialog.Close();
++            };
++            closer.Start(); Invoke(form, "ShowIssues");
++            check(inspected, "Issue details missing full-scan scope, bounds or fallback reason");
++            if (kind == 2)
++            {
++                Field<ComboBox>(form, "metricCombo").SelectedIndex = 1; await View(form);
++                check(total.Value.Contains("未知") && Field<Label>(form, "subtitle").Text.Contains("1 项占用未知") &&
++                    Field<ComboBox>(form, "metricCombo").AccessibleDescription!.Contains("不等于删除后释放"),
++                    "Unknown allocation or reclaimable-space caveat missing");
++            }
++        }
++        kind = 4; var cancelled = Scan(form, path);
++        check(Field<Label>(form, "subtitle").Text.Contains("上一次扫描结果"), "Preparing scan does not identify old results");
++        Field<ActionButton>(form, "cancel").PerformClick(); await cancelled; await View(form);
++        check(Field<Label>(form, "status").Text.Contains("上一次扫描结果") &&
++            Field<ActionButton>(form, "issues").Visible && Field<StatCard>(form, "timeCard").Caption.Contains("不完整"),
++            "Cancellation lost incomplete state of retained snapshot");
++        kind = 0; await Scan(form, path); await View(form);
++        check(!Field<ActionButton>(form, "issues").Visible && Field<Label>(form, "status").Text.Contains("扫描完成") &&
++            !Field<StatCard>(form, "timeCard").Caption.Contains("不完整"), "Complete scan retained stale incomplete labels");
++        Console.WriteLine("PASS UI skipped, unknown and flag-only partial results, issue details, cancellation and recovery");
++
++        Invoke(form, "SetMode", 0); await View(form);
++        Invoke(form, "HandleKeys", form, new KeyEventArgs(Keys.Control | Keys.F));
++        check(search.Focused, "Ctrl+F did not focus search");
++        search.Text = "demo"; Invoke(form, "HandleKeys", form, new KeyEventArgs(Keys.Escape)); await View(form);
++        check(search.Text == "", "Escape did not clear search");
++        var directory = Field<List<MapItem>>(form, "sortedRows").Single(i => i.Entry?.IsDirectory == true);
++        Invoke(form, "SelectItem", directory, true); grid.Focus();
++        typeof(Control).GetMethod("OnKeyDown", Private)!.Invoke(grid, [new KeyEventArgs(Keys.Enter)]); await View(form);
++        check(Field<DiskEntry>(form, "current").Name == "图片 Pictures", "Enter did not open selected folder");
++        Invoke(form, "HandleKeys", form, new KeyEventArgs(Keys.Alt | Keys.Up)); await View(form);
++        check(Field<DiskEntry>(form, "current").Path == path, "Alt+Up did not return to parent");
++        check(search.AccessibleName != null && grid.AccessibleName != null &&
++            Field<ComboBox>(form, "metricCombo").AccessibleName == "统计口径", "Core inputs lack accessible names");
++        form.Size = form.MinimumSize;
++        using var frame = new Bitmap(form.Width, form.Height); form.DrawToBitmap(frame, new Rectangle(Point.Empty, frame.Size));
++        check(Field<Label>(form, "subtitle").Width > 0 && Field<ActionButton>(form, "issues").Width > 0, "Minimum layout collapsed");
++        form.Close();
++        Console.WriteLine($"PASS UI keyboard search/clear/open/parent, accessible input names and minimum layout at {owner.DeviceDpi} DPI");
++    }
++
++    public static int Preview()
++    {
++        var thread = new Thread(() =>
++        {
++            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); Application.EnableVisualStyles();
++            Application.SetCompatibleTextRenderingDefault(false);
++            int scans = 0;
++            using var form = new MainForm(null)
++            { ScanRunner = (p, _, _, _) => ++scans == 2 ? throw new IOException("合成演示：目录暂时不可访问。") : Snapshot(p, scans == 1 ? 2 : 0) };
++            form.Shown += async (_, _) => await Scan(form, Path.Combine(Path.GetTempPath(), "AsukaLens-合成演示"));
++            Application.Run(form);
++        });
++        thread.SetApartmentState(ApartmentState.STA); thread.Start(); thread.Join(); return 0;
++    }
++}
