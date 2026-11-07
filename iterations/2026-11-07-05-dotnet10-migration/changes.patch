@@ -1,0 +1,467 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index b75b57c..2d3124f 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -12,7 +12,7 @@
+ ## 项目定位与事实来源
+ 
+ - AsukaLens 是 Windows 本地磁盘空间可视化桌面软件，以用户隐私、统计正确性、扫描效率和操作体验为重点。
+-- 技术基线为 C# / .NET 9 Windows Forms；内部项目名和命名空间仍为 `DiskAtlas`。界面基线为明日香主题、浅色面板和可读的数据区。
++- 技术基线为 C# / .NET 10 LTS Windows Forms；内部项目名和命名空间仍为 `DiskAtlas`。界面基线为明日香主题、浅色面板和可读的数据区。
+ - 当前实现、环境要求、构建入口以项目文件、脚本和 `README.md` 为准；历史过程见 `优化审查记录.md`；每轮证据保存在 `iterations/`。实现与说明冲突时先核查代码与实际结果，再同步说明，不把路线图当成已实现功能。
+ - 本文件规定工作方式及长期方向，不会自动启动所有开发任务。每轮仅实施本次已明确的范围，不顺带开展路线图中的其他功能。
+ - 核心使用流程是“选择目录 → 看清扫描状态 → 找到占用来源 → 核对大小口径 → 定位文件 → 刷新确认变化”。每轮说明改善哪个问题，以及用户如何感知结果。
+@@ -103,8 +103,9 @@
+ 
+ - 检查与改动相称。纯文档改动检查覆盖、事实、链接、相互矛盾与隐私，不仅为改文档重复构建；现状审计可运行基线检查。涉及核心扫描、缓存和统计逻辑时，增加必要边界测试并运行对应检查。
+ - 界面改动验证实际使用流程、布局和状态；算法或性能改动核对结果正确性与同条件基准。检查通过后，无新改动或疑点不反复扩大测试。
++- 开发 SDK 由 `global.json` 固定到已验证的 .NET 10 feature band，允许补丁升级，不使用预览 SDK。运行需要 .NET 10 Windows Desktop Runtime；SDK 已包含它。
+ - 当前普通构建入口：`dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。
+-- 先构建测试项目：`dotnet build tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。测试 DLL 为 `tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll`，用 `dotnet` 运行，按下表选范围。
++- 先构建测试项目：`dotnet build tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。测试 DLL 为 `tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll`，用 `dotnet` 运行，按下表选范围。
+ 
+ | 改动范围 | 必要检查 |
+ | --- | --- |
+@@ -113,11 +114,12 @@
+ | 界面、背景、绘制 | 应用与测试构建、`--ui-regression`、`--ui-regression --dpi-96`，实际受影响流程与状态观察 |
+ | 背景存储、弹窗、启动恢复 | 另运行 `--background-tests` 与 `--background-tests --dpi-96`，使用隔离配置的独立进程恢复检查 |
+ | 异常报告与隐私 | `--error-report-tests`，检查字段白名单、失败提示、旧报告保留和临时文件清理 |
++| 框架大版本 | 上述全部回归，加 `--desktop-compatibility` 的目录拖放/复制路径检查与实际窗口观察 |
+ | 性能 | 正确性回归加对应同条件基准，不无条件跑所有基准 |
+ 
+ - 可选 `--policy-benchmark` 用于三策略对比，`--refresh-benchmark` 用于刷新同条件诊断；方法与限制见 README 和相关迭代。先保留已有报告，再运行会覆盖报告的基准。
+ - 合成目录与软件配置隔离测试，不默认扫描用户整盘或覆盖真实背景设置。缺权限/文件系统特性的跳过、程序断言、人工观察和性能实测分别记录。
+-- 开发预览优先使用普通构建入口 `bin/Release/net9.0-windows/DiskAtlas.exe`；被运行中程序占用时使用明确标识的临时输出，记录路径与构建来源。收尾核查重复产物，不持续新增不明版本的 Preview 目录。
++- 开发预览优先使用普通构建入口 `bin/Release/net10.0-windows/DiskAtlas.exe`；被运行中程序占用时使用明确标识的临时输出，记录路径与构建来源。收尾核查重复产物，不持续新增不明版本的 Preview 目录。
+ - 只有有性能疑点或相关改动时才运行 `--scan-benchmark`；历史 `--memory-benchmark` 在缺少旧基准包时可能跳过，跳过不算验证通过该对比。
+ - 当前 `build.ps1` 会生成程序文件夹与 ZIP，`build.ps1 -Test` 还会运行两组核心检查；因此它们属于现阶段的打包入口，不用于普通迭代的无条件检查。脚本尚未实现本文件要求的完整正式发布流程。
+ - 调整目录或构建方式时同步更新上述命令、项目引用、测试链接文件、资源路径及文档。不得写入本机绝对路径作为公共运行要求。
+diff --git a/DiskAtlas.csproj b/DiskAtlas.csproj
+index 1333fb1..c54a068 100644
+--- a/DiskAtlas.csproj
++++ b/DiskAtlas.csproj
+@@ -1,7 +1,7 @@
+ <Project Sdk="Microsoft.NET.Sdk">
+   <PropertyGroup>
+     <OutputType>WinExe</OutputType>
+-    <TargetFramework>net9.0-windows</TargetFramework>
++    <TargetFramework>net10.0-windows</TargetFramework>
+     <UseWindowsForms>true</UseWindowsForms>
+     <TargetPlatformDisplayName>Windows</TargetPlatformDisplayName>
+     <RestoreConfigFile>$(MSBuildThisFileDirectory)NuGet.Config</RestoreConfigFile>
+diff --git a/README.md b/README.md
+index aa6a5c1..3fb5496 100644
+--- a/README.md
++++ b/README.md
+@@ -1,12 +1,12 @@
+ # AsukaLens v1.4.2
+ 
+-当前开发预览统一使用普通构建生成的 `bin/Release/net9.0-windows/DiskAtlas.exe`。第 5 轮背景设置已收尾，见[背景迭代记录](iterations/2026-11-07-02-background-settings/README.md)。下文各轮专用 Preview 路径仅是历史记录；`软件/` 和旧 ZIP 不含这些新功能。
++开发预览已迁移到 .NET 10 LTS，见[迁移验收记录](iterations/2026-11-07-05-dotnet10-migration/README.md)。当前开发预览统一使用普通构建生成的 `bin/Release/net10.0-windows/DiskAtlas.exe`。第 5 轮背景设置已收尾，见[背景迭代记录](iterations/2026-11-07-02-background-settings/README.md)。下文各轮专用 Preview 路径仅是历史记录；`软件/` 和旧 ZIP 不含这些新功能。
+ 
+ 开发分支已包含尚未正式发布的扫描策略修正、扫描进度与图块反馈；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。本次交互修正使用独立的 `bin/Preview/DiskAtlas.exe` 预览目录，以保留正在运行的旧窗口。详见[扫描策略记录](iterations/2026-11-01-02-scan-policy/README.md)、[第 2 轮交互记录](iterations/2026-11-02-02-scan-feedback/README.md)和[本次修正记录](iterations/2026-11-02-03-hover-fix/README.md)。
+ 
+ 第 3 轮开发预览新增实际刷新方式与诊断详情，修正只读日志协议兼容和连续性检查。点击顶部“点击详情”，或右键“重新扫描”选择“最近完成的扫描详情”，可查看实际方式、原因、核验/重扫/复用数量、日志错误码和分阶段耗时。详见[第 3 轮记录](iterations/2026-11-03-01-incremental-refresh/README.md)。第 3 轮后续修正通过 NTFS 根目录句柄在本机普通权限下读取真实日志。日志不可读时仍执行元信息核验。修复预览为 `bin/JournalPreview/DiskAtlas.exe`，验证见[只读日志修正记录](iterations/2026-11-04-01-journal-root/README.md)。
+ 
+-Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，点击“选择文件夹”，即可查看文件名称、大小和分布。
++Windows 本地文件夹空间可视化软件。运行当前开发预览 `bin/Release/net10.0-windows/DiskAtlas.exe`，点击“选择文件夹”，即可查看文件名称、大小和分布。
+ 
+ 界面使用用户提供的水彩插画作为背景，搭配暖白面板、珊瑚色按钮和浅色图表。背景等比例铺满窗口，边缘会随窗口比例裁切；原图内嵌在程序中，无需额外图片文件。数据行保持实色底，列表空白处透出背景。
+ 
+@@ -38,21 +38,20 @@ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，
+ 
+ 读取图片期间可取消或关闭设置窗口；图片解码结束后会丢弃已取消结果。正在保存时暂时禁止关闭，写入结束后才更新主窗。背景不会上传，程序不保存源图片路径。
+ 
+-背景专项检查为构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --background-tests`，再附加 `--dpi-96` 检查 96 DPI。它使用隔离设置，不覆盖个人背景。可选人工验收入口为 `--background-preview artifacts/background-demo`，会创建合成图片并打开使用该测试目录设置的主窗，退出后可清理此测试目录。
++背景专项检查为构建测试项目后运行 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --background-tests`，再附加 `--dpi-96` 检查 96 DPI。它使用隔离设置，不覆盖个人背景。可选人工验收入口为 `--background-preview artifacts/background-demo`，会创建合成图片并打开使用该测试目录设置的主窗，退出后可清理此测试目录。
+ 
+ ## 开发与构建
+ 
+ 异常报告仅在本地用户数据目录的 `AsukaLens/last-error.log` 保留最近一份，包含产品标识、格式版本、UTC 时间、受控错误类别和数值代码，不包含原始异常消息、文件路径、文件名、堆栈或异常附加数据。只有保存成功才显示日志位置，失败会明确提示，不自动上传。本次修复不回溯读取或改写旧版生成的临时日志，也不等于完整日志管理系统。验证命令为测试 DLL 的 `--error-report-tests`，详见[异常报告隐私修复](iterations/2026-11-07-03-error-report-privacy/README.md)。
+ 
+-项目使用 C# / .NET 9 Windows Forms，无第三方包、无网络请求。开发需要 .NET 9 SDK；运行需要 .NET 9 Windows Desktop Runtime。
++项目使用 C# / .NET 10 LTS Windows Forms，无第三方包，软件不联网。开发需要 `global.json` 所指定的 .NET 10 SDK（10.0.403，允许 10.0.4xx 后续补丁），运行需要 .NET 10 Windows Desktop Runtime；安装 SDK 已包含桌面运行时。可从[微软官方下载页](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)获取 Windows x64 安装程序，安装后用 `dotnet --version` 与 `dotnet --list-runtimes` 核对。
++
++当前实测环境为 Windows 11 x64。其他仍受微软支持的 Windows 版本见[官方兼容范围](https://learn.microsoft.com/en-us/dotnet/core/install/windows)，尚未逐一验收，不承诺所有 Windows 10 版本。旧发行目录和 ZIP 仍依赖 .NET 9；新源码与开发预览依赖 .NET 10。
+ 
+ ```powershell
+ # 普通迭代：只编译，不打包
+ dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
+ 
+-# 原开发预览仍在运行时，使用独立输出目录
+-dotnet build DiskAtlas.csproj --configuration Release --output bin/Preview -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
+-
+ # 核心检查（其他检查入口见下文）
+ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
+ 
+@@ -64,19 +63,21 @@ dotnet run --project DiskAtlas.csproj -- "D:\你的文件夹"
+ 
+ ## 验证
+ 
++测试入口会输出实际 .NET、WinForms 和进程架构；背景重启检查同时核对子进程版本。框架迁移另运行 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --desktop-compatibility`，使用合成目录检查生产拖放处理和复制路径；它会把测试路径写入系统剪贴板并在检查后清除，不读取原剪贴板内容。
++
+ `tests` 为无需测试框架依赖的断言程序，38 项检查覆盖扫描、隐藏文件、根目录消失、取消、140 层目录、联接循环及扫描期间链接替换、查询与排序、精确类型筛选、分页和极端图块边界；检查并行 / 串行结果逐项一致、修改时间、并发取消、错误传播及跳过统计；还检查文件存储、无分配路径比较、完成前预览、快照隔离、并发预览查询和目录浏览。80 组随机矩形图检查面积比例、完整覆盖、边界和不重叠。10 万文件固定种子基准同时与参考算法核对结果，并输出内存分配和耗时。
+ 
+-另外 25 项功能检查覆盖硬链接去重、压缩 / 稀疏占用、未知占用、三种策略、日志解析与断档回退、保留时间戳的深层修改、目录移动 / 新增 / 替换、根目录外硬链接写入、持续打开的写句柄、刷新期间变更重放及取消隔离，以及跨目录让步计数、取消边界、无节拍模式、任务峰值、阶段估算和真实目录任务计数。构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --advanced-tests`；两组共 63 项检查。`--ui-regression` 包含 6 组界面集成检查，其中一组直接使用正式扫描协调器，另覆盖进度终态与迟到回调、阶段切换、动效关闭、图块面积和命中稳定性以及尺寸变化。另检查头像透明度与缩放复用、局部重绘、静态缓存复用/失效/容量上限/释放及降级绘制一致性。
++另外 25 项功能检查覆盖硬链接去重、压缩 / 稀疏占用、未知占用、三种策略、日志解析与断档回退、保留时间戳的深层修改、目录移动 / 新增 / 替换、根目录外硬链接写入、持续打开的写句柄、刷新期间变更重放及取消隔离，以及跨目录让步计数、取消边界、无节拍模式、任务峰值、阶段估算和真实目录任务计数。构建测试项目后运行 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --advanced-tests`；两组共 63 项检查。`--ui-regression` 包含 10 组界面集成检查，其中一组直接使用正式扫描协调器，另覆盖进度终态与迟到回调、阶段切换、动效关闭、图块面积和命中稳定性以及尺寸变化。另检查头像透明度与缩放复用、局部重绘、静态缓存复用/失效/容量上限/释放及降级绘制一致性。
+ 
+-可选的合成图表绘制基准：`dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --treemap-benchmark after`。使用正常桌面环境，测量 12 个带嵌套内容的文件夹和 241 个平坦文件的悬停处理、离屏绘制耗时、托管分配和刷新范围。结果保存在 `artifacts/treemap-after.json`，已有报告需先归档再运行。它关闭动效，只测已预热的绘制成本，不等于实际鼠标到屏幕延迟或完整扫描性能。历史基线与方法见本次修正记录。
++可选的合成图表绘制基准：`dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --treemap-benchmark after`。使用正常桌面环境，测量 12 个带嵌套内容的文件夹和 241 个平坦文件的悬停处理、离屏绘制耗时、托管分配和刷新范围。结果保存在 `artifacts/treemap-after.json`，已有报告需先归档再运行。它关闭动效，只测已预热的绘制成本，不等于实际鼠标到屏幕延迟或完整扫描性能。历史基线与方法见本次修正记录。
+ 
+-三种真实策略的可选诊断基准：构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --policy-benchmark`。它创建并自动删除 15,200 个合成小文件，分别测量完整扫描和无日志的无变化刷新，预热后按平衡顺序每模式运行 6 次并逐项比对结果。汇总墙钟、进程 CPU、总托管分配与任务峰值；不测量实际前台应用响应或物理磁盘 I/O。结果保存在 `artifacts/policy-benchmark-results.json`；再次运行前应先归档并移除上一份同名结果，避免覆盖证据。
++三种真实策略的可选诊断基准：构建测试项目后运行 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --policy-benchmark`。它创建并自动删除 15,200 个合成小文件，分别测量完整扫描和无日志的无变化刷新，预热后按平衡顺序每模式运行 6 次并逐项比对结果。汇总墙钟、进程 CPU、总托管分配与任务峰值；不测量实际前台应用响应或物理磁盘 I/O。结果保存在 `artifacts/policy-benchmark-results.json`；再次运行前应先归档并移除上一份同名结果，避免覆盖证据。
+ 
+-另有 16 项日志边界检查：构建后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --journal-tests`，覆盖只读请求 V1/V0 协商、V2/V3 记录、128 位身份、截断/重建/回退游标、卷不一致、未知格式、读取上限、取消及保守回退；三组共 79 项检查。界面集成另验证最近完成扫描的详情窗口与实际刷新方式。真实卷日志不可读时，模拟协议检查不能证明真实卷日志读取成功。
++另有 16 项日志边界检查：构建后运行 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --journal-tests`，覆盖只读请求 V1/V0 协商、V2/V3 记录、128 位身份、截断/重建/回退游标、卷不一致、未知格式、读取上限、取消及保守回退；三组共 79 项检查。界面集成另验证最近完成扫描的详情窗口与实际刷新方式。真实卷日志不可读时，模拟协议检查不能证明真实卷日志读取成功。
+ 
+ 增量刷新只在本次运行保留的完整快照上进行，关闭后不保存缓存，重启后的第一次扫描为完整扫描。界面区分“日志增量”“元信息核验”“完整扫描”。元信息核验模式仍走访所有目录和文件元信息，主要复用树节点内容及已核实的存储信息，不能保证像日志模式一样显著减少磁盘访问。日志丢失连续性、格式无效、记录超限、旧快照不完整或身份异常时采用保守回退。详情提供核验目录/文件、重扫目录、复用文件、处理日志记录、原因和系统错误码，以及准备/读取整理耗时。Ctrl+F5 或重新扫描按钮的右键菜单可强制完整扫描。
+ 
+-可选刷新对比：`dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --refresh-benchmark`。同一组 2,400 文件、61 目录，预热后按轮换和反向顺序各运行 8 次，逐项比对完整扫描、无日志核验、模拟连续日志与本机实际路径。结果保存在 `artifacts/refresh-benchmark.json`，再次运行前先归档原报告。它测量墙钟、进程 CPU 和总托管分配，不测物理 I/O 或整盘冷启动；模拟日志仅验证复用工作量，不能当作本机实测加速。没有更改系统权限、日志设置或创建驻留服务。
++可选刷新对比：`dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --refresh-benchmark`。同一组 2,400 文件、61 目录，预热后按轮换和反向顺序各运行 8 次，逐项比对完整扫描、无日志核验、模拟连续日志与本机实际路径。结果保存在 `artifacts/refresh-benchmark.json`，再次运行前先归档原报告。它测量墙钟、进程 CPU 和总托管分配，不测物理 I/O 或整盘冷启动；模拟日志仅验证复用工作量，不能当作本机实测加速。没有更改系统权限、日志设置或创建驻留服务。
+ 
+ 可选的真实文件系统扫描基准（会创建并自动删除 72,000 个小文件，耗时较长）：
+ 
+diff --git a/build.ps1 b/build.ps1
+index c71a69a..8aea34e 100644
+--- a/build.ps1
++++ b/build.ps1
+@@ -8,13 +8,13 @@ Push-Location $PSScriptRoot
+ $stage = Join-Path $PSScriptRoot ('artifacts\publish-' + [Guid]::NewGuid().ToString('N'))
+ try {
+     $running = Get-Process 'AsukaLens','空间透镜','DiskAtlas' -ErrorAction SilentlyContinue | Where-Object {
+-        $_.Path -and ($_.Path -eq (Join-Path $PSScriptRoot '软件\AsukaLens.exe') -or $_.Path -eq (Join-Path $PSScriptRoot '软件\空间透镜.exe') -or $_.Path -eq (Join-Path $PSScriptRoot 'bin\Release\net9.0-windows\DiskAtlas.exe'))
++        $_.Path -and ($_.Path -eq (Join-Path $PSScriptRoot '软件\AsukaLens.exe') -or $_.Path -eq (Join-Path $PSScriptRoot '软件\空间透镜.exe') -or $_.Path -eq (Join-Path $PSScriptRoot 'bin\Release\net10.0-windows\DiskAtlas.exe'))
+     }
+     if ($running) { throw 'Close this project''s running app before building, then try again.' }
+     if ($Test) {
+         dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
+         if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
+-        dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --advanced-tests
++        dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --advanced-tests
+         if ($LASTEXITCODE -ne 0) { throw 'Advanced tests failed.' }
+     }
+     dotnet publish DiskAtlas.csproj --configuration Release --output $stage --nologo -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false -p:DebugType=None -p:DebugSymbols=false
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 8908f02..fcba01d 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,12 +1,12 @@
+ # 后续开发计划
+ 
+-依据 [2026-11-07 项目现状](project-status.md)。背景收尾与异常报告修复已完成；用户已要求开始后续任务，当前推进 .NET 10 LTS 迁移评估，具体环境方向待确认，其他条目不自动启动。长期工作规则见 [AGENTS.md](../AGENTS.md)。
++依据 [2026-11-07 项目现状](project-status.md)。背景收尾与异常报告修复已完成；用户随后选择系统安装 .NET 10 SDK，迁移与自动回归已完成，其他条目不自动启动。长期工作规则见 [AGENTS.md](../AGENTS.md)。
+ 
+ ## 已完成：第 5 轮收尾与异常报告修复
+ 
+-目标是让用户能可靠地更换背景、重新打开软件后保留设置，遇到失败能理解原因并继续使用。先完成现有功能闭环，再开始新功能。背景功能延续此前确认的方向；日志管理、权限、框架迁移和发布均另立方案。
++目标是让用户能可靠地更换背景、重新打开软件后保留设置，遇到失败能理解原因并继续使用。先完成现有功能闭环，再开始新功能。背景功能延续此前确认的方向；日志管理、权限、框架迁移和发布均另立方案。框架迁移现已另行确认，见下文。
+ 
+-背景部分已经完成实现与验证，见[迭代记录](../iterations/2026-11-07-02-background-settings/README.md)。最小异常报告修复也已完成，见[隐私修复记录](../iterations/2026-11-07-03-error-report-privacy/README.md)。下一轮建议单独评估 .NET 10 LTS 迁移。下面保留本轮范围与验收约定。
++背景部分已经完成实现与验证，见[迭代记录](../iterations/2026-11-07-02-background-settings/README.md)。最小异常报告修复也已完成，见[隐私修复记录](../iterations/2026-11-07-03-error-report-privacy/README.md)。后续 .NET 10 LTS 迁移已另立方案并获用户确认。下面保留本轮范围与验收约定。
+ 
+ ### 具体范围
+ 
+@@ -35,11 +35,11 @@
+ 
+ ## 后续顺序
+ 
+-当前已形成可审查的 [.NET 10 迁移方案](dotnet10-migration.md)，包含环境选择、代码范围、兼容性检查、验收和回退基线。静态核查完成，尚未切换目标框架或安装 SDK，不能视为迁移已完成。
++当前已形成可审查的 [.NET 10 迁移方案](dotnet10-migration.md)，包含环境选择、代码范围、兼容性检查、验收和回退基线。静态核查完成，用户明确选择系统安装 SDK，现已完成安装、迁移和全部自动回归，见[验收记录](../iterations/2026-11-07-05-dotnet10-migration/README.md)。下一项为本地诊断管理，需先明确三类日志与保留策略，不在本轮顺带实施。
+ 
+ | 顺序 | 建议方向 | 开始前需要明确 | 验收重点 |
+ | --- | --- | --- | --- |
+-| 1 | .NET 10 LTS 迁移 | 支持的 Windows 版本、开发 SDK、运行依赖与回退基线 | 核心/日志/UI 全部回归、启动与背景兼容；本轮不顺带安装系统依赖 |
++| 已完成 | .NET 10 LTS 迁移 | 支持的 Windows 版本、开发 SDK、运行依赖与回退基线 | 核心/日志/UI 全部回归、启动与背景兼容；按用户选择系统安装 SDK，保留 .NET 9 |
+ | 2 | 本地诊断管理 | 三类日志的含义、入口、默认开关、字段与保留策略 | 脱敏、容量/期限、查看清理、导出预览、写失败隔离；无默认上传 |
+ | 3 | 扫描策略与响应优化 | 同条件数据和实际瓶颈，是否确需单目录并行 | 逐项结果一致、取消隔离、首预览/操作响应和资源数据，不只总耗时 |
+ | 4 | 界面信息与可维护性 | 具体用户问题及组件草图，状态职责划分 | 明确口径/范围/不完整状态、键盘可用，按修改边界抽取主窗职责 |
+diff --git a/docs/dotnet10-migration.md b/docs/dotnet10-migration.md
+index dbcfceb..c27faa2 100644
+--- a/docs/dotnet10-migration.md
++++ b/docs/dotnet10-migration.md
+@@ -1,6 +1,6 @@
+ # .NET 10 LTS 迁移方案
+ 
+-状态：2026-11-07 已完成静态评估，环境方案待用户选择；尚未安装 SDK、修改目标框架或验证 .NET 10 运行结果。本方案只处理运行环境迁移。
++状态：2026-11-07 用户已选择系统安装 .NET 10 SDK，已完成 SDK 10.0.403 / 桌面运行时 10.0.14 安装及全部自动回归；下文保留评估时的环境快照，实际结果见[迁移验收记录](../iterations/2026-11-07-05-dotnet10-migration/README.md)。本方案只处理运行环境迁移。
+ 
+ ## 判断与现状
+ 
+@@ -14,8 +14,8 @@
+ 
+ | 方向 | 用户影响 | 建议 |
+ | --- | --- | --- |
+-| 项目内隔离 SDK | 官方 x64 SDK 解压到已忽略的 `artifacts/dotnet10/`，仅构建/启动进程使用；用项目提供的预览入口启动，未装系统运行时时不能直接双击框架依赖 EXE | 推荐先采用，符合本轮不顺带安装系统依赖的约定 |
+-| 系统安装 SDK | 安装官方 .NET 10 x64 SDK，含 Desktop Runtime；保留现有 .NET 9，普通 `dotnet` 命令与新 EXE 可直接使用 | 适合准备长期在本机开发，需用户选择系统安装方向 |
++| 项目内隔离 SDK | 官方 x64 SDK 解压到已忽略的 `artifacts/dotnet10/`，仅构建/启动进程使用；用项目提供的预览入口启动，未装系统运行时时不能直接双击框架依赖 EXE | 初始备选方案，本轮未采用 |
++| 系统安装 SDK | 安装官方 .NET 10 x64 SDK，含 Desktop Runtime；保留现有 .NET 9，普通 `dotnet` 命令与新 EXE 可直接使用 | 用户已选，适合长期开发 |
+ 
+ 两种方向均从微软官方发行元数据选择当前稳定的 .NET 10 SDK，下载前记录版本、来源及官方 SHA-512；校验后使用，不用预览 SDK。实施时记录实际版本及大小，不预先猜测下载地址。隔离 SDK 属于必要开发依赖，不进入 Git / 迭代补丁 / Release；校验及解压后删除本轮下载压缩包。
+ 
+@@ -51,6 +51,6 @@ SDK 包含 .NET 和 Windows Desktop Runtime；单独的普通 .NET Runtime 不
+ - 验收通过后归档补丁/清单、清理本轮中间物和重复下载，保留当前可用预览与所需 SDK；提交并推送 main。旧预览在新版本验证前保留，之后仅清理确认可再生的重复产物。
+ - 本轮不打包，不创建标签/Release，也不实施完整日志系统或性能重构。
+ 
+-## 待选择
++## 已确认的方向
+ 
+-建议采用“项目内隔离 SDK”，完成上述迁移与验收。若更希望长期直接双击 EXE 和使用系统 `dotnet`，可选择“系统安装 SDK”。项目规则将依赖大版本列为需先确认方向的改动，因此本次评估不替用户执行这项环境选择。
++用户已明确选择“系统安装 .NET 10 SDK”。安装官方稳定 x64 SDK、保留 .NET 9，应用和测试迁移至 .NET 10，完成验证、文档、精简归档与 main 提交推送。不创建隔离 SDK、专用隔离启动器或正式发布包。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 1dd3110..62c7295 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -4,12 +4,13 @@
+ 
+ ## 当前判断
+ 
+-核心扫描与查看流程已经具备，现有回归可通过，适合继续迭代。第 5 轮背景功能已完成开发收尾，异常报告的最小隐私修复也已完成。完整日志系统、运行时迁移和正式发布仍按计划分别推进。
++核心扫描与查看流程已经具备，现有回归可通过，适合继续迭代。第 5 轮背景功能已完成开发收尾，异常报告的最小隐私修复也已完成，并完成了 .NET 10 LTS 系统安装与迁移验证；完整日志系统和正式发布仍按计划分别推进。
+ 
+ - 本次审计的代码基线为 `a4e5a462ef6f7a004e030c4f1174a141199c8582`，核对时本地与远程 `main` 一致。
+-- 第 5 轮背景设置现已完成收尾，源码、测试和说明纳入独立开发提交，见[背景迭代记录](../iterations/2026-11-07-02-background-settings/README.md)。普通预览入口统一为 `bin/Release/net9.0-windows/DiskAtlas.exe`。
++- 第 5 轮背景设置现已完成收尾，源码、测试和说明纳入独立开发提交，见[背景迭代记录](../iterations/2026-11-07-02-background-settings/README.md)。普通预览入口统一为 `bin/Release/net10.0-windows/DiskAtlas.exe`。
++- 本轮迁移基线为 `2beb1445d4c18da19eaed74dde565e0770dcce51`。系统安装 SDK 10.0.403 与 Windows Desktop Runtime 10.0.14，安装退出码 0；原有 .NET 9 保留。见[迁移验收记录](../iterations/2026-11-07-05-dotnet10-migration/README.md)。
+ - 项目版本字段仍为 `1.4.2`。`软件/AsukaLens.exe` 和既有 ZIP 为旧构建，开发预览含之后的迭代。核查时 GitHub Release 列表为空，没有符合当前四类资产要求的正式发布。
+-- 技术栈为 C# / .NET 9 WinForms，无第三方 NuGet 包。启动本质是本地 Windows 桌面进程，通过 .NET Windows Desktop Runtime 运行，扫描和界面操作不依赖网页服务器。当前发布脚本使用框架依赖部署。
++- 技术栈为 C# / .NET 10 LTS WinForms，无第三方 NuGet 包。启动本质是本地 Windows 桌面进程，通过 .NET Windows Desktop Runtime 运行，扫描和界面操作不依赖网页服务器。当前发布脚本使用框架依赖部署。
+ 
+ ## 功能状态
+ 
+@@ -31,7 +32,7 @@
+ 
+ ## 已验证的事实
+ 
+-本轮最终代码重新通过核心、高级与日志检查；背景收尾通过双 DPI 的界面与专项检查，后续只改异常报告与测试入口，专项结果继续适用。测试均用合成目录，背景配置指向测试目录，不覆盖真实用户设置。
++本轮 .NET 10 代码重新通过下列全部回归。所有测试均报告 .NET 10.0.14 / WinForms 10.0.0.0 / X64；背景子进程沿用父进程的 dotnet 宿主并核对运行时版本。测试均用合成目录，背景配置指向测试目录，不覆盖真实用户设置。
+ 
+ | 检查 | 本次结果 |
+ | --- | --- |
+@@ -43,12 +44,13 @@
+ | `--ui-regression --dpi-96` | 独立 96 DPI 虚拟化进程，10 组通过 |
+ | `--background-tests` 及 `--dpi-96` | 各 7 组通过，含独立进程生产主窗启动恢复 |
+ | `--error-report-tests` | 3 组通过，隐私字段、容量及存储失败 |
++| `--desktop-compatibility` | 2 组通过，FileDrop 目录处理/中文路径/拒绝非法选择、生产复制菜单与系统剪贴板往返 |
+ 
+ 真实刷新检查报告 `ChangeJournal`、日志 `Available`，重扫 1 个目录、复用 5 个文件，原生错误码为 0。这只证明本机该合成样本的路径可用，不代表所有磁盘、权限或文件系统。
+ 
+ 背景专项增加了 v1 配置兼容、v2 完整性校验、截断/非法值、锁定文件模拟保存/清除失败、重试、取消、关闭期间迟到结果释放、真实弹窗控件、极端比例和 8 种 EXIF 方向。独立进程用隔离设置调用生产主窗的 `loadSavedBackground: true` 路径，验证重复启动、源图删除、默认恢复和损坏回退。
+ 
+-使用 computer-use 在实际窗口操作了系统选图框、缩放、焦点拖动与应用，检查深色合成背景的预览及主窗文字可读性。未触碰个人背景配置。没有进行跨显示器、系统高对比切换或逐帧冷启动测量，也未新增整盘性能结论。
++本轮使用 computer-use 在 .NET 10 实际窗口观察默认背景、系统选图框、深色合成图片导入、主题预览与应用；关闭后直接运行测试 EXE 宿主，观察生产 MainForm 恢复隔离配置。缩放/焦点与异常场景由背景专项覆盖。本轮没有实测资源管理器鼠标拖放的跨进程手势，FileDrop 使用真实合成目录和数据对象调用生产事件处理；复制路径经过系统剪贴板。未触碰个人背景配置，未归档系统对话框截图。没有进行跨显示器、系统高对比切换或逐帧冷启动测量，也未新增整盘性能结论。
+ 
+ 异常报告现使用 `ErrorReport.cs` 的字段白名单，只保留产品/格式标识、UTC 时间、固定错误类别和数值代码。最近一份写入本地用户数据目录，失败不谎报成功，不记录异常消息、堆栈或附加数据。见[隐私修复记录](../iterations/2026-11-07-03-error-report-privacy/README.md)。完整日志管理仍待开发。
+ 
+@@ -56,14 +58,14 @@
+ 
+ | 优先级 | 发现与影响 | 具体下一步 |
+ | --- | --- | --- |
+-| P1 运行环境 | 项目使用 .NET 9，支持期即将结束，本机目前未检出 .NET 10 SDK | 单独评估并迁移 .NET 10 LTS，保留升级前回归基线，先不混入背景收尾 |
++| 已处理：运行环境 | 已迁移 .NET 10 LTS，SDK 10.0.403 / 桌面运行时 10.0.14，全部自动回归通过 | 后续跟进同 feature band 补丁；更换 feature band 或框架大版本另行核验 |
+ | P1 使用入口 | 当前入口已统一，但 `bin/` 仍有多个历史输出目录；旧发行目录仍是 v1.4.2 | 后续建立一个当前预览入口及构建身份，更新过时说明，核查后清理可再生产物 |
+ | P2 扫描性能 | 单目录内串行，自动策略无负载自适应；整盘耗时尚无当前同条件数据 | 先测平坦/多目录样本、预览与取消延迟、CPU/内存，再决定是否做有界单目录并行 |
+ | P2 可维护性 | `MainForm.cs` 约 970 行，集中 UI、扫描状态、查询和设置；测试通过链接源文件构建 | 在实际修改边界按职责渐进抽取，配合契约测试，避免一次性目录搬迁或框架替换 |
+ | P2 日志体系 | 开发记录已有，运行诊断零散，用户日志语义未确定 | 先定义入口、字段、用途和保留上限，再实施本地诊断管理 |
+ | 发布前 | 缺英文 README、标准安装器和快照流水线；资源目录没有来源/许可说明文件 | 发布前补双语文档、确认素材分发条件，再完成安装器和四类资产验证 |
+ 
+-截至本次核查，[微软 .NET 支持策略](https://dotnet.microsoft.com/en-us/platform/support/policy) 列出 .NET 9 支持到 2026-11-10，.NET 10 LTS 支持到 2028-11-14。迁移前再次核查官方支持页与 Windows 兼容范围。
++截至本次核查，[微软 .NET 支持策略](https://dotnet.microsoft.com/en-us/platform/support/policy) 列出 .NET 9 支持到 2026-11-10，.NET 10 LTS 支持到 2028-11-14。本轮已复核官方支持页与 Windows 兼容范围，软件实测环境为 Windows 11 x64；不能将框架支持范围当作软件多系统已验收。
+ 
+ ## 当前目录与入口
+ 
+@@ -83,6 +85,6 @@
+ └─ 软件/                     本机旧发行目录，Git 忽略
+ ```
+ 
+-源码构建与测试入口见 [AGENTS.md](../AGENTS.md#检查与现有命令)。当前可运行预览为 `bin/Release/net9.0-windows/DiskAtlas.exe`，本轮重新生成。其他专用 Preview 目录为历史产物，不作为当前入口。
++源码构建与测试入口见 [AGENTS.md](../AGENTS.md#检查与现有命令)。当前可运行预览为 `bin/Release/net10.0-windows/DiskAtlas.exe`，本轮按 .NET 10 重新生成；升级前的 `bin/Release/net9.0-windows/` 暂留作回退。其他专用 Preview 目录为历史产物，不作为当前入口。
+ 
+-核查时 `bin/` 约 27.94 MiB，迭代归档约 2.35 MiB，没有发现本项目产物已占用巨大空间。本轮只清理自己的审计构建与可再生中间物，既有预览和历史 ZIP 留待确认其用途后整理。
++先前审计时 `bin/` 约 27.94 MiB、迭代归档约 2.35 MiB，这是迁移前的体积记录。本轮清理 SDK 下载包、连接探针、合成 UI 目录、专用 CLI 临时目录及构建中间物/测试输出；系统 SDK 是正常开发依赖，当前新预览、升级前普通构建和未知用途历史产物保留。具体清理结果见本轮迭代记录。
+diff --git a/tests/BackgroundRegression.cs b/tests/BackgroundRegression.cs
+index 529c1bd..1a69b24 100644
+--- a/tests/BackgroundRegression.cs
++++ b/tests/BackgroundRegression.cs
+@@ -229,12 +229,17 @@ internal static class BackgroundRegression
+ 
+     private static void Child(string path, string expected)
+     {
+-        var start = new ProcessStartInfo("dotnet") { UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true };
++        // Keep startup checks on the same dotnet host as the parent test process.
++        string host = Environment.ProcessPath is { } executable &&
++            string.Equals(Path.GetFileNameWithoutExtension(executable), "dotnet", StringComparison.OrdinalIgnoreCase)
++            ? executable : "dotnet";
++        var start = new ProcessStartInfo(host) { UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true };
+         start.ArgumentList.Add(Assembly.GetExecutingAssembly().Location);
+         start.ArgumentList.Add("--background-child"); start.ArgumentList.Add(path); start.ArgumentList.Add(expected);
+         using var process=Process.Start(start)!;
+         if (!process.WaitForExit(20000)) { process.Kill(entireProcessTree:true); throw new Exception("Startup child timed out"); }
+         Check(process.ExitCode==0,"Startup child failed: "+process.StandardError.ReadToEnd());
++        Check(process.StandardOutput.ReadToEnd().Contains($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription};"), "Startup child used a different runtime");
+     }
+ 
+     public static int Preview(string root)
+diff --git a/tests/DiskAtlas.Tests.csproj b/tests/DiskAtlas.Tests.csproj
+index ca6d48b..d439122 100644
+--- a/tests/DiskAtlas.Tests.csproj
++++ b/tests/DiskAtlas.Tests.csproj
+@@ -1,7 +1,7 @@
+ <Project Sdk="Microsoft.NET.Sdk">
+   <PropertyGroup>
+     <OutputType>Exe</OutputType>
+-    <TargetFramework>net9.0-windows</TargetFramework>
++    <TargetFramework>net10.0-windows</TargetFramework>
+     <UseWindowsForms>true</UseWindowsForms>
+     <Nullable>enable</Nullable>
+     <ImplicitUsings>enable</ImplicitUsings>
+diff --git a/tests/Program.cs b/tests/Program.cs
+index d9fd4ba..2e1c965 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -1,6 +1,10 @@
+ using DiskAtlas;
+ using System.Drawing;
+ 
++Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
++
++if (args.Contains("--desktop-compatibility")) return DesktopCompatibility.Run();
++
+ if (args.Contains("--error-report-tests")) return ErrorReportRegression.Run();
+ 
+ if (args.Contains("--background-preview")) return BackgroundRegression.Preview(args[1]);
+diff --git a/使用说明.txt b/使用说明.txt
+index ffcdb36..247e582 100644
+--- a/使用说明.txt
++++ b/使用说明.txt
+@@ -9,7 +9,8 @@ AsukaLens v1.4.2
+ 列表的数据行使用实色底，空白区域透出背景。
+ 
+ 开始使用
+-双击“AsukaLens.exe”，点击右上角“选择文件夹”，选择电脑上的目录。
++当前开发预览：双击 bin/Release/net10.0-windows/DiskAtlas.exe，点击右上角“选择文件夹”，选择电脑上的目录。
++旧发行目录中的 AsukaLens.exe 仍可运行，但不包含最新开发改动。
+ 也可以把一个文件夹直接拖入程序窗口。
+ 
+ 扫描策略与统计口径
+@@ -94,7 +95,9 @@ Ctrl+O 选择文件夹；Ctrl+F 搜索；F5 增量刷新；Ctrl+F5 强制完整
+ Alt+↑ 上一级；Esc 清空搜索。
+ 
+ 运行环境
+-Windows 10/11，.NET 9 Desktop Runtime。本机已具备，无需额外安装。
++当前源码及开发预览：Windows 11 x64 已实测，运行需要 .NET 10 Windows Desktop Runtime。
++开发使用 global.json 指定的 .NET 10 SDK（已包含桌面运行时）。
++其他 Windows 版本需符合微软当前支持范围，未逐一验收。旧软件目录和 ZIP 仍依赖 .NET 9。
+ 移动到另一台电脑时，请完整复制本文件夹，保留 .dll 和 .json 文件。
+ 
+ 本程序仅读取文件元信息，不修改或删除扫描内容，不联网、不上传文件。
+@@ -116,4 +119,4 @@ Windows 10/11，.NET 9 Desktop Runtime。本机已具备，无需额外安装。
+ 
+ 
+ 开发预览：第 5 轮背景设置
+-当前开发入口为 bin/Release/net9.0-windows/DiskAtlas.exe。主窗右上角“背景设置”支持 PNG/JPEG/BMP，限制 24 MiB、4000 万像素，副本最长边 2048 像素。可缩放、拖动或输入焦点，自动取色或手动选择强调色，预览包含文字和按钮效果。应用后保存到本机用户数据目录，重启恢复，源图移动或删除不影响副本。恢复默认先预览，点击应用才保存，取消保留旧设置。读取时可以取消或关闭，保存时请等待完成。错误会按读取、保存或恢复默认分别说明。此功能尚未打入旧软件目录和 ZIP。
++当前开发入口为 bin/Release/net10.0-windows/DiskAtlas.exe。主窗右上角“背景设置”支持 PNG/JPEG/BMP，限制 24 MiB、4000 万像素，副本最长边 2048 像素。可缩放、拖动或输入焦点，自动取色或手动选择强调色，预览包含文字和按钮效果。应用后保存到本机用户数据目录，重启恢复，源图移动或删除不影响副本。恢复默认先预览，点击应用才保存，取消保留旧设置。读取时可以取消或关闭，保存时请等待完成。错误会按读取、保存或恢复默认分别说明。此功能尚未打入旧软件目录和 ZIP。
+diff --git a/global.json b/global.json
+new file mode 100644
+index 0000000..ddcd6c7
+--- /dev/null
++++ b/global.json
+@@ -0,0 +1,7 @@
++{
++  "sdk": {
++    "version": "10.0.403",
++    "rollForward": "latestPatch",
++    "allowPrerelease": false
++  }
++}
+diff --git a/tests/DesktopCompatibility.cs b/tests/DesktopCompatibility.cs
+new file mode 100644
+index 0000000..9943b36
+--- /dev/null
++++ b/tests/DesktopCompatibility.cs
+@@ -0,0 +1,86 @@
++using DiskAtlas;
++using System.Collections.Specialized;
++using System.Reflection;
++using System.Windows.Forms;
++
++// Exercise the production drag/drop and copy handlers using synthetic files.
++internal static class DesktopCompatibility
++{
++    public static int Run()
++    {
++        string root = Path.Combine(Path.GetTempPath(), "AsukaLens-desktop-" + Guid.NewGuid().ToString("N"));
++        string directory = Path.Combine(root, "Unicode 示例");
++        string file = Path.Combine(directory, "sample.txt");
++        Directory.CreateDirectory(directory);
++        File.WriteAllText(file, "sample");
++        Exception? failure = null;
++        var thread = new Thread(() =>
++        {
++            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
++            Application.EnableVisualStyles();
++            using var form = new MainForm(null, backgroundSettingsPath: Path.Combine(root, "background.dat"));
++            bool wroteClipboard = false;
++            T Field<T>(string name) => (T)typeof(MainForm).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(form)!;
++            void Raise(string method, DragEventArgs args) => typeof(Control).GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(form, [args]);
++            void Check(bool value, string message) { if (!value) throw new Exception(message); }
++            DragEventArgs DropData(params string[] paths)
++            {
++                var data = new DataObject();
++                var collection = new StringCollection(); collection.AddRange(paths);
++                data.SetFileDropList(collection);
++                return new DragEventArgs(data, 0, 0, 0, DragDropEffects.Copy, DragDropEffects.None);
++            }
++            form.Shown += async (_, _) =>
++            {
++                try
++                {
++                    var nonDirectory = DropData(file);
++                    Raise("OnDragEnter", nonDirectory);
++                    Check(nonDirectory.Effect == DragDropEffects.None, "File was accepted as a directory");
++                    var multiple = DropData(directory, root);
++                    Raise("OnDragEnter", multiple);
++                    Check(multiple.Effect == DragDropEffects.None, "Multiple directories were accepted");
++                    var single = DropData(directory);
++                    Raise("OnDragEnter", single);
++                    Check(single.Effect == DragDropEffects.Copy, "Unicode directory was rejected");
++                    Raise("OnDragDrop", single);
++                    var deadline = DateTime.UtcNow.AddSeconds(15);
++                    while (Field<ScanResult?>("scan") == null || !Field<DataGridView>("grid").Enabled || Field<List<MapItem>>("sortedRows").Count != 1)
++                    {
++                        if (DateTime.UtcNow >= deadline) throw new TimeoutException("Dropped directory scan did not complete");
++                        await Task.Delay(25);
++                    }
++                    Check(Field<ScanResult>("scan").Root.FileCount == 1 && Field<ScanResult>("scan").Root.Size == 6, "Dropped directory statistics changed");
++                    Console.WriteLine("PASS desktop FileDrop directory dispatch, Unicode paths and invalid selection rejection");
++
++                    var grid = Field<DataGridView>("grid");
++                    var item = Field<List<MapItem>>("sortedRows").Single();
++                    typeof(MainForm).GetMethod("SelectItem", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(form, [item, true]);
++                    grid.ContextMenuStrip!.Items.Cast<ToolStripItem>().Single(i => i.Text == "复制完整路径").PerformClick();
++                    wroteClipboard = true;
++                    Check(Clipboard.GetText() == file, "Copy path did not round-trip through the Windows clipboard");
++                    Console.WriteLine("PASS desktop production copy-path action and Windows clipboard text round-trip");
++                }
++                catch (Exception error) { failure = error; }
++                finally
++                {
++                    // Never read the clipboard before our own copy operation.
++                    try { if (wroteClipboard && Clipboard.GetText() == file) Clipboard.Clear(); }
++                    catch (System.Runtime.InteropServices.ExternalException error) { failure ??= error; }
++                    form.Close();
++                }
++            };
++            Application.Run(form);
++        });
++        thread.SetApartmentState(ApartmentState.STA);
++        try
++        {
++            thread.Start(); thread.Join();
++            if (failure != null) throw failure;
++            return 0;
++        }
++        catch (Exception error) { Console.Error.WriteLine("FAIL desktop compatibility: " + error.GetType().Name); return 1; }
++        finally { Directory.Delete(root, recursive: true); }
++    }
++}

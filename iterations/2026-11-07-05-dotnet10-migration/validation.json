@@ -1,0 +1,68 @@
+{
+  "baseline": "2beb1445d4c18da19eaed74dde565e0770dcce51",
+  "sdk": "10.0.403",
+  "runtime": "10.0.14",
+  "windows_desktop_runtime": "10.0.14",
+  "os": "Windows 11 x64 build 26100",
+  "installer": {
+    "source": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-win-x64.exe",
+    "sha512": "cca8d82788252a8d13e778150a5e8393e204af274a12d19de7da10a0d98370a4edd5361ce5da73d0db13997fe5191e5db3a69c9665c6ddd6fba0d77845046f3c",
+    "size_bytes": 215399928,
+    "hash_verified": true,
+    "authenticode": "Valid; Microsoft Corporation",
+    "exit_code": 0,
+    "restart_required": false
+  },
+  "dotnet9_preserved": true,
+  "build": {
+    "application": {
+      "warnings": 0,
+      "errors": 0
+    },
+    "tests": {
+      "warnings": 0,
+      "errors": 0
+    }
+  },
+  "checks": {
+    "core": 38,
+    "advanced": 25,
+    "journal": 16,
+    "error_report": 3,
+    "ui_144_dpi": 10,
+    "ui_96_dpi": 10,
+    "background_144_dpi": 7,
+    "background_96_dpi": 7,
+    "desktop_compatibility": 2
+  },
+  "real_refresh": {
+    "method": "ChangeJournal",
+    "journal": "Available",
+    "rescanned_directories": 1,
+    "reused_files": 5,
+    "native_error": 0,
+    "read_only_error": 0
+  },
+  "manual_ui": "Default background, image picker/import/apply, dark synthetic background readability, test EXE host restart restores isolated settings",
+  "not_verified": [
+    "Other Windows versions and CPU architectures",
+    "Cross-monitor DPI transitions",
+    "OS high-contrast switch",
+    "Frame-by-frame cold startup",
+    "Explorer cross-process mouse drag gesture"
+  ],
+  "packaged": false,
+  "cleanup": {
+    "removed_files": 54,
+    "removed_bytes": 226337124,
+    "targets": [
+      "obj/",
+      "tests/obj/",
+      "tests/bin/",
+      "artifacts/dotnet10-migration/",
+      "temporary CLI home for this iteration"
+    ],
+    "current_app_preserved": true,
+    "net9_fallback_preserved": true
+  }
+}

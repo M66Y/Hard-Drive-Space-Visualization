@@ -1,0 +1,38 @@
+{
+  "baseline": "2beb1445d4c18da19eaed74dde565e0770dcce51",
+  "patch_files": [
+    "AGENTS.md",
+    "DiskAtlas.csproj",
+    "README.md",
+    "build.ps1",
+    "docs/development-plan.md",
+    "docs/dotnet10-migration.md",
+    "docs/project-status.md",
+    "global.json",
+    "tests/BackgroundRegression.cs",
+    "tests/DesktopCompatibility.cs",
+    "tests/DiskAtlas.Tests.csproj",
+    "tests/Program.cs",
+    "使用说明.txt"
+  ],
+  "sha256_lf": {
+    "AGENTS.md": "60d484e8af0fbfe934b7dbc7dd4105f342ad185cfb6a368b5209df24453d1502",
+    "DiskAtlas.csproj": "042dfbdc161f1c34e41f7a9e1330ef830b922b1aabbf8f29c388fd4fafd2ecfb",
+    "README.md": "a7410fa4ca50851e47a348b8bb0915d3016af9f78d75f1f5cc87f9f8d50bec81",
+    "build.ps1": "86da1ddd7e9542424f6f94da61357956fbae0671d91892aeab73c57e04b96cc6",
+    "docs/development-plan.md": "d19ec4edda1cdce45b1ac9a1f85bcf4624384d28fe447a9b21f432eb0e8f8154",
+    "docs/dotnet10-migration.md": "d19dfdf01237ebdd2329da7f9db61d598d6e5ab8c8b4fa42d974825418108be2",
+    "docs/project-status.md": "d916a91445d111f167d02f9e778fa9896152e23c61e2a91b0e71ad61e6ce357d",
+    "global.json": "6a9d5e059d71e51ec61f582ea1cda96d2254bf83f7857846e40f0466e6dd9417",
+    "tests/BackgroundRegression.cs": "32cfc71a03772b11cbb8e7ff9b7e6208661da9e29f9c1fc7052fd4f02a4b3c73",
+    "tests/DesktopCompatibility.cs": "93a77720ff6a11d53b709ac415be36fffe351d3cb219753e7426f9f2768c703b",
+    "tests/DiskAtlas.Tests.csproj": "f6d699689ba0607f5076a8fe699cfa54dbebba8d61d9269d4320452651a5fe81",
+    "tests/Program.cs": "8792320e03505aeb72ddf7a8cd0411fc52ba14ae11d24793b4eafe22b75b0f12",
+    "使用说明.txt": "dac8d681661126355f2f156889d5081195ee8fd182cb708b641496d3aa751482",
+    "iterations/2026-11-07-05-dotnet10-migration/README.md": "173b94a40187a9ea89a331397be5f00b8e3c488d60b16f599b65813ccbfe9666",
+    "iterations/2026-11-07-05-dotnet10-migration/validation.json": "40a0ad6b993c472b75780e1b36e448e4783eb6a8495af2b935ac7d3692bd0899",
+    "iterations/2026-11-07-05-dotnet10-migration/changes.patch": "cead7376eba48299f69f4cacb9f1751d87284c9d83f5a25a9ff9e6ce578014d1"
+  },
+  "patch_verified_in_isolated_baseline": true,
+  "restoration_comparison": "byte-for-byte; preserves original line endings"
+}

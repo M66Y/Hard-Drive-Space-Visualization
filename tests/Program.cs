@@ -1,6 +1,10 @@
 using DiskAtlas;
 using System.Drawing;
 
+Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+
+if (args.Contains("--desktop-compatibility")) return DesktopCompatibility.Run();
+
 if (args.Contains("--error-report-tests")) return ErrorReportRegression.Run();
 
 if (args.Contains("--background-preview")) return BackgroundRegression.Preview(args[1]);

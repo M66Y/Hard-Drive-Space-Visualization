@@ -8,13 +8,13 @@ Push-Location $PSScriptRoot
 $stage = Join-Path $PSScriptRoot ('artifacts\publish-' + [Guid]::NewGuid().ToString('N'))
 try {
     $running = Get-Process 'AsukaLens','空间透镜','DiskAtlas' -ErrorAction SilentlyContinue | Where-Object {
-        $_.Path -and ($_.Path -eq (Join-Path $PSScriptRoot '软件\AsukaLens.exe') -or $_.Path -eq (Join-Path $PSScriptRoot '软件\空间透镜.exe') -or $_.Path -eq (Join-Path $PSScriptRoot 'bin\Release\net9.0-windows\DiskAtlas.exe'))
+        $_.Path -and ($_.Path -eq (Join-Path $PSScriptRoot '软件\AsukaLens.exe') -or $_.Path -eq (Join-Path $PSScriptRoot '软件\空间透镜.exe') -or $_.Path -eq (Join-Path $PSScriptRoot 'bin\Release\net10.0-windows\DiskAtlas.exe'))
     }
     if ($running) { throw 'Close this project''s running app before building, then try again.' }
     if ($Test) {
         dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
         if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
-        dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --advanced-tests
+        dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --advanced-tests
         if ($LASTEXITCODE -ne 0) { throw 'Advanced tests failed.' }
     }
     dotnet publish DiskAtlas.csproj --configuration Release --output $stage --nologo -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false -p:DebugType=None -p:DebugSymbols=false

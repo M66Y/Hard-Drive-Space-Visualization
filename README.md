@@ -1,12 +1,12 @@
 # AsukaLens v1.4.2
 
-当前开发预览统一使用普通构建生成的 `bin/Release/net9.0-windows/DiskAtlas.exe`。第 5 轮背景设置已收尾，见[背景迭代记录](iterations/2026-11-07-02-background-settings/README.md)。下文各轮专用 Preview 路径仅是历史记录；`软件/` 和旧 ZIP 不含这些新功能。
+开发预览已迁移到 .NET 10 LTS，见[迁移验收记录](iterations/2026-11-07-05-dotnet10-migration/README.md)。当前开发预览统一使用普通构建生成的 `bin/Release/net10.0-windows/DiskAtlas.exe`。第 5 轮背景设置已收尾，见[背景迭代记录](iterations/2026-11-07-02-background-settings/README.md)。下文各轮专用 Preview 路径仅是历史记录；`软件/` 和旧 ZIP 不含这些新功能。
 
 开发分支已包含尚未正式发布的扫描策略修正、扫描进度与图块反馈；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。本次交互修正使用独立的 `bin/Preview/DiskAtlas.exe` 预览目录，以保留正在运行的旧窗口。详见[扫描策略记录](iterations/2026-11-01-02-scan-policy/README.md)、[第 2 轮交互记录](iterations/2026-11-02-02-scan-feedback/README.md)和[本次修正记录](iterations/2026-11-02-03-hover-fix/README.md)。
 
 第 3 轮开发预览新增实际刷新方式与诊断详情，修正只读日志协议兼容和连续性检查。点击顶部“点击详情”，或右键“重新扫描”选择“最近完成的扫描详情”，可查看实际方式、原因、核验/重扫/复用数量、日志错误码和分阶段耗时。详见[第 3 轮记录](iterations/2026-11-03-01-incremental-refresh/README.md)。第 3 轮后续修正通过 NTFS 根目录句柄在本机普通权限下读取真实日志。日志不可读时仍执行元信息核验。修复预览为 `bin/JournalPreview/DiskAtlas.exe`，验证见[只读日志修正记录](iterations/2026-11-04-01-journal-root/README.md)。
 
-Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，点击“选择文件夹”，即可查看文件名称、大小和分布。
+Windows 本地文件夹空间可视化软件。运行当前开发预览 `bin/Release/net10.0-windows/DiskAtlas.exe`，点击“选择文件夹”，即可查看文件名称、大小和分布。
 
 界面使用用户提供的水彩插画作为背景，搭配暖白面板、珊瑚色按钮和浅色图表。背景等比例铺满窗口，边缘会随窗口比例裁切；原图内嵌在程序中，无需额外图片文件。数据行保持实色底，列表空白处透出背景。
 
@@ -38,20 +38,19 @@ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，�
 
 读取图片期间可取消或关闭设置窗口；图片解码结束后会丢弃已取消结果。正在保存时暂时禁止关闭，写入结束后才更新主窗。背景不会上传，程序不保存源图片路径。
 
-背景专项检查为构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --background-tests`，再附加 `--dpi-96` 检查 96 DPI。它使用隔离设置，不覆盖个人背景。可选人工验收入口为 `--background-preview artifacts/background-demo`，会创建合成图片并打开使用该测试目录设置的主窗，退出后可清理此测试目录。
+背景专项检查为构建测试项目后运行 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --background-tests`，再附加 `--dpi-96` 检查 96 DPI。它使用隔离设置，不覆盖个人背景。可选人工验收入口为 `--background-preview artifacts/background-demo`，会创建合成图片并打开使用该测试目录设置的主窗，退出后可清理此测试目录。
 
 ## 开发与构建
 
 异常报告仅在本地用户数据目录的 `AsukaLens/last-error.log` 保留最近一份，包含产品标识、格式版本、UTC 时间、受控错误类别和数值代码，不包含原始异常消息、文件路径、文件名、堆栈或异常附加数据。只有保存成功才显示日志位置，失败会明确提示，不自动上传。本次修复不回溯读取或改写旧版生成的临时日志，也不等于完整日志管理系统。验证命令为测试 DLL 的 `--error-report-tests`，详见[异常报告隐私修复](iterations/2026-11-07-03-error-report-privacy/README.md)。
 
-项目使用 C# / .NET 9 Windows Forms，无第三方包、无网络请求。开发需要 .NET 9 SDK；运行需要 .NET 9 Windows Desktop Runtime。
+项目使用 C# / .NET 10 LTS Windows Forms，无第三方包，软件不联网。开发需要 `global.json` 所指定的 .NET 10 SDK（10.0.403，允许 10.0.4xx 后续补丁），运行需要 .NET 10 Windows Desktop Runtime；安装 SDK 已包含桌面运行时。可从[微软官方下载页](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)获取 Windows x64 安装程序，安装后用 `dotnet --version` 与 `dotnet --list-runtimes` 核对。
+
+当前实测环境为 Windows 11 x64。其他仍受微软支持的 Windows 版本见[官方兼容范围](https://learn.microsoft.com/en-us/dotnet/core/install/windows)，尚未逐一验收，不承诺所有 Windows 10 版本。旧发行目录和 ZIP 仍依赖 .NET 9；新源码与开发预览依赖 .NET 10。
 
 ```powershell
 # 普通迭代：只编译，不打包
 dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
-
-# 原开发预览仍在运行时，使用独立输出目录
-dotnet build DiskAtlas.csproj --configuration Release --output bin/Preview -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
 
 # 核心检查（其他检查入口见下文）
 dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
@@ -64,19 +63,21 @@ dotnet run --project DiskAtlas.csproj -- "D:\你的文件夹"
 
 ## 验证
 
+测试入口会输出实际 .NET、WinForms 和进程架构；背景重启检查同时核对子进程版本。框架迁移另运行 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --desktop-compatibility`，使用合成目录检查生产拖放处理和复制路径；它会把测试路径写入系统剪贴板并在检查后清除，不读取原剪贴板内容。
+
 `tests` 为无需测试框架依赖的断言程序，38 项检查覆盖扫描、隐藏文件、根目录消失、取消、140 层目录、联接循环及扫描期间链接替换、查询与排序、精确类型筛选、分页和极端图块边界；检查并行 / 串行结果逐项一致、修改时间、并发取消、错误传播及跳过统计；还检查文件存储、无分配路径比较、完成前预览、快照隔离、并发预览查询和目录浏览。80 组随机矩形图检查面积比例、完整覆盖、边界和不重叠。10 万文件固定种子基准同时与参考算法核对结果，并输出内存分配和耗时。
 
-另外 25 项功能检查覆盖硬链接去重、压缩 / 稀疏占用、未知占用、三种策略、日志解析与断档回退、保留时间戳的深层修改、目录移动 / 新增 / 替换、根目录外硬链接写入、持续打开的写句柄、刷新期间变更重放及取消隔离，以及跨目录让步计数、取消边界、无节拍模式、任务峰值、阶段估算和真实目录任务计数。构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --advanced-tests`；两组共 63 项检查。`--ui-regression` 包含 6 组界面集成检查，其中一组直接使用正式扫描协调器，另覆盖进度终态与迟到回调、阶段切换、动效关闭、图块面积和命中稳定性以及尺寸变化。另检查头像透明度与缩放复用、局部重绘、静态缓存复用/失效/容量上限/释放及降级绘制一致性。
+另外 25 项功能检查覆盖硬链接去重、压缩 / 稀疏占用、未知占用、三种策略、日志解析与断档回退、保留时间戳的深层修改、目录移动 / 新增 / 替换、根目录外硬链接写入、持续打开的写句柄、刷新期间变更重放及取消隔离，以及跨目录让步计数、取消边界、无节拍模式、任务峰值、阶段估算和真实目录任务计数。构建测试项目后运行 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --advanced-tests`；两组共 63 项检查。`--ui-regression` 包含 10 组界面集成检查，其中一组直接使用正式扫描协调器，另覆盖进度终态与迟到回调、阶段切换、动效关闭、图块面积和命中稳定性以及尺寸变化。另检查头像透明度与缩放复用、局部重绘、静态缓存复用/失效/容量上限/释放及降级绘制一致性。
 
-可选的合成图表绘制基准：`dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --treemap-benchmark after`。使用正常桌面环境，测量 12 个带嵌套内容的文件夹和 241 个平坦文件的悬停处理、离屏绘制耗时、托管分配和刷新范围。结果保存在 `artifacts/treemap-after.json`，已有报告需先归档再运行。它关闭动效，只测已预热的绘制成本，不等于实际鼠标到屏幕延迟或完整扫描性能。历史基线与方法见本次修正记录。
+可选的合成图表绘制基准：`dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --treemap-benchmark after`。使用正常桌面环境，测量 12 个带嵌套内容的文件夹和 241 个平坦文件的悬停处理、离屏绘制耗时、托管分配和刷新范围。结果保存在 `artifacts/treemap-after.json`，已有报告需先归档再运行。它关闭动效，只测已预热的绘制成本，不等于实际鼠标到屏幕延迟或完整扫描性能。历史基线与方法见本次修正记录。
 
-三种真实策略的可选诊断基准：构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --policy-benchmark`。它创建并自动删除 15,200 个合成小文件，分别测量完整扫描和无日志的无变化刷新，预热后按平衡顺序每模式运行 6 次并逐项比对结果。汇总墙钟、进程 CPU、总托管分配与任务峰值；不测量实际前台应用响应或物理磁盘 I/O。结果保存在 `artifacts/policy-benchmark-results.json`；再次运行前应先归档并移除上一份同名结果，避免覆盖证据。
+三种真实策略的可选诊断基准：构建测试项目后运行 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --policy-benchmark`。它创建并自动删除 15,200 个合成小文件，分别测量完整扫描和无日志的无变化刷新，预热后按平衡顺序每模式运行 6 次并逐项比对结果。汇总墙钟、进程 CPU、总托管分配与任务峰值；不测量实际前台应用响应或物理磁盘 I/O。结果保存在 `artifacts/policy-benchmark-results.json`；再次运行前应先归档并移除上一份同名结果，避免覆盖证据。
 
-另有 16 项日志边界检查：构建后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --journal-tests`，覆盖只读请求 V1/V0 协商、V2/V3 记录、128 位身份、截断/重建/回退游标、卷不一致、未知格式、读取上限、取消及保守回退；三组共 79 项检查。界面集成另验证最近完成扫描的详情窗口与实际刷新方式。真实卷日志不可读时，模拟协议检查不能证明真实卷日志读取成功。
+另有 16 项日志边界检查：构建后运行 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --journal-tests`，覆盖只读请求 V1/V0 协商、V2/V3 记录、128 位身份、截断/重建/回退游标、卷不一致、未知格式、读取上限、取消及保守回退；三组共 79 项检查。界面集成另验证最近完成扫描的详情窗口与实际刷新方式。真实卷日志不可读时，模拟协议检查不能证明真实卷日志读取成功。
 
 增量刷新只在本次运行保留的完整快照上进行，关闭后不保存缓存，重启后的第一次扫描为完整扫描。界面区分“日志增量”“元信息核验”“完整扫描”。元信息核验模式仍走访所有目录和文件元信息，主要复用树节点内容及已核实的存储信息，不能保证像日志模式一样显著减少磁盘访问。日志丢失连续性、格式无效、记录超限、旧快照不完整或身份异常时采用保守回退。详情提供核验目录/文件、重扫目录、复用文件、处理日志记录、原因和系统错误码，以及准备/读取整理耗时。Ctrl+F5 或重新扫描按钮的右键菜单可强制完整扫描。
 
-可选刷新对比：`dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --refresh-benchmark`。同一组 2,400 文件、61 目录，预热后按轮换和反向顺序各运行 8 次，逐项比对完整扫描、无日志核验、模拟连续日志与本机实际路径。结果保存在 `artifacts/refresh-benchmark.json`，再次运行前先归档原报告。它测量墙钟、进程 CPU 和总托管分配，不测物理 I/O 或整盘冷启动；模拟日志仅验证复用工作量，不能当作本机实测加速。没有更改系统权限、日志设置或创建驻留服务。
+可选刷新对比：`dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --refresh-benchmark`。同一组 2,400 文件、61 目录，预热后按轮换和反向顺序各运行 8 次，逐项比对完整扫描、无日志核验、模拟连续日志与本机实际路径。结果保存在 `artifacts/refresh-benchmark.json`，再次运行前先归档原报告。它测量墙钟、进程 CPU 和总托管分配，不测物理 I/O 或整盘冷启动；模拟日志仅验证复用工作量，不能当作本机实测加速。没有更改系统权限、日志设置或创建驻留服务。
 
 可选的真实文件系统扫描基准（会创建并自动删除 72,000 个小文件，耗时较长）：
 

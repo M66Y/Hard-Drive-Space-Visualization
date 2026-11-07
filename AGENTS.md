@@ -12,7 +12,7 @@
 ## 项目定位与事实来源
 
 - AsukaLens 是 Windows 本地磁盘空间可视化桌面软件，以用户隐私、统计正确性、扫描效率和操作体验为重点。
-- 技术基线为 C# / .NET 9 Windows Forms；内部项目名和命名空间仍为 `DiskAtlas`。界面基线为明日香主题、浅色面板和可读的数据区。
+- 技术基线为 C# / .NET 10 LTS Windows Forms；内部项目名和命名空间仍为 `DiskAtlas`。界面基线为明日香主题、浅色面板和可读的数据区。
 - 当前实现、环境要求、构建入口以项目文件、脚本和 `README.md` 为准；历史过程见 `优化审查记录.md`；每轮证据保存在 `iterations/`。实现与说明冲突时先核查代码与实际结果，再同步说明，不把路线图当成已实现功能。
 - 本文件规定工作方式及长期方向，不会自动启动所有开发任务。每轮仅实施本次已明确的范围，不顺带开展路线图中的其他功能。
 - 核心使用流程是“选择目录 → 看清扫描状态 → 找到占用来源 → 核对大小口径 → 定位文件 → 刷新确认变化”。每轮说明改善哪个问题，以及用户如何感知结果。
@@ -103,8 +103,9 @@
 
 - 检查与改动相称。纯文档改动检查覆盖、事实、链接、相互矛盾与隐私，不仅为改文档重复构建；现状审计可运行基线检查。涉及核心扫描、缓存和统计逻辑时，增加必要边界测试并运行对应检查。
 - 界面改动验证实际使用流程、布局和状态；算法或性能改动核对结果正确性与同条件基准。检查通过后，无新改动或疑点不反复扩大测试。
+- 开发 SDK 由 `global.json` 固定到已验证的 .NET 10 feature band，允许补丁升级，不使用预览 SDK。运行需要 .NET 10 Windows Desktop Runtime；SDK 已包含它。
 - 当前普通构建入口：`dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。
-- 先构建测试项目：`dotnet build tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。测试 DLL 为 `tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll`，用 `dotnet` 运行，按下表选范围。
+- 先构建测试项目：`dotnet build tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。测试 DLL 为 `tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll`，用 `dotnet` 运行，按下表选范围。
 
 | 改动范围 | 必要检查 |
 | --- | --- |
@@ -113,11 +114,12 @@
 | 界面、背景、绘制 | 应用与测试构建、`--ui-regression`、`--ui-regression --dpi-96`，实际受影响流程与状态观察 |
 | 背景存储、弹窗、启动恢复 | 另运行 `--background-tests` 与 `--background-tests --dpi-96`，使用隔离配置的独立进程恢复检查 |
 | 异常报告与隐私 | `--error-report-tests`，检查字段白名单、失败提示、旧报告保留和临时文件清理 |
+| 框架大版本 | 上述全部回归，加 `--desktop-compatibility` 的目录拖放/复制路径检查与实际窗口观察 |
 | 性能 | 正确性回归加对应同条件基准，不无条件跑所有基准 |
 
 - 可选 `--policy-benchmark` 用于三策略对比，`--refresh-benchmark` 用于刷新同条件诊断；方法与限制见 README 和相关迭代。先保留已有报告，再运行会覆盖报告的基准。
 - 合成目录与软件配置隔离测试，不默认扫描用户整盘或覆盖真实背景设置。缺权限/文件系统特性的跳过、程序断言、人工观察和性能实测分别记录。
-- 开发预览优先使用普通构建入口 `bin/Release/net9.0-windows/DiskAtlas.exe`；被运行中程序占用时使用明确标识的临时输出，记录路径与构建来源。收尾核查重复产物，不持续新增不明版本的 Preview 目录。
+- 开发预览优先使用普通构建入口 `bin/Release/net10.0-windows/DiskAtlas.exe`；被运行中程序占用时使用明确标识的临时输出，记录路径与构建来源。收尾核查重复产物，不持续新增不明版本的 Preview 目录。
 - 只有有性能疑点或相关改动时才运行 `--scan-benchmark`；历史 `--memory-benchmark` 在缺少旧基准包时可能跳过，跳过不算验证通过该对比。
 - 当前 `build.ps1` 会生成程序文件夹与 ZIP，`build.ps1 -Test` 还会运行两组核心检查；因此它们属于现阶段的打包入口，不用于普通迭代的无条件检查。脚本尚未实现本文件要求的完整正式发布流程。
 - 调整目录或构建方式时同步更新上述命令、项目引用、测试链接文件、资源路径及文档。不得写入本机绝对路径作为公共运行要求。

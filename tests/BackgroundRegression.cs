@@ -229,12 +229,17 @@ internal static class BackgroundRegression
 
     private static void Child(string path, string expected)
     {
-        var start = new ProcessStartInfo("dotnet") { UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true };
+        // Keep startup checks on the same dotnet host as the parent test process.
+        string host = Environment.ProcessPath is { } executable &&
+            string.Equals(Path.GetFileNameWithoutExtension(executable), "dotnet", StringComparison.OrdinalIgnoreCase)
+            ? executable : "dotnet";
+        var start = new ProcessStartInfo(host) { UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true };
         start.ArgumentList.Add(Assembly.GetExecutingAssembly().Location);
         start.ArgumentList.Add("--background-child"); start.ArgumentList.Add(path); start.ArgumentList.Add(expected);
         using var process=Process.Start(start)!;
         if (!process.WaitForExit(20000)) { process.Kill(entireProcessTree:true); throw new Exception("Startup child timed out"); }
         Check(process.ExitCode==0,"Startup child failed: "+process.StandardError.ReadToEnd());
+        Check(process.StandardOutput.ReadToEnd().Contains($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription};"), "Startup child used a different runtime");
     }
 
     public static int Preview(string root)
