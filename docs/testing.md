@@ -67,3 +67,5 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
 脚本边界：`pwsh -File tests/ReleaseScripts.Tests.ps1`。用户明确允许临时包后，按[发布说明](releasing.md)生成 `-LocalTest` 资产，再执行 `Test-Release.ps1` 和 `PackageAcceptance.ps1`。后者需要先构建测试项目，使用包内生产 DLL、包内运行时和隔离配置，不读取个人扫描数据；会验证专属测试安装身份并清理注册项与快捷方式。
 
 `--package-smoke` 仅供上述脚本在可丢弃载荷副本中运行，不能直接在普通测试 DLL 目录下冒充包内运行验证。包级工具的本机日志含路径，不进入公开归档。干净系统验收和真实远程草稿验证单独记录，不因本机通过而勾选。
+
+上传控制流程可独立执行 `pwsh -File tests/DraftUpload.Tests.ps1`：实际生产脚本搭配本地 CLI 与包校验替身，检查目标、版本、草稿内容、断点续传、资产冲突、下载复核、错误传播和清理。无须构建应用、生成发行包或登录 GitHub；不把离线测试通过当成真实远程验收。

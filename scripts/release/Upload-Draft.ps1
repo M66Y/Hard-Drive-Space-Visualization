@@ -14,7 +14,8 @@ if ($manifest.local_test) { throw 'Local-test assets can never be uploaded by th
 $repository = 'M66Y/Hard-Drive-Space-Visualization'
 $qualifiedRepository = 'github.com/' + $repository
 $notesText = Get-Content -LiteralPath $Notes -Raw -Encoding utf8
-if ($notesText -notmatch '(?m)^## 简体中文' -or $notesText -notmatch '(?m)^## English' -or -not $notesText.Contains($manifest.version)) { throw 'Provide reviewed bilingual release notes with the exact version.' }
+$versionToken = '(?<![A-Za-z0-9_.+-])' + [regex]::Escape($manifest.version) + '(?![A-Za-z0-9_.+-])'
+if ($notesText -notmatch '(?m)^## 简体中文(?:\s|$)' -or $notesText -notmatch '(?m)^## English(?:\s|$)' -or $notesText -cnotmatch $versionToken) { throw 'Provide reviewed bilingual release notes with the exact version.' }
 $accepted = Get-Content -LiteralPath $Acceptance -Raw | ConvertFrom-Json
 if ($accepted.commit -ne $manifest.commit -or $accepted.manifest_sha256 -ne (Get-FileHash -LiteralPath (Join-Path $Directory 'release-manifest.json')).Hash.ToLowerInvariant()) { throw 'Acceptance does not cover these assets.' }
 foreach ($check in @('clean_windows_no_dotnet','portable_workflow','install_upgrade_uninstall','failure_recovery','source_builds','privacy_and_licenses')) {
@@ -30,6 +31,15 @@ function Gh-Json([string[]]$Arguments) {
     if ($LASTEXITCODE -ne 0) { throw 'GitHub query failed; no changes made by this query.' }
     return ($text -join "`n" | ConvertFrom-Json)
 }
+function Assert-MatchingDraft($Draft) {
+    Assert-DraftState @($Draft) -Resume
+    # GitHub may normalize Markdown newlines. Other content must still match the reviewed notes.
+    $actualNotes = ([string]$Draft.body).Replace("`r`n", "`n").TrimEnd([char]10)
+    $expectedNotes = $notesText.Replace("`r`n", "`n").TrimEnd([char]10)
+    if ($Draft.tag_name -cne $manifest.version -or $Draft.name -cne ('AsukaLens ' + $manifest.version) -or $actualNotes -cne $expectedNotes) {
+        throw 'Draft tag, title or release notes differ. Review the existing draft; no automatic overwrite is allowed.'
+    }
+}
 $remote = Gh-Json @('api',"repos/$repository/commits/$($manifest.commit)")
 if ($remote.sha -ne $manifest.commit) { throw 'Release commit is not available in the target repository.' }
 # A pre-existing exact tag is required: this script cannot create or move tags.
@@ -40,6 +50,7 @@ if ($tagObject.type -ne 'commit' -or $tagObject.sha -ne $manifest.commit) { thro
 $releases = Gh-Json @('api',"repos/$repository/releases",'--paginate','--slurp')
 $existing = @($releases | ForEach-Object { foreach ($release in $_) { $release } } | Where-Object { $_.tag_name -eq $manifest.version })
 Assert-DraftState $existing -Resume:$Resume
+if ($existing.Count -eq 1) { Assert-MatchingDraft $existing[0] }
 $uploads = @($manifest.assets | ForEach-Object { Join-Path $Directory $_.path }) + @((Join-Path $Directory 'SHA256SUMS.txt'),(Join-Path $Directory 'release-manifest.json'))
 if (-not $PSCmdlet.ShouldProcess("$repository / $($manifest.version)",'Create or resume a draft and upload verified assets; never publish')) { return }
 if ($existing.Count -eq 0) {
@@ -50,11 +61,11 @@ $pages = Gh-Json @('api',"repos/$repository/releases",'--paginate','--slurp')
 $drafts = @($pages | ForEach-Object { foreach ($release in $_) { $release } } | Where-Object { $_.tag_name -eq $manifest.version })
 if ($drafts.Count -ne 1) { throw 'The expected draft was not returned; check authentication and repository permissions.' }
 $draft = $drafts[0]
-Assert-DraftState @($draft) -Resume
+Assert-MatchingDraft $draft
 $missing = @(Get-MissingDraftFiles $uploads $draft.assets)
 foreach ($file in $missing) {
     $current = Gh-Json @('api',"repos/$repository/releases/$($draft.id)")
-    Assert-DraftState @($current) -Resume
+    Assert-MatchingDraft $current
     Invoke-ReleaseTool $gh @('release','upload',$manifest.version,$file,'--repo',$qualifiedRepository)
 }
 $download = Join-Path $Directory ('.verify-download-' + [guid]::NewGuid().ToString('N'))
@@ -67,5 +78,5 @@ try {
     & (Join-Path $PSScriptRoot 'Test-Release.ps1') -Directory $download | Out-Host
 } finally { Remove-OwnedDirectory $download $Directory }
 $current = Gh-Json @('api',"repos/$repository/releases/$($draft.id)")
-Assert-DraftState @($current) -Resume
+Assert-MatchingDraft $current
 Write-Host 'Draft assets downloaded and verified. Release remains unpublished.'

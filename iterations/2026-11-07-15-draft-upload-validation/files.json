@@ -1,0 +1,77 @@
+{
+  "baseline": "cdf71eed7c09f42578a85e7bea9382317d44aede",
+  "patch_files": [
+    "AGENTS.md",
+    "docs/development-plan.md",
+    "docs/project-status.md",
+    "docs/releasing.md",
+    "docs/testing.md",
+    "scripts/release/Upload-Draft.ps1",
+    "tests/DraftUpload.Tests.ps1",
+    "tests/fixtures/release/FakeGitHub.ps1"
+  ],
+  "patch_verified": true,
+  "verification": "Applied outside Git discovery to baseline files; 8 restored files match final content after LF normalization",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "fb09b2fe3dd3368c338f85bbc0e0939ca7ec56db1318f93ac4acda2f6a0c9779",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "58720db1f28fb4f7ff270f513b5388a4b425b2c264aae7c23bb34cac09a7c2c5",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "156ff0f42f189e06d857f13e0802abb854fb55f02a192d644ff315d3f057da39",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/releasing.md",
+      "sha256": "b0d04c47025f3dc0affdfe3494d511364b573783a4c3eb8aabc2f097f20fb625",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "a0e2954ab1b492673728a1c525529b3f5ba207f207d69206a41c1706bcfeb77a",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "scripts/release/Upload-Draft.ps1",
+      "sha256": "da038d21531332b75fa04885f92026224e796d0f574146f218f2dd3c732bd233",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "tests/DraftUpload.Tests.ps1",
+      "sha256": "f3dcec814af920b49e560b9fb266a82a8783e5bc3ec42ca82c21887a8ac23027",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "tests/fixtures/release/FakeGitHub.ps1",
+      "sha256": "5f0533b34463f457e8922fb179f0f15c79d55634f3bf2bacec315c49dbf1387c",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "iterations/2026-11-07-15-draft-upload-validation/changes.patch",
+      "sha256": "1687b1c142149dd9138ca14bb39bb4362e76e27eb81a1f1c3bd981302aabe410",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "iterations/2026-11-07-15-draft-upload-validation/cleanup.json",
+      "sha256": "002d645911094622ded7e50dc59bb12e305f62331bcf0b10c5bd8d4f1d64b892",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "iterations/2026-11-07-15-draft-upload-validation/README.md",
+      "sha256": "fd63ba63f44f08a50d330aae84edd6dee45ff5f633df8a8ea538a42b2a973491",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "iterations/2026-11-07-15-draft-upload-validation/validation.json",
+      "sha256": "e557aa7594af194a605e3ad2d89cf18eccf813465c8992f39ad2d3e0f3ca59e8",
+      "hash_mode": "lf-normalized"
+    }
+  ]
+}

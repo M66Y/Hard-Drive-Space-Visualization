@@ -127,6 +127,7 @@
 - 开发预览优先使用普通构建入口 `bin/Release/net10.0-windows/DiskAtlas.exe`；被运行中程序占用时使用明确标识的临时输出，记录路径与构建来源。收尾核查重复产物，不持续新增不明版本的 Preview 目录。
 - 只有有性能疑点或相关改动时才运行 `--scan-benchmark`；历史 `--memory-benchmark` 在缺少旧基准包时可能跳过，跳过不算验证通过该对比。
 - 根目录 `build.ps1` 是保留的旧框架依赖打包入口，不用于普通迭代检查，也不是新的正式发布入口。新的自包含/安装器/源码快照脚本位于 `scripts/release/`，用法和验收边界见 [发布说明](docs/releasing.md)。运行 `tests/ReleaseScripts.Tests.ps1` 检查边界；包级验证用 `tests/PackageAcceptance.ps1`，不能把静态检查当运行通过。
+- 草稿上传控制流程改动运行 `tests/DraftUpload.Tests.ps1`；它使用本地替身，不调用 GitHub，不替代真实远程或安装包验收。
 - 调整目录或构建方式时同步更新上述命令、项目引用、测试链接文件、资源路径及文档。不得写入本机绝对路径作为公共运行要求。
 
 ## Git 提交与上传

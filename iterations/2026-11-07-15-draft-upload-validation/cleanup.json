@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-07",
+  "boundary_check": "Resolved owned workspace/temp descendants, no reparse points",
+  "fixture_directories_remaining": 0,
+  "test_cli_and_temporary_path": "restored in test finally",
+  "removed": [
+    {
+      "path": "artifacts/draft-flow-final.txt",
+      "logical_bytes": 5230,
+      "removed": true
+    },
+    {
+      "path": "artifacts/draft-patch-restore.json",
+      "removed": true
+    },
+    {
+      "path": "owned temporary patch restoration directory",
+      "removed": true
+    }
+  ],
+  "preserved": [
+    "Current application preview",
+    "System SDK and dependencies",
+    "User files and settings",
+    "Previous iteration evidence"
+  ],
+  "software_packages_generated": false
+}

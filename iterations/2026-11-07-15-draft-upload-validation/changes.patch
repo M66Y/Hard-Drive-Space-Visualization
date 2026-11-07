@@ -1,0 +1,347 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index a864d09..e5acba9 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -127,6 +127,7 @@
+ - 开发预览优先使用普通构建入口 `bin/Release/net10.0-windows/DiskAtlas.exe`；被运行中程序占用时使用明确标识的临时输出，记录路径与构建来源。收尾核查重复产物，不持续新增不明版本的 Preview 目录。
+ - 只有有性能疑点或相关改动时才运行 `--scan-benchmark`；历史 `--memory-benchmark` 在缺少旧基准包时可能跳过，跳过不算验证通过该对比。
+ - 根目录 `build.ps1` 是保留的旧框架依赖打包入口，不用于普通迭代检查，也不是新的正式发布入口。新的自包含/安装器/源码快照脚本位于 `scripts/release/`，用法和验收边界见 [发布说明](docs/releasing.md)。运行 `tests/ReleaseScripts.Tests.ps1` 检查边界；包级验证用 `tests/PackageAcceptance.ps1`，不能把静态检查当运行通过。
++- 草稿上传控制流程改动运行 `tests/DraftUpload.Tests.ps1`；它使用本地替身，不调用 GitHub，不替代真实远程或安装包验收。
+ - 调整目录或构建方式时同步更新上述命令、项目引用、测试链接文件、资源路径及文档。不得写入本机绝对路径作为公共运行要求。
+ 
+ ## Git 提交与上传
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index fd1e39f..1aa0c0d 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -12,7 +12,7 @@
+ | MAINT-001 | P2 / 初版后处理 | 非阻塞的主窗职责拆分、目录整体重组与额外视觉打磨 | 与 PERF-001 同阶段评估收益；修复 P0/P1 所必需的小范围整理不受此限制 |
+ | DEV-001 | P1 / 已完成本轮验收 | 多个历史预览容易误开，版本号不足以辨认构建；统一开发启动入口与当前程序身份 | 从任意工作目录可构建并启动当前源码；构建失败不启动旧程序，重复启动有提示；标题显示版本，诊断显示构建标识 |
+ | UI-001 | P1 / 已完成本轮验收 | 补齐卡片与筛选范围、搜索层级、结果不完整及取消/失败保留旧结果的说明；核查基本键盘操作 | 144/96 DPI 各 14 组主窗回归及合成窗口失败恢复观察通过；[验收记录](../iterations/2026-11-07-12-result-information/README.md) |
+-| DELIVERY-001 | P1 / 脚本与本机临时包验收已实现 | 双语说明、素材许可、自包含便携包、当前用户安装器、源码快照和草稿保护已落地；未正式发布 | [发布流程](releasing.md)；正式发布前完成干净 Windows 无运行时环境、直接发行入口及远程草稿验收 |
++| DELIVERY-001 | P1 / 脚本与本机临时包验收已实现 | 双语说明、素材许可、自包含便携包、当前用户安装器、源码快照和草稿保护已落地；已补上传控制流程离线验收；未正式发布 | [发布流程](releasing.md)；用户当前无独立测试环境，干净 Windows 无运行时环境、直接发行入口及真实远程草稿验收仍待完成 |
+ 
+ PERF-001 的公开依据为[调度修正与验证](../iterations/2026-11-07-10-mixed-scan-scheduling/README.md)。真实目录路径、文件清单、耗时报告与诊断留在本机，不复制到待办、提交或 Release。本阶段不继续性能追测；初版之后再按用户要求处理同级问题。
+ 
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 5197851..6884d90 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -138,3 +138,9 @@
+ 真实本机验收覆盖包内生产 DLL 与包内运行时、合成扫描/三视图/两口径/取消/刷新/背景/诊断、当前用户安装、合成旧版升级、拒绝降级、运行标识模拟阻止安装卸载、实际文件占用回滚以及卸载保留数据。安装语言、许可和说明页已实际观察。构建与验收脚本拒绝覆盖快照、脏工作区正式包、测试包上传和已发布版本修改。
+ 
+ 没有 Windows Sandbox 或独立干净环境的验收证据，未卸载本机 SDK/运行时；包内运行时路径断言不能代替干净系统验证。升级使用相同载荷的旧版本测试外壳，不宣称已验证历史发行版数据迁移。草稿脚本的保护逻辑离线验证，本轮没有调用真实上传、创建标签或 Release。详细操作与剩余条件见[发布流程](releasing.md)。
++
++## 草稿上传流程补验（2026-11-07）
++
++基线 `cdf71eed7c09f42578a85e7bea9382317d44aede`。用户确认暂时没有独立 Windows 测试环境，先完成可在本机验证的部分。新增完整上传脚本与原生 CLI 替身之间的离线回归，覆盖创建、分页和附注标签解析、中断续传、拒绝冲突、下载复核与草稿状态变化。修复 `v1.4.20` 被误认为 `v1.4.2` 的版本子串匹配问题，增加续传及上传过程中对标签、标题、已审查说明的一致性核验。
++
++静态包校验使用测试替身，合成资产为不可执行文本；没有生成新软件包、安装工具或改动应用功能，也没有访问真实 GitHub 上传接口。干净系统、直接发行入口和真实远程验收继续保留为发布前门槛，不能把离线回归当成完成正式发布。
+diff --git a/docs/releasing.md b/docs/releasing.md
+index 1c2ac39..ab54e54 100644
+--- a/docs/releasing.md
++++ b/docs/releasing.md
+@@ -1,6 +1,6 @@
+ # 打包、验收与草稿快照
+ 
+-当前实现：Windows 11 x64、.NET 10 自包含便携 ZIP、当前用户 Inno Setup EXE 安装器、同一文件集合的源码 ZIP / tar.gz，以及 SHA-256 与文件清单。**脚本存在和本机验收通过不等于正式发布。** 本轮用户只授权本机临时验收包，不上传包、不创建标签或 Release。
++当前实现：Windows 11 x64、.NET 10 自包含便携 ZIP、当前用户 Inno Setup EXE 安装器、同一文件集合的源码 ZIP / tar.gz，以及 SHA-256 与文件清单。**脚本存在和本机验收通过不等于正式发布。** 此前已获授权并完成本机临时包验收；当前尚未正式发布。后续打包和上传仍以当次明确范围为准。
+ 
+ ## 工具与来源
+ 
+@@ -84,10 +84,20 @@ pwsh -File scripts/release/Upload-Draft.ps1 -Directory "artifacts/releases/vX.X.
+   -Notes "已审查的双语发布说明.md" -Acceptance "已完成的验收.json"
+ ```
+ 
+-脚本限定目标仓库，核对提交和标签，拒绝测试包和已发布版本。按 [GitHub 官方 API](https://docs.github.com/en/rest/releases/releases#list-releases)使用有推送权限的登录读取草稿列表，避免把“按标签读取已发布版本”接口用于草稿。同版本草稿需显式 `-Resume`；已有同名资产必须 digest 相同，绝不使用 `--clobber`。上传后下载六个文件重新校验，仍保持草稿，**没有自动公开发布代码**。上传中途失败保留草稿供检查，不能当成正式成功；不要在脚本运行时同时手工发布草稿。
++脚本限定目标仓库，核对提交和标签，拒绝测试包和已发布版本。发布说明须含独立的精确版本号，例如 `v1.4.20`、`v1.4.2-preview` 不能代替 `v1.4.2`。按 [GitHub 官方 API](https://docs.github.com/en/rest/releases/releases#list-releases)使用有推送权限的登录读取草稿列表，避免把“按标签读取已发布版本”接口用于草稿。同版本草稿需显式 `-Resume`；草稿标题必须为 `AsukaLens vX.X.X`，标签和说明必须与本次审查内容一致，说明只容许换行形式及末尾换行差异。内容不一致时停止，不能自动改写已有草稿。已有同名资产必须 digest 相同，绝不使用 `--clobber`。上传后下载六个文件重新校验，仍保持草稿，**没有自动公开发布代码**。上传中途失败保留草稿供检查，不能当成正式成功；不要在脚本运行时同时手工发布或编辑草稿。
++
++无需发行包或 GitHub 登录，可以运行完整上传控制流程的离线回归：
++
++```powershell
++pwsh -File tests/DraftUpload.Tests.ps1
++```
++
++它复制未经修改的生产上传脚本，通过本地 `gh` 替身模拟分页、附注标签、创建草稿、上传中断/续传、下载损坏/缺失/多余文件和上传期间发布等情况；核对拒绝后没有写入、续传不重复上传、下载暂存被清理。合成资产是不可执行的短文本，静态包校验器使用测试替身，**不等于再次验证 ZIP、安装器可用性或真实 GitHub 接口**。测试不使用凭据、不联网、不创建真实标签或草稿；临时 PATH 与夹具均在结束时恢复/清理。
+ 
+ ## 本轮证据与仍未验证的范围
+ 
+ 本轮已进行脚本边界测试、真实四类临时资产静态核验、两类源码包独立构建、包内生产程序集与包内运行时的主要功能检查、当前用户安装/合成升级/降级拒绝/占用失败回滚/卸载、中文安装向导观察。结果与清理见本轮 `iterations/` 记录。
+ 
+ 仍需正式发布前验证：**未预装 .NET 的干净 Windows 11 x64 环境、直接发行入口的完整人工使用流程、真实历史发行版迁移（如存在）、远程草稿上传和下载核验**。本机已安装 SDK；虽然测试已断言 CoreCLR 与 WinForms 来自包内，这不能代替干净系统验收。没有启用 Windows 可选组件、安装虚拟机或进行真实 GitHub 上传。
++
++后续本机检查已补充上述离线流程，修复版本子串误匹配并核验草稿说明一致性。用户当前没有独立 Windows 测试环境，因此干净系统门槛继续保留。Windows Home 不受 [官方 Windows Sandbox](https://learn.microsoft.com/en-us/windows/security/application-security/application-isolation/windows-sandbox/) 支持；不通过修改宿主运行时或绕过版本限制来宣称完成验收。
+diff --git a/docs/testing.md b/docs/testing.md
+index 0f821ee..fdb0f5a 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -67,3 +67,5 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
+ 脚本边界：`pwsh -File tests/ReleaseScripts.Tests.ps1`。用户明确允许临时包后，按[发布说明](releasing.md)生成 `-LocalTest` 资产，再执行 `Test-Release.ps1` 和 `PackageAcceptance.ps1`。后者需要先构建测试项目，使用包内生产 DLL、包内运行时和隔离配置，不读取个人扫描数据；会验证专属测试安装身份并清理注册项与快捷方式。
+ 
+ `--package-smoke` 仅供上述脚本在可丢弃载荷副本中运行，不能直接在普通测试 DLL 目录下冒充包内运行验证。包级工具的本机日志含路径，不进入公开归档。干净系统验收和真实远程草稿验证单独记录，不因本机通过而勾选。
++
++上传控制流程可独立执行 `pwsh -File tests/DraftUpload.Tests.ps1`：实际生产脚本搭配本地 CLI 与包校验替身，检查目标、版本、草稿内容、断点续传、资产冲突、下载复核、错误传播和清理。无须构建应用、生成发行包或登录 GitHub；不把离线测试通过当成真实远程验收。
+diff --git a/scripts/release/Upload-Draft.ps1 b/scripts/release/Upload-Draft.ps1
+index d147bf5..8accc61 100644
+--- a/scripts/release/Upload-Draft.ps1
++++ b/scripts/release/Upload-Draft.ps1
+@@ -14,7 +14,8 @@ if ($manifest.local_test) { throw 'Local-test assets can never be uploaded by th
+ $repository = 'M66Y/Hard-Drive-Space-Visualization'
+ $qualifiedRepository = 'github.com/' + $repository
+ $notesText = Get-Content -LiteralPath $Notes -Raw -Encoding utf8
+-if ($notesText -notmatch '(?m)^## 简体中文' -or $notesText -notmatch '(?m)^## English' -or -not $notesText.Contains($manifest.version)) { throw 'Provide reviewed bilingual release notes with the exact version.' }
++$versionToken = '(?<![A-Za-z0-9_.+-])' + [regex]::Escape($manifest.version) + '(?![A-Za-z0-9_.+-])'
++if ($notesText -notmatch '(?m)^## 简体中文(?:\s|$)' -or $notesText -notmatch '(?m)^## English(?:\s|$)' -or $notesText -cnotmatch $versionToken) { throw 'Provide reviewed bilingual release notes with the exact version.' }
+ $accepted = Get-Content -LiteralPath $Acceptance -Raw | ConvertFrom-Json
+ if ($accepted.commit -ne $manifest.commit -or $accepted.manifest_sha256 -ne (Get-FileHash -LiteralPath (Join-Path $Directory 'release-manifest.json')).Hash.ToLowerInvariant()) { throw 'Acceptance does not cover these assets.' }
+ foreach ($check in @('clean_windows_no_dotnet','portable_workflow','install_upgrade_uninstall','failure_recovery','source_builds','privacy_and_licenses')) {
+@@ -30,6 +31,15 @@ function Gh-Json([string[]]$Arguments) {
+     if ($LASTEXITCODE -ne 0) { throw 'GitHub query failed; no changes made by this query.' }
+     return ($text -join "`n" | ConvertFrom-Json)
+ }
++function Assert-MatchingDraft($Draft) {
++    Assert-DraftState @($Draft) -Resume
++    # GitHub may normalize Markdown newlines. Other content must still match the reviewed notes.
++    $actualNotes = ([string]$Draft.body).Replace("`r`n", "`n").TrimEnd([char]10)
++    $expectedNotes = $notesText.Replace("`r`n", "`n").TrimEnd([char]10)
++    if ($Draft.tag_name -cne $manifest.version -or $Draft.name -cne ('AsukaLens ' + $manifest.version) -or $actualNotes -cne $expectedNotes) {
++        throw 'Draft tag, title or release notes differ. Review the existing draft; no automatic overwrite is allowed.'
++    }
++}
+ $remote = Gh-Json @('api',"repos/$repository/commits/$($manifest.commit)")
+ if ($remote.sha -ne $manifest.commit) { throw 'Release commit is not available in the target repository.' }
+ # A pre-existing exact tag is required: this script cannot create or move tags.
+@@ -40,6 +50,7 @@ if ($tagObject.type -ne 'commit' -or $tagObject.sha -ne $manifest.commit) { thro
+ $releases = Gh-Json @('api',"repos/$repository/releases",'--paginate','--slurp')
+ $existing = @($releases | ForEach-Object { foreach ($release in $_) { $release } } | Where-Object { $_.tag_name -eq $manifest.version })
+ Assert-DraftState $existing -Resume:$Resume
++if ($existing.Count -eq 1) { Assert-MatchingDraft $existing[0] }
+ $uploads = @($manifest.assets | ForEach-Object { Join-Path $Directory $_.path }) + @((Join-Path $Directory 'SHA256SUMS.txt'),(Join-Path $Directory 'release-manifest.json'))
+ if (-not $PSCmdlet.ShouldProcess("$repository / $($manifest.version)",'Create or resume a draft and upload verified assets; never publish')) { return }
+ if ($existing.Count -eq 0) {
+@@ -50,11 +61,11 @@ $pages = Gh-Json @('api',"repos/$repository/releases",'--paginate','--slurp')
+ $drafts = @($pages | ForEach-Object { foreach ($release in $_) { $release } } | Where-Object { $_.tag_name -eq $manifest.version })
+ if ($drafts.Count -ne 1) { throw 'The expected draft was not returned; check authentication and repository permissions.' }
+ $draft = $drafts[0]
+-Assert-DraftState @($draft) -Resume
++Assert-MatchingDraft $draft
+ $missing = @(Get-MissingDraftFiles $uploads $draft.assets)
+ foreach ($file in $missing) {
+     $current = Gh-Json @('api',"repos/$repository/releases/$($draft.id)")
+-    Assert-DraftState @($current) -Resume
++    Assert-MatchingDraft $current
+     Invoke-ReleaseTool $gh @('release','upload',$manifest.version,$file,'--repo',$qualifiedRepository)
+ }
+ $download = Join-Path $Directory ('.verify-download-' + [guid]::NewGuid().ToString('N'))
+@@ -67,5 +78,5 @@ try {
+     & (Join-Path $PSScriptRoot 'Test-Release.ps1') -Directory $download | Out-Host
+ } finally { Remove-OwnedDirectory $download $Directory }
+ $current = Gh-Json @('api',"repos/$repository/releases/$($draft.id)")
+-Assert-DraftState @($current) -Resume
++Assert-MatchingDraft $current
+ Write-Host 'Draft assets downloaded and verified. Release remains unpublished.'
+diff --git a/tests/DraftUpload.Tests.ps1 b/tests/DraftUpload.Tests.ps1
+new file mode 100644
+index 0000000..578af73
+--- /dev/null
++++ b/tests/DraftUpload.Tests.ps1
+@@ -0,0 +1,112 @@
++#requires -Version 7.4
++# Exercise the unmodified upload script through a native gh shim, without credentials/network.
++# The package validator is a fixture double: actual ZIP/EXE acceptance belongs to PackageAcceptance.
++$ErrorActionPreference = 'Stop'
++. (Join-Path $PSScriptRoot '../scripts/release/Release.Common.ps1')
++$repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
++$parent = Join-Path $repository 'artifacts'
++$root = Join-Path $parent ('draft-flow-' + [guid]::NewGuid().ToString('N'))
++[IO.Directory]::CreateDirectory($root) | Out-Null
++$oldPath=$env:PATH; $oldRoot=$env:ASUKALENS_DRAFT_TEST_ROOT; $oldShell=$env:ASUKALENS_DRAFT_TEST_PWSH
++$script:passed=[Collections.Generic.List[string]]::new()
++function Check([bool]$Condition,[string]$Name) { if (-not $Condition) { throw ('FAIL '+$Name) }; $script:passed.Add($Name); Write-Host ('PASS '+$Name) }
++function State { Get-Content -LiteralPath (Join-Path $script:case 'state.json') -Raw | ConvertFrom-Json -AsHashtable }
++function Save($Value) { Write-ReleaseJson $Value (Join-Path $script:case 'state.json') }
++function New-Case([string]$Scenario='normal') {
++    $script:case=Join-Path $root ([guid]::NewGuid().ToString('N'))
++    $script:assets=Join-Path $script:case 'assets'
++    [IO.Directory]::CreateDirectory($script:assets) | Out-Null
++    [IO.Directory]::CreateDirectory((Join-Path $script:case 'server')) | Out-Null
++    [IO.File]::WriteAllText((Join-Path $script:case 'offline-fixture'),'offline synthetic content; never a distributable package')
++    $files=@('AsukaLens v1.4.2.zip','AsukaLens v1.4.2.exe','AsukaLens v1.4.2-source.zip','AsukaLens v1.4.2-source.tar.gz')
++    foreach($name in $files){ [IO.File]::WriteAllText((Join-Path $script:assets $name),'NONEXECUTABLE SYNTHETIC TEST FIXTURE '+$name) }
++    $manifest=[ordered]@{version='v1.4.2';commit=('b'*40);local_test=$false;assets=@(Get-FileInventory $script:assets)}
++    Write-ReleaseJson $manifest (Join-Path $script:assets 'release-manifest.json')
++    [IO.File]::WriteAllText((Join-Path $script:assets 'SHA256SUMS.txt'),'synthetic checksums; validator double used')
++    $script:notes=Join-Path $script:case 'notes.md'
++    [IO.File]::WriteAllText($script:notes,"# AsukaLens v1.4.2`n## 简体中文`n合成测试`n## English`nSynthetic test`n")
++    $script:acceptance=Join-Path $script:case 'acceptance.json'
++    Write-ReleaseJson @{commit=$manifest.commit;manifest_sha256=(Get-FileHash -LiteralPath (Join-Path $script:assets 'release-manifest.json')).Hash.ToLowerInvariant();checks=@{clean_windows_no_dotnet='passed';portable_workflow='passed';install_upgrade_uninstall='passed';failure_recovery='passed';source_builds='passed';privacy_and_licenses='passed'}} $script:acceptance
++    Save @{scenario=$Scenario;commit=$manifest.commit;version=$manifest.version;release=$null;calls=@();created=0;uploaded=@();downloaded=0;interrupted=$false}
++    $env:ASUKALENS_DRAFT_TEST_ROOT=$script:case
++}
++function Existing-Draft {
++    $state=State
++    $state.release=@{id=42;draft=$true;tag_name=$state.version;name=('AsukaLens '+$state.version);body=[IO.File]::ReadAllText($script:notes);assets=@()}
++    Save $state
++}
++function Upload([switch]$Resume,[switch]$WhatIf) {
++    & (Join-Path $root 'scripts/Upload-Draft.ps1') -Directory $script:assets -Notes $script:notes -Acceptance $script:acceptance -Resume:$Resume -WhatIf:$WhatIf -Confirm:$false | Out-Null
++}
++function Reject([scriptblock]$Action,[string]$Name) {
++    $rejected=$false
++    try { & $Action } catch { $rejected=$true }
++    Check $rejected $Name
++    Check (@(Get-ChildItem -LiteralPath $script:assets -Force -Directory).Count -eq 0) ($Name+' cleans download staging')
++}
++function No-Writes([string]$Name) { $state=State; Check ($state.created -eq 0 -and $state.uploaded.Count -eq 0) $Name }
++try {
++    $scripts=Join-Path $root 'scripts'; $shim=Join-Path $root 'shim'
++    [IO.Directory]::CreateDirectory($scripts) | Out-Null; [IO.Directory]::CreateDirectory($shim) | Out-Null
++    foreach($name in @('Upload-Draft.ps1','Release.Common.ps1')) { Copy-Item -LiteralPath (Join-Path $repository "scripts/release/$name") -Destination $scripts }
++    Check ((Get-FileHash -LiteralPath (Join-Path $scripts 'Upload-Draft.ps1')).Hash -eq (Get-FileHash -LiteralPath (Join-Path $repository 'scripts/release/Upload-Draft.ps1')).Hash) 'actual upload script copied without modifications'
++    [IO.File]::WriteAllText((Join-Path $scripts 'Test-Release.ps1'), @'
++param([string]$Directory)
++$m=Get-Content -LiteralPath (Join-Path $Directory 'release-manifest.json') -Raw | ConvertFrom-Json
++if(@(Get-ChildItem -LiteralPath $Directory -Force).Count -ne 6){ throw 'Synthetic fixture must have six files.' }
++foreach($f in $m.assets){ if((Get-FileHash -LiteralPath (Join-Path $Directory $f.path)).Hash.ToLowerInvariant() -ne $f.sha256){ throw 'Synthetic asset checksum mismatch.' } }
++'@)
++    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'fixtures/release/FakeGitHub.ps1') -Destination $shim
++    [IO.File]::WriteAllText((Join-Path $shim 'gh.cmd'), "@echo off`r`n`"%ASUKALENS_DRAFT_TEST_PWSH%`" -NoProfile -File `"%~dp0FakeGitHub.ps1`" %*`r`nexit /b %errorlevel%`r`n", [Text.Encoding]::ASCII)
++    $env:ASUKALENS_DRAFT_TEST_PWSH=Join-Path $PSHOME 'pwsh.exe'; $env:PATH=$shim+';'+$oldPath
++    Check ((Get-Command gh -CommandType Application).Source -eq (Join-Path $shim 'gh.cmd')) 'native gh resolves only to the offline shim'
++    New-Case; Upload
++    $state=State
++    Check ($state.created -eq 1 -and $state.uploaded.Count -eq 6 -and $state.downloaded -eq 1 -and $state.release.draft) 'create upload download verify; annotated tag and paginated draft'
++    $state.release.body=$state.release.body.Replace("`n","`r`n"); Save $state
++    Upload -Resume
++    $state=State
++    Check ($state.uploaded.Count -eq 6 -and $state.downloaded -eq 2) 'complete resume skips matching assets and accepts normalized newlines'
++    New-Case; Upload -WhatIf
++    Check ((State).calls.Count -eq 0) 'WhatIf performs no GitHub calls'
++    New-Case
++    $accepted=Get-Content $script:acceptance -Raw | ConvertFrom-Json -AsHashtable; $accepted.checks.clean_windows_no_dotnet='pending'; Write-ReleaseJson $accepted $script:acceptance
++    Reject { Upload } 'incomplete acceptance rejected'; Check ((State).calls.Count -eq 0) 'acceptance failure is offline'
++    New-Case
++    $testManifest=Get-Content (Join-Path $script:assets 'release-manifest.json') -Raw | ConvertFrom-Json -AsHashtable
++    $testManifest.local_test=$true; Write-ReleaseJson $testManifest (Join-Path $script:assets 'release-manifest.json')
++    Reject { Upload } 'local test identity never reaches GitHub'; Check ((State).calls.Count -eq 0) 'local test rejection is offline'
++    foreach($wrongVersion in @('v1.4.20','v1.4.2-preview','v1.4.2.0','V1.4.2')) {
++        New-Case
++        [IO.File]::WriteAllText($script:notes,"# AsukaLens $wrongVersion`n## 简体中文`n测试`n## English`nTest`n")
++        Reject { Upload } ('wrong notes version '+$wrongVersion); Check ((State).calls.Count -eq 0) 'wrong notes version rejected before credentials'
++    }
++    foreach($scenario in @('wrong-commit','missing-tag','wrong-tag','list-error')) {
++        New-Case $scenario; Reject { Upload } $scenario; No-Writes ($scenario+' makes no remote changes')
++    }
++    New-Case; Existing-Draft; Reject { Upload } 'existing draft requires explicit resume'; No-Writes 'implicit resume has no writes'
++    New-Case; Existing-Draft; $state=State; $state.release.draft=$false; Save $state
++    Reject { Upload -Resume } 'published release rejected'; No-Writes 'published release unchanged'
++    foreach($field in @('name','body')) {
++        New-Case; Existing-Draft; $state=State; $state.release[$field]='different release content'; Save $state
++        Reject { Upload -Resume } ('mismatched draft '+$field); No-Writes ('mismatched '+$field+' has no writes')
++    }
++    foreach($asset in @(@{name='AsukaLens v1.4.2.zip';digest='sha256:different'},@{name='unrelated.zip';digest='sha256:different'})) {
++        New-Case; Existing-Draft; $state=State; $state.release.assets=@($asset); Save $state
++        Reject { Upload -Resume } ('conflicting asset '+$asset.name); No-Writes 'conflicting assets not overwritten'
++    }
++    New-Case 'interrupt'; Reject { Upload } 'upload interruption propagates'
++    $state=State; Check ($state.release.draft -and $state.uploaded.Count -eq 1) 'interrupted draft preserves completed asset'
++    Upload -Resume; $state=State
++    Check ($state.created -eq 1 -and $state.uploaded.Count -eq 6 -and $state.downloaded -eq 1) 'partial resume only uploads missing assets'
++    foreach($scenario in @('corrupt-download','missing-download','extra-download','publish-mid-upload','publish-after-download')) {
++        New-Case $scenario; Reject { Upload } $scenario
++        if($scenario -eq 'publish-mid-upload') { Check ((State).uploaded.Count -eq 1) 'published transition stops remaining uploads' }
++    }
++    Write-Host ('PASS draft upload flow checks: '+$script:passed.Count)
++} finally {
++    [Environment]::SetEnvironmentVariable('PATH',$oldPath,'Process')
++    [Environment]::SetEnvironmentVariable('ASUKALENS_DRAFT_TEST_ROOT',$oldRoot,'Process')
++    [Environment]::SetEnvironmentVariable('ASUKALENS_DRAFT_TEST_PWSH',$oldShell,'Process')
++    Remove-OwnedDirectory $root $parent
++}
+diff --git a/tests/fixtures/release/FakeGitHub.ps1 b/tests/fixtures/release/FakeGitHub.ps1
+new file mode 100644
+index 0000000..e1d6c69
+--- /dev/null
++++ b/tests/fixtures/release/FakeGitHub.ps1
+@@ -0,0 +1,81 @@
++# An offline gh replacement. Only the upload-flow tests start this script.
++# No network commands are implemented; unknown commands fail closed.
++$ErrorActionPreference = 'Stop'
++Set-StrictMode -Version Latest
++[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
++$root = $env:ASUKALENS_DRAFT_TEST_ROOT
++if (-not $root -or -not (Test-Path -LiteralPath (Join-Path $root 'offline-fixture'))) { throw 'Missing offline fixture marker.' }
++$statePath = Join-Path $root 'state.json'
++$state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json -AsHashtable
++$arguments = @($args)
++function Save-State { [IO.File]::WriteAllText($statePath, ($state | ConvertTo-Json -Depth 12)) }
++function Reply($Value) { Save-State; ConvertTo-Json -InputObject $Value -Depth 12 -Compress; exit 0 }
++function Fail([string]$Reason) { Save-State; [Console]::Error.WriteLine($Reason); exit 23 }
++function Option([string]$Name) {
++    $index = [Array]::IndexOf($arguments, $Name)
++    if ($index -lt 0 -or $index + 1 -ge $arguments.Count) { Fail ('Missing option: ' + $Name) }
++    return $arguments[$index + 1]
++}
++$state.calls += ,$arguments
++$repository = 'M66Y/Hard-Drive-Space-Visualization'
++if ($arguments[0] -eq 'api') {
++    if ((Option '--hostname') -cne 'github.com' -or (Option '-H') -cne 'X-GitHub-Api-Version: 2026-03-10') { Fail 'Wrong API host or version.' }
++    $endpoint = $arguments[1]
++    if ($endpoint -ceq "repos/$repository/commits/$($state.commit)") {
++        Reply @{ sha=$(if ($state.scenario -eq 'wrong-commit') { 'f' * 40 } else { $state.commit }) }
++    }
++    if ($endpoint -ceq "repos/$repository/git/ref/tags/$($state.version)") {
++        if ($state.scenario -eq 'missing-tag') { Fail 'Synthetic missing tag.' }
++        Reply @{ object=@{ type='tag'; sha=('a' * 40) } }
++    }
++    if ($endpoint -ceq "repos/$repository/git/tags/$('a' * 40)") {
++        Reply @{ object=@{ type='commit'; sha=$(if ($state.scenario -eq 'wrong-tag') { 'f' * 40 } else { $state.commit }) } }
++    }
++    if ($endpoint -ceq "repos/$repository/releases") {
++        if ($state.scenario -eq 'list-error') { Fail 'Synthetic API error; not a missing draft.' }
++        if ('--paginate' -notin $arguments -or '--slurp' -notin $arguments) { Fail 'Draft lookup must use all pages.' }
++        Save-State
++        # Put the matching release on a second page to exercise pagination flattening.
++        if ($null -eq $state.release) { '[[],[]]' }
++        else { '[[],[' + (ConvertTo-Json -InputObject $state.release -Depth 12 -Compress) + ']]' }
++        exit 0
++    }
++    if ($endpoint -ceq "repos/$repository/releases/42") {
++        if ($null -eq $state.release) { Fail 'Missing synthetic draft.' }
++        Reply $state.release
++    }
++    Fail 'Unexpected API endpoint.'
++}
++if ($arguments[0] -ne 'release' -or (Option '--repo') -cne "github.com/$repository" -or $arguments[2] -cne $state.version) { Fail 'Unexpected target.' }
++switch ($arguments[1]) {
++    'create' {
++        if ($null -ne $state.release -or '--draft' -notin $arguments -or '--verify-tag' -notin $arguments) { Fail 'Unsafe create.' }
++        $state.release = @{ id=42; draft=$true; tag_name=$state.version; name=(Option '--title'); body=[IO.File]::ReadAllText((Option '--notes-file')); assets=@() }
++        $state.created++
++        Reply @{ created=$true }
++    }
++    'upload' {
++        if ($null -eq $state.release -or -not $state.release.draft -or '--clobber' -in $arguments) { Fail 'Unsafe upload.' }
++        if ($state.scenario -eq 'interrupt' -and $state.uploaded.Count -eq 1 -and -not $state.interrupted) {
++            $state.interrupted = $true; Fail 'Synthetic interrupted upload.'
++        }
++        $file = $arguments[3]; $name = [IO.Path]::GetFileName($file)
++        if (@($state.release.assets | Where-Object { $_.name -ceq $name }).Count) { Fail 'Duplicate upload.' }
++        [IO.File]::Copy($file, (Join-Path $root "server/$name"), $false)
++        $state.release.assets += @{name=$name; digest=('sha256:' + (Get-FileHash -LiteralPath $file).Hash.ToLowerInvariant())}
++        $state.uploaded += $name
++        if ($state.scenario -eq 'publish-mid-upload') { $state.release.draft=$false }
++        Reply @{ uploaded=$name }
++    }
++    'download' {
++        $destination = Option '--dir'
++        foreach ($file in Get-ChildItem -LiteralPath (Join-Path $root 'server') -File) { [IO.File]::Copy($file.FullName, (Join-Path $destination $file.Name), $false) }
++        if ($state.scenario -eq 'corrupt-download') { [IO.File]::AppendAllText((Join-Path $destination "AsukaLens $($state.version).zip"), 'CORRUPT') }
++        if ($state.scenario -eq 'missing-download') { Remove-Item -LiteralPath (Join-Path $destination 'SHA256SUMS.txt') }
++        if ($state.scenario -eq 'extra-download') { [IO.File]::WriteAllText((Join-Path $destination 'unexpected.txt'), 'synthetic extra') }
++        if ($state.scenario -eq 'publish-after-download') { $state.release.draft=$false }
++        $state.downloaded++
++        Reply @{ downloaded=$true }
++    }
++    default { Fail 'Unsupported command; the fake cannot publish, edit or delete a release.' }
++}
