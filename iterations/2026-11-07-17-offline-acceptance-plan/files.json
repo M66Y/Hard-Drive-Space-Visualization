@@ -1,0 +1,47 @@
+{
+  "verification": "Applied in an owned temporary directory outside repository; all three work documents match",
+  "files": [
+    {
+      "path": "docs/development-plan.md",
+      "hash_mode": "lf-normalized",
+      "sha256": "d26533d5a86db5868b875915cb1c476aabc85e932c55b5cbce80b7dbcbaedba1"
+    },
+    {
+      "path": "docs/project-status.md",
+      "hash_mode": "lf-normalized",
+      "sha256": "8a202f8105a2ce5627c20f14aa4581931293f4efc6ed3c6520b492ee618ac22f"
+    },
+    {
+      "path": "docs/offline-acceptance-plan.md",
+      "hash_mode": "lf-normalized",
+      "sha256": "502f21cffb937b685e9d7625df762249b1d9565ecd7fe49f2c3eebc22845d756"
+    },
+    {
+      "path": "iterations/2026-11-07-17-offline-acceptance-plan/README.md",
+      "hash_mode": "lf-normalized",
+      "sha256": "d98d1260acd3984fc9b7d498370609c331139ce63c831a0a44d6fe14c3fb4175"
+    },
+    {
+      "path": "iterations/2026-11-07-17-offline-acceptance-plan/validation.json",
+      "hash_mode": "lf-normalized",
+      "sha256": "f530a7176cc05767f67abde73f95f05053005b93e9821463eddec94b1a4fe450"
+    },
+    {
+      "path": "iterations/2026-11-07-17-offline-acceptance-plan/cleanup.json",
+      "hash_mode": "lf-normalized",
+      "sha256": "3d7ad778dd9b7ab7feede2400020ce073dc30332549d28f7c444fc9eb421f77b"
+    },
+    {
+      "path": "iterations/2026-11-07-17-offline-acceptance-plan/changes.patch",
+      "hash_mode": "lf-normalized",
+      "sha256": "6b255d35117734a26038d471718673e6a3256bb604a19c5f5ef5fdc7126a6707"
+    }
+  ],
+  "baseline": "e351cce7fb39f2327842b6345e8aafa964d18782",
+  "patch_files": [
+    "docs/development-plan.md",
+    "docs/project-status.md",
+    "docs/offline-acceptance-plan.md"
+  ],
+  "patch_verified": true
+}

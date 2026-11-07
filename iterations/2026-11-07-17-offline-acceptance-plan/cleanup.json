@@ -1,0 +1,12 @@
+{
+  "date": "2026-11-07",
+  "preserved": [
+    "Current development build",
+    "System dependencies",
+    "User data",
+    "Previous iteration evidence"
+  ],
+  "software_packages_generated": false,
+  "boundary_check": "Owned temporary descendant checked, no reparse points",
+  "temporary_patch_directory_removed": true
+}

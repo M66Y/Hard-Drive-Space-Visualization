@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "date": "2026-11-07",
+  "baseline": "e351cce7fb39f2327842b6345e8aafa964d18782",
+  "scope": "Read-only readiness review and proposed next iteration",
+  "implementation_approval": "pending user selection",
+  "work_documents": 3,
+  "relative_links_checked": 43,
+  "whitespace_check": "passed",
+  "public_content_check": "passed",
+  "legacy_powershell_probe": {
+    "version_family": "5.1",
+    "x64": true,
+    "installed_or_changed": false
+  },
+  "application_changed": false,
+  "application_rebuilt": false,
+  "software_packages_generated": false,
+  "virtual_machine_created": false,
+  "clean_environment_tested": false,
+  "remote_draft_tested": false,
+  "formal_release": false,
+  "tag_created": false
+}
