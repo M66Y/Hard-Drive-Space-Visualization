@@ -25,6 +25,7 @@ if (args.Contains("--mixed-benchmark")) return MixedScanBenchmark.Run(args.Last(
 if (args.Contains("--folder-comparison-tests")) return FolderComparison.RunChecks();
 if (args.Contains("--folder-benchmark")) return FolderComparison.Run(args.Last(), args.Contains("--pair"));
 if (args.Contains("--memory-benchmark")) return MemoryBenchmark.Run();
+if (args.Contains("--readme-preview")) return ReadmePreview.Run(args.Last());
 if (args.Contains("--result-info-preview")) return ResultInformationRegression.Preview();
 if (args.Contains("--ui-regression")) return UiRegression.Run(args.Contains("--dpi-96"));
 if (args.Contains("--advanced-tests")) return AdvancedFeatures.Run();

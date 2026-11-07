@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-07",
+  "boundary_check": "Resolved absolute workspace descendant; no reparse points",
+  "removed": [
+    {
+      "path": "artifacts/delivery-docs-cli",
+      "logical_bytes": 0,
+      "removed": true
+    },
+    {
+      "path": "tests/bin",
+      "logical_bytes": 3588302,
+      "removed": true
+    },
+    {
+      "path": "tests/obj",
+      "logical_bytes": 3882301,
+      "removed": true
+    }
+  ],
+  "preserved": [
+    "Current application development output",
+    "Source, assets and iteration evidence",
+    "Only final synthetic README preview"
+  ],
+  "package_generated": false,
+  "restore_check_cleanup": "Isolated restore directory removed after successful comparison; boundary and reparse checks passed"
+}

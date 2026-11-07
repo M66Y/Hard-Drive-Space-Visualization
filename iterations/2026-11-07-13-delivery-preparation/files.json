@@ -1,0 +1,112 @@
+{
+  "baseline": "434d0918c0d440fed0f571d419a8a5b74cc86450",
+  "patch_files": [
+    "AGENTS.md",
+    "README.md",
+    "docs/development-plan.md",
+    "docs/project-status.md",
+    "tests/Program.cs",
+    "LICENSE",
+    "NOTICE.md",
+    "README.en.md",
+    "assets/README.md",
+    "docs/delivery-plan.md",
+    "docs/testing.md",
+    "licenses/CC-BY-NC-4.0.txt",
+    "tests/ReadmePreview.cs",
+    "docs/images/overview.png"
+  ],
+  "restore_verification": "Applied to isolated baseline outside Git discovery; all 14 files match (LF-normalized text / raw PNG)",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "012a6b03697a22e81c27046fdba21a235ffddaaaf3a036ed3bc21fc667d4f633",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "README.md",
+      "sha256": "8c434d338913b3b2853aa19c548993f03d37066ad71d2bb900a09d1748b92306",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "be64fd20d98e67eeda109d07bf3a1a7aee3872d61a82575daeb438d1da1643db",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "42f6762d68866dcfeca543bcbc3e0063c79e47e3315f5f683e235830654bb559",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "72b740809b546be38ba78c67877dcf5e19a5bede9dc5f8021a516de21d52fdaf",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "ffcca38841adb694b6f380647e15f17c446a4d1656fed51a1e2041d064c94cc8",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "NOTICE.md",
+      "sha256": "86ba90aba076946175d0f86fa8297275b891605d0dcc95f8c2292e23047b2ff3",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "README.en.md",
+      "sha256": "b3ce7fea4ed1703da7c2ae4df7d33fc77ce8932cbe4336a404d1e68ca817bc93",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "assets/README.md",
+      "sha256": "f569b9fa0aab3c854ec64134abbc0f5b8f48efe73254de2496fa0831d06ba203",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/delivery-plan.md",
+      "sha256": "41218d00d0ce5e69d6b83ecc1768787277633b60e71f940bdc9db11e1e64971d",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "79355724a43c985a1e9641002b9e05ef90a69f823219909cb4293af6070c9312",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "licenses/CC-BY-NC-4.0.txt",
+      "sha256": "41003d4a74749c0220e33dd415042164b5a1093ed401f36277234f772d22d3d0",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "tests/ReadmePreview.cs",
+      "sha256": "2838bf7e96bd9907bec665afeee281ac57532528d5ecc016d91e239a9f9d4cfe",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/images/overview.png",
+      "sha256": "9042a1a398ee228a52672a53b8174c584cf27e7de4a431e887627d04f3607986",
+      "hash_mode": "raw"
+    },
+    {
+      "path": "iterations/2026-11-07-13-delivery-preparation/README.md",
+      "sha256": "dcc1d33ab2a4df482811432c336d7018a3b34006478b8e07974973f46f879ca9",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "iterations/2026-11-07-13-delivery-preparation/validation.json",
+      "sha256": "4ce5cf1207abf05b839f155243275f9c5e874c06c1634a7e25f81fdfcdeef160",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "iterations/2026-11-07-13-delivery-preparation/cleanup.json",
+      "sha256": "c3a42b3d500ab8e529a7cfb53e70510ec608f6097f8207efb72e90f3e0635251",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "iterations/2026-11-07-13-delivery-preparation/changes.patch",
+      "sha256": "8a8359b36d1efa31dea646c5240f471f4f3c2f2be18b901aef85eebfea2ada41",
+      "hash_mode": "lf-normalized"
+    }
+  ]
+}

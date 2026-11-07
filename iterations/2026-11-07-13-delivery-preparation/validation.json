@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-07",
+  "baseline": "434d0918c0d440fed0f571d419a8a5b74cc86450",
+  "scope": "DELIVERY-001 documentation, licensing and proposal only",
+  "application_code_changed": false,
+  "test_build": {
+    "warnings": 0,
+    "errors": 0,
+    "sdk": "10.0.403",
+    "runtime": ".NET 10.0.14"
+  },
+  "preview": {
+    "width": 1440,
+    "height": 940,
+    "dpi": 96,
+    "synthetic_only": true,
+    "visual_review": "passed",
+    "contains_text_or_exif_metadata": false,
+    "overwrite_rejection": "controlled exit 1; file hash unchanged"
+  },
+  "public_releases": 0,
+  "code_license": "PolyForm-Noncommercial-1.0.0",
+  "docs_art_license": "CC-BY-NC-4.0",
+  "attribution": "AsukaLens — M66Y",
+  "official_license_sha256": {
+    "LICENSE": "ffcca38841adb694b6f380647e15f17c446a4d1656fed51a1e2041d064c94cc8",
+    "licenses/CC-BY-NC-4.0.txt": "41003d4a74749c0220e33dd415042164b5a1093ed401f36277234f772d22d3d0"
+  },
+  "not_run": [
+    "application regression (no runtime changes)",
+    "performance benchmarks (deferred)",
+    "package/install/upgrade/uninstall tests (proposal only)"
+  ],
+  "formal_release": false,
+  "documentation_checks": {
+    "local_links_checked": 88,
+    "code_fences": "passed",
+    "public_text_privacy": "passed",
+    "official_license_hashes": "matched",
+    "unchanged_artwork_hashes": "matched",
+    "whitespace": "Passed for authored files; official CC license preserves its original trailing blank line"
+  }
+}
