@@ -11,7 +11,11 @@
 #ifndef LocalTest
   #define LocalTest 0
 #endif
-#if LocalTest
+; Command-line defines can be strings: "0" must not select the test identity.
+#if (Int(LocalTest) != 0) && (Int(LocalTest) != 1)
+  #error LocalTest must be 0 or 1
+#endif
+#if Int(LocalTest)
   #define ProductName "AsukaLens (LOCAL TEST)"
   #define ProductId "AsukaLens.LocalTest"
 #else

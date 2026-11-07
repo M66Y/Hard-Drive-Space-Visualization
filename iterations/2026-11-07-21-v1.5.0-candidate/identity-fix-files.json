@@ -1,0 +1,23 @@
+{
+  "baseline": "0edb5e27591534c57401677ce5dc53f4609d7177",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "scripts/release/AsukaLens.iss",
+      "sha256": "7a6220d1e0aafd571c1243d6c31558bef35a4f1d734f4a6b5abe95a79d46159c"
+    },
+    {
+      "path": "tests/InstallerIdentity.Tests.ps1",
+      "sha256": "33bb1d266a58a61cf256f6a6fb9375faa94b2406624017cf82781b01dd9e7934"
+    },
+    {
+      "path": "iterations/2026-11-07-21-v1.5.0-candidate/identity-fix.md",
+      "sha256": "511db308b785f3eea8119d1d82a2196598eff6bc558bcc5c13bb08254f4b6363"
+    },
+    {
+      "path": "iterations/2026-11-07-21-v1.5.0-candidate/identity-fix.patch",
+      "sha256": "689b2245e72f722b89bb53996058c6238f4894bdd947eb52ef3f5c7fb0c652ac"
+    }
+  ]
+}
