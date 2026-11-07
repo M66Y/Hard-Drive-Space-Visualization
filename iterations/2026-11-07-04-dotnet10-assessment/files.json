@@ -1,0 +1,14 @@
+{
+  "baseline": "4e6c07f349fd858a756e9674ef5f81dd28a8f73c",
+  "patch_files": [
+    "docs/development-plan.md",
+    "docs/dotnet10-migration.md"
+  ],
+  "sha256_lf": {
+    "docs/development-plan.md": "72269d652df7cfabbd8e26bb85015f7eab2f2c9ec0e45c9d15429361eba22e0b",
+    "docs/dotnet10-migration.md": "b6f7437900fc14e1f6c889865feeed89979ae609215f00b91c65940569ebf1a9",
+    "iterations/2026-11-07-04-dotnet10-assessment/README.md": "2a01d7bb4386a4a545b0f7a6b27500e03d96926662de2154bc0d6f65e2b9ca5c",
+    "iterations/2026-11-07-04-dotnet10-assessment/changes.patch": "dd3e9fe37b985b236eae2cb9e1bbb25436617cab12bbf7fc8a9701a0b7bbff47"
+  },
+  "patch_verified_in_isolated_baseline": true
+}
