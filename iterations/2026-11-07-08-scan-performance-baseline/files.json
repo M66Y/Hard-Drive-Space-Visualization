@@ -1,0 +1,54 @@
+{
+  "baseline": "57a06f2f4c3dd030316f8bf192f263e1e3bc242e",
+  "patch_files": [
+    "README.md",
+    "docs/development-plan.md",
+    "docs/project-status.md",
+    "tests/Program.cs",
+    "docs/scan-performance-plan.md",
+    "tests/ScanResponseBenchmark.cs"
+  ],
+  "restoration": "git apply --check and actual apply; LF-normalized content equality",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256_lf": "f38550fa50b109e249584a10c0830bbb860da922be9bbb9ba3e4af67f271c300"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256_lf": "ada8aacff934e3094f7fe9f89a46404cb2404081e844709de62f5afa969f4245"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256_lf": "c93ef308056ecb3e490f8ed7e7a7bb1317c03499640b6ebfd1af2aef4ad9c2fc"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256_lf": "f21e2a2d49405e1e9ef0d15826e845fdd778c37b439c055e845f6994bd044b8a"
+    },
+    {
+      "path": "docs/scan-performance-plan.md",
+      "sha256_lf": "0d9d44e5ccc7f449abd7b2258229af43ba8981212c46963b31ac45889c113729"
+    },
+    {
+      "path": "tests/ScanResponseBenchmark.cs",
+      "sha256_lf": "4c79d3b1ef758a14b53a326e3c8bdd69fcc3bd7eda64c1fc84a3e19e8b5bbc78"
+    },
+    {
+      "path": "iterations/2026-11-07-08-scan-performance-baseline/changes.patch",
+      "sha256_lf": "2b5e95914f876dcbf6499ff14f324c3c1f7d0ead95764a73db5a7b6eb9f5d86d"
+    },
+    {
+      "path": "iterations/2026-11-07-08-scan-performance-baseline/policy-benchmark-results.json",
+      "sha256_lf": "16dbfc2ace17287093ce5998e48c1f9163db6553ee2d2a047434b876f108f87b"
+    },
+    {
+      "path": "iterations/2026-11-07-08-scan-performance-baseline/README.md",
+      "sha256_lf": "dc587e04d46ba923c2e636603011ab7883d1dc3c0ee3232b4d13204363be641b"
+    },
+    {
+      "path": "iterations/2026-11-07-08-scan-performance-baseline/scan-response-results.json",
+      "sha256_lf": "be7190a6d9237826bc660094980fd96487b7209bd4aa05d3cca135fdc1409edb"
+    }
+  ]
+}

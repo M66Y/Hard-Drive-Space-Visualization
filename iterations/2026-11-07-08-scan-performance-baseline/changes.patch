@@ -1,0 +1,364 @@
+diff --git a/README.md b/README.md
+index 5550ab1..9e4f409 100644
+--- a/README.md
++++ b/README.md
+@@ -75,6 +75,8 @@ dotnet run --project DiskAtlas.csproj -- "D:\你的文件夹"
+ 
+ 三种真实策略的可选诊断基准：构建测试项目后运行 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --policy-benchmark`。它创建并自动删除 15,200 个合成小文件，分别测量完整扫描和无日志的无变化刷新，预热后按平衡顺序每模式运行 6 次并逐项比对结果。汇总墙钟、进程 CPU、总托管分配与任务峰值；不测量实际前台应用响应或物理磁盘 I/O。结果保存在 `artifacts/policy-benchmark-results.json`；再次运行前应先归档并移除上一份同名结果，避免覆盖证据。
+ 
++可选的真实主窗响应基准：在正常 Windows 桌面运行 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --response-benchmark`。使用 64,000 个合成小文件和隔离诊断配置，按平衡顺序测量扫描、首个预览观察、列表可用、搜索、取消、CPU、分配及采样工作集，并逐项比对完整结果。报告 `artifacts/scan-response-results.json` 已存在时拒绝覆盖；应先归档旧报告。定时器调度间隔不是帧率，采样工作集不是精确峰值，预热样本不代表整盘冷扫描。方法、基线和待确定的优化范围见[扫描性能方案](docs/scan-performance-plan.md)。
++
+ 另有 16 项日志边界检查：构建后运行 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --journal-tests`，覆盖只读请求 V1/V0 协商、V2/V3 记录、128 位身份、截断/重建/回退游标、卷不一致、未知格式、读取上限、取消及保守回退；三组共 79 项检查。界面集成另验证最近完成扫描的详情窗口与实际刷新方式。真实卷日志不可读时，模拟协议检查不能证明真实卷日志读取成功。
+ 
+ 增量刷新只在本次运行保留的完整快照上进行，关闭后不保存缓存，重启后的第一次扫描为完整扫描。界面区分“日志增量”“元信息核验”“完整扫描”。元信息核验模式仍走访所有目录和文件元信息，主要复用树节点内容及已核实的存储信息，不能保证像日志模式一样显著减少磁盘访问。日志丢失连续性、格式无效、记录超限、旧快照不完整或身份异常时采用保守回退。详情提供核验目录/文件、重扫目录、复用文件、处理日志记录、原因和系统错误码，以及准备/读取整理耗时。Ctrl+F5 或重新扫描按钮的右键菜单可强制完整扫描。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 0d01c41..4f7cddb 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -41,7 +41,7 @@
+ | --- | --- | --- | --- |
+ | 已完成 | .NET 10 LTS 迁移 | 支持的 Windows 版本、开发 SDK、运行依赖与回退基线 | 核心/日志/UI 全部回归、启动与背景兼容；按用户选择系统安装 SDK，保留 .NET 9 |
+ | 已完成 | 本地诊断管理 | 用户确认默认开启最小诊断及主动问题记录 | 白名单、轮转/期限、查看清空、固定预览导出、问题记录；自动与 UI 回归通过 |
+-| 3 | 扫描策略与响应优化 | 同条件数据和实际瓶颈，是否确需单目录并行 | 逐项结果一致、取消隔离、首预览/操作响应和资源数据，不只总耗时 |
++| 3：基线完成，实施范围已确认 | 扫描策略与响应优化 | 已测同文件数平坦/多目录样本；用户确认先做高速完整扫描的有界单目录并行，见[具体方案](scan-performance-plan.md) | 逐项结果一致、取消隔离、首预览/操作响应和资源数据，不只总耗时 |
+ | 4 | 界面信息与可维护性 | 具体用户问题及组件草图，状态职责划分 | 明确口径/范围/不完整状态、键盘可用，按修改边界抽取主窗职责 |
+ | 发布前 | 用户文档与交付 | 中英文结构、资源许可、正式版本范围、安装方案 | 干净源码可构建，便携/安装/源码四类资产实测，Release 快照与校验完整 |
+ 
+@@ -52,3 +52,7 @@
+ ## 已完成：本地诊断管理
+ 
+ 用户确认[完整方案](local-diagnostics-plan.md)后，本轮完成运行诊断、主动问题记录和开发记录说明。运行诊断默认开启，可关闭，8 MiB / 14 天；导出需勾选并预览，不含笔记或原始异常。当前实现与验证见[实施归档](../iterations/2026-11-07-07-local-diagnostics/README.md)，用户操作见[诊断说明](diagnostics.md)。未启动下一项性能改造，也未正式打包。
++
++## 已完成准备：扫描性能与响应基线
++
++以 `57a06f2` 为生产基线，完成六轮平衡顺序的三策略测量、真实主窗响应测量及元信息并行读取实验。32,000 文件平坦目录的高速完整扫描约 1.33 秒，多目录约 0.30 秒；逐项结果相同，平坦目录实际只有一路目录任务。具体范围、资源代价和验收见[扫描性能方案](scan-performance-plan.md)。基线提交只增加基准工具与证据；用户现已确认实施高速完整扫描的有界文件读取并发。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index f7a87a0..98f226c 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -60,7 +60,7 @@
+ | --- | --- | --- |
+ | 已处理：运行环境 | 已迁移 .NET 10 LTS，SDK 10.0.403 / 桌面运行时 10.0.14，全部自动回归通过 | 后续跟进同 feature band 补丁；更换 feature band 或框架大版本另行核验 |
+ | P1 使用入口 | 当前入口已统一，但 `bin/` 仍有多个历史输出目录；旧发行目录仍是 v1.4.2 | 后续建立一个当前预览入口及构建身份，更新过时说明，核查后清理可再生产物 |
+-| P2 扫描性能 | 单目录内串行，自动策略无负载自适应；整盘耗时尚无当前同条件数据 | 先测平坦/多目录样本、预览与取消延迟、CPU/内存，再决定是否做有界单目录并行 |
++| P2 扫描性能 | 单目录内串行；同文件数暖缓存基线已确认吞吐差异，自动策略无负载自适应 | [基线与方案](scan-performance-plan.md)已备齐；用户已确认先优化高速完整扫描的大型单目录，尚无整盘加速结论 |
+ | P2 可维护性 | `MainForm.cs` 约 1,000 行，集中 UI、扫描状态、查询和设置；测试通过链接源文件构建 | 在实际修改边界按职责渐进抽取，配合契约测试，避免一次性目录搬迁或框架替换 |
+ | 已处理：本地诊断 | 完整确认范围已实现，运行/问题/开发记录职责明确 | 见[诊断说明](diagnostics.md)与[验收记录](../iterations/2026-11-07-07-local-diagnostics/README.md)；后续新增字段继续严格控制隐私 |
+ | 发布前 | 缺英文 README、标准安装器和快照流水线；资源目录没有来源/许可说明文件 | 发布前补双语文档、确认素材分发条件，再完成安装器和四类资产验证 |
+@@ -97,3 +97,9 @@
+ 应用与测试构建均 0 警告、0 错误。核心 38、高级 25、日志 16、异常报告 3、诊断专项 12 组通过；主 UI 10 组、背景 7 组、新诊断 UI 5 组在 144 DPI 和 96 DPI 下各通过。桌面拖放/剪贴板的 2 组结果仍为上轮迁移证据，本轮未重复运行。实际窗口观察与清理结果见[本轮归档](../iterations/2026-11-07-07-local-diagnostics/README.md)。
+ 
+ 文件锁定与容量失败采用受控夹具验证，没有实际填满磁盘；未测试多用户会话、跨显示器 DPI 切换和断电恢复。诊断采用尽力写入，不保证异常退出前最后几条必然保存。问题记录不导出，本轮不新增联网或正式发布。
++
++## 扫描基线补充（2026-11-07）
++
++生产基线 `57a06f2`。新增可选 `--response-benchmark`，32,000 文件平坦/多目录样本各进行六轮三策略真实主窗扫描，全部逐项一致，取消保留先前完成结果。另测现有原生读取的 1/4/8 路并发，以及既有三策略完整/无日志刷新基准。只保留合成统计，不使用真实扫描目录、日志或背景配置。
++
++平坦高速扫描返回中位数 1,333.89 ms，最终列表 1,448.22 ms；同文件数多目录为 295.57 / 359.81 ms。平坦首部分预览观察约 660.66 ms；UI 定时器最大调度间隔中位数 162.26 ms，仍值得继续定位。详见[方案](scan-performance-plan.md)和[本轮证据](../iterations/2026-11-07-08-scan-performance-baseline/README.md)。生产扫描算法尚未改变，不能把基准工具提交称为已实现提速。
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 1ab3a65..12d1803 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -19,6 +19,7 @@ if (args.Contains("--treemap-benchmark")) return TreemapBenchmark.Run(args.Last(
+ 
+ if (args.Contains("--scan-benchmark")) return ScanBenchmark.Run();
+ if (args.Contains("--policy-benchmark")) return ScanPolicyBenchmark.Run();
++if (args.Contains("--response-benchmark")) return ScanResponseBenchmark.Run();
+ if (args.Contains("--memory-benchmark")) return MemoryBenchmark.Run();
+ if (args.Contains("--ui-regression")) return UiRegression.Run(args.Contains("--dpi-96"));
+ if (args.Contains("--advanced-tests")) return AdvancedFeatures.Run();
+diff --git a/docs/scan-performance-plan.md b/docs/scan-performance-plan.md
+new file mode 100644
+index 0000000..2319b57
+--- /dev/null
++++ b/docs/scan-performance-plan.md
+@@ -0,0 +1,67 @@
++# 扫描性能：基线与下一步方案
++
++日期：2026-11-07。生产基线为 `57a06f2f4c3dd030316f8bf192f263e1e3bc242e`。本轮只增加可复现测量和方案，尚未改动生产扫描算法。原始合成数据及验证范围见[本轮归档](../iterations/2026-11-07-08-scan-performance-baseline/README.md)。
++
++## 测量结论
++
++当前按目录分配并发任务，每个目录内逐文件读取存储元信息。SSD 上自动与高速的目录并发上限都是 8；一个平坦目录实际只能使用 1 路目录任务。基线支持先优化大型平坦目录，但不能推导出整个磁盘都会获得相同比例的提速。
++
++同一 SSD 上建立两组各 32,000 个合成小文件：平坦样本集中在根目录，多目录样本分为 256 个子目录。真实主窗、144 DPI、隔离且开启的诊断配置；每模式先预热，再按六种平衡顺序各运行 6 次。以下均为中位数，单位 ms：
++
++| 样本 / 模式 | 扫描返回 | 最终列表可用 | 首个部分预览观察 | 实际目录并发峰值 |
++| --- | ---: | ---: | ---: | ---: |
++| 平坦 / 自动 | 1,226.31 | 1,312.94 | 659.56 | 1 |
++| 平坦 / 低占用 | 2,271.07 | 2,339.06 | 644.31 | 1 |
++| 平坦 / 高速 | 1,333.89 | 1,448.22 | 660.66 | 1 |
++| 多目录 / 自动 | 283.53 | 348.17 | 未观察到部分预览 | 8 |
++| 多目录 / 低占用 | 2,293.70 | 2,370.79 | 640.76 | 1 |
++| 多目录 / 高速 | 295.57 | 359.81 | 未观察到部分预览 | 8 |
++
++多目录的自动/高速在约 500 ms 的预览周期到来前已完成；这里没有部分预览不表示卡住。所有 36 次计时的完整扫描逐项结果与基线一致，36 次取消请求均保留此前完成的扫描对象。
++
++单独对已经枚举的同一批文件调用现有 `NativeStorage.TryReadSnapshot`，核对每次返回的身份、大小、链接数、写句柄状态与时间戳：
++
++| 样本 | 1 路读取 | 4 路读取 | 8 路读取 |
++| --- | ---: | ---: | ---: |
++| 平坦 | 981.17 | 351.33 | 188.40 |
++| 多目录 | 706.00 | 236.39 | 161.33 |
++
++这一实验不含枚举、建树、发布进度、汇总、排序和 UI，不能当作软件整体加速倍数。平坦样本从 1 路到 8 路时进程 CPU 中位数从 953.12 ms 增至 1,468.75 ms，说明并行吞吐有额外资源代价，适合先放在高速模式验证。
++
++界面指标也已留基线。平坦高速的每次扫描最大 UI 定时器调度间隔中位数为 162.26 ms；搜索往返 334.74 ms（含现有 220 ms 防抖）；目标 75 ms 发起的取消，实际请求中位数为 100.24 ms，请求到扫描退出为 63.64 ms。它们不是屏幕帧率、真实鼠标延迟或系统级 I/O 取消保证。
++
++另运行现有 `--policy-benchmark`：平坦 8,000 文件高速完整扫描 272.62 ms，无日志的无变化刷新 218.76 ms；多目录 7,200 文件相应为 34.75 / 39.22 ms。两组文件数不同，不能作等工作量倍数比较。核验仍逐项执行，本轮没有解除无日志刷新限制。
++
++全部是创建后预热的元信息测试，没有清空系统缓存、控制其他应用负载、测物理 I/O 或扫描用户整盘。文件为 0–511 字节，不能代表所有文件大小、压缩状态或文件系统。工作集为 UI 定时器采样值，可能漏掉阻塞期间的峰值；总托管分配不等于保留内存。
++
++## 已确认的首轮实施范围
++
++用户在完成基线与方案后选择“按建议实施（推荐）”。以下为本次实施契约；基线提交本身尚未包含生产算法修改。
++
++目标是让高速模式扫描“一个文件夹内有大量文件”时真正使用有限的文件读取并发，同时保持多目录吞吐、预览和取消能力。
++
++1. 只在**高速模式的完整扫描**中启用大型目录内的并行元信息读取。自动和低占用保留现有行为；日志增量及元信息核验刷新继续使用既有路径。强制完整扫描适用新路径，不把所有刷新都宣称提速。
++2. 所有目录共享最多 8 路原生文件元信息读取预算，避免目录并发与文件并发相乘。小目录维持简单路径；达到大目录阈值后按有限批次提交。初始实现候选为 512 文件阈值、每批 256 项，新引入的待处理文件记录全局不超过 2,048 项，最终由基准决定是否调整。
++3. 不先收集整目录文件再开始读取，不创建“一文件一任务”的无限队列。等待队列和批次异步衔接，不能持有读取许可再等待下游许可，避免线程池饥饿或互相等待。
++4. 延续现有原生读取、重解析点排除、未知占用标记、错误记录和硬链接汇总。取消停止入队，释放所有句柄与工作任务，旧完成结果保持可恢复；在所有任务和最终统计完成之前不显示 100%。
++5. 补充实际文件读取并发的计数，与目录任务峰值区分，使扫描详情能说明高速模式是否真正利用并行。仍只记录固定类别和计数，不新增路径或文件名日志。
++
++另一方向是同时重写三策略调度、无日志刷新核验和负载自适应。它会扩大状态与正确性验证范围，现有证据不足以证明收益，因此建议先完成上述较小范围，再决定自动模式是否采用。UI 定时器间隔仍有优化空间，本轮将其作为回归门槛，未定位前不把卡顿归因于某个绘制组件。
++
++## 实施验收
++
++- 正确性：逐项对比两种大小、身份/硬链接、错误及不完整状态；覆盖文件增删/替换、写入、权限失败、取消、关闭、排队上限和任务回收。核心 38、高级 25、日志 16 项回归，以及新并发边界测试必须通过；数量以实施后的实际测试为准。
++- 体验：复测首预览、最终列表、取消请求/退出和搜索；生产 UI 的 144/96 DPI 回归通过，观察实际高速扫描窗口。取消恢复、最终进度及迟到回写不可退化。
++- 性能：复用本轮夹具和六轮平衡顺序。平坦高速完整扫描中位数改善至少 25% 作为首轮目标，多目录扫描中位数不回退超过 10%；接近阈值或噪声较大时做一次针对性复核。目标未达则保留证据并调整或撤回优化，不仅凭原生读取实验宣告成功。
++- 资源与响应：报告 CPU、总托管分配、采样工作集及 UI 调度间隔，核对新增队列的硬上限。平坦首预览和取消耗时不应明显回退；出现回退先定位，不以总扫描时间降低掩盖。高速可能增加瞬时 CPU，低占用不额外插入等待来制造区别。
++- 交付：同步实际策略说明、测试、隐私检查与迭代归档，清理夹具和中间物，验证后提交并推送 `main`。普通开发构建，不打包或发布。
++
++## 复测入口
++
++先按项目说明构建测试项目，然后在正常 Windows 桌面运行：
++
++```powershell
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --response-benchmark
++```
++
++它临时创建 64,000 个合成文件，并使用真实主窗与独立诊断配置。成功后清理夹具，报告写入 `artifacts/scan-response-results.json`；已有报告时拒绝覆盖，应先归档并移除旧报告。界面等待超时后若线程尚未退出，夹具会保留，待测试进程退出再核对清理。测试只应在可交互桌面执行；本轮没有实施生产代码提速。
+diff --git a/tests/ScanResponseBenchmark.cs b/tests/ScanResponseBenchmark.cs
+new file mode 100644
+index 0000000..ea7e176
+--- /dev/null
++++ b/tests/ScanResponseBenchmark.cs
+@@ -0,0 +1,216 @@
++using DiskAtlas;
++using System.Diagnostics;
++using System.Reflection;
++using System.Security.Cryptography;
++using System.Text;
++using System.Text.Json;
++
++// Opt-in measurement of the existing production pipeline; it does not change scan policy.
++internal static class ScanResponseBenchmark
++{
++    private sealed record UiSample(string Shape, string Mode, int Run, double ScanMs, double SettledMs,
++        double? FirstPreviewMs, double CpuMs, long AllocatedBytes, long SampledWorkingSetBytes,
++        double TickGapP95Ms, double TickGapMaxMs, double SearchRoundTripMs,
++        double? CancelDispatchMs, double? CancelCompletionMs, int DirectoryWorkers);
++    private sealed record ReadSample(string Shape, int Workers, int Run, double WallMs, double CpuMs, long AllocatedBytes);
++    private static T Field<T>(object target, string name) => (T)typeof(MainForm).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(target)!;
++    private static void Set(object target, string name, object value) => typeof(MainForm).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(target, value);
++    private static Task Scan(MainForm form, string path)
++    {
++        Set(form, "forceFullNext", true);
++        return (Task)typeof(MainForm).GetMethod("ScanFolder", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(form, [path])!;
++    }
++    private static async Task Wait(Func<bool> ready)
++    {
++        var deadline = Stopwatch.StartNew();
++        while (!ready()) { if (deadline.Elapsed > TimeSpan.FromSeconds(20)) throw new TimeoutException(); await Task.Delay(10); }
++    }
++    private static void Check(bool value) { if (!value) throw new InvalidOperationException("Benchmark invariant failed"); }
++
++    public static int Run()
++    {
++        string workspace = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
++        string artifacts = Path.Combine(workspace, "artifacts");
++        string fixture = Path.Combine(artifacts, "scan-response-" + Guid.NewGuid().ToString("N"));
++        string report = Path.Combine(artifacts, "scan-response-results.json");
++        var samples = new List<UiSample>(); var reads = new List<ReadSample>();
++        var datasets = new List<(string Shape, string Path, ScanResult Baseline)>();
++        Exception? failure = null;
++        Thread? uiThread = null;
++        try
++        {
++            if (File.Exists(report)) throw new IOException("Output already exists");
++            using var limit = new CancellationTokenSource(TimeSpan.FromMinutes(6));
++            foreach (string shape in new[] { "flat", "wide" })
++            {
++                string path = Path.Combine(fixture, shape); Directory.CreateDirectory(path);
++                int directories = shape == "flat" ? 1 : 256, count = shape == "flat" ? 32000 : 125;
++                for (int d = 0; d < directories; d++)
++                {
++                    string dir = directories == 1 ? path : Path.Combine(path, $"folder-{d:000}"); Directory.CreateDirectory(dir);
++                    for (int f = 0; f < count; f++)
++                    {
++                        limit.Token.ThrowIfCancellationRequested();
++                        File.WriteAllBytes(Path.Combine(dir, $"file-{f:00000}.bin"), new byte[(f * 31 + d) % 512]);
++                    }
++                }
++                foreach (string dir in Directory.EnumerateDirectories(path, "*", SearchOption.AllDirectories).Append(path))
++                    Directory.SetLastWriteTimeUtc(dir, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
++                var baseline = new DiskScanner().Scan(path, null, limit.Token);
++                Check(baseline.Skipped == 0 && baseline.Root.UnknownAllocationFiles == 0 && baseline.Root.FileCount == 32000);
++                datasets.Add((shape, path, baseline));
++                Console.WriteLine($"DATA {shape}: 32000 files; device {NativeStorage.DetectDisk(path)}");
++            }
++
++            // Read-only primitive experiment: pre-enumerated paths, no publication, graph building or UI.
++            // Its timings are NOT a prediction of a future parallel scanner's end-to-end speed.
++            using var process = Process.GetCurrentProcess();
++            foreach (var dataset in datasets)
++            {
++                var files = dataset.Baseline.Root.Descendants().Where(e => !e.IsDirectory)
++                    .Select(e => (Entry: e, Attributes: File.GetAttributes(e.Path))).ToArray();
++                foreach (int workers in new[] { 1, 4, 8 }) ReadAll(workers);
++                for (int run = 0; run < 6; run++)
++                {
++                    int[][] orders = [[1, 4, 8], [4, 8, 1], [8, 1, 4], [8, 4, 1], [1, 8, 4], [4, 1, 8]];
++                    foreach (int workers in orders[run])
++                    {
++                        GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
++                        long allocation = GC.GetTotalAllocatedBytes(true); var cpu = process.TotalProcessorTime; var watch = Stopwatch.StartNew();
++                        ReadAll(workers); watch.Stop();
++                        reads.Add(new(dataset.Shape, workers, run + 1, watch.Elapsed.TotalMilliseconds,
++                            (process.TotalProcessorTime - cpu).TotalMilliseconds, GC.GetTotalAllocatedBytes(true) - allocation));
++                    }
++                }
++                foreach (var group in reads.Where(r => r.Shape == dataset.Shape).GroupBy(r => r.Workers))
++                    Console.WriteLine($"READ {dataset.Shape} {group.Key} workers: {Median(group.Select(r => r.WallMs)):F2} ms median");
++                void ReadAll(int workers) => Parallel.ForEach(files, new ParallelOptions { MaxDegreeOfParallelism = workers, CancellationToken = limit.Token }, item =>
++                {
++                    Check(NativeStorage.TryReadSnapshot(item.Entry.Path, false, item.Attributes, out var read, out _) && read.Matches(item.Entry.Storage));
++                });
++            }
++
++            var thread = uiThread = new Thread(() =>
++            {
++                try
++                {
++                    Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++                    Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
++                    using var diagnostics = new DiagnosticService(Path.Combine(fixture, "app-data"));
++                    using var form = new MainForm(null, diagnostics: diagnostics) { Text = "AsukaLens · 性能测量（合成数据）" };
++                    form.Shown += async (_, _) =>
++                    {
++                        try
++                        {
++                            await diagnostics.Ready;
++                            foreach (var dataset in datasets)
++                            {
++                                string expected = Fingerprint(dataset.Baseline.Root);
++                                foreach (int mode in new[] { 0, 1, 2 })
++                                {
++                                    Field<ComboBox>(form, "strategyCombo").SelectedIndex = mode;
++                                    await Scan(form, dataset.Path); await Wait(() => Field<DataGridView>(form, "grid").Enabled && Field<CancellationTokenSource?>(form, "viewCancellation") == null);
++                                }
++                                for (int run = 0; run < 6; run++)
++                                {
++                                    int[][] orders = [[0, 1, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0], [0, 2, 1], [1, 0, 2]];
++                                    foreach (int mode in orders[run])
++                                    {
++                                        limit.Token.ThrowIfCancellationRequested();
++                                        Field<ComboBox>(form, "strategyCombo").SelectedIndex = mode;
++                                        // Prepare folder view and idle frames outside the measurement interval.
++                                        typeof(MainForm).GetMethod("SetMode", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(form, [0]);
++                                        await Wait(() => Field<DataGridView>(form, "grid").Enabled && Field<CancellationTokenSource?>(form, "viewCancellation") == null);
++                                        await diagnostics.FlushAsync(); await Task.Delay(120);
++                                        GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
++                                        var clock = Stopwatch.StartNew(); double? first = null; var gaps = new List<double>(); double last = 0; long workingSet = 0;
++                                        using var tick = new System.Windows.Forms.Timer { Interval = 20 };
++                                        tick.Tick += (_, _) =>
++                                        {
++                                            double now = clock.Elapsed.TotalMilliseconds; gaps.Add(now - last); last = now;
++                                            if (first == null && Field<bool>(form, "showingPreview") && Field<DataGridView>(form, "grid").Rows.Count > 0) first = now;
++                                            process.Refresh(); workingSet = Math.Max(workingSet, process.WorkingSet64);
++                                        };
++                                        long allocation = GC.GetTotalAllocatedBytes(true); var cpu = process.TotalProcessorTime;
++                                        tick.Start(); await Scan(form, dataset.Path); double scanMs = clock.Elapsed.TotalMilliseconds;
++                                        await Wait(() => Field<DataGridView>(form, "grid").Enabled && Field<CancellationTokenSource?>(form, "viewCancellation") == null);
++                                        double settled = clock.Elapsed.TotalMilliseconds; tick.Stop();
++                                        double cpuMs = (process.TotalProcessorTime - cpu).TotalMilliseconds; long allocated = GC.GetTotalAllocatedBytes(true) - allocation;
++                                        var completed = Field<ScanResult>(form, "scan"); Check(Fingerprint(completed.Root) == expected && completed.Skipped == 0);
++                                        typeof(MainForm).GetMethod("SetMode", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(form, [1]);
++                                        await Wait(() => Field<DataGridView>(form, "grid").Enabled && Field<CancellationTokenSource?>(form, "viewCancellation") == null);
++                                        var searchClock = Stopwatch.StartNew(); Field<TextBox>(form, "search").Text = "file-00001";
++                                        int matches = dataset.Shape == "flat" ? 1 : 256;
++                                        await Wait(() => Field<List<MapItem>>(form, "sortedRows").Count == matches && Field<DataGridView>(form, "grid").Enabled && Field<CancellationTokenSource?>(form, "viewCancellation") == null);
++                                        double searchMs = searchClock.Elapsed.TotalMilliseconds;
++                                        Field<TextBox>(form, "search").Clear();
++                                        await Wait(() => Field<List<MapItem>>(form, "sortedRows").Count == 500 && Field<DataGridView>(form, "grid").Enabled && Field<CancellationTokenSource?>(form, "viewCancellation") == null);
++                                        // Cancellation is requested through the actual UI control after 75 ms.
++                                        var cancelClock = Stopwatch.StartNew(); double? requested = null;
++                                        using var cancelTimer = new System.Windows.Forms.Timer { Interval = 15 };
++                                        cancelTimer.Tick += (_, _) =>
++                                        {
++                                            if (cancelClock.ElapsedMilliseconds < 75 || !Field<ActionButton>(form, "cancel").Visible) return;
++                                            requested = cancelClock.Elapsed.TotalMilliseconds; cancelTimer.Stop(); Field<ActionButton>(form, "cancel").PerformClick();
++                                        };
++                                        cancelTimer.Start(); await Scan(form, dataset.Path); cancelTimer.Stop();
++                                        double? cancelMs = requested.HasValue ? cancelClock.Elapsed.TotalMilliseconds - requested : null;
++                                        if (requested.HasValue) Check(ReferenceEquals(completed, Field<ScanResult>(form, "scan")) && Field<ScanProgressControl>(form, "progressBar").State == ScanDisplayState.Cancelled);
++                                        await Wait(() => Field<DataGridView>(form, "grid").Enabled && Field<CancellationTokenSource?>(form, "viewCancellation") == null);
++                                        samples.Add(new(dataset.Shape, ((ScanMode)mode).ToString(), run + 1, scanMs, settled, first, cpuMs, allocated, workingSet,
++                                            Percentile(gaps, .95), gaps.DefaultIfEmpty(0).Max(), searchMs, requested, cancelMs, completed.Statistics!.PeakDirectoryWorkers));
++                                    }
++                                }
++                                foreach (var group in samples.Where(s => s.Shape == dataset.Shape).GroupBy(s => s.Mode))
++                                    Console.WriteLine($"UI {dataset.Shape} {group.Key}: scan {Median(group.Select(s => s.ScanMs)):F2} ms; settled {Median(group.Select(s => s.SettledMs)):F2} ms; preview observations {group.Count(s => s.FirstPreviewMs.HasValue)}/6; tick max median {Median(group.Select(s => s.TickGapMaxMs)):F2} ms");
++                            }
++                            File.WriteAllText(report, JsonSerializer.Serialize(new
++                            {
++                                Schema = 1, Source = "Production baseline before scan architecture changes", FilesPerShape = 32000, RunsPerMode = 6, Dpi = form.DeviceDpi,
++                                Cache = "Warm synthetic metadata; fixture creation, warmup, explicit GC and equality checks outside timed scans. OS cache not flushed. No controlled external workload.",
++                                Ui = "Real MainForm with isolated enabled diagnostics. ScanMs ends at ScanFolder return; SettledMs includes completion of final list query. FirstPreviewMs is first 20ms UI timer observation of a nonempty partial list, not first physical painted frame; null means no interim preview observed.",
++                                Response = "Tick gaps are UI timer dispatch intervals, not FPS/input latency. Search includes existing 220ms debounce. CancelDispatchMs is actual UI request time after a 75ms target; CancelCompletionMs is request to scan unwind, not arbitrary native I/O cancellation guarantee.",
++                                Memory = "20ms UI-thread samples of whole-process working set maximum within each scan; sampling can miss blocked intervals. AllocatedBytes is total managed allocation, not retained memory. CPU is whole-process time and coarse for short runs.",
++                                NativeRead = "Pre-enumerated synthetic files; existing NativeStorage.TryReadSnapshot with 1/4/8 workers. Every snapshot matches baseline identity, sizes, links, open-write state and timestamps. Excludes enumeration, graph construction, publication and UI; not an end-to-end speedup claim.",
++                                Correctness = "All timed completed UI scans match every baseline entry. Requested cancellation preserves the prior completed ScanResult. No user files/configuration used.",
++                                Samples = samples, NativeReads = reads
++                            }, new JsonSerializerOptions { WriteIndented = true }) + "\n");
++                        }
++                        catch (Exception ex) { failure = ex; }
++                        finally { form.Close(); }
++                    };
++                    Application.Run(form);
++                }
++                catch (Exception ex) { failure = ex; }
++            });
++            thread.IsBackground = true; thread.SetApartmentState(ApartmentState.STA); thread.Start();
++            if (!thread.Join(TimeSpan.FromMinutes(4))) throw new TimeoutException();
++            if (failure != null) throw failure;
++            Console.WriteLine("PASS scan response baseline, entry equality and cancellation isolation; artifacts/scan-response-results.json"); return 0;
++        }
++        catch (Exception ex) { Console.Error.WriteLine("FAIL response benchmark: " + ex.GetType().Name); return 1; }
++        finally
++        {
++            string prefix = Path.GetFullPath(artifacts) + Path.DirectorySeparatorChar + "scan-response-";
++            if (!Path.GetFullPath(fixture).StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Unsafe cleanup");
++            if (uiThread?.IsAlive == true) Console.Error.WriteLine("Measurement timed out; owned fixture retained until process exits.");
++            else if (Directory.Exists(fixture))
++            {
++                if (Directory.EnumerateFileSystemEntries(fixture, "*", SearchOption.AllDirectories).Any(p => (File.GetAttributes(p) & FileAttributes.ReparsePoint) != 0)) throw new InvalidOperationException("Redirected fixture");
++                Directory.Delete(fixture, true);
++            }
++        }
++    }
++
++    private static double Median(IEnumerable<double> source)
++    { var values = source.Order().ToArray(); return values.Length == 0 ? 0 : (values[(values.Length - 1) / 2] + values[values.Length / 2]) / 2; }
++    private static double Percentile(List<double> source, double fraction)
++    { var values = source.Order().ToArray(); return values.Length == 0 ? 0 : values[Math.Clamp((int)Math.Ceiling(fraction * values.Length) - 1, 0, values.Length - 1)]; }
++    private static string Fingerprint(DiskEntry root)
++    {
++        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
++        foreach (var entry in root.Descendants().Prepend(root).OrderBy(e => e.Path, StringComparer.OrdinalIgnoreCase))
++            hash.AppendData(Encoding.UTF8.GetBytes($"{Path.GetRelativePath(root.Path, entry.Path)}\t{entry.IsDirectory}\t{entry.Size}\t{entry.AllocatedSize}\t{entry.FileCount}\t{entry.FolderCount}\t{entry.Modified.Ticks}\t{entry.UnknownAllocationFiles}\t{entry.SharedAllocation}\t{entry.Incomplete}\n"));
++        return Convert.ToHexString(hash.GetHashAndReset());
++    }
++}
