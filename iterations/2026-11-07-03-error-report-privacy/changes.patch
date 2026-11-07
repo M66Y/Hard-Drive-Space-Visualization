@@ -1,0 +1,295 @@
+diff --git a/.gitignore b/.gitignore
+index f21e024..9917759 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -8,3 +8,8 @@ artifacts/
+ /AsukaLens*.zip
+ /AsukaLens*.exe
+ /AsukaLens*.tar.gz
++*.log
++*.dmp
++background.dat
++background.dat.*.tmp
++last-error.log.*.tmp
+diff --git a/AGENTS.md b/AGENTS.md
+index 0760338..b75b57c 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -112,6 +112,7 @@
+ | 日志增量、刷新策略 | 上述检查加 `--journal-tests`，真实路径与模拟场景分别记录 |
+ | 界面、背景、绘制 | 应用与测试构建、`--ui-regression`、`--ui-regression --dpi-96`，实际受影响流程与状态观察 |
+ | 背景存储、弹窗、启动恢复 | 另运行 `--background-tests` 与 `--background-tests --dpi-96`，使用隔离配置的独立进程恢复检查 |
++| 异常报告与隐私 | `--error-report-tests`，检查字段白名单、失败提示、旧报告保留和临时文件清理 |
+ | 性能 | 正确性回归加对应同条件基准，不无条件跑所有基准 |
+ 
+ - 可选 `--policy-benchmark` 用于三策略对比，`--refresh-benchmark` 用于刷新同条件诊断；方法与限制见 README 和相关迭代。先保留已有报告，再运行会覆盖报告的基准。
+diff --git a/ErrorReport.cs b/ErrorReport.cs
+new file mode 100644
+index 0000000..c696e1d
+--- /dev/null
++++ b/ErrorReport.cs
+@@ -0,0 +1,61 @@
++using System.Globalization;
++using System.Text;
++
++namespace DiskAtlas;
++
++internal sealed record ErrorReportResult(string Category, string Code, bool Saved, string? Path)
++{
++    public string UserMessage => $"程序遇到问题。错误类别：{Category}，代码：{Code}。\n\n" +
++        (Saved ? $"不含文件路径、文件名和堆栈的诊断已保存到：\n{Path}" : "本次诊断未能写入本地存储。") +
++        "\n\n可以重新打开软件后重试。";
++}
++
++// A single bounded, local report. Never serialize the exception or its message/data/stack.
++internal static class ErrorReport
++{
++    public static ErrorReportResult Write(Exception error, string? directory = null)
++    {
++        string category = error switch
++        {
++            OutOfMemoryException => "Memory",
++            UnauthorizedAccessException => "Access",
++            IOException => "IO",
++            System.ComponentModel.Win32Exception => "Native",
++            ArgumentException => "Argument",
++            OperationCanceledException => "Cancelled",
++            InvalidOperationException => "Operation",
++            _ => "Unexpected"
++        };
++        string code = "0x" + error.HResult.ToString("X8", CultureInfo.InvariantCulture);
++        string? pending = null;
++        try
++        {
++            directory ??= System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AsukaLens");
++            Directory.CreateDirectory(directory);
++            string path = System.IO.Path.Combine(directory, "last-error.log");
++            pending = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
++            string report = "App=AsukaLens\nSchema=1\nTimeUtc=" + DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture) +
++                "\nCategory=" + category + "\nCode=" + code + "\n";
++            using (var file = new FileStream(pending, FileMode.CreateNew, FileAccess.Write, FileShare.None))
++            {
++                file.Write(Encoding.UTF8.GetBytes(report));
++                file.Flush(flushToDisk: true);
++            }
++            File.Move(pending, path, overwrite: true);
++            return new(category, code, true, path);
++        }
++        catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or ArgumentException or
++            NotSupportedException or System.Security.SecurityException or OutOfMemoryException)
++        {
++            return new(category, code, false, null);
++        }
++        finally
++        {
++            if (pending != null)
++            {
++                try { File.Delete(pending); }
++                catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or System.Security.SecurityException) { }
++            }
++        }
++    }
++}
+diff --git a/Program.cs b/Program.cs
+index a33094e..ecd0c54 100644
+--- a/Program.cs
++++ b/Program.cs
+@@ -2,6 +2,7 @@ namespace DiskAtlas;
+ 
+ internal static class Program
+ {
++    private static int reportingError;
+     [STAThread]
+     private static void Main(string[] args)
+     {
+@@ -17,8 +18,12 @@ internal static class Program
+ 
+     private static void ReportError(Exception error)
+     {
+-        string log = Path.Combine(Path.GetTempPath(), "AsukaLens-error.log");
+-        try { File.WriteAllText(log, error.ToString()); } catch { }
+-        MessageBox.Show($"程序遇到问题：{error.Message}\n\n详情已保存到：{log}", "AsukaLens", MessageBoxButtons.OK, MessageBoxIcon.Error);
++        if (Interlocked.Exchange(ref reportingError, 1) != 0) return;
++        try
++        {
++            var report = ErrorReport.Write(error);
++            MessageBox.Show(report.UserMessage, "AsukaLens", MessageBoxButtons.OK, MessageBoxIcon.Error);
++        }
++        finally { Volatile.Write(ref reportingError, 0); }
+     }
+ }
+diff --git a/README.md b/README.md
+index 77dc123..aa6a5c1 100644
+--- a/README.md
++++ b/README.md
+@@ -42,6 +42,8 @@ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，
+ 
+ ## 开发与构建
+ 
++异常报告仅在本地用户数据目录的 `AsukaLens/last-error.log` 保留最近一份，包含产品标识、格式版本、UTC 时间、受控错误类别和数值代码，不包含原始异常消息、文件路径、文件名、堆栈或异常附加数据。只有保存成功才显示日志位置，失败会明确提示，不自动上传。本次修复不回溯读取或改写旧版生成的临时日志，也不等于完整日志管理系统。验证命令为测试 DLL 的 `--error-report-tests`，详见[异常报告隐私修复](iterations/2026-11-07-03-error-report-privacy/README.md)。
++
+ 项目使用 C# / .NET 9 Windows Forms，无第三方包、无网络请求。开发需要 .NET 9 SDK；运行需要 .NET 9 Windows Desktop Runtime。
+ 
+ ```powershell
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 2ff281d..73bedf6 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -2,11 +2,11 @@
+ 
+ 依据 [2026-11-07 项目现状](project-status.md)。用户已确认执行背景收尾与异常报告修复，其余条目不自动启动；长期工作规则见 [AGENTS.md](../AGENTS.md)。
+ 
+-## 当前轮：第 5 轮收尾与异常报告修复
++## 已完成：第 5 轮收尾与异常报告修复
+ 
+ 目标是让用户能可靠地更换背景、重新打开软件后保留设置，遇到失败能理解原因并继续使用。先完成现有功能闭环，再开始新功能。背景功能延续此前确认的方向；日志管理、权限、框架迁移和发布均另立方案。
+ 
+-背景部分已经完成实现与验证，见[迭代记录](../iterations/2026-11-07-02-background-settings/README.md)。下一步完成最小异常报告修复。下面保留本轮范围与验收约定。
++背景部分已经完成实现与验证，见[迭代记录](../iterations/2026-11-07-02-background-settings/README.md)。最小异常报告修复也已完成，见[隐私修复记录](../iterations/2026-11-07-03-error-report-privacy/README.md)。下一轮建议单独评估 .NET 10 LTS 迁移。下面保留本轮范围与验收约定。
+ 
+ ### 具体范围
+ 
+diff --git a/docs/project-status.md b/docs/project-status.md
+index dd7ca14..1dd3110 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -4,7 +4,7 @@
+ 
+ ## 当前判断
+ 
+-核心扫描与查看流程已经具备，现有回归可通过，适合继续迭代。第 5 轮背景功能已完成开发收尾，下一项为异常报告的隐私修复。完整日志系统、运行时迁移和正式发布仍按计划分别推进。
++核心扫描与查看流程已经具备，现有回归可通过，适合继续迭代。第 5 轮背景功能已完成开发收尾，异常报告的最小隐私修复也已完成。完整日志系统、运行时迁移和正式发布仍按计划分别推进。
+ 
+ - 本次审计的代码基线为 `a4e5a462ef6f7a004e030c4f1174a141199c8582`，核对时本地与远程 `main` 一致。
+ - 第 5 轮背景设置现已完成收尾，源码、测试和说明纳入独立开发提交，见[背景迭代记录](../iterations/2026-11-07-02-background-settings/README.md)。普通预览入口统一为 `bin/Release/net9.0-windows/DiskAtlas.exe`。
+@@ -27,11 +27,11 @@
+ | 增量刷新 | 连续 NTFS 日志优先定位变化、元信息核验与完整扫描回退、详情、强制重扫 | 缓存仅在本次进程内；无日志时仍核验全部目录和文件元信息 |
+ | 界面与动效 | 浅色组件、自绘输入框、菜单、有限果冻反馈、减弱动效、局部重绘缓存 | 动效偏好仅当前运行有效；启动首帧准备已修正，尚无完整冷启动逐帧测量 |
+ | 自定义背景 | 本地 PNG/JPEG/BMP、缩放与焦点、自动/手动强调色、保存/恢复/默认重置 | 已完成开发验收；导入上限 24 MiB、4,000 万像素，副本最长边 2,048 像素 |
+-| 日志 | 扫描错误详情、脱敏刷新诊断、Git 与迭代开发记录、临时异常文件 | 尚无分级、轮转、查看/清除/导出一体化运行日志；用户日志尚未定义 |
++| 日志 | 扫描错误详情、脱敏刷新诊断、Git 与迭代开发记录、单份脱敏异常文件 | 尚无分级、轮转、查看/清除/导出一体化运行日志；用户日志尚未定义 |
+ 
+ ## 已验证的事实
+ 
+-审计基线的核心、高级及日志结果如下；背景收尾后重新构建并通过双 DPI 的界面与背景专项检查。测试均用合成目录，背景配置指向测试目录，不覆盖真实用户设置。
++本轮最终代码重新通过核心、高级与日志检查；背景收尾通过双 DPI 的界面与专项检查，后续只改异常报告与测试入口，专项结果继续适用。测试均用合成目录，背景配置指向测试目录，不覆盖真实用户设置。
+ 
+ | 检查 | 本次结果 |
+ | --- | --- |
+@@ -42,6 +42,7 @@
+ | `--ui-regression` | 实际 144 DPI，10 组通过 |
+ | `--ui-regression --dpi-96` | 独立 96 DPI 虚拟化进程，10 组通过 |
+ | `--background-tests` 及 `--dpi-96` | 各 7 组通过，含独立进程生产主窗启动恢复 |
++| `--error-report-tests` | 3 组通过，隐私字段、容量及存储失败 |
+ 
+ 真实刷新检查报告 `ChangeJournal`、日志 `Available`，重扫 1 个目录、复用 5 个文件，原生错误码为 0。这只证明本机该合成样本的路径可用，不代表所有磁盘、权限或文件系统。
+ 
+@@ -49,11 +50,12 @@
+ 
+ 使用 computer-use 在实际窗口操作了系统选图框、缩放、焦点拖动与应用，检查深色合成背景的预览及主窗文字可读性。未触碰个人背景配置。没有进行跨显示器、系统高对比切换或逐帧冷启动测量，也未新增整盘性能结论。
+ 
++异常报告现使用 `ErrorReport.cs` 的字段白名单，只保留产品/格式标识、UTC 时间、固定错误类别和数值代码。最近一份写入本地用户数据目录，失败不谎报成功，不记录异常消息、堆栈或附加数据。见[隐私修复记录](../iterations/2026-11-07-03-error-report-privacy/README.md)。完整日志管理仍待开发。
++
+ ## 优化机会与缺口
+ 
+ | 优先级 | 发现与影响 | 具体下一步 |
+ | --- | --- | --- |
+-| P0 隐私 | `Program.ReportError` 将 `error.ToString()` 写入临时文件，可能包含路径和堆栈；写入失败后仍声称已保存 | 先做最小异常报告修复，使用白名单字段并如实反馈写入结果；没有证据表明目前会自动上传 |
+ | P1 运行环境 | 项目使用 .NET 9，支持期即将结束，本机目前未检出 .NET 10 SDK | 单独评估并迁移 .NET 10 LTS，保留升级前回归基线，先不混入背景收尾 |
+ | P1 使用入口 | 当前入口已统一，但 `bin/` 仍有多个历史输出目录；旧发行目录仍是 v1.4.2 | 后续建立一个当前预览入口及构建身份，更新过时说明，核查后清理可再生产物 |
+ | P2 扫描性能 | 单目录内串行，自动策略无负载自适应；整盘耗时尚无当前同条件数据 | 先测平坦/多目录样本、预览与取消延迟、CPU/内存，再决定是否做有界单目录并行 |
+diff --git a/tests/DiskAtlas.Tests.csproj b/tests/DiskAtlas.Tests.csproj
+index b30bc03..ca6d48b 100644
+--- a/tests/DiskAtlas.Tests.csproj
++++ b/tests/DiskAtlas.Tests.csproj
+@@ -8,6 +8,7 @@
+     <RestoreConfigFile>$(MSBuildThisFileDirectory)..\NuGet.Config</RestoreConfigFile>
+   </PropertyGroup>
+   <ItemGroup>
++    <Compile Include="..\ErrorReport.cs" Link="ErrorReport.cs" />
+     <Compile Include="..\Core.cs" Link="Core.cs" />
+     <Compile Include="..\NativeStorage.cs" Link="NativeStorage.cs" />
+     <Compile Include="..\ScanPolicy.cs" Link="ScanPolicy.cs" />
+diff --git a/tests/ErrorReportRegression.cs b/tests/ErrorReportRegression.cs
+new file mode 100644
+index 0000000..2620486
+--- /dev/null
++++ b/tests/ErrorReportRegression.cs
+@@ -0,0 +1,64 @@
++using DiskAtlas;
++
++internal static class ErrorReportRegression
++{
++    private static void Check(bool ok, string message) { if (!ok) throw new Exception(message); }
++
++    public static int Run()
++    {
++        string root = Path.Combine(Path.GetTempPath(), "AsukaLens-error-tests-" + Guid.NewGuid().ToString("N"));
++        Directory.CreateDirectory(root);
++        try
++        {
++            // Deliberately sensitive-looking synthetic payloads; none may reach the report.
++            const string privateText = "private-account/private-document secret-marker@example.invalid";
++            Exception error;
++            try { throw new IOException(privateText, new Exception(privateText)); }
++            catch (Exception caught) { error = caught; }
++            error.Data[privateText] = privateText;
++            var first = ErrorReport.Write(error, root);
++            Check(first.Saved && first.Path != null && File.Exists(first.Path), "Successful save was not reported");
++            var text = File.ReadAllText(first.Path!);
++            Check(!text.Contains("private-") && !text.Contains("secret-marker") && !text.Contains("Stack") &&
++                !text.Contains(root) && !first.UserMessage.Contains("private-"), "Private exception material escaped");
++            Check(text.Split('\n',StringSplitOptions.RemoveEmptyEntries).Select(line=>line.Split('=')[0]).SequenceEqual(
++                new[] {"App","Schema","TimeUtc","Category","Code"}),"Report field whitelist changed");
++            Check(first.Category=="IO" && first.Code.StartsWith("0x"),"Diagnostic category/code missing");
++            Console.WriteLine("PASS error report whitelists fields and omits message, stack, data, inner exceptions and private paths");
++
++            var unexpected = ErrorReport.Write(new SecretException(), root);
++            Check(unexpected.Saved && unexpected.Category=="Unexpected", "Unknown exception not safely classified");
++            Check(!File.ReadAllText(unexpected.Path!).Contains(nameof(SecretException)), "Custom exception type leaked");
++            var entries = Directory.GetFiles(root);
++            Check(entries.Length==1 && new FileInfo(entries[0]).Length<512,"Repeated reports grow unbounded or leave temporary files");
++            Console.WriteLine("PASS error report avoids custom exception getters and retains one bounded report");
++
++            var before = File.ReadAllBytes(first.Path!);
++            using (var locked = new FileStream(first.Path!, FileMode.Open, FileAccess.Read, FileShare.Read))
++            {
++                var failed = ErrorReport.Write(error,root);
++                Check(!failed.Saved && failed.Path==null && failed.UserMessage.Contains("未能写入") && !failed.UserMessage.Contains("已保存"),
++                    "Failed write reported success");
++            }
++            Check(File.ReadAllBytes(first.Path!).SequenceEqual(before) && Directory.GetFiles(root).Length==1,"Failed replace lost existing report");
++            string blocked=Path.Combine(root,"blocked"); File.WriteAllText(blocked,"fixture");
++            Check(!ErrorReport.Write(error,blocked).Saved,"File-as-directory failure was not handled");
++            Console.WriteLine("PASS error report save failure stays nonfatal, preserves prior file and reports the true outcome");
++            Console.WriteLine("All 3 error report regression groups passed."); return 0;
++        }
++        catch(Exception error) { Console.Error.WriteLine(error); return 1; }
++        finally
++        {
++            string prefix=Path.Combine(Path.GetFullPath(Path.GetTempPath()),"AsukaLens-error-tests-");
++            if (!Path.GetFullPath(root).StartsWith(prefix,StringComparison.OrdinalIgnoreCase)) throw new Exception("Unsafe test cleanup");
++            Directory.Delete(root,recursive:true);
++        }
++    }
++
++    private sealed class SecretException : Exception
++    {
++        public override string Message => throw new Exception("Message must not be evaluated");
++        public override string? StackTrace => throw new Exception("Stack must not be evaluated");
++        public override string ToString() => throw new Exception("ToString must not be evaluated");
++    }
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+index ed3cebe..d9fd4ba 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -1,6 +1,8 @@
+ using DiskAtlas;
+ using System.Drawing;
+ 
++if (args.Contains("--error-report-tests")) return ErrorReportRegression.Run();
++
+ if (args.Contains("--background-preview")) return BackgroundRegression.Preview(args[1]);
+ if (args.Contains("--background-child")) return BackgroundRegression.RunChild(args[1], args[2]);
+ if (args.Contains("--background-tests")) return BackgroundRegression.Run(args.Contains("--dpi-96"));

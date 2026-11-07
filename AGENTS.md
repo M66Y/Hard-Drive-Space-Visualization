@@ -112,6 +112,7 @@
 | 日志增量、刷新策略 | 上述检查加 `--journal-tests`，真实路径与模拟场景分别记录 |
 | 界面、背景、绘制 | 应用与测试构建、`--ui-regression`、`--ui-regression --dpi-96`，实际受影响流程与状态观察 |
 | 背景存储、弹窗、启动恢复 | 另运行 `--background-tests` 与 `--background-tests --dpi-96`，使用隔离配置的独立进程恢复检查 |
+| 异常报告与隐私 | `--error-report-tests`，检查字段白名单、失败提示、旧报告保留和临时文件清理 |
 | 性能 | 正确性回归加对应同条件基准，不无条件跑所有基准 |
 
 - 可选 `--policy-benchmark` 用于三策略对比，`--refresh-benchmark` 用于刷新同条件诊断；方法与限制见 README 和相关迭代。先保留已有报告，再运行会覆盖报告的基准。

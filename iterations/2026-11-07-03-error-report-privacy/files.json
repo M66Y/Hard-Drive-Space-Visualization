@@ -1,0 +1,30 @@
+{
+  "baseline": "1df299adb4adc2ccc949016a0371764c221caed7",
+  "patch_files": [
+    ".gitignore",
+    "AGENTS.md",
+    "ErrorReport.cs",
+    "Program.cs",
+    "README.md",
+    "docs/development-plan.md",
+    "docs/project-status.md",
+    "tests/DiskAtlas.Tests.csproj",
+    "tests/ErrorReportRegression.cs",
+    "tests/Program.cs"
+  ],
+  "sha256_lf": {
+    ".gitignore": "91b8cebc0f3a6aaac0633ebf0f1158ae8182899f3ce53a88323b95b33a0d8c38",
+    "AGENTS.md": "6727fc2ec62c77e6fcb6ffb5bbfdcb64688fc5183b868d57e6b6b8408787d35b",
+    "ErrorReport.cs": "60988dc31a73325b13d1cbf9fcc1c539226b92948acb287a61696165458744b5",
+    "Program.cs": "51c3eba15c4d8b02023ed0142825275c7461cd2ea2d56af636755d585ddc4c59",
+    "README.md": "1455334b0067cafde8f7f7ec49e19d418b3fbcf75fd3e7dec4506edc25d9d49a",
+    "docs/development-plan.md": "759e929b321a70f3935e894c0e8755daea4030d6838c57d1ce4ea8d6c26554e5",
+    "docs/project-status.md": "e7fca5b3bcd06bc0ad402bfdf50712b0dbb322fa4b5d4684d7791d4c6588a40d",
+    "tests/DiskAtlas.Tests.csproj": "9769e1f80725dbae3ded7b2d9782edfee20a22b149bc94dfc98232ab411c3526",
+    "tests/ErrorReportRegression.cs": "1dd637c68e8e54742196c632db0682d4ee779ccd30ba2f565aaaf20f18c46851",
+    "tests/Program.cs": "6e6e77354c84d7a393947ed916884f1ad8704ddaf062aca883c872f3b273ac09",
+    "iterations/2026-11-07-03-error-report-privacy/README.md": "d2f54bde87b41e40a6a677a4ff5bc9c2de1f90dd90047eb8bec6ac8112e49f5d",
+    "iterations/2026-11-07-03-error-report-privacy/changes.patch": "4e52e719ec773ace0ab5f1cdecf7979f4fea4bd0997941ce5deeb982572a050b"
+  },
+  "patch_verified_in_isolated_baseline": true
+}

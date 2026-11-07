@@ -8,6 +8,7 @@
     <RestoreConfigFile>$(MSBuildThisFileDirectory)..\NuGet.Config</RestoreConfigFile>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\ErrorReport.cs" Link="ErrorReport.cs" />
     <Compile Include="..\Core.cs" Link="Core.cs" />
     <Compile Include="..\NativeStorage.cs" Link="NativeStorage.cs" />
     <Compile Include="..\ScanPolicy.cs" Link="ScanPolicy.cs" />

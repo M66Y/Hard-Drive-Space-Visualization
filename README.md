@@ -42,6 +42,8 @@ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，�
 
 ## 开发与构建
 
+异常报告仅在本地用户数据目录的 `AsukaLens/last-error.log` 保留最近一份，包含产品标识、格式版本、UTC 时间、受控错误类别和数值代码，不包含原始异常消息、文件路径、文件名、堆栈或异常附加数据。只有保存成功才显示日志位置，失败会明确提示，不自动上传。本次修复不回溯读取或改写旧版生成的临时日志，也不等于完整日志管理系统。验证命令为测试 DLL 的 `--error-report-tests`，详见[异常报告隐私修复](iterations/2026-11-07-03-error-report-privacy/README.md)。
+
 项目使用 C# / .NET 9 Windows Forms，无第三方包、无网络请求。开发需要 .NET 9 SDK；运行需要 .NET 9 Windows Desktop Runtime。
 
 ```powershell

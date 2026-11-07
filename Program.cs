@@ -2,6 +2,7 @@ namespace DiskAtlas;
 
 internal static class Program
 {
+    private static int reportingError;
     [STAThread]
     private static void Main(string[] args)
     {
@@ -17,8 +18,12 @@ internal static class Program
 
     private static void ReportError(Exception error)
     {
-        string log = Path.Combine(Path.GetTempPath(), "AsukaLens-error.log");
-        try { File.WriteAllText(log, error.ToString()); } catch { }
-        MessageBox.Show($"程序遇到问题：{error.Message}\n\n详情已保存到：{log}", "AsukaLens", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        if (Interlocked.Exchange(ref reportingError, 1) != 0) return;
+        try
+        {
+            var report = ErrorReport.Write(error);
+            MessageBox.Show(report.UserMessage, "AsukaLens", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally { Volatile.Write(ref reportingError, 0); }
     }
 }

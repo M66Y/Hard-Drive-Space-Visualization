@@ -8,3 +8,8 @@ artifacts/
 /AsukaLens*.zip
 /AsukaLens*.exe
 /AsukaLens*.tar.gz
+*.log
+*.dmp
+background.dat
+background.dat.*.tmp
+last-error.log.*.tmp
