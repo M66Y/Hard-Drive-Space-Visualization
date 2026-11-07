@@ -9,7 +9,7 @@
 - Inno Setup 安装器来自 [官方固定版本](https://github.com/jrsoftware/issrc/releases/tag/is-7_1_1)。下载后核对 toolchain 中 SHA-256 和有效的 `Pyrsys B.V.` Authenticode 签名；官方支持 `/PORTABLE=1 /CURRENTUSER /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /DIR="所选临时工具目录"`，无需添加系统关联。工具不纳入 Git，脚本不会自行下载或安装编译器。
 - 自包含还原使用独立 [NuGet.release.config](../scripts/release/NuGet.release.config)，只允许所需微软运行时包从官方 nuget.org 获取；普通 `NuGet.Config` 保持无外部源。SDK 还原可能同时请求 ASP.NET 运行时包，但应用不引用或分发 ASP.NET。
 - 随包保留 Core Runtime 的 LICENSE / THIRD-PARTY-NOTICES、Windows Desktop Runtime 包提供的 MIT LICENSE、Inno Setup 许可及本项目许可。没有把项目的非商业限制施加给第三方组件。
-- 草稿上传才需要已登录的 GitHub CLI；本轮未安装或使用它上传。未来执行前记录 `gh --version`，确认支持 `gh api --paginate --slurp` 及 Release asset digest。凭据只使用现有登录存储，不能写到脚本、日志或源码包。
+- 草稿上传需要已登录的 GitHub CLI。已准备官方 2.103.3 便携工具，并完成真实只读登录/仓库权限检查，方法见 [GitHub 发布工具](github-publishing-access.md)。脚本优先 PATH 中的工具，缺失时校验并使用项目忽略目录的便携工具；项目调用关闭 CLI 遥测。凭据使用系统存储，不写到脚本、日志或源码包。真正上传与资产下载验收仍待正式任务。
 
 ## 本机临时验收
 

@@ -129,6 +129,7 @@
 - 根目录 `build.ps1` 是保留的旧框架依赖打包入口，不用于普通迭代检查，也不是新的正式发布入口。新的自包含/安装器/源码快照脚本位于 `scripts/release/`，用法和验收边界见 [发布说明](docs/releasing.md)。运行 `tests/ReleaseScripts.Tests.ps1` 检查边界；包级验证用 `tests/PackageAcceptance.ps1`，不能把静态检查当运行通过。
 - 草稿上传控制流程改动运行 `tests/DraftUpload.Tests.ps1`；它使用本地替身，不调用 GitHub，不替代真实远程或安装包验收。
 - 发布前缺口与证据见 [发布准备清单](docs/release-readiness.md)。双语发布说明使用 `docs/release-notes.template.md`，模板/内容校验改动运行 `tests/ReleaseNotes.Tests.ps1`，并对接入上传入口的改动运行上述上传回归；不把格式检查当真实功能、环境或远程验收。
+- GitHub CLI 工具来源、便携目录和只读检查见 [发布工具说明](docs/github-publishing-access.md)。项目调用显式关闭 CLI 遥测，退出时恢复调用者环境；认证输出与设备码不得归档。探针/工具选择改动运行 `tests/GitHubAccess.Tests.ps1`；真实只读权限结果不是资产上传通过证明。
 - 离线验收入口位于 `scripts/acceptance/`，操作见 [离线验收手册](docs/offline-acceptance.md)。改动时使用 64 位 Windows PowerShell 5.1 运行 `powershell.exe -NoProfile -File tests/OfflineAcceptance.Tests.ps1`；目标入口不依赖 PowerShell 7、Git 或现代 .NET。测试的合成子进程不是软件发行 EXE；本机工具检查、人工观察和干净系统发布门槛分开，不由工具报告自动批准上传。
 - 直接发行入口验收运行包内 `AsukaLens.exe`，按[发布说明](docs/releasing.md#直接发行-exe-的本机使用流程)仅在该进程设置 `ASUKALENS_DATA_DIR`，不能依赖 LOCAL TEST 安装身份隔离个人数据。修改数据目录解析时运行 `--app-data-location-tests`，不在测试中读取或覆盖真实个人配置。
 - 调整目录或构建方式时同步更新上述命令、项目引用、测试链接文件、资源路径及文档。不得写入本机绝对路径作为公共运行要求。

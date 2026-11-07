@@ -2,6 +2,7 @@
 # No network commands are implemented; unknown commands fail closed.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+if ($env:GH_TELEMETRY -cne 'false') { throw 'Project GitHub invocations must disable telemetry.' }
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = $env:ASUKALENS_DRAFT_TEST_ROOT
 if (-not $root -or -not (Test-Path -LiteralPath (Join-Path $root 'offline-fixture'))) { throw 'Missing offline fixture marker.' }

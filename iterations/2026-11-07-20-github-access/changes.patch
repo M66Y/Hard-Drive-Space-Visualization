@@ -1,0 +1,431 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 7b541b32b8a18c1c383180c2dc4cc4f75cac2770..5630ce142d20daeba3e3345a33593116474784bb 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -129,6 +129,7 @@
+ - 根目录 `build.ps1` 是保留的旧框架依赖打包入口，不用于普通迭代检查，也不是新的正式发布入口。新的自包含/安装器/源码快照脚本位于 `scripts/release/`，用法和验收边界见 [发布说明](docs/releasing.md)。运行 `tests/ReleaseScripts.Tests.ps1` 检查边界；包级验证用 `tests/PackageAcceptance.ps1`，不能把静态检查当运行通过。
+ - 草稿上传控制流程改动运行 `tests/DraftUpload.Tests.ps1`；它使用本地替身，不调用 GitHub，不替代真实远程或安装包验收。
+ - 发布前缺口与证据见 [发布准备清单](docs/release-readiness.md)。双语发布说明使用 `docs/release-notes.template.md`，模板/内容校验改动运行 `tests/ReleaseNotes.Tests.ps1`，并对接入上传入口的改动运行上述上传回归；不把格式检查当真实功能、环境或远程验收。
++- GitHub CLI 工具来源、便携目录和只读检查见 [发布工具说明](docs/github-publishing-access.md)。项目调用显式关闭 CLI 遥测，退出时恢复调用者环境；认证输出与设备码不得归档。探针/工具选择改动运行 `tests/GitHubAccess.Tests.ps1`；真实只读权限结果不是资产上传通过证明。
+ - 离线验收入口位于 `scripts/acceptance/`，操作见 [离线验收手册](docs/offline-acceptance.md)。改动时使用 64 位 Windows PowerShell 5.1 运行 `powershell.exe -NoProfile -File tests/OfflineAcceptance.Tests.ps1`；目标入口不依赖 PowerShell 7、Git 或现代 .NET。测试的合成子进程不是软件发行 EXE；本机工具检查、人工观察和干净系统发布门槛分开，不由工具报告自动批准上传。
+ - 直接发行入口验收运行包内 `AsukaLens.exe`，按[发布说明](docs/releasing.md#直接发行-exe-的本机使用流程)仅在该进程设置 `ASUKALENS_DATA_DIR`，不能依赖 LOCAL TEST 安装身份隔离个人数据。修改数据目录解析时运行 `--app-data-location-tests`，不在测试中读取或覆盖真实个人配置。
+ - 调整目录或构建方式时同步更新上述命令、项目引用、测试链接文件、资源路径及文档。不得写入本机绝对路径作为公共运行要求。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 60d98a8c7897987d495e7f34d48f8affb684194f..c2584ed89b0c04f7e5bf0fca4c79204a9187e852 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -20,6 +20,8 @@ PERF-001 的公开依据为[调度修正与验证](../iterations/2026-11-07-10-m
+ 
+ 发布前审查已整理为[缺口与证据清单](release-readiness.md)，并补齐双语发布说明模板及上传前必需内容校验。本机已有证据不自动覆盖新的正式候选资产；后续按清单确认版本、候选包、干净环境、CLI 登录和真实远程草稿，PERF-001 / MAINT-001 继续延期。
+ 
++CLI 准备与本人浏览器授权随后已完成，真实只读访问返回仓库推送权限；使用方法见[发布工具](github-publishing-access.md)。下一步重点转为确定正式版本与候选资产范围、取得干净测试环境，不能因工具已经可用而直接上传或公开发布。
++
+ ## 已完成：第 5 轮收尾与异常报告修复
+ 
+ 目标是让用户能可靠地更换背景、重新打开软件后保留设置，遇到失败能理解原因并继续使用。先完成现有功能闭环，再开始新功能。背景功能延续此前确认的方向；日志管理、权限、框架迁移和发布均另立方案。框架迁移现已另行确认，见下文。
+diff --git a/docs/github-publishing-access.md b/docs/github-publishing-access.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..9061d0b2692e01602aec924eeb3da9b1d6d34704
+--- /dev/null
++++ b/docs/github-publishing-access.md
+@@ -0,0 +1,45 @@
++# GitHub 发布工具与只读检查
++
++2026-11-07 已准备官方 GitHub CLI **2.103.3 Windows x64 便携版**，位于本机忽略目录 `artifacts/release-tools/gh-2.103.3/`。版本来源、下载 URL、ZIP/官方校验文件/EXE 的 SHA-256 保存在 [github-cli.json](../scripts/release/github-cli.json)。工具目录约 39.85 MiB，包含 EXE 与许可；它是后续发布依赖，未加入 Git，也没有改动系统 PATH。
++
++本机浏览器登录已由用户本人完成，并确认使用系统凭据库。真实只读查询能够读取指定仓库，返回推送权限，Release 数量为 0；这不证明真正资产上传已经验收。用户退出登录、凭据过期、权限或网络变化后，应重新检查，不能将本记录永久当作可用证明。
++
++## 日常检查
++
++```powershell
++pwsh -NoProfile -File scripts/release/Test-GitHubAccess.ps1
++```
++
++探针优先使用 PATH 中的 `gh`，没有时使用上述便携工具并核对 EXE 哈希。只检查版本、所需命令参数、当前 github.com 登录、仓库读取、接口返回的推送权限和分页 Release 列表，不创建标签、草稿或资产。每个子进程限时 30 秒；失败时返回固定阶段状态，不打印原始错误或认证输出。
++
++结果中的 `status=read-checks-passed` 仅表示只读前置检查成功。`authenticated`、`repository_readable`、`reported_push_permission` 分别描述不同条件，`upload_tested` 始终为 false。未登录为 `authentication-required`，权限不足为 `push-permission-missing`，网络/API 异常为对应检查失败；此脚本输出诊断对象，不用进程退出码代替这些字段，也不生成正式发布验收凭据。
++
++真实上传脚本同样支持上述工具选择顺序。`-WhatIf` 保持原约定，在本地验收门槛通过后仅展示计划，不调用 GitHub；它不代替本探针或真实远程验收。正式上传仍须先完成[发布前缺口](release-readiness.md)中的候选资产、干净系统和授权条件。
++
++## 认证与隐私
++
++GitHub CLI 这一版本支持使用遥测；项目的探针和上传调用均显式传入 `GH_TELEMETRY=false`，探针另关闭更新通知和交互提示。上传调用结束或失败后恢复调用者原有环境变量，不修改用户级/系统级设置。此约束针对通过项目脚本执行的调用；直接在终端运行原生 `gh` 时需自行设置该进程环境。见[官方环境变量说明](https://cli.github.com/manual/gh_help_environment)。
++
++需要重新登录时，在项目根目录运行以下代码，并由账户本人完成浏览器授权。不要使用 `--insecure-storage`，不要把令牌、设备码或原始认证输出放进项目文件。Git 凭据已经可用时，登录流程询问是否用 CLI 认证 Git，可以选择 No，保持现有 Git 凭据方式。
++
++```powershell
++. ./scripts/release/Release.Common.ps1
++$gh = Resolve-ReleaseGitHubCli
++$previousTelemetry = [Environment]::GetEnvironmentVariable('GH_TELEMETRY', 'Process')
++try {
++    $env:GH_TELEMETRY = 'false'
++    & $gh auth login --hostname github.com --git-protocol https --web --skip-ssh-key
++} finally {
++    [Environment]::SetEnvironmentVariable('GH_TELEMETRY', $previousTelemetry, 'Process')
++}
++```
++
++官方登录可能在凭据库不可用时回退到明文存储，因此本轮另外只在内存中核对认证状态的存储来源，确认是 keyring；没有导出令牌。未使用 `gh auth token` 或 `--show-token`。未来若出现存储失败，先修复安全存储再继续，不将明文配置复制到仓库。参见[官方登录说明](https://cli.github.com/manual/gh_auth_login)与[认证状态说明](https://cli.github.com/manual/gh_auth_status)。
++
++## 工具恢复与升级
++
++便携目录被清理后，可根据 `github-cli.json` 的固定官方 URL 重新下载 ZIP 与校验文件。先核对两份下载的 SHA-256 和 ZIP 中对应条目，再检查归档路径、解压到新目录并核对 `bin/gh.exe` 哈希。已有目录不覆盖，不跟随链接解压；下载临时文件在完成后清理。不要从搜索结果中的第三方下载站获取文件。
++
++工具更新时重新验证来源、校验值、命令参数和只读访问，再更新 pin 与记录；不因为上游出现新版本自动覆盖当前可用工具。本机当前依赖只保留解压后的两份必要文件。凭据仍由系统管理，不在工具目录中。
++
++维护检查：`pwsh -File tests/GitHubAccess.Tests.ps1` 用本地合成 CLI 验证成功、未登录、权限不足、API 失败、隐私输出和工具缺失/损坏；`tests/DraftUpload.Tests.ps1` 核对真实上传脚本的所有 CLI 调用关闭遥测，并在成功/失败时恢复调用者环境。合成检查不联网，不代表真实上传成功。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index b2bef6dd43242b10bad7172bc9a5947f69a21f9d..92cde7be92b549ec6737a5dacaac13ba68e377b1 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -10,6 +10,8 @@
+ 
+ 最新[发布前缺口审查](release-readiness.md)已补齐中英文发布说明模板，并修复上传入口仅检查版本/语言标题而漏检必需内容的问题。正式版本与候选资产、干净 Windows、CLI 执行环境和真实远程草稿仍待对应任务完成；本轮只读核查远程无 Release/标签，没有正式发布。
+ 
++其后已准备 GitHub CLI 2.103.3 便携工具并由用户完成授权，确认系统凭据存储、真实仓库只读访问和接口返回的推送权限，Release 列表仍为空。项目探针和上传调用关闭 CLI 遥测，工具备用路径核对固定 EXE 哈希。CLI 环境与登录缺口已关闭，正式候选包、干净环境与真实上传仍未完成，见[工具说明](github-publishing-access.md)。
++
+ 后续已按确认范围实现 Windows PowerShell 5.1 [离线验收工具](offline-acceptance.md)，用于资产核对、隔离样本、实际进程启动、人工状态记录和受归属约束的清理；本机 98 项工具检查通过。它不依赖目标机的现代 .NET SDK，也不把本机结果转换为干净系统通过；具体边界见本文末尾。
+ 
+ 核心扫描与查看流程已经具备，现有回归可通过，适合继续迭代。第 5 轮背景功能已完成开发收尾，异常报告的最小隐私修复也已完成，并完成了 .NET 10 LTS 系统安装与迁移验证；本地诊断管理随后已完成；正式发布仍按计划推进。
+diff --git a/docs/release-readiness.md b/docs/release-readiness.md
+index 42a10f331544ae183d82522cc5b308be3d66de4f..d75d2cd0a0331e283f622977bf37ea401be3c1fc 100644
+--- a/docs/release-readiness.md
++++ b/docs/release-readiness.md
+@@ -21,7 +21,7 @@
+ | 正式版本和发布范围 | 项目仍为数字版本 `1.4.2`，历史预览未追认为当前规范下的正式发行。用户本轮要求补发布准备，并未要求正式打包/发布 | 正式发布任务中确定 `vX.X.X` 与更新范围，更新唯一版本来源、填写模板的实际更新/修复并复核中英文一致性；不要自行移动旧标签 |
+ | 确切候选资产 | 既有包是可丢弃本机验收包，且已清理；后续脚本/文档提交不应冒充这些旧包的验收对象 | 冻结已提交快照，生成四类正式候选资产和清单，完整静态校验、两类源码独立构建、便携与安装流程、失败恢复、隐私及许可复验；每项绑定实际提交与清单 SHA-256 |
+ | 干净 Windows 11 x64 | 当前没有独立电脑/虚拟机，本机已有现代 .NET。离线工具的存在不能代替环境 | 使用未额外安装现代 .NET SDK/共享运行时的新装系统或已知干净快照，按[离线手册](offline-acceptance.md)实际使用确切候选包。若使用本机 VM，先确定虚拟化软件、镜像、许可与磁盘空间方案 |
+-| GitHub CLI 执行环境与登录 | 本轮在 PATH 未找到 `gh`，未验证该 CLI 的凭据或发布权限。Git 推送和连接器只读成功不等于 CLI 可上传 | 进入正式上传准备时选定 CLI 版本并核验来源，在实际执行环境运行 `gh --version`、`gh auth status --hostname github.com`；只记录成功/失败和必要版本，凭据留在凭据管理器，不抄录令牌 |
++| GitHub CLI 执行环境与登录：已补齐本轮检查 | 已准备官方便携版 2.103.3，用户完成浏览器授权，确认 keyring 存储；真实 CLI 只读访问成功且接口返回推送权限 | [操作与证据边界](github-publishing-access.md)。此结果不替代真实上传，正式执行前重新核对登录和权限 |
+ | 真实草稿上传与下载 | 本轮连接器只读查询 Release 返回空列表，Git 远程标签列表为空；没有创建草稿、标签或上传资产 | 所有前置验收真实通过、正式任务明确后，创建绑定提交的新标签，上传草稿、下载六个文件复核，确认仍是草稿，再按正式授权公开；失败保留草稿和已完成资产 |
+ | 对外入口同步 | README 仍正确标注开发预览和暂无正式下载；模板中的下载 URL 含占位符，并非现有资产 | 正式公开后同步中英文 README 的版本/下载入口、说明与校验链接。未公开前不写“已有下载”，不把模板当发布说明定稿 |
+ 
+@@ -33,6 +33,14 @@
+ 
+ 本轮不重建或打包未改动的应用，不重复旧包安装流程；新增说明检查和受影响的发布/上传脚本回归结果见[迭代记录](../iterations/2026-11-07-19-release-readiness/README.md)。本次仅查询远程状态，未安装 CLI、改动系统环境、创建 VM、标签或 Release。签名状态当前为未代码签名，已经纳入模板披露，不把付费代码签名另加为发布硬门槛。
+ 
++后续第 20 轮已补齐上表中的 CLI 与登录检查，见[本轮记录](../iterations/2026-11-07-20-github-access/README.md)；上述第 19 轮“未安装 CLI”是当时状态。新的项目调用关闭 CLI 遥测，授权与只读查询使用真实官方工具；依然没有执行真实资产上传或正式发布。
++
+ PERF-001 高速模式不能稳定提速、MAINT-001 非阻塞重构和额外视觉打磨继续留待初版后处理。不能通过本轮准备任务自动重启这些优化。
+ 
++## 下一步候选包建议（待用户确认）
++
++建议首个按现行快照规范准备的候选版本采用 **v1.5.0**，体现历史 v1.4.2 之后的功能、运行环境与交付变化；当前项目仍为 v1.4.2，尚未改版本或打包。用户确认后：更新唯一版本来源与双语实际发布说明，冻结已提交快照，生成四类正式候选资产及校验清单，完成静态核对、两种源码构建和本机发行使用/安装失败恢复复验。候选资产的提交与哈希单独记录，既有 LOCAL TEST 证据不直接移用。
++
++该范围只准备并验收候选包，不创建标签、上传或公开 Release。安装验证如涉及正式安装身份，先核查本机是否已有安装并保护原数据；既有只允许 LOCAL TEST 的自动脚本不可直接绕过身份保护。干净 Windows 与真实远程门槛继续保留，候选包保留当前必要的一套待后续验收，不堆积重复包。也可先确定干净测试环境方案，再制作候选包；虚拟机仍需另行明确软件、镜像、许可与空间。
++
+ 接口依据：上传脚本使用的 `2026-03-10` 仍在 [GitHub 支持的 REST API 版本](https://docs.github.com/en/rest/about-the-rest-api/api-versions)列表中；分页所需的 `--paginate --slurp` 见 [GitHub CLI 官方 API 手册](https://cli.github.com/manual/gh_api)。这只确认当前文档契约，真实远程验收仍未完成。
+diff --git a/docs/releasing.md b/docs/releasing.md
+index b597f39da799ffb29a675e21a97bfd6b17886dee..0a0e176b7c30777a7a98819c92ff3c97c63ed467 100644
+--- a/docs/releasing.md
++++ b/docs/releasing.md
+@@ -9,7 +9,7 @@
+ - Inno Setup 安装器来自 [官方固定版本](https://github.com/jrsoftware/issrc/releases/tag/is-7_1_1)。下载后核对 toolchain 中 SHA-256 和有效的 `Pyrsys B.V.` Authenticode 签名；官方支持 `/PORTABLE=1 /CURRENTUSER /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /DIR="所选临时工具目录"`，无需添加系统关联。工具不纳入 Git，脚本不会自行下载或安装编译器。
+ - 自包含还原使用独立 [NuGet.release.config](../scripts/release/NuGet.release.config)，只允许所需微软运行时包从官方 nuget.org 获取；普通 `NuGet.Config` 保持无外部源。SDK 还原可能同时请求 ASP.NET 运行时包，但应用不引用或分发 ASP.NET。
+ - 随包保留 Core Runtime 的 LICENSE / THIRD-PARTY-NOTICES、Windows Desktop Runtime 包提供的 MIT LICENSE、Inno Setup 许可及本项目许可。没有把项目的非商业限制施加给第三方组件。
+-- 草稿上传才需要已登录的 GitHub CLI；本轮未安装或使用它上传。未来执行前记录 `gh --version`，确认支持 `gh api --paginate --slurp` 及 Release asset digest。凭据只使用现有登录存储，不能写到脚本、日志或源码包。
++- 草稿上传需要已登录的 GitHub CLI。已准备官方 2.103.3 便携工具，并完成真实只读登录/仓库权限检查，方法见 [GitHub 发布工具](github-publishing-access.md)。脚本优先 PATH 中的工具，缺失时校验并使用项目忽略目录的便携工具；项目调用关闭 CLI 遥测。凭据使用系统存储，不写到脚本、日志或源码包。真正上传与资产下载验收仍待正式任务。
+ 
+ ## 本机临时验收
+ 
+diff --git a/docs/testing.md b/docs/testing.md
+index a9dcc7bc3d143e4fdac6bce844b4dd07b8bc6c88..206b9c19c8feb191015de9bd9a4ef804b16d53f6 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -74,4 +74,6 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
+ 
+ 发布说明模板与必需内容检查使用 `pwsh -File tests/ReleaseNotes.Tests.ps1`，可传 `-Summary <新报告.json>` 保存汇总。检查中英文栏目、占位符、精确版本/运行时、六类下载校验链接和源码提交；不访问这些示例 URL，不创建资产。上传回归同时确认说明不完整时尚未调用 GitHub。
+ 
++CLI 探针检查使用 `pwsh -File tests/GitHubAccess.Tests.ps1`，构造本地合成可执行工具验证状态区分、分页、原始输出隔离与备用工具哈希。`pwsh -File scripts/release/Test-GitHubAccess.ps1` 则会使用真实 CLI 只读检查实际登录和目标仓库，返回固定字段诊断对象，不创建资产；两者不要混淆。上传回归同时要求每次 CLI 调用关闭遥测且结束后恢复调用者环境。
++
+ 离线验收工具检查使用 **64 位 Windows PowerShell 5.1**：`powershell.exe -NoProfile -File tests/OfflineAcceptance.Tests.ps1`，可用 `-Summary <新报告.json>` 保存白名单汇总。它在已有现代 .NET 的开发机验证真实环境探测，生成小型合成资产与 .NET Framework 子进程，检查校验、隔离、CLI、状态与清理；无需重新构建应用或生成发行包。目标机只需复制两个验收脚本，按[操作手册](offline-acceptance.md)执行。合成子进程不是 AsukaLens，不能据此填写真实发行入口或干净系统通过。
+diff --git a/scripts/release/Release.Common.ps1 b/scripts/release/Release.Common.ps1
+index 3e10b94633a14fb0bab23c0e0c6a0242a451f63d..afdb6502754d960e6ebba6ae05947b296f6ad0ab 100644
+--- a/scripts/release/Release.Common.ps1
++++ b/scripts/release/Release.Common.ps1
+@@ -61,6 +61,27 @@ function Invoke-ReleaseTool([string]$File, [string[]]$Arguments) {
+     if ($LASTEXITCODE -ne 0) { throw ('External tool failed: ' + [IO.Path]::GetFileName($File) + ', exit ' + $LASTEXITCODE) }
+ }
+ 
++function Resolve-ReleaseGitHubCli {
++    $command=Get-Command gh -CommandType Application -ErrorAction SilentlyContinue
++    if ($command) { return $command.Source }
++    $pin=Get-Content -LiteralPath (Join-Path $PSScriptRoot 'github-cli.json') -Raw | ConvertFrom-Json
++    if ($pin.schema -ne 1 -or $pin.version -cnotmatch '^[0-9]+\.[0-9]+\.[0-9]+$' -or $pin.exe_sha256 -cnotmatch '^[0-9a-f]{64}$') { throw 'Invalid GitHub CLI pin.' }
++    $file=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot ("../../artifacts/release-tools/gh-$($pin.version)/bin/gh.exe")))
++    Assert-NoReparse $file
++    if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw 'GitHub CLI unavailable. Prepare the verified portable tool or provide gh on PATH.' }
++    if ((Get-FileHash -LiteralPath $file).Hash.ToLowerInvariant() -ne $pin.exe_sha256) { throw 'Portable GitHub CLI checksum mismatch.' }
++    return $file
++}
++
++function Invoke-ReleaseGitHub([string]$File,[string[]]$Arguments) {
++    $previous=[Environment]::GetEnvironmentVariable('GH_TELEMETRY','Process')
++    try {
++        [Environment]::SetEnvironmentVariable('GH_TELEMETRY','false','Process')
++        & $File @Arguments
++        if ($LASTEXITCODE -ne 0) { throw 'GitHub command failed. Inspect the operation state before retrying.' }
++    } finally { [Environment]::SetEnvironmentVariable('GH_TELEMETRY',$previous,'Process') }
++}
++
+ function Get-FileInventory([string]$Directory) {
+     Assert-SafeTree $Directory
+     $root = [IO.Path]::GetFullPath($Directory)
+diff --git a/scripts/release/Test-GitHubAccess.ps1 b/scripts/release/Test-GitHubAccess.ps1
+new file mode 100644
+index 0000000000000000000000000000000000000000..d952662004528e26f86bb9712859ca832fca0952
+--- /dev/null
++++ b/scripts/release/Test-GitHubAccess.ps1
+@@ -0,0 +1,51 @@
++#requires -Version 7.4
++[CmdletBinding()]
++param()
++. (Join-Path $PSScriptRoot 'Release.Common.ps1')
++$report=[ordered]@{schema=1;repository='M66Y/Hard-Drive-Space-Visualization';cli_available=$false;version=$null;
++    required_flags=$false;authenticated=$false;repository_readable=$false;reported_push_permission=$false;
++    release_count=$null;telemetry_disabled=$true;credentials_exported=$false;upload_tested=$false;status='tool-unavailable'}
++function Invoke-Probe([string[]]$Arguments) {
++    $start=[Diagnostics.ProcessStartInfo]::new($script:gh)
++    $start.UseShellExecute=$false; $start.CreateNoWindow=$true; $start.RedirectStandardOutput=$true; $start.RedirectStandardError=$true
++    foreach($arg in $Arguments) { $start.ArgumentList.Add($arg) }
++    foreach($name in @('GH_NO_UPDATE_NOTIFIER','GH_NO_EXTENSION_UPDATE_NOTIFIER','GH_PROMPT_DISABLED')) { $start.Environment[$name]='1' }
++    $start.Environment['GH_TELEMETRY']='false'
++    $process=[Diagnostics.Process]::Start($start)
++    try {
++        $stdout=$process.StandardOutput.ReadToEndAsync(); $stderr=$process.StandardError.ReadToEndAsync()
++        if (-not $process.WaitForExit(30000)) { $process.Kill($true); $process.WaitForExit(); throw 'Probe timed out.' }
++        # Keep raw process output in memory; the public report is reconstructed from fixed fields below.
++        $text=$stdout.GetAwaiter().GetResult(); [void]$stderr.GetAwaiter().GetResult()
++        return [pscustomobject]@{exit_code=$process.ExitCode;text=$text}
++    } finally { $process.Dispose() }
++}
++try {
++    $script:gh=Resolve-ReleaseGitHubCli
++    $report.cli_available=$true; $report.status='tool-check-failed'
++    $version=Invoke-Probe @('--version')
++    $match=[regex]::Match($version.text,'^gh version ([0-9]+\.[0-9]+\.[0-9]+)(?:\s|$)')
++    if ($version.exit_code -ne 0 -or -not $match.Success) { throw 'CLI version unavailable.' }
++    $report.version=$match.Groups[1].Value
++    $api=Invoke-Probe @('api','--help'); $create=Invoke-Probe @('release','create','--help')
++    if ($api.exit_code -ne 0 -or $create.exit_code -ne 0 -or -not $api.text.Contains('--paginate') -or
++        -not $api.text.Contains('--slurp') -or -not $create.text.Contains('--verify-tag')) { throw 'Required CLI flags unavailable.' }
++    $report.required_flags=$true; $report.status='authentication-required'
++    $auth=Invoke-Probe @('auth','status','--active','--hostname','github.com','--no-refresh')
++    if ($auth.exit_code -eq 0) {
++        $report.authenticated=$true; $report.status='repository-check-failed'
++        $repo=Invoke-Probe @('api',('repos/'+$report.repository),'--hostname','github.com','-H','X-GitHub-Api-Version: 2026-03-10')
++        if ($repo.exit_code -ne 0) { throw 'Repository access unavailable.' }
++        $data=$repo.text | ConvertFrom-Json
++        if ($data.full_name -cne $report.repository -or $data.permissions.push -isnot [bool]) { throw 'Unexpected repository response.' }
++        $report.repository_readable=$true; $report.reported_push_permission=$data.permissions.push
++        $releases=Invoke-Probe @('api',('repos/'+$report.repository+'/releases'),'--hostname','github.com','--paginate','--slurp','-H','X-GitHub-Api-Version: 2026-03-10')
++        if ($releases.exit_code -ne 0) { throw 'Release listing unavailable.' }
++        $pages=ConvertFrom-Json -InputObject $releases.text -NoEnumerate
++        $report.release_count=@($pages | ForEach-Object { foreach($entry in $_) { $entry } }).Count
++        $report.status=if($report.reported_push_permission){'read-checks-passed'}else{'push-permission-missing'}
++    }
++} catch {
++    # Keep the last fixed stage code; never print raw exceptions, output, account names or tokens.
++}
++[pscustomobject]$report
+diff --git a/scripts/release/Upload-Draft.ps1 b/scripts/release/Upload-Draft.ps1
+index dfb76005ee0deac8a98c84bf6ebfb146416c72fb..f8c35b09d071ec8ddaa03778617d30836501a9b8 100644
+--- a/scripts/release/Upload-Draft.ps1
++++ b/scripts/release/Upload-Draft.ps1
+@@ -24,10 +24,9 @@ if ($WhatIfPreference) {
+     $PSCmdlet.ShouldProcess("$repository / $($manifest.version)",'Create or resume a draft; remote commit/tag/draft checks will run on execution') | Out-Null
+     return
+ }
+-$gh = (Get-Command gh -CommandType Application -ErrorAction Stop).Source
++$gh = Resolve-ReleaseGitHubCli
+ function Gh-Json([string[]]$Arguments) {
+-    $text = & $gh @Arguments --hostname github.com -H 'X-GitHub-Api-Version: 2026-03-10'
+-    if ($LASTEXITCODE -ne 0) { throw 'GitHub query failed; no changes made by this query.' }
++    $text = Invoke-ReleaseGitHub $gh ($Arguments + @('--hostname','github.com','-H','X-GitHub-Api-Version: 2026-03-10'))
+     return ($text -join "`n" | ConvertFrom-Json)
+ }
+ function Assert-MatchingDraft($Draft) {
+@@ -53,7 +52,7 @@ if ($existing.Count -eq 1) { Assert-MatchingDraft $existing[0] }
+ $uploads = @($manifest.assets | ForEach-Object { Join-Path $Directory $_.path }) + @((Join-Path $Directory 'SHA256SUMS.txt'),(Join-Path $Directory 'release-manifest.json'))
+ if (-not $PSCmdlet.ShouldProcess("$repository / $($manifest.version)",'Create or resume a draft and upload verified assets; never publish')) { return }
+ if ($existing.Count -eq 0) {
+-    Invoke-ReleaseTool $gh @('release','create',$manifest.version,'--repo',$qualifiedRepository,'--draft','--verify-tag','--title',('AsukaLens '+$manifest.version),'--notes-file',(Resolve-Path -LiteralPath $Notes).Path)
++    Invoke-ReleaseGitHub $gh @('release','create',$manifest.version,'--repo',$qualifiedRepository,'--draft','--verify-tag','--title',('AsukaLens '+$manifest.version),'--notes-file',(Resolve-Path -LiteralPath $Notes).Path) | Out-Host
+ }
+ # The by-tag REST endpoint targets published releases; list with push credentials to locate drafts.
+ $pages = Gh-Json @('api',"repos/$repository/releases",'--paginate','--slurp')
+@@ -65,12 +64,12 @@ $missing = @(Get-MissingDraftFiles $uploads $draft.assets)
+ foreach ($file in $missing) {
+     $current = Gh-Json @('api',"repos/$repository/releases/$($draft.id)")
+     Assert-MatchingDraft $current
+-    Invoke-ReleaseTool $gh @('release','upload',$manifest.version,$file,'--repo',$qualifiedRepository)
++    Invoke-ReleaseGitHub $gh @('release','upload',$manifest.version,$file,'--repo',$qualifiedRepository) | Out-Host
+ }
+ $download = Join-Path $Directory ('.verify-download-' + [guid]::NewGuid().ToString('N'))
+ try {
+     [IO.Directory]::CreateDirectory($download) | Out-Null
+-    Invoke-ReleaseTool $gh @('release','download',$manifest.version,'--repo',$qualifiedRepository,'--dir',$download)
++    Invoke-ReleaseGitHub $gh @('release','download',$manifest.version,'--repo',$qualifiedRepository,'--dir',$download) | Out-Host
+     foreach ($file in $uploads) {
+         if ((Get-FileHash -LiteralPath $file).Hash -ne (Get-FileHash -LiteralPath (Join-Path $download ([IO.Path]::GetFileName($file)))).Hash) { throw 'Downloaded draft asset differs.' }
+     }
+diff --git a/scripts/release/github-cli.json b/scripts/release/github-cli.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..23194ca1a571a588a42a60a515c28ce573c73de6
+--- /dev/null
++++ b/scripts/release/github-cli.json
+@@ -0,0 +1,11 @@
++{
++  "schema": 1,
++  "version": "2.103.3",
++  "release_url": "https://github.com/cli/cli/releases/tag/v2.103.3",
++  "zip_url": "https://github.com/cli/cli/releases/download/v2.103.3/gh_2.103.3_windows_amd64.zip",
++  "zip_bytes": 15197187,
++  "zip_sha256": "98d0cfa794721665d7973dd728c78aff7bd836d58f10f6d7a03568eccb0a22e0",
++  "checksums_url": "https://github.com/cli/cli/releases/download/v2.103.3/gh_2.103.3_checksums.txt",
++  "checksums_sha256": "f756e7859d90dbb5e85aae5194206c37da220bec9bac23d3d659078a8e766fdc",
++  "exe_sha256": "d303d8ac3f5e9438bf7c977b64dd6425513eae46218f8881d30694f28c1d0dfd"
++}
+diff --git a/tests/DraftUpload.Tests.ps1 b/tests/DraftUpload.Tests.ps1
+index e004ea43bf3745f68154cb55bb4474ef0b9a7088..4b34f3fbff180ef38716bd9739228c274b1bad07 100644
+--- a/tests/DraftUpload.Tests.ps1
++++ b/tests/DraftUpload.Tests.ps1
+@@ -8,6 +8,7 @@ $parent = Join-Path $repository 'artifacts'
+ $root = Join-Path $parent ('draft-flow-' + [guid]::NewGuid().ToString('N'))
+ [IO.Directory]::CreateDirectory($root) | Out-Null
+ $oldPath=$env:PATH; $oldRoot=$env:ASUKALENS_DRAFT_TEST_ROOT; $oldShell=$env:ASUKALENS_DRAFT_TEST_PWSH
++$oldTelemetry=[Environment]::GetEnvironmentVariable('GH_TELEMETRY','Process')
+ $script:passed=[Collections.Generic.List[string]]::new()
+ function Check([bool]$Condition,[string]$Name) { if (-not $Condition) { throw ('FAIL '+$Name) }; $script:passed.Add($Name); Write-Host ('PASS '+$Name) }
+ function State { Get-Content -LiteralPath (Join-Path $script:case 'state.json') -Raw | ConvertFrom-Json -AsHashtable }
+@@ -39,7 +40,8 @@ function Existing-Draft {
+     Save $state
+ }
+ function Upload([switch]$Resume,[switch]$WhatIf) {
+-    & (Join-Path $root 'scripts/Upload-Draft.ps1') -Directory $script:assets -Notes $script:notes -Acceptance $script:acceptance -Resume:$Resume -WhatIf:$WhatIf -Confirm:$false | Out-Null
++    try { & (Join-Path $root 'scripts/Upload-Draft.ps1') -Directory $script:assets -Notes $script:notes -Acceptance $script:acceptance -Resume:$Resume -WhatIf:$WhatIf -Confirm:$false | Out-Null }
++    finally { if ([Environment]::GetEnvironmentVariable('GH_TELEMETRY','Process') -cne 'log') { throw 'Caller telemetry environment was not restored.' } }
+ }
+ function Reject([scriptblock]$Action,[string]$Name) {
+     $rejected=$false
+@@ -62,6 +64,7 @@ foreach($f in $m.assets){ if((Get-FileHash -LiteralPath (Join-Path $Directory $f
+     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'fixtures/release/FakeGitHub.ps1') -Destination $shim
+     [IO.File]::WriteAllText((Join-Path $shim 'gh.cmd'), "@echo off`r`n`"%ASUKALENS_DRAFT_TEST_PWSH%`" -NoProfile -File `"%~dp0FakeGitHub.ps1`" %*`r`nexit /b %errorlevel%`r`n", [Text.Encoding]::ASCII)
+     $env:ASUKALENS_DRAFT_TEST_PWSH=Join-Path $PSHOME 'pwsh.exe'; $env:PATH=$shim+';'+$oldPath
++    $env:GH_TELEMETRY='log'
+     Check ((Get-Command gh -CommandType Application).Source -eq (Join-Path $shim 'gh.cmd')) 'native gh resolves only to the offline shim'
+     New-Case; Upload
+     $state=State
+@@ -117,5 +120,6 @@ foreach($f in $m.assets){ if((Get-FileHash -LiteralPath (Join-Path $Directory $f
+     [Environment]::SetEnvironmentVariable('PATH',$oldPath,'Process')
+     [Environment]::SetEnvironmentVariable('ASUKALENS_DRAFT_TEST_ROOT',$oldRoot,'Process')
+     [Environment]::SetEnvironmentVariable('ASUKALENS_DRAFT_TEST_PWSH',$oldShell,'Process')
++    [Environment]::SetEnvironmentVariable('GH_TELEMETRY',$oldTelemetry,'Process')
+     Remove-OwnedDirectory $root $parent
+ }
+diff --git a/tests/GitHubAccess.Tests.ps1 b/tests/GitHubAccess.Tests.ps1
+new file mode 100644
+index 0000000000000000000000000000000000000000..b2b617262dd7164a056329e991c47449ad623aaa
+--- /dev/null
++++ b/tests/GitHubAccess.Tests.ps1
+@@ -0,0 +1,88 @@
++#requires -Version 7.4
++. (Join-Path $PSScriptRoot '../scripts/release/Release.Common.ps1')
++$repository=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
++$parent=Join-Path $repository 'artifacts'
++$root=Join-Path $parent ('github-access-check-'+[guid]::NewGuid().ToString('N'))
++[IO.Directory]::CreateDirectory($root) | Out-Null
++$oldPath=$env:PATH; $oldMode=$env:ASUKALENS_GH_PROBE_FIXTURE
++$oldTelemetry=[Environment]::GetEnvironmentVariable('GH_TELEMETRY','Process')
++$checks=[Collections.Generic.List[string]]::new()
++function Check([bool]$Condition,[string]$Name) {
++    if (-not $Condition) { throw ('FAIL '+$Name) }
++    $checks.Add($Name); Write-Host ('PASS '+$Name)
++}
++try {
++    $scripts=Join-Path $root 'scripts/release'; $binaryDir=Join-Path $root 'artifacts/release-tools/gh-2.103.3/bin'
++    [IO.Directory]::CreateDirectory($scripts) | Out-Null
++    [IO.Directory]::CreateDirectory($binaryDir) | Out-Null
++    foreach($file in @('Release.Common.ps1','Test-GitHubAccess.ps1','github-cli.json')) { Copy-Item -LiteralPath (Join-Path $repository "scripts/release/$file") -Destination $scripts }
++    $source=@'
++using System;
++public static class ProbeFixture {
++    public static int Main(string[] args) {
++        if (Environment.GetEnvironmentVariable("GH_TELEMETRY") != "false") return 97;
++        string mode = Environment.GetEnvironmentVariable("ASUKALENS_GH_PROBE_FIXTURE");
++        string command = String.Join(" ", args);
++        if (command == "--version") { Console.WriteLine("gh version 2.103.3 (fixture)"); return 0; }
++        if (command == "api --help") { Console.WriteLine(mode == "missing-flags" ? "api" : "--paginate --slurp"); return 0; }
++        if (command == "release create --help") { Console.WriteLine("--verify-tag"); return 0; }
++        if (command == "auth status --active --hostname github.com --no-refresh") {
++            Console.Error.WriteLine("SYNTHETIC_PRIVATE_ACCOUNT token=synthetic-token path=X:/private-fixture");
++            return mode == "logged-out" ? 1 : 0;
++        }
++        if (command.StartsWith("api repos/M66Y/Hard-Drive-Space-Visualization/releases ")) {
++            if (mode == "release-failure") return 23;
++            Console.WriteLine("[[],[{\"id\":1},{\"id\":2}]]"); return 0;
++        }
++        if (command.StartsWith("api repos/M66Y/Hard-Drive-Space-Visualization ")) {
++            if (mode == "repo-failure") return 23;
++            if (mode == "invalid-json") { Console.WriteLine("SYNTHETIC_PRIVATE_ACCOUNT invalid-json"); return 0; }
++            Console.WriteLine("{\"full_name\":\"M66Y/Hard-Drive-Space-Visualization\",\"permissions\":{\"push\":" +
++                (mode == "no-push" ? "false" : "true") + "}}"); return 0;
++        }
++        return 99; // No write operations or network implementation.
++    }
++}
++'@
++    $sourcePath=Join-Path $root 'fixture.cs'; [IO.File]::WriteAllText($sourcePath,$source)
++    $compile=Join-Path $root 'compile.ps1'
++    [IO.File]::WriteAllText($compile,"param([string]`$Source,[string]`$Output)`n`$ErrorActionPreference='Stop'`nAdd-Type -TypeDefinition ([IO.File]::ReadAllText(`$Source)) -OutputAssembly `$Output -OutputType ConsoleApplication`n")
++    $binary=Join-Path $binaryDir 'gh.exe'
++    & (Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe') -NoProfile -NonInteractive -File $compile -Source $sourcePath -Output $binary
++    if ($LASTEXITCODE -ne 0) { throw 'Synthetic CLI compilation failed' }
++    $pin=Get-Content -LiteralPath (Join-Path $scripts 'github-cli.json') -Raw | ConvertFrom-Json
++    $pin.exe_sha256=(Get-FileHash -LiteralPath $binary).Hash.ToLowerInvariant()
++    Write-ReleaseJson $pin (Join-Path $scripts 'github-cli.json')
++    $env:PATH=(Join-Path $env:WINDIR 'System32')+';'+$PSHOME
++    $env:GH_TELEMETRY='log'
++    $probe=Join-Path $scripts 'Test-GitHubAccess.ps1'
++    foreach($case in @(
++        @{mode='success';status='read-checks-passed';auth=$true;read=$true;push=$true},
++        @{mode='logged-out';status='authentication-required';auth=$false;read=$false;push=$false},
++        @{mode='no-push';status='push-permission-missing';auth=$true;read=$true;push=$false},
++        @{mode='repo-failure';status='repository-check-failed';auth=$true;read=$false;push=$false},
++        @{mode='invalid-json';status='repository-check-failed';auth=$true;read=$false;push=$false},
++        @{mode='release-failure';status='repository-check-failed';auth=$true;read=$true;push=$true},
++        @{mode='missing-flags';status='tool-check-failed';auth=$false;read=$false;push=$false}
++    )) {
++        $env:ASUKALENS_GH_PROBE_FIXTURE=$case.mode
++        $report=& $probe
++        Check ($report.status -eq $case.status -and $report.authenticated -eq $case.auth -and
++            $report.repository_readable -eq $case.read -and $report.reported_push_permission -eq $case.push -and -not $report.upload_tested) ('probe state '+$case.mode)
++        $json=$report | ConvertTo-Json -Depth 5
++        Check ($json -notmatch 'SYNTHETIC_PRIVATE_ACCOUNT|synthetic-token|private-fixture' -and $env:GH_TELEMETRY -ceq 'log') ('private output withheld and caller unchanged '+$case.mode)
++        if ($case.mode -eq 'success') { Check ($report.release_count -eq 2) 'paginated releases counted' }
++    }
++    [IO.File]::AppendAllText($binary,'changed')
++    $report=& $probe
++    Check (-not $report.cli_available -and $report.status -eq 'tool-unavailable') 'changed portable executable rejected'
++    Remove-Item -LiteralPath $binary
++    $report=& $probe
++    Check (-not $report.cli_available -and -not $report.authenticated) 'missing portable executable rejected'
++    Write-Host ('PASS GitHub access checks: '+$checks.Count)
++} finally {
++    [Environment]::SetEnvironmentVariable('PATH',$oldPath,'Process')
++    [Environment]::SetEnvironmentVariable('ASUKALENS_GH_PROBE_FIXTURE',$oldMode,'Process')
++    [Environment]::SetEnvironmentVariable('GH_TELEMETRY',$oldTelemetry,'Process')
++    Remove-OwnedDirectory $root $parent
++}
+diff --git a/tests/fixtures/release/FakeGitHub.ps1 b/tests/fixtures/release/FakeGitHub.ps1
+index e1d6c69b34178b5fd93e7c80ac6a74b1159d4489..43d249911af08d4e902bf83a9346aa7e18742aa3 100644
+--- a/tests/fixtures/release/FakeGitHub.ps1
++++ b/tests/fixtures/release/FakeGitHub.ps1
+@@ -2,6 +2,7 @@
+ # No network commands are implemented; unknown commands fail closed.
+ $ErrorActionPreference = 'Stop'
+ Set-StrictMode -Version Latest
++if ($env:GH_TELEMETRY -cne 'false') { throw 'Project GitHub invocations must disable telemetry.' }
+ [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+ $root = $env:ASUKALENS_DRAFT_TEST_ROOT
+ if (-not $root -or -not (Test-Path -LiteralPath (Join-Path $root 'offline-fixture'))) { throw 'Missing offline fixture marker.' }

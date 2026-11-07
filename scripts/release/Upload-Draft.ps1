@@ -24,10 +24,9 @@ if ($WhatIfPreference) {
     $PSCmdlet.ShouldProcess("$repository / $($manifest.version)",'Create or resume a draft; remote commit/tag/draft checks will run on execution') | Out-Null
     return
 }
-$gh = (Get-Command gh -CommandType Application -ErrorAction Stop).Source
+$gh = Resolve-ReleaseGitHubCli
 function Gh-Json([string[]]$Arguments) {
-    $text = & $gh @Arguments --hostname github.com -H 'X-GitHub-Api-Version: 2026-03-10'
-    if ($LASTEXITCODE -ne 0) { throw 'GitHub query failed; no changes made by this query.' }
+    $text = Invoke-ReleaseGitHub $gh ($Arguments + @('--hostname','github.com','-H','X-GitHub-Api-Version: 2026-03-10'))
     return ($text -join "`n" | ConvertFrom-Json)
 }
 function Assert-MatchingDraft($Draft) {
@@ -53,7 +52,7 @@ if ($existing.Count -eq 1) { Assert-MatchingDraft $existing[0] }
 $uploads = @($manifest.assets | ForEach-Object { Join-Path $Directory $_.path }) + @((Join-Path $Directory 'SHA256SUMS.txt'),(Join-Path $Directory 'release-manifest.json'))
 if (-not $PSCmdlet.ShouldProcess("$repository / $($manifest.version)",'Create or resume a draft and upload verified assets; never publish')) { return }
 if ($existing.Count -eq 0) {
-    Invoke-ReleaseTool $gh @('release','create',$manifest.version,'--repo',$qualifiedRepository,'--draft','--verify-tag','--title',('AsukaLens '+$manifest.version),'--notes-file',(Resolve-Path -LiteralPath $Notes).Path)
+    Invoke-ReleaseGitHub $gh @('release','create',$manifest.version,'--repo',$qualifiedRepository,'--draft','--verify-tag','--title',('AsukaLens '+$manifest.version),'--notes-file',(Resolve-Path -LiteralPath $Notes).Path) | Out-Host
 }
 # The by-tag REST endpoint targets published releases; list with push credentials to locate drafts.
 $pages = Gh-Json @('api',"repos/$repository/releases",'--paginate','--slurp')
@@ -65,12 +64,12 @@ $missing = @(Get-MissingDraftFiles $uploads $draft.assets)
 foreach ($file in $missing) {
     $current = Gh-Json @('api',"repos/$repository/releases/$($draft.id)")
     Assert-MatchingDraft $current
-    Invoke-ReleaseTool $gh @('release','upload',$manifest.version,$file,'--repo',$qualifiedRepository)
+    Invoke-ReleaseGitHub $gh @('release','upload',$manifest.version,$file,'--repo',$qualifiedRepository) | Out-Host
 }
 $download = Join-Path $Directory ('.verify-download-' + [guid]::NewGuid().ToString('N'))
 try {
     [IO.Directory]::CreateDirectory($download) | Out-Null
-    Invoke-ReleaseTool $gh @('release','download',$manifest.version,'--repo',$qualifiedRepository,'--dir',$download)
+    Invoke-ReleaseGitHub $gh @('release','download',$manifest.version,'--repo',$qualifiedRepository,'--dir',$download) | Out-Host
     foreach ($file in $uploads) {
         if ((Get-FileHash -LiteralPath $file).Hash -ne (Get-FileHash -LiteralPath (Join-Path $download ([IO.Path]::GetFileName($file)))).Hash) { throw 'Downloaded draft asset differs.' }
     }

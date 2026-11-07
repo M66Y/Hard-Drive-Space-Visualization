@@ -1,0 +1,84 @@
+{
+  "baseline": "4ee1407c902a15e3c55f0243fc7e0e6942a0e6fa",
+  "patch_verified": true,
+  "verification": "All 14 work files restored from exact baseline",
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "fa7c7d87accfabff2d3d7e75951fb75ad0ffe653200db66d0c412fbdd1d76db3"
+    },
+    {
+      "path": "docs/github-publishing-access.md",
+      "sha256": "ecdd682743fa6682839f3254f7deae59b15e593b73f3f4cee20d39ff7a2d62db"
+    },
+    {
+      "path": "docs/release-readiness.md",
+      "sha256": "0406f047bb18745d79a23ee2e6225b3da03d5fd8a5851d9df727fc8555abbc5f"
+    },
+    {
+      "path": "docs/releasing.md",
+      "sha256": "7a81926e944115173a1600f35b9f9be0b03018caa8591ef45c4275596dffd278"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "3be7e8bf6488c4b50a39458dce4990fab7f0431faea710545a7bd57e42cdd086"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "11be6225c03c429e2120fe3ff64623c46ec0506ed7444515a6d79d678f72908f"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "ea084479056c4531f45316dbdcc7e797079a61767893bbed4c9b1ff9a091b9a5"
+    },
+    {
+      "path": "scripts/release/github-cli.json",
+      "sha256": "cb8ccb85360ef36f1b35792677e3b71a53a6b1008ca1b095937f967b57c4f9a7"
+    },
+    {
+      "path": "scripts/release/Release.Common.ps1",
+      "sha256": "07724f22a813d270e4a63d83c2c583e58cd57a17bd577211fa1935308bac20ab"
+    },
+    {
+      "path": "scripts/release/Upload-Draft.ps1",
+      "sha256": "24a7ce3ad5ab74a5d85c0a5602813f7a673dff23100d8aa61c7337cb52d952cc"
+    },
+    {
+      "path": "scripts/release/Test-GitHubAccess.ps1",
+      "sha256": "010ae0676354e0a2946ab9890898fe0c0ed1d554f4902a2260b0a8b7b49fa21c"
+    },
+    {
+      "path": "tests/DraftUpload.Tests.ps1",
+      "sha256": "8d486f5e5bce70766538550823617c6f5d76156cf4e25e3e287a0b17d143d533"
+    },
+    {
+      "path": "tests/fixtures/release/FakeGitHub.ps1",
+      "sha256": "91183f51bc73aa94afa37ca6f4e441db047ae981ee7790c3d94cb09122e54221"
+    },
+    {
+      "path": "tests/GitHubAccess.Tests.ps1",
+      "sha256": "c8a5162d2948939174d2df3e89a0b5dd4a8812e81cbd5aeb412b121f50724c23"
+    },
+    {
+      "path": "iterations/2026-11-07-20-github-access/changes.patch",
+      "sha256": "291915f4eaa6d06bd2091a5b3b5b5493028df1d8daf87dee446240b5706890f4"
+    },
+    {
+      "path": "iterations/2026-11-07-20-github-access/checks.json",
+      "sha256": "b05bde2b0589d65b47e97e6c7d1a1c5e8f33ceaec097c507d7c0d44fc66da354"
+    },
+    {
+      "path": "iterations/2026-11-07-20-github-access/cleanup.json",
+      "sha256": "7cc87bec413190d790d12eec2885337ac943aeea746ed20b60d661bde9e6e961"
+    },
+    {
+      "path": "iterations/2026-11-07-20-github-access/README.md",
+      "sha256": "49752ebff63e69475f036d0a68a2499df9c575319b5310d05b73e8ec1be5e6ea"
+    },
+    {
+      "path": "iterations/2026-11-07-20-github-access/validation.json",
+      "sha256": "938ecaf679f990659a6514c2a93b5c8ca900040fcedb03663eae6644430302df"
+    }
+  ]
+}

@@ -74,4 +74,6 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
 
 发布说明模板与必需内容检查使用 `pwsh -File tests/ReleaseNotes.Tests.ps1`，可传 `-Summary <新报告.json>` 保存汇总。检查中英文栏目、占位符、精确版本/运行时、六类下载校验链接和源码提交；不访问这些示例 URL，不创建资产。上传回归同时确认说明不完整时尚未调用 GitHub。
 
+CLI 探针检查使用 `pwsh -File tests/GitHubAccess.Tests.ps1`，构造本地合成可执行工具验证状态区分、分页、原始输出隔离与备用工具哈希。`pwsh -File scripts/release/Test-GitHubAccess.ps1` 则会使用真实 CLI 只读检查实际登录和目标仓库，返回固定字段诊断对象，不创建资产；两者不要混淆。上传回归同时要求每次 CLI 调用关闭遥测且结束后恢复调用者环境。
+
 离线验收工具检查使用 **64 位 Windows PowerShell 5.1**：`powershell.exe -NoProfile -File tests/OfflineAcceptance.Tests.ps1`，可用 `-Summary <新报告.json>` 保存白名单汇总。它在已有现代 .NET 的开发机验证真实环境探测，生成小型合成资产与 .NET Framework 子进程，检查校验、隔离、CLI、状态与清理；无需重新构建应用或生成发行包。目标机只需复制两个验收脚本，按[操作手册](offline-acceptance.md)执行。合成子进程不是 AsukaLens，不能据此填写真实发行入口或干净系统通过。

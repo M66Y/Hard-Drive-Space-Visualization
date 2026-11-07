@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-07",
+  "temporary_downloads_removed": true,
+  "synthetic_fixtures_removed": true,
+  "patch_restore_directory_removed": true,
+  "retained_tool": {
+    "reason": "Required publishing dependency; ignored by Git",
+    "bytes": 41786233,
+    "directory": "artifacts/release-tools/gh-2.103.3",
+    "files": 2
+  },
+  "software_packages_generated": false,
+  "system_path_changed": false,
+  "credentials_in_repository": false,
+  "preserved": [
+    "Current development build",
+    "User data",
+    "Historical evidence",
+    "System credential store"
+  ]
+}

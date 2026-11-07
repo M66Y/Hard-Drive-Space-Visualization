@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "date": "2026-11-07",
+  "baseline": "4ee1407c902a15e3c55f0243fc7e0e6942a0e6fa",
+  "record_source": "Observed exit codes and assertion totals",
+  "tests": [
+    {
+      "exit_code": 0,
+      "script": "tests/GitHubAccess.Tests.ps1",
+      "passed": 17
+    },
+    {
+      "exit_code": 0,
+      "script": "tests/DraftUpload.Tests.ps1",
+      "passed": 74
+    },
+    {
+      "exit_code": 0,
+      "script": "tests/ReleaseScripts.Tests.ps1",
+      "passed": 48
+    }
+  ],
+  "total_assertions": 139,
+  "actual_cli": {
+    "system_credential_store": true,
+    "required_flags": true,
+    "official_zip_verified": true,
+    "repository_readable": true,
+    "exe_hash_verified": true,
+    "version": "2.103.3",
+    "upload_tested": false,
+    "official_checksums_verified": true,
+    "release_count": 0,
+    "authenticated": true,
+    "reported_push_permission": true
+  },
+  "application_built": false,
+  "software_packages_generated": false,
+  "formal_release": false
+}

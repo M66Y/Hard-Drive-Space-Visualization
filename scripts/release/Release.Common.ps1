@@ -61,6 +61,27 @@ function Invoke-ReleaseTool([string]$File, [string[]]$Arguments) {
     if ($LASTEXITCODE -ne 0) { throw ('External tool failed: ' + [IO.Path]::GetFileName($File) + ', exit ' + $LASTEXITCODE) }
 }
 
+function Resolve-ReleaseGitHubCli {
+    $command=Get-Command gh -CommandType Application -ErrorAction SilentlyContinue
+    if ($command) { return $command.Source }
+    $pin=Get-Content -LiteralPath (Join-Path $PSScriptRoot 'github-cli.json') -Raw | ConvertFrom-Json
+    if ($pin.schema -ne 1 -or $pin.version -cnotmatch '^[0-9]+\.[0-9]+\.[0-9]+$' -or $pin.exe_sha256 -cnotmatch '^[0-9a-f]{64}$') { throw 'Invalid GitHub CLI pin.' }
+    $file=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot ("../../artifacts/release-tools/gh-$($pin.version)/bin/gh.exe")))
+    Assert-NoReparse $file
+    if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw 'GitHub CLI unavailable. Prepare the verified portable tool or provide gh on PATH.' }
+    if ((Get-FileHash -LiteralPath $file).Hash.ToLowerInvariant() -ne $pin.exe_sha256) { throw 'Portable GitHub CLI checksum mismatch.' }
+    return $file
+}
+
+function Invoke-ReleaseGitHub([string]$File,[string[]]$Arguments) {
+    $previous=[Environment]::GetEnvironmentVariable('GH_TELEMETRY','Process')
+    try {
+        [Environment]::SetEnvironmentVariable('GH_TELEMETRY','false','Process')
+        & $File @Arguments
+        if ($LASTEXITCODE -ne 0) { throw 'GitHub command failed. Inspect the operation state before retrying.' }
+    } finally { [Environment]::SetEnvironmentVariable('GH_TELEMETRY',$previous,'Process') }
+}
+
 function Get-FileInventory([string]$Directory) {
     Assert-SafeTree $Directory
     $root = [IO.Path]::GetFullPath($Directory)

@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "version": "2.103.3",
+  "release_url": "https://github.com/cli/cli/releases/tag/v2.103.3",
+  "zip_url": "https://github.com/cli/cli/releases/download/v2.103.3/gh_2.103.3_windows_amd64.zip",
+  "zip_bytes": 15197187,
+  "zip_sha256": "98d0cfa794721665d7973dd728c78aff7bd836d58f10f6d7a03568eccb0a22e0",
+  "checksums_url": "https://github.com/cli/cli/releases/download/v2.103.3/gh_2.103.3_checksums.txt",
+  "checksums_sha256": "f756e7859d90dbb5e85aae5194206c37da220bec9bac23d3d659078a8e766fdc",
+  "exe_sha256": "d303d8ac3f5e9438bf7c977b64dd6425513eae46218f8881d30694f28c1d0dfd"
+}

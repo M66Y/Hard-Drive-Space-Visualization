@@ -8,6 +8,7 @@ $parent = Join-Path $repository 'artifacts'
 $root = Join-Path $parent ('draft-flow-' + [guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($root) | Out-Null
 $oldPath=$env:PATH; $oldRoot=$env:ASUKALENS_DRAFT_TEST_ROOT; $oldShell=$env:ASUKALENS_DRAFT_TEST_PWSH
+$oldTelemetry=[Environment]::GetEnvironmentVariable('GH_TELEMETRY','Process')
 $script:passed=[Collections.Generic.List[string]]::new()
 function Check([bool]$Condition,[string]$Name) { if (-not $Condition) { throw ('FAIL '+$Name) }; $script:passed.Add($Name); Write-Host ('PASS '+$Name) }
 function State { Get-Content -LiteralPath (Join-Path $script:case 'state.json') -Raw | ConvertFrom-Json -AsHashtable }
@@ -39,7 +40,8 @@ function Existing-Draft {
     Save $state
 }
 function Upload([switch]$Resume,[switch]$WhatIf) {
-    & (Join-Path $root 'scripts/Upload-Draft.ps1') -Directory $script:assets -Notes $script:notes -Acceptance $script:acceptance -Resume:$Resume -WhatIf:$WhatIf -Confirm:$false | Out-Null
+    try { & (Join-Path $root 'scripts/Upload-Draft.ps1') -Directory $script:assets -Notes $script:notes -Acceptance $script:acceptance -Resume:$Resume -WhatIf:$WhatIf -Confirm:$false | Out-Null }
+    finally { if ([Environment]::GetEnvironmentVariable('GH_TELEMETRY','Process') -cne 'log') { throw 'Caller telemetry environment was not restored.' } }
 }
 function Reject([scriptblock]$Action,[string]$Name) {
     $rejected=$false
@@ -62,6 +64,7 @@ foreach($f in $m.assets){ if((Get-FileHash -LiteralPath (Join-Path $Directory $f
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'fixtures/release/FakeGitHub.ps1') -Destination $shim
     [IO.File]::WriteAllText((Join-Path $shim 'gh.cmd'), "@echo off`r`n`"%ASUKALENS_DRAFT_TEST_PWSH%`" -NoProfile -File `"%~dp0FakeGitHub.ps1`" %*`r`nexit /b %errorlevel%`r`n", [Text.Encoding]::ASCII)
     $env:ASUKALENS_DRAFT_TEST_PWSH=Join-Path $PSHOME 'pwsh.exe'; $env:PATH=$shim+';'+$oldPath
+    $env:GH_TELEMETRY='log'
     Check ((Get-Command gh -CommandType Application).Source -eq (Join-Path $shim 'gh.cmd')) 'native gh resolves only to the offline shim'
     New-Case; Upload
     $state=State
@@ -117,5 +120,6 @@ foreach($f in $m.assets){ if((Get-FileHash -LiteralPath (Join-Path $Directory $f
     [Environment]::SetEnvironmentVariable('PATH',$oldPath,'Process')
     [Environment]::SetEnvironmentVariable('ASUKALENS_DRAFT_TEST_ROOT',$oldRoot,'Process')
     [Environment]::SetEnvironmentVariable('ASUKALENS_DRAFT_TEST_PWSH',$oldShell,'Process')
+    [Environment]::SetEnvironmentVariable('GH_TELEMETRY',$oldTelemetry,'Process')
     Remove-OwnedDirectory $root $parent
 }
