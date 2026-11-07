@@ -6,7 +6,7 @@
 
 [Quick start](#quick-start) · [Run from source](#run-from-source) · [Development plan](docs/development-plan.md) · [Licensing and credits](NOTICE.md)
 
-> **Development preview · v1.4.2** — The source includes later iterations. Historical local binaries and ZIPs do not contain the latest changes. There is currently no formal Release or EXE installer; build from source to run the current version.
+> **Development preview · v1.4.2** — The source includes later iterations. Historical local binaries and ZIPs do not contain the latest changes. No formal release or installer download has been published yet; build from source to run the current version.
 
 ![AsukaLens light interface showing a folder treemap, file list, size metrics and scan status with synthetic demo data](docs/images/overview.png)
 
@@ -84,7 +84,7 @@ dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayNa
 dotnet run --project DiskAtlas.csproj -- "X:\ExampleFolder"
 ```
 
-Normal builds use local SDK reference packs; `NuGet.Config` has no external feeds. Building from source is not installing a release. The existing `build.ps1` creates a folder and ZIP but does not implement the full release requirements; use it only for an explicit packaging task. See [developer checks](docs/testing.md) (Chinese).
+Normal builds use local SDK reference packs; `NuGet.Config` has no external feeds. Building from source is not installing a release. The root `build.ps1` is a legacy packaging entry. The new self-contained installer and snapshot scripts are documented in the [release guide](docs/releasing.md) (Chinese); use them only in an explicitly authorized packaging task. See [developer checks](docs/testing.md) (Chinese).
 
 ## Backgrounds and privacy
 
@@ -94,7 +94,7 @@ The application does not automatically upload files, paths, images or logs. Mini
 
 ## Planned work and limits
 
-- **Initial delivery preparation:** implement and validate the installer, portable package and source snapshots, providing four Release assets. The [delivery plan](docs/delivery-plan.md) still awaits implementation approval.
+- **Initial delivery preparation:** self-contained portable, per-user installer and both source archive scripts now have local acceptance coverage. Formal delivery still requires clean Windows and remote draft validation; see the [release guide](docs/releasing.md) (Chinese).
 - **After the initial version (P2):** High-speed mode is not consistently faster than Automatic. Nonblocking restructuring and additional visual polish are deferred to the same stage.
 - **Current limits:** Automatic chooses concurrency by device, without load adaptation. If the change journal is unavailable, refresh still verifies metadata for all directories and files and may not be much faster. The cache exists only within the current process.
 
@@ -113,7 +113,7 @@ AsukaLens/
 ├─ assets/                   Default theme, icons and provenance
 ├─ tests/                    Functional/UI checks and synthetic preview
 ├─ docs/                     Developer docs, delivery plan and preview
-├─ scripts/                  Asset maintenance tools
+├─ scripts/                  Asset maintenance and release/ snapshot scripts
 ├─ iterations/               Selected evidence and recovery patches
 ├─ run.cmd / run.ps1          Build and launch current source
 ├─ build.ps1                 Existing portable packaging script

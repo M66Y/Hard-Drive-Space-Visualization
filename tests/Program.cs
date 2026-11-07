@@ -3,6 +3,8 @@ using System.Drawing;
 
 Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
 
+if (args.Contains("--package-smoke")) return PackageSmoke.Run();
+
 if (args.Contains("--desktop-compatibility")) return DesktopCompatibility.Run();
 if (args.Contains("--diagnostics-tests")) return DiagnosticsRegression.Run();
 if (args.Contains("--diagnostics-child")) return DiagnosticsRegression.Child(args[1]);

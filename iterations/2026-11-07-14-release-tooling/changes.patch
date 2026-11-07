@@ -1,0 +1,1635 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index b2fd4dd..a864d09 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -126,7 +126,7 @@
+ - 当前开发启动入口为 `run.cmd` / `run.ps1`，先普通构建再启动；`run.ps1 -BuildOnly` 只构建。程序集构建标识用于辨认二进制，不是 Git 提交号或正式发布证明。
+ - 开发预览优先使用普通构建入口 `bin/Release/net10.0-windows/DiskAtlas.exe`；被运行中程序占用时使用明确标识的临时输出，记录路径与构建来源。收尾核查重复产物，不持续新增不明版本的 Preview 目录。
+ - 只有有性能疑点或相关改动时才运行 `--scan-benchmark`；历史 `--memory-benchmark` 在缺少旧基准包时可能跳过，跳过不算验证通过该对比。
+-- 当前 `build.ps1` 会生成程序文件夹与 ZIP，`build.ps1 -Test` 还会运行两组核心检查；因此它们属于现阶段的打包入口，不用于普通迭代的无条件检查。脚本尚未实现本文件要求的完整正式发布流程。
++- 根目录 `build.ps1` 是保留的旧框架依赖打包入口，不用于普通迭代检查，也不是新的正式发布入口。新的自包含/安装器/源码快照脚本位于 `scripts/release/`，用法和验收边界见 [发布说明](docs/releasing.md)。运行 `tests/ReleaseScripts.Tests.ps1` 检查边界；包级验证用 `tests/PackageAcceptance.ps1`，不能把静态检查当运行通过。
+ - 调整目录或构建方式时同步更新上述命令、项目引用、测试链接文件、资源路径及文档。不得写入本机绝对路径作为公共运行要求。
+ 
+ ## Git 提交与上传
+@@ -141,7 +141,7 @@
+ 
+ ## 正式版本与 Release 快照
+ 
+-- 仅在本次任务明确包含正式发布时打包、创建标签和 Release；普通迭代只构建、验证、记录与提交，不自行发布。
++- 仅在本次任务明确包含正式发布时打包、创建标签和 Release；普通迭代只构建、验证、记录与提交，不自行发布。用户可明确授权仅供本机验收的临时包：必须使用 `-LocalTest`、单独安装身份和测试标识，不上传包、不创建标签/Release；本轮 2026-11-07 已获得该临时验收授权，不扩展为以后迭代的默认打包授权。
+ - 对外版本号统一为 `vX.X.X`，例如 `v1.5.0`；标签与展示必须一致。Release 标题为 `AsukaLens vX.X.X`。
+ - .NET 项目、程序集及安装器中要求纯数字的技术字段使用对应 `X.X.X` 或 `X.X.X.0`，发布脚本从同一版本来源生成对外的 `vX.X.X`，避免多处手改失配。
+ - 每个正式 Release 至少提供以下四个可用资产。两个 ZIP 用 `-source` 区分，保留统一产品名与版本前缀：
+diff --git a/Program.cs b/Program.cs
+index dd64554..d740023 100644
+--- a/Program.cs
++++ b/Program.cs
+@@ -4,11 +4,14 @@ internal static class Program
+ {
+     private static int reportingError;
+     private static DiagnosticService? diagnostics;
++    private static Mutex? installationGuard;
+     [STAThread]
+     private static void Main(string[] args)
+     {
+         try
+         {
++            // Process lifetime, including error dialogs and diagnostic shutdown. Multiple windows remain supported.
++            installationGuard = new Mutex(false, @"Local\AsukaLens.Running");
+             diagnostics = new DiagnosticService();
+             ApplicationConfiguration.Initialize();
+             Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
+@@ -16,7 +19,7 @@ internal static class Program
+             Application.Run(new MainForm(args.FirstOrDefault(a => !a.StartsWith("--")), loadSavedBackground: true, diagnostics: diagnostics));
+         }
+         catch (Exception ex) { ReportErrorAsync(ex, false).GetAwaiter().GetResult(); }
+-        finally { diagnostics?.Dispose(); }
++        finally { diagnostics?.Dispose(); GC.KeepAlive(installationGuard); }
+     }
+ 
+     private static async Task ReportErrorAsync(Exception error, bool captureContext)
+diff --git a/README.en.md b/README.en.md
+index f17dff4..5a74a6d 100644
+--- a/README.en.md
++++ b/README.en.md
+@@ -6,7 +6,7 @@
+ 
+ [Quick start](#quick-start) · [Run from source](#run-from-source) · [Development plan](docs/development-plan.md) · [Licensing and credits](NOTICE.md)
+ 
+-> **Development preview · v1.4.2** — The source includes later iterations. Historical local binaries and ZIPs do not contain the latest changes. There is currently no formal Release or EXE installer; build from source to run the current version.
++> **Development preview · v1.4.2** — The source includes later iterations. Historical local binaries and ZIPs do not contain the latest changes. No formal release or installer download has been published yet; build from source to run the current version.
+ 
+ ![AsukaLens light interface showing a folder treemap, file list, size metrics and scan status with synthetic demo data](docs/images/overview.png)
+ 
+@@ -84,7 +84,7 @@ dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayNa
+ dotnet run --project DiskAtlas.csproj -- "X:\ExampleFolder"
+ ```
+ 
+-Normal builds use local SDK reference packs; `NuGet.Config` has no external feeds. Building from source is not installing a release. The existing `build.ps1` creates a folder and ZIP but does not implement the full release requirements; use it only for an explicit packaging task. See [developer checks](docs/testing.md) (Chinese).
++Normal builds use local SDK reference packs; `NuGet.Config` has no external feeds. Building from source is not installing a release. The root `build.ps1` is a legacy packaging entry. The new self-contained installer and snapshot scripts are documented in the [release guide](docs/releasing.md) (Chinese); use them only in an explicitly authorized packaging task. See [developer checks](docs/testing.md) (Chinese).
+ 
+ ## Backgrounds and privacy
+ 
+@@ -94,7 +94,7 @@ The application does not automatically upload files, paths, images or logs. Mini
+ 
+ ## Planned work and limits
+ 
+-- **Initial delivery preparation:** implement and validate the installer, portable package and source snapshots, providing four Release assets. The [delivery plan](docs/delivery-plan.md) still awaits implementation approval.
++- **Initial delivery preparation:** self-contained portable, per-user installer and both source archive scripts now have local acceptance coverage. Formal delivery still requires clean Windows and remote draft validation; see the [release guide](docs/releasing.md) (Chinese).
+ - **After the initial version (P2):** High-speed mode is not consistently faster than Automatic. Nonblocking restructuring and additional visual polish are deferred to the same stage.
+ - **Current limits:** Automatic chooses concurrency by device, without load adaptation. If the change journal is unavailable, refresh still verifies metadata for all directories and files and may not be much faster. The cache exists only within the current process.
+ 
+@@ -113,7 +113,7 @@ AsukaLens/
+ ├─ assets/                   Default theme, icons and provenance
+ ├─ tests/                    Functional/UI checks and synthetic preview
+ ├─ docs/                     Developer docs, delivery plan and preview
+-├─ scripts/                  Asset maintenance tools
++├─ scripts/                  Asset maintenance and release/ snapshot scripts
+ ├─ iterations/               Selected evidence and recovery patches
+ ├─ run.cmd / run.ps1          Build and launch current source
+ ├─ build.ps1                 Existing portable packaging script
+diff --git a/README.md b/README.md
+index c316d85..f04e627 100644
+--- a/README.md
++++ b/README.md
+@@ -6,7 +6,7 @@
+ 
+ [快速开始](#快速开始) · [从源码运行](#从源码运行) · [开发计划](docs/development-plan.md) · [许可与署名](NOTICE.md)
+ 
+-> **开发预览 · v1.4.2** — 源码包含后续迭代，旧 `软件/` 目录和 ZIP 不含最新功能。当前没有正式 Release 或 EXE 安装包；请从源码启动当前版本。
++> **开发预览 · v1.4.2** — 源码包含后续迭代，旧 `软件/` 目录和 ZIP 不含最新功能。尚未公开正式 Release 或安装包；请从源码启动当前版本。
+ 
+ ![AsukaLens 浅色主窗：目录空间分布、文件列表、统计口径和扫描状态，使用合成演示数据](docs/images/overview.png)
+ 
+@@ -84,7 +84,7 @@ dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayNa
+ dotnet run --project DiskAtlas.csproj -- "X:\ExampleFolder"
+ ```
+ 
+-普通构建使用本机 SDK 引用包，`NuGet.Config` 不启用外部包源。源码运行不是安装发行版；现有 `build.ps1` 会生成目录与 ZIP，尚不符合完整发布规范，仅在明确打包任务中使用。检查与基准命令见[开发验证](docs/testing.md)。
++普通构建使用本机 SDK 引用包，`NuGet.Config` 不启用外部包源。源码运行不是安装发行版；根目录 `build.ps1` 是旧打包入口；新的自包含安装器与快照脚本见[发布说明](docs/releasing.md)，仅在明确授权的打包任务中使用。检查与基准命令见[开发验证](docs/testing.md)。
+ 
+ ## 背景与隐私
+ 
+@@ -94,7 +94,7 @@ dotnet run --project DiskAtlas.csproj -- "X:\ExampleFolder"
+ 
+ ## 待优化与开发
+ 
+-- **初版交付准备**：完成安装器、便携包和源码快照验证，形成四类 Release 资产；[具体方案](docs/delivery-plan.md)尚待确认实施。
++- **初版交付准备**：自包含便携版、当前用户安装器及两种源码包的脚本和本机验收已实现；正式发布仍待干净 Windows 环境与远程草稿验收，见[发布说明](docs/releasing.md)。
+ - **初版后处理（P2）**：高速模式尚不能稳定快于自动，非阻塞结构整理与额外视觉打磨同级延期。
+ - **现有限制**：自动策略按设备选择并发，未实现负载自适应；变化日志不可用时仍核验所有目录与文件元信息，刷新不保证大幅提速；缓存只在本次运行内有效。
+ 
+@@ -113,7 +113,7 @@ AsukaLens/
+ ├─ assets/                   默认主题、图标与来源说明
+ ├─ tests/                    功能、UI 检查与合成预览
+ ├─ docs/                     开发说明、交付方案与界面预览
+-├─ scripts/                  资源维护工具
++├─ scripts/                  资源维护与 release/ 快照脚本
+ ├─ iterations/               精简迭代证据与恢复补丁
+ ├─ run.cmd / run.ps1          当前源码构建与启动
+ ├─ build.ps1                 现有便携打包脚本
+diff --git a/docs/delivery-plan.md b/docs/delivery-plan.md
+index 2492f67..c41d84c 100644
+--- a/docs/delivery-plan.md
++++ b/docs/delivery-plan.md
+@@ -1,8 +1,8 @@
+ # 初版交付方案
+ 
+-状态：**文档、许可与素材记录已准备；安装器和发布机制尚待确认实施**。核查日期：2026-11-07；代码基线 `434d0918c0d440fed0f571d419a8a5b74cc86450`。本方案不构成正式打包、安装、创建标签或公开 Release 的授权。
++状态：**用户已确认实施并允许本机临时验收包；脚本与本机验收已实现，正式发布门槛仍待完成**。当前用法与真实边界见 [发布说明](releasing.md)。以下保留批准时的方案。核查日期：2026-11-07；代码基线 `434d0918c0d440fed0f571d419a8a5b74cc86450`。本方案不构成正式打包、安装、创建标签或公开 Release 的授权。
+ 
+-## 当前事实
++## 实施前核查事实
+ 
+ - 当前源码为 .NET 10 / WinForms，项目版本字段为 `1.4.2`；已验证 Windows 11 x64，普通输出需要 Windows Desktop Runtime。
+ - `build.ps1` 仅生成框架依赖便携目录与旧命名 ZIP，会覆盖同名本地产物；没有安装器、四类版本快照、哈希或资产验收流程。本轮未执行它。
+@@ -42,7 +42,7 @@
+ | `docs/releasing.md` | 正式发布步骤、受控环境验收与失败恢复 |
+ | `tests/` 中相关脚本边界检查 | 版本格式、重复产物、错误退出、源码排除、恢复与路径安全；使用小型合成夹具 |
+ 
+-这些名称是建议，不表示文件已经存在。保留根目录普通启动脚本；旧打包脚本在新流程验收前不删除。无需目录整体迁移或新增后台自动更新。
++上表文件现已实现，具体参数与验收以发布说明为准。保留根目录普通启动脚本与旧打包脚本；没有目录整体迁移或后台自动更新。
+ 
+ 普通构建保持无外部 NuGet 源；自包含运行时包若本机缺失，在独立发布配置中仅启用所需官方包源，固定解析结果，不修改开发默认。正式包记录 SDK、运行时、编译器版本及其通知文件。不得将仓库的非商业许可套用到第三方组件。
+ 
+@@ -75,6 +75,6 @@
+ | 发布资产 | 名称、版本、提交、架构、运行时、SHA-256 一致；草稿资产下载核对；所有必需项齐全 |
+ | 隐私与许可 | 许可与署名随包，测试只用合成数据；不上传原始机器日志、个人配置/图片或实际扫描结果 |
+ 
+-当前本机已安装 .NET，不能仅凭本机成功运行证明“无运行时环境可用”；需要合适的独立/受控 Windows 环境。当前尚未进行这些包级验收。
++当前本机已安装 .NET，不能仅凭本机成功运行证明“无运行时环境可用”；需要合适的独立/受控 Windows 环境。本轮已完成受控本机验收，但尚未进行干净系统和远程草稿验收。
+ 
+-项目规则要求较大的安装器/发布机制先确认方案；另规定只在正式版本时打包。因此建议下一步先确认上面的开发方向。若希望在正式发布前做本机测试包安装/升级/卸载验收，需要用户明确允许这类**仅用于验收的临时包**；它们不构成正式发布，不自动上传、创建标签或 Release。没有该授权时先实现脚本与静态检查，将包级验收保留到明确的正式版本任务。
++用户已明确选择按本方案实施，并允许**仅供本机验收的临时包**。本轮使用独立测试安装身份完成验证；该授权不包括上传包、创建标签或 Release。正式公开发布仍需新任务明确授权并完成发布门槛。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 61693dd..fd1e39f 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -12,7 +12,7 @@
+ | MAINT-001 | P2 / 初版后处理 | 非阻塞的主窗职责拆分、目录整体重组与额外视觉打磨 | 与 PERF-001 同阶段评估收益；修复 P0/P1 所必需的小范围整理不受此限制 |
+ | DEV-001 | P1 / 已完成本轮验收 | 多个历史预览容易误开，版本号不足以辨认构建；统一开发启动入口与当前程序身份 | 从任意工作目录可构建并启动当前源码；构建失败不启动旧程序，重复启动有提示；标题显示版本，诊断显示构建标识 |
+ | UI-001 | P1 / 已完成本轮验收 | 补齐卡片与筛选范围、搜索层级、结果不完整及取消/失败保留旧结果的说明；核查基本键盘操作 | 144/96 DPI 各 14 组主窗回归及合成窗口失败恢复观察通过；[验收记录](../iterations/2026-11-07-12-result-information/README.md) |
+-| DELIVERY-001 | P1 / 文档与许可已准备，安装待确认 | 中英文 README、合成界面预览、素材生成来源、非商业许可与署名已落地；安装器及四类资产未实现 | 按[交付方案](delivery-plan.md)确认实施与测试包范围；正式 Release 仍需明确任务 |
++| DELIVERY-001 | P1 / 脚本与本机临时包验收已实现 | 双语说明、素材许可、自包含便携包、当前用户安装器、源码快照和草稿保护已落地；未正式发布 | [发布流程](releasing.md)；正式发布前完成干净 Windows 无运行时环境、直接发行入口及远程草稿验收 |
+ 
+ PERF-001 的公开依据为[调度修正与验证](../iterations/2026-11-07-10-mixed-scan-scheduling/README.md)。真实目录路径、文件清单、耗时报告与诊断留在本机，不复制到待办、提交或 Release。本阶段不继续性能追测；初版之后再按用户要求处理同级问题。
+ 
+@@ -49,7 +49,7 @@ PERF-001 的公开依据为[调度修正与验证](../iterations/2026-11-07-10-m
+ 
+ ## 后续顺序
+ 
+-当前已形成可审查的 [.NET 10 迁移方案](dotnet10-migration.md)，包含环境选择、代码范围、兼容性检查、验收和回退基线。静态核查完成，用户明确选择系统安装 SDK，现已完成安装、迁移和全部自动回归，见[验收记录](../iterations/2026-11-07-05-dotnet10-migration/README.md)。本地诊断管理和高速完整扫描的大型单目录优化随后按各自确认范围完成；当前顺序以顶部优先级表为准：统一使用入口、构建身份与本轮必要界面信息均已完成验收；DELIVERY-001 已完成双语说明、素材来源与非商业许可准备；下一步确认[安装与快照方案](delivery-plan.md)及临时验收包范围，正式发布仍需明确任务范围。
++当前已形成可审查的 [.NET 10 迁移方案](dotnet10-migration.md)，包含环境选择、代码范围、兼容性检查、验收和回退基线。静态核查完成，用户明确选择系统安装 SDK，现已完成安装、迁移和全部自动回归，见[验收记录](../iterations/2026-11-07-05-dotnet10-migration/README.md)。本地诊断管理和高速完整扫描的大型单目录优化随后按各自确认范围完成；当前顺序以顶部优先级表为准：统一使用入口、构建身份与本轮必要界面信息均已完成验收；DELIVERY-001 已按确认方案实现安装与快照脚本并完成本机临时包验收；下一步补齐[正式发布门槛](releasing.md#本轮证据与仍未验证的范围)，不自动创建标签或发布。
+ 
+ | 顺序 | 建议方向 | 开始前需要明确 | 验收重点 |
+ | --- | --- | --- | --- |
+diff --git a/docs/project-status.md b/docs/project-status.md
+index b54d0c5..5197851 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -4,7 +4,7 @@
+ 
+ ## 当前阶段
+ 
+-2026-11-07 用户明确将“高速扫描不能稳定提速”记为 **PERF-001，P2，初版后处理**，同级非阻塞优化一起后移。调度修正已经提交，真实目录稳定提速尚未证实，两者分开记录。当前优先完成初版使用入口与功能闭环，详见[阶段与待办](development-plan.md#当前阶段与优先级2026-11-07-用户调整)。DEV-001 的统一开发版启动与构建辨识已完成本轮验收，见[开发入口记录](../iterations/2026-11-07-11-development-entry/README.md)。UI-001 已补齐必要结果信息，144/96 DPI 各 14 组主窗回归通过，见[结果信息记录](../iterations/2026-11-07-12-result-information/README.md)。DELIVERY-001 已完成本轮双语用户入口、合成预览和非商业许可准备，见[交付方案](delivery-plan.md)；安装器与包级验收仍待实施，不能将此视为已经完成正式发布。
++2026-11-07 用户明确将“高速扫描不能稳定提速”记为 **PERF-001，P2，初版后处理**，同级非阻塞优化一起后移。调度修正已经提交，真实目录稳定提速尚未证实，两者分开记录。当前优先完成初版使用入口与功能闭环，详见[阶段与待办](development-plan.md#当前阶段与优先级2026-11-07-用户调整)。DEV-001 的统一开发版启动与构建辨识已完成本轮验收，见[开发入口记录](../iterations/2026-11-07-11-development-entry/README.md)。UI-001 已补齐必要结果信息，144/96 DPI 各 14 组主窗回归通过，见[结果信息记录](../iterations/2026-11-07-12-result-information/README.md)。DELIVERY-001 已完成双语用户入口、许可、自包含便携/安装器/源码快照脚本及本机临时包验收，见[发布流程](releasing.md)；干净系统和远程草稿验收仍未完成，本轮没有正式发布。
+ 
+ ## 当前判断
+ 
+@@ -14,7 +14,7 @@
+ - 第 5 轮背景设置现已完成收尾，源码、测试和说明纳入独立开发提交，见[背景迭代记录](../iterations/2026-11-07-02-background-settings/README.md)。普通预览入口统一为 `bin/Release/net10.0-windows/DiskAtlas.exe`。
+ - 本轮迁移基线为 `2beb1445d4c18da19eaed74dde565e0770dcce51`。系统安装 SDK 10.0.403 与 Windows Desktop Runtime 10.0.14，安装退出码 0；原有 .NET 9 保留。见[迁移验收记录](../iterations/2026-11-07-05-dotnet10-migration/README.md)。
+ - 项目版本字段仍为 `1.4.2`。`软件/AsukaLens.exe` 和既有 ZIP 为旧构建，开发预览含之后的迭代。核查时 GitHub Release 列表为空，没有符合当前四类资产要求的正式发布。
+-- 技术栈为 C# / .NET 10 LTS WinForms，无第三方 NuGet 包。启动本质是本地 Windows 桌面进程，通过 .NET Windows Desktop Runtime 运行，扫描和界面操作不依赖网页服务器。当前发布脚本使用框架依赖部署。
++- 技术栈为 C# / .NET 10 LTS WinForms，无第三方 NuGet 包。启动本质是本地 Windows 桌面进程，通过 .NET Windows Desktop Runtime 运行，扫描和界面操作不依赖网页服务器。旧根目录打包脚本使用框架依赖部署；新的 `scripts/release/` 使用自包含 Windows x64 部署。
+ 
+ ## 功能状态
+ 
+@@ -68,7 +68,7 @@
+ | P2 延期：PERF-001 | 高速完整扫描改为目录优先、空闲额度补充文件读取，减少混合目录中的重复调度和分配；自动及刷新核验保留原策略 | [混合目录证据](../iterations/2026-11-07-10-mixed-scan-scheduling/README.md)；稳定提速未证实；按用户要求初版后再处理，自动负载适应或刷新并行仍需独立方案 |
+ | P2 延期：MAINT-001 | `MainForm.cs` 约 1,000 行，集中 UI、扫描状态、查询和设置；测试通过链接源文件构建 | 非阻塞的整体整理移至初版后；修复必要问题时按边界渐进抽取，避免一次性目录搬迁或框架替换 |
+ | 已处理：本地诊断 | 完整确认范围已实现，运行/问题/开发记录职责明确 | 见[诊断说明](diagnostics.md)与[验收记录](../iterations/2026-11-07-07-local-diagnostics/README.md)；后续新增字段继续严格控制隐私 |
+-| 发布前 / DELIVERY-001 | 中英文 README、合成预览及素材来源/非商业许可已补齐；仍缺标准安装器和四类资产快照流程 | [方案](delivery-plan.md)建议自包含 Windows x64 与当前用户安装；需确认实施和临时测试包范围，再做包级验收 |
++| 发布前 / DELIVERY-001 | 中英文 README、许可、自包含便携版、当前用户安装器、源码快照与草稿保护已实现；本机临时包通过验收 | [发布门槛](releasing.md)：干净 Windows 11 x64 无运行时环境、直接发行入口、远程草稿；尚未正式发布 |
+ 
+ 截至本次核查，[微软 .NET 支持策略](https://dotnet.microsoft.com/en-us/platform/support/policy) 列出 .NET 9 支持到 2026-11-10，.NET 10 LTS 支持到 2028-11-14。本轮已复核官方支持页与 Windows 兼容范围，软件实测环境为 Windows 11 x64；不能将框架支持范围当作软件多系统已验收。
+ 
+@@ -87,7 +87,7 @@
+ ├─ docs/                     状态/计划、开发验证、交付方案与合成预览
+ ├─ tests/                    核心、高级、日志、UI 与可选基准
+ ├─ assets/                   内嵌背景、图标及来源/许可说明
+-├─ scripts/                  图标更新脚本
++├─ scripts/                  图标维护与 release/ 交付脚本
+ ├─ iterations/               精选迭代证据
+ ├─ LICENSE / NOTICE.md       非商业许可及公开署名
+ ├─ build.ps1                 现有便携目录和 ZIP 打包入口
+@@ -130,3 +130,11 @@
+ 维护者明确确认图片由其使用提示词生成，允许随软件非商业分发，并委托按此选择许可。现以 PolyForm Noncommercial 1.0.0 许可软件代码，以 CC BY-NC 4.0 许可文档和图片，署名 AsukaLens — M66Y；见 `NOTICE.md` 和 `assets/README.md`。本项目不宣称 OSI 开源或拥有第三方角色/商标权利。
+ 
+ 当前旧打包脚本还没有完整许可随包、安装器和快照验收，不应据此生成合规正式 Release。安装与发布脚本、无运行时环境启动、安装/升级/卸载以及远程资产验证尚待实施。
++
++## 安装与快照开发核查（2026-11-07）
++
++基线 `e39ff5966341ef0f23143b11a0e377a6e5fcb1b0`。用户确认自包含/当前用户 Inno Setup/快照方案，并明确允许仅用于本机验收的临时包。四类资产均带准确版本和清单；源码 ZIP 与 tar.gz 逐文件一致并分别构建成功。临时安装器使用独立身份，不覆盖正式安装；程序为安装器增加进程生命周期标识，没有改变扫描功能。
++
++真实本机验收覆盖包内生产 DLL 与包内运行时、合成扫描/三视图/两口径/取消/刷新/背景/诊断、当前用户安装、合成旧版升级、拒绝降级、运行标识模拟阻止安装卸载、实际文件占用回滚以及卸载保留数据。安装语言、许可和说明页已实际观察。构建与验收脚本拒绝覆盖快照、脏工作区正式包、测试包上传和已发布版本修改。
++
++没有 Windows Sandbox 或独立干净环境的验收证据，未卸载本机 SDK/运行时；包内运行时路径断言不能代替干净系统验证。升级使用相同载荷的旧版本测试外壳，不宣称已验证历史发行版数据迁移。草稿脚本的保护逻辑离线验证，本轮没有调用真实上传、创建标签或 Release。详细操作与剩余条件见[发布流程](releasing.md)。
+diff --git a/docs/release-acceptance.example.json b/docs/release-acceptance.example.json
+new file mode 100644
+index 0000000..b0af6fa
+--- /dev/null
++++ b/docs/release-acceptance.example.json
+@@ -0,0 +1,12 @@
++{
++  "commit": "REPLACE_WITH_FULL_RELEASE_COMMIT",
++  "manifest_sha256": "REPLACE_WITH_RELEASE_MANIFEST_SHA256",
++  "checks": {
++    "clean_windows_no_dotnet": "pending",
++    "portable_workflow": "pending",
++    "install_upgrade_uninstall": "pending",
++    "failure_recovery": "pending",
++    "source_builds": "pending",
++    "privacy_and_licenses": "pending"
++  }
++}
+diff --git a/docs/releasing.md b/docs/releasing.md
+new file mode 100644
+index 0000000..1c2ac39
+--- /dev/null
++++ b/docs/releasing.md
+@@ -0,0 +1,93 @@
++# 打包、验收与草稿快照
++
++当前实现：Windows 11 x64、.NET 10 自包含便携 ZIP、当前用户 Inno Setup EXE 安装器、同一文件集合的源码 ZIP / tar.gz，以及 SHA-256 与文件清单。**脚本存在和本机验收通过不等于正式发布。** 本轮用户只授权本机临时验收包，不上传包、不创建标签或 Release。
++
++## 工具与来源
++
++- 普通开发仍按 [README](../README.md)，无需安装 Inno Setup。发布脚本需要 **PowerShell 7.4+**、Git、`global.json` 指定的 .NET SDK。
++- 工具版本和校验值位于 [toolchain.json](../scripts/release/toolchain.json)：本轮 Inno Setup **7.1.1 x64**、.NET 运行时 **10.0.14**、RID `win-x64`。更新这些值时重新验证包，不自动漂移到新版本。
++- Inno Setup 安装器来自 [官方固定版本](https://github.com/jrsoftware/issrc/releases/tag/is-7_1_1)。下载后核对 toolchain 中 SHA-256 和有效的 `Pyrsys B.V.` Authenticode 签名；官方支持 `/PORTABLE=1 /CURRENTUSER /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /DIR="所选临时工具目录"`，无需添加系统关联。工具不纳入 Git，脚本不会自行下载或安装编译器。
++- 自包含还原使用独立 [NuGet.release.config](../scripts/release/NuGet.release.config)，只允许所需微软运行时包从官方 nuget.org 获取；普通 `NuGet.Config` 保持无外部源。SDK 还原可能同时请求 ASP.NET 运行时包，但应用不引用或分发 ASP.NET。
++- 随包保留 Core Runtime 的 LICENSE / THIRD-PARTY-NOTICES、Windows Desktop Runtime 包提供的 MIT LICENSE、Inno Setup 许可及本项目许可。没有把项目的非商业限制施加给第三方组件。
++- 草稿上传才需要已登录的 GitHub CLI；本轮未安装或使用它上传。未来执行前记录 `gh --version`，确认支持 `gh api --paginate --slurp` 及 Release asset digest。凭据只使用现有登录存储，不能写到脚本、日志或源码包。
++
++## 本机临时验收
++
++下面的命令只用于**用户明确允许的临时验收**。`-LocalTest` 从当前工作区制作快照，清单记录真实 HEAD 基线和 `source_kind=working-tree`，不冒充已提交源码。安装器使用单独的 `AsukaLens.LocalTest` 身份，标题标记 LOCAL TEST，且上传脚本拒绝此类资产。程序的数据约定仍与正式程序相同，不能把测试安装身份误解成自动隔离个人设置。
++
++```powershell
++$commit = git rev-parse HEAD
++pwsh -File scripts/release/New-Release.ps1 -Version v1.4.2 -Commit $commit `
++  -Compiler "artifacts/release-tools/inno-7.1.1/ISCC.exe" -LocalTest
++
++pwsh -File scripts/release/Test-Release.ps1 -Directory artifacts/releases/v1.4.2-local-test
++pwsh -File tests/ReleaseScripts.Tests.ps1
++pwsh -File tests/ReleasePackageGuards.Tests.ps1 -Directory artifacts/releases/v1.4.2-local-test `
++  -Compiler "artifacts/release-tools/inno-7.1.1/ISCC.exe"
++
++dotnet build tests/DiskAtlas.Tests.csproj -c Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
++pwsh -File tests/PackageAcceptance.ps1 -Directory artifacts/releases/v1.4.2-local-test `
++  -Compiler "artifacts/release-tools/inno-7.1.1/ISCC.exe"
++```
++
++示例版本对应当前项目字段；未来从项目读取匹配版本，不机械沿用 `v1.4.2`。编译器路径是本轮约定的相对位置，实际可传另一处已核验的便携编译器。
++
++生成目录默认为 `artifacts/releases/vX.X.X-local-test/`，正式包为 `vX.X.X/`。已经存在的目录拒绝覆盖；失败只清理本次拥有的 `.stage-*`，不改动已完成的快照。中断进程可能留下锁或暂存目录：先确认没有同一打包进程，再核对归属和路径后清理，不默认抢占锁。仓库内的输出只能放在 `artifacts/` 下，外部输出需明确指定。
++
++`PackageAcceptance.ps1` 使用专属测试注册项和快捷方式；发现同名残留时拒绝覆盖。它在用户数据目录只创建一个随机命名的合成标记，用于验证卸载保留数据，最后删除该标记；不读取个人配置。窗口流程在独立测试宿主中加载**包内生产 DLL 和包内运行时**，传入合成扫描目录、隔离背景和诊断位置。验收宿主不能以 SW_HIDE 隐藏方式启动，否则 WinForms SplitContainer 首帧可能发生 GDI 错误。
++
++测试还会从同一载荷编译 `1.4.1` 的专属测试安装器来验证升级/拒绝降级机制；这不是历史二进制迁移验证。测试输出含本机路径，留在 `artifacts/` 供本轮检查，公开归档只保存无路径的汇总。测试结束后清理这些夹具、工具副本、临时包和下载缓存；保留当前普通开发预览和必要证据。
++
++## 正式包：只读取已提交快照
++
++正式发布任务获得授权后，先确定新版本、更新项目唯一数字版本并提交。确认工作区干净、目标提交已在 `main`，再不带 `-LocalTest` 运行 `New-Release.ps1`。脚本要求完整 40 位提交号、当前 HEAD 与之相同且无未提交文件，从 `git archive` 生成源码，避免打包未提交的个人文件。
++
++四个文件统一命名：
++
++| 文件 | 内容 |
++| --- | --- |
++| `AsukaLens vX.X.X.zip` | 完整自包含程序目录，解压后运行 `AsukaLens.exe` |
++| `AsukaLens vX.X.X.exe` | 当前用户安装器，安装载荷与便携包相同 |
++| `AsukaLens vX.X.X-source.zip` | 指定提交的源码 |
++| `AsukaLens vX.X.X-source.tar.gz` | 与源码 ZIP 逐文件相同的源码 |
++| `SHA256SUMS.txt` | 上述四个文件的 SHA-256 |
++| `release-manifest.json` | 版本、提交、工具链、四类资产、源码和载荷的逐文件清单 |
++
++源码保留所有可分发的 Git 跟踪文件，包括文档、测试和精简迭代证据；拒绝链接/子模块、`.git`、编译目录、运行日志、个人背景配置、证书和发行包。源码 ZIP 与 tar.gz 的文件名、长度和哈希一致，不使用 GitHub 自动源码链接代替自定义资产。当前 Git 配置的 CRLF 转换不改变已提交源码快照。
++
++`Test-Release.ps1` 检查六个输出文件、四类资产哈希、源文件一致、包内运行时/许可、版本及测试身份，**不执行安装器，也不声称通过了运行验收**。
++
++## 安装、升级与卸载约定
++
++- 只支持 Windows 11 x64，按当前用户安装到本地 Programs；不请求管理员权限，不添加服务、自启、文件关联或联网下载步骤。
++- 提供简体中文/English 安装向导、完整许可和双语安装提示。开始菜单快捷方式默认创建，桌面快捷方式可选。
++- 正式安装器固定 AppId；新版本沿用旧目录并保留用户数据，低版本拒绝覆盖。无关非空目录拒绝安装，避免覆盖用户文件。
++- 应用入口代码在整个进程生命周期持有命名互斥体；安装/卸载要求先关闭窗口，不结束用户进程。本轮用同名合成互斥体核验阻止逻辑，尚未在干净环境从发行 EXE 完成该路径。其他文件占用仍可能导致失败；本轮使用锁定 EXE 验证了失败回滚及旧载荷哈希保持一致。
++- 覆盖前逐文件备份已有程序文件，普通安装失败后恢复，成功或恢复完成后清理备份。Inno 自带回滚不能恢复已覆盖的旧字节，因此这部分由安装脚本补足；本轮以先改写合成文件、再遇到锁定 EXE 的方式核验。恢复失败或进程被强制中断时，备份留在当前用户 AppData 的 `AsukaLens/InstallerRecovery-<安装身份>/`，后续安装会停止并提示检查；`destinations.txt` 按行记录目的路径，第 1 行对应 `0.bak`，第 2 行对应 `1.bak`，依次类推。这些本地文件含安装路径，不上传；不能把普通失败恢复测试当成断电恢复保证。
++- 卸载只移除安装器拥有的文件、快捷方式和注册项；保留 AppData 内背景、诊断、问题记录以及安装目录中未知文件。不递归清空用户目录。
++- “便携”指免安装程序目录。个人数据仍使用当前用户 AppData，不是跟随 U 盘移动的数据模式。
++- 当前产物未代码签名；正式说明必须如实标明。不会使用开发者私人证书或伪造发行者签名。
++
++## 草稿上传与验收门槛
++
++完成正式任务要求的受控验证后，按 [验收模板](release-acceptance.example.json)填写真实结果，并填入此次 `release-manifest.json` 的 SHA-256。所有门槛必须是 `passed`；不能把 `not tested` 或本机替代测量改写为通过。发布说明另写 UTF-8 文件，含 `## 简体中文`、`## English`、精确版本、环境、运行时内含、变更、已知限制、安装/便携方法与四类下载链接。
++
++**本轮未创建标签。** 未来仅在明确的正式发布任务中创建并推送 `vX.X.X` 标签，必须指向上述提交；已存在标签只核查，绝不移动。上传脚本要求远程已经存在正确标签，本身不创建或重写标签。
++
++```powershell
++# 仅展示计划，不调用 GitHub；本地资产和验收门槛仍必须有效。
++pwsh -File scripts/release/Upload-Draft.ps1 -Directory "artifacts/releases/vX.X.X" `
++  -Notes "已审查的双语发布说明.md" -Acceptance "已完成的验收.json" -WhatIf
++
++# 只有正式任务授权上传后执行。默认会确认目标，已获授权时可用 -Confirm:$false。
++pwsh -File scripts/release/Upload-Draft.ps1 -Directory "artifacts/releases/vX.X.X" `
++  -Notes "已审查的双语发布说明.md" -Acceptance "已完成的验收.json"
++```
++
++脚本限定目标仓库，核对提交和标签，拒绝测试包和已发布版本。按 [GitHub 官方 API](https://docs.github.com/en/rest/releases/releases#list-releases)使用有推送权限的登录读取草稿列表，避免把“按标签读取已发布版本”接口用于草稿。同版本草稿需显式 `-Resume`；已有同名资产必须 digest 相同，绝不使用 `--clobber`。上传后下载六个文件重新校验，仍保持草稿，**没有自动公开发布代码**。上传中途失败保留草稿供检查，不能当成正式成功；不要在脚本运行时同时手工发布草稿。
++
++## 本轮证据与仍未验证的范围
++
++本轮已进行脚本边界测试、真实四类临时资产静态核验、两类源码包独立构建、包内生产程序集与包内运行时的主要功能检查、当前用户安装/合成升级/降级拒绝/占用失败回滚/卸载、中文安装向导观察。结果与清理见本轮 `iterations/` 记录。
++
++仍需正式发布前验证：**未预装 .NET 的干净 Windows 11 x64 环境、直接发行入口的完整人工使用流程、真实历史发行版迁移（如存在）、远程草稿上传和下载核验**。本机已安装 SDK；虽然测试已断言 CoreCLR 与 WinForms 来自包内，这不能代替干净系统验收。没有启用 Windows 可选组件、安装虚拟机或进行真实 GitHub 上传。
+diff --git a/docs/testing.md b/docs/testing.md
+index 0127bef..0f821ee 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -61,3 +61,9 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
+ 旧版压缩包不随当前项目保留；历史内存对比在缺少可选的 1.2 基准包时明确跳过，扫描基准仍可比较当前版本的串行与并行。内存基准的目录前缀包含 90 个填充字符，以观察重复路径的成本；不包含 1.4 新增的存储信息记录，不等同于实际进程峰值内存。1.3 版减少约 72% 的数字是历史结果。界面集成测试使用真实小文件和可控等待点，不把人为等待计入性能结果。
+ 
+ 三轮审查的发现、修改、实测证据与验证范围见 [优化审查记录.md](../优化审查记录.md)。
++
++## 发布脚本与本机临时包
++
++脚本边界：`pwsh -File tests/ReleaseScripts.Tests.ps1`。用户明确允许临时包后，按[发布说明](releasing.md)生成 `-LocalTest` 资产，再执行 `Test-Release.ps1` 和 `PackageAcceptance.ps1`。后者需要先构建测试项目，使用包内生产 DLL、包内运行时和隔离配置，不读取个人扫描数据；会验证专属测试安装身份并清理注册项与快捷方式。
++
++`--package-smoke` 仅供上述脚本在可丢弃载荷副本中运行，不能直接在普通测试 DLL 目录下冒充包内运行验证。包级工具的本机日志含路径，不进入公开归档。干净系统验收和真实远程草稿验证单独记录，不因本机通过而勾选。
+diff --git a/scripts/release/AsukaLens.iss b/scripts/release/AsukaLens.iss
+new file mode 100644
+index 0000000..b4a8edc
+--- /dev/null
++++ b/scripts/release/AsukaLens.iss
+@@ -0,0 +1,245 @@
++; Compiler: pinned Inno Setup 7.1.1. No downloads, services or user-data removal.
++#ifndef AppVersion
++  #error AppVersion is required
++#endif
++#ifndef PayloadDir
++  #error PayloadDir is required
++#endif
++#ifndef OutputDir
++  #error OutputDir is required
++#endif
++#ifndef LocalTest
++  #define LocalTest 0
++#endif
++#if LocalTest
++  #define ProductName "AsukaLens (LOCAL TEST)"
++  #define ProductId "AsukaLens.LocalTest"
++#else
++  #define ProductName "AsukaLens"
++  #define ProductId "AsukaLens.8E3208AB-7151-4AC5-983C-22C5529B8746"
++#endif
++
++[Setup]
++AppId={#ProductId}
++AppName={#ProductName}
++AppVersion={#AppVersion}
++AppVerName={#ProductName} v{#AppVersion}
++AppPublisher=M66Y
++AppPublisherURL=https://github.com/M66Y/Hard-Drive-Space-Visualization
++DefaultDirName={localappdata}\Programs\{#ProductName}
++DefaultGroupName={#ProductName}
++PrivilegesRequired=lowest
++ArchitecturesAllowed=x64compatible and not arm64
++ArchitecturesInstallIn64BitMode=x64compatible
++MinVersion=10.0.22000
++LicenseFile={#PayloadDir}\LICENSE
++InfoBeforeFile={#PayloadDir}\INSTALL-NOTICE.txt
++SetupIconFile={#PayloadDir}\app.ico
++UninstallDisplayIcon={app}\AsukaLens.exe
++OutputDir={#OutputDir}
++OutputBaseFilename=AsukaLens v{#AppVersion}
++VersionInfoVersion={#AppVersion}.0
++VersionInfoProductName={#ProductName}
++Compression=lzma2
++SolidCompression=yes
++WizardStyle=modern
++DisableProgramGroupPage=yes
++AllowNoIcons=yes
++UsePreviousAppDir=yes
++UsePreviousTasks=yes
++CloseApplications=no
++RestartApplications=no
++RestartIfNeededByRun=no
++AppMutex=Local\AsukaLens.Running
++SetupMutex=Local\AsukaLens.Setup
++Uninstallable=yes
++UninstallLogging=yes
++
++[Languages]
++Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
++Name: "english"; MessagesFile: "compiler:Default.isl"
++
++[Tasks]
++Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
++
++[CustomMessages]
++chinesesimplified.BadVersion=无法读取已安装版本。请先修复或卸载该版本，再重新安装。
++english.BadVersion=Cannot read the installed version. Repair or uninstall it before proceeding.
++chinesesimplified.Downgrade=已经安装了更新版本。已取消降级，没有修改程序文件。
++english.Downgrade=A newer AsukaLens version is installed. Downgrade was cancelled; no files were changed.
++chinesesimplified.CloseFirst=请关闭所有 AsukaLens 窗口后重试。安装程序不会结束应用进程。
++english.CloseFirst=Close all AsukaLens windows, then retry. Setup will not terminate applications.
++chinesesimplified.UnsafeDirectory=目标文件夹已包含其他文件。请选择空文件夹，或保留已有 AsukaLens 的安装位置。
++english.UnsafeDirectory=Choose an empty folder or keep the registered AsukaLens installation directory.
++chinesesimplified.BackupFailed=无法备份原有程序文件，已停止安装。请关闭占用文件的程序并检查可用空间后重试。
++english.BackupFailed=Cannot back up an existing program file. Setup stopped. Close programs using it and check free space before retrying.
++chinesesimplified.RecoveryPending=存在未清理的安装恢复文件。请先根据 destinations.txt 恢复或检查备份，再重试。备份位置：%1
++english.RecoveryPending=Installation recovery files remain. Restore or review the backups using destinations.txt before retrying. Backup location: %1
++
++[Files]
++Source: "{#PayloadDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; BeforeInstall: PreserveOriginal
++
++[Icons]
++Name: "{autoprograms}\{#ProductName}"; Filename: "{app}\AsukaLens.exe"; WorkingDir: "{app}"
++Name: "{autodesktop}\{#ProductName}"; Filename: "{app}\AsukaLens.exe"; WorkingDir: "{app}"; Tasks: desktopicon
++
++[Run]
++Filename: "{app}\AsukaLens.exe"; Description: "{cm:LaunchProgram,AsukaLens}"; Flags: nowait postinstall skipifsilent
++
++[Code]
++const
++  UninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#ProductId}_is1';
++
++var
++  RecoveryDir: String;
++  Originals, Backups: TArrayOfString;
++  InstallCommitted: Boolean;
++
++function SetFileAttributesW(const Filename: String; Attributes: Cardinal): Boolean;
++  external 'SetFileAttributesW@kernel32.dll stdcall';
++
++function RecoveryParent(): String;
++begin
++  Result := ExpandConstant('{localappdata}\AsukaLens\InstallerRecovery-{#ProductId}');
++end;
++
++procedure PreserveOriginal();
++var
++  Destination, Backup, CandidateDir: String;
++  Count: Integer;
++begin
++  Destination := ExpandConstant(CurrentFilename);
++  if not FileExists(Destination) then Exit;
++  if RecoveryDir = '' then
++  begin
++    if not ForceDirectories(RecoveryParent()) then
++      RaiseException(CustomMessage('BackupFailed'));
++    CandidateDir := GenerateUniqueName(AddBackslash(RecoveryParent()), '.backup');
++    if not CreateDir(CandidateDir) then
++      RaiseException(CustomMessage('BackupFailed'));
++    RecoveryDir := CandidateDir;
++  end;
++  Count := GetArrayLength(Originals);
++  Backup := AddBackslash(RecoveryDir) + IntToStr(Count) + '.bak';
++  if not CopyFile(Destination, Backup, True) then
++  begin
++    DeleteFile(Backup);
++    RaiseException(CustomMessage('BackupFailed'));
++  end;
++  SetArrayLength(Originals, Count + 1);
++  SetArrayLength(Backups, Count + 1);
++  Originals[Count] := Destination;
++  Backups[Count] := Backup;
++  // Index N in this local-only file maps N.bak to its original destination.
++  if not SaveStringsToUTF8File(AddBackslash(RecoveryDir) + 'destinations.txt', Originals, False) then
++    RaiseException(CustomMessage('BackupFailed'));
++end;
++
++procedure CurStepChanged(CurStep: TSetupStep);
++begin
++  if CurStep = ssPostInstall then InstallCommitted := True;
++end;
++
++procedure DeinitializeSetup();
++var
++  I: Integer;
++  Restored, Cleaned: Boolean;
++begin
++  if RecoveryDir = '' then Exit;
++  Restored := True;
++  if not InstallCommitted then
++  begin
++    // Inno has rolled back new files/registration by this point, but does not
++    // restore overwritten files. Restore only the originals we actually backed up.
++    for I := GetArrayLength(Originals) - 1 downto 0 do
++    begin
++      if FileExists(Originals[I]) then SetFileAttributesW(Originals[I], $80);
++      if not CopyFile(Backups[I], Originals[I], False) then Restored := False;
++    end;
++  end;
++  if Restored then
++  begin
++    // No recursive deletion: only files created by this transaction are removed.
++    Cleaned := True;
++    for I := 0 to GetArrayLength(Backups) - 1 do
++    begin
++      SetFileAttributesW(Backups[I], $80);
++      if not DeleteFile(Backups[I]) then Cleaned := False;
++    end;
++    if Cleaned then
++    begin
++      DeleteFile(AddBackslash(RecoveryDir) + 'destinations.txt');
++      RemoveDir(RecoveryDir);
++      RemoveDir(RecoveryParent());
++    end;
++  end
++  else
++    SuppressibleMsgBox(FmtMessage(CustomMessage('RecoveryPending'), [RecoveryDir]), mbError, MB_OK, IDOK);
++end;
++
++function InitializeSetup(): Boolean;
++var
++  Previous: String;
++  OldVersion, NewVersion: Int64;
++begin
++  Result := False;
++  if RegQueryStringValue(HKCU64, UninstallKey, 'DisplayVersion', Previous) then
++  begin
++    if not StrToVersion(Previous, OldVersion) then
++    begin
++      SuppressibleMsgBox(CustomMessage('BadVersion'), mbError, MB_OK, IDOK);
++      Exit;
++    end;
++    StrToVersion('{#AppVersion}', NewVersion);
++    if ComparePackedVersion(OldVersion, NewVersion) > 0 then
++    begin
++      SuppressibleMsgBox(CustomMessage('Downgrade'), mbError, MB_OK, IDOK);
++      Exit;
++    end;
++  end;
++  Result := True;
++end;
++
++function PrepareToInstall(var NeedsRestart: Boolean): String;
++var
++  RegisteredDir, TargetDir: String;
++  Item: TFindRec;
++  IsUpgrade: Boolean;
++begin
++  Result := '';
++  if DirExists(RecoveryParent()) then
++  begin
++    Result := FmtMessage(CustomMessage('RecoveryPending'), [RecoveryParent()]);
++    Exit;
++  end;
++  if CheckForMutexes('Local\AsukaLens.Running') then
++  begin
++    Result := CustomMessage('CloseFirst');
++    Exit;
++  end;
++  TargetDir := RemoveBackslashUnlessRoot(ExpandConstant('{app}'));
++  IsUpgrade := RegQueryStringValue(HKCU64, UninstallKey, 'Inno Setup: App Path', RegisteredDir);
++  if IsUpgrade then
++    IsUpgrade := CompareText(TargetDir, RemoveBackslashUnlessRoot(RegisteredDir)) = 0;
++  if (not IsUpgrade) and FindFirst(AddBackslash(TargetDir) + '*', Item) then
++  begin
++    try
++      repeat
++        if (Item.Name <> '.') and (Item.Name <> '..') then
++        begin
++          Result := CustomMessage('UnsafeDirectory');
++          Break;
++        end;
++      until not FindNext(Item);
++    finally
++      FindClose(Item);
++    end;
++  end;
++end;
++
++function InitializeUninstall(): Boolean;
++begin
++  Result := not CheckForMutexes('Local\AsukaLens.Running');
++  if not Result then
++    SuppressibleMsgBox(CustomMessage('CloseFirst'), mbError, MB_OK, IDOK);
++end;
+diff --git a/scripts/release/New-Release.ps1 b/scripts/release/New-Release.ps1
+new file mode 100644
+index 0000000..6b00538
+--- /dev/null
++++ b/scripts/release/New-Release.ps1
+@@ -0,0 +1,116 @@
++#requires -Version 7.4
++[CmdletBinding()]
++param(
++    [Parameter(Mandatory)][string]$Version,
++    [Parameter(Mandatory)][string]$Commit,
++    [Parameter(Mandatory)][string]$Compiler,
++    [switch]$LocalTest,
++    [string]$OutputRoot = (Join-Path $PSScriptRoot '../../artifacts/releases')
++)
++. (Join-Path $PSScriptRoot 'Release.Common.ps1')
++$numeric = Assert-ReleaseVersion $Version
++$repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
++$OutputRoot = [IO.Path]::GetFullPath($OutputRoot)
++if ($OutputRoot.StartsWith($repository + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -and
++    -not $OutputRoot.StartsWith((Join-Path $repository 'artifacts') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
++    throw 'Inside the checkout, release output must be below artifacts/.'
++}
++if ($OutputRoot -eq $repository) { throw 'Cannot use the repository root for release output.' }
++$Compiler = (Resolve-Path -LiteralPath $Compiler).Path
++Assert-NoReparse $OutputRoot
++Assert-NoReparse $Compiler
++$tools = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'toolchain.json') -Raw | ConvertFrom-Json
++if ((Get-FileHash -LiteralPath $Compiler).Hash.ToLowerInvariant() -ne $tools.iscc_sha256) { throw 'Compiler does not match the pinned toolchain.' }
++$compilerVersion = (& $Compiler --version).Trim()
++if ($LASTEXITCODE -ne 0 -or $compilerVersion -ne $tools.inno_version) { throw 'Unexpected compiler version.' }
++$compilerLicense = Join-Path (Split-Path -Parent $Compiler) 'License.txt'
++if ((Get-FileHash -LiteralPath $compilerLicense).Hash.ToLowerInvariant() -ne $tools.inno_license_sha256) { throw 'Compiler license does not match.' }
++$destination = Join-Path $OutputRoot ($Version + $(if ($LocalTest) { '-local-test' } else { '' }))
++if (Test-Path -LiteralPath $destination) { throw 'Snapshot already exists. Choose a new version or explicitly remove your disposable local-test output.' }
++[IO.Directory]::CreateDirectory($OutputRoot) | Out-Null
++$lock = [IO.File]::Open(($destination + '.lock'), [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
++$stage = Join-Path $OutputRoot ('.stage-' + [guid]::NewGuid().ToString('N'))
++$oldTelemetry = $env:DOTNET_CLI_TELEMETRY_OPTOUT
++$oldCertificate = $env:DOTNET_GENERATE_ASPNET_CERTIFICATE
++try {
++    New-Item -ItemType Directory -Path $stage | Out-Null
++    $source = Join-Path $stage 'source'
++    New-SourceSnapshot $repository $Commit $source -LocalTest:$LocalTest
++    [xml]$project = Get-Content -LiteralPath (Join-Path $source 'DiskAtlas.csproj') -Raw
++    if ([string]$project.Project.PropertyGroup.Version -ne $numeric) { throw 'Requested version does not match DiskAtlas.csproj.' }
++    $sourceFiles = @(Get-FileInventory $source)
++    $out = Join-Path $stage 'assets'
++    $payload = Join-Path $stage 'payload'
++    [IO.Directory]::CreateDirectory($out) | Out-Null
++    New-SourceArchives $source (Join-Path $out "AsukaLens $Version-source.zip") (Join-Path $out "AsukaLens $Version-source.tar.gz")
++    $cache = Join-Path $repository 'artifacts/release-cache'
++    Assert-NoReparse $cache
++    $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
++    $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
++    Push-Location $source
++    try {
++        $sdk = (& dotnet --version).Trim()
++        if ($LASTEXITCODE -ne 0) { throw 'SDK unavailable.' }
++        Invoke-ReleaseTool dotnet @('publish','DiskAtlas.csproj','-c','Release','-r',$tools.rid,'--self-contained','true','--output',$payload,
++            '--nologo','-p:TargetPlatformDisplayName=Windows','-p:NuGetAudit=false','-p:DebugType=None','-p:DebugSymbols=false',
++            '-p:PublishSingleFile=false','-p:PublishTrimmed=false','-p:PublishAot=false',('-p:RuntimeFrameworkVersion='+$tools.runtime),
++            ('-p:RestorePackagesPath='+$cache),('-p:RestoreConfigFile='+(Join-Path $PSScriptRoot 'NuGet.release.config')),
++            ('-p:SourceRevisionId='+$Commit))
++    } finally { Pop-Location }
++    Move-Item -LiteralPath (Join-Path $payload 'DiskAtlas.exe') -Destination (Join-Path $payload 'AsukaLens.exe')
++    foreach ($name in @('LICENSE','NOTICE.md','licenses/CC-BY-NC-4.0.txt','assets/README.md','使用说明.txt','docs/diagnostics.md')) {
++        $target = Join-Path $payload $name
++        [IO.Directory]::CreateDirectory((Split-Path -Parent $target)) | Out-Null
++        Copy-Item -LiteralPath (Join-Path $source $name) -Destination $target
++    }
++    Copy-Item -LiteralPath (Join-Path $source 'assets/app.ico') -Destination (Join-Path $payload 'app.ico')
++    $licenseRoot = Join-Path $payload 'licenses/runtime'
++    foreach ($pack in @('microsoft.netcore.app.runtime.win-x64','microsoft.windowsdesktop.app.runtime.win-x64')) {
++        $packRoot = Join-Path $cache ($pack + '/' + $tools.runtime)
++        $licenses = @(Get-ChildItem -LiteralPath $packRoot -File | Where-Object { $_.Name -match '(?i)license|third.*notices' })
++        $minimum = if ($pack -like 'microsoft.netcore.*') { 2 } else { 1 }
++        if ($licenses.Count -lt $minimum) { throw 'Runtime license / notices missing.' }
++        $target = Join-Path $licenseRoot $pack
++        [IO.Directory]::CreateDirectory($target) | Out-Null
++        foreach ($license in $licenses) { Copy-Item -LiteralPath $license.FullName -Destination $target }
++    }
++    Copy-Item -LiteralPath $compilerLicense -Destination (Join-Path $payload 'licenses/Inno-Setup.txt')
++    $notice = @"
++AsukaLens $Version — M66Y
++Windows 11 x64; .NET $($tools.runtime) runtime included.
++Noncommercial use: project code uses PolyForm Noncommercial 1.0.0.
++Documentation/artwork use CC BY-NC 4.0. Third-party components retain their own licenses.
++See LICENSE, NOTICE.md and licenses/. AI-generated artwork by M66Y.
++Unzip the entire portable folder and launch AsukaLens.exe. No administrator rights are required.
++Settings, backgrounds and diagnostics remain in the current user's AppData, including portable mode.
++Uninstall removes program files and shortcuts; it keeps user data. Close the app before upgrading.
++
++简体中文：本版本内含 .NET 运行时。便携版完整解压后运行 AsukaLens.exe。
++仅供非商业用途，许可和署名见 LICENSE、NOTICE.md 和 licenses 目录。
++安装仅针对当前用户；升级前请关闭软件，卸载保留背景、诊断与问题记录。
++便携版设置仍保存于当前用户 AppData，详细操作见“使用说明.txt”。
++"@
++    if ($LocalTest) { $notice = "LOCAL TEST ONLY / 仅供本机验收，不得发布`r`n" + $notice }
++    [IO.File]::WriteAllText((Join-Path $payload 'INSTALL-NOTICE.txt'), $notice, [Text.UTF8Encoding]::new($true))
++    Write-ReleaseJson ([ordered]@{ schema=1; version=$Version; commit=$Commit; local_test=[bool]$LocalTest; runtime=$tools.runtime }) (Join-Path $payload 'build-info.json')
++    $payloadFiles = @(Get-FileInventory $payload)
++    [IO.Compression.ZipFile]::CreateFromDirectory($payload, (Join-Path $out "AsukaLens $Version.zip"), [IO.Compression.CompressionLevel]::Optimal, $false)
++    Invoke-ReleaseTool $Compiler @('--quiet','--no-ide-signtools',('--define=AppVersion='+$numeric),('--define=PayloadDir='+$payload),
++        ('--define=OutputDir='+$out),('--define=LocalTest='+[int][bool]$LocalTest),(Join-Path $PSScriptRoot 'AsukaLens.iss'))
++    $assets = @(Get-FileInventory $out)
++    $manifest = [ordered]@{ schema=1; product='AsukaLens'; version=$Version; commit=$Commit; local_test=[bool]$LocalTest;
++        source_kind=$(if ($LocalTest) {'working-tree'} else {'git-commit'}); rid=$tools.rid; self_contained=$true;
++        sdk=$sdk; runtime=$tools.runtime; inno=$compilerVersion; iscc_sha256=$tools.iscc_sha256;
++        assets=$assets; source_files=$sourceFiles; payload_files=$payloadFiles }
++    Write-ReleaseJson $manifest (Join-Path $out 'release-manifest.json')
++    [IO.File]::WriteAllLines((Join-Path $out 'SHA256SUMS.txt'), @($assets | ForEach-Object { $_.sha256 + '  ' + $_.path }), [Text.UTF8Encoding]::new($false))
++    & (Join-Path $PSScriptRoot 'Test-Release.ps1') -Directory $out | Out-Host
++    # Atomic promotion within one parent: incomplete runs never occupy a snapshot name.
++    Move-Item -LiteralPath $out -Destination $destination
++    Write-Host ('Verified local assets: ' + $destination)
++} finally {
++    [Environment]::SetEnvironmentVariable('DOTNET_CLI_TELEMETRY_OPTOUT',$oldTelemetry,'Process')
++    [Environment]::SetEnvironmentVariable('DOTNET_GENERATE_ASPNET_CERTIFICATE',$oldCertificate,'Process')
++    try { Remove-OwnedDirectory $stage $OutputRoot }
++    finally { $lock.Dispose(); Remove-Item -LiteralPath ($destination + '.lock') }
++}
+diff --git a/scripts/release/NuGet.release.config b/scripts/release/NuGet.release.config
+new file mode 100644
+index 0000000..efdeb70
+--- /dev/null
++++ b/scripts/release/NuGet.release.config
+@@ -0,0 +1,14 @@
++<?xml version="1.0" encoding="utf-8"?>
++<configuration>
++  <packageSources>
++    <clear />
++    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
++  </packageSources>
++  <packageSourceMapping>
++    <packageSource key="nuget.org">
++      <package pattern="Microsoft.NETCore.App.*" />
++      <package pattern="Microsoft.WindowsDesktop.App.*" />
++      <package pattern="Microsoft.AspNetCore.App.Runtime.*" />
++    </packageSource>
++  </packageSourceMapping>
++</configuration>
+diff --git a/scripts/release/Release.Common.ps1 b/scripts/release/Release.Common.ps1
+new file mode 100644
+index 0000000..7db6a3d
+--- /dev/null
++++ b/scripts/release/Release.Common.ps1
+@@ -0,0 +1,202 @@
++#requires -Version 7.4
++Set-StrictMode -Version Latest
++$ErrorActionPreference = 'Stop'
++
++function Assert-ReleaseVersion([string]$Version) {
++    if ($Version -notmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') { throw 'Use vX.X.X without leading zeroes.' }
++    foreach ($part in $Version.Substring(1).Split('.')) {
++        if ([long]$part -gt 65535) { throw 'Version components must fit Windows version fields.' }
++    }
++    return $Version.Substring(1)
++}
++
++function Assert-SafeRelativePath([string]$Name) {
++    if ([string]::IsNullOrWhiteSpace($Name) -or $Name.StartsWith('/') -or $Name.Contains('\')) { throw 'Invalid relative path.' }
++    foreach ($part in $Name.Split('/')) {
++        if ($part -in @('', '.', '..') -or $part -match '[<>:"|?*\x00-\x1f]' -or $part -match '[. ]$' -or
++            $part -match '^(?i:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)') { throw 'Unsafe archive path.' }
++    }
++}
++
++function Assert-SourcePath([string]$Name) {
++    Assert-SafeRelativePath $Name
++    if ($Name -match '(?i)(^|/)(\.git|\.codex|\.agents|\.aws|bin|obj|artifacts|软件|node_modules)(/|$)' -or $Name -match '^(?i:diagnostics)/' -or
++        $Name -match '(?i)(\.log|\.dmp|\.user|\.pfx|\.pem|\.key|\.exe|\.zip|\.tar\.gz)$' -or
++        $Name -match '(?i)(^|/)(background\.dat.*|problem-notes\.json.*|runtime-.*\.jsonl|\.env.*)$') {
++        throw 'Source contains an excluded file.'
++    }
++}
++
++function Assert-NoReparse([string]$Path) {
++    $item = [IO.Path]::GetFullPath($Path)
++    while ($item) {
++        if ((Test-Path -LiteralPath $item) -and ((Get-Item -LiteralPath $item -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
++            throw 'Reparse points are not allowed in release paths.'
++        }
++        $item = [IO.Path]::GetDirectoryName($item)
++    }
++}
++
++function Assert-SafeTree([string]$Path) {
++    Assert-NoReparse $Path
++    # Enumerate one level at a time so a junction is rejected before recursion.
++    foreach ($item in Get-ChildItem -LiteralPath $Path -Force) {
++        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Release tree contains a link.' }
++        if ($item.PSIsContainer) { Assert-SafeTree $item.FullName }
++    }
++}
++
++function Remove-OwnedDirectory([string]$Path, [string]$Parent) {
++    $absolute = [IO.Path]::GetFullPath($Path)
++    $boundary = [IO.Path]::GetFullPath($Parent).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
++    if (-not $absolute.StartsWith($boundary, [StringComparison]::OrdinalIgnoreCase)) { throw 'Cleanup boundary violation.' }
++    if (Test-Path -LiteralPath $absolute) {
++        Assert-SafeTree $absolute
++        Remove-Item -LiteralPath $absolute -Recurse -Force
++    }
++}
++
++function Invoke-ReleaseTool([string]$File, [string[]]$Arguments) {
++    & $File @Arguments | Out-Host
++    if ($LASTEXITCODE -ne 0) { throw ('External tool failed: ' + [IO.Path]::GetFileName($File) + ', exit ' + $LASTEXITCODE) }
++}
++
++function Get-FileInventory([string]$Directory) {
++    Assert-SafeTree $Directory
++    $root = [IO.Path]::GetFullPath($Directory)
++    $files = @(Get-ChildItem -LiteralPath $root -Recurse -File -Force | Sort-Object FullName)
++    foreach ($file in $files) {
++        $relative = [IO.Path]::GetRelativePath($root, $file.FullName).Replace('\', '/')
++        Assert-SafeRelativePath $relative
++        [ordered]@{ path=$relative; bytes=$file.Length; sha256=(Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
++    }
++}
++
++function Write-ReleaseJson($Value, [string]$Path) {
++    [IO.File]::WriteAllText($Path, ($Value | ConvertTo-Json -Depth 12) + "`n", [Text.UTF8Encoding]::new($false))
++}
++
++function New-SourceSnapshot([string]$Repository, [string]$Commit, [string]$Destination, [switch]$LocalTest) {
++    if (Test-Path -LiteralPath $Destination) { throw 'Snapshot destination already exists.' }
++    $head = (& git -C $Repository rev-parse HEAD).Trim()
++    if ($LASTEXITCODE -ne 0 -or $Commit -notmatch '^[0-9a-f]{40}$') { throw 'An explicit full commit is required.' }
++    $resolved = & git -C $Repository rev-parse --verify ($Commit + '^{commit}')
++    if ($LASTEXITCODE -ne 0 -or $resolved.Trim() -ne $Commit) { throw 'Commit is unavailable.' }
++    foreach ($entry in (& git -C $Repository ls-tree -r $Commit)) {
++        if ($entry -notmatch '^100(644|755) blob ') { throw 'Source commit contains a link or submodule.' }
++    }
++    if ($LocalTest) {
++        if ($head -ne $Commit) { throw 'Local tests must identify the current HEAD as their baseline.' }
++        $names = (& git -C $Repository -c core.quotepath=false ls-files --cached --others --exclude-standard -z) -join "`n"
++    } else {
++        if ($head -ne $Commit -or (& git -C $Repository status --porcelain)) { throw 'Formal packages require a clean checkout at the requested commit.' }
++        $names = (& git -C $Repository -c core.quotepath=false ls-tree -r --name-only -z $Commit) -join "`n"
++    }
++    if ($LASTEXITCODE -ne 0) { throw 'Cannot enumerate source files.' }
++    $paths = @($names.Split([char]0, [StringSplitOptions]::RemoveEmptyEntries))
++    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
++    foreach ($name in $paths) {
++        Assert-SourcePath $name
++        if (-not $seen.Add($name)) { throw 'Duplicate source path.' }
++        Assert-NoReparse (Join-Path $Repository $name)
++    }
++    New-Item -ItemType Directory -Path $Destination | Out-Null
++    if ($LocalTest) {
++        foreach ($name in $paths) {
++            $target = Join-Path $Destination $name
++            [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($target)) | Out-Null
++            [IO.File]::Copy((Join-Path $Repository $name), $target, $false)
++        }
++    } else {
++        # archive reads committed blobs, not autocrlf-transformed working-tree bytes.
++        $archive = $Destination + '.zip'
++        try {
++            Invoke-ReleaseTool git @('-C', $Repository, '-c', 'core.autocrlf=false', 'archive', '--format=zip', ('--output=' + $archive), $Commit)
++            [IO.Compression.ZipFile]::ExtractToDirectory($archive, $Destination)
++        } finally { if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive } }
++    }
++    Assert-SafeTree $Destination
++}
++
++function New-SourceArchives([string]$Source, [string]$Zip, [string]$TarGz) {
++    [IO.Compression.ZipFile]::CreateFromDirectory($Source, $Zip, [IO.Compression.CompressionLevel]::Optimal, $false)
++    $file = [IO.File]::Open($TarGz, [IO.FileMode]::CreateNew)
++    try {
++        $gzip = [IO.Compression.GZipStream]::new($file, [IO.Compression.CompressionLevel]::Optimal, $true)
++        try { [System.Formats.Tar.TarFile]::CreateFromDirectory($Source, $gzip, $false) }
++        finally { $gzip.Dispose() }
++    } finally { $file.Dispose() }
++}
++
++function Get-ArchiveInventory([string]$Path, [switch]$TarGz) {
++    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
++    $result = [Collections.Generic.List[object]]::new()
++    function Add-Entry([string]$Name, [long]$Length, [IO.Stream]$Stream) {
++        $Name = $Name -replace '^\./',''
++        Assert-SafeRelativePath $Name
++        if (-not $seen.Add($Name)) { throw 'Duplicate archive entry.' }
++        if ($null -eq $Stream -and $Length -ne 0) { throw 'Missing archive data stream.' }
++        $sha = [Security.Cryptography.SHA256]::HashData($(if ($null -eq $Stream) { [IO.Stream]::Null } else { $Stream }))
++        $result.Add([ordered]@{ path=$Name; bytes=$Length; sha256=[Convert]::ToHexString($sha).ToLowerInvariant() })
++    }
++    if ($TarGz) {
++        $file = [IO.File]::OpenRead($Path)
++        $gzip = [IO.Compression.GZipStream]::new($file, [IO.Compression.CompressionMode]::Decompress)
++        $reader = [System.Formats.Tar.TarReader]::new($gzip)
++        try {
++            while ($entry = $reader.GetNextEntry()) {
++                if ($entry.EntryType -eq [System.Formats.Tar.TarEntryType]::Directory) {
++                    $name = $entry.Name -replace '^\./',''
++                    if ($name.TrimEnd('/')) { Assert-SafeRelativePath $name.TrimEnd('/') }
++                    continue
++                }
++                if ($entry.EntryType -notin @([System.Formats.Tar.TarEntryType]::RegularFile, [System.Formats.Tar.TarEntryType]::V7RegularFile)) { throw 'Unsupported tar entry type.' }
++                Add-Entry $entry.Name $entry.Length $entry.DataStream
++            }
++        } finally { $reader.Dispose(); $gzip.Dispose(); $file.Dispose() }
++    } else {
++        $zip = [IO.Compression.ZipFile]::OpenRead($Path)
++        try {
++            foreach ($entry in $zip.Entries) {
++                if ($entry.FullName.EndsWith('/')) { Assert-SafeRelativePath $entry.FullName.TrimEnd('/'); continue }
++                if ((($entry.ExternalAttributes -shr 16) -band 0xF000) -eq 0xA000) { throw 'ZIP links are not allowed.' }
++                $stream = $entry.Open()
++                try { Add-Entry $entry.FullName $entry.Length $stream } finally { $stream.Dispose() }
++            }
++        } finally { $zip.Dispose() }
++    }
++    return $result.ToArray()
++}
++
++function Assert-SameInventory($Expected, $Actual) {
++    $expectedList = @($Expected | Sort-Object { $_.path })
++    $actualList = @($Actual | Sort-Object { $_.path })
++    if ($expectedList.Count -ne $actualList.Count) { throw 'Archive file count mismatch.' }
++    for ($i=0; $i -lt $expectedList.Count; $i++) {
++        if ($expectedList[$i].path -cne $actualList[$i].path -or $expectedList[$i].sha256 -ne $actualList[$i].sha256 -or
++            $expectedList[$i].bytes -ne $actualList[$i].bytes) { throw 'Archive file content mismatch.' }
++    }
++}
++
++function Assert-DraftState($Releases, [switch]$Resume) {
++    $list = @($Releases)
++    if ($list.Count -gt 1 -or ($list.Count -eq 1 -and (-not $list[0].draft -or -not $Resume))) {
++        throw 'Release exists; published snapshots cannot be changed, draft resumes must be explicit.'
++    }
++}
++
++function Get-MissingDraftFiles([string[]]$Files, $Assets) {
++    $names = @($Files | ForEach-Object { [IO.Path]::GetFileName($_) })
++    foreach ($asset in $Assets) {
++        if ($asset.name -cnotin $names) { throw 'Unexpected draft asset; review the draft without overwriting it.' }
++    }
++    foreach ($file in $Files) {
++        $name = [IO.Path]::GetFileName($file)
++        $matches = @($Assets | Where-Object { $_.name -ceq $name })
++        if ($matches.Count -gt 1) { throw 'Duplicate draft asset.' }
++        if ($matches.Count -eq 1) {
++            $digest = 'sha256:' + (Get-FileHash -LiteralPath $file).Hash.ToLowerInvariant()
++            if ($matches[0].digest -ne $digest) { throw 'Existing draft asset differs; refusing overwrite.' }
++        } else { $file }
++    }
++}
+diff --git a/scripts/release/Test-Release.ps1 b/scripts/release/Test-Release.ps1
+new file mode 100644
+index 0000000..df131ff
+--- /dev/null
++++ b/scripts/release/Test-Release.ps1
+@@ -0,0 +1,66 @@
++#requires -Version 7.4
++[CmdletBinding()]
++param([Parameter(Mandatory)][string]$Directory)
++. (Join-Path $PSScriptRoot 'Release.Common.ps1')
++$Directory = (Resolve-Path -LiteralPath $Directory).Path
++Assert-SafeTree $Directory
++$manifest = Get-Content -LiteralPath (Join-Path $Directory 'release-manifest.json') -Raw | ConvertFrom-Json
++$numeric = Assert-ReleaseVersion $manifest.version
++if ($manifest.schema -ne 1 -or $manifest.product -ne 'AsukaLens' -or $manifest.commit -notmatch '^[0-9a-f]{40}$' -or
++    $manifest.rid -ne 'win-x64' -or $manifest.self_contained -ne $true -or $manifest.local_test -isnot [bool] -or
++    $manifest.source_kind -ne $(if ($manifest.local_test) { 'working-tree' } else { 'git-commit' })) { throw 'Invalid release manifest.' }
++$version = $manifest.version
++$expectedNames = @("AsukaLens $version.zip", "AsukaLens $version.exe", "AsukaLens $version-source.zip", "AsukaLens $version-source.tar.gz")
++$assetNames = @($manifest.assets | ForEach-Object { $_.path })
++if ($assetNames.Count -ne 4 -or (Compare-Object ($expectedNames | Sort-Object) ($assetNames | Sort-Object) -CaseSensitive)) { throw 'Exactly four correctly named assets are required.' }
++$expectedFiles = $expectedNames + @('release-manifest.json','SHA256SUMS.txt')
++if ((Get-ChildItem -LiteralPath $Directory -Force).Count -ne 6 -or
++    (Compare-Object ($expectedFiles | Sort-Object) @((Get-ChildItem -LiteralPath $Directory -Force).Name | Sort-Object) -CaseSensitive)) { throw 'Unexpected files in the release directory.' }
++foreach ($asset in $manifest.assets) {
++    Assert-SafeRelativePath $asset.path
++    $file = Get-Item -LiteralPath (Join-Path $Directory $asset.path)
++    if ($file.Length -ne $asset.bytes -or (Get-FileHash -LiteralPath $file.FullName).Hash.ToLowerInvariant() -ne $asset.sha256) { throw 'Asset checksum mismatch.' }
++}
++$checksumLines = @([IO.File]::ReadAllLines((Join-Path $Directory 'SHA256SUMS.txt')))
++$expectedChecksums = @($manifest.assets | ForEach-Object { $_.sha256 + '  ' + $_.path })
++if ($checksumLines.Count -ne 4 -or (Compare-Object $expectedChecksums $checksumLines)) { throw 'SHA256SUMS does not match the manifest.' }
++$sourceZip = @(Get-ArchiveInventory (Join-Path $Directory "AsukaLens $version-source.zip"))
++$sourceTar = @(Get-ArchiveInventory (Join-Path $Directory "AsukaLens $version-source.tar.gz") -TarGz)
++foreach ($file in $sourceZip) { Assert-SourcePath $file.path }
++Assert-SameInventory $manifest.source_files $sourceZip
++Assert-SameInventory $sourceZip $sourceTar
++$payload = @(Get-ArchiveInventory (Join-Path $Directory "AsukaLens $version.zip"))
++Assert-SameInventory $manifest.payload_files $payload
++$payloadNames = @($payload | ForEach-Object { $_.path })
++foreach ($required in @('AsukaLens.exe','DiskAtlas.dll','DiskAtlas.runtimeconfig.json','DiskAtlas.deps.json','coreclr.dll','hostfxr.dll','hostpolicy.dll',
++    'System.Private.CoreLib.dll','System.Windows.Forms.dll','LICENSE','NOTICE.md','licenses/CC-BY-NC-4.0.txt','licenses/Inno-Setup.txt','build-info.json','INSTALL-NOTICE.txt','使用说明.txt','docs/diagnostics.md')) {
++    if ($required -cnotin $payloadNames) { throw ('Payload is missing ' + $required) }
++}
++foreach ($pack in @('microsoft.netcore.app.runtime.win-x64','microsoft.windowsdesktop.app.runtime.win-x64')) {
++    $minimum = if ($pack -like 'microsoft.netcore.*') { 2 } else { 1 }
++    if (@($payloadNames | Where-Object { $_ -like "licenses/runtime/$pack/*" }).Count -lt $minimum) { throw 'Missing third-party runtime notices.' }
++}
++$zip = [IO.Compression.ZipFile]::OpenRead((Join-Path $Directory "AsukaLens $version.zip"))
++try {
++    function Read-ZipJson([string]$Name) {
++        $reader = [IO.StreamReader]::new($zip.GetEntry($Name).Open())
++        try { return ($reader.ReadToEnd() | ConvertFrom-Json) } finally { $reader.Dispose() }
++    }
++    $config = Read-ZipJson 'DiskAtlas.runtimeconfig.json'
++    if ($config.runtimeOptions.PSObject.Properties.Name -contains 'framework' -or $config.runtimeOptions.PSObject.Properties.Name -contains 'frameworks') { throw 'Payload still requires a shared runtime.' }
++    $frameworks = @($config.runtimeOptions.includedFrameworks)
++    if (@($frameworks | Where-Object { $_.name -eq 'Microsoft.NETCore.App' -and $_.version -eq $manifest.runtime }).Count -ne 1 -or
++        @($frameworks | Where-Object { $_.name -eq 'Microsoft.WindowsDesktop.App' -and $_.version -eq $manifest.runtime }).Count -ne 1) { throw 'Bundled runtime versions differ.' }
++    $identity = Read-ZipJson 'build-info.json'
++    if ($identity.version -ne $version -or $identity.commit -ne $manifest.commit -or $identity.local_test -ne $manifest.local_test) { throw 'Payload build identity mismatch.' }
++} finally { $zip.Dispose() }
++$installer = Join-Path $Directory "AsukaLens $version.exe"
++$exe = [IO.File]::OpenRead($installer)
++try { if ($exe.ReadByte() -ne 77 -or $exe.ReadByte() -ne 90) { throw 'Installer is not a Windows executable.' } }
++finally { $exe.Dispose() }
++$info = [Diagnostics.FileVersionInfo]::GetVersionInfo($installer)
++$fileVersion = '{0}.{1}.{2}.{3}' -f $info.FileMajorPart,$info.FileMinorPart,$info.FileBuildPart,$info.FilePrivatePart
++if ($info.ProductName.Trim() -ne $(if ($manifest.local_test) {'AsukaLens (LOCAL TEST)'} else {'AsukaLens'}) -or $fileVersion -ne ($numeric+'.0')) {
++    throw ("Installer metadata mismatch: product=$($info.ProductName), version=$fileVersion, expected=$numeric.0, local-test=$($manifest.local_test)")
++}
++[PSCustomObject]@{ Passed=$true; Version=$version; LocalTest=$manifest.local_test; Assets=4; SourceFiles=$sourceZip.Count; PayloadFiles=$payload.Count; PackageExecutionTested=$false }
+diff --git a/scripts/release/Upload-Draft.ps1 b/scripts/release/Upload-Draft.ps1
+new file mode 100644
+index 0000000..d147bf5
+--- /dev/null
++++ b/scripts/release/Upload-Draft.ps1
+@@ -0,0 +1,71 @@
++#requires -Version 7.4
++[CmdletBinding(SupportsShouldProcess, ConfirmImpact='High')]
++param(
++    [Parameter(Mandatory)][string]$Directory,
++    [Parameter(Mandatory)][string]$Notes,
++    [Parameter(Mandatory)][string]$Acceptance,
++    [switch]$Resume
++)
++. (Join-Path $PSScriptRoot 'Release.Common.ps1')
++$Directory = (Resolve-Path -LiteralPath $Directory).Path
++& (Join-Path $PSScriptRoot 'Test-Release.ps1') -Directory $Directory | Out-Host
++$manifest = Get-Content -LiteralPath (Join-Path $Directory 'release-manifest.json') -Raw | ConvertFrom-Json
++if ($manifest.local_test) { throw 'Local-test assets can never be uploaded by this script.' }
++$repository = 'M66Y/Hard-Drive-Space-Visualization'
++$qualifiedRepository = 'github.com/' + $repository
++$notesText = Get-Content -LiteralPath $Notes -Raw -Encoding utf8
++if ($notesText -notmatch '(?m)^## 简体中文' -or $notesText -notmatch '(?m)^## English' -or -not $notesText.Contains($manifest.version)) { throw 'Provide reviewed bilingual release notes with the exact version.' }
++$accepted = Get-Content -LiteralPath $Acceptance -Raw | ConvertFrom-Json
++if ($accepted.commit -ne $manifest.commit -or $accepted.manifest_sha256 -ne (Get-FileHash -LiteralPath (Join-Path $Directory 'release-manifest.json')).Hash.ToLowerInvariant()) { throw 'Acceptance does not cover these assets.' }
++foreach ($check in @('clean_windows_no_dotnet','portable_workflow','install_upgrade_uninstall','failure_recovery','source_builds','privacy_and_licenses')) {
++    if ($accepted.checks.$check -ne 'passed') { throw ('Package acceptance is incomplete: ' + $check) }
++}
++if ($WhatIfPreference) {
++    $PSCmdlet.ShouldProcess("$repository / $($manifest.version)",'Create or resume a draft; remote commit/tag/draft checks will run on execution') | Out-Null
++    return
++}
++$gh = (Get-Command gh -CommandType Application -ErrorAction Stop).Source
++function Gh-Json([string[]]$Arguments) {
++    $text = & $gh @Arguments --hostname github.com -H 'X-GitHub-Api-Version: 2026-03-10'
++    if ($LASTEXITCODE -ne 0) { throw 'GitHub query failed; no changes made by this query.' }
++    return ($text -join "`n" | ConvertFrom-Json)
++}
++$remote = Gh-Json @('api',"repos/$repository/commits/$($manifest.commit)")
++if ($remote.sha -ne $manifest.commit) { throw 'Release commit is not available in the target repository.' }
++# A pre-existing exact tag is required: this script cannot create or move tags.
++$tag = Gh-Json @('api',"repos/$repository/git/ref/tags/$($manifest.version)")
++$tagObject = $tag.object
++if ($tagObject.type -eq 'tag') { $tagObject = (Gh-Json @('api',"repos/$repository/git/tags/$($tagObject.sha)")).object }
++if ($tagObject.type -ne 'commit' -or $tagObject.sha -ne $manifest.commit) { throw 'Tag points to another commit.' }
++$releases = Gh-Json @('api',"repos/$repository/releases",'--paginate','--slurp')
++$existing = @($releases | ForEach-Object { foreach ($release in $_) { $release } } | Where-Object { $_.tag_name -eq $manifest.version })
++Assert-DraftState $existing -Resume:$Resume
++$uploads = @($manifest.assets | ForEach-Object { Join-Path $Directory $_.path }) + @((Join-Path $Directory 'SHA256SUMS.txt'),(Join-Path $Directory 'release-manifest.json'))
++if (-not $PSCmdlet.ShouldProcess("$repository / $($manifest.version)",'Create or resume a draft and upload verified assets; never publish')) { return }
++if ($existing.Count -eq 0) {
++    Invoke-ReleaseTool $gh @('release','create',$manifest.version,'--repo',$qualifiedRepository,'--draft','--verify-tag','--title',('AsukaLens '+$manifest.version),'--notes-file',(Resolve-Path -LiteralPath $Notes).Path)
++}
++# The by-tag REST endpoint targets published releases; list with push credentials to locate drafts.
++$pages = Gh-Json @('api',"repos/$repository/releases",'--paginate','--slurp')
++$drafts = @($pages | ForEach-Object { foreach ($release in $_) { $release } } | Where-Object { $_.tag_name -eq $manifest.version })
++if ($drafts.Count -ne 1) { throw 'The expected draft was not returned; check authentication and repository permissions.' }
++$draft = $drafts[0]
++Assert-DraftState @($draft) -Resume
++$missing = @(Get-MissingDraftFiles $uploads $draft.assets)
++foreach ($file in $missing) {
++    $current = Gh-Json @('api',"repos/$repository/releases/$($draft.id)")
++    Assert-DraftState @($current) -Resume
++    Invoke-ReleaseTool $gh @('release','upload',$manifest.version,$file,'--repo',$qualifiedRepository)
++}
++$download = Join-Path $Directory ('.verify-download-' + [guid]::NewGuid().ToString('N'))
++try {
++    [IO.Directory]::CreateDirectory($download) | Out-Null
++    Invoke-ReleaseTool $gh @('release','download',$manifest.version,'--repo',$qualifiedRepository,'--dir',$download)
++    foreach ($file in $uploads) {
++        if ((Get-FileHash -LiteralPath $file).Hash -ne (Get-FileHash -LiteralPath (Join-Path $download ([IO.Path]::GetFileName($file)))).Hash) { throw 'Downloaded draft asset differs.' }
++    }
++    & (Join-Path $PSScriptRoot 'Test-Release.ps1') -Directory $download | Out-Host
++} finally { Remove-OwnedDirectory $download $Directory }
++$current = Gh-Json @('api',"repos/$repository/releases/$($draft.id)")
++Assert-DraftState @($current) -Resume
++Write-Host 'Draft assets downloaded and verified. Release remains unpublished.'
+diff --git a/scripts/release/toolchain.json b/scripts/release/toolchain.json
+new file mode 100644
+index 0000000..4d90a52
+--- /dev/null
++++ b/scripts/release/toolchain.json
+@@ -0,0 +1,10 @@
++{
++  "schema": 1,
++  "rid": "win-x64",
++  "runtime": "10.0.14",
++  "inno_version": "7.1.1",
++  "inno_url": "https://github.com/jrsoftware/issrc/releases/download/is-7_1_1/innosetup-7.1.1-x64.exe",
++  "inno_installer_sha256": "8a5a6711c3766a6e5fb74f280ba0e3551e719ce94538d901fdbd1f8f9920b3f0",
++  "iscc_sha256": "e0f9f1dc32032650c6629f6dee41eb6d20ba140e4e3c07c25d8a24f9ba781644",
++  "inno_license_sha256": "2e5346868c2a18434489824e11d65c3031620f792fefc415d05f19cd441abf5c"
++}
+diff --git a/tests/PackageAcceptance.ps1 b/tests/PackageAcceptance.ps1
+new file mode 100644
+index 0000000..8dc5958
+--- /dev/null
++++ b/tests/PackageAcceptance.ps1
+@@ -0,0 +1,143 @@
++#requires -Version 7.4
++[CmdletBinding()]
++param([Parameter(Mandatory)][string]$Directory, [Parameter(Mandatory)][string]$Compiler)
++. (Join-Path $PSScriptRoot '../scripts/release/Release.Common.ps1')
++$Directory = (Resolve-Path -LiteralPath $Directory).Path
++$Compiler = (Resolve-Path -LiteralPath $Compiler).Path
++& (Join-Path $PSScriptRoot '../scripts/release/Test-Release.ps1') -Directory $Directory | Out-Host
++$manifest = Get-Content -LiteralPath (Join-Path $Directory 'release-manifest.json') -Raw | ConvertFrom-Json
++if (-not $manifest.local_test) { throw 'This test only accepts the isolated LOCAL TEST installer identity.' }
++$version = $manifest.version
++$parent = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../artifacts'))
++$root = Join-Path $parent ('package-acceptance-' + [guid]::NewGuid().ToString('N'))
++[IO.Directory]::CreateDirectory($root) | Out-Null
++$registry = 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/AsukaLens.LocalTest_is1'
++$shortcuts = @((Join-Path ([Environment]::GetFolderPath('Programs')) 'AsukaLens (LOCAL TEST).lnk'),
++    (Join-Path ([Environment]::GetFolderPath('DesktopDirectory')) 'AsukaLens (LOCAL TEST).lnk'))
++if ((Test-Path -LiteralPath $registry) -or @($shortcuts | Where-Object { Test-Path -LiteralPath $_ }).Count) { throw 'Existing LOCAL TEST installation must be reviewed; refusing to replace it.' }
++$dataRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'AsukaLens'
++$dataWasPresent = Test-Path -LiteralPath $dataRoot
++Assert-NoReparse $dataRoot
++[IO.Directory]::CreateDirectory($dataRoot) | Out-Null
++$sentinel = Join-Path $dataRoot ('release-acceptance-' + [guid]::NewGuid().ToString('N') + '.txt')
++[IO.File]::WriteAllText($sentinel, 'owned synthetic data: preserve during upgrade/uninstall')
++$installation = Join-Path $root 'installed'
++$script:checks = [Collections.Generic.List[string]]::new()
++function Pass([bool]$Condition, [string]$Name) {
++    if (-not $Condition) { throw ('FAIL ' + $Name) }
++    $script:checks.Add($Name); Write-Host ('PASS ' + $Name)
++}
++function Run-Installer([string]$Exe, [string]$Log, [string[]]$Extra = @()) {
++    $arguments = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',('/LOG="' + (Join-Path $root $Log) + '"')) + $Extra
++    $process = Start-Process -FilePath $Exe -ArgumentList $arguments -WindowStyle Hidden -PassThru
++    if (-not $process.WaitForExit(60000)) { throw 'Installer timed out; it was not terminated automatically.' }
++    return $process.ExitCode
++}
++function Assert-InstalledPayload {
++    foreach ($file in $manifest.payload_files) {
++        if ((Get-FileHash -LiteralPath (Join-Path $installation $file.path)).Hash.ToLowerInvariant() -ne $file.sha256) { throw 'Installed payload differs from portable payload.' }
++    }
++}
++try {
++    $payload = Join-Path $root 'payload'
++    [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $Directory "AsukaLens $version.zip"),$payload)
++    # Prepare a separate host using the same payload CoreCLR and Windows Desktop runtime.
++    $hostRoot = Join-Path $root 'smoke'
++    [IO.Directory]::CreateDirectory($hostRoot) | Out-Null
++    foreach ($item in Get-ChildItem -LiteralPath $payload -Force) { Copy-Item -LiteralPath $item.FullName -Destination $hostRoot -Recurse }
++    foreach ($name in @('DiskAtlas.Tests.exe','DiskAtlas.Tests.dll')) {
++        Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('bin/Release/net10.0-windows/' + $name)) -Destination $hostRoot
++    }
++    Copy-Item -LiteralPath (Join-Path $payload 'DiskAtlas.runtimeconfig.json') -Destination (Join-Path $hostRoot 'DiskAtlas.Tests.runtimeconfig.json')
++    $hostDeps = Get-Content -LiteralPath (Join-Path $payload 'DiskAtlas.deps.json') -Raw | ConvertFrom-Json -AsHashtable
++    $runtimeTarget = $hostDeps.targets[$hostDeps.runtimeTarget.name]
++    $applicationKey = @($runtimeTarget.Keys | Where-Object { $_ -like 'DiskAtlas/*' })
++    if ($applicationKey.Count -ne 1) { throw 'Unexpected application dependency entry.' }
++    $runtimeTarget[$applicationKey[0]].runtime['DiskAtlas.Tests.dll'] = @{}
++    Write-ReleaseJson $hostDeps (Join-Path $hostRoot 'DiskAtlas.Tests.deps.json')
++    # Run the interactive WinForms test normally: SW_HIDE breaks SplitContainer's first GDI paint.
++    & (Join-Path $hostRoot 'DiskAtlas.Tests.exe') --package-smoke 1> (Join-Path $root 'smoke.out') 2> (Join-Path $root 'smoke.err')
++    $smokeExit = $LASTEXITCODE
++    Get-Content -LiteralPath (Join-Path $root 'smoke.out') | Write-Host
++    if ($smokeExit -ne 0) { Get-Content -LiteralPath (Join-Path $root 'smoke.err') | Write-Host; throw 'Package smoke failed.' }
++    Pass $true 'shipped assembly workflow with bundled runtime and isolated settings'
++    # Both source archives were compared byte-for-byte; build each extraction independently.
++    foreach ($format in @('zip','tar.gz')) {
++        $source = Join-Path $root ('source-' + $format.Replace('.','-'))
++        [IO.Directory]::CreateDirectory($source) | Out-Null
++        if ($format -eq 'zip') { [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $Directory "AsukaLens $version-source.zip"),$source) }
++        else {
++            $file=[IO.File]::OpenRead((Join-Path $Directory "AsukaLens $version-source.tar.gz"))
++            $gzip=[IO.Compression.GZipStream]::new($file,[IO.Compression.CompressionMode]::Decompress)
++            try { [System.Formats.Tar.TarFile]::ExtractToDirectory($gzip,$source,$false) } finally { $gzip.Dispose(); $file.Dispose() }
++        }
++        Push-Location $source
++        try { Invoke-ReleaseTool dotnet @('build','DiskAtlas.csproj','-c','Release','--nologo','-p:TargetPlatformDisplayName=Windows','-p:NuGetAudit=false') }
++        finally { Pop-Location }
++        Pass $true ('source build: ' + $format)
++    }
++    # A synthetic older installer tests the upgrade mechanism, not historical data migrations.
++    $older = Join-Path $root 'older'
++    [IO.Directory]::CreateDirectory($older) | Out-Null
++    Invoke-ReleaseTool $Compiler @('--quiet','--no-ide-signtools','--define=AppVersion=1.4.1',('--define=PayloadDir='+$payload),
++        ('--define=OutputDir='+$older),'--define=LocalTest=1',(Join-Path $PSScriptRoot '../scripts/release/AsukaLens.iss'))
++    $oldExe = Join-Path $older 'AsukaLens v1.4.1.exe'
++    $unrelated = Join-Path $root 'unrelated'
++    [IO.Directory]::CreateDirectory($unrelated) | Out-Null
++    [IO.File]::WriteAllText((Join-Path $unrelated 'keep.txt'),'unrelated synthetic file')
++    Pass ((Run-Installer $oldExe 'unrelated.log' @(('/DIR="'+$unrelated+'"'))) -ne 0) 'nonempty unrelated directory rejected'
++    Pass ([IO.File]::ReadAllText((Join-Path $unrelated 'keep.txt')) -eq 'unrelated synthetic file') 'unrelated directory remains unchanged'
++    Pass ((Run-Installer $oldExe 'install.log' @(('/DIR="'+$installation+'"'),'/TASKS=desktopicon')) -eq 0) 'standard-user installation'
++    Pass ((Test-Path -LiteralPath $registry) -and @($shortcuts | Where-Object { Test-Path -LiteralPath $_ }).Count -eq 2) 'current-user registration and shortcuts'
++    Assert-InstalledPayload
++    $setup = Join-Path $Directory "AsukaLens $version.exe"
++    Pass ((Run-Installer $setup 'upgrade.log') -eq 0) 'same-identity upgrade'
++    Assert-InstalledPayload
++    Pass ((Get-ItemProperty -LiteralPath $registry).DisplayVersion -eq $version.Substring(1)) 'upgraded version registration'
++    Pass ((Run-Installer $oldExe 'downgrade.log') -ne 0) 'downgrade rejected'
++    Assert-InstalledPayload
++    $running = [Threading.Mutex]::new($false,'Local\AsukaLens.Running')
++    try {
++        Pass ((Run-Installer $setup 'running-install.log') -ne 0) 'running application blocks setup without termination'
++        Pass ((Run-Installer (Join-Path $installation 'unins000.exe') 'running-uninstall.log') -ne 0) 'running application blocks uninstall'
++    } finally { $running.Dispose() }
++    # A changed file sorts before the locked EXE, proving rollback restores bytes already replaced.
++    $probeName = '000-recovery-probe.txt'
++    [IO.File]::WriteAllText((Join-Path $installation $probeName),'previous synthetic bytes')
++    [IO.File]::WriteAllText((Join-Path $payload $probeName),'candidate synthetic bytes')
++    $failureBuild=Join-Path $root 'failure-candidate'; [IO.Directory]::CreateDirectory($failureBuild) | Out-Null
++    Invoke-ReleaseTool $Compiler @('--quiet','--no-ide-signtools',('--define=AppVersion='+$version.Substring(1)),('--define=PayloadDir='+$payload),
++        ('--define=OutputDir='+$failureBuild),'--define=LocalTest=1',(Join-Path $PSScriptRoot '../scripts/release/AsukaLens.iss'))
++    $locked = [IO.File]::Open((Join-Path $installation 'AsukaLens.exe'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
++    try { Pass ((Run-Installer (Join-Path $failureBuild "AsukaLens $version.exe") 'locked.log') -ne 0) 'locked payload aborts installation' }
++    finally { $locked.Dispose() }
++    $failureLog=[IO.File]::ReadAllText((Join-Path $root 'locked.log'))
++    Pass (@($failureLog.Split('-- File entry --') | Where-Object { $_.Contains($probeName) -and $_.Contains('Successfully installed the file.') }).Count -eq 1) 'failure occurs after the probe was actually overwritten'
++    Pass ([IO.File]::ReadAllText((Join-Path $installation $probeName)) -eq 'previous synthetic bytes') 'rollback restores a file replaced before the failure'
++    Pass ((Get-ItemProperty -LiteralPath $registry).DisplayVersion -eq $version.Substring(1) -and
++        @($shortcuts | Where-Object { Test-Path -LiteralPath $_ }).Count -eq 2 -and
++        (Test-Path -LiteralPath (Join-Path $installation 'unins000.exe'))) 'failed replacement preserves registration shortcuts and uninstaller'
++    Pass (-not (Test-Path -LiteralPath (Join-Path $dataRoot 'InstallerRecovery-AsukaLens.LocalTest'))) 'successful recovery removes its backup files'
++    Remove-Item -LiteralPath (Join-Path $installation $probeName)
++    Assert-InstalledPayload
++    Pass $true 'old payload remains intact after failed replacement'
++    [IO.File]::WriteAllText((Join-Path $installation 'unowned.txt'),'installer must not delete unknown files')
++    Pass ((Run-Installer (Join-Path $installation 'unins000.exe') 'uninstall.log') -eq 0) 'uninstall succeeds'
++    Pass (-not (Test-Path -LiteralPath $registry) -and @($shortcuts | Where-Object { Test-Path -LiteralPath $_ }).Count -eq 0) 'registration and shortcuts removed'
++    Pass ((Test-Path -LiteralPath $sentinel) -and (Test-Path -LiteralPath (Join-Path $installation 'unowned.txt'))) 'user data and unowned files preserved'
++    $principal=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
++    $result=[ordered]@{ schema=1; version=$version; local_test=$true; elevated=$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator);
++        passed=$script:checks.ToArray(); clean_machine_without_dotnet='not tested; local bundle resolution verified';
++        historical_version_migration='not tested; synthetic older wrapper used'; formal_release=$false }
++    Write-ReleaseJson $result (Join-Path $root 'acceptance.json')
++    Write-Host ('Acceptance evidence: ' + $root)
++} finally {
++    # Do not delete an active installation; preserve it for repair if its uninstaller fails.
++    if (Test-Path -LiteralPath $registry) {
++        $uninstall=Join-Path $installation 'unins000.exe'
++        if (Test-Path -LiteralPath $uninstall) { Run-Installer $uninstall 'cleanup-uninstall.log' | Out-Null }
++    }
++    if (Test-Path -LiteralPath $sentinel) { Remove-Item -LiteralPath $sentinel }
++    if (-not $dataWasPresent -and @(Get-ChildItem -LiteralPath $dataRoot -Force).Count -eq 0) { Remove-Item -LiteralPath $dataRoot }
++    # Evidence/output is intentionally left for review and controlled end-of-iteration cleanup.
++}
+diff --git a/tests/PackageSmoke.cs b/tests/PackageSmoke.cs
+new file mode 100644
+index 0000000..86c5222
+--- /dev/null
++++ b/tests/PackageSmoke.cs
+@@ -0,0 +1,97 @@
++using System.Reflection;
++using System.Runtime.Loader;
++
++// Loads the shipped application assembly, not the linked copies in the regression host.
++// The host is copied into a disposable payload clone and uses that clone's bundled runtime.
++internal static class PackageSmoke
++{
++    private const BindingFlags Members = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
++    private static object? Member(object value, string name) =>
++        value.GetType().GetProperty(name, Members)?.GetValue(value) ?? value.GetType().GetField(name, Members)?.GetValue(value);
++    private static object? Call(object value, string method, params object?[] args) =>
++        value.GetType().GetMethod(method, Members)!.Invoke(value, args);
++    private static void Check(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
++
++    public static int Run()
++    {
++        string payload = AppContext.BaseDirectory;
++        string root = Path.Combine(Path.GetTempPath(), "AsukaLens-package-smoke-" + Guid.NewGuid().ToString("N"));
++        Directory.CreateDirectory(root);
++        Exception? failure = null;
++        try
++        {
++            Check(Path.GetDirectoryName(typeof(object).Assembly.Location) == payload.TrimEnd(Path.DirectorySeparatorChar), "CoreCLR must come from the disposable payload");
++            Check(Path.GetDirectoryName(typeof(Form).Assembly.Location) == payload.TrimEnd(Path.DirectorySeparatorChar), "WinForms must come from the disposable payload");
++            var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.Combine(payload, "DiskAtlas.dll"));
++            Check(assembly.GetName().Name == "DiskAtlas", "Wrong shipped assembly");
++            string fixture = Path.Combine(root, "demo-files");
++            Directory.CreateDirectory(Path.Combine(fixture, "child"));
++            for (int i = 0; i < 120; i++) File.WriteAllBytes(Path.Combine(fixture, $"sample-{i:000}.txt"), new byte[4096]);
++            File.WriteAllBytes(Path.Combine(fixture, "child", "photo.png"), new byte[8192]);
++            var thread = new Thread(() =>
++            {
++                try
++                {
++                    Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++                    Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
++                    Application.EnableVisualStyles();
++                    Application.SetCompatibleTextRenderingDefault(false);
++                    Type main = assembly.GetType("DiskAtlas.MainForm", true)!;
++                    Type diagnostic = assembly.GetType("DiskAtlas.DiagnosticService", true)!;
++                    using var service = (IDisposable)Activator.CreateInstance(diagnostic, [Path.Combine(root, "app-data"), null])!;
++                    ((Task)Member(service, "Ready")!).GetAwaiter().GetResult();
++                    using var form = (Form)Activator.CreateInstance(main, [null, false, Path.Combine(root, "background.dat"), service])!;
++                    form.Text = "AsukaLens · 安装包合成验收";
++                    form.Shown += async (_, _) =>
++                    {
++                        try
++                        {
++                            await (Task)Call(form, "ScanFolder", fixture)!;
++                            object scan = Member(form, "scan")!;
++                            Check(scan != null && Convert.ToInt64(Member(Member(scan, "Root")!, "FileCount")) == 121, "Shipped scan result");
++                            for (int mode = 0; mode < 3; mode++)
++                            {
++                                Call(form, "SetMode", mode);
++                                for (int metric = 0; metric < 2; metric++)
++                                {
++                                    ((ComboBox)Member(form, "metricCombo")!).SelectedIndex = metric;
++                                    await (Task)Call(form, "UpdateViewAsync", false)!;
++                                    Check(((DataGridView)Member(form, "grid")!).RowCount > 0, "Shipped view/metric empty");
++                                }
++                            }
++                            var pending = (Task)Call(form, "ScanFolder", fixture)!;
++                            typeof(Control).GetMethod("OnClick", Members)!.Invoke(Member(form, "cancel"), [EventArgs.Empty]);
++                            await pending;
++                            Check(ReferenceEquals(scan, Member(form, "scan")), "Cancel must preserve prior result");
++                            File.WriteAllText(Path.Combine(fixture, "new.txt"), "refresh sample");
++                            await (Task)Call(form, "ScanFolder", fixture)!;
++                            Check(Convert.ToInt64(Member(Member(Member(form, "scan")!, "Root")!, "FileCount")) == 122, "Shipped refresh result");
++                            using (var dialog = (Form)Activator.CreateInstance(assembly.GetType("DiskAtlas.DiagnosticsDialog", true)!, [service])!)
++                            { dialog.Show(form); await Task.Delay(250); Check(dialog.Visible, "Diagnostics opens"); dialog.Close(); }
++                            var view = assembly.GetType("DiskAtlas.BackgroundView", true)!.GetProperty("Default", Members)!.GetValue(null);
++                            using (var dialog = (Form)Activator.CreateInstance(assembly.GetType("DiskAtlas.BackgroundDialog", true)!,
++                                [form.BackgroundImage!, view, Color.Coral, form.ClientSize, Path.Combine(root, "background.dat"), true, null, null])!)
++                            { dialog.Show(form); await Task.Delay(200); Check(dialog.Visible, "Background settings opens"); dialog.Close(); }
++                            Console.WriteLine("PASS shipped DLL: actual scan, 3 views x 2 metrics, cancel, refresh, background and diagnostics; bundled runtime only; isolated data");
++                        }
++                        catch (Exception ex) { failure = ex; }
++                        finally { form.Close(); }
++                    };
++                    Application.Run(form);
++                }
++                catch (Exception ex) { failure = ex; }
++            }) { IsBackground = true };
++            thread.SetApartmentState(ApartmentState.STA); thread.Start();
++            if (!thread.Join(TimeSpan.FromSeconds(45))) throw new TimeoutException("Package smoke timed out");
++            if (failure != null) throw new InvalidOperationException("Package workflow failed", failure);
++            return 0;
++        }
++        catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
++        finally
++        {
++            string boundary = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
++            if (!Path.GetFullPath(root).StartsWith(boundary, StringComparison.OrdinalIgnoreCase)) throw new IOException("Cleanup boundary");
++            if (Directory.Exists(root)) Directory.Delete(root, true);
++        }
++    }
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 9bca5ed..78989a5 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -3,6 +3,8 @@ using System.Drawing;
+ 
+ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+ 
++if (args.Contains("--package-smoke")) return PackageSmoke.Run();
++
+ if (args.Contains("--desktop-compatibility")) return DesktopCompatibility.Run();
+ if (args.Contains("--diagnostics-tests")) return DiagnosticsRegression.Run();
+ if (args.Contains("--diagnostics-child")) return DiagnosticsRegression.Child(args[1]);
+diff --git a/tests/ReleasePackageGuards.Tests.ps1 b/tests/ReleasePackageGuards.Tests.ps1
+new file mode 100644
+index 0000000..8114dc1
+--- /dev/null
++++ b/tests/ReleasePackageGuards.Tests.ps1
+@@ -0,0 +1,40 @@
++#requires -Version 7.4
++param([Parameter(Mandatory)][string]$Directory, [Parameter(Mandatory)][string]$Compiler)
++. (Join-Path $PSScriptRoot '../scripts/release/Release.Common.ps1')
++$repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
++$Directory = (Resolve-Path -LiteralPath $Directory).Path
++$Compiler = (Resolve-Path -LiteralPath $Compiler).Path
++$manifest = Get-Content -LiteralPath (Join-Path $Directory 'release-manifest.json') -Raw | ConvertFrom-Json
++if (-not $manifest.local_test) { throw 'Use disposable local-test assets.' }
++$parent = Join-Path $repo 'artifacts'
++$root = Join-Path $parent ('release-guards-' + [guid]::NewGuid().ToString('N'))
++[IO.Directory]::CreateDirectory($root) | Out-Null
++$script:passed=0
++function Reject-Command([string[]]$Arguments, [string]$Pattern, [string]$Name) {
++    $output = & (Join-Path $PSHOME 'pwsh.exe') -NoProfile @Arguments 2>&1
++    if ($LASTEXITCODE -eq 0 -or (($output -join "`n") -notmatch $Pattern)) { throw ('Guard failed: ' + $Name) }
++    $script:passed++; Write-Host ('PASS ' + $Name)
++}
++try {
++    $builder=Join-Path $repo 'scripts/release/New-Release.ps1'
++    $commit=(& git -C $repo rev-parse HEAD).Trim()
++    $before=(Get-FileHash -LiteralPath (Join-Path $Directory 'release-manifest.json')).Hash
++    Reject-Command @('-File',$builder,'-Version',$manifest.version,'-Commit',$commit,'-Compiler',$Compiler,'-LocalTest','-OutputRoot',(Split-Path -Parent $Directory)) 'Snapshot already exists' 'duplicate snapshot rejected'
++    if ((Get-FileHash -LiteralPath (Join-Path $Directory 'release-manifest.json')).Hash -ne $before) { throw 'Existing snapshot changed.' }
++    $script:passed++; Write-Host 'PASS existing snapshot unchanged'
++    if (& git -C $repo status --porcelain) {
++        Reject-Command @('-File',$builder,'-Version',$manifest.version,'-Commit',$commit,'-Compiler',$Compiler,'-OutputRoot',$root) 'clean checkout' 'formal dirty checkout rejected before build'
++    }
++    Reject-Command @('-File',$builder,'-Version','v65535.65535.65535','-Commit',$commit,'-Compiler',$Compiler,'-LocalTest','-OutputRoot',$root) 'does not match DiskAtlas.csproj' 'project version mismatch rejected'
++    Reject-Command @('-File',$builder,'-Version',$manifest.version,'-Commit',$commit,'-Compiler',(Join-Path $root 'absent.exe'),'-LocalTest','-OutputRoot',$root) 'does not exist' 'missing compiler fails before staging'
++    Reject-Command @('-File',(Join-Path $repo 'scripts/release/Upload-Draft.ps1'),'-Directory',$Directory,'-Notes','unused.md','-Acceptance','unused.json','-WhatIf') 'Local-test assets can never be uploaded' 'test package upload rejected before credentials or network'
++    $corrupt=Join-Path $root 'corrupt'; [IO.Directory]::CreateDirectory($corrupt) | Out-Null
++    Copy-Item -LiteralPath (Join-Path $Directory 'release-manifest.json'),(Join-Path $Directory 'SHA256SUMS.txt') -Destination $corrupt
++    foreach ($asset in $manifest.assets) { [IO.File]::WriteAllBytes((Join-Path $corrupt $asset.path),[byte[]]@(0)) }
++    Reject-Command @('-File',(Join-Path $repo 'scripts/release/Test-Release.ps1'),'-Directory',$corrupt) 'Asset checksum mismatch' 'corrupt assets rejected'
++    [IO.File]::WriteAllText((Join-Path $corrupt 'unexpected.txt'),'extra')
++    Reject-Command @('-File',(Join-Path $repo 'scripts/release/Test-Release.ps1'),'-Directory',$corrupt) 'Unexpected files' 'extra release files rejected'
++    if (@(Get-ChildItem -LiteralPath $root -Force | Where-Object { $_.Name -like '.stage-*' -or $_.Name -like '*.lock' }).Count) { throw 'Failed build left a stage or lock.' }
++    $script:passed++; Write-Host 'PASS failed builds cleaned stages and locks'
++    Write-Host ('PASS package guards: '+$script:passed)
++} finally { Remove-OwnedDirectory $root $parent }
+diff --git a/tests/ReleaseScripts.Tests.ps1 b/tests/ReleaseScripts.Tests.ps1
+new file mode 100644
+index 0000000..21e8915
+--- /dev/null
++++ b/tests/ReleaseScripts.Tests.ps1
+@@ -0,0 +1,89 @@
++#requires -Version 7.4
++$ErrorActionPreference = 'Stop'
++. (Join-Path $PSScriptRoot '../scripts/release/Release.Common.ps1')
++$parent = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../artifacts'))
++$root = Join-Path $parent ('release-check-' + [guid]::NewGuid().ToString('N'))
++[IO.Directory]::CreateDirectory($root) | Out-Null
++$script:passed = 0
++function Check([bool]$Condition, [string]$Name) {
++    if (-not $Condition) { throw ('FAIL ' + $Name) }
++    $script:passed++; Write-Host ('PASS ' + $Name)
++}
++function Reject([scriptblock]$Action, [string]$Name) {
++    $rejected = $false
++    try { & $Action | Out-Null } catch { $rejected = $true }
++    Check $rejected $Name
++}
++try {
++    foreach ($script in Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot '../scripts/release') -Filter '*.ps1') {
++        $tokens=$null; $errors=$null
++        [Management.Automation.Language.Parser]::ParseFile($script.FullName,[ref]$tokens,[ref]$errors) | Out-Null
++        Check ($errors.Count -eq 0) ('syntax: ' + $script.Name)
++    }
++    Check ((Assert-ReleaseVersion 'v1.4.2') -eq '1.4.2') 'canonical version'
++    foreach ($bad in @('1.4.2','v1.2','v01.2.3','v1.2.3-preview','v65536.0.0','v1.2.3/../')) {
++        Reject { Assert-ReleaseVersion $bad } ('reject version: ' + $bad)
++    }
++    foreach ($bad in @('../escape','a/../escape','/root','C:/root','a\b','a//b','a./b','NUL.txt','src/file:stream')) {
++        Reject { Assert-SafeRelativePath $bad } 'reject unsafe path'
++    }
++    foreach ($bad in @('bin/app.dll','artifacts/package.zip','.git/config','diagnostics/preferences.json','user.pfx','background.dat','problem-notes.json')) {
++        Reject { Assert-SourcePath $bad } 'reject private/generated source'
++    }
++    Assert-SourcePath 'src/Diagnostics/DiagnosticService.cs'
++    Check $true 'production diagnostic source allowed'
++    $source = Join-Path $root 'source'
++    [IO.Directory]::CreateDirectory((Join-Path $source '目录')) | Out-Null
++    [IO.File]::WriteAllText((Join-Path $source '目录/示例.txt'), 'synthetic source')
++    [IO.File]::WriteAllBytes((Join-Path $source 'empty.txt'), [byte[]]@())
++    [IO.File]::WriteAllText((Join-Path $source '.gitignore'), 'bin/')
++    $zip=Join-Path $root 'source.zip'; $tar=Join-Path $root 'source.tar.gz'
++    New-SourceArchives $source $zip $tar
++    Assert-SameInventory @(Get-FileInventory $source) @(Get-ArchiveInventory $zip)
++    Assert-SameInventory @(Get-ArchiveInventory $zip) @(Get-ArchiveInventory $tar -TarGz)
++    Check $true 'ZIP/tar.gz exact roundtrip including unicode, empty and dot files'
++    $before=(Get-FileHash -LiteralPath $zip).Hash
++    Reject { New-SourceArchives $source $zip $tar } 'archives cannot overwrite'
++    Check ((Get-FileHash -LiteralPath $zip).Hash -eq $before) 'previous archive preserved'
++    $badZip=Join-Path $root 'unsafe.zip'
++    $container=[IO.Compression.ZipFile]::Open($badZip,[IO.Compression.ZipArchiveMode]::Create)
++    try { $container.CreateEntry('../escape.txt') | Out-Null } finally { $container.Dispose() }
++    Reject { Get-ArchiveInventory $badZip } 'ZIP traversal rejected before extraction'
++    $duplicate=Join-Path $root 'duplicate.zip'
++    $container=[IO.Compression.ZipFile]::Open($duplicate,[IO.Compression.ZipArchiveMode]::Create)
++    try { $container.CreateEntry('A.txt') | Out-Null; $container.CreateEntry('a.txt') | Out-Null } finally { $container.Dispose() }
++    Reject { Get-ArchiveInventory $duplicate } 'Windows case collision rejected'
++    Reject { Invoke-ReleaseTool (Join-Path $PSHOME 'pwsh.exe') @('-NoProfile','-Command','exit 7') } 'external failure propagated'
++    Reject { Remove-OwnedDirectory $root $source } 'cleanup cannot escape owner'
++    $link=Join-Path $source 'link'
++    New-Item -ItemType Junction -Path $link -Target $root | Out-Null
++    try { Reject { Assert-SafeTree $source } 'junction rejected without recursion' }
++    finally { Remove-Item -LiteralPath $link -Force }
++    # A real isolated Git fixture proves clean formal snapshots come from committed bytes.
++    $repo=Join-Path $root 'repo'; [IO.Directory]::CreateDirectory($repo) | Out-Null
++    Invoke-ReleaseTool git @('init','--quiet',$repo)
++    [IO.File]::WriteAllText((Join-Path $repo 'README.md'), "fixture`n")
++    Invoke-ReleaseTool git @('-C',$repo,'add','README.md')
++    Invoke-ReleaseTool git @('-C',$repo,'-c','user.name=Release Fixture','-c','user.email=fixture@example.invalid','commit','--quiet','-m','fixture')
++    $commit=(& git -C $repo rev-parse HEAD).Trim()
++    $snapshot=Join-Path $root 'snapshot'
++    New-SourceSnapshot $repo $commit $snapshot
++    Check ([IO.File]::ReadAllText((Join-Path $snapshot 'README.md')) -eq "fixture`n") 'formal snapshot committed bytes'
++    [IO.File]::WriteAllText((Join-Path $repo 'README.md'), 'changed')
++    Reject { New-SourceSnapshot $repo $commit (Join-Path $root 'dirty') } 'formal dirty checkout rejected'
++    New-SourceSnapshot $repo $commit (Join-Path $root 'local') -LocalTest
++    Check ([IO.File]::ReadAllText((Join-Path $root 'local/README.md')) -eq 'changed') 'local snapshot explicitly includes working changes'
++    Assert-DraftState @()
++    Check $true 'new draft allowed by state guard'
++    Reject { Assert-DraftState @([pscustomobject]@{draft=$false}) -Resume } 'published release immutable'
++    Reject { Assert-DraftState @([pscustomobject]@{draft=$true}) } 'draft resume must be explicit'
++    Assert-DraftState @([pscustomobject]@{draft=$true}) -Resume
++    Check $true 'explicit draft resume'
++    $upload=Join-Path $root 'source.zip'
++    $digest='sha256:'+(Get-FileHash -LiteralPath $upload).Hash.ToLowerInvariant()
++    Check (@(Get-MissingDraftFiles @($upload) @()).Count -eq 1) 'missing draft asset selected'
++    Check (@(Get-MissingDraftFiles @($upload) @([pscustomobject]@{name='source.zip';digest=$digest})).Count -eq 0) 'identical asset not uploaded again'
++    Reject { Get-MissingDraftFiles @($upload) @([pscustomobject]@{name='source.zip';digest='sha256:changed'}) } 'changed draft asset cannot be overwritten'
++    Reject { Get-MissingDraftFiles @($upload) @([pscustomobject]@{name='unexpected.zip';digest=$digest}) } 'unrelated draft asset rejected'
++    Write-Host ('PASS release script checks: ' + $script:passed)
++} finally { Remove-OwnedDirectory $root $parent }
+diff --git a/使用说明.txt b/使用说明.txt
+index 84d838b..57f70c6 100644
+--- a/使用说明.txt
++++ b/使用说明.txt
+@@ -1,13 +1,14 @@
+-AsukaLens v1.4.2
++AsukaLens 使用说明
+ 
+-本地诊断（当前开发预览）
++本地诊断
+ 点击主窗“背景设置”旁的“诊断”，可以筛选和查看运行状态、清空运行诊断，勾选记录后预览并保存到本地文件。
+ 最小运行诊断默认开启，可关闭并跨启动保留；最多 8 MiB、14 天，不记录路径、文件名和异常原文，不自动上传。
+ “问题记录”只保存主动填写的标题、现象和复现步骤，支持编辑删除，最多 100 条 / 1 MiB；不纳入运行诊断导出。
+ 开发记录沿用 Git 与 iterations/。清空运行诊断保留问题记录、背景和已导出文件。详细限制与失败恢复见 docs/diagnostics.md。
+ 
+-开发分支提示：下述扫描策略与并发提示包含未发布的开发改进。
+-现有“软件”目录与 v1.4.2 ZIP 尚未更新，开发预览由源码构建。
++版本与分发方式
++以当前程序标题、构建标识和随包 build-info.json 为准。标有 LOCAL TEST 的包仅供本机验收，不是正式发布。
++源码仓库中的旧“软件”目录和历史 ZIP 不含最新迭代；从源码运行请使用下述开发入口。
+ 
+ 浅色界面
+ 使用参考插画作整窗背景，搭配暖白面板和珊瑚色控件。
+@@ -15,13 +16,15 @@ AsukaLens v1.4.2
+ 列表的数据行使用实色底，空白区域透出背景。
+ 
+ 开始使用
+-推荐启动入口：在项目根目录双击 run.cmd（需要 .NET 10 SDK），先构建当前源码，再启动开发预览。
++自包含便携包：完整解压后双击 AsukaLens.exe，不需要另外安装 .NET 或 SDK。
++安装版：运行安装包，按当前用户安装，从开始菜单启动；升级前请关闭软件，卸载保留用户数据。
++便携包和安装版的背景、诊断、问题记录仍保存在当前用户 AppData，不随程序文件夹移动。
++源码开发入口：在项目根目录双击 run.cmd（需要 .NET 10 SDK），先构建当前源码，再启动开发预览。
+ 也可在 PowerShell 运行 .\run.ps1；仅构建使用 .\run.ps1 -BuildOnly。
+ 主窗标题显示版本；“诊断 → 开发记录说明”显示构建标识，同版本的不同预览可据此区分。
+ 普通输出是 bin/Release/net10.0-windows/DiskAtlas.exe；直接打开已有 EXE 不会更新源码。
+ 开发版仍在运行或构建失败时，启动入口会明确提示，请处理后重试。历史预览不会被自动关闭。
+ 启动后点击右上角“选择文件夹”，选择电脑上的目录。
+-旧发行目录中的 AsukaLens.exe 仍可运行，但不包含最新开发改动。
+ 也可以把一个文件夹直接拖入程序窗口。
+ 
+ 扫描策略与统计口径
+@@ -109,32 +112,27 @@ Ctrl+F5 或右键“重新扫描”选择“强制完整重新扫描”可绕过
+ 搜索后的图形按匹配项目重新填满画布，占比仍以当前目录总大小为分母。
+ 
+ 快捷键
+-Ctrl+O 选择文件夹；Ctrl+F 搜索；F5 增量刷新；Ctrl+F5 强制完整扫描；
++Ctrl+O 选择文件夹；Ctrl+F 搜索；F5 刷新（按变化证据选择方式）；Ctrl+F5 强制完整扫描；
+ Alt+↑ 上一级；Esc 清空搜索。
+ 
+ 运行环境
+-当前源码及开发预览：Windows 11 x64 已实测，运行需要 .NET 10 Windows Desktop Runtime。
+-开发使用 global.json 指定的 .NET 10 SDK（已包含桌面运行时）。
+-其他 Windows 版本需符合微软当前支持范围，未逐一验收。旧软件目录和 ZIP 仍依赖 .NET 9。
+-移动到另一台电脑时，请完整复制本文件夹，保留 .dll 和 .json 文件。
+-
+-本程序仅读取文件元信息，不修改或删除扫描内容，不联网、不上传文件。
+-
+-开发预览：第 2 轮扫描反馈
+-底部右侧百分比是当前阶段目录任务的估算，不是剩余时间或字节进度；新目录出现时可能下降，核验与读取/复用分别计数，整理阶段沿用读取计数。完整结果结束前最多 99%，取消、失败或结果不完整不显示成功的 100%。未知总量以往返指示表示，悬停可查看说明。
+-图块悬停和点击时内层高光回弹，不改变面积或点击位置。空间分布标题右侧“减弱动效”关闭回弹和往返动画，本次运行有效；本次修正默认开启动效。
+-本轮为普通开发构建，不覆盖“软件”目录中的历史稳定版，不生成正式发布包。
+-
+-第 2 轮交互修正
+-进度标记改为明日香软件头像，已处理部分采用红橙渐变。图块内部高光回弹增强为约 620 ms；默认开启，可通过“减弱动效”关闭。悬停/选中改为局部刷新，复用静态图表与背景缓存；缓存有容量上限并会在失效或关闭时释放。
+-本次修正版入口：bin/Preview/DiskAtlas.exe。旧开发窗口被占用时，使用独立输出目录保留其运行状态。
+-
+-第 3 轮：刷新方式与日志诊断
+-开发预览仍使用 bin/Preview/DiskAtlas.exe，历史稳定目录和 ZIP 未更新。
+-后续修正已在本机普通权限下验证真实日志增量。修复预览为 bin/JournalPreview/DiskAtlas.exe。
+-日志不可读时仍核验元信息。
+-详情只展示计数、阶段、类别和错误码，不包含卷标识或扫描路径，不上传诊断。
+-
+-
+-开发预览：第 5 轮背景设置
+-当前开发入口为 bin/Release/net10.0-windows/DiskAtlas.exe。主窗右上角“背景设置”支持 PNG/JPEG/BMP，限制 24 MiB、4000 万像素，副本最长边 2048 像素。可缩放、拖动或输入焦点，自动取色或手动选择强调色，预览包含文字和按钮效果。应用后保存到本机用户数据目录，重启恢复，源图移动或删除不影响副本。恢复默认先预览，点击应用才保存，取消保留旧设置。读取时可以取消或关闭，保存时请等待完成。错误会按读取、保存或恢复默认分别说明。此功能尚未打入旧软件目录和 ZIP。
++自包含发行/验收包面向 Windows 11 x64，内含随包清单标明的 .NET 10 运行时。
++源码普通构建需要 .NET 10 Windows Desktop Runtime；开发使用 global.json 指定的 SDK。
++源码开发预览已在 Windows 11 x64 验证。干净系统、正式发行的验收状态以 README 和发布说明为准。
++其他系统和架构尚未逐一验收。移动程序时完整复制文件夹，保留 DLL、JSON、许可和说明文件。
++
++本程序仅读取文件元信息，不修改或删除扫描内容，不自动联网或上传文件。
++
++扫描反馈与动效
++底部右侧百分比是当前阶段目录任务的估算，不是剩余时间或字节进度；新目录出现时可能下降。
++核验与读取/复用分别计数，整理阶段沿用读取计数。完整结果结束前最多 99%；取消、失败或结果不完整不显示成功的 100%。
++未知总量以往返指示表示，悬停可查看说明。进度标记使用软件头像，已处理部分配合主题强调色。
++图块内层高光在悬停和点击时回弹，不改变最终面积或点击位置；采用局部重绘和有限缓存。
++空间分布标题右侧“减弱动效”可关闭图块回弹及进度往返动画，此偏好仅在本次运行有效。
++
++背景设置
++主窗右上角“背景设置”支持 PNG/JPEG/BMP，限制 24 MiB、4,000 万像素，软件副本最长边 2,048 像素。
++可缩放、拖动或输入焦点，自动取色或手动选择强调色，预览包含文字和按钮效果。
++点击应用后保存到本机用户数据目录，重启恢复；源图移动或删除不影响已保存副本。
++恢复默认先预览，点击应用才保存，取消保留旧设置。恢复默认不删除原图。
++读取时可以取消或关闭，保存时请等待完成。失败会按读取、保存或恢复默认分别说明。

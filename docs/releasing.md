@@ -1,0 +1,93 @@
+# 打包、验收与草稿快照
+
+当前实现：Windows 11 x64、.NET 10 自包含便携 ZIP、当前用户 Inno Setup EXE 安装器、同一文件集合的源码 ZIP / tar.gz，以及 SHA-256 与文件清单。**脚本存在和本机验收通过不等于正式发布。** 本轮用户只授权本机临时验收包，不上传包、不创建标签或 Release。
+
+## 工具与来源
+
+- 普通开发仍按 [README](../README.md)，无需安装 Inno Setup。发布脚本需要 **PowerShell 7.4+**、Git、`global.json` 指定的 .NET SDK。
+- 工具版本和校验值位于 [toolchain.json](../scripts/release/toolchain.json)：本轮 Inno Setup **7.1.1 x64**、.NET 运行时 **10.0.14**、RID `win-x64`。更新这些值时重新验证包，不自动漂移到新版本。
+- Inno Setup 安装器来自 [官方固定版本](https://github.com/jrsoftware/issrc/releases/tag/is-7_1_1)。下载后核对 toolchain 中 SHA-256 和有效的 `Pyrsys B.V.` Authenticode 签名；官方支持 `/PORTABLE=1 /CURRENTUSER /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /DIR="所选临时工具目录"`，无需添加系统关联。工具不纳入 Git，脚本不会自行下载或安装编译器。
+- 自包含还原使用独立 [NuGet.release.config](../scripts/release/NuGet.release.config)，只允许所需微软运行时包从官方 nuget.org 获取；普通 `NuGet.Config` 保持无外部源。SDK 还原可能同时请求 ASP.NET 运行时包，但应用不引用或分发 ASP.NET。
+- 随包保留 Core Runtime 的 LICENSE / THIRD-PARTY-NOTICES、Windows Desktop Runtime 包提供的 MIT LICENSE、Inno Setup 许可及本项目许可。没有把项目的非商业限制施加给第三方组件。
+- 草稿上传才需要已登录的 GitHub CLI；本轮未安装或使用它上传。未来执行前记录 `gh --version`，确认支持 `gh api --paginate --slurp` 及 Release asset digest。凭据只使用现有登录存储，不能写到脚本、日志或源码包。
+
+## 本机临时验收
+
+下面的命令只用于**用户明确允许的临时验收**。`-LocalTest` 从当前工作区制作快照，清单记录真实 HEAD 基线和 `source_kind=working-tree`，不冒充已提交源码。安装器使用单独的 `AsukaLens.LocalTest` 身份，标题标记 LOCAL TEST，且上传脚本拒绝此类资产。程序的数据约定仍与正式程序相同，不能把测试安装身份误解成自动隔离个人设置。
+
+```powershell
+$commit = git rev-parse HEAD
+pwsh -File scripts/release/New-Release.ps1 -Version v1.4.2 -Commit $commit `
+  -Compiler "artifacts/release-tools/inno-7.1.1/ISCC.exe" -LocalTest
+
+pwsh -File scripts/release/Test-Release.ps1 -Directory artifacts/releases/v1.4.2-local-test
+pwsh -File tests/ReleaseScripts.Tests.ps1
+pwsh -File tests/ReleasePackageGuards.Tests.ps1 -Directory artifacts/releases/v1.4.2-local-test `
+  -Compiler "artifacts/release-tools/inno-7.1.1/ISCC.exe"
+
+dotnet build tests/DiskAtlas.Tests.csproj -c Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
+pwsh -File tests/PackageAcceptance.ps1 -Directory artifacts/releases/v1.4.2-local-test `
+  -Compiler "artifacts/release-tools/inno-7.1.1/ISCC.exe"
+```
+
+示例版本对应当前项目字段；未来从项目读取匹配版本，不机械沿用 `v1.4.2`。编译器路径是本轮约定的相对位置，实际可传另一处已核验的便携编译器。
+
+生成目录默认为 `artifacts/releases/vX.X.X-local-test/`，正式包为 `vX.X.X/`。已经存在的目录拒绝覆盖；失败只清理本次拥有的 `.stage-*`，不改动已完成的快照。中断进程可能留下锁或暂存目录：先确认没有同一打包进程，再核对归属和路径后清理，不默认抢占锁。仓库内的输出只能放在 `artifacts/` 下，外部输出需明确指定。
+
+`PackageAcceptance.ps1` 使用专属测试注册项和快捷方式；发现同名残留时拒绝覆盖。它在用户数据目录只创建一个随机命名的合成标记，用于验证卸载保留数据，最后删除该标记；不读取个人配置。窗口流程在独立测试宿主中加载**包内生产 DLL 和包内运行时**，传入合成扫描目录、隔离背景和诊断位置。验收宿主不能以 SW_HIDE 隐藏方式启动，否则 WinForms SplitContainer 首帧可能发生 GDI 错误。
+
+测试还会从同一载荷编译 `1.4.1` 的专属测试安装器来验证升级/拒绝降级机制；这不是历史二进制迁移验证。测试输出含本机路径，留在 `artifacts/` 供本轮检查，公开归档只保存无路径的汇总。测试结束后清理这些夹具、工具副本、临时包和下载缓存；保留当前普通开发预览和必要证据。
+
+## 正式包：只读取已提交快照
+
+正式发布任务获得授权后，先确定新版本、更新项目唯一数字版本并提交。确认工作区干净、目标提交已在 `main`，再不带 `-LocalTest` 运行 `New-Release.ps1`。脚本要求完整 40 位提交号、当前 HEAD 与之相同且无未提交文件，从 `git archive` 生成源码，避免打包未提交的个人文件。
+
+四个文件统一命名：
+
+| 文件 | 内容 |
+| --- | --- |
+| `AsukaLens vX.X.X.zip` | 完整自包含程序目录，解压后运行 `AsukaLens.exe` |
+| `AsukaLens vX.X.X.exe` | 当前用户安装器，安装载荷与便携包相同 |
+| `AsukaLens vX.X.X-source.zip` | 指定提交的源码 |
+| `AsukaLens vX.X.X-source.tar.gz` | 与源码 ZIP 逐文件相同的源码 |
+| `SHA256SUMS.txt` | 上述四个文件的 SHA-256 |
+| `release-manifest.json` | 版本、提交、工具链、四类资产、源码和载荷的逐文件清单 |
+
+源码保留所有可分发的 Git 跟踪文件，包括文档、测试和精简迭代证据；拒绝链接/子模块、`.git`、编译目录、运行日志、个人背景配置、证书和发行包。源码 ZIP 与 tar.gz 的文件名、长度和哈希一致，不使用 GitHub 自动源码链接代替自定义资产。当前 Git 配置的 CRLF 转换不改变已提交源码快照。
+
+`Test-Release.ps1` 检查六个输出文件、四类资产哈希、源文件一致、包内运行时/许可、版本及测试身份，**不执行安装器，也不声称通过了运行验收**。
+
+## 安装、升级与卸载约定
+
+- 只支持 Windows 11 x64，按当前用户安装到本地 Programs；不请求管理员权限，不添加服务、自启、文件关联或联网下载步骤。
+- 提供简体中文/English 安装向导、完整许可和双语安装提示。开始菜单快捷方式默认创建，桌面快捷方式可选。
+- 正式安装器固定 AppId；新版本沿用旧目录并保留用户数据，低版本拒绝覆盖。无关非空目录拒绝安装，避免覆盖用户文件。
+- 应用入口代码在整个进程生命周期持有命名互斥体；安装/卸载要求先关闭窗口，不结束用户进程。本轮用同名合成互斥体核验阻止逻辑，尚未在干净环境从发行 EXE 完成该路径。其他文件占用仍可能导致失败；本轮使用锁定 EXE 验证了失败回滚及旧载荷哈希保持一致。
+- 覆盖前逐文件备份已有程序文件，普通安装失败后恢复，成功或恢复完成后清理备份。Inno 自带回滚不能恢复已覆盖的旧字节，因此这部分由安装脚本补足；本轮以先改写合成文件、再遇到锁定 EXE 的方式核验。恢复失败或进程被强制中断时，备份留在当前用户 AppData 的 `AsukaLens/InstallerRecovery-<安装身份>/`，后续安装会停止并提示检查；`destinations.txt` 按行记录目的路径，第 1 行对应 `0.bak`，第 2 行对应 `1.bak`，依次类推。这些本地文件含安装路径，不上传；不能把普通失败恢复测试当成断电恢复保证。
+- 卸载只移除安装器拥有的文件、快捷方式和注册项；保留 AppData 内背景、诊断、问题记录以及安装目录中未知文件。不递归清空用户目录。
+- “便携”指免安装程序目录。个人数据仍使用当前用户 AppData，不是跟随 U 盘移动的数据模式。
+- 当前产物未代码签名；正式说明必须如实标明。不会使用开发者私人证书或伪造发行者签名。
+
+## 草稿上传与验收门槛
+
+完成正式任务要求的受控验证后，按 [验收模板](release-acceptance.example.json)填写真实结果，并填入此次 `release-manifest.json` 的 SHA-256。所有门槛必须是 `passed`；不能把 `not tested` 或本机替代测量改写为通过。发布说明另写 UTF-8 文件，含 `## 简体中文`、`## English`、精确版本、环境、运行时内含、变更、已知限制、安装/便携方法与四类下载链接。
+
+**本轮未创建标签。** 未来仅在明确的正式发布任务中创建并推送 `vX.X.X` 标签，必须指向上述提交；已存在标签只核查，绝不移动。上传脚本要求远程已经存在正确标签，本身不创建或重写标签。
+
+```powershell
+# 仅展示计划，不调用 GitHub；本地资产和验收门槛仍必须有效。
+pwsh -File scripts/release/Upload-Draft.ps1 -Directory "artifacts/releases/vX.X.X" `
+  -Notes "已审查的双语发布说明.md" -Acceptance "已完成的验收.json" -WhatIf
+
+# 只有正式任务授权上传后执行。默认会确认目标，已获授权时可用 -Confirm:$false。
+pwsh -File scripts/release/Upload-Draft.ps1 -Directory "artifacts/releases/vX.X.X" `
+  -Notes "已审查的双语发布说明.md" -Acceptance "已完成的验收.json"
+```
+
+脚本限定目标仓库，核对提交和标签，拒绝测试包和已发布版本。按 [GitHub 官方 API](https://docs.github.com/en/rest/releases/releases#list-releases)使用有推送权限的登录读取草稿列表，避免把“按标签读取已发布版本”接口用于草稿。同版本草稿需显式 `-Resume`；已有同名资产必须 digest 相同，绝不使用 `--clobber`。上传后下载六个文件重新校验，仍保持草稿，**没有自动公开发布代码**。上传中途失败保留草稿供检查，不能当成正式成功；不要在脚本运行时同时手工发布草稿。
+
+## 本轮证据与仍未验证的范围
+
+本轮已进行脚本边界测试、真实四类临时资产静态核验、两类源码包独立构建、包内生产程序集与包内运行时的主要功能检查、当前用户安装/合成升级/降级拒绝/占用失败回滚/卸载、中文安装向导观察。结果与清理见本轮 `iterations/` 记录。
+
+仍需正式发布前验证：**未预装 .NET 的干净 Windows 11 x64 环境、直接发行入口的完整人工使用流程、真实历史发行版迁移（如存在）、远程草稿上传和下载核验**。本机已安装 SDK；虽然测试已断言 CoreCLR 与 WinForms 来自包内，这不能代替干净系统验收。没有启用 Windows 可选组件、安装虚拟机或进行真实 GitHub 上传。

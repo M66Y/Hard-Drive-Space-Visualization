@@ -4,11 +4,14 @@ internal static class Program
 {
     private static int reportingError;
     private static DiagnosticService? diagnostics;
+    private static Mutex? installationGuard;
     [STAThread]
     private static void Main(string[] args)
     {
         try
         {
+            // Process lifetime, including error dialogs and diagnostic shutdown. Multiple windows remain supported.
+            installationGuard = new Mutex(false, @"Local\AsukaLens.Running");
             diagnostics = new DiagnosticService();
             ApplicationConfiguration.Initialize();
             Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
@@ -16,7 +19,7 @@ internal static class Program
             Application.Run(new MainForm(args.FirstOrDefault(a => !a.StartsWith("--")), loadSavedBackground: true, diagnostics: diagnostics));
         }
         catch (Exception ex) { ReportErrorAsync(ex, false).GetAwaiter().GetResult(); }
-        finally { diagnostics?.Dispose(); }
+        finally { diagnostics?.Dispose(); GC.KeepAlive(installationGuard); }
     }
 
     private static async Task ReportErrorAsync(Exception error, bool captureContext)

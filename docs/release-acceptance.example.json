@@ -1,0 +1,12 @@
+{
+  "commit": "REPLACE_WITH_FULL_RELEASE_COMMIT",
+  "manifest_sha256": "REPLACE_WITH_RELEASE_MANIFEST_SHA256",
+  "checks": {
+    "clean_windows_no_dotnet": "pending",
+    "portable_workflow": "pending",
+    "install_upgrade_uninstall": "pending",
+    "failure_recovery": "pending",
+    "source_builds": "pending",
+    "privacy_and_licenses": "pending"
+  }
+}

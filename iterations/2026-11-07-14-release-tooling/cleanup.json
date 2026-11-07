@@ -1,0 +1,92 @@
+{
+  "date": "2026-11-07",
+  "boundary_check": "Resolved workspace descendants; no reparse points; owned test processes stopped and test registration/shortcuts/recovery removed before cleanup",
+  "removed": [
+    {
+      "path": "artifacts/metadata-check",
+      "removed": true,
+      "logical_bytes": null
+    },
+    {
+      "path": "artifacts/package-acceptance-13bd579e4c9c403fb6fa0474ef3fced5",
+      "removed": true,
+      "logical_bytes": null
+    },
+    {
+      "path": "artifacts/package-acceptance-147d4666ffda4dc1bc345978d47958e4",
+      "removed": true,
+      "logical_bytes": null
+    },
+    {
+      "path": "artifacts/package-acceptance-17ef704fe30f4f638908b84de878ee4f",
+      "removed": true,
+      "logical_bytes": null
+    },
+    {
+      "path": "artifacts/package-acceptance-3146f94373704f4a803534b4ac298f09",
+      "removed": true,
+      "logical_bytes": null
+    },
+    {
+      "path": "artifacts/package-acceptance-64292f49e86d4c8ba5434f9ce537c0b8",
+      "removed": true,
+      "logical_bytes": null
+    },
+    {
+      "path": "artifacts/package-acceptance-79df142266644e7bb2231bcbbd9e7cc1",
+      "removed": true,
+      "logical_bytes": null
+    },
+    {
+      "path": "artifacts/package-acceptance-b87c206911124530abc11303b8198b8f",
+      "removed": true,
+      "logical_bytes": null
+    },
+    {
+      "path": "artifacts/release-cache",
+      "removed": true,
+      "logical_bytes": null
+    },
+    {
+      "path": "artifacts/release-tools",
+      "removed": true,
+      "logical_bytes": null
+    },
+    {
+      "path": "artifacts/releases",
+      "removed": true,
+      "logical_bytes": null
+    },
+    {
+      "path": "artifacts/rollback-compile",
+      "removed": true,
+      "logical_bytes": null
+    },
+    {
+      "path": "tests/bin",
+      "removed": true,
+      "logical_bytes": null
+    },
+    {
+      "path": "tests/obj",
+      "removed": true,
+      "logical_bytes": null
+    },
+    {
+      "path": "obj",
+      "removed": true,
+      "logical_bytes": null
+    }
+  ],
+  "temporary_patch_restore_removed": true,
+  "preserved": [
+    "Current ordinary application build",
+    "System SDK and normal dependencies",
+    "Existing historical outputs and iteration evidence",
+    "User files and settings"
+  ],
+  "test_registration_removed": true,
+  "test_markers_removed": true,
+  "total_logical_bytes": null,
+  "accounting_note": "Directory cleanup completed. OrderedDictionary aggregation failed before persisting size totals; all target absences were rechecked. No size claim is made."
+}

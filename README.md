@@ -6,7 +6,7 @@
 
 [快速开始](#快速开始) · [从源码运行](#从源码运行) · [开发计划](docs/development-plan.md) · [许可与署名](NOTICE.md)
 
-> **开发预览 · v1.4.2** — 源码包含后续迭代，旧 `软件/` 目录和 ZIP 不含最新功能。当前没有正式 Release 或 EXE 安装包；请从源码启动当前版本。
+> **开发预览 · v1.4.2** — 源码包含后续迭代，旧 `软件/` 目录和 ZIP 不含最新功能。尚未公开正式 Release 或安装包；请从源码启动当前版本。
 
 ![AsukaLens 浅色主窗：目录空间分布、文件列表、统计口径和扫描状态，使用合成演示数据](docs/images/overview.png)
 
@@ -84,7 +84,7 @@ dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayNa
 dotnet run --project DiskAtlas.csproj -- "X:\ExampleFolder"
 ```
 
-普通构建使用本机 SDK 引用包，`NuGet.Config` 不启用外部包源。源码运行不是安装发行版；现有 `build.ps1` 会生成目录与 ZIP，尚不符合完整发布规范，仅在明确打包任务中使用。检查与基准命令见[开发验证](docs/testing.md)。
+普通构建使用本机 SDK 引用包，`NuGet.Config` 不启用外部包源。源码运行不是安装发行版；根目录 `build.ps1` 是旧打包入口；新的自包含安装器与快照脚本见[发布说明](docs/releasing.md)，仅在明确授权的打包任务中使用。检查与基准命令见[开发验证](docs/testing.md)。
 
 ## 背景与隐私
 
@@ -94,7 +94,7 @@ dotnet run --project DiskAtlas.csproj -- "X:\ExampleFolder"
 
 ## 待优化与开发
 
-- **初版交付准备**：完成安装器、便携包和源码快照验证，形成四类 Release 资产；[具体方案](docs/delivery-plan.md)尚待确认实施。
+- **初版交付准备**：自包含便携版、当前用户安装器及两种源码包的脚本和本机验收已实现；正式发布仍待干净 Windows 环境与远程草稿验收，见[发布说明](docs/releasing.md)。
 - **初版后处理（P2）**：高速模式尚不能稳定快于自动，非阻塞结构整理与额外视觉打磨同级延期。
 - **现有限制**：自动策略按设备选择并发，未实现负载自适应；变化日志不可用时仍核验所有目录与文件元信息，刷新不保证大幅提速；缓存只在本次运行内有效。
 
@@ -113,7 +113,7 @@ AsukaLens/
 ├─ assets/                   默认主题、图标与来源说明
 ├─ tests/                    功能、UI 检查与合成预览
 ├─ docs/                     开发说明、交付方案与界面预览
-├─ scripts/                  资源维护工具
+├─ scripts/                  资源维护与 release/ 快照脚本
 ├─ iterations/               精简迭代证据与恢复补丁
 ├─ run.cmd / run.ps1          当前源码构建与启动
 ├─ build.ps1                 现有便携打包脚本

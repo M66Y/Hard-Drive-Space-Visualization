@@ -1,0 +1,108 @@
+{
+  "date": "2026-11-07",
+  "baseline": "e39ff5966341ef0f23143b11a0e377a6e5fcb1b0",
+  "sdk": "10.0.403",
+  "runtime": "10.0.14",
+  "inno": "7.1.1",
+  "iscc_sha256": "e0f9f1dc32032650c6629f6dee41eb6d20ba140e4e3c07c25d8a24f9ba781644",
+  "ordinary_builds": {
+    "application": {
+      "warnings": 0,
+      "errors": 0
+    },
+    "tests": {
+      "warnings": 0,
+      "errors": 0
+    }
+  },
+  "release_script_checks": 47,
+  "package_guard_checks": 9,
+  "source_builds": {
+    "zip": {
+      "warnings": 0,
+      "errors": 0
+    },
+    "tar.gz": {
+      "warnings": 0,
+      "errors": 0
+    }
+  },
+  "local_package": {
+    "version": "v1.4.2",
+    "source_kind": "working-tree",
+    "source_files": 190,
+    "payload_files": 283,
+    "assets": [
+      {
+        "path": "AsukaLens v1.4.2-source.tar.gz",
+        "bytes": 8433026,
+        "sha256": "4a76365cd4c5f7b4977f9fcbf762f2a9c058627237defd2412fa8fbc6edd7a6d"
+      },
+      {
+        "path": "AsukaLens v1.4.2-source.zip",
+        "bytes": 8503500,
+        "sha256": "c21d1cd6270fcd0529ddd568e570becc31ff49409270149060d4b0bfebe46395"
+      },
+      {
+        "path": "AsukaLens v1.4.2.exe",
+        "bytes": 40316265,
+        "sha256": "76975b474c6fe334e94ae9748045cde37d3353cda882b6b6a76f447760cb6415"
+      },
+      {
+        "path": "AsukaLens v1.4.2.zip",
+        "bytes": 54690335,
+        "sha256": "11c78191c958180f88759ea3cf2ce5da94ec9776fef6f8edacf88a25f255862c"
+      }
+    ],
+    "manifest_sha256": "512e418865ef573f9f9ce4f40a81890c380c09a3bf3676d6ab850fe4bc1287c0"
+  },
+  "acceptance_checks": 21,
+  "acceptance": {
+    "schema": 1,
+    "version": "v1.4.2",
+    "local_test": true,
+    "elevated": false,
+    "passed": [
+      "shipped assembly workflow with bundled runtime and isolated settings",
+      "source build: zip",
+      "source build: tar.gz",
+      "nonempty unrelated directory rejected",
+      "unrelated directory remains unchanged",
+      "standard-user installation",
+      "current-user registration and shortcuts",
+      "same-identity upgrade",
+      "upgraded version registration",
+      "downgrade rejected",
+      "running application blocks setup without termination",
+      "running application blocks uninstall",
+      "locked payload aborts installation",
+      "failure occurs after the probe was actually overwritten",
+      "rollback restores a file replaced before the failure",
+      "failed replacement preserves registration shortcuts and uninstaller",
+      "successful recovery removes its backup files",
+      "old payload remains intact after failed replacement",
+      "uninstall succeeds",
+      "registration and shortcuts removed",
+      "user data and unowned files preserved"
+    ],
+    "clean_machine_without_dotnet": "not tested; local bundle resolution verified",
+    "historical_version_migration": "not tested; synthetic older wrapper used",
+    "formal_release": false
+  },
+  "ui_observation": [
+    "Chinese language selector",
+    "license page",
+    "bilingual install notice",
+    "cancelled before install; windows closed"
+  ],
+  "not_run": [
+    "clean Windows without shared runtime",
+    "direct production EXE full manual workflow",
+    "historical binary migration",
+    "remote draft upload/download",
+    "power-loss or forced-process-termination recovery"
+  ],
+  "release_created": false,
+  "tags_created": false,
+  "binaries_uploaded": false
+}

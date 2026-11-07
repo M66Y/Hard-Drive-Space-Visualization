@@ -1,0 +1,167 @@
+{
+  "baseline": "e39ff5966341ef0f23143b11a0e377a6e5fcb1b0",
+  "patch_files": [
+    "AGENTS.md",
+    "Program.cs",
+    "README.en.md",
+    "README.md",
+    "docs/delivery-plan.md",
+    "docs/development-plan.md",
+    "docs/project-status.md",
+    "docs/release-acceptance.example.json",
+    "docs/releasing.md",
+    "docs/testing.md",
+    "scripts/release/AsukaLens.iss",
+    "scripts/release/New-Release.ps1",
+    "scripts/release/NuGet.release.config",
+    "scripts/release/Release.Common.ps1",
+    "scripts/release/Test-Release.ps1",
+    "scripts/release/Upload-Draft.ps1",
+    "scripts/release/toolchain.json",
+    "tests/PackageAcceptance.ps1",
+    "tests/PackageSmoke.cs",
+    "tests/Program.cs",
+    "tests/ReleasePackageGuards.Tests.ps1",
+    "tests/ReleaseScripts.Tests.ps1",
+    "使用说明.txt"
+  ],
+  "patch_verified": true,
+  "verification": "Applied outside Git discovery to baseline files; all 23 restored files equal final work files after LF normalization",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "255a9f360f397a0f61d5ae27f2dfbbe279bb55419b207a740948dda08c2bdfb9",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "Program.cs",
+      "sha256": "8dbd0b1059d5c0850280a242b19a15e2a9fdf611ef73055b8b263d53dfb8db4a",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "README.en.md",
+      "sha256": "43d173b7902627a93719d044b63f35e693b1822c44edc9c8c63c4a619f31fc4f",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "README.md",
+      "sha256": "703854a75f2e334dfd20525ceb99cbf99ccbe978c5300b7bf2d11de65a792a18",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/delivery-plan.md",
+      "sha256": "fade8e244659dae8d969e09942f54fd80fc3e4f0f501af1e7a3d0939f7655cd8",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "ec40aabe93757c6e380601cb311c1913999097164bee9e892c3ddfe5ee47d1e1",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "a1bbbebc671c5decf1a1540ae9e7c13b538b71449f7ac43a86a1e84d46e96ba2",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/release-acceptance.example.json",
+      "sha256": "e830732c8a05d425090abd1827886467933eb7c2a5b6aea1ac96e4db0cf405f9",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/releasing.md",
+      "sha256": "b5d40343150c8226228e52046519d8b6cf800c2055db326c685f536577810fe8",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "9c14f4cc7dc6bc028cd3a606e9ea59a5ad7b64581c237da30c35823419c71254",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "scripts/release/AsukaLens.iss",
+      "sha256": "ead8a5b58f17a4b8e7f06c280fcfa9e7d4ad2d235bb48efe29d06313dbcac270",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "scripts/release/New-Release.ps1",
+      "sha256": "08d749d9e92e8c6e4d18189f2bc92c2bf0392b7ac234b632b71c30791fd31755",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "scripts/release/NuGet.release.config",
+      "sha256": "2c97c7ed312d2bbdef0d9ebff000a92e483e82ee74cb2d3e54df5e46d68ebacb",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "scripts/release/Release.Common.ps1",
+      "sha256": "ad5c644b1789d68c1d0043456e6c55c70158f887a596d2faa99277f577ff4916",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "scripts/release/Test-Release.ps1",
+      "sha256": "302cecddbbc6a86d00296fb40f767181a63b5aa1c864cc5693b40a7d468be7dd",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "scripts/release/Upload-Draft.ps1",
+      "sha256": "63e59fb112e1791a6fcd87601711e86de9eaa7d70a54dbe236b6772646c3b2cd",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "scripts/release/toolchain.json",
+      "sha256": "11f982f1299063605598d9daf18cf4ba3ee4e26ef59e0dcac60e3db9be80b01c",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "tests/PackageAcceptance.ps1",
+      "sha256": "39280f6026b2e31b87407d701ce2b2c9c9a83f6d58534cd42aca469de85d76df",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "tests/PackageSmoke.cs",
+      "sha256": "7013878e9464940ace9955d842330a0f573c8c60419bcc10b9d54e25f14e6303",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "5d5bc8de4566709f9bee3213d4a78aff96c27a6f3a81400df4364ff743745163",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "tests/ReleasePackageGuards.Tests.ps1",
+      "sha256": "c1247a660c990f76022f41fff9fb00515427bf9eecbe30d6cbc7cc430ba7be24",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "tests/ReleaseScripts.Tests.ps1",
+      "sha256": "1cc7f961edb9526d7883f204272997846b3aa53df393bad9e8b4cc02ccf6c7fc",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "使用说明.txt",
+      "sha256": "1c84105ed6faa96440fd9cd8969914e94e0c5bd32af8e4be07962bd6420af76b",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "iterations/2026-11-07-14-release-tooling/changes.patch",
+      "sha256": "4277b7dbc45c257620923c7b19d77d61f8b0430e333bc2ec746a765d5be55905",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "iterations/2026-11-07-14-release-tooling/cleanup.json",
+      "sha256": "e1f434ab6db0e9a76b0ad8ce314c0d04fe389b97d0d5a057e0d8b431639ebbfe",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "iterations/2026-11-07-14-release-tooling/README.md",
+      "sha256": "39f99c501b311405ef50dcceff88f9a77b7157ab51d7d1823c2a6476285ba00c",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "path": "iterations/2026-11-07-14-release-tooling/validation.json",
+      "sha256": "ebd448a7b856a5410450759282a9e0a9cbb33b31bd71b0ad981991b3ae359a42",
+      "hash_mode": "lf-normalized"
+    }
+  ]
+}

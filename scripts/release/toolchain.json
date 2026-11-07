@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "rid": "win-x64",
+  "runtime": "10.0.14",
+  "inno_version": "7.1.1",
+  "inno_url": "https://github.com/jrsoftware/issrc/releases/download/is-7_1_1/innosetup-7.1.1-x64.exe",
+  "inno_installer_sha256": "8a5a6711c3766a6e5fb74f280ba0e3551e719ce94538d901fdbd1f8f9920b3f0",
+  "iscc_sha256": "e0f9f1dc32032650c6629f6dee41eb6d20ba140e4e3c07c25d8a24f9ba781644",
+  "inno_license_sha256": "2e5346868c2a18434489824e11d65c3031620f792fefc415d05f19cd441abf5c"
+}
