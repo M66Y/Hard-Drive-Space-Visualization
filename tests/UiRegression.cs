@@ -40,7 +40,7 @@ internal static class UiRegression
                 {
                     firstClientSize = form.ClientSize;
                     firstLocation = form.Location;
-                    firstBackground = form.WallpaperRaster.Get(form.BackgroundImage, firstClientSize);
+                    firstBackground = form.WallpaperRaster.Get(form.BackgroundImage, firstClientSize, form.BackgroundCrop);
                 };
                 form.Shown += async (_, _) =>
                 {
@@ -49,7 +49,7 @@ internal static class UiRegression
                         Check(firstClientSize == form.ClientSize && firstLocation == form.Location,
                             "Window layout moved between Load and Shown");
                         Check(firstBackground != null && ReferenceEquals(firstBackground,
-                            form.WallpaperRaster.Get(form.BackgroundImage, form.ClientSize)),
+                            form.WallpaperRaster.Get(form.BackgroundImage, form.ClientSize, form.BackgroundCrop)),
                             "First frame did not reuse the background prepared at Load");
                         using (var raster = new WallpaperRaster())
                         using (var source = new Bitmap(10, 10))
@@ -163,6 +163,7 @@ internal static class UiRegression
                         CheckRenderCache(form, Check);
                         await CheckLongPath(form, root, Check);
                         CheckDpiAndMenu(form, virtualized96Dpi, Check);
+                        CheckBackgroundSettings(form, root, Check);
                     }
                     catch (Exception ex) { failure = ex; }
                     finally { gate.Release.Set(); form.Close(); }
@@ -181,6 +182,72 @@ internal static class UiRegression
             if (!Path.GetFullPath(root).StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) throw new Exception("Unsafe UI regression cleanup path");
             Directory.Delete(root, true);
         }
+    }
+
+    private static void CheckBackgroundSettings(MainForm form, string root, Action<bool, string> check)
+    {
+        string imagePath = Path.Combine(root, "wallpaper.png");
+        string savedPath = Path.Combine(root, "app-data", "background.dat");
+        using (var wide = new Bitmap(3200, 900))
+        {
+            using var graphics = Graphics.FromImage(wide);
+            graphics.Clear(Color.SteelBlue);
+            wide.Save(imagePath, System.Drawing.Imaging.ImageFormat.Png);
+        }
+        using var imported = BackgroundSettings.Import(imagePath);
+        check(imported.Image.Width == BackgroundSettings.MaxSavedSide && imported.Image.Height < imported.Image.Width,
+            "Large wallpaper did not downsample with its aspect ratio");
+        var view = new BackgroundView(.78f, .13f, 2.4f, Color.Gold.ToArgb());
+        BackgroundSettings.Save(savedPath, imported with { View = view });
+        File.Delete(imagePath);
+        using var reloaded = BackgroundSettings.Load(savedPath);
+        check(reloaded != null && reloaded.View == view && reloaded.Image.Size == imported.Image.Size,
+            "Wallpaper did not restore independently of the source or lost manual settings");
+
+        using var portrait = new Bitmap(100, 240);
+        foreach (var image in new[] { imported.Image, portrait })
+        foreach (var size in new[] { new Size(1100, 500), new Size(500, 1100) })
+        {
+            var crop = Wallpaper.CoverBounds(image, size, Point.Empty, view);
+            check(crop.Left <= 0 && crop.Top <= 0 && crop.Right >= size.Width - .001f &&
+                crop.Bottom >= size.Height - .001f, "Wallpaper crop left a gap");
+        }
+        var left = Wallpaper.CoverBounds(imported.Image, new Size(500, 1000), Point.Empty, view with { X = 0 });
+        var right = Wallpaper.CoverBounds(imported.Image, new Size(500, 1000), Point.Empty, view with { X = 1 });
+        check(left.X > right.X && left.Size == right.Size, "Changing focus did not move the crop");
+        var accent = Theme.ReadableAccent(Color.Gold);
+        check(1.05 / (Theme.Luminance(accent) + .05) >= 4.5, "Accent text contrast fell below 4.5");
+        File.WriteAllText(imagePath, "broken image");
+        void RejectImport()
+        {
+            try { using var invalid = BackgroundSettings.Import(imagePath); }
+            catch (Exception error) when (BackgroundSettings.IsFileError(error)) { return; }
+            throw new Exception("Invalid background import unexpectedly succeeded");
+        }
+        RejectImport();
+        using (var oversized = File.Create(imagePath)) oversized.SetLength(25 * 1024 * 1024);
+        RejectImport();
+        using (var untouched = BackgroundSettings.Load(savedPath))
+            check(untouched?.View == view, "Failed import altered the saved background");
+        BackgroundSettings.Reset(savedPath);
+        check(BackgroundSettings.Load(savedPath) == null && File.Exists(imagePath),
+            "Restoring default did not remove only app data");
+        var apply = typeof(MainForm).GetMethod("ApplyBackground", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        using var defaultImage = new Bitmap(form.BackgroundImage!);
+        try
+        {
+            apply.Invoke(form, [new Bitmap(8, 12), view, Color.SteelBlue, false]);
+            check(form.HasCustomBackground && form.BackgroundCrop == view && Theme.Accent == accent,
+                "Applying the background did not update the main window and theme");
+            using var drawn = new Bitmap(form.Width, form.Height);
+            form.DrawToBitmap(drawn, form.ClientRectangle);
+        }
+        finally
+        {
+            apply.Invoke(form, [new Bitmap(defaultImage), BackgroundView.Default, Theme.DefaultAccent, true]);
+        }
+        check(!form.HasCustomBackground && Theme.Accent == Theme.DefaultAccent, "Default main-window theme was not restored");
+        Console.WriteLine("PASS UI background import limits, portrait/landscape focus, contrast, persistence and reset");
     }
 
     private static async Task CheckLongPath(MainForm owner, string root, Action<bool, string> check)

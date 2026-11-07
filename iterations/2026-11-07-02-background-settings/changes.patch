@@ -1,0 +1,1288 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index e18301b..0760338 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -111,6 +111,7 @@
+ | 扫描、统计、缓存 | 测试 DLL 无参数核心检查、`--advanced-tests`，补本轮边界 |
+ | 日志增量、刷新策略 | 上述检查加 `--journal-tests`，真实路径与模拟场景分别记录 |
+ | 界面、背景、绘制 | 应用与测试构建、`--ui-regression`、`--ui-regression --dpi-96`，实际受影响流程与状态观察 |
++| 背景存储、弹窗、启动恢复 | 另运行 `--background-tests` 与 `--background-tests --dpi-96`，使用隔离配置的独立进程恢复检查 |
+ | 性能 | 正确性回归加对应同条件基准，不无条件跑所有基准 |
+ 
+ - 可选 `--policy-benchmark` 用于三策略对比，`--refresh-benchmark` 用于刷新同条件诊断；方法与限制见 README 和相关迭代。先保留已有报告，再运行会覆盖报告的基准。
+diff --git a/BackgroundDialog.cs b/BackgroundDialog.cs
+new file mode 100644
+index 0000000..ceb2c91
+--- /dev/null
++++ b/BackgroundDialog.cs
+@@ -0,0 +1,246 @@
++namespace DiskAtlas;
++
++internal sealed class BackgroundDialog : Form
++{
++    private readonly Panel preview = new PreviewSurface { Dock = DockStyle.Fill, BackColor = Theme.Surface, Cursor = Cursors.Hand };
++    private readonly TrackBar zoom = new() { Minimum = 100, Maximum = 300, Value = 100, TickFrequency = 50, Width = 160, Height = 38, AccessibleName = "背景缩放" };
++    private readonly NumericUpDown focusX = new() { Maximum = 100, Value = 50, Width = 58, AccessibleName = "横向焦点" };
++    private readonly NumericUpDown focusY = new() { Maximum = 100, Value = 50, Width = 58, AccessibleName = "纵向焦点" };
++    private readonly CheckBox automatic = new() { Text = "自动取色", Checked = true, AutoSize = true };
++    private readonly Button colorButton = new() { Text = "选强调色", AutoSize = true };
++    private readonly Button apply = new() { Text = "应用", AutoSize = true };
++    private readonly Button cancel = new() { Text = "取消", AutoSize = true, DialogResult = DialogResult.Cancel };
++    private readonly FlowLayoutPanel adjustments = new() { AutoSize = true, Dock = DockStyle.Bottom, Padding = new Padding(8) };
++    private readonly FlowLayoutPanel commands = new() { AutoSize = true, Dock = DockStyle.Bottom, Padding = new Padding(8) };
++    private readonly Label status = new() { Dock = DockStyle.Bottom, Height = 44, Text = "选择 PNG、JPEG 或 BMP。拖动画面或输入焦点百分比。", AutoEllipsis = false };
++    private readonly Size referenceSize;
++    private readonly string settingsPath;
++    private BackgroundChoice? choice;
++    private Color manual = Theme.DefaultAccent;
++    private bool busy;
++    private bool committing, resetPending;
++    private readonly CancellationTokenSource lifetime = new();
++    private readonly Func<string, CancellationToken, BackgroundChoice> importImage;
++    private Point dragStart;
++    private decimal dragX, dragY;
++    public bool RestoredDefault { get; private set; }
++    public BackgroundChoice? Result { get; private set; }
++    internal bool IsBusy => busy;
++
++    public BackgroundDialog(Image current, BackgroundView view, Color automaticAccent, Size referenceSize, string settingsPath,
++        bool isDefault = false, Func<string, CancellationToken, BackgroundChoice>? importImage = null)
++    {
++        this.importImage = importImage ?? BackgroundSettings.Import;
++        this.referenceSize = referenceSize;
++        this.settingsPath = settingsPath;
++        choice = new BackgroundChoice(new Bitmap(current), view, automaticAccent);
++        Text = "背景设置";
++        StartPosition = FormStartPosition.CenterParent;
++        ClientSize = new Size(800, 560);
++        MinimumSize = new Size(570, 410);
++        BackColor = Theme.Surface;
++        ForeColor = Theme.Text;
++        AutoScaleMode = AutoScaleMode.Dpi;
++        var pick = new Button { Text = "选择图片…", AutoSize = true };
++        var restore = new Button { Text = "恢复默认", AutoSize = true };
++        static Label Caption(string text) => new() { Text = text, AutoSize = true, Margin = new Padding(4, 7, 4, 0) };
++        adjustments.Controls.AddRange([Caption("缩放"), zoom, Caption("横向焦点 %"), focusX,
++            Caption("纵向焦点 %"), focusY, automatic, colorButton]);
++        commands.Controls.AddRange([pick, restore, apply, cancel]);
++        Controls.Add(preview);
++        Controls.Add(adjustments);
++        Controls.Add(status);
++        Controls.Add(commands);
++        CancelButton = cancel;
++        AcceptButton = apply;
++        preview.Paint += PaintPreview;
++        preview.Resize += (_, _) => preview.Invalidate();
++        preview.MouseDown += (_, e) =>
++        {
++            if (e.Button != MouseButtons.Left) return;
++            dragStart = e.Location;
++            dragX = focusX.Value;
++            dragY = focusY.Value;
++            preview.Capture = true;
++        };
++        preview.MouseMove += (_, e) =>
++        {
++            if (!preview.Capture || e.Button != MouseButtons.Left || choice == null) return;
++            var box = PreviewBounds();
++            var bounds = Wallpaper.CoverBounds(choice.Image, box.Size, Point.Empty, ReadView());
++            focusX.Value = Math.Clamp(dragX - (decimal)((e.X - dragStart.X) * 100f / bounds.Width), 0, 100);
++            focusY.Value = Math.Clamp(dragY - (decimal)((e.Y - dragStart.Y) * 100f / bounds.Height), 0, 100);
++        };
++        preview.MouseUp += (_, _) => preview.Capture = false;
++        zoom.ValueChanged += (_, _) => Changed();
++        focusX.ValueChanged += (_, _) => Changed();
++        focusY.ValueChanged += (_, _) => Changed();
++        automatic.CheckedChanged += (_, _) => { Changed(); UpdateColor(); };
++        colorButton.Click += (_, _) =>
++        {
++            using var picker = new ColorDialog { Color = manual, FullOpen = true };
++            if (picker.ShowDialog(this) == DialogResult.OK) { manual = picker.Color; Changed(); UpdateColor(); }
++        };
++        pick.Click += async (_, _) =>
++        {
++            using var picker = new OpenFileDialog { Filter = "图片|*.png;*.jpg;*.jpeg;*.bmp" };
++            if (picker.ShowDialog(this) != DialogResult.OK) return;
++            await ImportImageAsync(picker.FileName);
++        };
++        apply.Click += async (_, _) => await ApplyAsync();
++        restore.Click += async (_, _) => await RestoreDefaultAsync();
++        FormClosing += (_, e) =>
++        {
++            if (committing && DialogResult != DialogResult.OK && e.CloseReason == CloseReason.UserClosing)
++            { e.Cancel = true; status.Text = "正在保存，请稍候。完成后窗口会自动关闭。"; }
++            else lifetime.Cancel();
++        };
++        SetView(view);
++        resetPending = isDefault;
++    }
++
++    internal Task ImportImageAsync(string path) => RunFileWork("读取图片", false, async () =>
++    {
++        var token = lifetime.Token;
++        var loaded = await Task.Run(() => importImage(path, token), token);
++        if (token.IsCancellationRequested || IsDisposed || Disposing) { loaded.Dispose(); return; }
++        choice?.Dispose(); choice = loaded;
++        SetView(loaded.View); resetPending = false;
++        status.Text = "图片已载入。调整后点击应用；取消会保留原设置。";
++    });
++
++    internal Task RestoreDefaultAsync() => RunFileWork("读取默认背景", false, async () =>
++    {
++        var token = lifetime.Token;
++        var image = await Task.Run(Wallpaper.Load, token);
++        if (token.IsCancellationRequested || IsDisposed || Disposing) { image.Dispose(); return; }
++        choice?.Dispose(); choice = new(image, BackgroundView.Default, Theme.DefaultAccent);
++        SetView(BackgroundView.Default); resetPending = true;
++        status.Text = "已预览默认背景。点击应用后生效，取消会保留原设置。";
++        preview.Invalidate();
++    });
++
++    internal Task ApplyAsync() => RunFileWork(resetPending ? "恢复默认设置" : "保存背景", true, async () =>
++    {
++        if (choice == null) return;
++        if (resetPending)
++        {
++            await Task.Run(() => BackgroundSettings.Reset(settingsPath));
++            if (IsDisposed || Disposing) return;
++            RestoredDefault = true;
++        }
++        else
++        {
++            var selected = choice with { View = ReadView() };
++            // GDI+ images cannot be painted and encoded concurrently.
++            using var snapshot = selected with { Image = new Bitmap(selected.Image) };
++            await Task.Run(() => BackgroundSettings.Save(settingsPath, snapshot));
++            if (IsDisposed || Disposing) return;
++            Result = selected; choice = null;
++        }
++        DialogResult = DialogResult.OK;
++    });
++
++    private void Changed() { resetPending = false; preview.Invalidate(); }
++
++    private async Task RunFileWork(string operation, bool commit, Func<Task> work)
++    {
++        if (busy || IsDisposed || Disposing || lifetime.IsCancellationRequested) return;
++        busy = true;
++        committing = commit;
++        foreach (Control control in commands.Controls) control.Enabled = !commit && control == cancel;
++        adjustments.Enabled = preview.Enabled = false;
++        status.Text = $"正在{operation}…" + (commit ? "请稍候。" : "可以取消。若读取较慢，可关闭窗口。");
++        try { await work(); }
++        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
++        catch (Exception error) when (BackgroundSettings.IsFileError(error))
++        {
++            if (!IsDisposed && !Disposing)
++                status.Text = commit ? $"{operation}失败，原设置保留。请检查本地存储是否可写，或稍后重试。"
++                    : "读取失败。请选择可读取且不超过 24 MiB、4000 万像素的 PNG、JPEG 或 BMP。";
++        }
++        finally
++        {
++            busy = committing = false;
++            if (!IsDisposed && !Disposing)
++            {
++                foreach (Control control in commands.Controls) control.Enabled = true;
++                adjustments.Enabled = preview.Enabled = true;
++            }
++        }
++    }
++
++    private BackgroundView ReadView() => new((float)focusX.Value / 100, (float)focusY.Value / 100,
++        zoom.Value / 100f, automatic.Checked ? null : manual.ToArgb());
++
++    private void SetView(BackgroundView view)
++    {
++        zoom.Value = (int)Math.Round(view.Zoom * 100);
++        focusX.Value = (decimal)view.X * 100;
++        focusY.Value = (decimal)view.Y * 100;
++        manual = view.AccentArgb is int argb ? Color.FromArgb(argb) : choice!.AutomaticAccent;
++        automatic.Checked = !view.AccentArgb.HasValue;
++        UpdateColor();
++    }
++
++    private void UpdateColor()
++    {
++        colorButton.Enabled = !automatic.Checked;
++        colorButton.BackColor = Theme.ReadableAccent(automatic.Checked ? choice?.AutomaticAccent ?? manual : manual);
++        colorButton.ForeColor = Color.White;
++        preview.Invalidate();
++    }
++
++    private Rectangle PreviewBounds()
++    {
++        float factor = Math.Min((float)preview.Width / Math.Max(1, referenceSize.Width),
++            (float)preview.Height / Math.Max(1, referenceSize.Height));
++        var size = new Size(Math.Max(1, (int)(referenceSize.Width * factor)), Math.Max(1, (int)(referenceSize.Height * factor)));
++        return new Rectangle((preview.Width - size.Width) / 2, (preview.Height - size.Height) / 2, size.Width, size.Height);
++    }
++
++    private void PaintPreview(object? sender, PaintEventArgs e)
++    {
++        if (choice == null) return;
++        var box = PreviewBounds();
++        var state = e.Graphics.Save();
++        e.Graphics.SetClip(box);
++        e.Graphics.DrawImage(choice.Image, Wallpaper.CoverBounds(choice.Image, box.Size, new Point(-box.X, -box.Y), ReadView()));
++        using var wash = new SolidBrush(Color.FromArgb(42, Theme.Surface));
++        e.Graphics.FillRectangle(wash, box);
++        var accent = Theme.ReadableAccent(automatic.Checked ? choice.AutomaticAccent : manual);
++        float scale = DeviceDpi / 96f;
++        var panel = new Rectangle(box.Left + (int)(14 * scale), box.Top + (int)(14 * scale),
++            Math.Min(box.Width - (int)(28 * scale), (int)(280 * scale)), (int)(142 * scale));
++        if (panel.Width > 100 * scale && panel.Bottom < box.Bottom)
++        {
++            using var surface = new SolidBrush(Theme.Surface);
++            e.Graphics.FillRectangle(surface, panel);
++            using var font = Theme.Font(9);
++            Theme.TextAt(e.Graphics, "界面效果预览", font, Theme.Text, new Rectangle(panel.X + 12, panel.Y + 6, panel.Width - 24, (int)(28 * scale)));
++            Theme.TextAt(e.Graphics, "文件大小  ·  12.5 GB", font, Theme.Text, new Rectangle(panel.X + 12, panel.Y + (int)(36 * scale), panel.Width - 24, (int)(26 * scale)));
++            var button = new Rectangle(panel.X + 12, panel.Y + (int)(70 * scale), panel.Width - 24, (int)(30 * scale));
++            using var swatch = new SolidBrush(accent);
++            e.Graphics.FillRectangle(swatch, button);
++            Theme.TextAt(e.Graphics, "选择文件夹", font, Color.White, button, TextFormatFlags.HorizontalCenter);
++            var colors = Theme.ProgressColors(resetPending ? null : accent);
++            var track = new Rectangle(panel.X + 12, panel.Y + (int)(116 * scale), panel.Width - 24, (int)(6 * scale));
++            using var line = new Pen(Theme.Mix(accent, Theme.Surface, .68f));
++            e.Graphics.DrawRectangle(line, track);
++            using var gradient = new System.Drawing.Drawing2D.LinearGradientBrush(track, colors.Start, colors.End, 0f);
++            e.Graphics.FillRectangle(gradient, track.X, track.Y, track.Width * .65f, track.Height);
++        }
++        e.Graphics.Restore(state);
++    }
++
++    protected override void Dispose(bool disposing)
++    {
++        if (disposing && !IsDisposed) { lifetime.Cancel(); lifetime.Dispose(); choice?.Dispose(); choice = null; }
++        base.Dispose(disposing);
++    }
++
++    private sealed class PreviewSurface : Panel
++    {
++        public PreviewSurface() => DoubleBuffered = true;
++    }
++}
+diff --git a/BackgroundSettings.cs b/BackgroundSettings.cs
+new file mode 100644
+index 0000000..a453478
+--- /dev/null
++++ b/BackgroundSettings.cs
+@@ -0,0 +1,189 @@
++using System.Drawing.Imaging;
++using System.Security.Cryptography;
++
++namespace DiskAtlas;
++
++internal readonly record struct BackgroundView(float X, float Y, float Zoom, int? AccentArgb)
++{
++    public static BackgroundView Default => new(.5f, .5f, 1, null);
++
++    public bool IsValid => X is >= 0 and <= 1 && Y is >= 0 and <= 1 && Zoom is >= 1 and <= 3;
++}
++
++internal sealed record BackgroundChoice(Bitmap Image, BackgroundView View, Color AutomaticAccent) : IDisposable
++{
++    public void Dispose() => Image.Dispose();
++}
++
++internal static class BackgroundSettings
++{
++    private const int FormatVersion = 2;
++    private const int MaxFileBytes = 24 * 1024 * 1024;
++    internal const int MaxSourcePixels = 40_000_000;
++    internal const int MaxSavedSide = 2048;
++    public static string PathForUser => Path.Combine(
++        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AsukaLens", "background.dat");
++
++    public static BackgroundChoice Import(string path, CancellationToken token = default)
++    {
++        token.ThrowIfCancellationRequested();
++        using var file = File.OpenRead(path);
++        CheckLength(file);
++        using var image = Image.FromStream(file);
++        if (image.RawFormat.Guid != ImageFormat.Png.Guid && image.RawFormat.Guid != ImageFormat.Jpeg.Guid &&
++            image.RawFormat.Guid != ImageFormat.Bmp.Guid)
++            throw new InvalidDataException();
++        CheckDimensions(image, MaxSourcePixels);
++        // Normalize camera orientation before sizing and discard source metadata in the copy.
++        if (image.PropertyIdList.Contains(0x0112))
++        {
++            var orientation = image.GetPropertyItem(0x0112);
++            if (orientation?.Value is { Length: >= 2 } value)
++                image.RotateFlip(BitConverter.ToUInt16(value, 0) switch
++                {
++                    2 => RotateFlipType.RotateNoneFlipX, 3 => RotateFlipType.Rotate180FlipNone,
++                    4 => RotateFlipType.Rotate180FlipX, 5 => RotateFlipType.Rotate90FlipX,
++                    6 => RotateFlipType.Rotate90FlipNone, 7 => RotateFlipType.Rotate270FlipX,
++                    8 => RotateFlipType.Rotate270FlipNone, _ => RotateFlipType.RotateNoneFlipNone
++                });
++        }
++        token.ThrowIfCancellationRequested();
++        var result = Prepare(image, BackgroundView.Default, MaxSourcePixels);
++        if (!token.IsCancellationRequested) return result;
++        result.Dispose();
++        token.ThrowIfCancellationRequested();
++        throw new OperationCanceledException(token);
++    }
++
++    public static BackgroundChoice? Load(string path)
++    {
++        FileStream file;
++        try { file = File.OpenRead(path); }
++        catch (FileNotFoundException) { return null; }
++        catch (DirectoryNotFoundException) { return null; }
++        using var ownedFile = file;
++        CheckLength(file);
++        using var header = new BinaryReader(file);
++        int version = header.ReadInt32();
++        using var payload = new MemoryStream();
++        if (version == FormatVersion)
++        {
++            int length = header.ReadInt32();
++            var hash = header.ReadBytes(32);
++            if (length < 18 || hash.Length != 32 || length != file.Length - file.Position)
++                throw new InvalidDataException();
++            file.CopyTo(payload);
++            if (!CryptographicOperations.FixedTimeEquals(hash, SHA256.HashData(payload.GetBuffer().AsSpan(0, length))))
++                throw new InvalidDataException();
++        }
++        else if (version == 1) file.CopyTo(payload); // Read the earlier development preview format.
++        else throw new InvalidDataException();
++        payload.Position = 0;
++        using var reader = new BinaryReader(payload);
++        float x = reader.ReadSingle(), y = reader.ReadSingle(), zoom = reader.ReadSingle();
++        byte manual = reader.ReadByte();
++        int argb = reader.ReadInt32();
++        var view = new BackgroundView(x, y, zoom, manual == 1 ? argb : null);
++        if (manual > 1 || !view.IsValid) throw new InvalidDataException();
++        // Image decoders seek relative to their stream start.
++        using var png = new MemoryStream();
++        payload.CopyTo(png);
++        png.Position = 0;
++        using var image = Image.FromStream(png);
++        if (image.RawFormat.Guid != ImageFormat.Png.Guid || image.Width > MaxSavedSide || image.Height > MaxSavedSide)
++            throw new InvalidDataException();
++        return Prepare(image, view, MaxSavedSide * MaxSavedSide);
++    }
++
++    public static void Save(string path, BackgroundChoice choice)
++    {
++        if (!choice.View.IsValid) throw new InvalidDataException();
++        if (choice.Image.Width > MaxSavedSide || choice.Image.Height > MaxSavedSide) throw new InvalidDataException();
++        // Encode before opening the destination; a failed save must leave the old file intact.
++        using var payload = new MemoryStream();
++        using (var fields = new BinaryWriter(payload, System.Text.Encoding.UTF8, leaveOpen: true))
++        {
++            fields.Write(choice.View.X); fields.Write(choice.View.Y); fields.Write(choice.View.Zoom);
++            fields.Write(choice.View.AccentArgb.HasValue); fields.Write(choice.View.AccentArgb.GetValueOrDefault());
++            using var png = new MemoryStream();
++            choice.Image.Save(png, ImageFormat.Png);
++            png.WriteTo(payload);
++        }
++        if (payload.Length + 40 > MaxFileBytes) throw new InvalidDataException();
++        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
++        string pending = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
++        try
++        {
++            using (var file = new FileStream(pending, FileMode.CreateNew, FileAccess.Write, FileShare.None))
++            using (var writer = new BinaryWriter(file))
++            {
++                writer.Write(FormatVersion);
++                writer.Write((int)payload.Length);
++                writer.Write(SHA256.HashData(payload.GetBuffer().AsSpan(0, (int)payload.Length)));
++                payload.WriteTo(file);
++                file.Flush(flushToDisk: true);
++            }
++            File.Move(pending, path, overwrite: true);
++        }
++        finally
++        {
++            try { File.Delete(pending); }
++            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
++        }
++    }
++
++    public static void Reset(string path)
++    {
++        try { File.Delete(path); }
++        catch (DirectoryNotFoundException) { }
++    }
++
++    private static void CheckLength(FileStream file)
++    {
++        if (file.Length <= 0 || file.Length > MaxFileBytes) throw new InvalidDataException();
++    }
++
++    private static BackgroundChoice Prepare(Image image, BackgroundView view, int maxPixels)
++    {
++        CheckDimensions(image, maxPixels);
++        float factor = Math.Min(1f, (float)MaxSavedSide / Math.Max(image.Width, image.Height));
++        var bitmap = new Bitmap(Math.Max(1, (int)(image.Width * factor)), Math.Max(1, (int)(image.Height * factor)));
++        try
++        {
++            using (var graphics = Graphics.FromImage(bitmap))
++            {
++                graphics.Clear(Color.White);
++                graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
++                graphics.DrawImage(image, new Rectangle(Point.Empty, bitmap.Size));
++            }
++            return new BackgroundChoice(bitmap, view, FindAccent(bitmap));
++        }
++        catch { bitmap.Dispose(); throw; }
++    }
++
++    private static void CheckDimensions(Image image, int maxPixels)
++    {
++        if (image.Width < 1 || image.Height < 1 || (long)image.Width * image.Height > maxPixels)
++            throw new InvalidDataException();
++    }
++
++    private static Color FindAccent(Bitmap bitmap)
++    {
++        using var sample = new Bitmap(bitmap, 32, 32);
++        var colors = new List<Color>();
++        for (int y = 0; y < sample.Height; y++)
++        for (int x = 0; x < sample.Width; x++)
++        {
++            var color = sample.GetPixel(x, y);
++            if (color.GetSaturation() > .25f && color.GetBrightness() is > .18f and < .82f)
++                colors.Add(color);
++        }
++        if (colors.Count == 0) return Theme.DefaultAccent;
++        // Pick a common hue rather than averaging unrelated hues into gray.
++        var group = colors.GroupBy(c => (int)(c.GetHue() / 30)).MaxBy(g => g.Count())!;
++        return Color.FromArgb((int)group.Average(c => c.R), (int)group.Average(c => c.G), (int)group.Average(c => c.B));
++    }
++
++    public static bool IsFileError(Exception error) => error is IOException or InvalidDataException or UnauthorizedAccessException
++        or ArgumentException or OutOfMemoryException or System.Runtime.InteropServices.ExternalException;
++}
+diff --git a/MainForm.cs b/MainForm.cs
+index 9afce00..e71279c 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -7,6 +7,11 @@ internal sealed class MainForm : Form
+     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+     internal Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult>? ScanRunner { get; init; }
+     internal readonly WallpaperRaster WallpaperRaster = new();
++    internal BackgroundView BackgroundCrop { get; private set; } = BackgroundView.Default;
++    internal bool HasCustomBackground { get; private set; }
++    private readonly string backgroundSettingsPath;
++    private Color automaticBackgroundAccent = Theme.DefaultAccent;
++    private readonly ActionButton backgroundSettings = new("背景设置") { Dock = DockStyle.Fill };
+     private readonly ScanCoordinator coordinator = new();
+     private readonly ComboBox strategyCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
+     private readonly ComboBox metricCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
+@@ -65,8 +70,9 @@ internal sealed class MainForm : Form
+     private bool sortAscending;
+     private bool updating;
+ 
+-    public MainForm(string? initialPath)
++    public MainForm(string? initialPath, bool loadSavedBackground = false, string? backgroundSettingsPath = null)
+     {
++        this.backgroundSettingsPath = backgroundSettingsPath ?? BackgroundSettings.PathForUser;
+         Text = "AsukaLens · 磁盘空间可视化";
+         if (Environment.ProcessPath is { } executable) Icon = Icon.ExtractAssociatedIcon(executable);
+         Size = new Size(1440, 940);
+@@ -123,7 +129,14 @@ internal sealed class MainForm : Form
+         DragEnter += (_, e) => { if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1 && Directory.Exists(paths[0])) e.Effect = DragDropEffects.Copy; };
+         DragDrop += async (_, e) => { if (scanCancellation == null && e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1) await ScanFolder(paths[0]); };
+         FormClosing += (_, _) => { scanCancellation?.Cancel(); viewCancellation?.Cancel(); };
+-        Shown += async (_, _) => { if (!string.IsNullOrWhiteSpace(initialPath)) await ScanFolder(initialPath); };
++        backgroundSettings.Click += (_, _) => EditBackground();
++        backgroundSettings.Enabled = !loadSavedBackground;
++        Shown += async (_, _) =>
++        {
++            if (loadSavedBackground) await RestoreSavedBackground();
++            if (!IsDisposed && !Disposing && scanCancellation == null && scan == null &&
++                !string.IsNullOrWhiteSpace(initialPath)) await ScanFolder(initialPath);
++        };
+     }
+ 
+     private void PrepareInitialLayout()
+@@ -135,7 +148,7 @@ internal sealed class MainForm : Form
+         MinimumSize = new Size(Math.Min((int)(1120 * scale), area.Width), Math.Min((int)(780 * scale), area.Height));
+         Size = new Size(Math.Min((int)(1440 * scale), area.Width), Math.Min((int)(940 * scale), area.Height));
+         Location = new Point(area.X + (area.Width - Width) / 2, area.Y + (area.Height - Height) / 2);
+-        WallpaperRaster.Get(BackgroundImage, ClientSize);
++        WallpaperRaster.Get(BackgroundImage, ClientSize, BackgroundCrop);
+     }
+ 
+     private static Label LabelOf(string text, float size, bool bold = false, bool muted = false) => new()
+@@ -209,7 +222,11 @@ internal sealed class MainForm : Form
+         settings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+         settings.Controls.Add(LabelOf("扫描策略", 9), 0, 0); settings.Controls.Add(new InputFrame(strategyCombo) { Margin = new Padding(0, 0, 20, 0) }, 1, 0);
+         settings.Controls.Add(LabelOf("统计口径", 9), 2, 0); settings.Controls.Add(new InputFrame(metricCombo) { Margin = new Padding(0, 0, 15, 0) }, 3, 0);
+-        settings.Controls.Add(refreshInfo, 4, 0); main.Controls.Add(settings, 0, 1);
++        settings.ColumnCount = 6;
++        settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
++        settings.Controls.Add(refreshInfo, 4, 0);
++        settings.Controls.Add(backgroundSettings, 5, 0);
++        main.Controls.Add(settings, 0, 1);
+ 
+         var cards = Table(4, 1);
+         for (int i = 0; i < 4; i++) cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+@@ -876,6 +893,59 @@ internal sealed class MainForm : Form
+         dialog.Padding = new Padding(18); dialog.Controls.Add(text); dialog.ShowDialog(this);
+     }
+ 
++    private async Task RestoreSavedBackground()
++    {
++        try
++        {
++            var saved = await Task.Run(() => BackgroundSettings.Load(backgroundSettingsPath));
++            if (saved == null) return;
++            if (IsDisposed || Disposing) saved.Dispose();
++            else ApplyBackground(saved.Image, saved.View, saved.AutomaticAccent);
++        }
++        catch (Exception error) when (BackgroundSettings.IsFileError(error))
++        {
++            if (!IsDisposed && !Disposing && scanCancellation == null)
++                status.Text = "自定义背景无法读取，已使用默认背景。";
++        }
++        finally { if (!IsDisposed && !Disposing) backgroundSettings.Enabled = true; }
++    }
++
++    private void EditBackground()
++    {
++        if (BackgroundImage is not { } current) return;
++        using var dialog = new BackgroundDialog(current, BackgroundCrop, automaticBackgroundAccent, ClientSize,
++            backgroundSettingsPath, isDefault: !HasCustomBackground);
++        if (dialog.ShowDialog(this) != DialogResult.OK) return;
++        if (dialog.RestoredDefault) ApplyBackground(Wallpaper.Load(), BackgroundView.Default, Theme.DefaultAccent, useDefault: true);
++        else if (dialog.Result is { } result) ApplyBackground(result.Image, result.View, result.AutomaticAccent);
++    }
++
++    private void ApplyBackground(Bitmap image, BackgroundView view, Color automatic, bool useDefault = false)
++    {
++        var previous = BackgroundImage;
++        BackgroundCrop = view;
++        HasCustomBackground = !useDefault;
++        automaticBackgroundAccent = automatic;
++        Theme.SetAccent(useDefault ? null : view.AccentArgb is int argb ? Color.FromArgb(argb) : automatic);
++        WallpaperRaster.Dispose();
++        BackgroundImage = image;
++        grid.DefaultCellStyle.SelectionBackColor = Theme.Selection;
++        grid.GridColor = useDefault ? Color.FromArgb(239, 224, 217) : Theme.Mix(Theme.Border, Theme.Surface, .55f);
++        previous?.Dispose();
++        UpdateTextSurfaces(this);
++        Invalidate(true);
++
++        void UpdateTextSurfaces(Control parent)
++        {
++            foreach (Control child in parent.Controls)
++            {
++                if (child is Label or CheckBox)
++                    child.BackColor = HasCustomBackground ? Theme.Surface : Color.Transparent;
++                UpdateTextSurfaces(child);
++            }
++        }
++    }
++
+     private async void HandleKeys(object? sender, KeyEventArgs e)
+     {
+         if (e.Control && e.KeyCode == Keys.O) { e.Handled = e.SuppressKeyPress = true; await ChooseFolder(); }
+diff --git a/Program.cs b/Program.cs
+index fdaf6e5..a33094e 100644
+--- a/Program.cs
++++ b/Program.cs
+@@ -10,7 +10,7 @@ internal static class Program
+             ApplicationConfiguration.Initialize();
+             Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
+             Application.ThreadException += (_, e) => ReportError(e.Exception);
+-            Application.Run(new MainForm(args.FirstOrDefault(a => !a.StartsWith("--"))));
++            Application.Run(new MainForm(args.FirstOrDefault(a => !a.StartsWith("--")), loadSavedBackground: true));
+         }
+         catch (Exception ex) { ReportError(ex); }
+     }
+diff --git a/README.md b/README.md
+index c5b3bfb..77dc123 100644
+--- a/README.md
++++ b/README.md
+@@ -1,5 +1,7 @@
+ # AsukaLens v1.4.2
+ 
++当前开发预览统一使用普通构建生成的 `bin/Release/net9.0-windows/DiskAtlas.exe`。第 5 轮背景设置已收尾，见[背景迭代记录](iterations/2026-11-07-02-background-settings/README.md)。下文各轮专用 Preview 路径仅是历史记录；`软件/` 和旧 ZIP 不含这些新功能。
++
+ 开发分支已包含尚未正式发布的扫描策略修正、扫描进度与图块反馈；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。本次交互修正使用独立的 `bin/Preview/DiskAtlas.exe` 预览目录，以保留正在运行的旧窗口。详见[扫描策略记录](iterations/2026-11-01-02-scan-policy/README.md)、[第 2 轮交互记录](iterations/2026-11-02-02-scan-feedback/README.md)和[本次修正记录](iterations/2026-11-02-03-hover-fix/README.md)。
+ 
+ 第 3 轮开发预览新增实际刷新方式与诊断详情，修正只读日志协议兼容和连续性检查。点击顶部“点击详情”，或右键“重新扫描”选择“最近完成的扫描详情”，可查看实际方式、原因、核验/重扫/复用数量、日志错误码和分阶段耗时。详见[第 3 轮记录](iterations/2026-11-03-01-incremental-refresh/README.md)。第 3 轮后续修正通过 NTFS 根目录句柄在本机普通权限下读取真实日志。日志不可读时仍执行元信息核验。修复预览为 `bin/JournalPreview/DiskAtlas.exe`，验证见[只读日志修正记录](iterations/2026-11-04-01-journal-root/README.md)。
+@@ -28,6 +30,16 @@ Windows 本地文件夹空间可视化软件。运行 `软件/AsukaLens.exe`，
+ 
+ 完整说明见 [使用说明.txt](使用说明.txt)。默认按文件逻辑大小展示，可切换为文件数据的实际分配空间；不包含目录记录、备用数据流等文件系统开销，也不代表删除后可释放的大小。扫描结果是一次快照，使用“重新扫描”更新。
+ 
++开发预览支持自定义背景。主窗口右上角选择“背景设置”，导入 PNG、JPEG 或 BMP 后可以缩放、拖动或输入焦点百分比。预览按主窗口比例展示，改变窗口比例时围绕焦点裁切，边缘会限制在图片范围内。可以自动取色或手动指定强调色。点击“应用”才保存，取消会保留当前背景。
++
++图片限制为 24 MiB 和 4,000 万像素，导入后最长边缩至 2,048 像素，并按照片方向信息调整画面。处理后的图片和设置保存在本机用户数据目录，重启时自动加载，源图片移动或删除也不影响已保存背景。
++
++“恢复默认”先展示默认背景，点击“应用”才清除软件副本并恢复默认；取消会保留原设置。预览包含文字、按钮和进度配色，强调色也用于主窗进度条。保存失败保留旧设置并提示实际失败环节。配置包含版本与完整性校验，兼容早期背景预览格式，损坏时启动回退默认背景。
++
++读取图片期间可取消或关闭设置窗口；图片解码结束后会丢弃已取消结果。正在保存时暂时禁止关闭，写入结束后才更新主窗。背景不会上传，程序不保存源图片路径。
++
++背景专项检查为构建测试项目后运行 `dotnet tests/bin/Release/net9.0-windows/DiskAtlas.Tests.dll --background-tests`，再附加 `--dpi-96` 检查 96 DPI。它使用隔离设置，不覆盖个人背景。可选人工验收入口为 `--background-preview artifacts/background-demo`，会创建合成图片并打开使用该测试目录设置的主窗，退出后可清理此测试目录。
++
+ ## 开发与构建
+ 
+ 项目使用 C# / .NET 9 Windows Forms，无第三方包、无网络请求。开发需要 .NET 9 SDK；运行需要 .NET 9 Windows Desktop Runtime。
+diff --git a/ScanProgressControl.cs b/ScanProgressControl.cs
+index 47f9779..1bc5ea0 100644
+--- a/ScanProgressControl.cs
++++ b/ScanProgressControl.cs
+@@ -16,8 +16,8 @@ internal sealed class ScanProgressControl : Control
+     private bool animationsEnabled = true;
+     private Bitmap? marker;
+     private int markerPixels;
+-    internal static readonly Color TrackStart = Color.FromArgb(166, 59, 61);
+-    internal static readonly Color TrackEnd = Color.FromArgb(237, 156, 104);
++    internal static Color TrackStart => Theme.ProgressPalette.Start;
++    internal static Color TrackEnd => Theme.ProgressPalette.End;
+     internal const string Explanation = "当前阶段估算 = 已处理目录任务 / 当前已发现目录任务；包含根目录。\n新目录出现时估算可能下降；核验与读取/复用分别计数，整理阶段沿用读取计数。\n不代表文件、字节或剩余时间比例。核验以旧快照目录数为分母，整个缓存子树复用算一个任务。\n统计整理结束前最多 99%；总量未知时显示往返指示。取消、失败或结果不完整不显示成功的 100%。";
+ 
+     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+diff --git a/Theme.cs b/Theme.cs
+index a9f3dff..f1b2f31 100644
+--- a/Theme.cs
++++ b/Theme.cs
+@@ -8,11 +8,49 @@ internal static class Theme
+     public static readonly Color Background = Color.FromArgb(252, 246, 242);
+     public static readonly Color Sidebar = Color.FromArgb(250, 239, 232);
+     public static readonly Color Surface = Color.FromArgb(255, 252, 249);
+-    public static readonly Color Border = Color.FromArgb(228, 205, 195);
++    public static Color Border { get; private set; } = Color.FromArgb(228, 205, 195);
+     public static readonly Color Text = Color.FromArgb(75, 54, 52);
+     public static readonly Color Muted = Color.FromArgb(121, 96, 90);
+-    public static readonly Color Accent = Color.FromArgb(165, 68, 62);
+-    public static readonly Color Selection = Color.FromArgb(248, 222, 212);
++    public static readonly Color DefaultAccent = Color.FromArgb(165, 68, 62);
++    public static Color Accent { get; private set; } = DefaultAccent;
++    public static Color Selection { get; private set; } = Color.FromArgb(248, 222, 212);
++
++    private static bool customAccent;
++    internal static (Color Start, Color End) ProgressColors(Color? accent) => accent is { } value
++        ? (ReadableAccent(value), Mix(ReadableAccent(value), Surface, .32f))
++        : (Color.FromArgb(166, 59, 61), Color.FromArgb(237, 156, 104));
++    internal static (Color Start, Color End) ProgressPalette => ProgressColors(customAccent ? Accent : null);
++
++    public static void SetAccent(Color? color)
++    {
++        customAccent = color.HasValue;
++        Accent = color.HasValue ? ReadableAccent(color.Value) : DefaultAccent;
++        Selection = color.HasValue ? Mix(Accent, Surface, .83f) : Color.FromArgb(248, 222, 212);
++        Border = color.HasValue ? Mix(Accent, Surface, .68f) : Color.FromArgb(228, 205, 195);
++    }
++
++    internal static Color Mix(Color from, Color to, float weight) => Color.FromArgb(
++        (int)(from.R + (to.R - from.R) * weight),
++        (int)(from.G + (to.G - from.G) * weight),
++        (int)(from.B + (to.B - from.B) * weight));
++
++    internal static double Luminance(Color color)
++    {
++        static double Linear(byte value)
++        {
++            double channel = value / 255d;
++            return channel <= .04045 ? channel / 12.92 : Math.Pow((channel + .055) / 1.055, 2.4);
++        }
++        return .2126 * Linear(color.R) + .7152 * Linear(color.G) + .0722 * Linear(color.B);
++    }
++
++    internal static Color ReadableAccent(Color color)
++    {
++        color = Color.FromArgb(color.R, color.G, color.B);
++        // Keep accent labels legible on both neutral and tinted backgrounds.
++        while (Luminance(color) > .13) color = Mix(color, Color.Black, .1f);
++        return color;
++    }
+     public static readonly (string Name, Color Color)[] Categories =
+     [
+         ("文件夹", Color.FromArgb(235, 177, 153)),
+@@ -166,8 +204,8 @@ internal sealed class ActionButton : Button
+         using var path = Theme.Round(rect, 7 * DeviceDpi / 96f);
+         bool pressed = spacePressed || mousePressed && hovered;
+         Color fill = !Enabled ? Theme.Sidebar : Primary
+-            ? pressed ? Color.FromArgb(119, 43, 40) : hovered ? Color.FromArgb(145, 55, 51) : Theme.Accent
+-            : pressed ? Color.FromArgb(235, 199, 186) : Selected ? Theme.Selection : hovered ? Color.FromArgb(251, 234, 226) : BackColor;
++            ? pressed ? Theme.Mix(Theme.Accent, Color.Black, .25f) : hovered ? Theme.Mix(Theme.Accent, Color.Black, .12f) : Theme.Accent
++            : pressed ? Theme.Border : Selected ? Theme.Selection : hovered ? Theme.Mix(Theme.Selection, Theme.Surface, .35f) : BackColor;
+         using var brush = new SolidBrush(fill);
+         e.Graphics.FillPath(brush, path);
+         if (!Primary && FlatAppearance.BorderSize > 0) { using var pen = new Pen(Theme.Border); e.Graphics.DrawPath(pen, path); }
+diff --git a/Wallpaper.cs b/Wallpaper.cs
+index 256a02a..942822c 100644
+--- a/Wallpaper.cs
++++ b/Wallpaper.cs
+@@ -24,20 +24,25 @@ internal static class Wallpaper
+         var offset = Point.Empty;
+         for (Control? node = control; node != null && node != form; node = node.Parent)
+             offset.Offset(node.Left, node.Top);
+-        if (form is MainForm main && main.WallpaperRaster.Get(image, form.ClientSize) is { } raster)
++        if (form is MainForm main && main.WallpaperRaster.Get(image, form.ClientSize, main.BackgroundCrop) is { } raster)
+             graphics.DrawImageUnscaled(raster, -offset.X, -offset.Y);
+         else
+-            graphics.DrawImage(image, CoverBounds(image, form.ClientSize, offset));
++            graphics.DrawImage(image, CoverBounds(image, form.ClientSize, offset, (form as MainForm)?.BackgroundCrop));
++        if (form is MainForm { HasCustomBackground: true } &&
++            (control is NavigationPanel or ScanProgressControl || control is TreemapControl && wash == 130))
++            wash = Math.Max(wash, 235);
+         using var veil = new SolidBrush(Color.FromArgb(wash, Theme.Surface));
+         graphics.FillRectangle(veil, control.ClientRectangle);
+     }
+ 
+-    internal static RectangleF CoverBounds(Image image, Size size, Point offset)
++    internal static RectangleF CoverBounds(Image image, Size size, Point offset, BackgroundView? view = null)
+     {
+-        float scale = Math.Max((float)size.Width / image.Width, (float)size.Height / image.Height);
++        var crop = view ?? BackgroundView.Default;
++        float scale = crop.Zoom * Math.Max((float)size.Width / image.Width, (float)size.Height / image.Height);
+         float width = image.Width * scale, height = image.Height * scale;
+-        return new RectangleF((size.Width - width) / 2 - offset.X,
+-            (size.Height - height) / 2 - offset.Y, width, height);
++        float left = Math.Clamp(size.Width / 2f - crop.X * width, Math.Min(0, size.Width - width), 0);
++        float top = Math.Clamp(size.Height / 2f - crop.Y * height, Math.Min(0, size.Height - height), 0);
++        return new RectangleF(left - offset.X, top - offset.Y, width, height);
+     }
+ }
+ 
+@@ -47,13 +52,15 @@ internal sealed class WallpaperRaster : IDisposable
+     private Image? source;
+     private Size size;
+     private Bitmap? raster;
++    private BackgroundView? view;
+ 
+-    public Bitmap? Get(Image? image, Size clientSize)
++    public Bitmap? Get(Image? image, Size clientSize, BackgroundView? crop = null)
+     {
+-        if (ReferenceEquals(image, source) && clientSize == size) return raster;
++        if (ReferenceEquals(image, source) && clientSize == size && view == crop) return raster;
+         Dispose();
+         source = image;
+         size = clientSize;
++        view = crop;
+         if (image == null || size.Width <= 0 || size.Height <= 0 || (long)size.Width * size.Height > MaxPixels)
+             return null;
+ 
+@@ -63,7 +70,7 @@ internal sealed class WallpaperRaster : IDisposable
+             candidate = new Bitmap(size.Width, size.Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+             using var graphics = Graphics.FromImage(candidate);
+             graphics.Clear(Theme.Background);
+-            graphics.DrawImage(image, Wallpaper.CoverBounds(image, size, Point.Empty));
++            graphics.DrawImage(image, Wallpaper.CoverBounds(image, size, Point.Empty, crop));
+             raster = candidate;
+             candidate = null;
+             return raster;
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 73321bf..2ff281d 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,11 +1,13 @@
+ # 后续开发计划
+ 
+-依据 [2026-11-07 项目现状](project-status.md)。本文是可审查的实施准备，不自动启动所有条目；长期工作规则见 [AGENTS.md](../AGENTS.md)。
++依据 [2026-11-07 项目现状](project-status.md)。用户已确认执行背景收尾与异常报告修复，其余条目不自动启动；长期工作规则见 [AGENTS.md](../AGENTS.md)。
+ 
+-## 建议下一轮：第 5 轮收尾与异常报告修复
++## 当前轮：第 5 轮收尾与异常报告修复
+ 
+ 目标是让用户能可靠地更换背景、重新打开软件后保留设置，遇到失败能理解原因并继续使用。先完成现有功能闭环，再开始新功能。背景功能延续此前确认的方向；日志管理、权限、框架迁移和发布均另立方案。
+ 
++背景部分已经完成实现与验证，见[迭代记录](../iterations/2026-11-07-02-background-settings/README.md)。下一步完成最小异常报告修复。下面保留本轮范围与验收约定。
++
+ ### 具体范围
+ 
+ 1. 保留并审查现有背景实现，不从头重做。补齐应用、取消、恢复默认、重启加载、处理中关闭及源图删除后的行为。所有新测试使用隔离配置目录。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 713dcad..dd7ca14 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -4,10 +4,10 @@
+ 
+ ## 当前判断
+ 
+-核心扫描与查看流程已经具备，现有回归可通过，适合继续迭代。当前应先把第 5 轮背景功能收尾，再处理诊断隐私与长期运行维护；不宜直接跳到新的大范围视觉改版或安装器开发。
++核心扫描与查看流程已经具备，现有回归可通过，适合继续迭代。第 5 轮背景功能已完成开发收尾，下一项为异常报告的隐私修复。完整日志系统、运行时迁移和正式发布仍按计划分别推进。
+ 
+ - 本次审计的代码基线为 `a4e5a462ef6f7a004e030c4f1174a141199c8582`，核对时本地与远程 `main` 一致。
+-- 工作区继承了第 5 轮背景设置改动。`BackgroundSettings.cs`、`BackgroundDialog.cs` 尚未跟踪，另有主窗、主题、背景绘制、入口、测试和 README 的未提交改动。本轮保留这些文件原样，只提交规则与审计文档。新文档提交不表示背景代码已上传。
++- 第 5 轮背景设置现已完成收尾，源码、测试和说明纳入独立开发提交，见[背景迭代记录](../iterations/2026-11-07-02-background-settings/README.md)。普通预览入口统一为 `bin/Release/net9.0-windows/DiskAtlas.exe`。
+ - 项目版本字段仍为 `1.4.2`。`软件/AsukaLens.exe` 和既有 ZIP 为旧构建，开发预览含之后的迭代。核查时 GitHub Release 列表为空，没有符合当前四类资产要求的正式发布。
+ - 技术栈为 C# / .NET 9 WinForms，无第三方 NuGet 包。启动本质是本地 Windows 桌面进程，通过 .NET Windows Desktop Runtime 运行，扫描和界面操作不依赖网页服务器。当前发布脚本使用框架依赖部署。
+ 
+@@ -26,12 +26,12 @@
+ | 过程反馈 | 目录任务估算、移动头像、取消、部分预览、明确终态 | 预览约每 0.5 秒获取，最多当前目录先发现的 1,000 项；百分比不是字节或剩余时间 |
+ | 增量刷新 | 连续 NTFS 日志优先定位变化、元信息核验与完整扫描回退、详情、强制重扫 | 缓存仅在本次进程内；无日志时仍核验全部目录和文件元信息 |
+ | 界面与动效 | 浅色组件、自绘输入框、菜单、有限果冻反馈、减弱动效、局部重绘缓存 | 动效偏好仅当前运行有效；启动首帧准备已修正，尚无完整冷启动逐帧测量 |
+-| 自定义背景 | 本地 PNG/JPEG/BMP、缩放与焦点、自动/手动强调色、保存/恢复/默认重置 | 工作区实现，未交付收尾；导入上限 24 MiB、4,000 万像素，副本最长边 2,048 像素 |
++| 自定义背景 | 本地 PNG/JPEG/BMP、缩放与焦点、自动/手动强调色、保存/恢复/默认重置 | 已完成开发验收；导入上限 24 MiB、4,000 万像素，副本最长边 2,048 像素 |
+ | 日志 | 扫描错误详情、脱敏刷新诊断、Git 与迭代开发记录、临时异常文件 | 尚无分级、轮转、查看/清除/导出一体化运行日志；用户日志尚未定义 |
+ 
+ ## 已验证的事实
+ 
+-本轮重新构建并检查工作区代码，包含上述未提交背景改动。测试均用合成目录，背景配置指向测试目录，不覆盖真实用户设置。
++审计基线的核心、高级及日志结果如下；背景收尾后重新构建并通过双 DPI 的界面与背景专项检查。测试均用合成目录，背景配置指向测试目录，不覆盖真实用户设置。
+ 
+ | 检查 | 本次结果 |
+ | --- | --- |
+@@ -41,23 +41,21 @@
+ | `--journal-tests` | 16 项通过，含协议、连续性、身份及保守回退 |
+ | `--ui-regression` | 实际 144 DPI，10 组通过 |
+ | `--ui-regression --dpi-96` | 独立 96 DPI 虚拟化进程，10 组通过 |
++| `--background-tests` 及 `--dpi-96` | 各 7 组通过，含独立进程生产主窗启动恢复 |
+ 
+ 真实刷新检查报告 `ChangeJournal`、日志 `Available`，重扫 1 个目录、复用 5 个文件，原生错误码为 0。这只证明本机该合成样本的路径可用，不代表所有磁盘、权限或文件系统。
+ 
+-背景检查覆盖导入缩放、损坏与体积超限、横竖图焦点覆盖、强调色白字对比度、保存读取、删除原图后读取、恢复默认仅清理副本，以及主窗应用/恢复。测试直接调用存储与主窗方法，**没有完整驱动背景弹窗，也没有以 `loadSavedBackground: true` 验证真实进程重启**。
++背景专项增加了 v1 配置兼容、v2 完整性校验、截断/非法值、锁定文件模拟保存/清除失败、重试、取消、关闭期间迟到结果释放、真实弹窗控件、极端比例和 8 种 EXIF 方向。独立进程用隔离设置调用生产主窗的 `loadSavedBackground: true` 路径，验证重复启动、源图删除、默认恢复和损坏回退。
+ 
+-本轮没有额外运行性能基准、扫描用户整盘、逐帧录制冷启动、切换系统高对比或跨显示器人工检查。核心测试自带的小型查询计时不是本轮性能改善结论。构建首次受沙箱 NuGet 配置读取限制失败，取得运行权限后上述构建与检查通过。
++使用 computer-use 在实际窗口操作了系统选图框、缩放、焦点拖动与应用，检查深色合成背景的预览及主窗文字可读性。未触碰个人背景配置。没有进行跨显示器、系统高对比切换或逐帧冷启动测量，也未新增整盘性能结论。
+ 
+ ## 优化机会与缺口
+ 
+ | 优先级 | 发现与影响 | 具体下一步 |
+ | --- | --- | --- |
+-| P0 收尾 | 第 5 轮只有工作区实现，缺少完整验收与提交，远程无法恢复这部分源码 | 收尾背景弹窗、重启、失败恢复与主题同步，验证后独立提交 |
+ | P0 隐私 | `Program.ReportError` 将 `error.ToString()` 写入临时文件，可能包含路径和堆栈；写入失败后仍声称已保存 | 先做最小异常报告修复，使用白名单字段并如实反馈写入结果；没有证据表明目前会自动上传 |
+-| P1 主题闭环 | `ScanProgressControl.TrackStart/TrackEnd` 仍固定红橙色，自定义强调色只覆盖部分组件；背景预览只有图片与色块 | 定义随主题变化的进度状态，预览加入关键文字/控件效果并检查对比 |
+-| P1 背景边界 | 尚无配置截断/非法版本/只读目录/真实重启的充分覆盖；所有文件错误共用“选图失败”式提示；未处理 EXIF 方向 | 按实际失败环节提示，补合成边界和真实弹窗路径，核查处理中关闭与位图释放 |
+ | P1 运行环境 | 项目使用 .NET 9，支持期即将结束，本机目前未检出 .NET 10 SDK | 单独评估并迁移 .NET 10 LTS，保留升级前回归基线，先不混入背景收尾 |
+-| P1 使用入口 | `bin/` 有 9 个输出目录，README 多处指向不同历史预览；旧发行目录仍是 v1.4.2 | 后续建立一个当前预览入口及构建身份，更新过时说明，核查后清理可再生产物 |
++| P1 使用入口 | 当前入口已统一，但 `bin/` 仍有多个历史输出目录；旧发行目录仍是 v1.4.2 | 后续建立一个当前预览入口及构建身份，更新过时说明，核查后清理可再生产物 |
+ | P2 扫描性能 | 单目录内串行，自动策略无负载自适应；整盘耗时尚无当前同条件数据 | 先测平坦/多目录样本、预览与取消延迟、CPU/内存，再决定是否做有界单目录并行 |
+ | P2 可维护性 | `MainForm.cs` 约 970 行，集中 UI、扫描状态、查询和设置；测试通过链接源文件构建 | 在实际修改边界按职责渐进抽取，配合契约测试，避免一次性目录搬迁或框架替换 |
+ | P2 日志体系 | 开发记录已有，运行诊断零散，用户日志语义未确定 | 先定义入口、字段、用途和保留上限，再实施本地诊断管理 |
+@@ -83,6 +81,6 @@
+ └─ 软件/                     本机旧发行目录，Git 忽略
+ ```
+ 
+-源码构建与测试入口见 [AGENTS.md](../AGENTS.md#检查与现有命令)。本轮审计输出为临时构建，检查后清理。保留的 `bin/CustomBackgroundPreview/DiskAtlas.exe` 是上一轮生成的背景预览，本轮没有替换它或认定它与当前源码逐字节一致。要运行当前源码应重新普通构建，不能从文件夹名称判断版本。
++源码构建与测试入口见 [AGENTS.md](../AGENTS.md#检查与现有命令)。当前可运行预览为 `bin/Release/net9.0-windows/DiskAtlas.exe`，本轮重新生成。其他专用 Preview 目录为历史产物，不作为当前入口。
+ 
+ 核查时 `bin/` 约 27.94 MiB，迭代归档约 2.35 MiB，没有发现本项目产物已占用巨大空间。本轮只清理自己的审计构建与可再生中间物，既有预览和历史 ZIP 留待确认其用途后整理。
+diff --git a/tests/BackgroundRegression.cs b/tests/BackgroundRegression.cs
+new file mode 100644
+index 0000000..529c1bd
+--- /dev/null
++++ b/tests/BackgroundRegression.cs
+@@ -0,0 +1,279 @@
++using DiskAtlas;
++using System.Diagnostics;
++using System.Drawing.Imaging;
++using System.Reflection;
++
++internal static class BackgroundRegression
++{
++    private static void Check(bool ok, string message) { if (!ok) throw new Exception(message); }
++    private static T Field<T>(object item, string name) => (T)item.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(item)!;
++    private static void Reject(Action work)
++    {
++        try { work(); }
++        catch (Exception error) when (BackgroundSettings.IsFileError(error)) { return; }
++        throw new Exception("Invalid input or denied write unexpectedly succeeded");
++    }
++    private static readonly BackgroundView CustomView = new(.72f, .26f, 1.8f, Color.SteelBlue.ToArgb());
++
++    public static int Run(bool dpi96)
++    {
++        string root = Path.Combine(Path.GetTempPath(), "AsukaLens-background-tests-" + Guid.NewGuid().ToString("N"));
++        Directory.CreateDirectory(root);
++        try
++        {
++            string imagePath = Path.Combine(root, "source.png"), settings = Path.Combine(root, "background.dat");
++            using (var source = new Bitmap(600, 300))
++            { using var g = Graphics.FromImage(source); g.Clear(Color.SteelBlue); source.Save(imagePath, ImageFormat.Png); }
++            using var image = BackgroundSettings.Import(imagePath);
++            var custom = image with { View = CustomView };
++            BackgroundSettings.Save(settings, custom);
++            var valid = File.ReadAllBytes(settings);
++            Check(BitConverter.ToInt32(valid) == 2, "New saves lack integrity format");
++            foreach (int length in new[] { 0, 3, 20, valid.Length - 1 })
++            { File.WriteAllBytes(settings, valid[..length]); Reject(() => BackgroundSettings.Load(settings)?.Dispose()); }
++            var damaged = (byte[])valid.Clone(); damaged[^10] ^= 1;
++            File.WriteAllBytes(settings, damaged); Reject(() => BackgroundSettings.Load(settings)?.Dispose());
++            damaged = (byte[])valid.Clone(); BitConverter.GetBytes(99).CopyTo(damaged, 0);
++            File.WriteAllBytes(settings, damaged); Reject(() => BackgroundSettings.Load(settings)?.Dispose());
++            Legacy(settings, custom, 1);
++            using (var old = BackgroundSettings.Load(settings)) Check(old?.View == CustomView, "Legacy preview settings no longer load");
++            Legacy(settings, custom with { View = CustomView with { X = float.NaN } }, 1);
++            Reject(() => BackgroundSettings.Load(settings)?.Dispose());
++            Legacy(settings, custom, 2); Reject(() => BackgroundSettings.Load(settings)?.Dispose());
++            File.WriteAllBytes(settings, valid);
++            Reject(() => BackgroundSettings.Save(settings, custom with { View = CustomView with { Zoom = 4 } }));
++            Check(File.ReadAllBytes(settings).SequenceEqual(valid), "Invalid save changed old data");
++            Console.WriteLine("PASS background version compatibility, checksum, truncation and invalid fields");
++
++            using (var locked = new FileStream(settings, FileMode.Open, FileAccess.Read, FileShare.Read))
++            { Reject(() => BackgroundSettings.Save(settings, image)); Reject(() => BackgroundSettings.Reset(settings)); }
++            Check(File.ReadAllBytes(settings).SequenceEqual(valid), "Failed replace/reset damaged previous settings");
++            Check(!Directory.GetFiles(root, "*.tmp").Any(), "Save failure leaked temporary data");
++            using (var locked = new FileStream(settings, FileMode.Open, FileAccess.Read, FileShare.None))
++                Reject(() => BackgroundSettings.Load(settings)?.Dispose());
++            Console.WriteLine("PASS background denied writes/read and reset preserve existing data and clean temporary files");
++
++            string extreme = Path.Combine(root, "extreme.png");
++            using (var thin = new Bitmap(1, 6000)) thin.Save(extreme, ImageFormat.Png);
++            using (var loaded = BackgroundSettings.Import(extreme)) Check(loaded.Image.Size == new Size(1, 2048), "Extreme aspect ratio failed");
++            string unsupported = Path.Combine(root, "unsupported.gif");
++            image.Image.Save(unsupported, ImageFormat.Gif); Reject(() => BackgroundSettings.Import(unsupported).Dispose());
++            using (var cancelled = new CancellationTokenSource())
++            {
++                cancelled.Cancel();
++                try { BackgroundSettings.Import(imagePath, cancelled.Token).Dispose(); throw new Exception("Cancelled import succeeded"); }
++                catch (OperationCanceledException) { }
++            }
++            CheckOrientations(root);
++            Console.WriteLine("PASS background extreme ratio, unsupported format, cancellation and all 8 EXIF orientations");
++
++            RunUi(() => CheckDialogs(root, imagePath, settings, image), dpi96);
++            File.Delete(imagePath);
++            BackgroundSettings.Save(settings, custom);
++            Child(settings, "custom"); Child(settings, "custom");
++            BackgroundSettings.Reset(settings); Child(settings, "default");
++            File.WriteAllBytes(settings, [1, 2, 3]); Child(settings, "corrupt");
++            Console.WriteLine("PASS background independent-process startup, source deletion, default reset and corrupt fallback");
++            Console.WriteLine("All 7 background regression groups passed.");
++            return 0;
++        }
++        catch (Exception error) { Console.Error.WriteLine(error); return 1; }
++        finally
++        {
++            string prefix = Path.Combine(Path.GetFullPath(Path.GetTempPath()), "AsukaLens-background-tests-");
++            if (!Path.GetFullPath(root).StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) throw new Exception("Unsafe test cleanup");
++            Directory.Delete(root, recursive: true);
++        }
++    }
++
++    private static void Legacy(string path, BackgroundChoice choice, byte manual)
++    {
++        using var file = File.Create(path); using var writer = new BinaryWriter(file);
++        writer.Write(1); writer.Write(choice.View.X); writer.Write(choice.View.Y); writer.Write(choice.View.Zoom);
++        writer.Write(manual); writer.Write(choice.View.AccentArgb ?? 0);
++        using var png = new MemoryStream(); choice.Image.Save(png, ImageFormat.Png); png.WriteTo(file);
++    }
++
++    private static void CheckOrientations(string root)
++    {
++        using var source = new Bitmap(80, 40);
++        using (var g = Graphics.FromImage(source))
++        {
++            g.Clear(Color.Red); g.FillRectangle(Brushes.Blue, 40, 0, 40, 20);
++            g.FillRectangle(Brushes.Lime, 0, 20, 40, 20); g.FillRectangle(Brushes.Yellow, 40, 20, 40, 20);
++        }
++        using var stream = new MemoryStream(); source.Save(stream, ImageFormat.Jpeg);
++        byte[] jpeg = stream.ToArray();
++        // Expected top-left / top-right / bottom-left / bottom-right from EXIF row/column definitions.
++        int[][] corners = [[0,1,2,3],[1,0,3,2],[3,2,1,0],[2,3,0,1],[0,2,1,3],[2,0,3,1],[3,1,2,0],[1,3,0,2]];
++        Color[] colors = [Color.Red, Color.Blue, Color.Lime, Color.Yellow];
++        for (byte orientation = 1; orientation <= 8; orientation++)
++        {
++            byte[] exif = [69,120,105,102,0,0,73,73,42,0,8,0,0,0,1,0,18,1,3,0,1,0,0,0,orientation,0,0,0,0,0,0,0];
++            string path = Path.Combine(root, "oriented.jpg");
++            using (var file = File.Create(path))
++            { file.Write(jpeg.AsSpan(0,2)); file.Write([255,225,0,34]); file.Write(exif); file.Write(jpeg.AsSpan(2)); }
++            using var loaded = BackgroundSettings.Import(path);
++            var bitmap = loaded.Image;
++            Check(bitmap.Size == (orientation < 5 ? new Size(80,40) : new Size(40,80)), "EXIF dimensions wrong");
++            Point[] points = [new(5,5),new(bitmap.Width-6,5),new(5,bitmap.Height-6),new(bitmap.Width-6,bitmap.Height-6)];
++            for (int i = 0; i < 4; i++)
++            {
++                var actual = bitmap.GetPixel(points[i].X,points[i].Y); var expected = colors[corners[orientation-1][i]];
++                Check(Math.Abs(actual.R-expected.R)+Math.Abs(actual.G-expected.G)+Math.Abs(actual.B-expected.B)<70, "EXIF corner wrong");
++            }
++            Check(!bitmap.PropertyIdList.Contains(0x0112), "Processed bitmap retained source orientation metadata");
++        }
++    }
++
++    private static async Task Wait(Func<bool> condition)
++    {
++        var watch = Stopwatch.StartNew();
++        while (!condition()) { if (watch.Elapsed > TimeSpan.FromSeconds(10)) throw new Exception("UI operation timed out"); await Task.Delay(20); }
++    }
++
++    private static void RunUi(Func<Task> work, bool dpi96)
++    {
++        Exception? failure = null;
++        var thread = new Thread(() =>
++        {
++            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++            Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
++            Application.EnableVisualStyles();
++            using var host = new Form { Text = "AsukaLens background regression", Size = new Size(320,180) };
++            host.Shown += async (_, _) => { try { await work(); } catch (Exception e) { failure=e; } finally { host.Close(); } };
++            Application.Run(host);
++        });
++        thread.SetApartmentState(ApartmentState.STA); thread.Start();
++        if (!thread.Join(TimeSpan.FromSeconds(60))) throw new Exception("Background UI timed out");
++        if (failure != null) throw new Exception("Background UI failed", failure);
++    }
++
++    private static async Task Dialog(BackgroundDialog dialog, Func<BackgroundDialog, Task> steps)
++    {
++        var done = new TaskCompletionSource(); Exception? failure = null;
++        dialog.Shown += async (_, _) =>
++        { try { await steps(dialog); } catch (Exception e) { failure=e; } finally { dialog.Close(); done.SetResult(); } };
++        dialog.ShowDialog(); await done.Task;
++        if (failure != null) throw failure;
++    }
++
++    private static async Task CheckDialogs(string root, string source, string path, BackgroundChoice image)
++    {
++        BackgroundDialog New() => new(image.Image, CustomView, image.AutomaticAccent, new Size(1440,940),path);
++        var before = File.ReadAllBytes(path);
++        using (var dialog = New()) await Dialog(dialog, async d =>
++        {
++            await d.ImportImageAsync(source);
++            Field<TrackBar>(d,"zoom").Value = 180;
++            Field<NumericUpDown>(d,"focusX").Value = 72; Field<NumericUpDown>(d,"focusY").Value = 26;
++            Field<CheckBox>(d,"automatic").Checked = false;
++            foreach (var size in new[] { new Size(570,410), new Size(800,560) })
++            {
++                d.Size = size; d.PerformLayout();
++                using var bitmap = new Bitmap(d.Width,d.Height); d.DrawToBitmap(bitmap,d.ClientRectangle);
++                Check(Field<FlowLayoutPanel>(d,"commands").Bottom<=d.ClientSize.Height, "Commands clipped");
++            }
++            Field<Button>(d,"apply").PerformClick(); await Wait(()=>!d.IsBusy);
++            Check(d.DialogResult == DialogResult.OK && d.Result?.View == CustomView, "Apply did not preserve chosen view");
++            d.Result?.Dispose();
++        });
++        using (var saved=BackgroundSettings.Load(path)) Check(saved?.View == CustomView,"Dialog save failed");
++        Console.WriteLine("PASS background real dialog apply, controls, focus and resized preview");
++
++        before = File.ReadAllBytes(path);
++        using (var dialog = New()) await Dialog(dialog, async d =>
++        {
++            await d.RestoreDefaultAsync();
++            Check(File.ReadAllBytes(path).SequenceEqual(before),"Default preview changed persisted settings");
++            Field<Button>(d,"cancel").PerformClick();
++        });
++        Check(File.ReadAllBytes(path).SequenceEqual(before),"Cancel changed saved settings");
++        using (var dialog = New()) await Dialog(dialog, async d =>
++        {
++            using (var locked = new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.Read))
++            {
++                await d.ApplyAsync();
++                Check(d.DialogResult!=DialogResult.OK && Field<Label>(d,"status").Text.Contains("保存背景失败"),"Save failure is not specific");
++                await d.RestoreDefaultAsync(); await d.ApplyAsync();
++                Check(!d.RestoredDefault && Field<Label>(d,"status").Text.Contains("恢复默认设置失败"),"Reset failure hidden");
++            }
++            Check(File.ReadAllBytes(path).SequenceEqual(before),"Failed save/reset changed settings");
++            await d.ApplyAsync(); Check(d.RestoredDefault && !File.Exists(path),"Default retry failed");
++        });
++        Console.WriteLine("PASS background cancel/default preview, denied save/reset feedback and retry");
++
++        using var gate = new ManualResetEventSlim();
++        var entered = new TaskCompletionSource(); Bitmap? late = null;
++        using (var dialog = new BackgroundDialog(image.Image,CustomView,image.AutomaticAccent,new Size(1440,940),path,
++            importImage: (_, _) => { entered.SetResult(); gate.Wait(); late = new Bitmap(20,20); return new(late,BackgroundView.Default,Color.Blue); }))
++        {
++            dialog.Show(); var pending=dialog.ImportImageAsync(source); await entered.Task;
++            try
++            {
++                await dialog.ImportImageAsync(source); // Busy duplicate must not enqueue another import.
++                dialog.Close(); dialog.Dispose();
++            }
++            finally { gate.Set(); }
++            await pending;
++            Check(late!=null,"Delayed import missing");
++            Reject(()=>late!.GetPixel(0,0));
++        }
++        Theme.SetAccent(Color.SteelBlue);
++        Check(ScanProgressControl.TrackStart==Theme.Accent && ScanProgressControl.TrackEnd!=Color.FromArgb(237,156,104),"Progress ignored custom theme");
++        Theme.SetAccent(null);
++        Check(ScanProgressControl.TrackEnd==Color.FromArgb(237,156,104),"Default progress color not restored");
++        Check(File.Exists(source),"Default reset deleted source");
++        Console.WriteLine("PASS background late import disposal, duplicate/close isolation and progress theme reset");
++    }
++
++    private static void Child(string path, string expected)
++    {
++        var start = new ProcessStartInfo("dotnet") { UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true };
++        start.ArgumentList.Add(Assembly.GetExecutingAssembly().Location);
++        start.ArgumentList.Add("--background-child"); start.ArgumentList.Add(path); start.ArgumentList.Add(expected);
++        using var process=Process.Start(start)!;
++        if (!process.WaitForExit(20000)) { process.Kill(entireProcessTree:true); throw new Exception("Startup child timed out"); }
++        Check(process.ExitCode==0,"Startup child failed: "+process.StandardError.ReadToEnd());
++    }
++
++    public static int Preview(string root)
++    {
++        Directory.CreateDirectory(root);
++        string source=Path.Combine(root,"demo-background.png");
++        using (var bitmap=new Bitmap(1200,800))
++        {
++            using var g=Graphics.FromImage(bitmap);
++            using var fill=new System.Drawing.Drawing2D.LinearGradientBrush(new Rectangle(0,0,1200,800),Color.FromArgb(12,35,80),Color.FromArgb(72,150,172),30f);
++            g.FillRectangle(fill,0,0,1200,800);
++            bitmap.Save(source,ImageFormat.Png);
++        }
++        var thread=new Thread(() =>
++        {
++            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); Application.EnableVisualStyles();
++            using var form=new MainForm(null,true,Path.Combine(root,"background.dat")) { Text="AsukaLens · 背景验收" };
++            Application.Run(form);
++        });
++        thread.SetApartmentState(ApartmentState.STA); thread.Start(); thread.Join(); return 0;
++    }
++
++    public static int RunChild(string path, string expected)
++    {
++        try
++        {
++            RunUi(async () =>
++            {
++                using var form=new MainForm(null,loadSavedBackground:true,backgroundSettingsPath:path);
++                form.Show(); await Wait(()=>Field<ActionButton>(form,"backgroundSettings").Enabled);
++                Check(form.HasCustomBackground == (expected=="custom"),"Startup background mode wrong");
++                if (expected=="custom")
++                    Check(form.BackgroundCrop==CustomView && Theme.Accent==Theme.ReadableAccent(Color.SteelBlue),"Startup crop/color lost");
++                if (expected=="corrupt") Check(Field<Label>(form,"status").Text.Contains("无法读取"),"Corrupt settings not explained");
++                using var bitmap=new Bitmap(form.Width,form.Height); form.DrawToBitmap(bitmap,form.ClientRectangle);
++                form.Close();
++            },false);
++            return 0;
++        }
++        catch(Exception error) { Console.Error.WriteLine(error); return 1; }
++    }
++}
+diff --git a/tests/DiskAtlas.Tests.csproj b/tests/DiskAtlas.Tests.csproj
+index 6c247bd..b30bc03 100644
+--- a/tests/DiskAtlas.Tests.csproj
++++ b/tests/DiskAtlas.Tests.csproj
+@@ -23,6 +23,8 @@
+     <Compile Include="..\TreemapControl.cs" Link="TreemapControl.cs" />
+     <Compile Include="..\ScanProgressControl.cs" Link="ScanProgressControl.cs" />
+     <Compile Include="..\Theme.cs" Link="Theme.cs" />
++    <Compile Include="..\BackgroundSettings.cs" Link="BackgroundSettings.cs" />
++    <Compile Include="..\BackgroundDialog.cs" Link="BackgroundDialog.cs" />
+     <Compile Include="..\Wallpaper.cs" Link="Wallpaper.cs" />
+     <EmbeddedResource Include="..\assets\background.png" LogicalName="DiskAtlas.Background" />
+     <EmbeddedResource Include="..\assets\app.ico" LogicalName="DiskAtlas.AppIcon" />
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 896054a..ed3cebe 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -1,6 +1,10 @@
+ using DiskAtlas;
+ using System.Drawing;
+ 
++if (args.Contains("--background-preview")) return BackgroundRegression.Preview(args[1]);
++if (args.Contains("--background-child")) return BackgroundRegression.RunChild(args[1], args[2]);
++if (args.Contains("--background-tests")) return BackgroundRegression.Run(args.Contains("--dpi-96"));
++
+ if (args.Contains("--treemap-benchmark")) return TreemapBenchmark.Run(args.Last());
+ 
+ if (args.Contains("--scan-benchmark")) return ScanBenchmark.Run();
+diff --git a/tests/UiRegression.cs b/tests/UiRegression.cs
+index 81ab4fd..98cb731 100644
+--- a/tests/UiRegression.cs
++++ b/tests/UiRegression.cs
+@@ -40,7 +40,7 @@ internal static class UiRegression
+                 {
+                     firstClientSize = form.ClientSize;
+                     firstLocation = form.Location;
+-                    firstBackground = form.WallpaperRaster.Get(form.BackgroundImage, firstClientSize);
++                    firstBackground = form.WallpaperRaster.Get(form.BackgroundImage, firstClientSize, form.BackgroundCrop);
+                 };
+                 form.Shown += async (_, _) =>
+                 {
+@@ -49,7 +49,7 @@ internal static class UiRegression
+                         Check(firstClientSize == form.ClientSize && firstLocation == form.Location,
+                             "Window layout moved between Load and Shown");
+                         Check(firstBackground != null && ReferenceEquals(firstBackground,
+-                            form.WallpaperRaster.Get(form.BackgroundImage, form.ClientSize)),
++                            form.WallpaperRaster.Get(form.BackgroundImage, form.ClientSize, form.BackgroundCrop)),
+                             "First frame did not reuse the background prepared at Load");
+                         using (var raster = new WallpaperRaster())
+                         using (var source = new Bitmap(10, 10))
+@@ -163,6 +163,7 @@ internal static class UiRegression
+                         CheckRenderCache(form, Check);
+                         await CheckLongPath(form, root, Check);
+                         CheckDpiAndMenu(form, virtualized96Dpi, Check);
++                        CheckBackgroundSettings(form, root, Check);
+                     }
+                     catch (Exception ex) { failure = ex; }
+                     finally { gate.Release.Set(); form.Close(); }
+@@ -183,6 +184,72 @@ internal static class UiRegression
+         }
+     }
+ 
++    private static void CheckBackgroundSettings(MainForm form, string root, Action<bool, string> check)
++    {
++        string imagePath = Path.Combine(root, "wallpaper.png");
++        string savedPath = Path.Combine(root, "app-data", "background.dat");
++        using (var wide = new Bitmap(3200, 900))
++        {
++            using var graphics = Graphics.FromImage(wide);
++            graphics.Clear(Color.SteelBlue);
++            wide.Save(imagePath, System.Drawing.Imaging.ImageFormat.Png);
++        }
++        using var imported = BackgroundSettings.Import(imagePath);
++        check(imported.Image.Width == BackgroundSettings.MaxSavedSide && imported.Image.Height < imported.Image.Width,
++            "Large wallpaper did not downsample with its aspect ratio");
++        var view = new BackgroundView(.78f, .13f, 2.4f, Color.Gold.ToArgb());
++        BackgroundSettings.Save(savedPath, imported with { View = view });
++        File.Delete(imagePath);
++        using var reloaded = BackgroundSettings.Load(savedPath);
++        check(reloaded != null && reloaded.View == view && reloaded.Image.Size == imported.Image.Size,
++            "Wallpaper did not restore independently of the source or lost manual settings");
++
++        using var portrait = new Bitmap(100, 240);
++        foreach (var image in new[] { imported.Image, portrait })
++        foreach (var size in new[] { new Size(1100, 500), new Size(500, 1100) })
++        {
++            var crop = Wallpaper.CoverBounds(image, size, Point.Empty, view);
++            check(crop.Left <= 0 && crop.Top <= 0 && crop.Right >= size.Width - .001f &&
++                crop.Bottom >= size.Height - .001f, "Wallpaper crop left a gap");
++        }
++        var left = Wallpaper.CoverBounds(imported.Image, new Size(500, 1000), Point.Empty, view with { X = 0 });
++        var right = Wallpaper.CoverBounds(imported.Image, new Size(500, 1000), Point.Empty, view with { X = 1 });
++        check(left.X > right.X && left.Size == right.Size, "Changing focus did not move the crop");
++        var accent = Theme.ReadableAccent(Color.Gold);
++        check(1.05 / (Theme.Luminance(accent) + .05) >= 4.5, "Accent text contrast fell below 4.5");
++        File.WriteAllText(imagePath, "broken image");
++        void RejectImport()
++        {
++            try { using var invalid = BackgroundSettings.Import(imagePath); }
++            catch (Exception error) when (BackgroundSettings.IsFileError(error)) { return; }
++            throw new Exception("Invalid background import unexpectedly succeeded");
++        }
++        RejectImport();
++        using (var oversized = File.Create(imagePath)) oversized.SetLength(25 * 1024 * 1024);
++        RejectImport();
++        using (var untouched = BackgroundSettings.Load(savedPath))
++            check(untouched?.View == view, "Failed import altered the saved background");
++        BackgroundSettings.Reset(savedPath);
++        check(BackgroundSettings.Load(savedPath) == null && File.Exists(imagePath),
++            "Restoring default did not remove only app data");
++        var apply = typeof(MainForm).GetMethod("ApplyBackground", BindingFlags.Instance | BindingFlags.NonPublic)!;
++        using var defaultImage = new Bitmap(form.BackgroundImage!);
++        try
++        {
++            apply.Invoke(form, [new Bitmap(8, 12), view, Color.SteelBlue, false]);
++            check(form.HasCustomBackground && form.BackgroundCrop == view && Theme.Accent == accent,
++                "Applying the background did not update the main window and theme");
++            using var drawn = new Bitmap(form.Width, form.Height);
++            form.DrawToBitmap(drawn, form.ClientRectangle);
++        }
++        finally
++        {
++            apply.Invoke(form, [new Bitmap(defaultImage), BackgroundView.Default, Theme.DefaultAccent, true]);
++        }
++        check(!form.HasCustomBackground && Theme.Accent == Theme.DefaultAccent, "Default main-window theme was not restored");
++        Console.WriteLine("PASS UI background import limits, portrait/landscape focus, contrast, persistence and reset");
++    }
++
+     private static async Task CheckLongPath(MainForm owner, string root, Action<bool, string> check)
+     {
+         string folder = Path.Combine(root, "long-path");
+diff --git a/使用说明.txt b/使用说明.txt
+index 3f23989..ffcdb36 100644
+--- a/使用说明.txt
++++ b/使用说明.txt
+@@ -113,3 +113,7 @@ Windows 10/11，.NET 9 Desktop Runtime。本机已具备，无需额外安装。
+ 后续修正已在本机普通权限下验证真实日志增量。修复预览为 bin/JournalPreview/DiskAtlas.exe。
+ 日志不可读时仍核验元信息。
+ 详情只展示计数、阶段、类别和错误码，不包含卷标识或扫描路径，不上传诊断。
++
++
++开发预览：第 5 轮背景设置
++当前开发入口为 bin/Release/net9.0-windows/DiskAtlas.exe。主窗右上角“背景设置”支持 PNG/JPEG/BMP，限制 24 MiB、4000 万像素，副本最长边 2048 像素。可缩放、拖动或输入焦点，自动取色或手动选择强调色，预览包含文字和按钮效果。应用后保存到本机用户数据目录，重启恢复，源图移动或删除不影响副本。恢复默认先预览，点击应用才保存，取消保留旧设置。读取时可以取消或关闭，保存时请等待完成。错误会按读取、保存或恢复默认分别说明。此功能尚未打入旧软件目录和 ZIP。

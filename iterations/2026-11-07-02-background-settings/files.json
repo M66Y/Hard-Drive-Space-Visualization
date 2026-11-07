@@ -1,0 +1,42 @@
+{
+  "baseline": "bd6c9f8941a291a77f2a0d4df4eec66fca9af56a",
+  "patch_files": [
+    "AGENTS.md",
+    "BackgroundDialog.cs",
+    "BackgroundSettings.cs",
+    "MainForm.cs",
+    "Program.cs",
+    "README.md",
+    "ScanProgressControl.cs",
+    "Theme.cs",
+    "Wallpaper.cs",
+    "docs/development-plan.md",
+    "docs/project-status.md",
+    "tests/BackgroundRegression.cs",
+    "tests/DiskAtlas.Tests.csproj",
+    "tests/Program.cs",
+    "tests/UiRegression.cs",
+    "使用说明.txt"
+  ],
+  "sha256_lf": {
+    "AGENTS.md": "04cddd688f9066fbddd52feced7eeae4fad41e3ee4805c13448722e5d3bce12e",
+    "BackgroundDialog.cs": "68b0c868450a60d8da50f8a7180be74341b15f8366d404722bf0f1136e2e4d54",
+    "BackgroundSettings.cs": "cfce884b6ae66b33dcae371835d142faf306fc183c3f25ab4e66d5daf628ef5a",
+    "MainForm.cs": "74e59ce92b7474a26daa119857ad11cd7c133b73d0c9eeac97969ea78cb2d999",
+    "Program.cs": "aaf2e6fd4e1059cc75fe5d97cec6ba99ec80d896cb4b8ecde2e34c8e461da948",
+    "README.md": "6ea7990c8a54913eee646dc3df208b91abd7d08e3757f85a6c591ffd7119ab98",
+    "ScanProgressControl.cs": "5e336f0080b749c4b8b973ff855f443c0407fd7ba1902bfa9d6564a06f123251",
+    "Theme.cs": "ee3581de0e6c4a1777fb860dc19ad3771c806cd35a4dd10a47b144a55c79d908",
+    "Wallpaper.cs": "ccdd5c85333ef456f13f7e41207bf4eb149536e74639532c1143d23a150edd65",
+    "docs/development-plan.md": "e7f6217a89cd7aa6b0790fd1b1f03ee630cbe1cc2055b3a473d0f7e30616ff91",
+    "docs/project-status.md": "1dc5c0d2cf8623111f30e4c2bea2f02321deb0f07c6c19b184ef9642aef9f7f7",
+    "tests/BackgroundRegression.cs": "51b606c8c7611a197fd2267964634d7bf14bf97ec3600b88702406c9ef397f1d",
+    "tests/DiskAtlas.Tests.csproj": "d7c91dc2c38b56a72884f76b3477e7ccd2c91f580689eb25fc31d91f40932d86",
+    "tests/Program.cs": "04346b0690119ce70ca3ecb34570252fbf67b36e64d2c172b4725d42d03321bd",
+    "tests/UiRegression.cs": "13a845d0fb16018e19baf1a847382bc9b12438837e411670b35a2e240134b1ef",
+    "使用说明.txt": "2f84e3482162f0eb38beaaaa774a5bd7645e03672fb65d3c7bf69152f0c9ccdb",
+    "iterations/2026-11-07-02-background-settings/README.md": "e6cc50eed01a542ef6d6bc2a9ee12ee804c4364bc1f7f8ea0c702097ec0ae6c7",
+    "iterations/2026-11-07-02-background-settings/changes.patch": "0049990c9d80ffe1f60081f53302a67da1561b745ea8f20250def84f075ae51e"
+  },
+  "patch_verified_in_isolated_baseline": true
+}

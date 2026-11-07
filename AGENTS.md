@@ -111,6 +111,7 @@
 | 扫描、统计、缓存 | 测试 DLL 无参数核心检查、`--advanced-tests`，补本轮边界 |
 | 日志增量、刷新策略 | 上述检查加 `--journal-tests`，真实路径与模拟场景分别记录 |
 | 界面、背景、绘制 | 应用与测试构建、`--ui-regression`、`--ui-regression --dpi-96`，实际受影响流程与状态观察 |
+| 背景存储、弹窗、启动恢复 | 另运行 `--background-tests` 与 `--background-tests --dpi-96`，使用隔离配置的独立进程恢复检查 |
 | 性能 | 正确性回归加对应同条件基准，不无条件跑所有基准 |
 
 - 可选 `--policy-benchmark` 用于三策略对比，`--refresh-benchmark` 用于刷新同条件诊断；方法与限制见 README 和相关迭代。先保留已有报告，再运行会覆盖报告的基准。

@@ -8,11 +8,49 @@ internal static class Theme
     public static readonly Color Background = Color.FromArgb(252, 246, 242);
     public static readonly Color Sidebar = Color.FromArgb(250, 239, 232);
     public static readonly Color Surface = Color.FromArgb(255, 252, 249);
-    public static readonly Color Border = Color.FromArgb(228, 205, 195);
+    public static Color Border { get; private set; } = Color.FromArgb(228, 205, 195);
     public static readonly Color Text = Color.FromArgb(75, 54, 52);
     public static readonly Color Muted = Color.FromArgb(121, 96, 90);
-    public static readonly Color Accent = Color.FromArgb(165, 68, 62);
-    public static readonly Color Selection = Color.FromArgb(248, 222, 212);
+    public static readonly Color DefaultAccent = Color.FromArgb(165, 68, 62);
+    public static Color Accent { get; private set; } = DefaultAccent;
+    public static Color Selection { get; private set; } = Color.FromArgb(248, 222, 212);
+
+    private static bool customAccent;
+    internal static (Color Start, Color End) ProgressColors(Color? accent) => accent is { } value
+        ? (ReadableAccent(value), Mix(ReadableAccent(value), Surface, .32f))
+        : (Color.FromArgb(166, 59, 61), Color.FromArgb(237, 156, 104));
+    internal static (Color Start, Color End) ProgressPalette => ProgressColors(customAccent ? Accent : null);
+
+    public static void SetAccent(Color? color)
+    {
+        customAccent = color.HasValue;
+        Accent = color.HasValue ? ReadableAccent(color.Value) : DefaultAccent;
+        Selection = color.HasValue ? Mix(Accent, Surface, .83f) : Color.FromArgb(248, 222, 212);
+        Border = color.HasValue ? Mix(Accent, Surface, .68f) : Color.FromArgb(228, 205, 195);
+    }
+
+    internal static Color Mix(Color from, Color to, float weight) => Color.FromArgb(
+        (int)(from.R + (to.R - from.R) * weight),
+        (int)(from.G + (to.G - from.G) * weight),
+        (int)(from.B + (to.B - from.B) * weight));
+
+    internal static double Luminance(Color color)
+    {
+        static double Linear(byte value)
+        {
+            double channel = value / 255d;
+            return channel <= .04045 ? channel / 12.92 : Math.Pow((channel + .055) / 1.055, 2.4);
+        }
+        return .2126 * Linear(color.R) + .7152 * Linear(color.G) + .0722 * Linear(color.B);
+    }
+
+    internal static Color ReadableAccent(Color color)
+    {
+        color = Color.FromArgb(color.R, color.G, color.B);
+        // Keep accent labels legible on both neutral and tinted backgrounds.
+        while (Luminance(color) > .13) color = Mix(color, Color.Black, .1f);
+        return color;
+    }
     public static readonly (string Name, Color Color)[] Categories =
     [
         ("文件夹", Color.FromArgb(235, 177, 153)),
@@ -166,8 +204,8 @@ internal sealed class ActionButton : Button
         using var path = Theme.Round(rect, 7 * DeviceDpi / 96f);
         bool pressed = spacePressed || mousePressed && hovered;
         Color fill = !Enabled ? Theme.Sidebar : Primary
-            ? pressed ? Color.FromArgb(119, 43, 40) : hovered ? Color.FromArgb(145, 55, 51) : Theme.Accent
-            : pressed ? Color.FromArgb(235, 199, 186) : Selected ? Theme.Selection : hovered ? Color.FromArgb(251, 234, 226) : BackColor;
+            ? pressed ? Theme.Mix(Theme.Accent, Color.Black, .25f) : hovered ? Theme.Mix(Theme.Accent, Color.Black, .12f) : Theme.Accent
+            : pressed ? Theme.Border : Selected ? Theme.Selection : hovered ? Theme.Mix(Theme.Selection, Theme.Surface, .35f) : BackColor;
         using var brush = new SolidBrush(fill);
         e.Graphics.FillPath(brush, path);
         if (!Primary && FlatAppearance.BorderSize > 0) { using var pen = new Pen(Theme.Border); e.Graphics.DrawPath(pen, path); }

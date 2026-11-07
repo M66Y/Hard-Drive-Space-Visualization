@@ -7,6 +7,11 @@ internal sealed class MainForm : Form
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     internal Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult>? ScanRunner { get; init; }
     internal readonly WallpaperRaster WallpaperRaster = new();
+    internal BackgroundView BackgroundCrop { get; private set; } = BackgroundView.Default;
+    internal bool HasCustomBackground { get; private set; }
+    private readonly string backgroundSettingsPath;
+    private Color automaticBackgroundAccent = Theme.DefaultAccent;
+    private readonly ActionButton backgroundSettings = new("背景设置") { Dock = DockStyle.Fill };
     private readonly ScanCoordinator coordinator = new();
     private readonly ComboBox strategyCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
     private readonly ComboBox metricCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
@@ -65,8 +70,9 @@ internal sealed class MainForm : Form
     private bool sortAscending;
     private bool updating;
 
-    public MainForm(string? initialPath)
+    public MainForm(string? initialPath, bool loadSavedBackground = false, string? backgroundSettingsPath = null)
     {
+        this.backgroundSettingsPath = backgroundSettingsPath ?? BackgroundSettings.PathForUser;
         Text = "AsukaLens · 磁盘空间可视化";
         if (Environment.ProcessPath is { } executable) Icon = Icon.ExtractAssociatedIcon(executable);
         Size = new Size(1440, 940);
@@ -123,7 +129,14 @@ internal sealed class MainForm : Form
         DragEnter += (_, e) => { if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1 && Directory.Exists(paths[0])) e.Effect = DragDropEffects.Copy; };
         DragDrop += async (_, e) => { if (scanCancellation == null && e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1) await ScanFolder(paths[0]); };
         FormClosing += (_, _) => { scanCancellation?.Cancel(); viewCancellation?.Cancel(); };
-        Shown += async (_, _) => { if (!string.IsNullOrWhiteSpace(initialPath)) await ScanFolder(initialPath); };
+        backgroundSettings.Click += (_, _) => EditBackground();
+        backgroundSettings.Enabled = !loadSavedBackground;
+        Shown += async (_, _) =>
+        {
+            if (loadSavedBackground) await RestoreSavedBackground();
+            if (!IsDisposed && !Disposing && scanCancellation == null && scan == null &&
+                !string.IsNullOrWhiteSpace(initialPath)) await ScanFolder(initialPath);
+        };
     }
 
     private void PrepareInitialLayout()
@@ -135,7 +148,7 @@ internal sealed class MainForm : Form
         MinimumSize = new Size(Math.Min((int)(1120 * scale), area.Width), Math.Min((int)(780 * scale), area.Height));
         Size = new Size(Math.Min((int)(1440 * scale), area.Width), Math.Min((int)(940 * scale), area.Height));
         Location = new Point(area.X + (area.Width - Width) / 2, area.Y + (area.Height - Height) / 2);
-        WallpaperRaster.Get(BackgroundImage, ClientSize);
+        WallpaperRaster.Get(BackgroundImage, ClientSize, BackgroundCrop);
     }
 
     private static Label LabelOf(string text, float size, bool bold = false, bool muted = false) => new()
@@ -209,7 +222,11 @@ internal sealed class MainForm : Form
         settings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         settings.Controls.Add(LabelOf("扫描策略", 9), 0, 0); settings.Controls.Add(new InputFrame(strategyCombo) { Margin = new Padding(0, 0, 20, 0) }, 1, 0);
         settings.Controls.Add(LabelOf("统计口径", 9), 2, 0); settings.Controls.Add(new InputFrame(metricCombo) { Margin = new Padding(0, 0, 15, 0) }, 3, 0);
-        settings.Controls.Add(refreshInfo, 4, 0); main.Controls.Add(settings, 0, 1);
+        settings.ColumnCount = 6;
+        settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        settings.Controls.Add(refreshInfo, 4, 0);
+        settings.Controls.Add(backgroundSettings, 5, 0);
+        main.Controls.Add(settings, 0, 1);
 
         var cards = Table(4, 1);
         for (int i = 0; i < 4; i++) cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
@@ -874,6 +891,59 @@ internal sealed class MainForm : Form
         var text = new TextBox { Multiline = true, ReadOnly = true, Dock = DockStyle.Fill, ScrollBars = ScrollBars.Both, WordWrap = false, BackColor = Theme.Surface, ForeColor = Theme.Text, BorderStyle = BorderStyle.None, Font = Theme.Font(9) };
         text.Text = "跳过项未纳入文件大小统计；占用未知的文件仍计入文件大小，但不假定其占用为 0。\r\n两类各最多保留 2,000 条详情。\r\n\r\n" + string.Join("\r\n\r\n", scan.Issues.Concat(scan.AllocationIssues).Select(i => $"{i.Path}\r\n{i.Reason}"));
         dialog.Padding = new Padding(18); dialog.Controls.Add(text); dialog.ShowDialog(this);
+    }
+
+    private async Task RestoreSavedBackground()
+    {
+        try
+        {
+            var saved = await Task.Run(() => BackgroundSettings.Load(backgroundSettingsPath));
+            if (saved == null) return;
+            if (IsDisposed || Disposing) saved.Dispose();
+            else ApplyBackground(saved.Image, saved.View, saved.AutomaticAccent);
+        }
+        catch (Exception error) when (BackgroundSettings.IsFileError(error))
+        {
+            if (!IsDisposed && !Disposing && scanCancellation == null)
+                status.Text = "自定义背景无法读取，已使用默认背景。";
+        }
+        finally { if (!IsDisposed && !Disposing) backgroundSettings.Enabled = true; }
+    }
+
+    private void EditBackground()
+    {
+        if (BackgroundImage is not { } current) return;
+        using var dialog = new BackgroundDialog(current, BackgroundCrop, automaticBackgroundAccent, ClientSize,
+            backgroundSettingsPath, isDefault: !HasCustomBackground);
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        if (dialog.RestoredDefault) ApplyBackground(Wallpaper.Load(), BackgroundView.Default, Theme.DefaultAccent, useDefault: true);
+        else if (dialog.Result is { } result) ApplyBackground(result.Image, result.View, result.AutomaticAccent);
+    }
+
+    private void ApplyBackground(Bitmap image, BackgroundView view, Color automatic, bool useDefault = false)
+    {
+        var previous = BackgroundImage;
+        BackgroundCrop = view;
+        HasCustomBackground = !useDefault;
+        automaticBackgroundAccent = automatic;
+        Theme.SetAccent(useDefault ? null : view.AccentArgb is int argb ? Color.FromArgb(argb) : automatic);
+        WallpaperRaster.Dispose();
+        BackgroundImage = image;
+        grid.DefaultCellStyle.SelectionBackColor = Theme.Selection;
+        grid.GridColor = useDefault ? Color.FromArgb(239, 224, 217) : Theme.Mix(Theme.Border, Theme.Surface, .55f);
+        previous?.Dispose();
+        UpdateTextSurfaces(this);
+        Invalidate(true);
+
+        void UpdateTextSurfaces(Control parent)
+        {
+            foreach (Control child in parent.Controls)
+            {
+                if (child is Label or CheckBox)
+                    child.BackColor = HasCustomBackground ? Theme.Surface : Color.Transparent;
+                UpdateTextSurfaces(child);
+            }
+        }
     }
 
     private async void HandleKeys(object? sender, KeyEventArgs e)

@@ -24,20 +24,25 @@ internal static class Wallpaper
         var offset = Point.Empty;
         for (Control? node = control; node != null && node != form; node = node.Parent)
             offset.Offset(node.Left, node.Top);
-        if (form is MainForm main && main.WallpaperRaster.Get(image, form.ClientSize) is { } raster)
+        if (form is MainForm main && main.WallpaperRaster.Get(image, form.ClientSize, main.BackgroundCrop) is { } raster)
             graphics.DrawImageUnscaled(raster, -offset.X, -offset.Y);
         else
-            graphics.DrawImage(image, CoverBounds(image, form.ClientSize, offset));
+            graphics.DrawImage(image, CoverBounds(image, form.ClientSize, offset, (form as MainForm)?.BackgroundCrop));
+        if (form is MainForm { HasCustomBackground: true } &&
+            (control is NavigationPanel or ScanProgressControl || control is TreemapControl && wash == 130))
+            wash = Math.Max(wash, 235);
         using var veil = new SolidBrush(Color.FromArgb(wash, Theme.Surface));
         graphics.FillRectangle(veil, control.ClientRectangle);
     }
 
-    internal static RectangleF CoverBounds(Image image, Size size, Point offset)
+    internal static RectangleF CoverBounds(Image image, Size size, Point offset, BackgroundView? view = null)
     {
-        float scale = Math.Max((float)size.Width / image.Width, (float)size.Height / image.Height);
+        var crop = view ?? BackgroundView.Default;
+        float scale = crop.Zoom * Math.Max((float)size.Width / image.Width, (float)size.Height / image.Height);
         float width = image.Width * scale, height = image.Height * scale;
-        return new RectangleF((size.Width - width) / 2 - offset.X,
-            (size.Height - height) / 2 - offset.Y, width, height);
+        float left = Math.Clamp(size.Width / 2f - crop.X * width, Math.Min(0, size.Width - width), 0);
+        float top = Math.Clamp(size.Height / 2f - crop.Y * height, Math.Min(0, size.Height - height), 0);
+        return new RectangleF(left - offset.X, top - offset.Y, width, height);
     }
 }
 
@@ -47,13 +52,15 @@ internal sealed class WallpaperRaster : IDisposable
     private Image? source;
     private Size size;
     private Bitmap? raster;
+    private BackgroundView? view;
 
-    public Bitmap? Get(Image? image, Size clientSize)
+    public Bitmap? Get(Image? image, Size clientSize, BackgroundView? crop = null)
     {
-        if (ReferenceEquals(image, source) && clientSize == size) return raster;
+        if (ReferenceEquals(image, source) && clientSize == size && view == crop) return raster;
         Dispose();
         source = image;
         size = clientSize;
+        view = crop;
         if (image == null || size.Width <= 0 || size.Height <= 0 || (long)size.Width * size.Height > MaxPixels)
             return null;
 
@@ -63,7 +70,7 @@ internal sealed class WallpaperRaster : IDisposable
             candidate = new Bitmap(size.Width, size.Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
             using var graphics = Graphics.FromImage(candidate);
             graphics.Clear(Theme.Background);
-            graphics.DrawImage(image, Wallpaper.CoverBounds(image, size, Point.Empty));
+            graphics.DrawImage(image, Wallpaper.CoverBounds(image, size, Point.Empty, crop));
             raster = candidate;
             candidate = null;
             return raster;

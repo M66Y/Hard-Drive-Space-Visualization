@@ -10,7 +10,7 @@ internal static class Program
             ApplicationConfiguration.Initialize();
             Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
             Application.ThreadException += (_, e) => ReportError(e.Exception);
-            Application.Run(new MainForm(args.FirstOrDefault(a => !a.StartsWith("--"))));
+            Application.Run(new MainForm(args.FirstOrDefault(a => !a.StartsWith("--")), loadSavedBackground: true));
         }
         catch (Exception ex) { ReportError(ex); }
     }

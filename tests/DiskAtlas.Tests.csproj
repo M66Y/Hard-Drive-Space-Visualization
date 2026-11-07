@@ -23,6 +23,8 @@
     <Compile Include="..\TreemapControl.cs" Link="TreemapControl.cs" />
     <Compile Include="..\ScanProgressControl.cs" Link="ScanProgressControl.cs" />
     <Compile Include="..\Theme.cs" Link="Theme.cs" />
+    <Compile Include="..\BackgroundSettings.cs" Link="BackgroundSettings.cs" />
+    <Compile Include="..\BackgroundDialog.cs" Link="BackgroundDialog.cs" />
     <Compile Include="..\Wallpaper.cs" Link="Wallpaper.cs" />
     <EmbeddedResource Include="..\assets\background.png" LogicalName="DiskAtlas.Background" />
     <EmbeddedResource Include="..\assets\app.ico" LogicalName="DiskAtlas.AppIcon" />

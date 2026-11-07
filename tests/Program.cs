@@ -1,6 +1,10 @@
 using DiskAtlas;
 using System.Drawing;
 
+if (args.Contains("--background-preview")) return BackgroundRegression.Preview(args[1]);
+if (args.Contains("--background-child")) return BackgroundRegression.RunChild(args[1], args[2]);
+if (args.Contains("--background-tests")) return BackgroundRegression.Run(args.Contains("--dpi-96"));
+
 if (args.Contains("--treemap-benchmark")) return TreemapBenchmark.Run(args.Last());
 
 if (args.Contains("--scan-benchmark")) return ScanBenchmark.Run();

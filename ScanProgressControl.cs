@@ -16,8 +16,8 @@ internal sealed class ScanProgressControl : Control
     private bool animationsEnabled = true;
     private Bitmap? marker;
     private int markerPixels;
-    internal static readonly Color TrackStart = Color.FromArgb(166, 59, 61);
-    internal static readonly Color TrackEnd = Color.FromArgb(237, 156, 104);
+    internal static Color TrackStart => Theme.ProgressPalette.Start;
+    internal static Color TrackEnd => Theme.ProgressPalette.End;
     internal const string Explanation = "当前阶段估算 = 已处理目录任务 / 当前已发现目录任务；包含根目录。\n新目录出现时估算可能下降；核验与读取/复用分别计数，整理阶段沿用读取计数。\n不代表文件、字节或剩余时间比例。核验以旧快照目录数为分母，整个缓存子树复用算一个任务。\n统计整理结束前最多 99%；总量未知时显示往返指示。取消、失败或结果不完整不显示成功的 100%。";
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
