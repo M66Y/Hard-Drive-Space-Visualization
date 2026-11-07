@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-07",
+  "baseline": "a4e5a462ef6f7a004e030c4f1174a141199c8582",
+  "scope": "Documentation audit; inherited feature implementation preserved, not committed in this iteration.",
+  "patch_files": [
+    "AGENTS.md",
+    "docs/project-status.md",
+    "docs/development-plan.md"
+  ],
+  "files": {
+    "AGENTS.md": "325f89bf637aada43533c08af8fedd58050e556d4cc3b3b7608af6a4b349c220",
+    "docs/project-status.md": "9a2056082ec3ec22937e33e48772d739ebec8d3ebca2fd671a9915fbca6a4fdd",
+    "docs/development-plan.md": "7c25e268deb9c19b3fe559b08f9938f303f95611f5be2bbc06a973f8c1096130",
+    "iterations/2026-11-07-01-project-audit/README.md": "21601a7f6b267fd24a196fc6008d305ece2ee114b2d6e56b94ff4cc413cfc799",
+    "iterations/2026-11-07-01-project-audit/changes.patch": "4c387d7862ae2902fceae43c0ee94e0fca9275decf2ee4a627da4c556f6d1c4e"
+  },
+  "audited_inherited_files_sha256": {
+    "MainForm.cs": "e9985f1cfa29fd7d0860fb864af0b469010ecc029e10fdbf8310e7dae86778a5",
+    "Program.cs": "aaf2e6fd4e1059cc75fe5d97cec6ba99ec80d896cb4b8ecde2e34c8e461da948",
+    "README.md": "33e380e63d10e5da9e135b4ae8b9b84be8a7e2c214f08b612194a2efc0ef9edc",
+    "Theme.cs": "3da00af84c9932d183d0a450a62d5c2a921f2037cb59e69c61b7f869ee98cf3e",
+    "Wallpaper.cs": "ac990462dbb7462d68d7b231630c8b28c96e8d8f52fe5c3405a07020d5acafa4",
+    "tests/DiskAtlas.Tests.csproj": "abd2f3828363e9cc50b9a707b045af21462e076ef277a026f69ff871759162e1",
+    "tests/UiRegression.cs": "13a845d0fb16018e19baf1a847382bc9b12438837e411670b35a2e240134b1ef",
+    "BackgroundDialog.cs": "ed36f1147721f4565c83deceabfc950e608628d0e4e305c5f439a31189cad2c7",
+    "BackgroundSettings.cs": "ef75ca11df0e7b0a5c3388512305a3aedde0326fdd9085b73ca0369e4f2247ba"
+  },
+  "validation": {
+    "core": 38,
+    "advanced": 25,
+    "journal": 16,
+    "ui_groups": {
+      "144_dpi": 10,
+      "96_dpi_virtualized": 10
+    },
+    "exit_codes": 0,
+    "patch_applied_to_isolated_baseline": true,
+    "patch_restore_line_endings": "core.autocrlf=false; core.eol=lf"
+  }
+}
