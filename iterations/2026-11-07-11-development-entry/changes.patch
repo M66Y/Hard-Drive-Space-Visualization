@@ -1,0 +1,315 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 309647f..36e3592 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -122,6 +122,8 @@
+ - 混合目录调度改动补测 `--mixed-benchmark before/after` 的同夹具对比；用户明确指定实际目录后才使用 `--folder-benchmark`，其报告与隔离诊断仅留本机临时目录，不进入仓库。比较自动与高速必须核对完整扫描、结果一致性和运行顺序，保留异常波动样本。
+ - 本地目录比较出现指纹差异时，可使用 `--folder-benchmark --pair` 做针对性正确性诊断；额外保留的逐项快照影响测量条件，其计时不并入常规性能基准。差异计数和实际耗时仍只在本机核查，不纳入公开归档。工具边界检查使用 `--folder-comparison-tests`。
+ - 合成目录与软件配置隔离测试，不默认扫描用户整盘或覆盖真实背景设置。缺权限/文件系统特性的跳过、程序断言、人工观察和性能实测分别记录。
++- 阶段与延期问题以开发计划顶部的优先级表为准。初版完成前，用户移至初版后处理的同级非阻塞问题不得因普通“继续”任务自动重启；正确性、隐私和使用阻塞仍优先处理。
++- 当前开发启动入口为 `run.cmd` / `run.ps1`，先普通构建再启动；`run.ps1 -BuildOnly` 只构建。程序集构建标识用于辨认二进制，不是 Git 提交号或正式发布证明。
+ - 开发预览优先使用普通构建入口 `bin/Release/net10.0-windows/DiskAtlas.exe`；被运行中程序占用时使用明确标识的临时输出，记录路径与构建来源。收尾核查重复产物，不持续新增不明版本的 Preview 目录。
+ - 只有有性能疑点或相关改动时才运行 `--scan-benchmark`；历史 `--memory-benchmark` 在缺少旧基准包时可能跳过，跳过不算验证通过该对比。
+ - 当前 `build.ps1` 会生成程序文件夹与 ZIP，`build.ps1 -Test` 还会运行两组核心检查；因此它们属于现阶段的打包入口，不用于普通迭代的无条件检查。脚本尚未实现本文件要求的完整正式发布流程。
+diff --git a/MainForm.cs b/MainForm.cs
+index 565c2d8..f34dc63 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -77,7 +77,7 @@ internal sealed class MainForm : Form
+     {
+         this.diagnostics = diagnostics;
+         this.backgroundSettingsPath = backgroundSettingsPath ?? BackgroundSettings.PathForUser;
+-        Text = "AsukaLens · 磁盘空间可视化";
++        Text = AppInfo.WindowTitle;
+         if (Environment.ProcessPath is { } executable) Icon = Icon.ExtractAssociatedIcon(executable);
+         Size = new Size(1440, 940);
+         MinimumSize = new Size(1120, 780);
+diff --git a/README.md b/README.md
+index dae198c..ebd1c00 100644
+--- a/README.md
++++ b/README.md
+@@ -1,16 +1,12 @@
+ # AsukaLens v1.4.2
+ 
+-当前开发预览修正了**高速模式的混合目录调度**：优先并行处理目录，只有目录没有排队且还有空余额度时，才补充大目录内的文件并行。目录与辅助读取共用 8 路额度，降低重复排队和分配；不保证所有目录都比自动快。合成混合目录的同轮测试中，两者耗时接近。见[实现与验证](iterations/2026-11-07-10-mixed-scan-scheduling/README.md)。
++Windows 本地磁盘空间可视化软件，提供目录扫描、空间分布、文件列表、大文件、类型统计和两种大小口径。当前源码为开发预览，旧 `软件/` 目录和 ZIP 不含最新迭代。
+ 
+-本地诊断管理已提供：主窗“诊断”可查看、筛选、清空运行诊断，勾选后预览导出，也可主动填写本地问题记录。最小运行日志默认开启，可关闭，限制为 8 MiB / 14 天；不记录路径、文件名或异常原文，不自动上传。使用方法与边界见[诊断说明](docs/diagnostics.md)。
++**启动当前开发版：** 安装 .NET 10 SDK 后，在项目根目录双击 [run.cmd](run.cmd)。它先构建当前源码，再启动唯一的普通输出；构建失败或当前开发版仍在运行时会明确提示。主窗标题显示版本，“诊断 → 开发记录说明”显示当前程序的构建标识，可用于区分同版本的不同预览。详细命令见[开发与构建](#开发与构建)。
+ 
+-开发预览已迁移到 .NET 10 LTS，见[迁移验收记录](iterations/2026-11-07-05-dotnet10-migration/README.md)。本轮已更新普通构建入口 `bin/Release/net10.0-windows/DiskAtlas.exe`。此前 `bin/ScanPerformance/` 是上一轮预览；原有运行窗口保留，需启动新构建体验本轮修正。第 5 轮背景设置已收尾，见[背景迭代记录](iterations/2026-11-07-02-background-settings/README.md)。其他专用 Preview 路径是历史记录；`软件/` 和旧 ZIP 不含这些新功能。
++**当前进度：** 背景设置、本地诊断、.NET 10 迁移和高速目录优先调度已完成各自验收。“高速模式不能稳定提速”仍是未解决问题，按用户要求记为 **P2 / 初版后处理**，同级非阻塞优化同步后移；当前先完成初版使用流程与交付准备。见[开发计划](docs/development-plan.md)与[性能验证](iterations/2026-11-07-10-mixed-scan-scheduling/README.md)。
+ 
+-开发分支已包含尚未正式发布的扫描策略修正、扫描进度与图块反馈；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。本次交互修正使用独立的 `bin/Preview/DiskAtlas.exe` 预览目录，以保留正在运行的旧窗口。详见[扫描策略记录](iterations/2026-11-01-02-scan-policy/README.md)、[第 2 轮交互记录](iterations/2026-11-02-02-scan-feedback/README.md)和[本次修正记录](iterations/2026-11-02-03-hover-fix/README.md)。
+-
+-第 3 轮开发预览新增实际刷新方式与诊断详情，修正只读日志协议兼容和连续性检查。点击顶部“点击详情”，或右键“重新扫描”选择“最近完成的扫描详情”，可查看实际方式、原因、核验/重扫/复用数量、日志错误码和分阶段耗时。详见[第 3 轮记录](iterations/2026-11-03-01-incremental-refresh/README.md)。第 3 轮后续修正通过 NTFS 根目录句柄在本机普通权限下读取真实日志。日志不可读时仍执行元信息核验。修复预览为 `bin/JournalPreview/DiskAtlas.exe`，验证见[只读日志修正记录](iterations/2026-11-04-01-journal-root/README.md)。
+-
+-Windows 本地文件夹空间可视化软件。运行本轮开发预览 `bin/Release/net10.0-windows/DiskAtlas.exe`，点击“选择文件夹”，即可查看文件名称、大小和分布。
++启动后点击“选择文件夹”，即可查看文件名称、大小和分布。普通构建输出为 `bin/Release/net10.0-windows/DiskAtlas.exe`；直接双击已有 EXE 不会自动更新源码。历史 Preview 目录仅作旧记录，不作为当前入口。
+ 
+ 界面使用用户提供的水彩插画作为背景，搭配暖白面板、珊瑚色按钮和浅色图表。背景等比例铺满窗口，边缘会随窗口比例裁切；原图内嵌在程序中，无需额外图片文件。数据行保持实色底，列表空白处透出背景。
+ 
+@@ -46,6 +42,20 @@ Windows 本地文件夹空间可视化软件。运行本轮开发预览 `bin/Rel
+ 
+ ## 开发与构建
+ 
++统一开发入口使用项目自己的目录定位文件，从其他工作目录调用也有效：
++
++```powershell
++# 构建当前源码并启动开发预览
++.\run.ps1
++
++# 只构建开发预览
++.\run.ps1 -BuildOnly
++```
++
++`run.cmd` 是便于双击的包装入口，使用 Windows PowerShell 运行脚本；它的执行策略参数仅对该次子进程有效。启动脚本使用普通 `dotnet build`，不会生成 ZIP 或安装包。当前开发版正在运行时请先关闭；其他历史预览不会被自动关闭。缺少 SDK 或构建失败时不会退回旧 EXE。
++
++构建标识来自当前程序集的固定元数据，用于辨认不同程序文件，不是 Git 提交号，也不表示正式发布。后续正式发布仍统一使用 `vX.X.X` 版本号。
++
+ 最近异常仍以 `AsukaLens/last-error.log` 的字段白名单保存，现已纳入诊断开关、查看、清空与 14 天保留规则。关闭时明确提示未启用，保存失败不谎报成功。新诊断模块位于 `src/Diagnostics/`，测试入口为 `--diagnostics-tests`、`--diagnostics-ui` 及后者附加 `--dpi-96`；原有 `--error-report-tests` 继续验证最小异常文件。历史修复见[隐私修复记录](iterations/2026-11-07-03-error-report-privacy/README.md)。
+ 
+ 项目使用 C# / .NET 10 LTS Windows Forms，无第三方包，软件不联网。开发需要 `global.json` 所指定的 .NET 10 SDK（10.0.403，允许 10.0.4xx 后续补丁），运行需要 .NET 10 Windows Desktop Runtime；安装 SDK 已包含桌面运行时。可从[微软官方下载页](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)获取 Windows x64 安装程序，安装后用 `dotnet --version` 与 `dotnet --list-runtimes` 核对。
+@@ -115,6 +125,8 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
+ 
+ ## 结构
+ 
++`run.cmd` / `run.ps1` 是当前开发启动入口；`src/AppInfo.cs` 提供版本与构建辨识。
++
+ `Core.cs` 扫描、紧凑文件条目、大小格式与矩形布局；`LiveScanSession.cs` 可取消的有限预览快照；`ViewQuery.cs` 可取消的查询、有限堆筛选与分页；`FileKinds.cs` 文件分类；`MainForm.cs` 界面和异步状态；`TreemapControl.cs` 缓存图块绘制及有限动效；`ScanProgressControl.cs` 阶段估算与进度显示；`Theme.cs` 配色和可用键盘操作的导航控件。扫描使用目录队列和最多 8 个工作线程，跳过重解析点并记录错误。`new DiskScanner(1)` 可用于串行验证，最大并行数可在 1–16 之间设置。
+ 
+ `ScanCoordinator.cs` 选择刷新路径并生成复用计划；`ChangeJournal.cs` 只读解析 NTFS 日志；`RefreshStatus.cs` 定义实际方式、脱敏诊断及详情文本；`MetadataVerifier.cs` 无日志时核验元信息；`NativeStorage.cs` 查询 Windows 文件身份、分配及磁盘特性；`StorageMetrics.cs` 对硬链接确定唯一计入路径并汇总；`ScanPolicy.cs` 定义扫描策略。缓存仅在内存中，不创建或修改系统变化日志，不要求提升软件权限。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 042f778..b9261f8 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -2,6 +2,20 @@
+ 
+ 依据 [2026-11-07 项目现状](project-status.md)。背景收尾与异常报告修复已完成；用户随后选择系统安装 .NET 10 SDK，迁移与自动回归已完成，本地诊断管理随后已获完整范围确认并完成；其他条目不自动启动。长期工作规则见 [AGENTS.md](../AGENTS.md)。
+ 
++## 当前阶段与优先级（2026-11-07 用户调整）
++
++先完成初版使用流程与可交付能力，再集中处理同优先级的非阻塞优化。这里的初版按核心流程验收、用户说明与可用交付入口齐全来推进；正式打包和发布仍按发布规则另行执行。P0/P1 的统计错误、隐私泄露、崩溃或使用阻塞应及时处理，不能因优化延期一起搁置。
++
++| 编号 | 优先级 / 状态 | 问题与处理顺序 | 恢复或验收条件 |
++| --- | --- | --- | --- |
++| PERF-001 | P2 / 初版后处理 | 高速扫描尚不能在真实混合目录稳定快于自动；已完成目录优先修正，不能标为已解决 | 初版完成后，与同级问题统一排序；区分 UI、元信息读取、缓存与系统负载，保持等工作量并报告波动，不能通过跳过核验制造提速 |
++| MAINT-001 | P2 / 初版后处理 | 非阻塞的主窗职责拆分、目录整体重组与额外视觉打磨 | 与 PERF-001 同阶段评估收益；修复 P0/P1 所必需的小范围整理不受此限制 |
++| DEV-001 | P1 / 已完成本轮验收 | 多个历史预览容易误开，版本号不足以辨认构建；统一开发启动入口与当前程序身份 | 从任意工作目录可构建并启动当前源码；构建失败不启动旧程序，重复启动有提示；标题显示版本，诊断显示构建标识 |
++| UI-001 | P1 / 后续核查 | 初版需明确统计口径、当前结果范围、部分/取消/未读取状态与基本键盘操作 | 先核对已有行为和具体缺口，仅补初版必须项；大范围视觉方向仍需方案 |
++| DELIVERY-001 | P1 / 初版交付准备 | 双语用户说明、素材来源/分发条件、便携与安装交付及源码快照 | 按独立方案备齐并验证交付，不将旧 ZIP 追认为已符合规范 |
++
++PERF-001 的公开依据为[调度修正与验证](../iterations/2026-11-07-10-mixed-scan-scheduling/README.md)。真实目录路径、文件清单、耗时报告与诊断留在本机，不复制到待办、提交或 Release。本阶段不继续性能追测；初版之后再按用户要求处理同级问题。
++
+ ## 已完成：第 5 轮收尾与异常报告修复
+ 
+ 目标是让用户能可靠地更换背景、重新打开软件后保留设置，遇到失败能理解原因并继续使用。先完成现有功能闭环，再开始新功能。背景功能延续此前确认的方向；日志管理、权限、框架迁移和发布均另立方案。框架迁移现已另行确认，见下文。
+@@ -35,14 +49,14 @@
+ 
+ ## 后续顺序
+ 
+-当前已形成可审查的 [.NET 10 迁移方案](dotnet10-migration.md)，包含环境选择、代码范围、兼容性检查、验收和回退基线。静态核查完成，用户明确选择系统安装 SDK，现已完成安装、迁移和全部自动回归，见[验收记录](../iterations/2026-11-07-05-dotnet10-migration/README.md)。本地诊断管理和高速完整扫描的大型单目录优化随后按各自确认范围完成；下一项界面信息改进仍需明确具体用户问题及范围。
++当前已形成可审查的 [.NET 10 迁移方案](dotnet10-migration.md)，包含环境选择、代码范围、兼容性检查、验收和回退基线。静态核查完成，用户明确选择系统安装 SDK，现已完成安装、迁移和全部自动回归，见[验收记录](../iterations/2026-11-07-05-dotnet10-migration/README.md)。本地诊断管理和高速完整扫描的大型单目录优化随后按各自确认范围完成；当前顺序以顶部优先级表为准：统一使用入口与构建身份已经完成，下一步核查初版必要的界面信息和交付缺口。
+ 
+ | 顺序 | 建议方向 | 开始前需要明确 | 验收重点 |
+ | --- | --- | --- | --- |
+ | 已完成 | .NET 10 LTS 迁移 | 支持的 Windows 版本、开发 SDK、运行依赖与回退基线 | 核心/日志/UI 全部回归、启动与背景兼容；按用户选择系统安装 SDK，保留 .NET 9 |
+ | 已完成 | 本地诊断管理 | 用户确认默认开启最小诊断及主动问题记录 | 白名单、轮转/期限、查看清空、固定预览导出、问题记录；自动与 UI 回归通过 |
+ | 已完成首轮 | 扫描策略与响应优化 | 同条件测量后，按确认范围完成高速完整扫描的有界单目录并行；自动策略与刷新核验未扩展 | 逐项一致、取消/关闭回收；平坦 32,000 文件真实主窗扫描中位数减少约 74%，[完整证据](../iterations/2026-11-07-09-high-speed-files/README.md) |
+-| 4 | 界面信息与可维护性 | 具体用户问题及组件草图，状态职责划分 | 明确口径/范围/不完整状态、键盘可用，按修改边界抽取主窗职责 |
++| 初版内 | 启动入口与必要界面信息 | DEV-001 已完成，再核查 UI-001 的具体缺口 | 当前源码入口、版本辨识、口径/范围/不完整状态、键盘可用；额外重构移至初版后 |
+ | 发布前 | 用户文档与交付 | 中英文结构、资源许可、正式版本范围、安装方案 | 干净源码可构建，便携/安装/源码四类资产实测，Release 快照与校验完整 |
+ 
+ 不为日志不可用场景直接采用“跳过核验”的近似缓存。若后续确需持久扫描缓存或监听器，单独设计连续性证据、失效及退出/重启语义，再讨论收益与成本。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index b134318..9ec5dc4 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -2,6 +2,10 @@
+ 
+ 核查日期：2026-11-07。本文描述当日源码与工作区，不把开发预览当作正式版本。长期规则见 [AGENTS.md](../AGENTS.md)，下一步见 [开发计划](development-plan.md)，本次证据见 [审计记录](../iterations/2026-11-07-01-project-audit/README.md)。
+ 
++## 当前阶段
++
++2026-11-07 用户明确将“高速扫描不能稳定提速”记为 **PERF-001，P2，初版后处理**，同级非阻塞优化一起后移。调度修正已经提交，真实目录稳定提速尚未证实，两者分开记录。当前优先完成初版使用入口与功能闭环，详见[阶段与待办](development-plan.md#当前阶段与优先级2026-11-07-用户调整)。DEV-001 的统一开发版启动与构建辨识已完成本轮验收，见[开发入口记录](../iterations/2026-11-07-11-development-entry/README.md)。
++
+ ## 当前判断
+ 
+ 核心扫描与查看流程已经具备，现有回归可通过，适合继续迭代。第 5 轮背景功能已完成开发收尾，异常报告的最小隐私修复也已完成，并完成了 .NET 10 LTS 系统安装与迁移验证；本地诊断管理随后已完成；正式发布仍按计划推进。
+@@ -59,9 +63,9 @@
+ | 优先级 | 发现与影响 | 具体下一步 |
+ | --- | --- | --- |
+ | 已处理：运行环境 | 已迁移 .NET 10 LTS，SDK 10.0.403 / 桌面运行时 10.0.14，全部自动回归通过 | 后续跟进同 feature band 补丁；更换 feature band 或框架大版本另行核验 |
+-| P1 使用入口 | 当前入口已统一，但 `bin/` 仍有多个历史输出目录；旧发行目录仍是 v1.4.2 | 后续建立一个当前预览入口及构建身份，更新过时说明，核查后清理可再生产物 |
+-| 已修正：扫描调度 | 高速完整扫描改为目录优先、空闲额度补充文件读取，减少混合目录中的重复调度和分配；自动及刷新核验保留原策略 | [混合目录证据](../iterations/2026-11-07-10-mixed-scan-scheduling/README.md)；并非所有形态都比自动更快，自动负载适应或刷新并行仍需独立方案 |
+-| P2 可维护性 | `MainForm.cs` 约 1,000 行，集中 UI、扫描状态、查询和设置；测试通过链接源文件构建 | 在实际修改边界按职责渐进抽取，配合契约测试，避免一次性目录搬迁或框架替换 |
++| P1 使用入口 / DEV-001 | 本轮提供 `run.cmd` / `run.ps1`，启动前构建当前源码；标题与诊断显示版本及构建标识 | [入口验证](../iterations/2026-11-07-11-development-entry/README.md)；历史预览保留时不作为当前入口 |
++| P2 延期：PERF-001 | 高速完整扫描改为目录优先、空闲额度补充文件读取，减少混合目录中的重复调度和分配；自动及刷新核验保留原策略 | [混合目录证据](../iterations/2026-11-07-10-mixed-scan-scheduling/README.md)；稳定提速未证实；按用户要求初版后再处理，自动负载适应或刷新并行仍需独立方案 |
++| P2 延期：MAINT-001 | `MainForm.cs` 约 1,000 行，集中 UI、扫描状态、查询和设置；测试通过链接源文件构建 | 非阻塞的整体整理移至初版后；修复必要问题时按边界渐进抽取，避免一次性目录搬迁或框架替换 |
+ | 已处理：本地诊断 | 完整确认范围已实现，运行/问题/开发记录职责明确 | 见[诊断说明](diagnostics.md)与[验收记录](../iterations/2026-11-07-07-local-diagnostics/README.md)；后续新增字段继续严格控制隐私 |
+ | 发布前 | 缺英文 README、标准安装器和快照流水线；资源目录没有来源/许可说明文件 | 发布前补双语文档、确认素材分发条件，再完成安装器和四类资产验证 |
+ 
+@@ -74,7 +78,9 @@
+ ├─ AGENTS.md                  长期开发规则
+ ├─ DiskAtlas.csproj           WinForms 应用项目
+ ├─ Program.cs / MainForm.cs   启动与主窗，其他 C# 文件仍在根目录
++├─ run.cmd / run.ps1          构建并启动当前开发预览
+ ├─ README.md / 使用说明.txt    当前用户文档
++├─ src/AppInfo.cs            当前程序集版本与构建辨识
+ ├─ src/Diagnostics/          本地诊断存储、白名单与窗口
+ ├─ src/Scanning/             高速文件读取预算与缓冲计数
+ ├─ docs/                     当前状态和开发计划
+diff --git a/src/Diagnostics/DiagnosticsDialog.cs b/src/Diagnostics/DiagnosticsDialog.cs
+index d16c1d1..a0a3cc5 100644
+--- a/src/Diagnostics/DiagnosticsDialog.cs
++++ b/src/Diagnostics/DiagnosticsDialog.cs
+@@ -55,10 +55,10 @@ internal sealed class DiagnosticsDialog : Form
+         noteLayout.Controls.Add(notes, 0, 1); noteLayout.Controls.Add(Flow(add, edit, delete), 0, 2);
+         dev.Controls.Add(new TextBox
+         {
+-            Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, BorderStyle = BorderStyle.None, ScrollBars = ScrollBars.Vertical,
++            Name = "developmentInfo", AccessibleName = "当前程序与开发记录", Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, BorderStyle = BorderStyle.None, ScrollBars = ScrollBars.Vertical,
+             Text = "开发记录保存在项目 Git 历史与 iterations/ 中。\r\n\r\n" +
+                 "每轮记录包含需求、决策、关键文件、验证结果、限制和可恢复补丁。此窗口不读取本机开发目录，也不从网络自动获取记录。\r\n\r\n" +
+-                $"当前构建：{typeof(DiagnosticsDialog).Assembly.GetName().Version}\r\n\r\n" +
++                "当前程序：\r\n" + AppInfo.Summary + "\r\n" +
+                 "项目仓库：https://github.com/M66Y/Hard-Drive-Space-Visualization\r\n\r\n" +
+                 "运行诊断与问题记录只保存在本机的软件数据目录中。分享问题时，请先自行核对所选内容。"
+         });
+diff --git a/tests/DiagnosticsUiRegression.cs b/tests/DiagnosticsUiRegression.cs
+index 9c58fb8..7ff1686 100644
+--- a/tests/DiagnosticsUiRegression.cs
++++ b/tests/DiagnosticsUiRegression.cs
+@@ -61,6 +61,12 @@ internal static class DiagnosticsUiRegression
+                         var dialog = Field<DiagnosticsDialog>(main, "diagnosticsWindow");
+                         await Wait(() => !dialog.IsBusy && dialog.Snapshot != null);
+                         Check(dialog.Owner == main && main.Enabled, "Diagnostics blocked scan/cancel through a modal owner");
++                        var identity = Control<TextBox>(dialog, "developmentInfo");
++                        string expectedVersion = "v" + typeof(MainForm).Assembly.GetName().Version!.ToString(3);
++                        string expectedBuild = typeof(MainForm).Module.ModuleVersionId.ToString("N")[..12];
++                        Check(main.Text.Contains(expectedVersion) && identity.ReadOnly && identity.AccessibleName == "当前程序与开发记录" && identity.Text.Contains(expectedVersion) &&
++                            identity.Text.Contains(expectedBuild) && !identity.Text.Contains(AppContext.BaseDirectory),
++                            "Product identification is missing, editable, or exposes local build paths");
+                         Field<ActionButton>(main, "diagnosticsButton").PerformClick();
+                         Check(ReferenceEquals(dialog, Field<DiagnosticsDialog>(main, "diagnosticsWindow")), "Duplicate diagnostics windows");
+                         Field<bool>(main, "forceFullNext");
+diff --git a/tests/DiskAtlas.Tests.csproj b/tests/DiskAtlas.Tests.csproj
+index c7c7823..a4334cf 100644
+--- a/tests/DiskAtlas.Tests.csproj
++++ b/tests/DiskAtlas.Tests.csproj
+@@ -8,6 +8,7 @@
+     <RestoreConfigFile>$(MSBuildThisFileDirectory)..\NuGet.Config</RestoreConfigFile>
+   </PropertyGroup>
+   <ItemGroup>
++    <Compile Include="..\src\AppInfo.cs" Link="AppInfo.cs" />
+     <Compile Include="..\src\Diagnostics\**\*.cs" Link="Diagnostics\%(RecursiveDir)%(Filename)%(Extension)" />
+     <Compile Include="..\src\Scanning\**\*.cs" Link="Scanning\%(RecursiveDir)%(Filename)%(Extension)" />
+     <Compile Include="..\ErrorReport.cs" Link="ErrorReport.cs" />
+diff --git a/使用说明.txt b/使用说明.txt
+index 5876329..a7d5b5f 100644
+--- a/使用说明.txt
++++ b/使用说明.txt
+@@ -15,8 +15,12 @@ AsukaLens v1.4.2
+ 列表的数据行使用实色底，空白区域透出背景。
+ 
+ 开始使用
+-本轮已验证预览：双击 bin/Release/net10.0-windows/DiskAtlas.exe，点击右上角“选择文件夹”，选择电脑上的目录。
+-此前 bin/ScanPerformance 是上一轮预览，已打开的旧窗口不会自动切换为本轮代码。
++推荐启动入口：在项目根目录双击 run.cmd（需要 .NET 10 SDK），先构建当前源码，再启动开发预览。
++也可在 PowerShell 运行 .\run.ps1；仅构建使用 .\run.ps1 -BuildOnly。
++主窗标题显示版本；“诊断 → 开发记录说明”显示构建标识，同版本的不同预览可据此区分。
++普通输出是 bin/Release/net10.0-windows/DiskAtlas.exe；直接打开已有 EXE 不会更新源码。
++开发版仍在运行或构建失败时，启动入口会明确提示，请处理后重试。历史预览不会被自动关闭。
++启动后点击右上角“选择文件夹”，选择电脑上的目录。
+ 旧发行目录中的 AsukaLens.exe 仍可运行，但不包含最新开发改动。
+ 也可以把一个文件夹直接拖入程序窗口。
+ 
+diff --git a/run.cmd b/run.cmd
+new file mode 100644
+index 0000000..cf9750c
+--- /dev/null
++++ b/run.cmd
+@@ -0,0 +1,6 @@
++@echo off
++setlocal DisableDelayedExpansion
++powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0run.ps1"
++set "launchExit=%ERRORLEVEL%"
++if not "%launchExit%"=="0" pause
++exit /b %launchExit%
+diff --git a/run.ps1 b/run.ps1
+new file mode 100644
+index 0000000..dffc0b3
+--- /dev/null
++++ b/run.ps1
+@@ -0,0 +1,50 @@
++﻿[CmdletBinding()]
++param([switch]$BuildOnly)
++
++$ErrorActionPreference = 'Stop'
++$project = Join-Path $PSScriptRoot 'DiskAtlas.csproj'
++[xml]$definition = Get-Content -LiteralPath $project -Raw -Encoding UTF8
++$framework = [string]$definition.Project.PropertyGroup.TargetFramework
++$assembly = [string]$definition.Project.PropertyGroup.AssemblyName
++if ($framework -notmatch '^[A-Za-z0-9._-]+$' -or $assembly -notmatch '^[A-Za-z0-9._-]+$') {
++    throw '项目的运行目标或程序名称无效。'
++}
++$output = Join-Path $PSScriptRoot ('bin\Release\' + $framework)
++$executable = Join-Path $output ($assembly + '.exe')
++$dotnet = Get-Command dotnet -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
++if (-not $dotnet) { throw '未找到 .NET SDK。请按 README 安装 .NET 10 SDK 后重试。' }
++
++# Serialize launch/build within this checkout without writing a persistent lock.
++$sha = [Security.Cryptography.SHA256]::Create()
++try { $key = [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($PSScriptRoot.ToUpperInvariant()))).Replace('-', '') }
++finally { $sha.Dispose() }
++$mutex = [Threading.Mutex]::new($false, ('Local\AsukaLens.DevelopmentLaunch.' + $key))
++$held = $false
++$oldTelemetry = $env:DOTNET_CLI_TELEMETRY_OPTOUT
++$oldCertificate = $env:DOTNET_GENERATE_ASPNET_CERTIFICATE
++Push-Location $PSScriptRoot
++try {
++    try { $held = $mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $held = $true }
++    if (-not $held) { throw '另一个开发版构建或启动任务正在执行，请等待它完成。' }
++    $running = Get-Process -Name $assembly -ErrorAction SilentlyContinue | Where-Object {
++        try { $_.Path -and [string]::Equals($_.Path, $executable, [StringComparison]::OrdinalIgnoreCase) }
++        catch { $false }
++    }
++    if ($running) { throw '当前开发版仍在运行。请先关闭它，再构建并启动最新源码。' }
++    $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
++    $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
++    & $dotnet.Source build $project --configuration Release --output $output --nologo -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
++    if ($LASTEXITCODE -ne 0) { throw '开发版构建失败，未启动旧程序。请查看上面的构建错误。' }
++    if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw '构建未产生预期的启动文件，未启动程序。' }
++    if ($BuildOnly) { Write-Host '开发预览构建完成。'; return }
++    # This is the interactive application the user requested, not a background helper.
++    Start-Process -FilePath $executable -WorkingDirectory $PSScriptRoot | Out-Null
++    Write-Host '已启动 AsukaLens 开发版。版本与构建标识见“诊断 → 开发记录说明”。'
++}
++finally {
++    [Environment]::SetEnvironmentVariable('DOTNET_CLI_TELEMETRY_OPTOUT', $oldTelemetry, 'Process')
++    [Environment]::SetEnvironmentVariable('DOTNET_GENERATE_ASPNET_CERTIFICATE', $oldCertificate, 'Process')
++    if ($held) { $mutex.ReleaseMutex() }
++    $mutex.Dispose()
++    Pop-Location
++}
+diff --git a/src/AppInfo.cs b/src/AppInfo.cs
+new file mode 100644
+index 0000000..4a8f1e9
+--- /dev/null
++++ b/src/AppInfo.cs
+@@ -0,0 +1,15 @@
++using System.Runtime.InteropServices;
++
++namespace DiskAtlas;
++
++// Read only fixed assembly/runtime metadata; never expose build paths or arbitrary
++// informational-version text in the UI or copyable product identification.
++internal static class AppInfo
++{
++    public static string VersionLabel { get; } = typeof(AppInfo).Assembly.GetName().Version is { } version
++        ? $"v{version.Major}.{version.Minor}.{Math.Max(0, version.Build)}" : "版本未知";
++    public static string BuildId { get; } = typeof(AppInfo).Module.ModuleVersionId.ToString("N")[..12];
++    public static string WindowTitle => $"AsukaLens {VersionLabel} · 磁盘空间可视化";
++    public static string Summary => $"AsukaLens {VersionLabel}\r\n构建标识：{BuildId}\r\n" +
++        $"运行环境：{RuntimeInformation.FrameworkDescription} · {RuntimeInformation.ProcessArchitecture}\r\n";
++}

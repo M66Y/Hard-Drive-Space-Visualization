@@ -1,0 +1,45 @@
+{
+  "baseline": "ba9effc2fbe198166361efa9257ecaf0d6dc887d",
+  "scope": [
+    "PERF-001 deferred P2 until initial version completion",
+    "MAINT-001 same-priority deferral",
+    "DEV-001 development launch and build identity"
+  ],
+  "build": {
+    "application": "PASS: zero warnings/errors",
+    "tests": "PASS: zero warnings/errors",
+    "sdk": "10.0.403",
+    "runtime": "10.0.14"
+  },
+  "launch": {
+    "windows_powershell_5_1_foreign_working_directory": "PASS",
+    "build_only_does_not_launch": "PASS",
+    "cmd_wrapper_canonical_output": "PASS",
+    "missing_sdk": "PASS",
+    "failed_build_no_stale_launch": "PASS",
+    "concurrent_launch_mutex": "PASS",
+    "running_app_no_duplicate": "PASS",
+    "environment_restoration": "PASS",
+    "certificate_generation_disabled_fresh_cli": "PASS"
+  },
+  "regression": {
+    "main_ui_groups_144_dpi": 11,
+    "main_ui_groups_96_dpi": 11,
+    "diagnostics_ui_groups_144_dpi": 5,
+    "diagnostics_ui_groups_96_dpi": 5,
+    "manual_product_identification": "PASS",
+    "accessibility_name_fix": "PASS: diagnostics UI rechecked after fix"
+  },
+  "privacy": "No private directory scans, configuration changes, diagnostic exports, screenshots or raw logs archived.",
+  "preview": [
+    {
+      "path": "bin/Release/net10.0-windows/DiskAtlas.exe",
+      "sha256": "68ab9c0a9222acbaf7251d35934921b62a819b0534dc432d2f1e84c8592b4fba"
+    },
+    {
+      "path": "bin/Release/net10.0-windows/DiskAtlas.dll",
+      "sha256": "a3bc1009963624757a3c4623cfc755a8547a6a1b2a5c0b8943cf927ff84da850"
+    }
+  ],
+  "formal_release": false
+}

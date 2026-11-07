@@ -1,16 +1,12 @@
 # AsukaLens v1.4.2
 
-当前开发预览修正了**高速模式的混合目录调度**：优先并行处理目录，只有目录没有排队且还有空余额度时，才补充大目录内的文件并行。目录与辅助读取共用 8 路额度，降低重复排队和分配；不保证所有目录都比自动快。合成混合目录的同轮测试中，两者耗时接近。见[实现与验证](iterations/2026-11-07-10-mixed-scan-scheduling/README.md)。
+Windows 本地磁盘空间可视化软件，提供目录扫描、空间分布、文件列表、大文件、类型统计和两种大小口径。当前源码为开发预览，旧 `软件/` 目录和 ZIP 不含最新迭代。
 
-本地诊断管理已提供：主窗“诊断”可查看、筛选、清空运行诊断，勾选后预览导出，也可主动填写本地问题记录。最小运行日志默认开启，可关闭，限制为 8 MiB / 14 天；不记录路径、文件名或异常原文，不自动上传。使用方法与边界见[诊断说明](docs/diagnostics.md)。
+**启动当前开发版：** 安装 .NET 10 SDK 后，在项目根目录双击 [run.cmd](run.cmd)。它先构建当前源码，再启动唯一的普通输出；构建失败或当前开发版仍在运行时会明确提示。主窗标题显示版本，“诊断 → 开发记录说明”显示当前程序的构建标识，可用于区分同版本的不同预览。详细命令见[开发与构建](#开发与构建)。
 
-开发预览已迁移到 .NET 10 LTS，见[迁移验收记录](iterations/2026-11-07-05-dotnet10-migration/README.md)。本轮已更新普通构建入口 `bin/Release/net10.0-windows/DiskAtlas.exe`。此前 `bin/ScanPerformance/` 是上一轮预览；原有运行窗口保留，需启动新构建体验本轮修正。第 5 轮背景设置已收尾，见[背景迭代记录](iterations/2026-11-07-02-background-settings/README.md)。其他专用 Preview 路径是历史记录；`软件/` 和旧 ZIP 不含这些新功能。
+**当前进度：** 背景设置、本地诊断、.NET 10 迁移和高速目录优先调度已完成各自验收。“高速模式不能稳定提速”仍是未解决问题，按用户要求记为 **P2 / 初版后处理**，同级非阻塞优化同步后移；当前先完成初版使用流程与交付准备。见[开发计划](docs/development-plan.md)与[性能验证](iterations/2026-11-07-10-mixed-scan-scheduling/README.md)。
 
-开发分支已包含尚未正式发布的扫描策略修正、扫描进度与图块反馈；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。本次交互修正使用独立的 `bin/Preview/DiskAtlas.exe` 预览目录，以保留正在运行的旧窗口。详见[扫描策略记录](iterations/2026-11-01-02-scan-policy/README.md)、[第 2 轮交互记录](iterations/2026-11-02-02-scan-feedback/README.md)和[本次修正记录](iterations/2026-11-02-03-hover-fix/README.md)。
-
-第 3 轮开发预览新增实际刷新方式与诊断详情，修正只读日志协议兼容和连续性检查。点击顶部“点击详情”，或右键“重新扫描”选择“最近完成的扫描详情”，可查看实际方式、原因、核验/重扫/复用数量、日志错误码和分阶段耗时。详见[第 3 轮记录](iterations/2026-11-03-01-incremental-refresh/README.md)。第 3 轮后续修正通过 NTFS 根目录句柄在本机普通权限下读取真实日志。日志不可读时仍执行元信息核验。修复预览为 `bin/JournalPreview/DiskAtlas.exe`，验证见[只读日志修正记录](iterations/2026-11-04-01-journal-root/README.md)。
-
-Windows 本地文件夹空间可视化软件。运行本轮开发预览 `bin/Release/net10.0-windows/DiskAtlas.exe`，点击“选择文件夹”，即可查看文件名称、大小和分布。
+启动后点击“选择文件夹”，即可查看文件名称、大小和分布。普通构建输出为 `bin/Release/net10.0-windows/DiskAtlas.exe`；直接双击已有 EXE 不会自动更新源码。历史 Preview 目录仅作旧记录，不作为当前入口。
 
 界面使用用户提供的水彩插画作为背景，搭配暖白面板、珊瑚色按钮和浅色图表。背景等比例铺满窗口，边缘会随窗口比例裁切；原图内嵌在程序中，无需额外图片文件。数据行保持实色底，列表空白处透出背景。
 
@@ -45,6 +41,20 @@ Windows 本地文件夹空间可视化软件。运行本轮开发预览 `bin/Rel
 背景专项检查为构建测试项目后运行 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --background-tests`，再附加 `--dpi-96` 检查 96 DPI。它使用隔离设置，不覆盖个人背景。可选人工验收入口为 `--background-preview artifacts/background-demo`，会创建合成图片并打开使用该测试目录设置的主窗，退出后可清理此测试目录。
 
 ## 开发与构建
+
+统一开发入口使用项目自己的目录定位文件，从其他工作目录调用也有效：
+
+```powershell
+# 构建当前源码并启动开发预览
+.\run.ps1
+
+# 只构建开发预览
+.\run.ps1 -BuildOnly
+```
+
+`run.cmd` 是便于双击的包装入口，使用 Windows PowerShell 运行脚本；它的执行策略参数仅对该次子进程有效。启动脚本使用普通 `dotnet build`，不会生成 ZIP 或安装包。当前开发版正在运行时请先关闭；其他历史预览不会被自动关闭。缺少 SDK 或构建失败时不会退回旧 EXE。
+
+构建标识来自当前程序集的固定元数据，用于辨认不同程序文件，不是 Git 提交号，也不表示正式发布。后续正式发布仍统一使用 `vX.X.X` 版本号。
 
 最近异常仍以 `AsukaLens/last-error.log` 的字段白名单保存，现已纳入诊断开关、查看、清空与 14 天保留规则。关闭时明确提示未启用，保存失败不谎报成功。新诊断模块位于 `src/Diagnostics/`，测试入口为 `--diagnostics-tests`、`--diagnostics-ui` 及后者附加 `--dpi-96`；原有 `--error-report-tests` 继续验证最小异常文件。历史修复见[隐私修复记录](iterations/2026-11-07-03-error-report-privacy/README.md)。
 
@@ -114,6 +124,8 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
 三轮审查的发现、修改、实测证据与验证范围见 [优化审查记录.md](优化审查记录.md)。
 
 ## 结构
+
+`run.cmd` / `run.ps1` 是当前开发启动入口；`src/AppInfo.cs` 提供版本与构建辨识。
 
 `Core.cs` 扫描、紧凑文件条目、大小格式与矩形布局；`LiveScanSession.cs` 可取消的有限预览快照；`ViewQuery.cs` 可取消的查询、有限堆筛选与分页；`FileKinds.cs` 文件分类；`MainForm.cs` 界面和异步状态；`TreemapControl.cs` 缓存图块绘制及有限动效；`ScanProgressControl.cs` 阶段估算与进度显示；`Theme.cs` 配色和可用键盘操作的导航控件。扫描使用目录队列和最多 8 个工作线程，跳过重解析点并记录错误。`new DiskScanner(1)` 可用于串行验证，最大并行数可在 1–16 之间设置。
 

@@ -1,0 +1,22 @@
+[
+  {
+    "path": "artifacts/launch-cli",
+    "bytes": 9257
+  },
+  {
+    "path": "artifacts/launch-fresh-cli",
+    "bytes": 0
+  },
+  {
+    "path": "obj",
+    "bytes": 4009122
+  },
+  {
+    "path": "tests/obj",
+    "bytes": 3858236
+  },
+  {
+    "path": "tests/bin",
+    "bytes": 3567358
+  }
+]

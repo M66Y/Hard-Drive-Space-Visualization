@@ -1,0 +1,84 @@
+{
+  "baseline": "ba9effc2fbe198166361efa9257ecaf0d6dc887d",
+  "patch_files": [
+    "AGENTS.md",
+    "MainForm.cs",
+    "README.md",
+    "docs/development-plan.md",
+    "docs/project-status.md",
+    "src/Diagnostics/DiagnosticsDialog.cs",
+    "tests/DiagnosticsUiRegression.cs",
+    "tests/DiskAtlas.Tests.csproj",
+    "使用说明.txt",
+    "run.cmd",
+    "run.ps1",
+    "src/AppInfo.cs"
+  ],
+  "restoration": "Independent baseline: git apply --check, actual apply, LF-normalized file equality.",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256_lf": "0d5264a22b6617333f6796a57eaf72ceb29cfe361972158c8f5ae5c303755581"
+    },
+    {
+      "path": "MainForm.cs",
+      "sha256_lf": "bca1c21282e374328c3fe4b7350b73712cf4ace6116920c163f0132c53ef69ac"
+    },
+    {
+      "path": "README.md",
+      "sha256_lf": "255a26b6625ac11d69dc3f67f9e70708ce9658b7ef46e903b40fcf0be6bca676"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256_lf": "e043a4bea330181d72bcb2c9cc0606efcf0c599015b9ef98409d00d1538722f6"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256_lf": "77a64ea1d4adda5db113ea7bf1d8dc0756176114769b0faca0e07103a1b95834"
+    },
+    {
+      "path": "src/Diagnostics/DiagnosticsDialog.cs",
+      "sha256_lf": "18906c0018779ef23cc3f65854b6f9e896ad1081dc721e9c8c6b7960923ec00c"
+    },
+    {
+      "path": "tests/DiagnosticsUiRegression.cs",
+      "sha256_lf": "1e4f53249e79be0cd8dbb2b442a5a3c6eacb0093e6767ca430de3b54c738b506"
+    },
+    {
+      "path": "tests/DiskAtlas.Tests.csproj",
+      "sha256_lf": "c08408fdc3e12b8330201f68d05844998f65c314fdf4bef6620fb53419f0e078"
+    },
+    {
+      "path": "使用说明.txt",
+      "sha256_lf": "6e2899e11f4651f3ced4cffa1e215b6cf80a4dd9abbb8d87181b18630d92ff6f"
+    },
+    {
+      "path": "run.cmd",
+      "sha256_lf": "42aa8ad370dfee8e3788d906f6b719b484b1b30588241fd1c27017f005ac356d"
+    },
+    {
+      "path": "run.ps1",
+      "sha256_lf": "5e6215b3a0112a3e9972e0d79bc303897b658e2ada28104cd6eab874ee61000e"
+    },
+    {
+      "path": "src/AppInfo.cs",
+      "sha256_lf": "62a9c73d6bf0d947bfb5d413babc409b07798b9f54d861726915271faa4d44cf"
+    },
+    {
+      "path": "iterations/2026-11-07-11-development-entry/changes.patch",
+      "sha256_lf": "709655280d1f6ad87621a0a91aabfee588456ecb2165cf9a8c748d046cf16993"
+    },
+    {
+      "path": "iterations/2026-11-07-11-development-entry/cleanup.json",
+      "sha256_lf": "fce66eb4217ecc5286281d610305790904a6d3847f26a440179740052ab606b8"
+    },
+    {
+      "path": "iterations/2026-11-07-11-development-entry/README.md",
+      "sha256_lf": "ca22057706acf91bba5bce137a76f2dba2604f26a3796aa102647e13e3ebdb55"
+    },
+    {
+      "path": "iterations/2026-11-07-11-development-entry/validation.json",
+      "sha256_lf": "9dd3b58b6c6bbbe7b16775745a0e1c76cffb16b7ba5ac5c530c5d077bf1773cc"
+    }
+  ]
+}

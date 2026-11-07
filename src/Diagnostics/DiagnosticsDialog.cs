@@ -55,10 +55,10 @@ internal sealed class DiagnosticsDialog : Form
         noteLayout.Controls.Add(notes, 0, 1); noteLayout.Controls.Add(Flow(add, edit, delete), 0, 2);
         dev.Controls.Add(new TextBox
         {
-            Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, BorderStyle = BorderStyle.None, ScrollBars = ScrollBars.Vertical,
+            Name = "developmentInfo", AccessibleName = "当前程序与开发记录", Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, BorderStyle = BorderStyle.None, ScrollBars = ScrollBars.Vertical,
             Text = "开发记录保存在项目 Git 历史与 iterations/ 中。\r\n\r\n" +
                 "每轮记录包含需求、决策、关键文件、验证结果、限制和可恢复补丁。此窗口不读取本机开发目录，也不从网络自动获取记录。\r\n\r\n" +
-                $"当前构建：{typeof(DiagnosticsDialog).Assembly.GetName().Version}\r\n\r\n" +
+                "当前程序：\r\n" + AppInfo.Summary + "\r\n" +
                 "项目仓库：https://github.com/M66Y/Hard-Drive-Space-Visualization\r\n\r\n" +
                 "运行诊断与问题记录只保存在本机的软件数据目录中。分享问题时，请先自行核对所选内容。"
         });

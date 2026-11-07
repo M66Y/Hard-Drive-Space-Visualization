@@ -61,6 +61,12 @@ internal static class DiagnosticsUiRegression
                         var dialog = Field<DiagnosticsDialog>(main, "diagnosticsWindow");
                         await Wait(() => !dialog.IsBusy && dialog.Snapshot != null);
                         Check(dialog.Owner == main && main.Enabled, "Diagnostics blocked scan/cancel through a modal owner");
+                        var identity = Control<TextBox>(dialog, "developmentInfo");
+                        string expectedVersion = "v" + typeof(MainForm).Assembly.GetName().Version!.ToString(3);
+                        string expectedBuild = typeof(MainForm).Module.ModuleVersionId.ToString("N")[..12];
+                        Check(main.Text.Contains(expectedVersion) && identity.ReadOnly && identity.AccessibleName == "当前程序与开发记录" && identity.Text.Contains(expectedVersion) &&
+                            identity.Text.Contains(expectedBuild) && !identity.Text.Contains(AppContext.BaseDirectory),
+                            "Product identification is missing, editable, or exposes local build paths");
                         Field<ActionButton>(main, "diagnosticsButton").PerformClick();
                         Check(ReferenceEquals(dialog, Field<DiagnosticsDialog>(main, "diagnosticsWindow")), "Duplicate diagnostics windows");
                         Field<bool>(main, "forceFullNext");

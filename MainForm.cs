@@ -77,7 +77,7 @@ internal sealed class MainForm : Form
     {
         this.diagnostics = diagnostics;
         this.backgroundSettingsPath = backgroundSettingsPath ?? BackgroundSettings.PathForUser;
-        Text = "AsukaLens · 磁盘空间可视化";
+        Text = AppInfo.WindowTitle;
         if (Environment.ProcessPath is { } executable) Icon = Icon.ExtractAssociatedIcon(executable);
         Size = new Size(1440, 940);
         MinimumSize = new Size(1120, 780);
