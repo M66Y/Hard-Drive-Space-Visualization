@@ -1,0 +1,17 @@
+{
+  "baseline": "34b8b1ff5a4e45b561df5c29e67b4847f0dfb438",
+  "patch_files": [
+    "docs/development-plan.md",
+    "docs/project-status.md",
+    "docs/local-diagnostics-plan.md"
+  ],
+  "sha256_lf": {
+    "docs/development-plan.md": "f9db653f60af2023c9a83503982ca8098ba67bafa64b504556771bb01317f03c",
+    "docs/project-status.md": "80d00397aeb75b1d2145bf11ddda74fe3ea8de2822e5c43db2426e057e53d471",
+    "docs/local-diagnostics-plan.md": "955ce58309cc8c5fc244fd2410eae4e4c34a9d26a54b1d5a0fca72b58af85504",
+    "iterations/2026-11-07-06-diagnostics-plan/README.md": "0d40dded2132f40bd369841e2abeccba6bf1682a7e29520ce810da55b7a925d6",
+    "iterations/2026-11-07-06-diagnostics-plan/changes.patch": "8cba4301e1fa37c6307112878de623beb88050d10d9029f637bdf37b785dbb3b"
+  },
+  "patch_verified_in_isolated_baseline": true,
+  "restoration_comparison": "byte-for-byte"
+}
