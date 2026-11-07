@@ -113,7 +113,7 @@ AsukaLens/
 ├─ assets/                   默认主题、图标与来源说明
 ├─ tests/                    功能、UI 检查与合成预览
 ├─ docs/                     开发说明、交付方案与界面预览
-├─ scripts/                  资源维护与 release/ 快照脚本
+├─ scripts/                  资源维护、release/ 快照和 acceptance/ 离线验收
 ├─ iterations/               精简迭代证据与恢复补丁
 ├─ run.cmd / run.ps1          当前源码构建与启动
 ├─ build.ps1                 现有便携打包脚本

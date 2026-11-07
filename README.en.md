@@ -113,7 +113,7 @@ AsukaLens/
 ├─ assets/                   Default theme, icons and provenance
 ├─ tests/                    Functional/UI checks and synthetic preview
 ├─ docs/                     Developer docs, delivery plan and preview
-├─ scripts/                  Asset maintenance and release/ snapshot scripts
+├─ scripts/                  Assets, release/ snapshots and acceptance/ offline checks
 ├─ iterations/               Selected evidence and recovery patches
 ├─ run.cmd / run.ps1          Build and launch current source
 ├─ build.ps1                 Existing portable packaging script

@@ -1,0 +1,76 @@
+{
+  "baseline": "a1050a97e4755cc39750a44a9e312dcf93004b23",
+  "patch_verified": true,
+  "verification": "Restored all 12 work files from the exact baseline in an owned temporary directory",
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "73defad78933d764933a5f0d0803785252f855bb5b95e9c2e3b093f14de1f976"
+    },
+    {
+      "path": "README.md",
+      "sha256": "d91e6fa8f634fcaaf6a08dda65a71f739f85ea5185f251c5339bf2b52d73ef72"
+    },
+    {
+      "path": "README.en.md",
+      "sha256": "1906317b00e1fe4019230af257c6b31c03aea3e4f23939a95e5a26ffd53fa0cd"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "64b6af50cd9773906b8a0b30091b6b268c3ba5f99a210a1654fa98e7b715be76"
+    },
+    {
+      "path": "docs/offline-acceptance-plan.md",
+      "sha256": "a78f27a25f1108e02f3e9fd327740d5759b769e61d75856add973641e8dd2f19"
+    },
+    {
+      "path": "docs/offline-acceptance.md",
+      "sha256": "f28d36d75e76c43e34da79e0ab93bb6b64986fb719cd2597986309143e3f6c2d"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "cdbae507acdf7f02e146e2399b1c72dc5854766824f03305e2993f68c8e1dc7b"
+    },
+    {
+      "path": "docs/releasing.md",
+      "sha256": "e2b2186dfb90e10f3b0517c15b50eef334a885e6ac30bb7d2de321bdc4487199"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "16bb87408e40397f9c81c3230dbfe3b19537fd95df88f7d63254748555aa8db6"
+    },
+    {
+      "path": "scripts/acceptance/Acceptance.Common.ps1",
+      "sha256": "d7d91b4c7ad6d6fd4efec91d76daa28c84c50754efa749dc4b1f05b4e6a3c0f1"
+    },
+    {
+      "path": "scripts/acceptance/Invoke-Acceptance.ps1",
+      "sha256": "a37a503349a140d0a4690a992d95cbc38da380378e75339763b28d1bd20e8f1e"
+    },
+    {
+      "path": "tests/OfflineAcceptance.Tests.ps1",
+      "sha256": "7727d008c002555e16e601cbcba3fd8713e18790eaf86704d30451d621b162c8"
+    },
+    {
+      "path": "iterations/2026-11-07-18-offline-acceptance/changes.patch",
+      "sha256": "721da5bee5e9ce3ff3b1c3b6c6b8b89740b5632adf0daf830f161cb298627698"
+    },
+    {
+      "path": "iterations/2026-11-07-18-offline-acceptance/checks.json",
+      "sha256": "bba7b61a5b304e71246d55e735a84f4065d4c5c2ad0222b29fecee7f5054a1fd"
+    },
+    {
+      "path": "iterations/2026-11-07-18-offline-acceptance/cleanup.json",
+      "sha256": "bbf72a0a897150621c0f1db880b868076921016c86e1a14eb21538fff798544e"
+    },
+    {
+      "path": "iterations/2026-11-07-18-offline-acceptance/README.md",
+      "sha256": "e4a703620deafd28ca50c599c02801458642c4d46dbfb478cd3c23fcc4d18aec"
+    },
+    {
+      "path": "iterations/2026-11-07-18-offline-acceptance/validation.json",
+      "sha256": "b7918fa606499a76d2a968b0f59101864a0899d4a33c6528f34b64a588a7bfb5"
+    }
+  ]
+}

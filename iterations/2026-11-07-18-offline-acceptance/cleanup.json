@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-07",
+  "owned_synthetic_fixtures_removed": true,
+  "synthetic_child_exited": true,
+  "artifacts_directory_empty": true,
+  "patch_restore_directory_removed": true,
+  "packages_generated": false,
+  "system_tools_installed": false,
+  "preserved": [
+    "Current development build",
+    "User data",
+    "System dependencies",
+    "Historical evidence"
+  ]
+}

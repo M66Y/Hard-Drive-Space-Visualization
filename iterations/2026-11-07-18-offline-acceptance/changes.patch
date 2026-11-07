@@ -1,0 +1,991 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 068635b2d255bf56a90bf7cbca4be33c2620b5b7..67bddc7a5c4e3a3b1244075920e2eb7c139f5b2d 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -128,6 +128,7 @@
+ - 只有有性能疑点或相关改动时才运行 `--scan-benchmark`；历史 `--memory-benchmark` 在缺少旧基准包时可能跳过，跳过不算验证通过该对比。
+ - 根目录 `build.ps1` 是保留的旧框架依赖打包入口，不用于普通迭代检查，也不是新的正式发布入口。新的自包含/安装器/源码快照脚本位于 `scripts/release/`，用法和验收边界见 [发布说明](docs/releasing.md)。运行 `tests/ReleaseScripts.Tests.ps1` 检查边界；包级验证用 `tests/PackageAcceptance.ps1`，不能把静态检查当运行通过。
+ - 草稿上传控制流程改动运行 `tests/DraftUpload.Tests.ps1`；它使用本地替身，不调用 GitHub，不替代真实远程或安装包验收。
++- 离线验收入口位于 `scripts/acceptance/`，操作见 [离线验收手册](docs/offline-acceptance.md)。改动时使用 64 位 Windows PowerShell 5.1 运行 `powershell.exe -NoProfile -File tests/OfflineAcceptance.Tests.ps1`；目标入口不依赖 PowerShell 7、Git 或现代 .NET。测试的合成子进程不是软件发行 EXE；本机工具检查、人工观察和干净系统发布门槛分开，不由工具报告自动批准上传。
+ - 直接发行入口验收运行包内 `AsukaLens.exe`，按[发布说明](docs/releasing.md#直接发行-exe-的本机使用流程)仅在该进程设置 `ASUKALENS_DATA_DIR`，不能依赖 LOCAL TEST 安装身份隔离个人数据。修改数据目录解析时运行 `--app-data-location-tests`，不在测试中读取或覆盖真实个人配置。
+ - 调整目录或构建方式时同步更新上述命令、项目引用、测试链接文件、资源路径及文档。不得写入本机绝对路径作为公共运行要求。
+ 
+diff --git a/README.en.md b/README.en.md
+index 5a74a6dce0fbe127a1f42acae8144ca347767267..7c76d053f46cef28995d4f53bfe2117ff5cb7f1d 100644
+--- a/README.en.md
++++ b/README.en.md
+@@ -113,7 +113,7 @@ AsukaLens/
+ ├─ assets/                   Default theme, icons and provenance
+ ├─ tests/                    Functional/UI checks and synthetic preview
+ ├─ docs/                     Developer docs, delivery plan and preview
+-├─ scripts/                  Asset maintenance and release/ snapshot scripts
++├─ scripts/                  Assets, release/ snapshots and acceptance/ offline checks
+ ├─ iterations/               Selected evidence and recovery patches
+ ├─ run.cmd / run.ps1          Build and launch current source
+ ├─ build.ps1                 Existing portable packaging script
+diff --git a/README.md b/README.md
+index f04e627c3e128d5ffcc8691eb6aac6ee08cba0c7..b6a313e90373aa993c02e34c3394e5672310d2b9 100644
+--- a/README.md
++++ b/README.md
+@@ -113,7 +113,7 @@ AsukaLens/
+ ├─ assets/                   默认主题、图标与来源说明
+ ├─ tests/                    功能、UI 检查与合成预览
+ ├─ docs/                     开发说明、交付方案与界面预览
+-├─ scripts/                  资源维护与 release/ 快照脚本
++├─ scripts/                  资源维护、release/ 快照和 acceptance/ 离线验收
+ ├─ iterations/               精简迭代证据与恢复补丁
+ ├─ run.cmd / run.ps1          当前源码构建与启动
+ ├─ build.ps1                 现有便携打包脚本
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 4ddc5541a0390a85426eecf8e212833c9254d869..f35385e9850fa7cbaff3295db9dc9bddd9e4bdf5 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -16,7 +16,7 @@
+ 
+ PERF-001 的公开依据为[调度修正与验证](../iterations/2026-11-07-10-mixed-scan-scheduling/README.md)。真实目录路径、文件清单、耗时报告与诊断留在本机，不复制到待办、提交或 Release。本阶段不继续性能追测；初版之后再按用户要求处理同级问题。
+ 
+-下一轮已准备[干净系统离线验收工具方案](offline-acceptance-plan.md)，待用户确定范围。建议先解决现有验收脚本依赖开发环境的问题，以 Windows PowerShell 5.1 完成资产核对、隔离样本和记录准备；工具验证与真正干净系统验收分开，不自动安装虚拟机或发布版本。
++用户已确认并完成[干净系统离线验收工具方案](offline-acceptance-plan.md)的开发范围：Windows PowerShell 5.1 入口提供资产核对、隔离样本、进程启动、人工状态与安全清理，见[操作手册](offline-acceptance.md)。工具验证与真正干净系统验收分开；下一步仍需可用的干净环境、确切正式候选资产和发布任务，不自动安装虚拟机或发布版本。
+ 
+ ## 已完成：第 5 轮收尾与异常报告修复
+ 
+diff --git a/docs/offline-acceptance-plan.md b/docs/offline-acceptance-plan.md
+index 3ff99b536b2ef1559d994e05595347a7b18b92e5..17382a643bdb0ca8248aedc0da6a41d4c6b47dfe 100644
+--- a/docs/offline-acceptance-plan.md
++++ b/docs/offline-acceptance-plan.md
+@@ -1,6 +1,6 @@
+ # 干净系统离线验收工具方案
+ 
+-状态：待用户确认实施。核查日期：2026-11-07；基线：`e351cce7fb39f2327842b6345e8aafa964d18782`。本文件是下一轮的范围建议，不代表工具已实现、干净系统验收已通过或允许正式发布。
++状态：用户已选择“按方案开发离线验收工具”，现已实现，使用入口见[离线验收手册](offline-acceptance.md)。方案核查日期：2026-11-07；提案基线：`e351cce7fb39f2327842b6345e8aafa964d18782`，实施基线：`a1050a97e4755cc39750a44a9e312dcf93004b23`。下文保留获确认的范围；工具实现不代表干净系统验收已通过或允许正式发布。
+ 
+ ## 要解决的问题
+ 
+diff --git a/docs/offline-acceptance.md b/docs/offline-acceptance.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..c95b8043cdd235caefa9064b50b943687eeff216
+--- /dev/null
++++ b/docs/offline-acceptance.md
+@@ -0,0 +1,97 @@
++# 在另一台 Windows 电脑上离线验收
++
++这套工具为验收者准备隔离样本、核对包并记录观察结果。支持 **Windows 11 x64、64 位 Windows PowerShell 5.1**；目标电脑不需要 PowerShell 7、Git、现代 .NET SDK 或编译器。它不会安装或卸载软件、创建虚拟机、上传数据或改变发布门槛。
++
++当前已完成工具在开发机上的合成检查；本机有现代 .NET，**不代表干净系统或正式候选包通过**。实际发行 EXE 的既有本机证据见[第 16 轮记录](../iterations/2026-11-07-16-executable-workflow/README.md)。
++
++## 准备输入
++
++从已核对的项目提交复制 `scripts/acceptance/` 中的两个 `.ps1` 文件，以及本说明。脚本使用 UTF-8 BOM，复制时保留编码，避免 Windows PowerShell 5.1 误读中文。工具不修改系统执行策略。
++
++开发机先按[发布说明](releasing.md)生成并校验包，再将包含以下六个文件的目录拷到目标电脑：四类资产、`release-manifest.json`、`SHA256SUMS.txt`。开发机必须验证源码包内容一致、安装器身份等事项；此工具仅核对四类资产的完整文件哈希，并深入核对便携 ZIP 的清单、运行时声明、许可文件和构建身份，不替代源码构建、安装器或 tar.gz 内容验收。
++
++另行取得已在开发机核对过的 `release-manifest.json` SHA-256。不要从未经确认的同一目录现算一个值就当作信任依据。哈希用于绑定输入内容，不能代替确认文件来源。
++
++以下在 **Windows PowerShell** 中执行；示例目录需换成自己选定的位置，父目录须已存在。`$work` 必须是尚不存在的本地绝对目录，不能放在资产目录内；不要使用卷根、网络共享或目录链接。
++
++```powershell
++$tool = '.\scripts\acceptance\Invoke-Acceptance.ps1'
++$assets = 'C:\AsukaLens-acceptance\assets'
++$work = Join-Path $env:TEMP ('AsukaLens-acceptance-' + [guid]::NewGuid().ToString('N'))
++$manifestHash = '替换为独立核对过的64位SHA256'
++& $tool -Action Prepare -Assets $assets -ManifestSha256 $manifestHash -Workspace $work
++& $tool -Action Inspect -Workspace $work
++```
++
++准备完成后，`portable/` 是核对过的便携程序，`sample/` 含中文嵌套目录、零字节文件、小型二进制和合成背景，`data/` 是程序的隔离数据目录。元数据文件只在工作目录内记录归属与本轮进程。上限为清单 8 MiB、便携载荷 1 GiB / 10,000 文件、四类资产合计 2 GiB；超出时停止，不临时放宽限制。
++
++工具报告中的 `modern_dotnet.status` 为 `detected`（发现已安装证据）、`not-detected`（未发现已知安装）或 `unknown`（检查不完整且没有阳性证据）。检查 PATH、标准位置、注册位置及 DOTNET_ROOT，不扫描整盘、不执行 `dotnet`。`not-detected` 不能证明任意位置都没有私有安装；Windows 自带 .NET Framework 不属于此处的现代 .NET SDK/共享运行时。
++
++## 启动并实际操作
++
++```powershell
++& $tool -Action Start -Workspace $work
++```
++
++启动真实的 `portable\AsukaLens.exe`，仅为该进程设置 `ASUKALENS_DATA_DIR`；主窗应显示“隔离数据”。父进程、用户级和系统级环境变量不变。再次启动前必须正常退出当前窗口。每次启动重新核对提取后的载荷，文件变化则拒绝启动。
++
++以下每项都需要实际观察。选择 `sample/` 扫描，修改与删除只在这份合成目录中进行；不要扫描个人目录或导入个人图片。样本较小，来不及检查取消和扫描反馈时应记为 `not-tested`，不能仅凭程序打开就记通过。
++
++| 记录标识 | 人工检查内容 |
++| --- | --- |
++| `portable_start` | 直接 EXE 打开、显示隔离数据、无启动错误 |
++| `scan_and_navigation` | 选择样本、完成扫描、进入子目录及返回，名称和大小符合样本 |
++| `views_and_metrics` | 空间分布、大文件、类型视图与两种统计口径可操作，限制说明清楚 |
++| `search_sort_file_helpers` | 搜索与排序、复制路径、资源管理器定位准确 |
++| `refresh_and_cancel` | 样本新增/修改后普通与强制刷新正确；扫描中反馈、取消与恢复实际可观察 |
++| `background_and_restart` | 使用合成图片调整焦点/缩放和配色，检查取消、保存、正常退出后再次 Start 的恢复 |
++| `diagnostics_and_notes` | 查看、预览导出、清空诊断；只用合成文字新增、编辑并重启检查问题记录 |
++| `normal_exit` | 正常关闭后进程退出；工具会拒绝在进程仍活动时将此项记为 passed |
++| `installer_workflow` | 按发布手册人工完成安装/启动/升级/卸载；本工具不执行安装器，也不检查这项声明是否真实 |
++
++安装后的 EXE 不由本工具启动。需按[既有隔离启动方法](releasing.md#直接发行-exe-的本机使用流程)使用另外选定的数据目录，并自行完成清理；不要把本工具的工作目录交给其他程序持续使用。没有完成的安装步骤仍保留 pending 或 not-tested。
++
++## 记录和导出
++
++```powershell
++& $tool -Action Record -Workspace $work -Check portable_start -Result passed
++& $tool -Action Record -Workspace $work -Check refresh_and_cancel -Result not-tested
++& $tool -Action Inspect -Workspace $work
++
++$report = 'C:\AsukaLens-acceptance\observations.json'
++& $tool -Action Export -Workspace $work -Output $report
++```
++
++结果只能填写 `pending`、`passed`、`failed`、`not-tested`；可重新记录修正。字段没有自由文本，不自动把其他项目一并改成通过。启动次数是进程启动事实，不是功能通过证明。导出需使用工作目录外的新文件，拒绝覆盖已有文件，避免清理时丢失报告。
++
++报告仅包含固定字段：版本、提交、清单哈希、是否 LOCAL TEST、系统类别与架构、已知运行时证据类别、计数和人工状态。它不包含本地目录、账户/机器名称、进程 ID、真实文件清单、背景图片、诊断原文或笔记。工作目录内的数据和终端显示的本地操作路径不等于可公开报告，不要整体上传工作目录。
++
++环境字段记录准备时的快照；在验收期间更改系统环境后应建立新工作目录重新验收。在确实使用新装系统或已知干净快照、且探测没有已知现代 .NET 安装时，可另行声明来源：
++
++```powershell
++& $tool -Action Record -Workspace $work -Provenance fresh-install
++# 已知干净快照使用 known-clean-snapshot；未确认使用 unconfirmed。
++```
++
++声明时会再做一次环境探测；发现已安装证据或探测不完整即拒绝。用户声明仍不是工具对整个磁盘的证明。报告始终为 `release_gate=not-evaluated`，与正式上传模板不是同一种格式；没有 `clean_windows_no_dotnet=passed` 的自动生成逻辑。维护者须在真实正式候选资产完成全部验收后，另行审阅并填写发布门槛。
++
++## 清理与失败恢复
++
++正常关闭本轮程序，先导出需要保留的结果，然后：
++
++```powershell
++& $tool -Action Cleanup -Workspace $work
++```
++
++仅删除带本工具归属标识、绝对位置匹配的工作目录。源资产、原始图片和目录外的报告不受影响。程序仍活动、进程状态无法确认、出现目录链接或归属不符时拒绝；不会强行结束程序。不要移动、改名或手改工作目录的元数据。
++
++| 状态或错误码 | 处理方式 |
++| --- | --- |
++| `ACCEPT_MANIFEST_HASH` / `ACCEPT_ASSET_HASH` | 重新核对来源与复制结果；拒绝发生在创建工作目录之前 |
++| `ACCEPT_WORKSPACE_EXISTS` | 不覆盖已有目录；确认旧目录归属后用 Cleanup，或选择另一个新目录 |
++| `ACCEPT_PREPARATION_INCOMPLETE` | 准备被中断或清理未结束，禁止启动；关闭相关程序后 Cleanup，再重新 Prepare |
++| `ACCEPT_PROCESS_RUNNING` / `ACCEPT_PROCESS_UNKNOWN` | 正常退出本轮窗口，确认进程状态后重试，不终止未知进程 |
++| `ACCEPT_REPARSE_POINT` / `ACCEPT_OWNER_MISMATCH` | 停止操作并核查工作目录；不要对未知目标递归删除 |
++| `ACCEPT_OPERATION_FAILED` | 文件占用、权限或其他 I/O 失败；先保留现场并检查权限/剩余空间/占用。错误输出不会直接打印异常全文 |
++
++状态更新使用同目录临时文件与原子替换，写失败保留旧状态。中断的准备保留 `preparing` 标识供 Cleanup；清理遇到文件占用时先保留归属标识与 `cleaning` 状态，释放占用后可重试。导出失败不覆盖已有报告。脚本没有联网操作；其合成回归入口为 `tests/OfflineAcceptance.Tests.ps1`，需在 Windows PowerShell 5.1 中执行。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 324d344758b76c52ec5462c69bc8b15cb6edcf61..a876bc2c261020080b08d5c516fd40a618d715b4 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -8,6 +8,8 @@
+ 
+ ## 当前判断
+ 
++后续已按确认范围实现 Windows PowerShell 5.1 [离线验收工具](offline-acceptance.md)，用于资产核对、隔离样本、实际进程启动、人工状态记录和受归属约束的清理；本机 98 项工具检查通过。它不依赖目标机的现代 .NET SDK，也不把本机结果转换为干净系统通过；具体边界见本文末尾。
++
+ 核心扫描与查看流程已经具备，现有回归可通过，适合继续迭代。第 5 轮背景功能已完成开发收尾，异常报告的最小隐私修复也已完成，并完成了 .NET 10 LTS 系统安装与迁移验证；本地诊断管理随后已完成；正式发布仍按计划推进。
+ 
+ - 本次审计的代码基线为 `a4e5a462ef6f7a004e030c4f1174a141199c8582`，核对时本地与远程 `main` 一致。
+@@ -152,3 +154,11 @@
+ 基线 `cdf71eed7c09f42578a85e7bea9382317d44aede`。用户确认暂时没有独立 Windows 测试环境，先完成可在本机验证的部分。新增完整上传脚本与原生 CLI 替身之间的离线回归，覆盖创建、分页和附注标签解析、中断续传、拒绝冲突、下载复核与草稿状态变化。修复 `v1.4.20` 被误认为 `v1.4.2` 的版本子串匹配问题，增加续传及上传过程中对标签、标题、已审查说明的一致性核验。
+ 
+ 静态包校验使用测试替身，合成资产为不可执行文本；没有生成新软件包、安装工具或改动应用功能，也没有访问真实 GitHub 上传接口。当轮尚未覆盖直接发行入口，后续已由[真实 EXE 验收](../iterations/2026-11-07-16-executable-workflow/README.md)补齐；干净系统和真实远程验收仍保留为发布前门槛，不能把离线回归当成完成正式发布。
++
++## 离线验收工具（2026-11-07）
++
++实施基线 `a1050a97e4755cc39750a44a9e312dcf93004b23`。用户确认方案后新增 `scripts/acceptance/`，支持在 Windows PowerShell 5.1 中核对独立清单哈希、四类资产、便携 ZIP 路径/内容与运行时声明，准备小型中文合成目录和隔离配置，并显式启动便携 EXE。状态写入失败保留旧数据；中断准备与文件占用导致的清理失败可通过归属标识重试。没有调用 PowerShell 7、Git、现代 .NET 或外部编译器的运行依赖。
++
++报告分开记录自动事实和人工项目，不包含本机路径、进程 ID 或自由文本；默认 pending，始终保持发布门槛未评估。环境探测区分发现已安装、未发现已知安装和未知，人工干净来源声明需再次探测；本机实测识别已有 .NET。源码包和安装器在目标机仅核对整体哈希，仍依赖开发机完整校验和人工操作，不代替既有发布流程。
++
++实际 Windows PowerShell 5.1 x64 的 98 项断言通过，含独立 CLI、ZIP 越界/碰撞/损坏、隔离子进程与活动清理阻止、目录链接拒绝、报告白名单、锁定文件写入/删除失败恢复。子进程为合成 .NET Framework 程序，不是发行 EXE；本轮没有重新打包、构建应用、创建 VM、改动系统环境或执行正式候选包验收。见[迭代证据](../iterations/2026-11-07-18-offline-acceptance/README.md)。干净系统、正式候选资产和真实远程草稿仍待实际验收。
+diff --git a/docs/releasing.md b/docs/releasing.md
+index 0f336ca5c8463c6285e7fac1c219f9e4b6c32629..733fc1c5ce1ae2110e90893f703d6c6005d49723 100644
+--- a/docs/releasing.md
++++ b/docs/releasing.md
+@@ -63,6 +63,8 @@ $app = [Diagnostics.Process]::Start($start)
+ 
+ ## 正式包：只读取已提交快照
+ 
++干净验证机无需安装本节的开发工具。维护者先在开发机完成包校验，再按[离线验收手册](offline-acceptance.md)使用 Windows PowerShell 5.1 核对资产、准备隔离样本并记录真实操作；工具报告不直接替代正式上传模板，也不会将开发机标记为干净系统通过。
++
+ 正式发布任务获得授权后，先确定新版本、更新项目唯一数字版本并提交。确认工作区干净、目标提交已在 `main`，再不带 `-LocalTest` 运行 `New-Release.ps1`。脚本要求完整 40 位提交号、当前 HEAD 与之相同且无未提交文件，从 `git archive` 生成源码，避免打包未提交的个人文件。
+ 
+ 四个文件统一命名：
+diff --git a/docs/testing.md b/docs/testing.md
+index c85017b50f8d9c0825c02f5f5f35a8d1cfd8f91b..a319a433c59c18528bda5fa4384fa1e94ea970bf 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -71,3 +71,5 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
+ 真正发行入口的本机人工流程另见[启动与数据隔离方法](releasing.md#直接发行-exe-的本机使用流程)及[验收记录](../iterations/2026-11-07-16-executable-workflow/README.md)。入口目录解析与隔离存储检查使用 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --app-data-location-tests`，共 12 项；覆盖默认兼容、中文目录、非法路径拒绝以及诊断/异常写入位置。该检查不启动发行 EXE，不能替代实际窗口验收。
+ 
+ 上传控制流程可独立执行 `pwsh -File tests/DraftUpload.Tests.ps1`：实际生产脚本搭配本地 CLI 与包校验替身，检查目标、版本、草稿内容、断点续传、资产冲突、下载复核、错误传播和清理。无须构建应用、生成发行包或登录 GitHub；不把离线测试通过当成真实远程验收。
++
++离线验收工具检查使用 **64 位 Windows PowerShell 5.1**：`powershell.exe -NoProfile -File tests/OfflineAcceptance.Tests.ps1`，可用 `-Summary <新报告.json>` 保存白名单汇总。它在已有现代 .NET 的开发机验证真实环境探测，生成小型合成资产与 .NET Framework 子进程，检查校验、隔离、CLI、状态与清理；无需重新构建应用或生成发行包。目标机只需复制两个验收脚本，按[操作手册](offline-acceptance.md)执行。合成子进程不是 AsukaLens，不能据此填写真实发行入口或干净系统通过。
+diff --git a/scripts/acceptance/Acceptance.Common.ps1 b/scripts/acceptance/Acceptance.Common.ps1
+new file mode 100644
+index 0000000000000000000000000000000000000000..587653f3d65cc7f909e22111b7b2a7211745b652
+--- /dev/null
++++ b/scripts/acceptance/Acceptance.Common.ps1
+@@ -0,0 +1,428 @@
++﻿#requires -Version 5.1
++Set-StrictMode -Version Latest
++$ErrorActionPreference = 'Stop'
++Add-Type -AssemblyName System.IO.Compression.FileSystem
++Add-Type -AssemblyName System.IO.Compression
++
++$script:AcceptanceChecks = @('portable_start','scan_and_navigation','views_and_metrics','search_sort_file_helpers',
++    'refresh_and_cancel','background_and_restart','diagnostics_and_notes','normal_exit','installer_workflow')
++
++function Get-AcceptanceHash([IO.Stream]$Stream, [long]$ExpectedLength = -1) {
++    $sha = [Security.Cryptography.SHA256]::Create()
++    try {
++        if ($ExpectedLength -lt 0) { $hash=$sha.ComputeHash($Stream) }
++        else {
++            $buffer=[byte[]]::new(65536); $total=0L
++            while (($read=$Stream.Read($buffer,0,[int][Math]::Min($buffer.Length,$ExpectedLength-$total+1))) -gt 0) {
++                $total+=$read
++                if ($total -gt $ExpectedLength) { throw 'ACCEPT_STREAM_SIZE' }
++                [void]$sha.TransformBlock($buffer,0,$read,$null,0)
++            }
++            if ($total -ne $ExpectedLength) { throw 'ACCEPT_STREAM_SIZE' }
++            [void]$sha.TransformFinalBlock([byte[]]@(),0,0); $hash=$sha.Hash
++        }
++        return ([BitConverter]::ToString($hash)).Replace('-','').ToLowerInvariant()
++    }
++    finally { $sha.Dispose() }
++}
++
++function Assert-AcceptancePath([string]$Path) {
++    if ($Path -notmatch '^[A-Za-z]:[\\/]' -or $Path.IndexOf(':', 2) -ge 0) { throw 'ACCEPT_ABSOLUTE_LOCAL_PATH_REQUIRED' }
++    $full = [IO.Path]::GetFullPath($Path).TrimEnd('\','/')
++    if ($full.Length -le 3) { throw 'ACCEPT_VOLUME_ROOT_REJECTED' }
++    $cursor = $full
++    while ($cursor) {
++        $item=$null
++        try { $item = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop }
++        catch [System.Management.Automation.ItemNotFoundException] { }
++        if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'ACCEPT_REPARSE_POINT' }
++        $cursor = [IO.Path]::GetDirectoryName($cursor)
++    }
++    return $full
++}
++
++function Assert-AcceptanceTree([string]$Path) {
++    [void](Assert-AcceptancePath $Path)
++    foreach ($item in Get-ChildItem -LiteralPath $Path -Force) {
++        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'ACCEPT_REPARSE_POINT' }
++        if ($item.PSIsContainer) { Assert-AcceptanceTree $item.FullName }
++    }
++}
++
++function Assert-AcceptanceRelative([string]$Name) {
++    if ([string]::IsNullOrWhiteSpace($Name) -or $Name.Length -gt 240 -or $Name.StartsWith('/') -or $Name.Contains('\')) { throw 'ACCEPT_ARCHIVE_PATH' }
++    foreach ($part in $Name.Split('/')) {
++        if ($part -in @('','.','..') -or $part -match '[<>:"|?*\x00-\x1f]' -or $part -match '[. ]$' -or
++            $part -match '^(?i:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)') { throw 'ACCEPT_ARCHIVE_PATH' }
++    }
++}
++
++function Write-AcceptanceJson($Value, [string]$Path, [switch]$New) {
++    $bytes = [Text.UTF8Encoding]::new($false).GetBytes(($Value | ConvertTo-Json -Depth 16) + "`n")
++    if ($New) {
++        $stream = [IO.File]::Open($Path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
++        try { $stream.Write($bytes,0,$bytes.Length); $stream.Flush($true) } finally { $stream.Dispose() }
++        return
++    }
++    $temp = $Path + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
++    try {
++        [IO.File]::WriteAllBytes($temp,$bytes)
++        [IO.File]::Replace($temp,$Path,[NullString]::Value)
++    } finally { if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force } }
++}
++
++function Read-AcceptanceJson([string]$Path) {
++    $item = Get-Item -LiteralPath $Path -Force
++    if ($item.PSIsContainer -or $item.Length -gt 8MB) { throw 'ACCEPT_JSON_SIZE' }
++    return ([IO.File]::ReadAllText($Path) | ConvertFrom-Json)
++}
++
++function Resolve-AcceptanceRuntimeEvidence([string[]]$Evidence, [bool]$Incomplete) {
++    $known = @('path_host','standard_location','registry_location','environment_location')
++    if (@($Evidence | Where-Object { $_ -notin $known }).Count) { throw 'ACCEPT_ENVIRONMENT_EVIDENCE' }
++    $found = @($Evidence | Sort-Object -Unique)
++    $status = if ($found.Count) { 'detected' } elseif ($Incomplete) { 'unknown' } else { 'not-detected' }
++    return [ordered]@{ status=$status; checks_complete=(-not $Incomplete); evidence=$found }
++}
++
++function Get-AcceptanceEnvironment {
++    $evidence = [Collections.Generic.List[string]]::new()
++    $incomplete = $false
++    $locations = [Collections.Generic.List[object]]::new()
++    try {
++        if (Get-Command dotnet.exe -CommandType Application -ErrorAction SilentlyContinue) { $evidence.Add('path_host') }
++    } catch { $incomplete = $true }
++    foreach ($variable in @('ProgramFiles','ProgramFiles(x86)')) {
++        $base = [Environment]::GetEnvironmentVariable($variable)
++        if ($base) { $locations.Add(@{ path=(Join-Path $base 'dotnet'); kind='standard_location' }) }
++    }
++    foreach ($scope in @('Process','User','Machine')) {
++        foreach ($variable in @('DOTNET_ROOT','DOTNET_ROOT_X64','DOTNET_ROOT_X86','DOTNET_ROOT_ARM64','DOTNET_ROOT(x86)')) {
++            try {
++                $value = [Environment]::GetEnvironmentVariable($variable,$scope)
++                if ($value) { $locations.Add(@{path=$value;kind='environment_location'}) }
++            } catch { $incomplete = $true }
++        }
++    }
++    foreach ($view in @([Microsoft.Win32.RegistryView]::Registry64,[Microsoft.Win32.RegistryView]::Registry32)) {
++        $baseKey = $null
++        try {
++            $baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine,$view)
++            foreach ($arch in @('x64','x86','arm64')) {
++                $key = $baseKey.OpenSubKey("SOFTWARE\dotnet\Setup\InstalledVersions\$arch")
++                if ($key) {
++                    try {
++                        $location = $key.GetValue('InstallLocation')
++                        if ($location) { $locations.Add(@{path=[string]$location;kind='registry_location'}) }
++                    } finally { $key.Dispose() }
++                }
++            }
++        } catch { $incomplete = $true } finally { if ($baseKey) { $baseKey.Dispose() } }
++    }
++    foreach ($location in $locations) {
++        try {
++            if ($location.path -notmatch '^[A-Za-z]:[\\/]') { $incomplete=$true; continue }
++            foreach ($relative in @('dotnet.exe','sdk','shared')) {
++                try {
++                    $item = Get-Item -LiteralPath (Join-Path $location.path $relative) -Force -ErrorAction Stop
++                    if ($item) { $evidence.Add($location.kind); break }
++                } catch [System.Management.Automation.ItemNotFoundException] { }
++            }
++        } catch { $incomplete=$true }
++    }
++    $os = 'unknown'; $architecture = 'unknown'
++    try {
++        $build = [int](Get-ItemPropertyValue -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name CurrentBuildNumber)
++        $installation = Get-ItemPropertyValue -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name InstallationType
++        $os = if ($build -ge 22000 -and $installation -eq 'Client') { 'windows-11' } else { 'other-windows' }
++        $arch = Get-ItemPropertyValue -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment' -Name PROCESSOR_ARCHITECTURE
++        $architecture = switch ($arch) { 'AMD64' {'x64'} 'ARM64' {'arm64'} 'x86' {'x86'} default {'unknown'} }
++    } catch { }
++    return [pscustomobject][ordered]@{ os=$os; architecture=$architecture; host_x64=[Environment]::Is64BitProcess;
++        powershell_major=$PSVersionTable.PSVersion.Major; modern_dotnet=(Resolve-AcceptanceRuntimeEvidence $evidence.ToArray() $incomplete) }
++}
++
++function Assert-AcceptanceManifest($Manifest) {
++    if ($Manifest.schema -ne 1 -or $Manifest.product -cne 'AsukaLens' -or $Manifest.version -cnotmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' -or
++        $Manifest.commit -cnotmatch '^[0-9a-f]{40}$' -or $Manifest.rid -cne 'win-x64' -or $Manifest.self_contained -isnot [bool] -or
++        -not $Manifest.self_contained -or $Manifest.local_test -isnot [bool] -or $Manifest.runtime -cnotmatch '^10\.0\.[0-9]+$' -or
++        $Manifest.source_kind -cne $(if ($Manifest.local_test) {'working-tree'} else {'git-commit'})) { throw 'ACCEPT_MANIFEST_IDENTITY' }
++    foreach ($part in $Manifest.version.Substring(1).Split('.')) { if ([long]$part -gt 65535) { throw 'ACCEPT_MANIFEST_VERSION' } }
++    $v=$Manifest.version
++    $expected=@("AsukaLens $v.zip","AsukaLens $v.exe","AsukaLens $v-source.zip","AsukaLens $v-source.tar.gz")
++    $actual=@($Manifest.assets | ForEach-Object { $_.path })
++    if ($actual.Count -ne 4 -or (Compare-Object ($expected | Sort-Object) ($actual | Sort-Object) -CaseSensitive)) { throw 'ACCEPT_ASSET_NAMES' }
++    foreach ($list in @(@{items=$Manifest.assets;limit=2GB},@{items=$Manifest.payload_files;limit=1GB})) {
++        $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
++        $total=0L
++        if (@($list.items).Count -eq 0 -or @($list.items).Count -gt 10000) { throw 'ACCEPT_INVENTORY_LIMIT' }
++        foreach ($entry in $list.items) {
++            Assert-AcceptanceRelative $entry.path
++            if (-not $seen.Add($entry.path)) { throw 'ACCEPT_DUPLICATE_PATH' }
++            if ($entry.bytes -isnot [long] -and $entry.bytes -isnot [int]) { throw 'ACCEPT_FILE_SIZE' }
++            if ($entry.bytes -lt 0 -or $entry.bytes -gt $list.limit -or $entry.sha256 -cnotmatch '^[0-9a-f]{64}$') { throw 'ACCEPT_INVENTORY_VALUE' }
++            $total += $entry.bytes
++        }
++        if ($total -gt $list.limit) { throw 'ACCEPT_INVENTORY_LIMIT' }
++        foreach ($name in $seen) {
++            $parent=$name
++            while ($parent.Contains('/')) {
++                $parent=$parent.Substring(0,$parent.LastIndexOf('/'))
++                if ($seen.Contains($parent)) { throw 'ACCEPT_PATH_COLLISION' }
++            }
++        }
++    }
++    $names=@($Manifest.payload_files | ForEach-Object { $_.path })
++    foreach ($required in @('AsukaLens.exe','DiskAtlas.dll','DiskAtlas.runtimeconfig.json','DiskAtlas.deps.json','coreclr.dll','hostfxr.dll','hostpolicy.dll',
++        'System.Private.CoreLib.dll','System.Windows.Forms.dll','LICENSE','NOTICE.md','licenses/CC-BY-NC-4.0.txt','licenses/Inno-Setup.txt','build-info.json','INSTALL-NOTICE.txt','使用说明.txt','docs/diagnostics.md')) {
++        if ($required -cnotin $names) { throw 'ACCEPT_PAYLOAD_REQUIRED_FILE' }
++    }
++    foreach ($pack in @('microsoft.netcore.app.runtime.win-x64','microsoft.windowsdesktop.app.runtime.win-x64')) {
++        $minimum=if ($pack -like 'microsoft.netcore.*') {2} else {1}
++        if (@($names | Where-Object { $_ -clike "licenses/runtime/$pack/*" }).Count -lt $minimum) { throw 'ACCEPT_RUNTIME_NOTICES' }
++    }
++}
++
++function Assert-AcceptanceZip($Zip, $Manifest) {
++    $expected=@{}
++    foreach ($file in $Manifest.payload_files) { $expected.Add($file.path,$file) }
++    $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
++    $files=0
++    if ($Zip.Entries.Count -gt 20000) { throw 'ACCEPT_ARCHIVE_LIMIT' }
++    foreach ($entry in $Zip.Entries) {
++        $name=$entry.FullName.TrimEnd('/')
++        Assert-AcceptanceRelative $name
++        if (-not $seen.Add($name)) { throw 'ACCEPT_DUPLICATE_PATH' }
++        $mode=($entry.ExternalAttributes -shr 16) -band 0xF000
++        if ($mode -notin @(0,0x8000,0x4000) -or ($entry.ExternalAttributes -band 0x400)) { throw 'ACCEPT_ARCHIVE_LINK' }
++        if ($entry.FullName.EndsWith('/')) {
++            if ($expected.ContainsKey($name) -or $entry.Length -ne 0) { throw 'ACCEPT_PATH_COLLISION' }
++            continue
++        }
++        if (-not $expected.ContainsKey($name) -or $expected[$name].path -cne $name -or $expected[$name].bytes -ne $entry.Length) { throw 'ACCEPT_PAYLOAD_INVENTORY' }
++        $stream=$entry.Open()
++        try {
++            if ((Get-AcceptanceHash $stream $entry.Length) -ne $expected[$name].sha256) { throw 'ACCEPT_PAYLOAD_HASH' }
++        } finally { $stream.Dispose() }
++        $files++
++    }
++    if ($files -ne $expected.Count) { throw 'ACCEPT_PAYLOAD_INVENTORY' }
++    foreach ($name in $seen) {
++        $parent=$name
++        while ($parent.Contains('/')) {
++            $parent=$parent.Substring(0,$parent.LastIndexOf('/'))
++            if ($expected.ContainsKey($parent)) { throw 'ACCEPT_PATH_COLLISION' }
++        }
++    }
++    function Read-PayloadJson([string]$Name) {
++        $entry=$Zip.GetEntry($Name)
++        if ($entry.Length -gt 1MB) { throw 'ACCEPT_JSON_SIZE' }
++        $reader=[IO.StreamReader]::new($entry.Open())
++        try { return ($reader.ReadToEnd() | ConvertFrom-Json) } finally { $reader.Dispose() }
++    }
++    $identity=Read-PayloadJson 'build-info.json'
++    if ($identity.version -cne $Manifest.version -or $identity.commit -cne $Manifest.commit -or $identity.local_test -ne $Manifest.local_test) { throw 'ACCEPT_PAYLOAD_IDENTITY' }
++    $runtime=(Read-PayloadJson 'DiskAtlas.runtimeconfig.json').runtimeOptions
++    if ($runtime.PSObject.Properties.Name -contains 'framework' -or $runtime.PSObject.Properties.Name -contains 'frameworks') { throw 'ACCEPT_SHARED_RUNTIME_REQUIRED' }
++    foreach ($framework in @('Microsoft.NETCore.App','Microsoft.WindowsDesktop.App')) {
++        if (@($runtime.includedFrameworks | Where-Object { $_.name -ceq $framework -and $_.version -ceq $Manifest.runtime }).Count -ne 1) { throw 'ACCEPT_RUNTIME_VERSION' }
++    }
++}
++
++function New-AcceptanceWorkspace([string]$Assets,[string]$ManifestSha256,[string]$Workspace) {
++    $Assets=Assert-AcceptancePath $Assets
++    $Workspace=Assert-AcceptancePath $Workspace
++    if ($ManifestSha256 -cnotmatch '^[0-9a-fA-F]{64}$') { throw 'ACCEPT_MANIFEST_HASH_REQUIRED' }
++    if (Test-Path -LiteralPath $Workspace) { throw 'ACCEPT_WORKSPACE_EXISTS' }
++    if (-not (Test-Path -LiteralPath ([IO.Path]::GetDirectoryName($Workspace)) -PathType Container)) { throw 'ACCEPT_PARENT_MISSING' }
++    if ($Workspace.StartsWith($Assets+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'ACCEPT_WORKSPACE_INSIDE_ASSETS' }
++    Assert-AcceptanceTree $Assets
++    $environment=Get-AcceptanceEnvironment
++    if ($environment.os -ne 'windows-11' -or $environment.architecture -ne 'x64' -or -not $environment.host_x64) { throw 'ACCEPT_UNSUPPORTED_ENVIRONMENT' }
++    $handles=[Collections.Generic.List[IO.Stream]]::new(); $zip=$null; $created=$false
++    try {
++        $manifestStream=[IO.File]::Open((Join-Path $Assets 'release-manifest.json'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
++        $handles.Add($manifestStream)
++        if ($manifestStream.Length -gt 8MB -or (Get-AcceptanceHash $manifestStream) -ne $ManifestSha256.ToLowerInvariant()) { throw 'ACCEPT_MANIFEST_HASH' }
++        $manifestStream.Position=0
++        $reader=[IO.StreamReader]::new($manifestStream,[Text.Encoding]::UTF8,$true,1024,$true)
++        try { $manifestText=$reader.ReadToEnd(); $manifest=$manifestText | ConvertFrom-Json } finally { $reader.Dispose() }
++        Assert-AcceptanceManifest $manifest
++        $expected=@('release-manifest.json','SHA256SUMS.txt') + @($manifest.assets | ForEach-Object { $_.path })
++        $actual=@(Get-ChildItem -LiteralPath $Assets -Force)
++        if ($actual.Count -ne 6 -or @($actual | Where-Object { $_.PSIsContainer }).Count -or (Compare-Object ($expected | Sort-Object) ($actual.Name | Sort-Object) -CaseSensitive)) { throw 'ACCEPT_ASSET_DIRECTORY' }
++        $portable=$null
++        foreach ($asset in $manifest.assets) {
++            $stream=[IO.File]::Open((Join-Path $Assets $asset.path),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
++            $handles.Add($stream)
++            if ($stream.Length -ne $asset.bytes -or (Get-AcceptanceHash $stream) -ne $asset.sha256) { throw 'ACCEPT_ASSET_HASH' }
++            if ($asset.path -ceq "AsukaLens $($manifest.version).zip") { $portable=$stream; $stream.Position=0 }
++        }
++        $sums=@([IO.File]::ReadAllLines((Join-Path $Assets 'SHA256SUMS.txt')))
++        $expectedSums=@($manifest.assets | ForEach-Object { $_.sha256+'  '+$_.path })
++        if ($sums.Count -ne 4 -or (Compare-Object $expectedSums $sums -CaseSensitive)) { throw 'ACCEPT_CHECKSUM_LIST' }
++        $zip=[IO.Compression.ZipArchive]::new($portable,[IO.Compression.ZipArchiveMode]::Read,$true)
++        Assert-AcceptanceZip $zip $manifest
++        # All external content is verified before creating the owned workspace.
++        New-Item -ItemType Directory -Path $Workspace -ErrorAction Stop | Out-Null
++        $created=$true
++        $state=[ordered]@{ schema=1; tool='AsukaLens offline acceptance'; id=[guid]::NewGuid().ToString('N'); root=$Workspace;
++            phase='preparing'; manifest_sha256=$ManifestSha256.ToLowerInvariant(); created_utc=[DateTime]::UtcNow.ToString('o');
++            processes=@(); launches=0; environment=$environment; provenance='unconfirmed'; checks=[ordered]@{} }
++        foreach ($name in $script:AcceptanceChecks) { $state.checks[$name]='pending' }
++        Write-AcceptanceJson $state (Join-Path $Workspace '.acceptance-session.json') -New
++        # Preserve original bytes, including any BOM, for the independent hash binding.
++        $manifestStream.Position=0
++        $copy=[IO.File]::Open((Join-Path $Workspace '.acceptance-manifest.json'),[IO.FileMode]::Create)
++        try { $manifestStream.CopyTo($copy) } finally { $copy.Dispose() }
++        foreach ($dir in @('portable','data','sample','sample/图片','sample/文档','sample/文档/嵌套')) { [IO.Directory]::CreateDirectory((Join-Path $Workspace $dir)) | Out-Null }
++        foreach ($entry in $zip.Entries) {
++            $target=Join-Path (Join-Path $Workspace 'portable') $entry.FullName.Replace('/','\')
++            if ($entry.FullName.EndsWith('/')) { [IO.Directory]::CreateDirectory($target) | Out-Null; continue }
++            [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($target)) | Out-Null
++            [IO.Compression.ZipFileExtensions]::ExtractToFile($entry,$target,$false)
++        }
++        [IO.File]::WriteAllBytes((Join-Path $Workspace 'sample/零字节.txt'),[byte[]]@())
++        [IO.File]::WriteAllBytes((Join-Path $Workspace 'sample/文档/说明.txt'),[Text.Encoding]::UTF8.GetBytes('AsukaLens synthetic acceptance sample.'))
++        [IO.File]::WriteAllBytes((Join-Path $Workspace 'sample/文档/嵌套/示例.bin'),[byte[]]::new(65536))
++        Add-Type -AssemblyName System.Drawing
++        $bitmap=[Drawing.Bitmap]::new(640,360); $graphics=[Drawing.Graphics]::FromImage($bitmap)
++        try { $graphics.Clear([Drawing.Color]::MistyRose); $graphics.FillEllipse([Drawing.Brushes]::Coral,350,60,200,200); $bitmap.Save((Join-Path $Workspace 'sample/图片/合成背景.png'),[Drawing.Imaging.ImageFormat]::Png) }
++        finally { $graphics.Dispose(); $bitmap.Dispose() }
++        $state.phase='ready'
++        Write-AcceptanceJson $state (Join-Path $Workspace '.acceptance-session.json')
++    } catch {
++        # An interrupted/failed preparation stays marked preparing for explicit cleanup.
++        # If the marker itself could not be written, remove only this invocation's new tree.
++        if ($created -and -not (Test-Path -LiteralPath (Join-Path $Workspace '.acceptance-session.json'))) {
++            Assert-AcceptanceTree $Workspace
++            Remove-Item -LiteralPath $Workspace -Recurse -Force
++        }
++        throw
++    } finally { if ($zip) { $zip.Dispose() }; foreach ($handle in $handles) { $handle.Dispose() } }
++}
++
++function Open-AcceptanceSession([string]$Workspace, [switch]$Cleanup) {
++    $Workspace=Assert-AcceptancePath $Workspace
++    if (-not (Test-Path -LiteralPath (Join-Path $Workspace '.acceptance-session.json') -PathType Leaf)) { throw 'ACCEPT_OWNER_MISSING' }
++    Assert-AcceptanceTree $Workspace
++    $lock=[IO.File]::Open((Join-Path $Workspace '.acceptance.lock'),[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
++    try {
++        $state=Read-AcceptanceJson (Join-Path $Workspace '.acceptance-session.json')
++        if ($state.schema -ne 1 -or $state.tool -cne 'AsukaLens offline acceptance' -or $state.id -cnotmatch '^[0-9a-f]{32}$' -or
++            $state.root -ine $Workspace -or $state.manifest_sha256 -cnotmatch '^[0-9a-f]{64}$' -or
++            $state.phase -notin @('preparing','ready','cleaning')) { throw 'ACCEPT_OWNER_MISMATCH' }
++        if (-not $Cleanup -and $state.phase -ne 'ready') { throw 'ACCEPT_PREPARATION_INCOMPLETE' }
++        $manifest=$null
++        if (-not $Cleanup) {
++            $file=Join-Path $Workspace '.acceptance-manifest.json'
++            if ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant() -ne $state.manifest_sha256) { throw 'ACCEPT_SESSION_BINDING' }
++            $manifest=Read-AcceptanceJson $file
++            Assert-AcceptanceManifest $manifest
++            if (@($state.checks.PSObject.Properties.Name).Count -ne $script:AcceptanceChecks.Count) { throw 'ACCEPT_CHECK_SCHEMA' }
++            foreach ($name in $script:AcceptanceChecks) {
++                if ($state.checks.$name -cnotin @('pending','passed','failed','not-tested')) { throw 'ACCEPT_CHECK_RESULT' }
++            }
++            if ($state.provenance -cnotin @('unconfirmed','fresh-install','known-clean-snapshot')) { throw 'ACCEPT_PROVENANCE' }
++            if ($state.launches -isnot [int] -or $state.launches -lt 0) { throw 'ACCEPT_LAUNCH_COUNT' }
++        }
++        return [pscustomobject]@{ root=$Workspace; state=$state; manifest=$manifest; lock=$lock }
++    } catch { $lock.Dispose(); throw }
++}
++
++function Assert-AcceptanceIdle($Session) {
++    foreach ($record in $Session.state.processes) {
++        $process=Get-Process -Id $record.pid -ErrorAction SilentlyContinue
++        if ($process) {
++            try { if ($process.StartTime.ToUniversalTime().ToString('o') -eq $record.started_utc) { throw 'ACCEPT_PROCESS_RUNNING' } }
++            finally { $process.Dispose() }
++        }
++    }
++    foreach ($process in @(Get-Process -Name AsukaLens -ErrorAction SilentlyContinue)) {
++        try {
++            $path=$process.Path
++            if (-not $path) { throw 'ACCEPT_PROCESS_UNKNOWN' }
++            if ($path.StartsWith($Session.root+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'ACCEPT_PROCESS_RUNNING' }
++        } finally { $process.Dispose() }
++    }
++}
++
++function Start-AcceptanceApp($Session) {
++    Assert-AcceptanceIdle $Session
++    $payload=Join-Path $Session.root 'portable'
++    $files=@(Get-ChildItem -LiteralPath $payload -File -Recurse -Force)
++    if ($files.Count -ne @($Session.manifest.payload_files).Count) { throw 'ACCEPT_PAYLOAD_CHANGED' }
++    foreach ($entry in $Session.manifest.payload_files) {
++        $file=Get-Item -LiteralPath (Join-Path $payload $entry.path)
++        if ($file.Length -ne $entry.bytes -or (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.sha256) { throw 'ACCEPT_PAYLOAD_CHANGED' }
++    }
++    $info=[Diagnostics.ProcessStartInfo]::new((Join-Path $payload 'AsukaLens.exe'))
++    $info.UseShellExecute=$false; $info.WorkingDirectory=$payload
++    $info.EnvironmentVariables['ASUKALENS_DATA_DIR']=Join-Path $Session.root 'data'
++    $app=[Diagnostics.Process]::Start($info)
++    try {
++        $record=[ordered]@{ pid=$app.Id; started_utc=$app.StartTime.ToUniversalTime().ToString('o') }
++        # Only one launch may be active; retain its identity without growing a history forever.
++        $Session.state.processes=@($record)
++        $Session.state.launches++
++        Write-AcceptanceJson $Session.state (Join-Path $Session.root '.acceptance-session.json')
++    } finally { $app.Dispose() }
++}
++
++function Set-AcceptanceResult($Session,[string]$Check,[string]$Result,[string]$Provenance) {
++    if ($Provenance) {
++        if ($Check -or $Result -or $Provenance -cnotin @('unconfirmed','fresh-install','known-clean-snapshot')) { throw 'ACCEPT_RECORD_ARGUMENTS' }
++        if ($Provenance -ne 'unconfirmed') {
++            $current=Get-AcceptanceEnvironment
++            if ($Session.state.environment.modern_dotnet.status -ne 'not-detected' -or -not $Session.state.environment.modern_dotnet.checks_complete -or
++                $current.modern_dotnet.status -ne 'not-detected' -or -not $current.modern_dotnet.checks_complete -or
++                $current.os -ne 'windows-11' -or $current.architecture -ne 'x64') { throw 'ACCEPT_CLEAN_ENVIRONMENT_NOT_ESTABLISHED' }
++        }
++        $Session.state.provenance=$Provenance
++    } else {
++        if ($Check -cnotin $script:AcceptanceChecks -or $Result -cnotin @('pending','passed','failed','not-tested')) { throw 'ACCEPT_RECORD_ARGUMENTS' }
++        if ($Result -eq 'passed' -and $Session.state.launches -eq 0 -and $Check -ne 'installer_workflow') { throw 'ACCEPT_LAUNCH_REQUIRED' }
++        if ($Check -eq 'normal_exit' -and $Result -eq 'passed') { Assert-AcceptanceIdle $Session }
++        $Session.state.checks.$Check=$Result
++    }
++    Write-AcceptanceJson $Session.state (Join-Path $Session.root '.acceptance-session.json')
++}
++
++function Get-AcceptanceReport($Session) {
++    $envState=$Session.state.environment
++    # Whitelist reconstruction: local owner paths, process IDs and free text never leave the workspace.
++    if ($envState.os -cnotin @('windows-11','other-windows','unknown') -or $envState.architecture -cnotin @('x64','x86','arm64','unknown') -or
++        $envState.host_x64 -isnot [bool] -or $envState.powershell_major -notin @(5,7) -or $envState.modern_dotnet.checks_complete -isnot [bool]) { throw 'ACCEPT_ENVIRONMENT_SCHEMA' }
++    $runtime=Resolve-AcceptanceRuntimeEvidence @($envState.modern_dotnet.evidence) (-not $envState.modern_dotnet.checks_complete)
++    if ($runtime.status -cne $envState.modern_dotnet.status) { throw 'ACCEPT_ENVIRONMENT_SCHEMA' }
++    $checks=[ordered]@{}
++    foreach ($name in $script:AcceptanceChecks) { $checks[$name]=$Session.state.checks.$name }
++    return [ordered]@{ schema=1; report_kind='offline-acceptance-observations';
++        binding=[ordered]@{version=$Session.manifest.version;commit=$Session.manifest.commit;manifest_sha256=$Session.state.manifest_sha256;
++            local_test=$Session.manifest.local_test;source_kind=$Session.manifest.source_kind};
++        automated=[ordered]@{assets_verified=4;payload_files=@($Session.manifest.payload_files).Count;launches=$Session.state.launches;
++            environment=[ordered]@{os=$envState.os;architecture=$envState.architecture;host_x64=$envState.host_x64;
++                powershell_major=[int]$envState.powershell_major;modern_dotnet=$runtime}};
++        operator=[ordered]@{clean_environment_provenance=$Session.state.provenance;checks=$checks};
++        release_gate='not-evaluated'; source_archive_contents='requires-development-validation'; installer_execution='operator-record-only' }
++}
++
++function Remove-AcceptanceWorkspace($Session) {
++    Assert-AcceptanceIdle $Session
++    Assert-AcceptanceTree $Session.root
++    $Session.state.phase='cleaning'
++    Write-AcceptanceJson $Session.state (Join-Path $Session.root '.acceptance-session.json')
++    # Keep ownership and lock until all removable content is gone, so an I/O failure is retryable.
++    foreach ($item in Get-ChildItem -LiteralPath $Session.root -Force) {
++        if ($item.Name -in @('.acceptance-session.json','.acceptance.lock')) { continue }
++        if (-not $item.FullName.StartsWith($Session.root+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'ACCEPT_CLEANUP_BOUNDARY' }
++        if ($item.PSIsContainer) { Remove-Item -LiteralPath $item.FullName -Recurse -Force }
++        else { Remove-Item -LiteralPath $item.FullName -Force }
++    }
++    # Release the Windows file lock only after marking the session unavailable for launch.
++    $Session.lock.Dispose()
++    [void](Assert-AcceptancePath $Session.root)
++    Remove-Item -LiteralPath (Join-Path $Session.root '.acceptance.lock') -Force
++    Remove-Item -LiteralPath (Join-Path $Session.root '.acceptance-session.json') -Force
++    [IO.Directory]::Delete($Session.root)
++}
+diff --git a/scripts/acceptance/Invoke-Acceptance.ps1 b/scripts/acceptance/Invoke-Acceptance.ps1
+new file mode 100644
+index 0000000000000000000000000000000000000000..09d86755cdd1287b6b90ea18d6c6b3f8cfb10d7e
+--- /dev/null
++++ b/scripts/acceptance/Invoke-Acceptance.ps1
+@@ -0,0 +1,40 @@
++﻿#requires -Version 5.1
++[CmdletBinding()]
++param(
++    [Parameter(Mandatory)][ValidateSet('Prepare','Inspect','Start','Record','Export','Cleanup')][string]$Action,
++    [Parameter(Mandatory)][string]$Workspace,
++    [string]$Assets,
++    [string]$ManifestSha256,
++    [string]$Check,
++    [string]$Result,
++    [string]$Provenance,
++    [string]$Output
++)
++$ErrorActionPreference='Stop'
++$session=$null
++try {
++    . (Join-Path $PSScriptRoot 'Acceptance.Common.ps1')
++    if ($Action -eq 'Prepare') {
++        New-AcceptanceWorkspace $Assets $ManifestSha256 $Workspace
++        Write-Host 'Prepared. All manual checks remain pending. Read docs/offline-acceptance.md before starting.'
++        Write-Host ('Synthetic scan directory: '+(Join-Path $Workspace 'sample'))
++    } else {
++        $session=Open-AcceptanceSession $Workspace -Cleanup:($Action -eq 'Cleanup')
++        switch ($Action) {
++            'Inspect' { Get-AcceptanceReport $session | ConvertTo-Json -Depth 16 }
++            'Start' { Start-AcceptanceApp $session; Write-Host 'Started with isolated data. Record actual observations; launch is not a pass.' }
++            'Record' { Set-AcceptanceResult $session $Check $Result $Provenance; Write-Host 'Operator observation saved.' }
++            'Export' {
++                $target=Assert-AcceptancePath $Output
++                if ($target.StartsWith($session.root+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'ACCEPT_EXPORT_OUTSIDE_WORKSPACE_REQUIRED' }
++                Write-AcceptanceJson (Get-AcceptanceReport $session) $target -New
++                Write-Host 'Whitelisted observations exported. Release gates remain unevaluated.'
++            }
++            'Cleanup' { Remove-AcceptanceWorkspace $session; Write-Host 'Owned workspace removed; source assets preserved.' }
++        }
++    }
++} catch {
++    $code=if ($_.Exception.Message -cmatch '^ACCEPT_[A-Z_]+$') { $_.Exception.Message } else { 'ACCEPT_OPERATION_FAILED' }
++    [Console]::Error.WriteLine(('Acceptance failed: '+$code))
++    exit 1
++} finally { if ($session) { $session.lock.Dispose() } }
+diff --git a/tests/OfflineAcceptance.Tests.ps1 b/tests/OfflineAcceptance.Tests.ps1
+new file mode 100644
+index 0000000000000000000000000000000000000000..3556241e7123ea90317a06ca3e577b8ea4e37ab8
+--- /dev/null
++++ b/tests/OfflineAcceptance.Tests.ps1
+@@ -0,0 +1,291 @@
++﻿#requires -Version 5.1
++[CmdletBinding()]
++param([string]$Summary)
++$ErrorActionPreference='Stop'
++. (Join-Path $PSScriptRoot '../scripts/acceptance/Acceptance.Common.ps1')
++$parent=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../artifacts'))
++[IO.Directory]::CreateDirectory($parent) | Out-Null
++$root=Join-Path $parent ('acceptance-check-'+[guid]::NewGuid().ToString('N'))
++[IO.Directory]::CreateDirectory($root) | Out-Null
++$script:checks=[Collections.Generic.List[string]]::new()
++$session=$null; $child=$null; $workspace=$null
++function Check([bool]$Condition,[string]$Name) {
++    if (-not $Condition) { throw ('FAIL '+$Name) }
++    $script:checks.Add($Name)
++    Write-Host ('PASS '+$Name)
++}
++function Reject([scriptblock]$Action,[string]$Name,[string]$Code) {
++    $message=$null
++    try { & $Action | Out-Null } catch { $message=$_.Exception.Message }
++    if ($Code -and $message -ne $Code) { Write-Host ('Expected '+$Code+'; actual '+$message) }
++    Check ($null -ne $message -and (-not $Code -or $message -eq $Code)) $Name
++}
++function Remove-TestTree([string]$Path) {
++    $full=Assert-AcceptancePath $Path
++    if (-not $full.StartsWith($parent+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'Test cleanup boundary' }
++    if (Test-Path -LiteralPath $full) { Assert-AcceptanceTree $full; Remove-Item -LiteralPath $full -Recurse -Force }
++}
++function File-Record([string]$Path,[string]$Name) {
++    return [ordered]@{path=$Name;bytes=(Get-Item -LiteralPath $Path).Length;sha256=(Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()}
++}
++function Save-Fixture($Fixture,[switch]$RebuildZip) {
++    if ($RebuildZip) {
++        $zip=Join-Path $Fixture.assets 'AsukaLens v1.4.2.zip'
++        if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip }
++        $Fixture.manifest.payload_files=@(Get-ChildItem -LiteralPath $Fixture.payload -Recurse -File | Sort-Object FullName | ForEach-Object {
++            File-Record $_.FullName $_.FullName.Substring($Fixture.payload.Length+1).Replace('\','/')
++        })
++        # Match production ZIP names; the old Framework CreateFromDirectory uses backslashes.
++        $archive=[IO.Compression.ZipFile]::Open($zip,[IO.Compression.ZipArchiveMode]::Create)
++        try {
++            foreach ($file in $Fixture.manifest.payload_files) {
++                [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive,(Join-Path $Fixture.payload $file.path),$file.path)
++            }
++        } finally { $archive.Dispose() }
++    }
++    $Fixture.manifest.assets=@(Get-ChildItem -LiteralPath $Fixture.assets -File | Where-Object { $_.Name -like 'AsukaLens *' } | Sort-Object Name | ForEach-Object { File-Record $_.FullName $_.Name })
++    [IO.File]::WriteAllText((Join-Path $Fixture.assets 'release-manifest.json'),($Fixture.manifest | ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
++    [IO.File]::WriteAllLines((Join-Path $Fixture.assets 'SHA256SUMS.txt'),[string[]]@($Fixture.manifest.assets | ForEach-Object {$_.sha256+'  '+$_.path}),[Text.UTF8Encoding]::new($false))
++    $Fixture.hash=(Get-FileHash -LiteralPath (Join-Path $Fixture.assets 'release-manifest.json') -Algorithm SHA256).Hash.ToLowerInvariant()
++}
++function New-Fixture {
++    $base=Join-Path $root ('fixture-'+[guid]::NewGuid().ToString('N'))
++    $assets=Join-Path $base 'assets'; $payload=Join-Path $base 'payload'
++    [IO.Directory]::CreateDirectory($assets) | Out-Null
++    [IO.Directory]::CreateDirectory($payload) | Out-Null
++    foreach ($name in @('DiskAtlas.dll','DiskAtlas.deps.json','coreclr.dll','hostfxr.dll','hostpolicy.dll','System.Private.CoreLib.dll','System.Windows.Forms.dll',
++        'LICENSE','NOTICE.md','licenses/CC-BY-NC-4.0.txt','licenses/Inno-Setup.txt','INSTALL-NOTICE.txt','使用说明.txt','docs/diagnostics.md',
++        'licenses/runtime/microsoft.netcore.app.runtime.win-x64/LICENSE.txt','licenses/runtime/microsoft.netcore.app.runtime.win-x64/THIRD-PARTY-NOTICES.txt',
++        'licenses/runtime/microsoft.windowsdesktop.app.runtime.win-x64/LICENSE.txt')) {
++        $file=Join-Path $payload $name
++        [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($file)) | Out-Null
++        [IO.File]::WriteAllText($file,'synthetic fixture, not a release')
++    }
++    [IO.File]::Copy((Join-Path $root 'helper.exe'),(Join-Path $payload 'AsukaLens.exe'))
++    [IO.File]::WriteAllText((Join-Path $payload 'build-info.json'),' {"version":"v1.4.2","commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","local_test":true}')
++    [IO.File]::WriteAllText((Join-Path $payload 'DiskAtlas.runtimeconfig.json'),'{"runtimeOptions":{"includedFrameworks":[{"name":"Microsoft.NETCore.App","version":"10.0.14"},{"name":"Microsoft.WindowsDesktop.App","version":"10.0.14"}]}}')
++    foreach ($suffix in @('.exe','-source.zip','-source.tar.gz')) {
++        [IO.File]::WriteAllText((Join-Path $assets ('AsukaLens v1.4.2'+$suffix)),'synthetic non-executable asset; contents validated on developer machine separately')
++    }
++    $fixture=[pscustomobject]@{base=$base;assets=$assets;payload=$payload;hash='';manifest=[ordered]@{schema=1;product='AsukaLens';version='v1.4.2';
++        commit=('a'*40);rid='win-x64';self_contained=$true;local_test=$true;source_kind='working-tree';runtime='10.0.14';assets=@();payload_files=@()}}
++    Save-Fixture $fixture -RebuildZip
++    return $fixture
++}
++function Reject-Fixture([scriptblock]$Mutation,[string]$Name,[string]$Code) {
++    $fixture=New-Fixture
++    try {
++        & $Mutation $fixture
++        $target=Join-Path $fixture.base 'work'
++        Reject { New-AcceptanceWorkspace $fixture.assets $fixture.hash $target } $Name $Code
++        Check (-not (Test-Path -LiteralPath $target)) ($Name+' before writes')
++    } finally { Remove-TestTree $fixture.base }
++}
++try {
++    foreach ($script in Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot '../scripts/acceptance') -Filter '*.ps1') {
++        $bytes=[IO.File]::ReadAllBytes($script.FullName)
++        Check ($bytes[0] -eq 239 -and $bytes[1] -eq 187 -and $bytes[2] -eq 191) ('UTF-8 BOM '+$script.Name)
++        $tokens=$null; $errors=$null
++        [Management.Automation.Language.Parser]::ParseFile($script.FullName,[ref]$tokens,[ref]$errors) | Out-Null
++        Check ($errors.Count -eq 0) ('syntax '+$script.Name)
++    }
++    Check ($PSVersionTable.PSVersion.Major -eq 5 -and [Environment]::Is64BitProcess) 'actual Windows PowerShell 5.1 x64 host'
++    Check ((Resolve-AcceptanceRuntimeEvidence @() $false).status -eq 'not-detected') 'no known runtime evidence remains qualified'
++    Check ((Resolve-AcceptanceRuntimeEvidence @() $true).status -eq 'unknown') 'incomplete probe is unknown'
++    Check ((Resolve-AcceptanceRuntimeEvidence @('path_host') $true).status -eq 'detected') 'positive evidence wins with incomplete flag'
++    Reject { Resolve-AcceptanceRuntimeEvidence @('private path') $false } 'runtime evidence whitelist' 'ACCEPT_ENVIRONMENT_EVIDENCE'
++    $realEnvironment=Get-AcceptanceEnvironment
++    Check ($realEnvironment.os -eq 'windows-11' -and $realEnvironment.architecture -eq 'x64') 'real supported host detection'
++    Check ($realEnvironment.modern_dotnet.status -eq 'detected') 'real developer runtime detected'
++    foreach ($bad in @('relative','C:\','C:\sample:stream','\\server\share\workspace')) { Reject { Assert-AcceptancePath $bad } 'unsafe workspace path rejected' }
++    foreach ($bad in @('../escape','a/../escape','/root','C:/root','a\b','a//b','a./b','NUL.txt','src/file:stream')) { Reject { Assert-AcceptanceRelative $bad } 'unsafe entry rejected' }
++    $stream=[IO.MemoryStream]::new([byte[]]@(1,2))
++    try { Reject { Get-AcceptanceHash $stream 1 } 'stream length bounded' 'ACCEPT_STREAM_SIZE' } finally { $stream.Dispose() }
++    # Built-in .NET Framework compiler only in tests. The target helper never compiles or calls dotnet.
++    Add-Type -TypeDefinition @'
++using System;
++using System.IO;
++using System.Threading;
++public static class AcceptanceFixture {
++    [STAThread] public static void Main() {
++        string directory = Environment.GetEnvironmentVariable("ASUKALENS_DATA_DIR");
++        if (String.IsNullOrEmpty(directory)) return;
++        File.WriteAllText(Path.Combine(directory, "launched.txt"), "isolated");
++        for (int i=0; i<200 && !File.Exists(Path.Combine(directory,"stop.txt")); i++) Thread.Sleep(100);
++    }
++}
++'@ -OutputAssembly (Join-Path $root 'helper.exe') -OutputType WindowsApplication
++    Reject-Fixture { param($f) $f.hash='0'*64 } 'manifest checksum mismatch' 'ACCEPT_MANIFEST_HASH'
++    Reject-Fixture { param($f) $f.manifest.version='v01.4.2'; Save-Fixture $f } 'noncanonical version' 'ACCEPT_MANIFEST_IDENTITY'
++    Reject-Fixture { param($f) Remove-Item -LiteralPath (Join-Path $f.assets 'AsukaLens v1.4.2.exe') } 'missing asset' 'ACCEPT_ASSET_DIRECTORY'
++    Reject-Fixture { param($f) [IO.File]::AppendAllText((Join-Path $f.assets 'AsukaLens v1.4.2.exe'),'changed') } 'asset bytes changed' 'ACCEPT_ASSET_HASH'
++    Reject-Fixture { param($f) [IO.File]::WriteAllText((Join-Path $f.assets 'extra.txt'),'unexpected') } 'extra asset' 'ACCEPT_ASSET_DIRECTORY'
++    Reject-Fixture { param($f) [IO.File]::WriteAllText((Join-Path $f.assets 'SHA256SUMS.txt'),'wrong') } 'checksum list mismatch' 'ACCEPT_CHECKSUM_LIST'
++    Reject-Fixture {
++        param($f) $zip=[IO.Compression.ZipFile]::Open((Join-Path $f.assets 'AsukaLens v1.4.2.zip'),[IO.Compression.ZipArchiveMode]::Update)
++        try { [void]$zip.CreateEntry('../outside.txt') } finally { $zip.Dispose() }; Save-Fixture $f
++    } 'ZIP traversal' 'ACCEPT_ARCHIVE_PATH'
++    Reject-Fixture {
++        param($f) $zip=[IO.Compression.ZipFile]::Open((Join-Path $f.assets 'AsukaLens v1.4.2.zip'),[IO.Compression.ZipArchiveMode]::Update)
++        try { [void]$zip.CreateEntry('diskatlas.dll') } finally { $zip.Dispose() }; Save-Fixture $f
++    } 'ZIP duplicate case' 'ACCEPT_DUPLICATE_PATH'
++    Reject-Fixture {
++        param($f) $zip=[IO.Compression.ZipFile]::Open((Join-Path $f.assets 'AsukaLens v1.4.2.zip'),[IO.Compression.ZipArchiveMode]::Update)
++        try { $entry=$zip.CreateEntry('link'); $entry.ExternalAttributes=-1610612736 } finally { $zip.Dispose() }; Save-Fixture $f
++    } 'ZIP symlink rejected' 'ACCEPT_ARCHIVE_LINK'
++    Reject-Fixture {
++        param($f) $zip=[IO.Compression.ZipFile]::Open((Join-Path $f.assets 'AsukaLens v1.4.2.zip'),[IO.Compression.ZipArchiveMode]::Update)
++        try { [void]$zip.CreateEntry('DiskAtlas.dll/child/') } finally { $zip.Dispose() }; Save-Fixture $f
++    } 'ZIP file directory collision' 'ACCEPT_PATH_COLLISION'
++    Reject-Fixture { param($f) [IO.File]::WriteAllText((Join-Path $f.payload 'build-info.json'),'{"version":"v9.9.9","commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","local_test":true}'); Save-Fixture $f -RebuildZip } 'payload version mismatch' 'ACCEPT_PAYLOAD_IDENTITY'
++    Reject-Fixture { param($f) [IO.File]::WriteAllText((Join-Path $f.payload 'DiskAtlas.runtimeconfig.json'),'{"runtimeOptions":{"framework":{"name":"Microsoft.NETCore.App","version":"10.0.14"}}}'); Save-Fixture $f -RebuildZip } 'shared runtime requirement' 'ACCEPT_SHARED_RUNTIME_REQUIRED'
++    Reject-Fixture { param($f) Remove-Item -LiteralPath (Join-Path $f.payload 'coreclr.dll'); Save-Fixture $f -RebuildZip } 'required runtime missing' 'ACCEPT_PAYLOAD_REQUIRED_FILE'
++    Reject-Fixture { param($f) Remove-Item -LiteralPath (Join-Path $f.payload 'licenses/runtime/microsoft.windowsdesktop.app.runtime.win-x64/LICENSE.txt'); Save-Fixture $f -RebuildZip } 'runtime notices missing' 'ACCEPT_RUNTIME_NOTICES'
++    Reject-Fixture {
++        param($f) $zip=[IO.Compression.ZipFile]::Open((Join-Path $f.assets 'AsukaLens v1.4.2.zip'),[IO.Compression.ZipArchiveMode]::Update)
++        try {
++            $entry=$zip.GetEntry('DiskAtlas.dll'); $size=$entry.Length; $entry.Delete()
++            $stream=$zip.CreateEntry('DiskAtlas.dll').Open()
++            try { $stream.Write([byte[]]::new($size),0,$size) } finally { $stream.Dispose() }
++        } finally { $zip.Dispose() }; Save-Fixture $f
++    } 'payload content hash mismatch' 'ACCEPT_PAYLOAD_HASH'
++    Reject-Fixture {
++        param($f) $zip=[IO.Compression.ZipFile]::Open((Join-Path $f.assets 'AsukaLens v1.4.2.zip'),[IO.Compression.ZipArchiveMode]::Update)
++        try { $zip.GetEntry('DiskAtlas.dll').Delete() } finally { $zip.Dispose() }; Save-Fixture $f
++    } 'payload entry missing' 'ACCEPT_PAYLOAD_INVENTORY'
++    Reject-Fixture { param($f) $f.manifest.payload_files+=@($f.manifest.payload_files[0]); Save-Fixture $f } 'duplicate inventory path' 'ACCEPT_DUPLICATE_PATH'
++    Reject-Fixture { param($f) $f.manifest.self_contained=$false; Save-Fixture $f } 'framework dependent manifest rejected' 'ACCEPT_MANIFEST_IDENTITY'
++    $good=New-Fixture
++    $workspace=Join-Path $good.base '工作目录'
++    New-AcceptanceWorkspace $good.assets $good.hash $workspace
++    Check (Test-Path -LiteralPath (Join-Path $workspace 'sample/图片/合成背景.png')) 'prepared synthetic image'
++    Check ((Get-Item -LiteralPath (Join-Path $workspace 'sample/零字节.txt')).Length -eq 0) 'zero byte and Chinese sample'
++    Reject { New-AcceptanceWorkspace $good.assets $good.hash $workspace } 'existing workspace preserved' 'ACCEPT_WORKSPACE_EXISTS'
++    $session=Open-AcceptanceSession $workspace
++    $report=Get-AcceptanceReport $session
++    Check (@($report.operator.checks.Values | Where-Object { $_ -ne 'pending' }).Count -eq 0) 'all manual checks initially pending'
++    Check ($report.binding.manifest_sha256 -eq $good.hash -and $report.release_gate -eq 'not-evaluated') 'report bound without release approval'
++    Reject { Open-AcceptanceSession $workspace } 'concurrent action locked'
++    Reject { Set-AcceptanceResult $session 'portable_start' 'passed' '' } 'cannot pass before launch' 'ACCEPT_LAUNCH_REQUIRED'
++    Reject { Set-AcceptanceResult $session '' '' 'fresh-install' } 'developer environment cannot claim clean' 'ACCEPT_CLEAN_ENVIRONMENT_NOT_ESTABLISHED'
++    Reject { Set-AcceptanceResult $session 'unknown' 'passed' '' } 'unknown checklist field rejected' 'ACCEPT_RECORD_ARGUMENTS'
++    $marker=Join-Path $workspace '.acceptance-session.json'
++    $before=(Get-FileHash -LiteralPath $marker).Hash
++    $hold=[IO.File]::Open($marker,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
++    try { Reject { Set-AcceptanceResult $session 'portable_start' 'failed' '' } 'write failure propagated' }
++    finally { $hold.Dispose() }
++    Check ((Get-FileHash -LiteralPath $marker).Hash -eq $before -and @(Get-ChildItem -LiteralPath $workspace -Filter '*.tmp' -Force).Count -eq 0) 'failed write preserves state and clears temporary file'
++    $session.lock.Dispose(); $session=Open-AcceptanceSession $workspace
++    $binary=Join-Path $workspace 'portable/DiskAtlas.dll'
++    $original=[IO.File]::ReadAllBytes($binary)
++    [IO.File]::AppendAllText($binary,'changed')
++    Reject { Start-AcceptanceApp $session } 'changed extracted payload cannot launch' 'ACCEPT_PAYLOAD_CHANGED'
++    [IO.File]::WriteAllBytes($binary,$original)
++    $parentOverride=[Environment]::GetEnvironmentVariable('ASUKALENS_DATA_DIR')
++    Start-AcceptanceApp $session
++    $child=Get-Process -Id $session.state.processes[-1].pid
++    for ($i=0;$i -lt 50 -and -not (Test-Path -LiteralPath (Join-Path $workspace 'data/launched.txt'));$i++) { Start-Sleep -Milliseconds 100 }
++    Check (([IO.File]::ReadAllText((Join-Path $workspace 'data/launched.txt'))) -eq 'isolated') 'actual synthetic process receives isolated data'
++    Check ([Environment]::GetEnvironmentVariable('ASUKALENS_DATA_DIR') -eq $parentOverride) 'parent environment unchanged'
++    Reject { Start-AcceptanceApp $session } 'duplicate start blocked' 'ACCEPT_PROCESS_RUNNING'
++    Reject { Remove-AcceptanceWorkspace $session } 'cleanup while process active blocked' 'ACCEPT_PROCESS_RUNNING'
++    Reject { Set-AcceptanceResult $session 'normal_exit' 'passed' '' } 'normal exit cannot pass while active' 'ACCEPT_PROCESS_RUNNING'
++    Set-AcceptanceResult $session 'portable_start' 'passed' ''
++    Set-AcceptanceResult $session 'scan_and_navigation' 'failed' ''
++    $session.state | Add-Member -NotePropertyName ignored_private_field -NotePropertyValue 'C:\Users\private-fixture\secret.txt'
++    Write-AcceptanceJson $session.state $marker
++    $session.lock.Dispose(); $session=Open-AcceptanceSession $workspace
++    $json=Get-AcceptanceReport $session | ConvertTo-Json -Depth 16
++    Check ($json -notmatch 'private-fixture|[A-Z]:\\|pid|started_utc|root') 'export excludes private fields and local paths'
++    $parsed=$json | ConvertFrom-Json
++    Check ($parsed.operator.checks.portable_start -eq 'passed' -and $parsed.operator.checks.scan_and_navigation -eq 'failed' -and
++        $parsed.operator.checks.views_and_metrics -eq 'pending' -and $parsed.release_gate -eq 'not-evaluated') 'partial results never become full pass'
++    $export=Join-Path $root 'observations.json'
++    Write-AcceptanceJson (Get-AcceptanceReport $session) $export -New
++    Reject { Write-AcceptanceJson (Get-AcceptanceReport $session) $export -New } 'report export cannot overwrite'
++    [IO.File]::WriteAllText((Join-Path $workspace 'data/stop.txt'),'stop')
++    Check ($child.WaitForExit(5000)) 'synthetic child exits normally'
++    $child.Dispose(); $child=$null
++    Set-AcceptanceResult $session 'normal_exit' 'passed' ''
++    $outside=Join-Path $root 'unrelated'; [IO.Directory]::CreateDirectory($outside) | Out-Null
++    [IO.File]::WriteAllText((Join-Path $outside 'keep.txt'),'keep')
++    $link=Join-Path $workspace 'linked'
++    New-Item -ItemType Junction -Path $link -Target $outside | Out-Null
++    try { Reject { Remove-AcceptanceWorkspace $session } 'cleanup rejects junction before recursion' 'ACCEPT_REPARSE_POINT' }
++    finally {
++        # Framework/Windows PowerShell may prompt on a junction. Remove only the link itself.
++        if ($link.StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase) -and
++            ((Get-Item -LiteralPath $link -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { [IO.Directory]::Delete($link) }
++    }
++    $session.lock.Dispose(); $session=$null
++    $state=Read-AcceptanceJson $marker; $state.root=$outside; Write-AcceptanceJson $state $marker
++    Reject { Open-AcceptanceSession $workspace -Cleanup } 'copied or mismatched owner refused' 'ACCEPT_OWNER_MISMATCH'
++    $state.root=$workspace; $state.phase='preparing'; Write-AcceptanceJson $state $marker
++    Remove-Item -LiteralPath (Join-Path $workspace '.acceptance-manifest.json')
++    Reject { Open-AcceptanceSession $workspace } 'interrupted prepare cannot launch' 'ACCEPT_PREPARATION_INCOMPLETE'
++    $session=Open-AcceptanceSession $workspace -Cleanup
++    Remove-AcceptanceWorkspace $session
++    Check (-not (Test-Path -LiteralPath $workspace) -and (Test-Path -LiteralPath (Join-Path $outside 'keep.txt')) -and
++        (Test-Path -LiteralPath (Join-Path $good.assets 'release-manifest.json'))) 'interrupted cleanup preserves sources and unrelated data'
++    $session=$null
++    Reject { Open-AcceptanceSession $outside -Cleanup } 'unowned directory cannot clean' 'ACCEPT_OWNER_MISSING'
++    $invalidExe=New-Fixture
++    [IO.File]::WriteAllText((Join-Path $invalidExe.payload 'AsukaLens.exe'),'invalid executable fixture')
++    Save-Fixture $invalidExe -RebuildZip
++    $invalidWork=Join-Path $invalidExe.base 'work'
++    New-AcceptanceWorkspace $invalidExe.assets $invalidExe.hash $invalidWork
++    $invalidSession=Open-AcceptanceSession $invalidWork
++    try {
++        Reject { Start-AcceptanceApp $invalidSession } 'invalid executable launch fails'
++        Check ((Get-AcceptanceReport $invalidSession).automated.launches -eq 0) 'failed launch does not become successful fact'
++        Remove-AcceptanceWorkspace $invalidSession
++    } finally { $invalidSession.lock.Dispose() }
++    $retryFixture=New-Fixture; $retryWork=Join-Path $retryFixture.base 'work'
++    New-AcceptanceWorkspace $retryFixture.assets $retryFixture.hash $retryWork
++    $retrySession=Open-AcceptanceSession $retryWork
++    $heldPath=Join-Path $retryWork 'data/held.txt'; [IO.File]::WriteAllText($heldPath,'held')
++    $hold=[IO.File]::Open($heldPath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
++    try {
++        Reject { Remove-AcceptanceWorkspace $retrySession } 'cleanup I/O failure is reported'
++        Check ((Read-AcceptanceJson (Join-Path $retryWork '.acceptance-session.json')).phase -eq 'cleaning') 'failed cleanup preserves ownership marker'
++    } finally { $hold.Dispose(); $retrySession.lock.Dispose() }
++    Reject { Open-AcceptanceSession $retryWork } 'partial cleanup cannot relaunch' 'ACCEPT_PREPARATION_INCOMPLETE'
++    $retrySession=Open-AcceptanceSession $retryWork -Cleanup
++    try { Remove-AcceptanceWorkspace $retrySession } finally { $retrySession.lock.Dispose() }
++    Check (-not (Test-Path -LiteralPath $retryWork)) 'cleanup retries after file released'
++    # Exercise the user-facing CLI as a separate legacy PowerShell process.
++    $cli=Join-Path $PSScriptRoot '../scripts/acceptance/Invoke-Acceptance.ps1'
++    & (Join-Path $PSHOME 'powershell.exe') -NoLogo -NoProfile -NonInteractive -File $cli -Action Prepare -Assets $good.assets -ManifestSha256 $good.hash -Workspace $workspace | Out-Null
++    Check ($LASTEXITCODE -eq 0) 'CLI prepare with Unicode paths'
++    $cliJson=& (Join-Path $PSHOME 'powershell.exe') -NoLogo -NoProfile -NonInteractive -File $cli -Action Inspect -Workspace $workspace
++    Check ($LASTEXITCODE -eq 0 -and ($cliJson -join "`n" | ConvertFrom-Json).release_gate -eq 'not-evaluated') 'CLI inspect JSON'
++    $cliExport=Join-Path $root 'cli-export.json'
++    & (Join-Path $PSHOME 'powershell.exe') -NoLogo -NoProfile -NonInteractive -File $cli -Action Export -Workspace $workspace -Output $cliExport | Out-Null
++    Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $cliExport)) 'CLI whitelist export'
++    $copiedManifest=Join-Path $workspace '.acceptance-manifest.json'
++    $originalManifest=[IO.File]::ReadAllBytes($copiedManifest)
++    [IO.File]::AppendAllText($copiedManifest,' ')
++    $start=[Diagnostics.ProcessStartInfo]::new((Join-Path $PSHOME 'powershell.exe'))
++    $start.Arguments='-NoLogo -NoProfile -NonInteractive -File "'+$cli+'" -Action Inspect -Workspace "'+$workspace+'"'
++    $start.UseShellExecute=$false; $start.CreateNoWindow=$true; $start.RedirectStandardOutput=$true; $start.RedirectStandardError=$true
++    $probe=[Diagnostics.Process]::Start($start)
++    try {
++        $stdout=$probe.StandardOutput.ReadToEnd(); $stderr=$probe.StandardError.ReadToEnd(); $probe.WaitForExit()
++        Check ($probe.ExitCode -eq 1 -and $stdout.Trim() -eq '' -and $stderr.Trim() -eq 'Acceptance failed: ACCEPT_SESSION_BINDING') 'CLI rejects changed binding with path-free error'
++    } finally { $probe.Dispose(); [IO.File]::WriteAllBytes($copiedManifest,$originalManifest) }
++    & (Join-Path $PSHOME 'powershell.exe') -NoLogo -NoProfile -NonInteractive -File $cli -Action Cleanup -Workspace $workspace | Out-Null
++    Check ($LASTEXITCODE -eq 0 -and -not (Test-Path -LiteralPath $workspace)) 'CLI cleanup'
++    $result=[ordered]@{schema=1;host='Windows PowerShell 5.1 x64';passed=$checks.Count;checks=$checks.ToArray();
++        environment=$realEnvironment;assets='synthetic; source and installer contents not executable packages';
++        child_process='synthetic .NET Framework helper, not AsukaLens';real_release_payload_tested=$false;clean_environment_tested=$false}
++    if ($Summary) { Write-AcceptanceJson $result ([IO.Path]::GetFullPath($Summary)) -New }
++    Write-Host ('PASS offline acceptance checks: '+$checks.Count)
++} finally {
++    if ($session) { $session.lock.Dispose() }
++    if ($child) {
++        [IO.File]::WriteAllText((Join-Path $workspace 'data/stop.txt'),'stop')
++        if (-not $child.WaitForExit(5000)) { throw 'Synthetic child is still active; fixture retained.' }
++        $child.Dispose()
++    }
++    Remove-TestTree $root
++}

@@ -1,0 +1,14 @@
+{
+  "date": "2026-11-07",
+  "baseline": "a1050a97e4755cc39750a44a9e312dcf93004b23",
+  "work_files": 12,
+  "relative_links_checked": 110,
+  "privacy_check": "passed",
+  "whitespace_check": "passed",
+  "legacy_powershell_assertions": 98,
+  "application_changed": false,
+  "application_rebuilt": false,
+  "real_release_payload_tested": false,
+  "clean_environment_tested": false,
+  "formal_release": false
+}
