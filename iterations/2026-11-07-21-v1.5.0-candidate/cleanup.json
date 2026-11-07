@@ -1,0 +1,73 @@
+{
+  "date": "2026-11-07",
+  "version": "v1.5.0",
+  "commit": "4e7431739d321d73e847d0ff585edefa14820ae2",
+  "removed": [
+    {
+      "path": "artifacts/candidate-v1.5.0-work",
+      "files": 205113,
+      "removed": true
+    },
+    {
+      "path": "artifacts/package-acceptance-a6b3c5af2ea84f3aa9848f6dd971087a",
+      "files": 1144,
+      "removed": true
+    },
+    {
+      "path": "artifacts/release-cache",
+      "files": 652,
+      "removed": true
+    },
+    {
+      "path": "artifacts/release-tools/inno-7.1.1",
+      "files": 133,
+      "removed": true
+    },
+    {
+      "path": "tests/bin",
+      "files": 5,
+      "removed": true
+    },
+    {
+      "path": "tests/obj",
+      "files": 20,
+      "removed": true
+    },
+    {
+      "path": "obj",
+      "files": 20,
+      "removed": true
+    },
+    {
+      "path": "artifacts/release-tools/innosetup-7.1.1-x64.exe",
+      "files": 1,
+      "removed": true
+    },
+    {
+      "path": "artifacts/archive-candidate.ps1",
+      "files": 1,
+      "removed": true
+    },
+    {
+      "path": "artifacts/archive-identity.ps1",
+      "files": 1,
+      "removed": true
+    }
+  ],
+  "removed_files": 207090,
+  "removed_logical_bytes": null,
+  "kept": [
+    "artifacts/releases/v1.5.0/",
+    "artifacts/release-tools/gh-2.103.3/",
+    "bin/Release/net10.0-windows/"
+  ],
+  "candidate_files": 6,
+  "candidate_logical_bytes": 112520270,
+  "candidate_hashes_unchanged": true,
+  "cleanup_boundaries_verified": true,
+  "reparse_points_rejected": true,
+  "formal_test_install_removed": true,
+  "personal_data_unchanged": true,
+  "historical_unknown_outputs_untouched": true,
+  "note": "Deletion and before/after asset hash comparison completed. The temporary cleanup report failed while aggregating dictionary byte totals; this record uses emitted file counts and verifies deleted paths remain absent. No freed-space estimate is claimed."
+}

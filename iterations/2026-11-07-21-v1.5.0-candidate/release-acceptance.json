@@ -1,0 +1,12 @@
+{
+  "commit": "4e7431739d321d73e847d0ff585edefa14820ae2",
+  "manifest_sha256": "7e19c664d18fe1d031c6bfea8706ad4d44a97fad44775e2772dc6cde4c916139",
+  "checks": {
+    "clean_windows_no_dotnet": "pending",
+    "portable_workflow": "passed",
+    "install_upgrade_uninstall": "passed",
+    "failure_recovery": "passed",
+    "source_builds": "passed",
+    "privacy_and_licenses": "passed"
+  }
+}

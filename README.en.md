@@ -6,7 +6,7 @@
 
 [Quick start](#quick-start) · [Run from source](#run-from-source) · [Development plan](docs/development-plan.md) · [Licensing and credits](NOTICE.md)
 
-> **v1.5.0 candidate preparation** — The source version has been updated. Candidate packages are for local and subsequent clean-system acceptance only; no formal Release or installer download is public yet. Build from source for the current version. Historical local binaries and ZIPs do not contain the latest changes.
+> **v1.5.0 candidate · Local acceptance completed** — Four candidate asset formats are ready. No formal Release or installer download is public yet; clean-system acceptance remains pending. See the [candidate record](docs/releases/v1.5.0-candidate.md). Build from source for the current version. Historical local binaries and ZIPs do not contain the latest changes.
 
 ![AsukaLens light interface showing a folder treemap, file list, size metrics and scan status with synthetic demo data](docs/images/overview.png)
 

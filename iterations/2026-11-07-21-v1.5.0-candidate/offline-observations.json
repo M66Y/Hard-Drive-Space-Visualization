@@ -1,0 +1,48 @@
+{
+    "schema":  1,
+    "report_kind":  "offline-acceptance-observations",
+    "binding":  {
+                    "version":  "v1.5.0",
+                    "commit":  "4e7431739d321d73e847d0ff585edefa14820ae2",
+                    "manifest_sha256":  "7e19c664d18fe1d031c6bfea8706ad4d44a97fad44775e2772dc6cde4c916139",
+                    "local_test":  false,
+                    "source_kind":  "git-commit"
+                },
+    "automated":  {
+                      "assets_verified":  4,
+                      "payload_files":  283,
+                      "launches":  1,
+                      "environment":  {
+                                          "os":  "windows-11",
+                                          "architecture":  "x64",
+                                          "host_x64":  true,
+                                          "powershell_major":  5,
+                                          "modern_dotnet":  {
+                                                                "status":  "detected",
+                                                                "checks_complete":  true,
+                                                                "evidence":  [
+                                                                                 "path_host",
+                                                                                 "registry_location",
+                                                                                 "standard_location"
+                                                                             ]
+                                                            }
+                                      }
+                  },
+    "operator":  {
+                     "clean_environment_provenance":  "unconfirmed",
+                     "checks":  {
+                                    "portable_start":  "passed",
+                                    "scan_and_navigation":  "passed",
+                                    "views_and_metrics":  "passed",
+                                    "search_sort_file_helpers":  "passed",
+                                    "refresh_and_cancel":  "passed",
+                                    "background_and_restart":  "passed",
+                                    "diagnostics_and_notes":  "passed",
+                                    "normal_exit":  "passed",
+                                    "installer_workflow":  "passed"
+                                }
+                 },
+    "release_gate":  "not-evaluated",
+    "source_archive_contents":  "requires-development-validation",
+    "installer_execution":  "operator-record-only"
+}

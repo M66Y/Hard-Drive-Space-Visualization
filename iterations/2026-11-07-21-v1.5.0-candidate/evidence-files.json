@@ -1,0 +1,65 @@
+{
+  "baseline": "4e7431739d321d73e847d0ff585edefa14820ae2",
+  "asset_source_commit": "4e7431739d321d73e847d0ff585edefa14820ae2",
+  "patch_scope": "Post-freeze documentation and sanitized acceptance evidence only; does not change candidate payload.",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "64440734839a9a8c26c89871f479debedc0369736e4bac9ad579c812a8c4cc5a"
+    },
+    {
+      "path": "README.en.md",
+      "sha256": "3de01f05790a0f1f1c459b7c4ce02c20f8e07eea770cf5e2eb998208d0620b95"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "1e5f2bf152ee045dee6c2a6d5bdc4cfa2dc0c2b53aef44fd53d20d0a0b41795b"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "a4509ab388c7dd8017b0c7319817e02172ac49fc7056ea60199a4a942661da91"
+    },
+    {
+      "path": "docs/release-readiness.md",
+      "sha256": "61d0ecbf81a72c572e83985a2eab814918e3e7e434f94f382acea1a599680d3e"
+    },
+    {
+      "path": "docs/releasing.md",
+      "sha256": "89f702cdf7f98e5cf4acdb7587223be7c43d040b7ec2ce29670cc1a557bd54af"
+    },
+    {
+      "path": "docs/releases/v1.5.0-candidate.md",
+      "sha256": "bf8201298a566549931a84b5f173268a58cd689df37fa4a5465291a4d6097309"
+    },
+    {
+      "path": "iterations/2026-11-07-21-v1.5.0-candidate/cleanup.json",
+      "sha256": "76e353f5b16c74393b34c3ef447243526f04d5129d41d06fea51cecb174255c7"
+    },
+    {
+      "path": "iterations/2026-11-07-21-v1.5.0-candidate/offline-observations.json",
+      "sha256": "04466950a7ab716976437a4c9b41e1748b926d49767a69e94496156a357b5611"
+    },
+    {
+      "path": "iterations/2026-11-07-21-v1.5.0-candidate/package-acceptance.json",
+      "sha256": "5cef11912fef3ab1cc46060cdfce9fc010ea0b207200a40aa04e2b7f231dc80c"
+    },
+    {
+      "path": "iterations/2026-11-07-21-v1.5.0-candidate/release-acceptance.json",
+      "sha256": "61e34f66626fe0bf27a190b1670287f9644132d7bdf3935bb95e96e57f919531"
+    },
+    {
+      "path": "iterations/2026-11-07-21-v1.5.0-candidate/release-notes.md",
+      "sha256": "401c8a5b62b4d311f1515678a77f130361d819df7f2d85f795cf08ffe78ae7a6"
+    },
+    {
+      "path": "iterations/2026-11-07-21-v1.5.0-candidate/verification.md",
+      "sha256": "01cb19808f30d73c27d7d84d9c0de999ca87c0a80cf71305ed2dd306c7bc7932"
+    },
+    {
+      "path": "iterations/2026-11-07-21-v1.5.0-candidate/evidence.patch",
+      "sha256": "f4db379154c24579f401c0810a32974fbc61f4f1852cd1e8195a4cfa4a32e439"
+    }
+  ]
+}
