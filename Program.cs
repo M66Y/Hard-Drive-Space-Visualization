@@ -12,11 +12,15 @@ internal static class Program
         {
             // Process lifetime, including error dialogs and diagnostic shutdown. Multiple windows remain supported.
             installationGuard = new Mutex(false, @"Local\AsukaLens.Running");
-            diagnostics = new DiagnosticService();
+            var data = AppDataLocation.Resolve(Environment.GetEnvironmentVariable(AppDataLocation.EnvironmentVariable));
+            diagnostics = new DiagnosticService(data.Root);
             ApplicationConfiguration.Initialize();
             Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
             Application.ThreadException += async (_, e) => await ReportErrorAsync(e.Exception, true);
-            Application.Run(new MainForm(args.FirstOrDefault(a => !a.StartsWith("--")), loadSavedBackground: true, diagnostics: diagnostics));
+            using var form = new MainForm(args.FirstOrDefault(a => !a.StartsWith("--")), loadSavedBackground: true,
+                backgroundSettingsPath: data.BackgroundPath, diagnostics: diagnostics);
+            if (data.IsIsolated) form.Text += " · 隔离数据";
+            Application.Run(form);
         }
         catch (Exception ex) { ReportErrorAsync(ex, false).GetAwaiter().GetResult(); }
         finally { diagnostics?.Dispose(); GC.KeepAlive(installationGuard); }

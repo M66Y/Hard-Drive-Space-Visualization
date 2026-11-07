@@ -1,0 +1,243 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index e5acba9..068635b 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -128,6 +128,7 @@
+ - 只有有性能疑点或相关改动时才运行 `--scan-benchmark`；历史 `--memory-benchmark` 在缺少旧基准包时可能跳过，跳过不算验证通过该对比。
+ - 根目录 `build.ps1` 是保留的旧框架依赖打包入口，不用于普通迭代检查，也不是新的正式发布入口。新的自包含/安装器/源码快照脚本位于 `scripts/release/`，用法和验收边界见 [发布说明](docs/releasing.md)。运行 `tests/ReleaseScripts.Tests.ps1` 检查边界；包级验证用 `tests/PackageAcceptance.ps1`，不能把静态检查当运行通过。
+ - 草稿上传控制流程改动运行 `tests/DraftUpload.Tests.ps1`；它使用本地替身，不调用 GitHub，不替代真实远程或安装包验收。
++- 直接发行入口验收运行包内 `AsukaLens.exe`，按[发布说明](docs/releasing.md#直接发行-exe-的本机使用流程)仅在该进程设置 `ASUKALENS_DATA_DIR`，不能依赖 LOCAL TEST 安装身份隔离个人数据。修改数据目录解析时运行 `--app-data-location-tests`，不在测试中读取或覆盖真实个人配置。
+ - 调整目录或构建方式时同步更新上述命令、项目引用、测试链接文件、资源路径及文档。不得写入本机绝对路径作为公共运行要求。
+ 
+ ## Git 提交与上传
+diff --git a/Program.cs b/Program.cs
+index d740023..129ec6b 100644
+--- a/Program.cs
++++ b/Program.cs
+@@ -12,11 +12,15 @@ internal static class Program
+         {
+             // Process lifetime, including error dialogs and diagnostic shutdown. Multiple windows remain supported.
+             installationGuard = new Mutex(false, @"Local\AsukaLens.Running");
+-            diagnostics = new DiagnosticService();
++            var data = AppDataLocation.Resolve(Environment.GetEnvironmentVariable(AppDataLocation.EnvironmentVariable));
++            diagnostics = new DiagnosticService(data.Root);
+             ApplicationConfiguration.Initialize();
+             Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
+             Application.ThreadException += async (_, e) => await ReportErrorAsync(e.Exception, true);
+-            Application.Run(new MainForm(args.FirstOrDefault(a => !a.StartsWith("--")), loadSavedBackground: true, diagnostics: diagnostics));
++            using var form = new MainForm(args.FirstOrDefault(a => !a.StartsWith("--")), loadSavedBackground: true,
++                backgroundSettingsPath: data.BackgroundPath, diagnostics: diagnostics);
++            if (data.IsIsolated) form.Text += " · 隔离数据";
++            Application.Run(form);
+         }
+         catch (Exception ex) { ReportErrorAsync(ex, false).GetAwaiter().GetResult(); }
+         finally { diagnostics?.Dispose(); GC.KeepAlive(installationGuard); }
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 1aa0c0d..d359be9 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -12,7 +12,7 @@
+ | MAINT-001 | P2 / 初版后处理 | 非阻塞的主窗职责拆分、目录整体重组与额外视觉打磨 | 与 PERF-001 同阶段评估收益；修复 P0/P1 所必需的小范围整理不受此限制 |
+ | DEV-001 | P1 / 已完成本轮验收 | 多个历史预览容易误开，版本号不足以辨认构建；统一开发启动入口与当前程序身份 | 从任意工作目录可构建并启动当前源码；构建失败不启动旧程序，重复启动有提示；标题显示版本，诊断显示构建标识 |
+ | UI-001 | P1 / 已完成本轮验收 | 补齐卡片与筛选范围、搜索层级、结果不完整及取消/失败保留旧结果的说明；核查基本键盘操作 | 144/96 DPI 各 14 组主窗回归及合成窗口失败恢复观察通过；[验收记录](../iterations/2026-11-07-12-result-information/README.md) |
+-| DELIVERY-001 | P1 / 脚本与本机临时包验收已实现 | 双语说明、素材许可、自包含便携包、当前用户安装器、源码快照和草稿保护已落地；已补上传控制流程离线验收；未正式发布 | [发布流程](releasing.md)；用户当前无独立测试环境，干净 Windows 无运行时环境、直接发行入口及真实远程草稿验收仍待完成 |
++| DELIVERY-001 | P1 / 脚本与本机发行入口验收已实现 | 双语说明、素材许可、自包含便携包、当前用户安装器、源码快照和草稿保护已落地；已补上传控制流程离线验收和真实发行 EXE 本机使用流程；未正式发布 | [发布流程](releasing.md)；用户当前无独立测试环境，干净 Windows 无运行时环境及真实远程草稿验收仍待完成，正式候选资产需重新验收 |
+ 
+ PERF-001 的公开依据为[调度修正与验证](../iterations/2026-11-07-10-mixed-scan-scheduling/README.md)。真实目录路径、文件清单、耗时报告与诊断留在本机，不复制到待办、提交或 Release。本阶段不继续性能追测；初版之后再按用户要求处理同级问题。
+ 
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 6884d90..b5cc754 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -4,7 +4,7 @@
+ 
+ ## 当前阶段
+ 
+-2026-11-07 用户明确将“高速扫描不能稳定提速”记为 **PERF-001，P2，初版后处理**，同级非阻塞优化一起后移。调度修正已经提交，真实目录稳定提速尚未证实，两者分开记录。当前优先完成初版使用入口与功能闭环，详见[阶段与待办](development-plan.md#当前阶段与优先级2026-11-07-用户调整)。DEV-001 的统一开发版启动与构建辨识已完成本轮验收，见[开发入口记录](../iterations/2026-11-07-11-development-entry/README.md)。UI-001 已补齐必要结果信息，144/96 DPI 各 14 组主窗回归通过，见[结果信息记录](../iterations/2026-11-07-12-result-information/README.md)。DELIVERY-001 已完成双语用户入口、许可、自包含便携/安装器/源码快照脚本及本机临时包验收，见[发布流程](releasing.md)；干净系统和远程草稿验收仍未完成，本轮没有正式发布。
++2026-11-07 用户明确将“高速扫描不能稳定提速”记为 **PERF-001，P2，初版后处理**，同级非阻塞优化一起后移。调度修正已经提交，真实目录稳定提速尚未证实，两者分开记录。当前优先完成初版使用入口与功能闭环，详见[阶段与待办](development-plan.md#当前阶段与优先级2026-11-07-用户调整)。DEV-001 的统一开发版启动与构建辨识已完成本轮验收，见[开发入口记录](../iterations/2026-11-07-11-development-entry/README.md)。UI-001 已补齐必要结果信息，144/96 DPI 各 14 组主窗回归通过，见[结果信息记录](../iterations/2026-11-07-12-result-information/README.md)。DELIVERY-001 已完成双语用户入口、许可、自包含便携/安装器/源码快照脚本、本机临时包及直接发行 EXE 的使用流程验收，见[发布流程](releasing.md)；干净系统和远程草稿验收仍未完成，本轮没有正式发布。
+ 
+ ## 当前判断
+ 
+@@ -139,6 +139,14 @@
+ 
+ 没有 Windows Sandbox 或独立干净环境的验收证据，未卸载本机 SDK/运行时；包内运行时路径断言不能代替干净系统验证。升级使用相同载荷的旧版本测试外壳，不宣称已验证历史发行版数据迁移。草稿脚本的保护逻辑离线验证，本轮没有调用真实上传、创建标签或 Release。详细操作与剩余条件见[发布流程](releasing.md)。
+ 
++## 直接发行 EXE 本机验收（2026-11-07）
++
++基线 `f4bf448c859a4b5ce3ef82c0e2bb20070af5ebd0`。按用户要求补齐真实发行入口，新增显式的进程数据目录覆盖，将背景、运行诊断、问题记录和异常报告放到指定目录；未设置时仍沿用现有 AppData。非法覆盖值拒绝启动，不静默回退到个人配置。扫描、界面布局和数据格式没有改变。
++
++直接运行本轮便携 ZIP 和独立测试安装目录内的 `AsukaLens.exe`，核对包内运行时与安装载荷一致。使用合成目录完成选择、下钻、三视图、两种口径、搜索排序、复制定位、普通/强制刷新、实时预览和取消恢复；完成背景导入、缩放/焦点、自动取色、取消与原图移动后的重启恢复，以及诊断勾选预览/本地导出、主动问题记录的新增/重启恢复/编辑。真正运行中的 EXE 能阻止安装和卸载，正常退出后卸载成功；个人配置前后哈希一致。具体证据见[本轮记录](../iterations/2026-11-07-16-executable-workflow/README.md)。
++
++应用与测试构建均 0 警告、0 错误，数据目录 12 项、异常报告 3 组、诊断 12 组通过；主窗 144/96 DPI 各 14 组、背景各 7 组通过。本轮不重复扫描算法或性能基准，不宣称跨屏拖放、逐帧冷启动、干净系统或正式候选包验收已经完成。临时包、合成夹具和原始日志在归档后清理，无新版本标签或 Release。
++
+ ## 草稿上传流程补验（2026-11-07）
+ 
+ 基线 `cdf71eed7c09f42578a85e7bea9382317d44aede`。用户确认暂时没有独立 Windows 测试环境，先完成可在本机验证的部分。新增完整上传脚本与原生 CLI 替身之间的离线回归，覆盖创建、分页和附注标签解析、中断续传、拒绝冲突、下载复核与草稿状态变化。修复 `v1.4.20` 被误认为 `v1.4.2` 的版本子串匹配问题，增加续传及上传过程中对标签、标题、已审查说明的一致性核验。
+diff --git a/docs/releasing.md b/docs/releasing.md
+index ab54e54..0f336ca 100644
+--- a/docs/releasing.md
++++ b/docs/releasing.md
+@@ -38,6 +38,29 @@ pwsh -File tests/PackageAcceptance.ps1 -Directory artifacts/releases/v1.4.2-loca
+ 
+ 测试还会从同一载荷编译 `1.4.1` 的专属测试安装器来验证升级/拒绝降级机制；这不是历史二进制迁移验证。测试输出含本机路径，留在 `artifacts/` 供本轮检查，公开归档只保存无路径的汇总。测试结束后清理这些夹具、工具副本、临时包和下载缓存；保留当前普通开发预览和必要证据。
+ 
++### 直接发行 EXE 的本机使用流程
++
++实际入口验收直接运行便携 ZIP 或测试安装目录内的 `AsukaLens.exe`，不复制测试宿主、不替换 DLL。2026-11-07 已补齐这一流程，见[发行入口验收记录](../iterations/2026-11-07-16-executable-workflow/README.md)。包内运行时加载、正常退出、运行中拒绝安装/卸载也用真实进程核验；这仍是安装了 SDK 的本机证据。
++
++为避免覆盖个人背景和诊断，入口支持显式的进程环境变量 `ASUKALENS_DATA_DIR`。必须指向已创建的绝对目录，不能是卷根目录；空白、相对路径、不存在的目录或文件会终止启动，不回退个人数据目录。该入口仅重定向背景、诊断与异常报告，窗口标题追加“隔离数据”；它不是系统沙箱，也不会把普通便携使用自动改成随程序存储。应自行核对目录归属和空间，不设为用户级或系统级环境变量。
++
++下面从项目根目录启动已提取的验收载荷，数据放到本次新建的独立目录；根据实际载荷位置调整 `$payload`：
++
++```powershell
++$payload = (Resolve-Path 'artifacts/exe-workflow/portable').Path
++$data = Join-Path ([IO.Path]::GetFullPath('artifacts')) ('exe-data-' + [guid]::NewGuid().ToString('N'))
++[IO.Directory]::CreateDirectory($data) | Out-Null
++$start = [Diagnostics.ProcessStartInfo]::new((Join-Path $payload 'AsukaLens.exe'))
++$start.UseShellExecute = $false
++$start.WorkingDirectory = $payload
++$start.Environment['ASUKALENS_DATA_DIR'] = $data
++$app = [Diagnostics.Process]::Start($start)
++```
++
++同一目录可用于验收重启恢复；结束后先正常退出并确认进程已结束，再按归属清理。默认不设置此变量时，数据位置和既有配置格式不变。测试安装身份本身不提供数据隔离；启动安装后的 EXE 也须显式传入该变量。
++
++本机清单覆盖目录选择与下钻、三种结果视图、两种口径、硬链接/稀疏样本、搜索排序、复制定位、普通/强制刷新、实时预览与取消恢复、背景应用/取消/重启恢复、诊断预览导出和问题记录保存编辑。边界故障继续使用相关专项回归，不把一次人工流程当作所有设备、权限或异常条件的验证。
++
+ ## 正式包：只读取已提交快照
+ 
+ 正式发布任务获得授权后，先确定新版本、更新项目唯一数字版本并提交。确认工作区干净、目标提交已在 `main`，再不带 `-LocalTest` 运行 `New-Release.ps1`。脚本要求完整 40 位提交号、当前 HEAD 与之相同且无未提交文件，从 `git archive` 生成源码，避免打包未提交的个人文件。
+@@ -62,7 +85,7 @@ pwsh -File tests/PackageAcceptance.ps1 -Directory artifacts/releases/v1.4.2-loca
+ - 只支持 Windows 11 x64，按当前用户安装到本地 Programs；不请求管理员权限，不添加服务、自启、文件关联或联网下载步骤。
+ - 提供简体中文/English 安装向导、完整许可和双语安装提示。开始菜单快捷方式默认创建，桌面快捷方式可选。
+ - 正式安装器固定 AppId；新版本沿用旧目录并保留用户数据，低版本拒绝覆盖。无关非空目录拒绝安装，避免覆盖用户文件。
+-- 应用入口代码在整个进程生命周期持有命名互斥体；安装/卸载要求先关闭窗口，不结束用户进程。本轮用同名合成互斥体核验阻止逻辑，尚未在干净环境从发行 EXE 完成该路径。其他文件占用仍可能导致失败；本轮使用锁定 EXE 验证了失败回滚及旧载荷哈希保持一致。
++- 应用入口代码在整个进程生命周期持有命名互斥体；安装/卸载要求先关闭窗口，不结束用户进程。初次包级检查使用同名合成互斥体，后续已用本机真正的便携及安装 EXE 验证阻止安装/卸载；干净环境仍未验证。其他文件占用仍可能导致失败；初次包级检查使用锁定 EXE 验证了失败回滚及旧载荷哈希保持一致。
+ - 覆盖前逐文件备份已有程序文件，普通安装失败后恢复，成功或恢复完成后清理备份。Inno 自带回滚不能恢复已覆盖的旧字节，因此这部分由安装脚本补足；本轮以先改写合成文件、再遇到锁定 EXE 的方式核验。恢复失败或进程被强制中断时，备份留在当前用户 AppData 的 `AsukaLens/InstallerRecovery-<安装身份>/`，后续安装会停止并提示检查；`destinations.txt` 按行记录目的路径，第 1 行对应 `0.bak`，第 2 行对应 `1.bak`，依次类推。这些本地文件含安装路径，不上传；不能把普通失败恢复测试当成断电恢复保证。
+ - 卸载只移除安装器拥有的文件、快捷方式和注册项；保留 AppData 内背景、诊断、问题记录以及安装目录中未知文件。不递归清空用户目录。
+ - “便携”指免安装程序目录。个人数据仍使用当前用户 AppData，不是跟随 U 盘移动的数据模式。
+@@ -98,6 +121,8 @@ pwsh -File tests/DraftUpload.Tests.ps1
+ 
+ 本轮已进行脚本边界测试、真实四类临时资产静态核验、两类源码包独立构建、包内生产程序集与包内运行时的主要功能检查、当前用户安装/合成升级/降级拒绝/占用失败回滚/卸载、中文安装向导观察。结果与清理见本轮 `iterations/` 记录。
+ 
+-仍需正式发布前验证：**未预装 .NET 的干净 Windows 11 x64 环境、直接发行入口的完整人工使用流程、真实历史发行版迁移（如存在）、远程草稿上传和下载核验**。本机已安装 SDK；虽然测试已断言 CoreCLR 与 WinForms 来自包内，这不能代替干净系统验收。没有启用 Windows 可选组件、安装虚拟机或进行真实 GitHub 上传。
++后续已用真正的便携与安装 EXE 补齐本机人工使用流程，详见[验收记录](../iterations/2026-11-07-16-executable-workflow/README.md)。本机原有个人数据的文件名及内容哈希在验收前后保持一致，原始库存、诊断和桌面截图不公开保存。
++
++仍需正式发布前验证：**未预装 .NET 的干净 Windows 11 x64 环境、真实历史发行版迁移（如存在）、远程草稿上传和下载核验**。正式候选包仍须对其确切资产重新验收，不能将本轮临时包的证据绑定到另一份清单。本机已安装 SDK；包内运行时路径核验不能代替干净系统验收。没有启用 Windows 可选组件、安装虚拟机或进行真实 GitHub 上传。
+ 
+ 后续本机检查已补充上述离线流程，修复版本子串误匹配并核验草稿说明一致性。用户当前没有独立 Windows 测试环境，因此干净系统门槛继续保留。Windows Home 不受 [官方 Windows Sandbox](https://learn.microsoft.com/en-us/windows/security/application-security/application-isolation/windows-sandbox/) 支持；不通过修改宿主运行时或绕过版本限制来宣称完成验收。
+diff --git a/docs/testing.md b/docs/testing.md
+index fdb0f5a..c85017b 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -68,4 +68,6 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
+ 
+ `--package-smoke` 仅供上述脚本在可丢弃载荷副本中运行，不能直接在普通测试 DLL 目录下冒充包内运行验证。包级工具的本机日志含路径，不进入公开归档。干净系统验收和真实远程草稿验证单独记录，不因本机通过而勾选。
+ 
++真正发行入口的本机人工流程另见[启动与数据隔离方法](releasing.md#直接发行-exe-的本机使用流程)及[验收记录](../iterations/2026-11-07-16-executable-workflow/README.md)。入口目录解析与隔离存储检查使用 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --app-data-location-tests`，共 12 项；覆盖默认兼容、中文目录、非法路径拒绝以及诊断/异常写入位置。该检查不启动发行 EXE，不能替代实际窗口验收。
++
+ 上传控制流程可独立执行 `pwsh -File tests/DraftUpload.Tests.ps1`：实际生产脚本搭配本地 CLI 与包校验替身，检查目标、版本、草稿内容、断点续传、资产冲突、下载复核、错误传播和清理。无须构建应用、生成发行包或登录 GitHub；不把离线测试通过当成真实远程验收。
+diff --git a/tests/DiskAtlas.Tests.csproj b/tests/DiskAtlas.Tests.csproj
+index a4334cf..245bfd0 100644
+--- a/tests/DiskAtlas.Tests.csproj
++++ b/tests/DiskAtlas.Tests.csproj
+@@ -9,6 +9,7 @@
+   </PropertyGroup>
+   <ItemGroup>
+     <Compile Include="..\src\AppInfo.cs" Link="AppInfo.cs" />
++    <Compile Include="..\src\AppDataLocation.cs" Link="AppDataLocation.cs" />
+     <Compile Include="..\src\Diagnostics\**\*.cs" Link="Diagnostics\%(RecursiveDir)%(Filename)%(Extension)" />
+     <Compile Include="..\src\Scanning\**\*.cs" Link="Scanning\%(RecursiveDir)%(Filename)%(Extension)" />
+     <Compile Include="..\ErrorReport.cs" Link="ErrorReport.cs" />
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 78989a5..59d4d25 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -4,6 +4,7 @@ using System.Drawing;
+ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+ 
+ if (args.Contains("--package-smoke")) return PackageSmoke.Run();
++if (args.Contains("--app-data-location-tests")) return AppDataLocationTests.Run();
+ 
+ if (args.Contains("--desktop-compatibility")) return DesktopCompatibility.Run();
+ if (args.Contains("--diagnostics-tests")) return DiagnosticsRegression.Run();
+diff --git a/src/AppDataLocation.cs b/src/AppDataLocation.cs
+new file mode 100644
+index 0000000..4d31019
+--- /dev/null
++++ b/src/AppDataLocation.cs
+@@ -0,0 +1,22 @@
++namespace DiskAtlas;
++
++// The override is explicit and process-local. Invalid input must never fall back
++// to the user's real settings while an acceptance session is running.
++internal sealed record AppDataLocation(string Root, bool IsIsolated)
++{
++    internal const string EnvironmentVariable = "ASUKALENS_DATA_DIR";
++    public string BackgroundPath => Path.Combine(Root, "background.dat");
++
++    public static AppDataLocation Resolve(string? directory)
++    {
++        if (directory is null)
++            return new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AsukaLens"), false);
++        if (string.IsNullOrWhiteSpace(directory) || !Path.IsPathFullyQualified(directory))
++            throw new ArgumentException("An existing absolute data directory is required.");
++        string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
++        if (string.Equals(root, Path.TrimEndingDirectorySeparator(Path.GetPathRoot(root)!), StringComparison.OrdinalIgnoreCase) ||
++            !Directory.Exists(root))
++            throw new ArgumentException("An existing data directory below a volume root is required.");
++        return new(root, true);
++    }
++}
+diff --git a/tests/AppDataLocationTests.cs b/tests/AppDataLocationTests.cs
+new file mode 100644
+index 0000000..73fad5b
+--- /dev/null
++++ b/tests/AppDataLocationTests.cs
+@@ -0,0 +1,46 @@
++using DiskAtlas;
++
++internal static class AppDataLocationTests
++{
++    public static int Run()
++    {
++        string root = Path.Combine(Path.GetTempPath(), "AsukaLens-data-location-" + Guid.NewGuid().ToString("N"));
++        Directory.CreateDirectory(root);
++        int passed = 0;
++        void Check(bool value, string name) { if (!value) throw new InvalidOperationException(name); passed++; Console.WriteLine("PASS " + name); }
++        try
++        {
++            var normal = AppDataLocation.Resolve(null);
++            Check(!normal.IsIsolated && normal.BackgroundPath == BackgroundSettings.PathForUser, "default background location remains compatible");
++            string directory = Path.Combine(root, "中文 空格"); Directory.CreateDirectory(directory);
++            var isolated = AppDataLocation.Resolve(directory + Path.DirectorySeparatorChar);
++            Check(isolated.IsIsolated && isolated.Root == directory, "explicit Unicode directory normalized");
++            Check(isolated.BackgroundPath == Path.Combine(directory, "background.dat"), "background shares the isolated data root");
++            foreach (string bad in new[] { "", " ", "relative", "C:relative", Path.GetPathRoot(root)!, Path.Combine(root, "missing") })
++            {
++                bool rejected = false;
++                try { AppDataLocation.Resolve(bad); } catch (ArgumentException) { rejected = true; }
++                Check(rejected, "invalid override rejected without default fallback");
++            }
++            string file = Path.Combine(root, "file.txt"); File.WriteAllText(file, "synthetic");
++            bool fileRejected = false;
++            try { AppDataLocation.Resolve(file); } catch (ArgumentException) { fileRejected = true; }
++            Check(fileRejected, "file is not accepted as a data directory");
++            using (var service = new DiagnosticService(isolated.Root))
++            {
++                service.Ready.GetAwaiter().GetResult();
++                service.ReportErrorAsync(new IOException("synthetic private path")).GetAwaiter().GetResult();
++            }
++            Check(Directory.Exists(Path.Combine(directory, "diagnostics")) && File.Exists(Path.Combine(directory, "last-error.log")), "diagnostic and error persistence use the isolated root");
++            Check(!Directory.Exists(Path.Combine(root, "missing")), "invalid directory was not created");
++            Console.WriteLine($"PASS app data location checks: {passed}");
++            return 0;
++        }
++        catch (Exception error) { Console.Error.WriteLine(error); return 1; }
++        finally
++        {
++            string boundary = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
++            if (Path.GetFullPath(root).StartsWith(boundary, StringComparison.OrdinalIgnoreCase)) Directory.Delete(root, true);
++        }
++    }
++}

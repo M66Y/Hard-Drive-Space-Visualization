@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-07",
+  "boundary_check": "Resolved owned descendants and no reparse points before recursive removal",
+  "test_installation_removed": true,
+  "test_shortcuts_removed": true,
+  "acceptance_processes_exited": true,
+  "personal_data_unchanged": true,
+  "removed": [
+    {
+      "path": "artifacts/exe-workflow",
+      "removed": true,
+      "logical_bytes": 144558423,
+      "files": 205106
+    },
+    {
+      "path": "artifacts/releases",
+      "removed": true,
+      "logical_bytes": 112186844,
+      "files": 6
+    },
+    {
+      "path": "artifacts/release-tools",
+      "removed": true,
+      "logical_bytes": 67097593,
+      "files": 134
+    },
+    {
+      "path": "artifacts/release-cache",
+      "removed": true,
+      "logical_bytes": 319503136,
+      "files": 652
+    },
+    {
+      "path": "tests/bin",
+      "removed": true,
+      "logical_bytes": 3599810,
+      "files": 5
+    },
+    {
+      "path": "tests/obj",
+      "removed": true,
+      "logical_bytes": 3895494,
+      "files": 20
+    },
+    {
+      "path": "obj",
+      "removed": true,
+      "logical_bytes": 4014604,
+      "files": 20
+    }
+  ],
+  "patch_restoration_directory": "removed after successful apply and content verification",
+  "preserved": [
+    "bin/Release/net10.0-windows current development build",
+    "System SDK and runtimes",
+    "Personal files and configurations",
+    "Previous iteration evidence",
+    "Unknown historical build artifacts"
+  ],
+  "formal_release": false
+}

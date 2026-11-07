@@ -1,0 +1,165 @@
+{
+  "schema": 1,
+  "date": "2026-11-07",
+  "baseline": "f4bf448c859a4b5ce3ef82c0e2bb20070af5ebd0",
+  "scope": "Local production apphost workflow; no formal release",
+  "runtime": {
+    "sdk": "10.0.403",
+    "dotnet": "10.0.14",
+    "rid": "win-x64",
+    "observed_build_id": "43d0466e4799",
+    "machine": "Windows 11 x64 with installed SDK",
+    "no_dotnet_clean_machine_tested": false
+  },
+  "automatic": [
+    {
+      "result": "passed",
+      "warnings": 0,
+      "command": "dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false",
+      "errors": 0
+    },
+    {
+      "result": "passed",
+      "warnings": 0,
+      "command": "dotnet build tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false",
+      "errors": 0
+    },
+    {
+      "result": "passed",
+      "argument": "--app-data-location-tests",
+      "checks": 12
+    },
+    {
+      "result": "passed",
+      "argument": "--error-report-tests",
+      "groups": 3
+    },
+    {
+      "result": "passed",
+      "argument": "--diagnostics-tests",
+      "groups": 12
+    },
+    {
+      "result": "passed",
+      "argument": "--ui-regression",
+      "dpi": 144,
+      "groups": 14
+    },
+    {
+      "result": "passed",
+      "argument": "--ui-regression --dpi-96",
+      "dpi": 96,
+      "groups": 14
+    },
+    {
+      "result": "passed",
+      "argument": "--background-tests",
+      "dpi": 144,
+      "groups": 7
+    },
+    {
+      "result": "passed",
+      "argument": "--background-tests --dpi-96",
+      "dpi": 96,
+      "groups": 7
+    }
+  ],
+  "package": {
+    "local_test": true,
+    "source_kind": "working-tree",
+    "manifest_sha256": "54b076f9a65a47beb30e5e82cc5a0188948e6d20f45cc6154ca5213e69f288aa",
+    "source_files": 204,
+    "payload_files": 283,
+    "production_source_matches_working_files": true,
+    "static_validation": "passed",
+    "source_archive_equality": "passed",
+    "source_archive_builds_this_round": "not repeated",
+    "assets": [
+      {
+        "path": "AsukaLens v1.4.2-source.tar.gz",
+        "bytes": 8501774,
+        "sha256": "36db37effaad573ce90fc255947a1fe47a1ee2bce5e50fa4da56df75bc3ab1e2"
+      },
+      {
+        "path": "AsukaLens v1.4.2-source.zip",
+        "bytes": 8577676,
+        "sha256": "37252c08c717b9174ad3eac91ef0860a79147632d0dd639c23668ea765b1f668"
+      },
+      {
+        "path": "AsukaLens v1.4.2.exe",
+        "bytes": 40329269,
+        "sha256": "51692e8e9e27889e6873f828a95635f8f69782907f0773dfde54f21b0aaea856"
+      },
+      {
+        "path": "AsukaLens v1.4.2.zip",
+        "bytes": 54691112,
+        "sha256": "22ae1bd8210acd2f1c35d040db02ee3966e18f45a1aafde7e80dd1e8880fbc2c"
+      }
+    ]
+  },
+  "synthetic_sample": {
+    "initial_files": 8,
+    "subdirectories": 5,
+    "logical_bytes": 17875968,
+    "allocated_bytes": 1097728,
+    "hardlink_names": 2,
+    "sparse_logical_bytes": 16777216,
+    "sparse_allocated_bytes": 0,
+    "added_file_bytes": 2048,
+    "files_after_refresh": 9,
+    "cancel_sample_files": 204800
+  },
+  "observed_workflows": [
+    "Portable apphost startup and native folder selection",
+    "Directory entry and parent navigation",
+    "Treemap and file list, empty directory and zero-byte file",
+    "Logical and allocated metrics with hard-link deduplication and sparse file",
+    "Largest-file and extension views",
+    "Search match, empty result, Esc clear, ascending sort",
+    "Copy synthetic path and UI paste verification",
+    "Explorer reveal with selected synthetic file",
+    "F5 journal refresh and Ctrl+F5 complete rescan",
+    "Low-impact progress estimate, partial preview, cancel restores completed snapshot",
+    "Import synthetic background, automatic accent, zoom and focus",
+    "Save, move original source, restart installed apphost, restore persisted background parameters",
+    "Default background preview cancelled without replacing custom background",
+    "Local diagnostic stages and selected one-record export preview/save",
+    "Problem note creation, cross-process persistence and editing",
+    "Development build/runtime information",
+    "Actual apphost guards against setup/uninstall while running",
+    "Installed payload hash equality and command-line initial scan",
+    "Graceful exit and uninstall, preserved data and removed test registration"
+  ],
+  "backend_verification": {
+    "real_app_blocks_setup": true,
+    "exit_code": 1,
+    "real_app_blocks_uninstall": true,
+    "installed_runtime_bundled": true,
+    "portable_and_installed_exit": true,
+    "uninstall_passed": true,
+    "isolated_data_preserved": true,
+    "test_registration_and_shortcuts_removed": true,
+    "personal_app_data_unchanged": true,
+    "one_record_export_without_paths": true
+  },
+  "privacy": {
+    "user_app_data_inventory_equal": true,
+    "inventory_published": false,
+    "raw_logs_published": false,
+    "screenshots_archived": false,
+    "problem_notes_published": false,
+    "telemetry_added": false
+  },
+  "limitations": [
+    "Clean Windows without installed .NET not available",
+    "Real remote draft upload/download not performed",
+    "Final release candidate assets must receive their own acceptance",
+    "Historical release migration not tested",
+    "No new physical cross-monitor DPI, high-contrast or frame-by-frame cold startup measurement",
+    "Native cross-process drag/drop gesture not repeated",
+    "All-button manual coverage not claimed; see README for previously automated cases",
+    "No scan performance benchmark or algorithm change"
+  ],
+  "formal_release": false,
+  "tag_created": false
+}

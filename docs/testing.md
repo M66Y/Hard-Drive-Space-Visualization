@@ -68,4 +68,6 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
 
 `--package-smoke` 仅供上述脚本在可丢弃载荷副本中运行，不能直接在普通测试 DLL 目录下冒充包内运行验证。包级工具的本机日志含路径，不进入公开归档。干净系统验收和真实远程草稿验证单独记录，不因本机通过而勾选。
 
+真正发行入口的本机人工流程另见[启动与数据隔离方法](releasing.md#直接发行-exe-的本机使用流程)及[验收记录](../iterations/2026-11-07-16-executable-workflow/README.md)。入口目录解析与隔离存储检查使用 `dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --app-data-location-tests`，共 12 项；覆盖默认兼容、中文目录、非法路径拒绝以及诊断/异常写入位置。该检查不启动发行 EXE，不能替代实际窗口验收。
+
 上传控制流程可独立执行 `pwsh -File tests/DraftUpload.Tests.ps1`：实际生产脚本搭配本地 CLI 与包校验替身，检查目标、版本、草稿内容、断点续传、资产冲突、下载复核、错误传播和清理。无须构建应用、生成发行包或登录 GitHub；不把离线测试通过当成真实远程验收。

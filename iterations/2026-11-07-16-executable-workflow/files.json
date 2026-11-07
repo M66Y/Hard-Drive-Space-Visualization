@@ -1,0 +1,91 @@
+{
+  "hash_mode": "lf-normalized",
+  "baseline": "f4bf448c859a4b5ce3ef82c0e2bb20070af5ebd0",
+  "patch_files": [
+    "AGENTS.md",
+    "Program.cs",
+    "docs/development-plan.md",
+    "docs/project-status.md",
+    "docs/releasing.md",
+    "docs/testing.md",
+    "tests/DiskAtlas.Tests.csproj",
+    "tests/Program.cs",
+    "src/AppDataLocation.cs",
+    "tests/AppDataLocationTests.cs"
+  ],
+  "patch_verified": true,
+  "restored_files": 10,
+  "verification": "Applied in owned temporary directory outside repository; all 10 restored work files match after LF normalization",
+  "files": [
+    {
+      "sha256": "ee586ae20d925714c0e8b7727f9e7b1cfcbc0f34b8bbf2863b007d6417f4de01",
+      "path": "AGENTS.md",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "sha256": "151ffee9c1f038cd93d92344cc32105a3cf7752192754567e33815d273866e24",
+      "path": "Program.cs",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "sha256": "e6fa865014a9f3a587a039bba8437a14146fa1d1feafa48ad96c83104def48eb",
+      "path": "docs/development-plan.md",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "sha256": "29d0c8937f120519a42a287b76ed1b266caabddff024ae8e5f17b89aff53bfd2",
+      "path": "docs/project-status.md",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "sha256": "4c11452a195f90d16c360f7579e461cac31b5fb5ccc73eddee6a37769e87fb29",
+      "path": "docs/releasing.md",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "sha256": "7cfa99ee5a90584927fa2429060e85b4dab7a0552ccac1c2e84a6dd7727e5d25",
+      "path": "docs/testing.md",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "sha256": "170b18b2cf2f174aa06cbe0029fcb68b148ce03ac9e7b8cf51a8f24b9b80b3f5",
+      "path": "tests/DiskAtlas.Tests.csproj",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "sha256": "a029611b87edc5236380dae8658d066f864d06ad35e417514d9c7bee090f6377",
+      "path": "tests/Program.cs",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "sha256": "f349751fa74d7ed501617b47944531fc420fd52d16402b28e171fb4e54523783",
+      "path": "src/AppDataLocation.cs",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "sha256": "1d40260dc5b62be5bd791c147b32890d29e2f8f9c84daecc13a3defcbb3bb068",
+      "path": "tests/AppDataLocationTests.cs",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "sha256": "174bbce39eaeec0f091f1b4c3eed2479529dfad1facd04ede2e44123bab96fd7",
+      "path": "iterations/2026-11-07-16-executable-workflow/README.md",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "sha256": "19b44c065255bc349314c5c9ad2e25ab86502bbcbaa1a70fb896207ca55747ac",
+      "path": "iterations/2026-11-07-16-executable-workflow/validation.json",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "sha256": "722d02a7b438ae272009bf1780e9ff1ef900b37e58bd3dcfdded20ff34419020",
+      "path": "iterations/2026-11-07-16-executable-workflow/cleanup.json",
+      "hash_mode": "lf-normalized"
+    },
+    {
+      "sha256": "a22bf965830e8519d08d299afbcec030929fe8edaa53403411d833e8acbc9484",
+      "path": "iterations/2026-11-07-16-executable-workflow/changes.patch",
+      "hash_mode": "lf-normalized"
+    }
+  ]
+}
