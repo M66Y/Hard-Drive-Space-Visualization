@@ -11,7 +11,7 @@
     <RootNamespace>DiskAtlas</RootNamespace>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationIcon>assets\app.ico</ApplicationIcon>
-    <Version>1.4.2</Version>
+    <Version>1.5.0</Version>
     <AssemblyTitle>AsukaLens</AssemblyTitle>
     <Product>AsukaLens</Product>
     <Description>本地硬盘空间可视化工具</Description>

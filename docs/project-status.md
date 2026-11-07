@@ -19,7 +19,7 @@
 - 本次审计的代码基线为 `a4e5a462ef6f7a004e030c4f1174a141199c8582`，核对时本地与远程 `main` 一致。
 - 第 5 轮背景设置现已完成收尾，源码、测试和说明纳入独立开发提交，见[背景迭代记录](../iterations/2026-11-07-02-background-settings/README.md)。普通预览入口统一为 `bin/Release/net10.0-windows/DiskAtlas.exe`。
 - 本轮迁移基线为 `2beb1445d4c18da19eaed74dde565e0770dcce51`。系统安装 SDK 10.0.403 与 Windows Desktop Runtime 10.0.14，安装退出码 0；原有 .NET 9 保留。见[迁移验收记录](../iterations/2026-11-07-05-dotnet10-migration/README.md)。
-- 项目版本字段仍为 `1.4.2`。`软件/AsukaLens.exe` 和既有 ZIP 为旧构建，开发预览含之后的迭代。核查时 GitHub Release 列表为空，没有符合当前四类资产要求的正式发布。
+- 用户已确认准备 v1.5.0 候选包，项目唯一版本字段更新为 `1.5.0`，本轮冻结后生成资产并复验；验收结果另附确切提交和清单哈希。`软件/AsukaLens.exe` 和既有 ZIP 仍为旧构建。尚未创建标签或正式 Release。
 - 技术栈为 C# / .NET 10 LTS WinForms，无第三方 NuGet 包。启动本质是本地 Windows 桌面进程，通过 .NET Windows Desktop Runtime 运行，扫描和界面操作不依赖网页服务器。旧根目录打包脚本使用框架依赖部署；新的 `scripts/release/` 使用自包含 Windows x64 部署。
 
 ## 功能状态

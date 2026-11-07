@@ -27,7 +27,7 @@ Windows 11 x64，普通用户权限。本版便携包与安装器内含 .NET {{R
 
 - 便携版：完整解压 ZIP，运行 `AsukaLens.exe`，选择目录开始扫描。便携版的设置仍位于当前用户 AppData，不随程序文件夹移动。
 - 安装版：运行 EXE 安装器，按当前用户安装。升级前正常退出所有 AsukaLens 窗口；卸载保留背景、诊断和问题记录。
-- 这是本项目按当前快照规范提供的首次正式发行；旧本地预览的手动替换不代表已验证历史安装器迁移。后续版本发布时按实际迁移证据更新此说明。
+- 本版按首次正式发行准备；候选阶段尚未公开，干净系统验收状态见候选记录。旧本地预览的手动替换不代表已验证历史安装器迁移。
 
 ### 下载与校验
 
@@ -75,7 +75,7 @@ These files are currently unsigned; Windows may display an unknown-publisher pro
 
 - Portable: extract the entire ZIP, run `AsukaLens.exe`, and choose a folder. Settings remain in the current user's AppData; they do not travel with the portable program folder.
 - Installer: run the EXE to install for the current user. Close all AsukaLens windows before upgrading. Uninstall preserves backgrounds, diagnostics and problem notes.
-- This is the first formal release under the current snapshot rules. Replacing historical local previews manually is not evidence of migration from a historical installer. Update this statement against actual migration evidence for later releases.
+- This version is being prepared for the first formal release. Candidates are not public; consult the candidate record for clean-system acceptance status. Replacing historical local previews manually is not evidence of migration from a historical installer.
 
 ### Downloads and checksums
 

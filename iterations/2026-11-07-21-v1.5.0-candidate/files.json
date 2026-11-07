@@ -1,0 +1,63 @@
+{
+  "baseline": "0dde678a1ac7d29ac09ea19d8ea6911d38909280",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "DiskAtlas.csproj",
+      "sha256": "d1c9daf964faea0237702cddb43bc4e21a6d35dd4c38308f7e894671dcae3ef0"
+    },
+    {
+      "path": "README.md",
+      "sha256": "cdcad5588714caf57fe91f01fe997099efe91667ed373a81dee4926e859c6004"
+    },
+    {
+      "path": "README.en.md",
+      "sha256": "8a0507aafc0ec3463c3f0d73a1d8aecc598f4c97e1dc9bdf5ff86fa27919edb7"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "577493c52877f510802421508a8f3031e5e30c6c09ec4206e632dddfa5354013"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "6d0d82613d3268d876fe05b242dad5ba64ce346ce9fef2602c7616f388edb7ad"
+    },
+    {
+      "path": "docs/release-notes.template.md",
+      "sha256": "5addef108ba26323ab9b560f076c1da4ef53fe7cc06960c1f2f615796617af1b"
+    },
+    {
+      "path": "docs/release-readiness.md",
+      "sha256": "7ace3c51f825594c629c3575f56ba961985171a2035b567afb7f753d1ee4f899"
+    },
+    {
+      "path": "docs/releasing.md",
+      "sha256": "debd9d7ea758826eb0bf951f62985f08e221e4498b0349d55f35c96800e4cf97"
+    },
+    {
+      "path": "docs/releases/v1.5.0.changes.json",
+      "sha256": "8d12f2c2d3a2ed2deb1547bf78bebdfded5986b923b3995ad0dd9457f7c5c1fb"
+    },
+    {
+      "path": "tests/PackageAcceptance.ps1",
+      "sha256": "300543d41ff73d2f86c56bd418610b76af732286f303030434c42ba945bd2134"
+    },
+    {
+      "path": "tests/PackageAcceptance.Guards.ps1",
+      "sha256": "0efdba430634681f4a2d83c4832a9594e0cfd23183ed8acef47038bc855e2127"
+    },
+    {
+      "path": "tests/PackageAcceptance.Guards.Tests.ps1",
+      "sha256": "c87393638e6458c3e55f2aff480e37c0cd5652009e6423f7a1d71e39597fe1ec"
+    },
+    {
+      "path": "iterations/2026-11-07-21-v1.5.0-candidate/README.md",
+      "sha256": "19ede994ba11bd9585365ab41385a560029b3def9a4b30731a3e7c5184b8b993"
+    },
+    {
+      "path": "iterations/2026-11-07-21-v1.5.0-candidate/changes.patch",
+      "sha256": "78971c4e7f990cf1340cca260223bc71bccd94b008f18bb1f044ba85f9813486"
+    }
+  ]
+}

@@ -17,24 +17,24 @@
 
 ```powershell
 $commit = git rev-parse HEAD
-pwsh -File scripts/release/New-Release.ps1 -Version v1.4.2 -Commit $commit `
+pwsh -File scripts/release/New-Release.ps1 -Version v1.5.0 -Commit $commit `
   -Compiler "artifacts/release-tools/inno-7.1.1/ISCC.exe" -LocalTest
 
-pwsh -File scripts/release/Test-Release.ps1 -Directory artifacts/releases/v1.4.2-local-test
+pwsh -File scripts/release/Test-Release.ps1 -Directory artifacts/releases/v1.5.0-local-test
 pwsh -File tests/ReleaseScripts.Tests.ps1
-pwsh -File tests/ReleasePackageGuards.Tests.ps1 -Directory artifacts/releases/v1.4.2-local-test `
+pwsh -File tests/ReleasePackageGuards.Tests.ps1 -Directory artifacts/releases/v1.5.0-local-test `
   -Compiler "artifacts/release-tools/inno-7.1.1/ISCC.exe"
 
 dotnet build tests/DiskAtlas.Tests.csproj -c Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false
-pwsh -File tests/PackageAcceptance.ps1 -Directory artifacts/releases/v1.4.2-local-test `
+pwsh -File tests/PackageAcceptance.ps1 -Directory artifacts/releases/v1.5.0-local-test `
   -Compiler "artifacts/release-tools/inno-7.1.1/ISCC.exe"
 ```
 
-示例版本对应当前项目字段；未来从项目读取匹配版本，不机械沿用 `v1.4.2`。编译器路径是本轮约定的相对位置，实际可传另一处已核验的便携编译器。
+示例版本对应当前项目字段；未来从项目读取匹配版本，不机械沿用 `v1.5.0`。编译器路径是本轮约定的相对位置，实际可传另一处已核验的便携编译器。
 
 生成目录默认为 `artifacts/releases/vX.X.X-local-test/`，正式包为 `vX.X.X/`。已经存在的目录拒绝覆盖；失败只清理本次拥有的 `.stage-*`，不改动已完成的快照。中断进程可能留下锁或暂存目录：先确认没有同一打包进程，再核对归属和路径后清理，不默认抢占锁。仓库内的输出只能放在 `artifacts/` 下，外部输出需明确指定。
 
-`PackageAcceptance.ps1` 使用专属测试注册项和快捷方式；发现同名残留时拒绝覆盖。它在用户数据目录只创建一个随机命名的合成标记，用于验证卸载保留数据，最后删除该标记；不读取个人配置。窗口流程在独立测试宿主中加载**包内生产 DLL 和包内运行时**，传入合成扫描目录、隔离背景和诊断位置。验收宿主不能以 SW_HIDE 隐藏方式启动，否则 WinForms SplitContainer 首帧可能发生 GDI 错误。
+`PackageAcceptance.ps1` 默认只允许 LOCAL TEST；显式 `-FormalCandidate` 才允许正式身份候选包，且拒绝把 LOCAL TEST 当正式候选。两种模式均检查 HKCU/HKLM 的 32/64 位注册项、当前/公共快捷方式、默认安装位置和恢复目录，发现任一已有状态即停止，不接管已有安装。失败清理前再核对注册的安装路径归属。它在用户数据目录只创建一个随机命名的合成标记，用于验证卸载保留数据，最后删除该标记；不读取个人配置。窗口流程在独立测试宿主中加载**包内生产 DLL 和包内运行时**，传入合成扫描目录、隔离背景和诊断位置。验收宿主不能以 SW_HIDE 隐藏方式启动，否则 WinForms SplitContainer 首帧可能发生 GDI 错误。
 
 测试还会从同一载荷编译 `1.4.1` 的专属测试安装器来验证升级/拒绝降级机制；这不是历史二进制迁移验证。测试输出含本机路径，留在 `artifacts/` 供本轮检查，公开归档只保存无路径的汇总。测试结束后清理这些夹具、工具副本、临时包和下载缓存；保留当前普通开发预览和必要证据。
 
@@ -82,6 +82,19 @@ $app = [Diagnostics.Process]::Start($start)
 
 `Test-Release.ps1` 检查六个输出文件、四类资产哈希、源文件一致、包内运行时/许可、版本及测试身份，**不执行安装器，也不声称通过了运行验收**。
 
+### v1.5.0 候选包的本机复验
+
+用户已授权准备 v1.5.0 候选资产和本机复验，本轮不创建标签、不上传资产、不公开 Release。固定版本的实际更新条目见 [v1.5.0.changes.json](releases/v1.5.0.changes.json)；冻结提交后将条目、运行时与确切提交代入双语模板生成候选说明，不将未知提交伪装成最终值。
+
+```powershell
+# 仅在本机没有既有正式安装时执行；脚本先检查并拒绝任何冲突。
+pwsh -File tests/PackageAcceptance.Guards.Tests.ps1
+pwsh -File tests/PackageAcceptance.ps1 -Directory artifacts/releases/v1.5.0 `
+  -Compiler "artifacts/release-tools/inno-7.1.1/ISCC.exe" -FormalCandidate
+```
+
+正式身份模式使用本轮新建的安装目录，结束时卸载，仅保留验收结果；不会自动接管或卸载用户原有安装。合成旧版安装器仅验证相同身份的升级机制，不代表历史正式安装器迁移。还需单独启动便携与安装后真实 EXE 检查使用流程，配置指向本轮隔离目录。候选包与元数据保留一套，原始路径日志、合成夹具及重复工具产物收尾清理。验收记录绑定资产清单 SHA-256；新增文档证据提交不会改变既有候选包的冻结提交。
+
 ## 安装、升级与卸载约定
 
 - 只支持 Windows 11 x64，按当前用户安装到本地 Programs；不请求管理员权限，不添加服务、自启、文件关联或联网下载步骤。
@@ -113,7 +126,7 @@ pwsh -File scripts/release/Upload-Draft.ps1 -Directory "artifacts/releases/vX.X.
   -Notes "已审查的双语发布说明.md" -Acceptance "已完成的验收.json"
 ```
 
-脚本限定目标仓库，核对提交和标签，拒绝测试包和已发布版本。发布说明须含独立的精确版本号，例如 `v1.4.20`、`v1.4.2-preview` 不能代替 `v1.4.2`。按 [GitHub 官方 API](https://docs.github.com/en/rest/releases/releases#list-releases)使用有推送权限的登录读取草稿列表，避免把“按标签读取已发布版本”接口用于草稿。同版本草稿需显式 `-Resume`；草稿标题必须为 `AsukaLens vX.X.X`，标签和说明必须与本次审查内容一致，说明只容许换行形式及末尾换行差异。内容不一致时停止，不能自动改写已有草稿。已有同名资产必须 digest 相同，绝不使用 `--clobber`。上传后下载六个文件重新校验，仍保持草稿，**没有自动公开发布代码**。上传中途失败保留草稿供检查，不能当成正式成功；不要在脚本运行时同时手工发布或编辑草稿。
+脚本限定目标仓库，核对提交和标签，拒绝测试包和已发布版本。发布说明须含独立的精确版本号，例如 `v1.5.00`、`v1.5.0-preview` 不能代替 `v1.5.0`。按 [GitHub 官方 API](https://docs.github.com/en/rest/releases/releases#list-releases)使用有推送权限的登录读取草稿列表，避免把“按标签读取已发布版本”接口用于草稿。同版本草稿需显式 `-Resume`；草稿标题必须为 `AsukaLens vX.X.X`，标签和说明必须与本次审查内容一致，说明只容许换行形式及末尾换行差异。内容不一致时停止，不能自动改写已有草稿。已有同名资产必须 digest 相同，绝不使用 `--clobber`。上传后下载六个文件重新校验，仍保持草稿，**没有自动公开发布代码**。上传中途失败保留草稿供检查，不能当成正式成功；不要在脚本运行时同时手工发布或编辑草稿。
 
 无需发行包或 GitHub 登录，可以运行完整上传控制流程的离线回归：
 

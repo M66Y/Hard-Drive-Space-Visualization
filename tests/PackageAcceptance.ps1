@@ -1,20 +1,24 @@
 #requires -Version 7.4
 [CmdletBinding()]
-param([Parameter(Mandatory)][string]$Directory, [Parameter(Mandatory)][string]$Compiler)
+param([Parameter(Mandatory)][string]$Directory, [Parameter(Mandatory)][string]$Compiler, [switch]$FormalCandidate)
 . (Join-Path $PSScriptRoot '../scripts/release/Release.Common.ps1')
+. (Join-Path $PSScriptRoot 'PackageAcceptance.Guards.ps1')
 $Directory = (Resolve-Path -LiteralPath $Directory).Path
 $Compiler = (Resolve-Path -LiteralPath $Compiler).Path
 & (Join-Path $PSScriptRoot '../scripts/release/Test-Release.ps1') -Directory $Directory | Out-Host
 $manifest = Get-Content -LiteralPath (Join-Path $Directory 'release-manifest.json') -Raw | ConvertFrom-Json
-if (-not $manifest.local_test) { throw 'This test only accepts the isolated LOCAL TEST installer identity.' }
+$profile = Get-PackageAcceptanceProfile -LocalTest $manifest.local_test -FormalCandidate $FormalCandidate.IsPresent
+Assert-PackageAcceptanceLocationsEmpty $profile
+$compilerHash = (Get-Content -LiteralPath (Join-Path $PSScriptRoot '../scripts/release/toolchain.json') -Raw | ConvertFrom-Json).iscc_sha256
+if ((Get-FileHash -LiteralPath $Compiler).Hash.ToLowerInvariant() -ne $compilerHash) { throw 'Compiler does not match the pinned toolchain.' }
+$compileIdentity = '--define=LocalTest=' + [int][bool]$manifest.local_test
 $version = $manifest.version
 $parent = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../artifacts'))
 $root = Join-Path $parent ('package-acceptance-' + [guid]::NewGuid().ToString('N'))
+Assert-NoReparse $root
 [IO.Directory]::CreateDirectory($root) | Out-Null
-$registry = 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/AsukaLens.LocalTest_is1'
-$shortcuts = @((Join-Path ([Environment]::GetFolderPath('Programs')) 'AsukaLens (LOCAL TEST).lnk'),
-    (Join-Path ([Environment]::GetFolderPath('DesktopDirectory')) 'AsukaLens (LOCAL TEST).lnk'))
-if ((Test-Path -LiteralPath $registry) -or @($shortcuts | Where-Object { Test-Path -LiteralPath $_ }).Count) { throw 'Existing LOCAL TEST installation must be reviewed; refusing to replace it.' }
+$registry = $profile.Registry
+$shortcuts = $profile.Shortcuts
 $dataRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'AsukaLens'
 $dataWasPresent = Test-Path -LiteralPath $dataRoot
 Assert-NoReparse $dataRoot
@@ -80,7 +84,7 @@ try {
     $older = Join-Path $root 'older'
     [IO.Directory]::CreateDirectory($older) | Out-Null
     Invoke-ReleaseTool $Compiler @('--quiet','--no-ide-signtools','--define=AppVersion=1.4.1',('--define=PayloadDir='+$payload),
-        ('--define=OutputDir='+$older),'--define=LocalTest=1',(Join-Path $PSScriptRoot '../scripts/release/AsukaLens.iss'))
+        ('--define=OutputDir='+$older),$compileIdentity,(Join-Path $PSScriptRoot '../scripts/release/AsukaLens.iss'))
     $oldExe = Join-Path $older 'AsukaLens v1.4.1.exe'
     $unrelated = Join-Path $root 'unrelated'
     [IO.Directory]::CreateDirectory($unrelated) | Out-Null
@@ -107,7 +111,7 @@ try {
     [IO.File]::WriteAllText((Join-Path $payload $probeName),'candidate synthetic bytes')
     $failureBuild=Join-Path $root 'failure-candidate'; [IO.Directory]::CreateDirectory($failureBuild) | Out-Null
     Invoke-ReleaseTool $Compiler @('--quiet','--no-ide-signtools',('--define=AppVersion='+$version.Substring(1)),('--define=PayloadDir='+$payload),
-        ('--define=OutputDir='+$failureBuild),'--define=LocalTest=1',(Join-Path $PSScriptRoot '../scripts/release/AsukaLens.iss'))
+        ('--define=OutputDir='+$failureBuild),$compileIdentity,(Join-Path $PSScriptRoot '../scripts/release/AsukaLens.iss'))
     $locked = [IO.File]::Open((Join-Path $installation 'AsukaLens.exe'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
     try { Pass ((Run-Installer (Join-Path $failureBuild "AsukaLens $version.exe") 'locked.log') -ne 0) 'locked payload aborts installation' }
     finally { $locked.Dispose() }
@@ -117,7 +121,7 @@ try {
     Pass ((Get-ItemProperty -LiteralPath $registry).DisplayVersion -eq $version.Substring(1) -and
         @($shortcuts | Where-Object { Test-Path -LiteralPath $_ }).Count -eq 2 -and
         (Test-Path -LiteralPath (Join-Path $installation 'unins000.exe'))) 'failed replacement preserves registration shortcuts and uninstaller'
-    Pass (-not (Test-Path -LiteralPath (Join-Path $dataRoot 'InstallerRecovery-AsukaLens.LocalTest'))) 'successful recovery removes its backup files'
+    Pass (-not (Test-Path -LiteralPath $profile.Recovery)) 'successful recovery removes its backup files'
     Remove-Item -LiteralPath (Join-Path $installation $probeName)
     Assert-InstalledPayload
     Pass $true 'old payload remains intact after failed replacement'
@@ -126,7 +130,7 @@ try {
     Pass (-not (Test-Path -LiteralPath $registry) -and @($shortcuts | Where-Object { Test-Path -LiteralPath $_ }).Count -eq 0) 'registration and shortcuts removed'
     Pass ((Test-Path -LiteralPath $sentinel) -and (Test-Path -LiteralPath (Join-Path $installation 'unowned.txt'))) 'user data and unowned files preserved'
     $principal=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
-    $result=[ordered]@{ schema=1; version=$version; local_test=$true; elevated=$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator);
+    $result=[ordered]@{ schema=1; version=$version; commit=$manifest.commit; manifest_sha256=(Get-FileHash -LiteralPath (Join-Path $Directory 'release-manifest.json')).Hash.ToLowerInvariant(); local_test=[bool]$manifest.local_test; elevated=$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator);
         passed=$script:checks.ToArray(); clean_machine_without_dotnet='not tested; local bundle resolution verified';
         historical_version_migration='not tested; synthetic older wrapper used'; formal_release=$false }
     Write-ReleaseJson $result (Join-Path $root 'acceptance.json')
@@ -134,6 +138,7 @@ try {
 } finally {
     # Do not delete an active installation; preserve it for repair if its uninstaller fails.
     if (Test-Path -LiteralPath $registry) {
+        Assert-PackageAcceptanceInstallOwned ([string](Get-ItemProperty -LiteralPath $registry).InstallLocation) $installation
         $uninstall=Join-Path $installation 'unins000.exe'
         if (Test-Path -LiteralPath $uninstall) { Run-Installer $uninstall 'cleanup-uninstall.log' | Out-Null }
     }
