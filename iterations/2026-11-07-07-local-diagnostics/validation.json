@@ -1,0 +1,288 @@
+{
+  "date": "2026-11-07",
+  "baseline": "b0df83df45485f88b8820a6dc6c025ab52b6ce02",
+  "sdk": "10.0.403",
+  "app_build": {
+    "configuration": "Release",
+    "warnings": 0,
+    "errors": 0
+  },
+  "test_build": {
+    "configuration": "Release",
+    "warnings": 0,
+    "errors": 0
+  },
+  "checks": [
+    {
+      "name": "advanced-tests",
+      "passed": 25,
+      "summary": "All 25 advanced checks passed.",
+      "runtime": "RUNTIME .NET 10.0.14; WinForms 10.0.0.0; X64",
+      "exit_code": 0,
+      "checks": [
+        "PASS directory estimates are phase-local, bounded and honest when work grows",
+        "PASS scan and verification report completed task counts without claiming success",
+        "PASS scan policies have explicit worker limits and low-impact yielding",
+        "PASS low-impact work pacing carries batches across directory boundaries",
+        "PASS low-impact pacing honors cancellation at a yield boundary",
+        "PASS unpaced strategies never introduce batch waits and concurrency records a peak",
+        "PASS actual allocation and file identities recognize hard links without double counting",
+        "PASS sparse files use allocated data rather than logical length",
+        "PASS compressed files report compressed allocation",
+        "PASS all scan modes keep identical logical and physical results",
+        "PASS typed phases and per-stage peaks distinguish verification from cache reuse",
+        "PASS allocated queries preserve deduplicated totals and expose unknown values",
+        "PASS unchanged journal reuses the tree without enumerating directories",
+        "PASS deep edits with preserved timestamps rescan only the changed directory",
+        "PASS directory moves, deletion and newly created subtrees match a full scan",
+        "PASS writes through a hard link outside the root invalidate all known aliases",
+        "PASS already-open writers remain dirty even without another journal record",
+        "PASS changes during a refresh are replayed from its start checkpoint",
+        "PASS journal gaps and unavailable journals safely fall back to a full scan",
+        "PASS cancelled incremental refresh leaves old logical and physical totals untouched",
+        "PASS journal record parser accepts IDs and rejects unsupported or malformed records",
+        "PASS real NTFS refresh agrees with a full scan and reports its actual path",
+        "PASS metadata verification catches deep edits with restored timestamps and hard-link alias writes",
+        "PASS metadata verification notices new directories and incomplete baselines force a full scan",
+        "PASS replaced directories with identical names and timestamps do not inherit cached file identities"
+      ]
+    },
+    {
+      "name": "core",
+      "passed": 38,
+      "summary": "All 38 tests passed.",
+      "runtime": "RUNTIME .NET 10.0.14; WinForms 10.0.0.0; X64",
+      "exit_code": 0,
+      "checks": [
+        "PASS recursive totals, Unicode paths, empty folders, zero-byte files, sort order",
+        "PASS directory totals and parent references",
+        "PASS empty root",
+        "PASS missing root has explicit error",
+        "PASS pre-cancelled and mid-scan cancellation",
+        "PASS final progress matches completed scan",
+        "PASS deep directory traversal",
+        "PASS size formatting supports zero and sizes above 32-bit",
+        "PASS treemap empty/zero/degenerate inputs",
+        "PASS random treemaps preserve area, proportion, bounds, and do not overlap",
+        "PASS junctions are skipped to avoid cycles and duplicate counting",
+        "PASS hidden and system entries remain included",
+        "PASS root removed during scan fails rather than reporting an empty success",
+        "PASS cancellation on final progress is honored",
+        "PASS treemap extreme skew and non-finite bounds",
+        "PASS folder query sorting, case-insensitive search and zero-size rows",
+        "PASS type aggregation matches file totals and supports category search",
+        "PASS top-500 cutoff, exact type filter and aggregate area",
+        "PASS 100k-file query benchmark and deterministic top-file results",
+        "PASS refresh restores a surviving directory and rejects deleted/outside/file paths",
+        "PASS type drilldown supports extensionless/zero-byte files and combined search",
+        "PASS type count and file location sorting",
+        "PASS equal-size top-file boundary is stable across enumeration order",
+        "PASS type-map aggregation preserves totals and is explicitly marked",
+        "PASS queued directory replaced by a junction is rechecked before traversal",
+        "PASS pagination covers every row and clamps boundary requests",
+        "PASS parallel and serial scans match every entry and file timestamp",
+        "PASS cancelling active parallel workers stops without leaving a blocked queue",
+        "PASS queued directory disappearance records an issue and preserves siblings",
+        "PASS parallel workers count all skipped junctions exactly once",
+        "PASS worker exceptions propagate without deadlocking other readers",
+        "PASS scan concurrency bounds are explicit",
+        "PASS file nodes share an empty collection and scanner paths/extension storage",
+        "PASS preview appears before completion and held snapshots never mutate",
+        "PASS preview supports nested browsing, parent paths and rejects outside paths",
+        "PASS parallel scanning and preview queries safely run together",
+        "PASS preview cancellation and empty sessions have explicit behavior",
+        "PASS allocation-free path ordering matches full paths across prefixes and Unicode"
+      ]
+    },
+    {
+      "name": "diagnostics-tests",
+      "passed": 12,
+      "summary": "All 12 diagnostics regression groups passed.",
+      "runtime": "RUNTIME .NET 10.0.14; WinForms 10.0.0.0; X64",
+      "exit_code": 0,
+      "checks": [
+        "PASS strict record schema rejects unknown fields, enum values, duplicate keys, nulls and unbounded input",
+        "PASS persistent switch, corrupt preferences fail closed, explicit recovery and exception opt-out",
+        "PASS rotation and mixed-age retention remain bounded across wall-clock changes",
+        "PASS clear uses a generation barrier, preserves unrelated files and reports partial failure",
+        "PASS corrupt records and legacy report cannot contaminate the selected export",
+        "PASS atomic export matches immutable preview, cancellation/failure preserve the existing target",
+        "PASS notes restore, enforce revisions/limits and preserve unsaved or corrupt data",
+        "PASS note file byte cap refuses growth before overwriting",
+        "PASS queue overload is bounded, producer never waits on storage, off/clear isolate pending work",
+        "PASS multi-instance switch and clear invalidate old generations across services",
+        "PASS cross-process mutex contention has a finite wait",
+        "PASS storage errors remain nonfatal and bounded view reports truncation"
+      ]
+    },
+    {
+      "name": "error-report-tests",
+      "passed": 3,
+      "summary": "All 3 error report regression groups passed.",
+      "runtime": "RUNTIME .NET 10.0.14; WinForms 10.0.0.0; X64",
+      "exit_code": 0,
+      "checks": [
+        "PASS error report whitelists fields and omits message, stack, data, inner exceptions and private paths",
+        "PASS error report avoids custom exception getters and retains one bounded report",
+        "PASS error report save failure stays nonfatal, preserves prior file and reports the true outcome"
+      ]
+    },
+    {
+      "name": "journal-tests",
+      "passed": 16,
+      "summary": "All 16 journal checks passed.",
+      "runtime": "RUNTIME .NET 10.0.14; WinForms 10.0.0.0; X64",
+      "exit_code": 0,
+      "checks": [
+        "PASS V1 request advertises supported formats and does not wait for close or future data",
+        "PASS native diagnostics keep categories and numeric errors without exception paths",
+        "PASS query failures and invalid headers cannot create a usable checkpoint",
+        "PASS V1 unprivileged read decodes 128-bit IDs and clips to the captured interval",
+        "PASS V0 compatibility fallback reuses the successful reader across chunks",
+        "PASS standard read fallback stays on the existing handle and reports failures",
+        "PASS journal gaps, rollback and volume replacement are rejected before reading",
+        "PASS stalled cursors and malformed or unknown records never become an empty change set",
+        "PASS post-read journal reset is detected and change lists stay bounded",
+        "PASS cancelled native reads do not return successful cached changes",
+        "PASS capture errors use full metadata verification and are not mislabeled journal incrementals",
+        "PASS missing checkpoint verifies once, then continuous no-change journal avoids enumeration",
+        "PASS read failure or lost continuity invalidates the plan and performs a full scan",
+        "PASS foreign-volume checkpoint cannot authorize reuse",
+        "PASS unusable cached identities fall back without misreporting a journal read failure",
+        "PASS root replacement cannot reuse old identities and force-full remains explicit"
+      ]
+    },
+    {
+      "name": "background-tests-96",
+      "passed": 7,
+      "summary": "All 7 background regression groups passed.",
+      "runtime": "RUNTIME .NET 10.0.14; WinForms 10.0.0.0; X64",
+      "exit_code": 0,
+      "checks": [
+        "PASS background version compatibility, checksum, truncation and invalid fields",
+        "PASS background denied writes/read and reset preserve existing data and clean temporary files",
+        "PASS background extreme ratio, unsupported format, cancellation and all 8 EXIF orientations",
+        "PASS background real dialog apply, controls, focus and resized preview",
+        "PASS background cancel/default preview, denied save/reset feedback and retry",
+        "PASS background late import disposal, duplicate/close isolation and progress theme reset",
+        "PASS background independent-process startup, source deletion, default reset and corrupt fallback"
+      ]
+    },
+    {
+      "name": "background-tests-native",
+      "passed": 7,
+      "summary": "All 7 background regression groups passed.",
+      "runtime": "RUNTIME .NET 10.0.14; WinForms 10.0.0.0; X64",
+      "exit_code": 0,
+      "checks": [
+        "PASS background version compatibility, checksum, truncation and invalid fields",
+        "PASS background denied writes/read and reset preserve existing data and clean temporary files",
+        "PASS background extreme ratio, unsupported format, cancellation and all 8 EXIF orientations",
+        "PASS background real dialog apply, controls, focus and resized preview",
+        "PASS background cancel/default preview, denied save/reset feedback and retry",
+        "PASS background late import disposal, duplicate/close isolation and progress theme reset",
+        "PASS background independent-process startup, source deletion, default reset and corrupt fallback"
+      ]
+    },
+    {
+      "name": "diagnostics-ui-96",
+      "passed": 5,
+      "summary": "All 5 diagnostics UI regression groups passed.",
+      "runtime": "RUNTIME .NET 10.0.14; WinForms 10.0.0.0; X64",
+      "exit_code": 0,
+      "checks": [
+        "PASS diagnostics UI entry, scan lifecycle, reasons, default selection, filters and fixed preview",
+        "PASS diagnostics UI note editor, persistent toggle and runtime-only clear",
+        "PASS diagnostics UI narrow layout, render and theme at 96 DPI",
+        "PASS diagnostics UI incomplete/cancel/failure and background error integration",
+        "PASS diagnostics UI pending read closes without late control writes"
+      ]
+    },
+    {
+      "name": "diagnostics-ui-native",
+      "passed": 5,
+      "summary": "All 5 diagnostics UI regression groups passed.",
+      "runtime": "RUNTIME .NET 10.0.14; WinForms 10.0.0.0; X64",
+      "exit_code": 0,
+      "checks": [
+        "PASS diagnostics UI entry, scan lifecycle, reasons, default selection, filters and fixed preview",
+        "PASS diagnostics UI note editor, persistent toggle and runtime-only clear",
+        "PASS diagnostics UI narrow layout, render and theme at 144 DPI",
+        "PASS diagnostics UI incomplete/cancel/failure and background error integration",
+        "PASS diagnostics UI pending read closes without late control writes"
+      ]
+    },
+    {
+      "name": "ui-regression-96",
+      "passed": 10,
+      "summary": "All UI regression checks passed.",
+      "runtime": "RUNTIME .NET 10.0.14; WinForms 10.0.0.0; X64",
+      "exit_code": 0,
+      "checks": [
+        "PASS UI startup layout ready at Load and one reusable bounded wallpaper raster",
+        "PASS UI first preview, bounded rows, partial labels and first-scan cancellation",
+        "PASS UI live child/root browsing, cancel restores completed scan and filtered type view",
+        "PASS UI final handoff, controls restored, no stale preview, refresh context preserved",
+        "PASS UI actual coordinator, low/high strategy selection, allocated metric, incremental refresh and force-full action",
+        "PASS UI honest progress states, phase reset, reduced motion, stable animated hits/area, bounded animation and resizing",
+        "PASS UI avatar transparency/reuse, partial hover invalidation, cache reuse/cap/disposal and layout/background/metric invalidation",
+        "PASS UI scanned, rendered and selected a mixed-language path longer than 270 characters",
+        "PASS UI input layout at 96 DPI, system menu palette and theme restoration",
+        "PASS UI background import limits, portrait/landscape focus, contrast, persistence and reset"
+      ]
+    },
+    {
+      "name": "ui-regression-native",
+      "passed": 10,
+      "summary": "All UI regression checks passed.",
+      "runtime": "RUNTIME .NET 10.0.14; WinForms 10.0.0.0; X64",
+      "exit_code": 0,
+      "checks": [
+        "PASS UI startup layout ready at Load and one reusable bounded wallpaper raster",
+        "PASS UI first preview, bounded rows, partial labels and first-scan cancellation",
+        "PASS UI live child/root browsing, cancel restores completed scan and filtered type view",
+        "PASS UI final handoff, controls restored, no stale preview, refresh context preserved",
+        "PASS UI actual coordinator, low/high strategy selection, allocated metric, incremental refresh and force-full action",
+        "PASS UI honest progress states, phase reset, reduced motion, stable animated hits/area, bounded animation and resizing",
+        "PASS UI avatar transparency/reuse, partial hover invalidation, cache reuse/cap/disposal and layout/background/metric invalidation",
+        "PASS UI scanned, rendered and selected a mixed-language path longer than 270 characters",
+        "PASS UI input layout at 144 DPI, system menu palette and theme restoration",
+        "PASS UI background import limits, portrait/landscape focus, contrast, persistence and reset"
+      ]
+    }
+  ],
+  "manual_ui": [
+    "isolated main-window diagnostics entry",
+    "default unchecked export selection and preview cancellation",
+    "Chinese event summary and centered modeless window",
+    "local note list and editor cancellation"
+  ],
+  "limitations": [
+    "system SaveFileDialog end-to-end save not manually exercised; atomic export tested",
+    "no cross-monitor DPI/high-contrast setting switch",
+    "no physical disk-full/power-loss/multi-user-session test",
+    "best-effort logging may lose final events on forced termination"
+  ],
+  "formal_release": false,
+  "cleanup": {
+    "status": "complete",
+    "removed_bytes": 11487416,
+    "removed_paths": [
+      "artifacts/diagnostics-preview",
+      "artifacts/diagnostics-final-preview",
+      "artifacts/diagnostics-cli",
+      "artifacts/diagnostics-validation",
+      "artifacts/diagnostics-ui-validation",
+      "artifacts/diagnostics-restore-check",
+      "obj",
+      "tests/obj",
+      "tests/bin",
+      "owned temporary crashed UI fixture"
+    ],
+    "kept": [
+      "bin/Release/net10.0-windows",
+      "existing net9 rollback and historical outputs",
+      "source, assets and iteration evidence"
+    ]
+  }
+}

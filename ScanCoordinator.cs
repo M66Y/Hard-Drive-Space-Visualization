@@ -85,6 +85,7 @@ public sealed class ScanCoordinator
         int peakVerificationWorkers = 0;
         bool readingJournal = false;
         string reason = forceFull ? "已强制完整扫描" : previous == null ? "首次完整扫描" : "扫描目录已切换，采用完整扫描";
+        var reasonCode = forceFull ? RefreshReason.Forced : previous == null ? RefreshReason.FirstScan : RefreshReason.RootChanged;
         try
         {
             if (!forceFull && previous != null && previous.Root.Path.Equals(path, StringComparison.OrdinalIgnoreCase))
@@ -104,6 +105,7 @@ public sealed class ScanCoordinator
                     plan = RefreshPlan.Build(previous.Root, changes, token);
                     method = RefreshMethod.ChangeJournal;
                     reason = "NTFS 变化日志连续，优先重扫变化目录";
+                    reasonCode = RefreshReason.ContinuousJournal;
                 }
                 else
                 {
@@ -113,6 +115,7 @@ public sealed class ScanCoordinator
                     plan = verified.Plan; verifiedDirectories = verified.Directories; verifiedFiles = verified.Files; peakVerificationWorkers = verified.PeakWorkers;
                     method = RefreshMethod.MetadataVerification;
                     reason = unavailable + "；已核验目录及文件元信息，复用未变部分";
+                    reasonCode = start != null && previous.Checkpoint == null ? RefreshReason.MissingCheckpoint : RefreshReason.JournalUnavailable;
                 }
             }
         }
@@ -126,6 +129,13 @@ public sealed class ScanCoordinator
             string detail = ex is JournalException ? journalStatus.Description :
                 ex is IOException && ex.Message is "旧结果不完整" or "根目录身份已变化或无法核实" or "旧快照中存在无法识别的文件或目录" ? ex.Message : "刷新准备或核验未能完成";
             reason = detail + "；已回退完整扫描"; plan = null; method = RefreshMethod.FullScan;
+            reasonCode = ex is JournalException || readingJournal ? RefreshReason.JournalFailure : detail switch
+            {
+                "旧结果不完整" => RefreshReason.IncompleteBaseline,
+                "根目录身份已变化或无法核实" => RefreshReason.RootIdentityChanged,
+                "旧快照中存在无法识别的文件或目录" => RefreshReason.MissingIdentity,
+                _ => RefreshReason.VerificationFailure
+            };
         }
         Announce(method, reason);
         double preparation = watch.Elapsed.TotalMilliseconds;
@@ -137,6 +147,7 @@ public sealed class ScanCoordinator
             if (method == RefreshMethod.ChangeJournal)
             {
                 reason = journalStatus.Description + "；已回退完整扫描"; method = RefreshMethod.FullScan;
+                reasonCode = RefreshReason.VolumeChanged;
                 Announce(method, reason);
                 result = new DiskScanner().Scan(path, progress, token, live, options);
             }
@@ -145,7 +156,7 @@ public sealed class ScanCoordinator
         // No persistence: only a completed snapshot in this process can become a baseline.
         return result with { Elapsed = watch.Elapsed, Checkpoint = start, Statistics = result.Statistics! with
         {
-            Reason = reason, Method = method, Journal = journalStatus, JournalRecords = records,
+            Reason = reason, ReasonCode = reasonCode, Method = method, Journal = journalStatus, JournalRecords = records,
             VerifiedDirectories = verifiedDirectories, VerifiedFiles = verifiedFiles, PeakVerificationWorkers = peakVerificationWorkers,
             PreparationMilliseconds = preparation, ScanMilliseconds = Math.Max(0, watch.Elapsed.TotalMilliseconds - preparation)
         } };

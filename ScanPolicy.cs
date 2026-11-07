@@ -9,7 +9,10 @@ public record ScanProfile(int Workers, int BatchDelayMilliseconds, string Descri
 public record ScanStatistics(ScanMode Mode, int Workers, bool Incremental, long ReadDirectories, long ReusedFiles, string Reason,
     long VerifiedDirectories = 0, long VerifiedFiles = 0, int PeakDirectoryWorkers = 0, int PeakVerificationWorkers = 0,
     RefreshMethod Method = RefreshMethod.FullScan, JournalStatus? Journal = null, long JournalRecords = 0,
-    double PreparationMilliseconds = 0, double ScanMilliseconds = 0);
+    double PreparationMilliseconds = 0, double ScanMilliseconds = 0)
+{
+    public RefreshReason? ReasonCode { get; init; }
+}
 
 public static class ScanPolicy
 {

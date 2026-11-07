@@ -184,6 +184,10 @@
 
 ## 状态维护
 
+本地诊断的存储、白名单、队列与窗口位于 `src/Diagnostics/`，已确认契约见 [本地诊断方案](docs/local-diagnostics-plan.md)，使用边界见 [诊断说明](docs/diagnostics.md)。运行异常通过 `DiagnosticService.ReportErrorAsync` 遵守开关与跨实例同步，不在 UI 线程直接调用 `ErrorReport.Write`。扩展事件只能增加必要的受控字段，不接收任意消息或整个扫描/异常对象。
+
+修改诊断时运行 `--diagnostics-tests`；涉及窗口时补 `--diagnostics-ui` 和 `--diagnostics-ui --dpi-96`。测试 DLL 路径与现有检查一致。保留隔离数据目录，不在自动测试中读取或清空真实用户日志；笔记自由文本不纳入运行诊断导出。
+
 当前功能、缺口、源码与预览的区别以 [项目现状](docs/project-status.md) 为入口。后续范围、优先级和验收见 [开发计划](docs/development-plan.md)。每轮同步受影响的事实，保留历史记录的原始日期与验证范围，不把历史结论直接当作当前证据。
 
 本文件建立长期要求，不将既有软件或旧版 ZIP 追认成满足新发布规范的正式 Release。

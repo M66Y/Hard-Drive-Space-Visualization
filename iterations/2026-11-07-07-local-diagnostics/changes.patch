@@ -1,0 +1,2111 @@
+diff --git a/.gitignore b/.gitignore
+index 9917759..69375a7 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -13,3 +13,8 @@ artifacts/
+ background.dat
+ background.dat.*.tmp
+ last-error.log.*.tmp
++diagnostics/
++!src/Diagnostics/
++runtime-*.jsonl
++problem-notes.json
++problem-notes.json.tmp
+diff --git a/AGENTS.md b/AGENTS.md
+index 2d3124f..d9744f7 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -184,6 +184,10 @@
+ 
+ ## 状态维护
+ 
++本地诊断的存储、白名单、队列与窗口位于 `src/Diagnostics/`，已确认契约见 [本地诊断方案](docs/local-diagnostics-plan.md)，使用边界见 [诊断说明](docs/diagnostics.md)。运行异常通过 `DiagnosticService.ReportErrorAsync` 遵守开关与跨实例同步，不在 UI 线程直接调用 `ErrorReport.Write`。扩展事件只能增加必要的受控字段，不接收任意消息或整个扫描/异常对象。
++
++修改诊断时运行 `--diagnostics-tests`；涉及窗口时补 `--diagnostics-ui` 和 `--diagnostics-ui --dpi-96`。测试 DLL 路径与现有检查一致。保留隔离数据目录，不在自动测试中读取或清空真实用户日志；笔记自由文本不纳入运行诊断导出。
++
+ 当前功能、缺口、源码与预览的区别以 [项目现状](docs/project-status.md) 为入口。后续范围、优先级和验收见 [开发计划](docs/development-plan.md)。每轮同步受影响的事实，保留历史记录的原始日期与验证范围，不把历史结论直接当作当前证据。
+ 
+ 本文件建立长期要求，不将既有软件或旧版 ZIP 追认成满足新发布规范的正式 Release。
+diff --git a/BackgroundDialog.cs b/BackgroundDialog.cs
+index ceb2c91..30e82c2 100644
+--- a/BackgroundDialog.cs
++++ b/BackgroundDialog.cs
+@@ -21,6 +21,7 @@ internal sealed class BackgroundDialog : Form
+     private bool committing, resetPending;
+     private readonly CancellationTokenSource lifetime = new();
+     private readonly Func<string, CancellationToken, BackgroundChoice> importImage;
++    private readonly Action<DiagnosticKind, Exception>? reportFailure;
+     private Point dragStart;
+     private decimal dragX, dragY;
+     public bool RestoredDefault { get; private set; }
+@@ -28,8 +29,10 @@ internal sealed class BackgroundDialog : Form
+     internal bool IsBusy => busy;
+ 
+     public BackgroundDialog(Image current, BackgroundView view, Color automaticAccent, Size referenceSize, string settingsPath,
+-        bool isDefault = false, Func<string, CancellationToken, BackgroundChoice>? importImage = null)
++        bool isDefault = false, Func<string, CancellationToken, BackgroundChoice>? importImage = null,
++        Action<DiagnosticKind, Exception>? reportFailure = null)
+     {
++        this.reportFailure = reportFailure;
+         this.importImage = importImage ?? BackgroundSettings.Import;
+         this.referenceSize = referenceSize;
+         this.settingsPath = settingsPath;
+@@ -99,7 +102,7 @@ internal sealed class BackgroundDialog : Form
+         resetPending = isDefault;
+     }
+ 
+-    internal Task ImportImageAsync(string path) => RunFileWork("读取图片", false, async () =>
++    internal Task ImportImageAsync(string path) => RunFileWork("读取图片", DiagnosticKind.BackgroundImportFailed, false, async () =>
+     {
+         var token = lifetime.Token;
+         var loaded = await Task.Run(() => importImage(path, token), token);
+@@ -109,7 +112,7 @@ internal sealed class BackgroundDialog : Form
+         status.Text = "图片已载入。调整后点击应用；取消会保留原设置。";
+     });
+ 
+-    internal Task RestoreDefaultAsync() => RunFileWork("读取默认背景", false, async () =>
++    internal Task RestoreDefaultAsync() => RunFileWork("读取默认背景", DiagnosticKind.BackgroundReadFailed, false, async () =>
+     {
+         var token = lifetime.Token;
+         var image = await Task.Run(Wallpaper.Load, token);
+@@ -120,7 +123,8 @@ internal sealed class BackgroundDialog : Form
+         preview.Invalidate();
+     });
+ 
+-    internal Task ApplyAsync() => RunFileWork(resetPending ? "恢复默认设置" : "保存背景", true, async () =>
++    internal Task ApplyAsync() => RunFileWork(resetPending ? "恢复默认设置" : "保存背景",
++        resetPending ? DiagnosticKind.BackgroundResetFailed : DiagnosticKind.BackgroundSaveFailed, true, async () =>
+     {
+         if (choice == null) return;
+         if (resetPending)
+@@ -143,7 +147,7 @@ internal sealed class BackgroundDialog : Form
+ 
+     private void Changed() { resetPending = false; preview.Invalidate(); }
+ 
+-    private async Task RunFileWork(string operation, bool commit, Func<Task> work)
++    private async Task RunFileWork(string operation, DiagnosticKind failureKind, bool commit, Func<Task> work)
+     {
+         if (busy || IsDisposed || Disposing || lifetime.IsCancellationRequested) return;
+         busy = true;
+@@ -155,6 +159,7 @@ internal sealed class BackgroundDialog : Form
+         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
+         catch (Exception error) when (BackgroundSettings.IsFileError(error))
+         {
++            reportFailure?.Invoke(failureKind, error);
+             if (!IsDisposed && !Disposing)
+                 status.Text = commit ? $"{operation}失败，原设置保留。请检查本地存储是否可写，或稍后重试。"
+                     : "读取失败。请选择可读取且不超过 24 MiB、4000 万像素的 PNG、JPEG 或 BMP。";
+diff --git a/ErrorReport.cs b/ErrorReport.cs
+index c696e1d..7028ff2 100644
+--- a/ErrorReport.cs
++++ b/ErrorReport.cs
+@@ -3,10 +3,10 @@ using System.Text;
+ 
+ namespace DiskAtlas;
+ 
+-internal sealed record ErrorReportResult(string Category, string Code, bool Saved, string? Path)
++internal sealed record ErrorReportResult(string Category, string Code, bool Saved, string? Path, bool Enabled = true)
+ {
+     public string UserMessage => $"程序遇到问题。错误类别：{Category}，代码：{Code}。\n\n" +
+-        (Saved ? $"不含文件路径、文件名和堆栈的诊断已保存到：\n{Path}" : "本次诊断未能写入本地存储。") +
++        (!Enabled ? "未启用运行诊断，本次未保存记录。" : Saved ? $"不含文件路径、文件名和堆栈的诊断已保存到：\n{Path}" : "本次诊断未能写入本地存储。") +
+         "\n\n可以重新打开软件后重试。";
+ }
+ 
+@@ -15,17 +15,7 @@ internal static class ErrorReport
+ {
+     public static ErrorReportResult Write(Exception error, string? directory = null)
+     {
+-        string category = error switch
+-        {
+-            OutOfMemoryException => "Memory",
+-            UnauthorizedAccessException => "Access",
+-            IOException => "IO",
+-            System.ComponentModel.Win32Exception => "Native",
+-            ArgumentException => "Argument",
+-            OperationCanceledException => "Cancelled",
+-            InvalidOperationException => "Operation",
+-            _ => "Unexpected"
+-        };
++        string category = DiagnosticCodec.Classify(error).ToString();
+         string code = "0x" + error.HResult.ToString("X8", CultureInfo.InvariantCulture);
+         string? pending = null;
+         try
+diff --git a/MainForm.cs b/MainForm.cs
+index e71279c..565c2d8 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -10,6 +10,9 @@ internal sealed class MainForm : Form
+     internal BackgroundView BackgroundCrop { get; private set; } = BackgroundView.Default;
+     internal bool HasCustomBackground { get; private set; }
+     private readonly string backgroundSettingsPath;
++    private readonly DiagnosticService? diagnostics;
++    private DiagnosticsDialog? diagnosticsWindow;
++    private readonly ActionButton diagnosticsButton = new("诊断") { Dock = DockStyle.Fill };
+     private Color automaticBackgroundAccent = Theme.DefaultAccent;
+     private readonly ActionButton backgroundSettings = new("背景设置") { Dock = DockStyle.Fill };
+     private readonly ScanCoordinator coordinator = new();
+@@ -70,8 +73,9 @@ internal sealed class MainForm : Form
+     private bool sortAscending;
+     private bool updating;
+ 
+-    public MainForm(string? initialPath, bool loadSavedBackground = false, string? backgroundSettingsPath = null)
++    public MainForm(string? initialPath, bool loadSavedBackground = false, string? backgroundSettingsPath = null, DiagnosticService? diagnostics = null)
+     {
++        this.diagnostics = diagnostics;
+         this.backgroundSettingsPath = backgroundSettingsPath ?? BackgroundSettings.PathForUser;
+         Text = "AsukaLens · 磁盘空间可视化";
+         if (Environment.ProcessPath is { } executable) Icon = Icon.ExtractAssociatedIcon(executable);
+@@ -130,9 +134,13 @@ internal sealed class MainForm : Form
+         DragDrop += async (_, e) => { if (scanCancellation == null && e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1) await ScanFolder(paths[0]); };
+         FormClosing += (_, _) => { scanCancellation?.Cancel(); viewCancellation?.Cancel(); };
+         backgroundSettings.Click += (_, _) => EditBackground();
++        diagnosticsButton.Enabled = diagnostics != null;
++        diagnosticsButton.Click += (_, _) => OpenDiagnostics();
+         backgroundSettings.Enabled = !loadSavedBackground;
+         Shown += async (_, _) =>
+         {
++            if (diagnostics != null) await diagnostics.Ready;
++            if (IsDisposed || Disposing) return;
+             if (loadSavedBackground) await RestoreSavedBackground();
+             if (!IsDisposed && !Disposing && scanCancellation == null && scan == null &&
+                 !string.IsNullOrWhiteSpace(initialPath)) await ScanFolder(initialPath);
+@@ -222,10 +230,12 @@ internal sealed class MainForm : Form
+         settings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+         settings.Controls.Add(LabelOf("扫描策略", 9), 0, 0); settings.Controls.Add(new InputFrame(strategyCombo) { Margin = new Padding(0, 0, 20, 0) }, 1, 0);
+         settings.Controls.Add(LabelOf("统计口径", 9), 2, 0); settings.Controls.Add(new InputFrame(metricCombo) { Margin = new Padding(0, 0, 15, 0) }, 3, 0);
+-        settings.ColumnCount = 6;
++        settings.ColumnCount = 7;
+         settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
++        settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
+         settings.Controls.Add(refreshInfo, 4, 0);
+         settings.Controls.Add(backgroundSettings, 5, 0);
++        settings.Controls.Add(diagnosticsButton, 6, 0);
+         main.Controls.Add(settings, 0, 1);
+ 
+         var cards = Table(4, 1);
+@@ -400,6 +410,10 @@ internal sealed class MainForm : Form
+         bool previousAscending = sortAscending;
+         var previousMetric = metric;
+         var options = new ScanOptions((ScanMode)strategyCombo.SelectedIndex);
++        long? diagnosticScan = diagnostics?.NextScan();
++        diagnostics?.Record(new() { Kind = DiagnosticKind.ScanStarted, Scan = diagnosticScan, Mode = options.Mode });
++        var diagnosticWatch = Stopwatch.StartNew();
++        (ScanPhase Phase, RefreshMethod? Method)? lastDiagnosticPhase = null;
+         bool forceFull = forceFullNext; forceFullNext = false;
+         var previousScan = scan;
+         using var cancellation = new CancellationTokenSource();
+@@ -423,6 +437,13 @@ internal sealed class MainForm : Form
+         var progress = new Progress<ScanProgress>(p =>
+         {
+             if (IsDisposed || Disposing || !ReferenceEquals(scanCancellation, cancellation) || cancellation.IsCancellationRequested) return;
++            var phaseKey = (p.Phase, p.Method);
++            if (lastDiagnosticPhase != phaseKey)
++            {
++                lastDiagnosticPhase = phaseKey;
++                diagnostics?.Record(new() { Kind = DiagnosticKind.PhaseChanged, Scan = diagnosticScan, Mode = options.Mode,
++                    Phase = p.Phase, Method = p.Method, Workers = p.WorkerLimit > 0 ? p.WorkerLimit : null });
++            }
+             progressBar.Report(p);
+             string stage = ScanProgressControl.PhaseName(p.Phase);
+             if (p.Method is { } selectedMethod) activeRefreshMethod = selectedMethod;
+@@ -442,6 +463,17 @@ internal sealed class MainForm : Form
+                 coordinator.Scan(path, previousScan, options, progress, cancellation.Token, session, forceFull), cancellation.Token);
+             if (IsDisposed || Disposing) return;
+             cancellation.Token.ThrowIfCancellationRequested();
++            diagnostics?.Record(new()
++            {
++                Kind = result.Skipped > 0 || result.Root.Incomplete || result.Root.UnknownAllocationFiles > 0 ? DiagnosticKind.ScanIncomplete : DiagnosticKind.ScanCompleted,
++                Scan = diagnosticScan, Mode = options.Mode, Files = result.Root.FileCount, Directories = result.Root.FolderCount,
++                Skipped = result.Skipped, UnknownAllocation = result.Root.UnknownAllocationFiles, Milliseconds = result.Elapsed.TotalMilliseconds,
++                Method = result.Statistics?.Method, Reason = result.Statistics?.ReasonCode, Journal = result.Statistics?.Journal?.State,
++                NativeError = result.Statistics?.Journal?.NativeError, Workers = result.Statistics?.Workers,
++                PeakWorkers = result.Statistics is { } measured ? Math.Max(measured.PeakDirectoryWorkers, measured.PeakVerificationWorkers) : null,
++                ReadDirectories = result.Statistics?.ReadDirectories, ReusedFiles = result.Statistics?.ReusedFiles,
++                VerifiedFiles = result.Statistics?.VerifiedFiles, VerifiedDirectories = result.Statistics?.VerifiedDirectories
++            });
+             bool isRefresh = scan != null && result.Root.Path.TrimEnd('\\', '/').Equals(scan.Root.Path.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+             string? desiredPath = showingPreview ? current?.Path : isRefresh ? previousDirectory?.Path : null;
+             var restored = desiredPath != null ? result.Root.FindDirectory(desiredPath) : null;
+@@ -468,6 +500,7 @@ internal sealed class MainForm : Form
+         }
+         catch (OperationCanceledException)
+         {
++            diagnostics?.Record(new() { Kind = DiagnosticKind.ScanCancelled, Scan = diagnosticScan, Mode = options.Mode, Milliseconds = diagnosticWatch.Elapsed.TotalMilliseconds });
+             if (!IsDisposed)
+             {
+                 RestorePrevious();
+@@ -477,6 +510,7 @@ internal sealed class MainForm : Form
+         }
+         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Security.SecurityException)
+         {
++            diagnostics?.Failure(DiagnosticKind.ScanFailed, ex, diagnosticScan);
+             if (!IsDisposed)
+             {
+                 RestorePrevious();
+@@ -543,6 +577,14 @@ internal sealed class MainForm : Form
+         map.AnimationsEnabled = progressBar.AnimationsEnabled = !reduceMotion.Checked;
+     }
+ 
++    private void OpenDiagnostics()
++    {
++        if (diagnostics == null) return;
++        if (diagnosticsWindow is { IsDisposed: false }) { diagnosticsWindow.Activate(); return; }
++        diagnosticsWindow = new DiagnosticsDialog(diagnostics);
++        diagnosticsWindow.Show(this);
++    }
++
+     private async Task ForceRefresh()
+     {
+         if (scanCancellation != null || scan == null) return;
+@@ -904,6 +946,7 @@ internal sealed class MainForm : Form
+         }
+         catch (Exception error) when (BackgroundSettings.IsFileError(error))
+         {
++            diagnostics?.Failure(DiagnosticKind.BackgroundReadFailed, error);
+             if (!IsDisposed && !Disposing && scanCancellation == null)
+                 status.Text = "自定义背景无法读取，已使用默认背景。";
+         }
+@@ -914,7 +957,8 @@ internal sealed class MainForm : Form
+     {
+         if (BackgroundImage is not { } current) return;
+         using var dialog = new BackgroundDialog(current, BackgroundCrop, automaticBackgroundAccent, ClientSize,
+-            backgroundSettingsPath, isDefault: !HasCustomBackground);
++            backgroundSettingsPath, isDefault: !HasCustomBackground,
++            reportFailure: (kind, error) => diagnostics?.Failure(kind, error));
+         if (dialog.ShowDialog(this) != DialogResult.OK) return;
+         if (dialog.RestoredDefault) ApplyBackground(Wallpaper.Load(), BackgroundView.Default, Theme.DefaultAccent, useDefault: true);
+         else if (dialog.Result is { } result) ApplyBackground(result.Image, result.View, result.AutomaticAccent);
+@@ -927,6 +971,7 @@ internal sealed class MainForm : Form
+         HasCustomBackground = !useDefault;
+         automaticBackgroundAccent = automatic;
+         Theme.SetAccent(useDefault ? null : view.AccentArgb is int argb ? Color.FromArgb(argb) : automatic);
++        if (diagnosticsWindow is { IsDisposed: false }) diagnosticsWindow.ApplyTheme();
+         WallpaperRaster.Dispose();
+         BackgroundImage = image;
+         grid.DefaultCellStyle.SelectionBackColor = Theme.Selection;
+diff --git a/Program.cs b/Program.cs
+index ecd0c54..dd64554 100644
+--- a/Program.cs
++++ b/Program.cs
+@@ -3,25 +3,30 @@ namespace DiskAtlas;
+ internal static class Program
+ {
+     private static int reportingError;
++    private static DiagnosticService? diagnostics;
+     [STAThread]
+     private static void Main(string[] args)
+     {
+         try
+         {
++            diagnostics = new DiagnosticService();
+             ApplicationConfiguration.Initialize();
+             Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
+-            Application.ThreadException += (_, e) => ReportError(e.Exception);
+-            Application.Run(new MainForm(args.FirstOrDefault(a => !a.StartsWith("--")), loadSavedBackground: true));
++            Application.ThreadException += async (_, e) => await ReportErrorAsync(e.Exception, true);
++            Application.Run(new MainForm(args.FirstOrDefault(a => !a.StartsWith("--")), loadSavedBackground: true, diagnostics: diagnostics));
+         }
+-        catch (Exception ex) { ReportError(ex); }
++        catch (Exception ex) { ReportErrorAsync(ex, false).GetAwaiter().GetResult(); }
++        finally { diagnostics?.Dispose(); }
+     }
+ 
+-    private static void ReportError(Exception error)
++    private static async Task ReportErrorAsync(Exception error, bool captureContext)
+     {
+         if (Interlocked.Exchange(ref reportingError, 1) != 0) return;
+         try
+         {
+-            var report = ErrorReport.Write(error);
++            var report = diagnostics == null
++                ? new ErrorReportResult(DiagnosticCodec.Classify(error).ToString(), $"0x{error.HResult:X8}", false, null)
++                : await diagnostics.ReportErrorAsync(error).ConfigureAwait(captureContext);
+             MessageBox.Show(report.UserMessage, "AsukaLens", MessageBoxButtons.OK, MessageBoxIcon.Error);
+         }
+         finally { Volatile.Write(ref reportingError, 0); }
+diff --git a/README.md b/README.md
+index 3fb5496..5550ab1 100644
+--- a/README.md
++++ b/README.md
+@@ -1,5 +1,7 @@
+ # AsukaLens v1.4.2
+ 
++当前开发预览新增**本地诊断管理**：主窗“诊断”可查看、筛选、清空运行诊断，勾选后预览导出，也可主动填写本地问题记录。最小运行日志默认开启，可关闭，限制为 8 MiB / 14 天；不记录路径、文件名或异常原文，不自动上传。使用方法与边界见[诊断说明](docs/diagnostics.md)。
++
+ 开发预览已迁移到 .NET 10 LTS，见[迁移验收记录](iterations/2026-11-07-05-dotnet10-migration/README.md)。当前开发预览统一使用普通构建生成的 `bin/Release/net10.0-windows/DiskAtlas.exe`。第 5 轮背景设置已收尾，见[背景迭代记录](iterations/2026-11-07-02-background-settings/README.md)。下文各轮专用 Preview 路径仅是历史记录；`软件/` 和旧 ZIP 不含这些新功能。
+ 
+ 开发分支已包含尚未正式发布的扫描策略修正、扫描进度与图块反馈；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。本次交互修正使用独立的 `bin/Preview/DiskAtlas.exe` 预览目录，以保留正在运行的旧窗口。详见[扫描策略记录](iterations/2026-11-01-02-scan-policy/README.md)、[第 2 轮交互记录](iterations/2026-11-02-02-scan-feedback/README.md)和[本次修正记录](iterations/2026-11-02-03-hover-fix/README.md)。
+@@ -42,7 +44,7 @@ Windows 本地文件夹空间可视化软件。运行当前开发预览 `bin/Rel
+ 
+ ## 开发与构建
+ 
+-异常报告仅在本地用户数据目录的 `AsukaLens/last-error.log` 保留最近一份，包含产品标识、格式版本、UTC 时间、受控错误类别和数值代码，不包含原始异常消息、文件路径、文件名、堆栈或异常附加数据。只有保存成功才显示日志位置，失败会明确提示，不自动上传。本次修复不回溯读取或改写旧版生成的临时日志，也不等于完整日志管理系统。验证命令为测试 DLL 的 `--error-report-tests`，详见[异常报告隐私修复](iterations/2026-11-07-03-error-report-privacy/README.md)。
++最近异常仍以 `AsukaLens/last-error.log` 的字段白名单保存，现已纳入诊断开关、查看、清空与 14 天保留规则。关闭时明确提示未启用，保存失败不谎报成功。新诊断模块位于 `src/Diagnostics/`，测试入口为 `--diagnostics-tests`、`--diagnostics-ui` 及后者附加 `--dpi-96`；原有 `--error-report-tests` 继续验证最小异常文件。历史修复见[隐私修复记录](iterations/2026-11-07-03-error-report-privacy/README.md)。
+ 
+ 项目使用 C# / .NET 10 LTS Windows Forms，无第三方包，软件不联网。开发需要 `global.json` 所指定的 .NET 10 SDK（10.0.403，允许 10.0.4xx 后续补丁），运行需要 .NET 10 Windows Desktop Runtime；安装 SDK 已包含桌面运行时。可从[微软官方下载页](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)获取 Windows x64 安装程序，安装后用 `dotnet --version` 与 `dotnet --list-runtimes` 核对。
+ 
+diff --git a/ScanCoordinator.cs b/ScanCoordinator.cs
+index 4716039..a6446bd 100644
+--- a/ScanCoordinator.cs
++++ b/ScanCoordinator.cs
+@@ -85,6 +85,7 @@ public sealed class ScanCoordinator
+         int peakVerificationWorkers = 0;
+         bool readingJournal = false;
+         string reason = forceFull ? "已强制完整扫描" : previous == null ? "首次完整扫描" : "扫描目录已切换，采用完整扫描";
++        var reasonCode = forceFull ? RefreshReason.Forced : previous == null ? RefreshReason.FirstScan : RefreshReason.RootChanged;
+         try
+         {
+             if (!forceFull && previous != null && previous.Root.Path.Equals(path, StringComparison.OrdinalIgnoreCase))
+@@ -104,6 +105,7 @@ public sealed class ScanCoordinator
+                     plan = RefreshPlan.Build(previous.Root, changes, token);
+                     method = RefreshMethod.ChangeJournal;
+                     reason = "NTFS 变化日志连续，优先重扫变化目录";
++                    reasonCode = RefreshReason.ContinuousJournal;
+                 }
+                 else
+                 {
+@@ -113,6 +115,7 @@ public sealed class ScanCoordinator
+                     plan = verified.Plan; verifiedDirectories = verified.Directories; verifiedFiles = verified.Files; peakVerificationWorkers = verified.PeakWorkers;
+                     method = RefreshMethod.MetadataVerification;
+                     reason = unavailable + "；已核验目录及文件元信息，复用未变部分";
++                    reasonCode = start != null && previous.Checkpoint == null ? RefreshReason.MissingCheckpoint : RefreshReason.JournalUnavailable;
+                 }
+             }
+         }
+@@ -126,6 +129,13 @@ public sealed class ScanCoordinator
+             string detail = ex is JournalException ? journalStatus.Description :
+                 ex is IOException && ex.Message is "旧结果不完整" or "根目录身份已变化或无法核实" or "旧快照中存在无法识别的文件或目录" ? ex.Message : "刷新准备或核验未能完成";
+             reason = detail + "；已回退完整扫描"; plan = null; method = RefreshMethod.FullScan;
++            reasonCode = ex is JournalException || readingJournal ? RefreshReason.JournalFailure : detail switch
++            {
++                "旧结果不完整" => RefreshReason.IncompleteBaseline,
++                "根目录身份已变化或无法核实" => RefreshReason.RootIdentityChanged,
++                "旧快照中存在无法识别的文件或目录" => RefreshReason.MissingIdentity,
++                _ => RefreshReason.VerificationFailure
++            };
+         }
+         Announce(method, reason);
+         double preparation = watch.Elapsed.TotalMilliseconds;
+@@ -137,6 +147,7 @@ public sealed class ScanCoordinator
+             if (method == RefreshMethod.ChangeJournal)
+             {
+                 reason = journalStatus.Description + "；已回退完整扫描"; method = RefreshMethod.FullScan;
++                reasonCode = RefreshReason.VolumeChanged;
+                 Announce(method, reason);
+                 result = new DiskScanner().Scan(path, progress, token, live, options);
+             }
+@@ -145,7 +156,7 @@ public sealed class ScanCoordinator
+         // No persistence: only a completed snapshot in this process can become a baseline.
+         return result with { Elapsed = watch.Elapsed, Checkpoint = start, Statistics = result.Statistics! with
+         {
+-            Reason = reason, Method = method, Journal = journalStatus, JournalRecords = records,
++            Reason = reason, ReasonCode = reasonCode, Method = method, Journal = journalStatus, JournalRecords = records,
+             VerifiedDirectories = verifiedDirectories, VerifiedFiles = verifiedFiles, PeakVerificationWorkers = peakVerificationWorkers,
+             PreparationMilliseconds = preparation, ScanMilliseconds = Math.Max(0, watch.Elapsed.TotalMilliseconds - preparation)
+         } };
+diff --git a/ScanPolicy.cs b/ScanPolicy.cs
+index 9e35046..3b4e166 100644
+--- a/ScanPolicy.cs
++++ b/ScanPolicy.cs
+@@ -9,7 +9,10 @@ public record ScanProfile(int Workers, int BatchDelayMilliseconds, string Descri
+ public record ScanStatistics(ScanMode Mode, int Workers, bool Incremental, long ReadDirectories, long ReusedFiles, string Reason,
+     long VerifiedDirectories = 0, long VerifiedFiles = 0, int PeakDirectoryWorkers = 0, int PeakVerificationWorkers = 0,
+     RefreshMethod Method = RefreshMethod.FullScan, JournalStatus? Journal = null, long JournalRecords = 0,
+-    double PreparationMilliseconds = 0, double ScanMilliseconds = 0);
++    double PreparationMilliseconds = 0, double ScanMilliseconds = 0)
++{
++    public RefreshReason? ReasonCode { get; init; }
++}
+ 
+ public static class ScanPolicy
+ {
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 2d224f5..0d01c41 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,6 +1,6 @@
+ # 后续开发计划
+ 
+-依据 [2026-11-07 项目现状](project-status.md)。背景收尾与异常报告修复已完成；用户随后选择系统安装 .NET 10 SDK，迁移与自动回归已完成，其他条目不自动启动。长期工作规则见 [AGENTS.md](../AGENTS.md)。
++依据 [2026-11-07 项目现状](project-status.md)。背景收尾与异常报告修复已完成；用户随后选择系统安装 .NET 10 SDK，迁移与自动回归已完成，本地诊断管理随后已获完整范围确认并完成；其他条目不自动启动。长期工作规则见 [AGENTS.md](../AGENTS.md)。
+ 
+ ## 已完成：第 5 轮收尾与异常报告修复
+ 
+@@ -35,12 +35,12 @@
+ 
+ ## 后续顺序
+ 
+-当前已形成可审查的 [.NET 10 迁移方案](dotnet10-migration.md)，包含环境选择、代码范围、兼容性检查、验收和回退基线。静态核查完成，用户明确选择系统安装 SDK，现已完成安装、迁移和全部自动回归，见[验收记录](../iterations/2026-11-07-05-dotnet10-migration/README.md)。下一项为本地诊断管理，需先明确三类日志与保留策略，不在本轮顺带实施。
++当前已形成可审查的 [.NET 10 迁移方案](dotnet10-migration.md)，包含环境选择、代码范围、兼容性检查、验收和回退基线。静态核查完成，用户明确选择系统安装 SDK，现已完成安装、迁移和全部自动回归，见[验收记录](../iterations/2026-11-07-05-dotnet10-migration/README.md)。本地诊断管理随后已按独立确认的方案完成；下一项扫描性能仍需同条件测量和明确范围。
+ 
+ | 顺序 | 建议方向 | 开始前需要明确 | 验收重点 |
+ | --- | --- | --- | --- |
+ | 已完成 | .NET 10 LTS 迁移 | 支持的 Windows 版本、开发 SDK、运行依赖与回退基线 | 核心/日志/UI 全部回归、启动与背景兼容；按用户选择系统安装 SDK，保留 .NET 9 |
+-| 2 | 本地诊断管理 | 三类日志的含义、入口、默认开关、字段与保留策略 | 脱敏、容量/期限、查看清理、导出预览、写失败隔离；无默认上传 |
++| 已完成 | 本地诊断管理 | 用户确认默认开启最小诊断及主动问题记录 | 白名单、轮转/期限、查看清空、固定预览导出、问题记录；自动与 UI 回归通过 |
+ | 3 | 扫描策略与响应优化 | 同条件数据和实际瓶颈，是否确需单目录并行 | 逐项结果一致、取消隔离、首预览/操作响应和资源数据，不只总耗时 |
+ | 4 | 界面信息与可维护性 | 具体用户问题及组件草图，状态职责划分 | 明确口径/范围/不完整状态、键盘可用，按修改边界抽取主窗职责 |
+ | 发布前 | 用户文档与交付 | 中英文结构、资源许可、正式版本范围、安装方案 | 干净源码可构建，便携/安装/源码四类资产实测，Release 快照与校验完整 |
+@@ -49,6 +49,6 @@
+ 
+ 目录迁移与自动化构建检查可在接触相关模块时逐步实施，先修容易用错的启动入口和状态说明，不把全仓重排作为下一轮的前置条件。
+ 
+-## 当前准备：本地诊断管理
++## 已完成：本地诊断管理
+ 
+-用户已要求开始后续任务。已核查异常报告、扫描阶段、刷新统计和本机错误详情，并形成[本地诊断管理方案](local-diagnostics-plan.md)：明确三类日志、默认开关、字段白名单、容量/期限、查看清空与导出预览。推荐运行诊断与主动填写的问题记录一并实施，开发日志沿用 Git 和迭代归档；范围待确认，尚未新增采集或日志持久化。
++用户确认[完整方案](local-diagnostics-plan.md)后，本轮完成运行诊断、主动问题记录和开发记录说明。运行诊断默认开启，可关闭，8 MiB / 14 天；导出需勾选并预览，不含笔记或原始异常。当前实现与验证见[实施归档](../iterations/2026-11-07-07-local-diagnostics/README.md)，用户操作见[诊断说明](diagnostics.md)。未启动下一项性能改造，也未正式打包。
+diff --git a/docs/local-diagnostics-plan.md b/docs/local-diagnostics-plan.md
+index d76ff2d..55b9fb1 100644
+--- a/docs/local-diagnostics-plan.md
++++ b/docs/local-diagnostics-plan.md
+@@ -1,6 +1,6 @@
+ # 本地诊断管理方案
+ 
+-状态：2026-11-07 已核查源码，待确认本轮范围；本文件不是已实现功能。基线为 `34b8b1ff5a4e45b561df5c29e67b4847f0dfb438`。
++状态：2026-11-07 用户已确认完整建议范围，现已实现并完成自动回归。实施基线为 `b0df83d`；本文件保留验收契约，实际结果见[实施记录](../iterations/2026-11-07-07-local-diagnostics/README.md)。
+ 
+ ## 要解决的问题
+ 
+@@ -83,6 +83,6 @@
+ 
+ 所有自动检查与实际演示使用隔离的合成数据，不读取个人历史日志或修改个人背景。确认范围后持续完成实现、验证、说明、精简归档、清理、提交推送；本轮不正式打包。
+ 
+-## 待确认
++## 已确认范围
+ 
+-建议确认上述“默认开启最小本地运行诊断 + 主动填写的问题记录”范围及容量规则。备选为先完成运行诊断，问题记录留到后续；开发日志继续以 Git 和迭代记录维护。
++用户选择“按完整建议实施（推荐）”：默认开启最小本地运行诊断，加入主动填写的问题记录，开发日志沿用 Git 和迭代记录。三类入口及容量规则均纳入本轮，未生成正式发行包。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 003e8be..f7a87a0 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -4,7 +4,7 @@
+ 
+ ## 当前判断
+ 
+-核心扫描与查看流程已经具备，现有回归可通过，适合继续迭代。第 5 轮背景功能已完成开发收尾，异常报告的最小隐私修复也已完成，并完成了 .NET 10 LTS 系统安装与迁移验证；完整日志系统和正式发布仍按计划分别推进。
++核心扫描与查看流程已经具备，现有回归可通过，适合继续迭代。第 5 轮背景功能已完成开发收尾，异常报告的最小隐私修复也已完成，并完成了 .NET 10 LTS 系统安装与迁移验证；本地诊断管理随后已完成；正式发布仍按计划推进。
+ 
+ - 本次审计的代码基线为 `a4e5a462ef6f7a004e030c4f1174a141199c8582`，核对时本地与远程 `main` 一致。
+ - 第 5 轮背景设置现已完成收尾，源码、测试和说明纳入独立开发提交，见[背景迭代记录](../iterations/2026-11-07-02-background-settings/README.md)。普通预览入口统一为 `bin/Release/net10.0-windows/DiskAtlas.exe`。
+@@ -28,9 +28,9 @@
+ | 增量刷新 | 连续 NTFS 日志优先定位变化、元信息核验与完整扫描回退、详情、强制重扫 | 缓存仅在本次进程内；无日志时仍核验全部目录和文件元信息 |
+ | 界面与动效 | 浅色组件、自绘输入框、菜单、有限果冻反馈、减弱动效、局部重绘缓存 | 动效偏好仅当前运行有效；启动首帧准备已修正，尚无完整冷启动逐帧测量 |
+ | 自定义背景 | 本地 PNG/JPEG/BMP、缩放与焦点、自动/手动强调色、保存/恢复/默认重置 | 已完成开发验收；导入上限 24 MiB、4,000 万像素，副本最长边 2,048 像素 |
+-| 日志 | 扫描错误详情、脱敏刷新诊断、Git 与迭代开发记录、单份脱敏异常文件 | 尚无分级、轮转、查看/清除/导出一体化运行日志；用户日志尚未定义 |
++| 日志 | 最小本地运行诊断、级别/时间筛选、轮转/期限、清空、勾选预览导出；主动问题记录；开发记录说明 | 默认开启可关闭，运行段 8 MiB / 14 天；笔记 100 条 / 1 MiB，仅本地且不混入导出；见诊断说明 |
+ 
+-## 已验证的事实
++## 已验证的事实（.NET 10 迁移阶段）
+ 
+ 本轮 .NET 10 代码重新通过下列全部回归。所有测试均报告 .NET 10.0.14 / WinForms 10.0.0.0 / X64；背景子进程沿用父进程的 dotnet 宿主并核对运行时版本。测试均用合成目录，背景配置指向测试目录，不覆盖真实用户设置。
+ 
+@@ -52,7 +52,7 @@
+ 
+ 本轮使用 computer-use 在 .NET 10 实际窗口观察默认背景、系统选图框、深色合成图片导入、主题预览与应用；关闭后直接运行测试 EXE 宿主，观察生产 MainForm 恢复隔离配置。缩放/焦点与异常场景由背景专项覆盖。本轮没有实测资源管理器鼠标拖放的跨进程手势，FileDrop 使用真实合成目录和数据对象调用生产事件处理；复制路径经过系统剪贴板。未触碰个人背景配置，未归档系统对话框截图。没有进行跨显示器、系统高对比切换或逐帧冷启动测量，也未新增整盘性能结论。
+ 
+-异常报告现使用 `ErrorReport.cs` 的字段白名单，只保留产品/格式标识、UTC 时间、固定错误类别和数值代码。最近一份写入本地用户数据目录，失败不谎报成功，不记录异常消息、堆栈或附加数据。见[隐私修复记录](../iterations/2026-11-07-03-error-report-privacy/README.md)。完整日志管理仍待开发。
++异常报告现使用 `ErrorReport.cs` 的字段白名单，只保留产品/格式标识、UTC 时间、固定错误类别和数值代码。最近一份写入本地用户数据目录，失败不谎报成功，不记录异常消息、堆栈或附加数据。见[隐私修复记录](../iterations/2026-11-07-03-error-report-privacy/README.md)。该历史最小报告现已接入本地诊断管理的开关、读取与清理。
+ 
+ ## 优化机会与缺口
+ 
+@@ -61,8 +61,8 @@
+ | 已处理：运行环境 | 已迁移 .NET 10 LTS，SDK 10.0.403 / 桌面运行时 10.0.14，全部自动回归通过 | 后续跟进同 feature band 补丁；更换 feature band 或框架大版本另行核验 |
+ | P1 使用入口 | 当前入口已统一，但 `bin/` 仍有多个历史输出目录；旧发行目录仍是 v1.4.2 | 后续建立一个当前预览入口及构建身份，更新过时说明，核查后清理可再生产物 |
+ | P2 扫描性能 | 单目录内串行，自动策略无负载自适应；整盘耗时尚无当前同条件数据 | 先测平坦/多目录样本、预览与取消延迟、CPU/内存，再决定是否做有界单目录并行 |
+-| P2 可维护性 | `MainForm.cs` 约 970 行，集中 UI、扫描状态、查询和设置；测试通过链接源文件构建 | 在实际修改边界按职责渐进抽取，配合契约测试，避免一次性目录搬迁或框架替换 |
+-| P2 日志体系 | 开发记录已有，运行诊断零散；已提出本地问题记录作为用户日志的方案，尚未获确认或实现 | 见[本地诊断方案](local-diagnostics-plan.md)，确认范围后实施入口、白名单采集、容量/期限与预览导出 |
++| P2 可维护性 | `MainForm.cs` 约 1,000 行，集中 UI、扫描状态、查询和设置；测试通过链接源文件构建 | 在实际修改边界按职责渐进抽取，配合契约测试，避免一次性目录搬迁或框架替换 |
++| 已处理：本地诊断 | 完整确认范围已实现，运行/问题/开发记录职责明确 | 见[诊断说明](diagnostics.md)与[验收记录](../iterations/2026-11-07-07-local-diagnostics/README.md)；后续新增字段继续严格控制隐私 |
+ | 发布前 | 缺英文 README、标准安装器和快照流水线；资源目录没有来源/许可说明文件 | 发布前补双语文档、确认素材分发条件，再完成安装器和四类资产验证 |
+ 
+ 截至本次核查，[微软 .NET 支持策略](https://dotnet.microsoft.com/en-us/platform/support/policy) 列出 .NET 9 支持到 2026-11-10，.NET 10 LTS 支持到 2028-11-14。本轮已复核官方支持页与 Windows 兼容范围，软件实测环境为 Windows 11 x64；不能将框架支持范围当作软件多系统已验收。
+@@ -75,6 +75,7 @@
+ ├─ DiskAtlas.csproj           WinForms 应用项目
+ ├─ Program.cs / MainForm.cs   启动与主窗，其他 C# 文件仍在根目录
+ ├─ README.md / 使用说明.txt    当前用户文档
++├─ src/Diagnostics/          本地诊断存储、白名单与窗口
+ ├─ docs/                     当前状态和开发计划
+ ├─ tests/                    核心、高级、日志、UI 与可选基准
+ ├─ assets/                   内嵌背景和图标
+@@ -88,3 +89,11 @@
+ 源码构建与测试入口见 [AGENTS.md](../AGENTS.md#检查与现有命令)。当前可运行预览为 `bin/Release/net10.0-windows/DiskAtlas.exe`，本轮按 .NET 10 重新生成；升级前的 `bin/Release/net9.0-windows/` 暂留作回退。其他专用 Preview 目录为历史产物，不作为当前入口。
+ 
+ 先前审计时 `bin/` 约 27.94 MiB、迭代归档约 2.35 MiB，这是迁移前的体积记录。本轮清理 SDK 下载包、连接探针、合成 UI 目录、专用 CLI 临时目录及构建中间物/测试输出；系统 SDK 是正常开发依赖，当前新预览、升级前普通构建和未知用途历史产物保留。具体清理结果见本轮迭代记录。
++
++## 本地诊断实施补充（2026-11-07）
++
++实施基线 `b0df83d`，按用户确认的完整方案实现。新增运行诊断默认开关、8 MiB 分段与 14 天期限、跨实例清空屏障、中文摘要/筛选、固定预览导出、主动问题记录和开发记录说明。没有改动扫描选择、回退或取消算法，只增加固定刷新原因码和事件接入。
++
++应用与测试构建均 0 警告、0 错误。核心 38、高级 25、日志 16、异常报告 3、诊断专项 12 组通过；主 UI 10 组、背景 7 组、新诊断 UI 5 组在 144 DPI 和 96 DPI 下各通过。桌面拖放/剪贴板的 2 组结果仍为上轮迁移证据，本轮未重复运行。实际窗口观察与清理结果见[本轮归档](../iterations/2026-11-07-07-local-diagnostics/README.md)。
++
++文件锁定与容量失败采用受控夹具验证，没有实际填满磁盘；未测试多用户会话、跨显示器 DPI 切换和断电恢复。诊断采用尽力写入，不保证异常退出前最后几条必然保存。问题记录不导出，本轮不新增联网或正式发布。
+diff --git a/tests/DiskAtlas.Tests.csproj b/tests/DiskAtlas.Tests.csproj
+index d439122..c2cd42c 100644
+--- a/tests/DiskAtlas.Tests.csproj
++++ b/tests/DiskAtlas.Tests.csproj
+@@ -8,6 +8,7 @@
+     <RestoreConfigFile>$(MSBuildThisFileDirectory)..\NuGet.Config</RestoreConfigFile>
+   </PropertyGroup>
+   <ItemGroup>
++    <Compile Include="..\src\Diagnostics\**\*.cs" Link="Diagnostics\%(RecursiveDir)%(Filename)%(Extension)" />
+     <Compile Include="..\ErrorReport.cs" Link="ErrorReport.cs" />
+     <Compile Include="..\Core.cs" Link="Core.cs" />
+     <Compile Include="..\NativeStorage.cs" Link="NativeStorage.cs" />
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 2e1c965..1ab3a65 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -4,6 +4,10 @@ using System.Drawing;
+ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+ 
+ if (args.Contains("--desktop-compatibility")) return DesktopCompatibility.Run();
++if (args.Contains("--diagnostics-tests")) return DiagnosticsRegression.Run();
++if (args.Contains("--diagnostics-child")) return DiagnosticsRegression.Child(args[1]);
++if (args.Contains("--diagnostics-ui")) return DiagnosticsUiRegression.Run(args.Contains("--dpi-96"));
++if (args.Contains("--diagnostics-preview")) return DiagnosticsUiRegression.Preview(args[1]);
+ 
+ if (args.Contains("--error-report-tests")) return ErrorReportRegression.Run();
+ 
+diff --git a/使用说明.txt b/使用说明.txt
+index 247e582..32aa5cb 100644
+--- a/使用说明.txt
++++ b/使用说明.txt
+@@ -1,5 +1,11 @@
+ AsukaLens v1.4.2
+ 
++本地诊断（当前开发预览）
++点击主窗“背景设置”旁的“诊断”，可以筛选和查看运行状态、清空运行诊断，勾选记录后预览并保存到本地文件。
++最小运行诊断默认开启，可关闭并跨启动保留；最多 8 MiB、14 天，不记录路径、文件名和异常原文，不自动上传。
++“问题记录”只保存主动填写的标题、现象和复现步骤，支持编辑删除，最多 100 条 / 1 MiB；不纳入运行诊断导出。
++开发记录沿用 Git 与 iterations/。清空运行诊断保留问题记录、背景和已导出文件。详细限制与失败恢复见 docs/diagnostics.md。
++
+ 开发分支提示：下述扫描策略与并发提示包含未发布的开发改进。
+ 现有“软件”目录与 v1.4.2 ZIP 尚未更新，开发预览由源码构建。
+ 
+diff --git a/docs/diagnostics.md b/docs/diagnostics.md
+new file mode 100644
+index 0000000..35c05a8
+--- /dev/null
++++ b/docs/diagnostics.md
+@@ -0,0 +1,48 @@
++# 本地诊断与问题记录
++
++当前开发预览在主窗口“背景设置”旁提供“诊断”按钮。扫描过程中也能打开；诊断窗口不会阻止主窗取消扫描。此功能尚未进入正式发行包。
++
++## 查看与分享诊断
++
++首次运行默认开启最小本地运行诊断。在“运行诊断”页可以按时间、信息/警告/错误筛选，点击一行查看中文摘要。刷新降级、部分完成与失败会明确区分。列表最多显示最近 2,000 条，通过“刷新”读取新的快照。
++
++需要分享时，先勾选记录，再点击“预览导出…”，核对内容后选择本地文件。默认不勾选。预览生成后，新事件不会加入；保存文件与该快照一致。取消不写文件，保存失败保留原目标并允许重试。软件不会自动上传或打开反馈网站。
++
++导出包含可读摘要及受控字段，例如构建版本、临时会话与扫描序号、阶段、策略、刷新方式、固定原因、并发、文件/目录计数、耗时和错误类别/代码。它不包含扫描路径、文件名、文件内容、搜索词、磁盘标识、背景图片、原始异常消息、堆栈和附加数据，也不包含扫描字节总量。读取和导出均重新校验白名单；损坏内容、额外字段和未知枚举不会照抄到导出中。
++
++预览头部会标明队列遗漏、拒绝或无法读取的项、视图是否截断，以及存储是否不完整。拒绝项可能是一条记录或一个无法读取的文件，不能把这个计数理解为扫描错误数。过量事件可能被丢弃；断电或强制结束也可能丢失最后几条，运行诊断不是操作审计或扫描结果备份。
++
++## 开关、清空与容量
++
++取消“开启本地运行诊断”后，停止采集、丢弃待写队列，并等正在写入的操作结束后显示关闭生效；开关跨启动保留。最近异常报告也受此开关控制。关闭不会删除已有记录，不影响主动填写问题记录。设置损坏时暂停自动记录，用户重新选择开关后恢复；保存失败会提示实际状态。
++
++“清空运行诊断…”需要在软件中确认，会删除软件创建的运行日志及最近异常报告，并使旧待写事件失效。问题记录、背景、用户原文件及导出文件均保留。开启状态下之后发生的新事件仍会记录。部分文件被占用时显示部分清除，解除占用后可重试；不会把失败说成已清空。
++
++| 内容 | 本地位置与限制 |
++| --- | --- |
++| 运行日志 | 本地用户数据目录 `AsukaLens/diagnostics/runtime-*.jsonl`，8 个分段，每段最多 1 MiB，总计最多 8 MiB，保留 14 天 |
++| 最近异常报告 | `AsukaLens/last-error.log`，单份通常少于 512 字节，同样保留 14 天，另计于分段配额 |
++| 诊断偏好 | `AsukaLens/diagnostics/preferences.json`，有界小文件 |
++| 问题记录 | `AsukaLens/diagnostics/problem-notes.json`，最多 100 条且文件最多 1 MiB，先到的限制生效 |
++
++日志过期清理在启动、追加或查看时执行；软件关闭时没有后台清理服务。存储或权限阻止清理时会提示，不能保证被外部程序锁定的文件立即删除。多实例使用同一互斥与设置代次，旧队列不能穿过关闭/清空屏障。日志队列最多 128 条，每条编码最多 1 KiB；磁盘 I/O 在后台执行。诊断存储失败不会停止扫描。
++
++## 问题记录与开发记录
++
++“问题记录”供你主动记录现象、复现步骤和备注，支持新增、编辑、删除。标题最多 100 字符，正文最多 2,000 字符；不按时间自动删除。达到容量上限时需要先整理。保存失败保留已有文件与编辑文字；另一窗口改过同一条记录时拒绝覆盖，需刷新后再编辑。
++
++问题记录可能含你主动输入的个人信息，因此**不纳入运行诊断导出**，也不会自动附加文件、截图、剪贴板或操作历史。分享其内容时需要自行核对。
++
++“开发记录说明”指出 Git 历史和 `iterations/` 的位置与作用，显示当前构建版本；不自动读取本机源码目录或联网抓取开发历史。
++
++## 开发验证
++
++按 README 构建测试项目后运行：
++
++```powershell
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --diagnostics-tests
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --diagnostics-ui
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --diagnostics-ui --dpi-96
++```
++
++专项测试覆盖白名单、配额/期限、写入失败、队列、跨进程互斥、清空竞态、设置恢复、笔记冲突和导出一致性。UI 测试使用隔离合成数据；Windows 桌面绘制检查需要可交互桌面。人工验收入口为 `--diagnostics-preview artifacts/diagnostics-demo`，退出后可清理这个专用测试目录。不要把生成的本地数据、导出或个人截图提交到仓库。
+diff --git a/tests/DiagnosticsRegression.cs b/tests/DiagnosticsRegression.cs
+new file mode 100644
+index 0000000..bf7556e
+--- /dev/null
++++ b/tests/DiagnosticsRegression.cs
+@@ -0,0 +1,233 @@
++using DiskAtlas;
++using System.Diagnostics;
++using System.Text;
++using System.Text.Json;
++
++internal static class DiagnosticsRegression
++{
++    private static void Check(bool ok, string message) { if (!ok) throw new Exception(message); }
++    private static DiagnosticRecord Entry(DiagnosticKind kind = DiagnosticKind.ScanStarted) => new()
++    { Kind = kind, Session = Guid.NewGuid(), TimeUtc = DateTimeOffset.UtcNow, Files = 42, Mode = ScanMode.LowImpact };
++    private static void Throws<T>(Action work) where T : Exception
++    { try { work(); } catch (T) { return; } throw new Exception("Expected " + typeof(T).Name); }
++    private static void StorageFails(Action work)
++    { try { work(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return; } throw new Exception("Expected storage failure"); }
++
++    public static int Child(string root)
++    {
++        try { new DiagnosticStore(root).Policy(); return 1; }
++        catch (IOException) { Console.WriteLine("PASS cross-process mutex bounded contention"); return 0; }
++    }
++
++    public static int Run()
++    {
++        string root = Path.Combine(Path.GetTempPath(), "AsukaLens-diagnostics-tests-" + Guid.NewGuid().ToString("N"));
++        Directory.CreateDirectory(root); int passed = 0;
++        void Test(string name, Action<string> work)
++        { string part = Path.Combine(root, (++passed).ToString()); Directory.CreateDirectory(part); work(part); Console.WriteLine("PASS " + name); }
++        try
++        {
++            Test("strict record schema rejects unknown fields, enum values, duplicate keys, nulls and unbounded input", path =>
++            {
++                string valid = DiagnosticCodec.Encode(Entry());
++                Check(DiagnosticCodec.Decode(valid) != null, "Valid record rejected");
++                foreach (string invalid in new[] { valid.Replace("\"schema\":1", "\"schema\":2"), valid.Replace("\"kind\":\"ScanStarted\"", "\"kind\":999"),
++                    valid.Replace("\"schema\":1", "\"schema\":1,\"schema\":1"), valid.Replace("\"schema\":1,", ""),
++                    valid[..^1] + ",\"path\":\"private-marker@example.invalid\"}", "{\"build\":null}", new string('x', 1100), "[]" })
++                    Check(DiagnosticCodec.Decode(invalid) == null, "Untrusted record accepted");
++                Throws<InvalidDataException>(() => DiagnosticCodec.Encode(Entry() with { Milliseconds = double.NaN }));
++                var error = new SecretException();
++                Check(DiagnosticCodec.Classify(error) == ErrorCategory.Unexpected, "Exception getter evaluated");
++                string legacy = "App=AsukaLens\nSchema=1\nTimeUtc=" + DateTime.UtcNow.ToString("O") + "\nCategory=IO\nCode=0x80070005\n";
++                Check(DiagnosticCodec.ReadLegacy(legacy) is { Build: null } && DiagnosticCodec.ReadLegacy(legacy + "Path=private\n") == null &&
++                    DiagnosticCodec.ReadLegacy(legacy.Replace("Category=IO", "Category=private@example.invalid")) == null, "Legacy whitelist failed");
++            });
++            Test("persistent switch, corrupt preferences fail closed, explicit recovery and exception opt-out", path =>
++            {
++                var store = new DiagnosticStore(path); Check(store.Initialize().Enabled, "First-run default not enabled");
++                store.SetEnabled(false); Check(!new DiagnosticStore(path).Initialize().Enabled, "Off did not persist");
++                var report = store.ReportError(new SecretException());
++                Check(!report.Enabled && !report.Saved && report.UserMessage.Contains("未启用") && !File.Exists(store.LegacyPath), "Off wrote an exception");
++                File.WriteAllText(store.SettingsPath, "{}"); Check(!store.Initialize().Healthy && !store.Policy().Enabled, "Corrupt settings enabled");
++                var policy = store.SetEnabled(true);
++                string json = File.ReadAllText(store.SettingsPath).Replace("\"enabled\":true", "\"enabled\":false,\"enabled\":true");
++                File.WriteAllText(store.SettingsPath, json); Check(!store.Policy().Healthy, "Duplicate setting enabled capture");
++                store.SetEnabled(false);
++                byte[] before = File.ReadAllBytes(store.SettingsPath);
++                using (var locked = new FileStream(store.SettingsPath, FileMode.Open, FileAccess.Read, FileShare.Read))
++                    StorageFails(() => store.SetEnabled(true));
++                Check(File.ReadAllBytes(store.SettingsPath).SequenceEqual(before) && !store.Policy().Enabled, "Failed switch altered state");
++                Check(!Directory.GetFiles(store.DirectoryPath, "*.tmp").Any(), "Atomic settings temp leaked");
++            });
++            Test("rotation and mixed-age retention remain bounded across wall-clock changes", path =>
++            {
++                var now = DateTimeOffset.UtcNow; var store = new DiagnosticStore(path, () => now, 2048); var policy = store.Initialize();
++                for (int i = 0; i < 220; i++) store.Append([(policy.Generation, Entry() with { Scan = i, TimeUtc = now })]);
++                var files = Directory.GetFiles(store.DirectoryPath, "runtime-*.jsonl");
++                Check(files.Length <= 8 && files.All(f => new FileInfo(f).Length <= 2048) && files.Sum(f => new FileInfo(f).Length) <= 8 * 2048, "Quota exceeded");
++                Check(store.Read().Records.All(r => r.Scan > 0) && store.Read().Records.Any(r => r.Scan == 219), "Rotation retained oldest batches or lost latest");
++                now = now.AddDays(13); store.Append([(policy.Generation, Entry() with { Scan = 900, TimeUtc = now })]);
++                now = now.AddDays(2); var retained = store.Read();
++                Check(retained.Records.Count == 1 && retained.Records[0].Scan == 900, "Mixed segment did not expire individual records");
++                now = now.AddDays(-20); Check(store.Read().Records.Count == 1, "Clock rollback destroyed bounded future record");
++                now = now.AddDays(40); Check(store.Read().Records.Count == 0, "Retention failed after clock change");
++                File.WriteAllBytes(store.Segment(0), new byte[3000]);
++                Check(store.Read().Rejected > 0 && !File.Exists(store.Segment(0)), "Oversize input not safely rejected");
++            });
++            Test("clear uses a generation barrier, preserves unrelated files and reports partial failure", path =>
++            {
++                var store = new DiagnosticStore(path); var before = store.Initialize();
++                store.Append([(before.Generation, Entry())]);
++                var note = store.SaveNote(null, "Synthetic note", "Not exported");
++                string background = Path.Combine(path, "background.dat"); File.WriteAllText(background, "fixture");
++                string other = Path.Combine(store.DirectoryPath, "keep.txt"); File.WriteAllText(other, "fixture");
++                string orphan = store.LegacyPath + "." + Guid.NewGuid().ToString("N") + ".tmp"; File.WriteAllText(orphan, "fixture");
++                using (var locked = new FileStream(store.Segment(0), FileMode.Open, FileAccess.Read, FileShare.Read))
++                {
++                    var partial = store.Clear(); Check(partial.Failed == 1 && partial.Policy.Generation != before.Generation, "Partial clear reported success");
++                }
++                var cleared = store.Clear(); Check(cleared.Failed == 0, "Clear retry failed");
++                store.Append([(before.Generation, Entry())]);
++                Check(store.Read().Records.Count == 0, "Old queued records resurrected");
++                Check(store.Notes().Single().Id == note.Id && File.Exists(background) && File.Exists(other) && !File.Exists(orphan), "Clear scope or orphan cleanup failed");
++                store.Append([(cleared.Policy.Generation, Entry())]); Check(store.Read().Records.Count == 1, "New events cannot resume after clear");
++            });
++            Test("corrupt records and legacy report cannot contaminate the selected export", path =>
++            {
++                var store = new DiagnosticStore(path); var policy = store.Initialize();
++                store.Append([(policy.Generation, Entry())]);
++                File.AppendAllText(store.Segment(0), "{\"private\":\"secret-marker@example.invalid\"}\n{broken}\n");
++                File.WriteAllText(store.LegacyPath, "App=AsukaLens\nMessage=private-marker\n");
++                store.SaveNote(null, "private-marker", "secret-marker@example.invalid");
++                var snapshot = store.Read(); Check(snapshot.Rejected == 3 && snapshot.Records.Count == 1, "Rejection accounting incorrect");
++                string preview = DiagnosticCodec.Preview(snapshot.Records, 7, snapshot.Rejected, snapshot.Limited);
++                Check(!preview.Contains("private") && !preview.Contains("secret-marker") && preview.Contains("QueueDropped=7") && preview.Contains("UnreadableOrRejected=3"), "Preview crossed whitelist");
++                using var locked = new FileStream(store.LegacyPath, FileMode.Open, FileAccess.Read, FileShare.None);
++                var partial = store.Read();
++                Check(partial.MaintenanceFailed && partial.Records.Count == 1, "One locked file hid readable diagnostics");
++            });
++            Test("atomic export matches immutable preview, cancellation/failure preserve the existing target", path =>
++            {
++                string file = Path.Combine(path, "export.txt"); string preview = DiagnosticCodec.Preview([Entry()], 0, 0, false);
++                DiagnosticService.ExportAsync(file, preview, CancellationToken.None).GetAwaiter().GetResult();
++                Check(File.ReadAllBytes(file).SequenceEqual(Encoding.UTF8.GetBytes(preview)), "Export differs from preview");
++                using (var locked = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read))
++                    StorageFails(() => DiagnosticService.ExportAsync(file, "changed", CancellationToken.None).GetAwaiter().GetResult());
++                using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
++                Throws<OperationCanceledException>(() => DiagnosticService.ExportAsync(file, "changed", cancelled.Token).GetAwaiter().GetResult());
++                Check(File.ReadAllText(file) == preview && Directory.GetFiles(path).Length == 1, "Failed export replaced target or leaked temp");
++            });
++            Test("notes restore, enforce revisions/limits and preserve unsaved or corrupt data", path =>
++            {
++                var store = new DiagnosticStore(path); store.Initialize();
++                var first = store.SaveNote(null, "问题 Example", "Synthetic reproduction");
++                var other = new DiagnosticStore(path); var prior = other.Notes().Single();
++                var updated = store.SaveNote(first, "Updated", "Local only");
++                Throws<NoteConflictException>(() => other.SaveNote(prior, "Stale", "Stale"));
++                Throws<NoteConflictException>(() => other.DeleteNote(prior));
++                Check(other.Notes().Single().Body == "Local only", "Stale writer overwrote note");
++                Throws<NoteLimitException>(() => store.SaveNote(null, new string('x', 101), ""));
++                Throws<NoteLimitException>(() => store.SaveNote(null, "x", new string('x', 2001)));
++                store.DeleteNote(updated); Check(store.Notes().Count == 0, "Note deletion failed");
++                for (int i = 0; i < 100; i++) store.SaveNote(null, "Note " + i, "text");
++                Throws<NoteLimitException>(() => store.SaveNote(null, "Overflow", "text"));
++                string before = File.ReadAllText(store.NotesPath);
++                using (var locked = new FileStream(store.NotesPath, FileMode.Open, FileAccess.Read, FileShare.Read))
++                    StorageFails(() => store.DeleteNote(store.Notes()[0]));
++                Check(File.ReadAllText(store.NotesPath) == before, "Failed note write lost prior data");
++                File.WriteAllText(store.NotesPath, "{broken}");
++                Throws<JsonException>(() => store.SaveNote(null, "new", ""));
++                Check(File.ReadAllText(store.NotesPath) == "{broken}", "Corrupt notes silently overwritten");
++            });
++            Test("note file byte cap refuses growth before overwriting", path =>
++            {
++                var store = new DiagnosticStore(path); store.Initialize(); bool limited = false; string before = "";
++                for (int i = 0; i < 100; i++)
++                {
++                    before = File.Exists(store.NotesPath) ? File.ReadAllText(store.NotesPath) : "";
++                    try { store.SaveNote(null, "Unicode " + i, new string('界', 2000)); }
++                    catch (NoteLimitException) { limited = true; break; }
++                }
++                Check(limited && new FileInfo(store.NotesPath).Length <= DiagnosticStore.NoteLimit && File.ReadAllText(store.NotesPath) == before, "Byte limit not atomic");
++            });
++            Test("queue overload is bounded, producer never waits on storage, off/clear isolate pending work", path =>
++            {
++                using var service = new DiagnosticService(path); service.Ready.GetAwaiter().GetResult(); service.FlushAsync().GetAwaiter().GetResult();
++                var store = new DiagnosticStore(path);
++                using (var mutex = new Mutex(false, store.MutexName))
++                {
++                    mutex.WaitOne();
++                    try
++                    {
++                        var watch = Stopwatch.StartNew();
++                        for (int i = 0; i < 10000; i++) service.Record(Entry());
++                        Check(service.Pending <= 128 && service.Dropped > 0 && watch.Elapsed < TimeSpan.FromSeconds(3), "Queue growth or blocking producer");
++                    }
++                    finally { mutex.ReleaseMutex(); }
++                }
++                service.FlushAsync().GetAwaiter().GetResult();
++                Check(service.SnapshotAsync().GetAwaiter().GetResult().Records.Any(r => r.Kind == DiagnosticKind.QueueOverflow), "Dropped events not reported");
++                service.SetEnabledAsync(false).GetAwaiter().GetResult();
++                int count = service.SnapshotAsync().GetAwaiter().GetResult().Records.Count;
++                service.Record(Entry()); var error = service.ReportErrorAsync(new SecretException()).GetAwaiter().GetResult();
++                Check(!error.Enabled && service.Pending == 0 && service.SnapshotAsync().GetAwaiter().GetResult().Records.Count == count, "Disabled service wrote data");
++                service.SetEnabledAsync(true).GetAwaiter().GetResult();
++                for (int i = 0; i < 128; i++) service.Record(Entry());
++                service.ClearAsync().GetAwaiter().GetResult(); service.FlushAsync().GetAwaiter().GetResult();
++                Check(service.SnapshotAsync().GetAwaiter().GetResult().Records.Count == 0, "Queue survived clear");
++                service.Failure(DiagnosticKind.ScanFailed, new SecretException(), 5); service.FlushAsync().GetAwaiter().GetResult();
++                Check(service.SnapshotAsync().GetAwaiter().GetResult().Records.Single().Category == ErrorCategory.Unexpected, "Error integration failed");
++            });
++            Test("multi-instance switch and clear invalidate old generations across services", path =>
++            {
++                using var first = new DiagnosticService(path); using var second = new DiagnosticService(path);
++                Task.WaitAll(first.Ready, second.Ready); Task.WaitAll(first.FlushAsync(), second.FlushAsync());
++                var store = new DiagnosticStore(path); var stale = store.Policy();
++                second.SetEnabledAsync(false).GetAwaiter().GetResult();
++                first.Record(Entry()); first.FlushAsync().GetAwaiter().GetResult();
++                Check(!first.Enabled, "Other instance did not observe off");
++                second.ClearAsync().GetAwaiter().GetResult();
++                store.Append([(stale.Generation, Entry())]); Check(store.Read().Records.Count == 0, "Stale batch crossed generation");
++            });
++            Test("cross-process mutex contention has a finite wait", path =>
++            {
++                var store = new DiagnosticStore(path); store.Initialize();
++                using var mutex = new Mutex(false, store.MutexName); mutex.WaitOne();
++                try
++                {
++                    var start = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
++                    if (string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath), "dotnet", StringComparison.OrdinalIgnoreCase)) start.ArgumentList.Add(typeof(DiagnosticsRegression).Assembly.Location);
++                    start.ArgumentList.Add("--diagnostics-child"); start.ArgumentList.Add(path);
++                    using var child = Process.Start(start)!;
++                    if (!child.WaitForExit(10000)) { child.Kill(); throw new Exception("Child lock wait unbounded"); }
++                    Check(child.ExitCode == 0 && child.StandardOutput.ReadToEnd().Contains("PASS cross-process"), "Cross-process mutex missing");
++                }
++                finally { mutex.ReleaseMutex(); }
++            });
++            Test("storage errors remain nonfatal and bounded view reports truncation", path =>
++            {
++                string blocked = Path.Combine(path, "blocked"); File.WriteAllText(blocked, "fixture");
++                using var service = new DiagnosticService(blocked); service.Ready.GetAwaiter().GetResult();
++                Check(service.StorageFailed && !service.Enabled, "Failed store enabled collection");
++                service.Record(Entry()); Check(service.Pending == 0, "Unavailable store accepted events");
++                var store = new DiagnosticStore(path); var policy = store.Initialize();
++                store.Append(Enumerable.Range(0, 2100).Select(i => (policy.Generation, Entry() with { Scan = i })).ToArray());
++                var snapshot = store.Read(); Check(snapshot.Limited && snapshot.Records.Count == 2000, "View unbounded");
++            });
++            Console.WriteLine($"All {passed} diagnostics regression groups passed."); return 0;
++        }
++        catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
++        finally
++        {
++            if (!Path.GetFullPath(root).StartsWith(Path.Combine(Path.GetFullPath(Path.GetTempPath()), "AsukaLens-diagnostics-tests-"), StringComparison.OrdinalIgnoreCase)) throw new Exception("Unsafe cleanup");
++            if (Directory.EnumerateFileSystemEntries(root, "*", SearchOption.AllDirectories).Any(p => (File.GetAttributes(p) & FileAttributes.ReparsePoint) != 0)) throw new Exception("Unexpected redirected fixture");
++            Directory.Delete(root, true);
++        }
++    }
++    private sealed class SecretException : Exception
++    {
++        public override string Message => throw new Exception("Forbidden getter");
++        public override string? StackTrace => throw new Exception("Forbidden getter");
++        public override string ToString() => throw new Exception("Forbidden getter");
++    }
++}
+diff --git a/tests/DiagnosticsUiRegression.cs b/tests/DiagnosticsUiRegression.cs
+new file mode 100644
+index 0000000..9c58fb8
+--- /dev/null
++++ b/tests/DiagnosticsUiRegression.cs
+@@ -0,0 +1,179 @@
++using DiskAtlas;
++using System.Reflection;
++
++internal static class DiagnosticsUiRegression
++{
++    private static void Check(bool ok, string message) { if (!ok) throw new Exception(message); }
++    private static T Control<T>(Control parent, string name) where T : Control => (T)parent.Controls.Find(name, true).Single();
++    private static T Field<T>(object target, string name) => (T)target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(target)!;
++    private static Task Scan(MainForm form, string path) => (Task)typeof(MainForm).GetMethod("ScanFolder", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(form, [path])!;
++    private static async Task Wait(Func<bool> predicate)
++    {
++        var end = DateTime.UtcNow.AddSeconds(8);
++        while (!predicate()) { if (DateTime.UtcNow > end) throw new Exception("UI condition timed out"); await Task.Delay(20); }
++    }
++
++    public static int Preview(string root)
++    {
++        Exception? failure = null;
++        var thread = new Thread(() =>
++        {
++            try
++            {
++                Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); Application.EnableVisualStyles();
++                string fixture = Path.Combine(root, "demo-files"); Directory.CreateDirectory(fixture);
++                File.WriteAllBytes(Path.Combine(fixture, "demo.txt"), new byte[4096]);
++                using var service = new DiagnosticService(Path.Combine(root, "app-data")); service.Ready.GetAwaiter().GetResult();
++                service.Failure(DiagnosticKind.BackgroundImportFailed, new IOException("synthetic text must not be logged"));
++                using var form = new MainForm(fixture, backgroundSettingsPath: Path.Combine(root, "background.dat"), diagnostics: service)
++                    { Text = "AsukaLens · 诊断验收" };
++                Application.Run(form);
++            }
++            catch (Exception ex) { failure = ex; }
++        });
++        thread.SetApartmentState(ApartmentState.STA); thread.Start(); thread.Join();
++        if (failure != null) { Console.Error.WriteLine(failure); return 1; }
++        return 0;
++    }
++
++    public static int Run(bool virtual96)
++    {
++        string root = Path.Combine(Path.GetTempPath(), "AsukaLens-diagnostics-ui-" + Guid.NewGuid().ToString("N"));
++        Directory.CreateDirectory(root); Exception? failure = null;
++        var thread = new Thread(() =>
++        {
++            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++            Application.SetHighDpiMode(virtual96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
++            Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
++            using var service = new DiagnosticService(Path.Combine(root, "app-data"));
++            using var host = new Form { Text = "AsukaLens diagnostic test host", Size = new Size(500, 250) };
++            host.Shown += async (_, _) =>
++            {
++                try
++                {
++                    await service.Ready;
++                    string scanRoot = Path.Combine(root, "synthetic-private-folder"); Directory.CreateDirectory(scanRoot);
++                    File.WriteAllText(Path.Combine(scanRoot, "private-document.txt"), "synthetic");
++                    using (var main = new MainForm(null, diagnostics: service))
++                    {
++                        main.Show(host); await Scan(main, scanRoot); await Scan(main, scanRoot);
++                        Field<ActionButton>(main, "diagnosticsButton").PerformClick();
++                        var dialog = Field<DiagnosticsDialog>(main, "diagnosticsWindow");
++                        await Wait(() => !dialog.IsBusy && dialog.Snapshot != null);
++                        Check(dialog.Owner == main && main.Enabled, "Diagnostics blocked scan/cancel through a modal owner");
++                        Field<ActionButton>(main, "diagnosticsButton").PerformClick();
++                        Check(ReferenceEquals(dialog, Field<DiagnosticsDialog>(main, "diagnosticsWindow")), "Duplicate diagnostics windows");
++                        Field<bool>(main, "forceFullNext");
++                        typeof(MainForm).GetField("forceFullNext", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(main, true);
++                        await Scan(main, scanRoot);
++                        await dialog.RefreshAsync();
++                        var snapshot = dialog.Snapshot!;
++                        Check(snapshot.Records.Count(r => r.Kind == DiagnosticKind.ScanCompleted) == 3 && snapshot.Records.Count(r => r.Kind == DiagnosticKind.ScanStarted) == 3,
++                            "Scan lifecycle events missing or duplicated");
++                        Check(snapshot.Records.Any(r => r.Reason == RefreshReason.FirstScan) && snapshot.Records.Any(r => r.Reason == RefreshReason.Forced) &&
++                            snapshot.Records.Any(r => r.Method is RefreshMethod.MetadataVerification or RefreshMethod.ChangeJournal), "Refresh method/reason not captured");
++                        Check(!string.Join('\n', snapshot.Records.Select(DiagnosticCodec.Encode)).Contains("private"), "Scan paths leaked");
++                        var grid = Control<DataGridView>(dialog, "diagnosticRecords");
++                        Check(grid.Rows.Count > 0 && grid.Rows.Cast<DataGridViewRow>().All(r => r.Cells[0].Value is false) && dialog.SelectedPreview() == null, "Default export selection not empty");
++                        grid.Rows[0].Cells[0].Value = true;
++                        string preview = dialog.SelectedPreview()!;
++                        service.Failure(DiagnosticKind.BackgroundImportFailed, new IOException("private-marker")); await service.FlushAsync();
++                        using (var export = new DiagnosticExportDialog(preview))
++                        {
++                            export.Show(dialog); Check(export.Preview == preview, "Export snapshot changed"); export.Close();
++                        }
++                        Check(!Directory.GetFiles(root, "*.txt").Any(), "Preview cancellation wrote output");
++                        await DiagnosticService.ExportAsync(Path.Combine(root, "approved-export.txt"), preview, CancellationToken.None);
++                        Check(File.ReadAllText(Path.Combine(root, "approved-export.txt")) == preview && preview.Contains("Records=1"), "Export did not preserve selected snapshot");
++                        await dialog.RefreshAsync(); Control<ComboBox>(dialog, "levelFilter").SelectedIndex = 3;
++                        Check(grid.Rows.Count == 1 && ((DiagnosticRecord)grid.Rows[0].Tag!).Level == DiagnosticLevel.Error, "Severity filter failed");
++                        Control<ComboBox>(dialog, "levelFilter").SelectedIndex = 0;
++                        Console.WriteLine("PASS diagnostics UI entry, scan lifecycle, reasons, default selection, filters and fixed preview");
++
++                        using (var editor = new ProblemNoteDialog(service, null))
++                        {
++                            editor.Shown += (_, _) =>
++                            {
++                                editor.TitleInput.Text = "Synthetic UI note"; editor.BodyInput.Text = "private-marker only in local note";
++                                Control<Button>(editor, "saveNote").PerformClick();
++                            };
++                            Check(editor.ShowDialog(dialog) == DialogResult.OK, "Note UI save failed");
++                        }
++                        await dialog.RefreshAsync();
++                        Check(Control<DataGridView>(dialog, "problemNotes").Rows.Count == 1, "Note not displayed");
++                        Check(!Control<Button>(dialog, "editNote").Enabled && !Control<Button>(dialog, "deleteNote").Enabled,
++                            "Note actions enabled without an explicit selection");
++                        await dialog.ToggleAsync(false); Check(!service.Enabled && !Control<CheckBox>(dialog, "loggingEnabled").Checked, "UI switch inconsistent");
++                        await dialog.ClearAsync(); Check(dialog.Snapshot!.Records.Count == 0 && (await service.NotesAsync()).Count == 1, "Clear removed notes or retained log");
++                        await dialog.ToggleAsync(true);
++                        Console.WriteLine("PASS diagnostics UI note editor, persistent toggle and runtime-only clear");
++
++                        Theme.SetAccent(Color.SteelBlue); dialog.ApplyTheme();
++                        Check(Control<Button>(dialog, "previewExport").ForeColor == Theme.Accent, "Diagnostic theme did not adapt");
++                        dialog.Size = dialog.MinimumSize; dialog.PerformLayout();
++                        foreach (string name in new[] { "loggingEnabled", "refreshDiagnostics", "previewExport", "clearDiagnostics", "diagnosticRecords" })
++                        {
++                            var control = Control<Control>(dialog, name); var rectangle = dialog.RectangleToClient(control.RectangleToScreen(control.ClientRectangle));
++                            Check(control.Visible && rectangle.Left >= 0 && rectangle.Right <= dialog.ClientSize.Width && rectangle.Bottom <= dialog.ClientSize.Height,
++                                "Narrow DPI layout clipped " + name);
++                        }
++                        Check(dialog.DeviceDpi == (virtual96 ? 96 : main.DeviceDpi), "Unexpected diagnostics DPI");
++                        using var bitmap = new Bitmap(dialog.Width, dialog.Height); dialog.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
++                        Console.WriteLine($"PASS diagnostics UI narrow layout, render and theme at {dialog.DeviceDpi} DPI");
++                        dialog.Close();
++                    }
++                    // Keep the host message loop alive while testing closing an operation's owner.
++                    var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
++                    using (var cancelled = new MainForm(null, diagnostics: service)
++                    {
++                        ScanRunner = (_, _, token, _) => { token.WaitHandle.WaitOne(); token.ThrowIfCancellationRequested(); throw new InvalidOperationException(); }
++                    })
++                    {
++                        cancelled.Show(host); var task = Scan(cancelled, scanRoot); Field<ActionButton>(cancelled, "cancel").PerformClick(); await task; cancelled.Close();
++                    }
++                    using (var incomplete = new MainForm(null, diagnostics: service)
++                    {
++                        ScanRunner = (path, _, _, _) => new DiskScanner().Scan(path, null, CancellationToken.None) with { Skipped = 1 }
++                    })
++                    { incomplete.Show(host); await Scan(incomplete, scanRoot); incomplete.Close(); }
++                    using (var failed = new MainForm(null, diagnostics: service)
++                    {
++                        ScanRunner = (_, _, _, _) => { release.Task.GetAwaiter().GetResult(); throw new IOException("private-marker"); }
++                    })
++                    {
++                        failed.Show(host); var task = Scan(failed, scanRoot); failed.Close(); release.SetResult(); await task;
++                    }
++                    var outcomes = await service.SnapshotAsync();
++                    Check(outcomes.Records.Any(r => r.Kind == DiagnosticKind.ScanCancelled) && outcomes.Records.Any(r => r.Kind == DiagnosticKind.ScanIncomplete) &&
++                        outcomes.Records.Any(r => r.Kind == DiagnosticKind.ScanFailed && r.Category == ErrorCategory.IO), "Terminal outcome logging incomplete");
++                    using (var image = new Bitmap(10, 10))
++                    using (var background = new BackgroundDialog(image, BackgroundView.Default, Theme.DefaultAccent, new Size(100, 100),
++                        Path.Combine(root, "background.dat"), reportFailure: (kind, error) => service.Failure(kind, error)))
++                    { background.Show(host); await background.ImportImageAsync(Path.Combine(root, "missing.png")); background.Close(); }
++                    Check((await service.SnapshotAsync()).Records.Any(r => r.Kind == DiagnosticKind.BackgroundImportFailed), "Background failure not integrated");
++                    Console.WriteLine("PASS diagnostics UI incomplete/cancel/failure and background error integration");
++                    using (var closing = new DiagnosticsDialog(service))
++                    { closing.Show(host); closing.Close(); await Task.Delay(350); Check(closing.IsDisposed, "Close left diagnostics alive"); }
++                    Console.WriteLine("PASS diagnostics UI pending read closes without late control writes");
++                }
++                catch (Exception ex) { failure = ex; }
++                finally { Theme.SetAccent(null); host.Close(); }
++            };
++            Application.Run(host);
++        });
++        try
++        {
++            thread.SetApartmentState(ApartmentState.STA); thread.Start();
++            if (!thread.Join(TimeSpan.FromSeconds(45))) throw new Exception("Diagnostics UI timed out");
++            if (failure != null) throw new Exception("Diagnostics UI failed", failure);
++            Console.WriteLine("All 5 diagnostics UI regression groups passed."); return 0;
++        }
++        catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
++        finally
++        {
++            if (!Path.GetFullPath(root).StartsWith(Path.Combine(Path.GetFullPath(Path.GetTempPath()), "AsukaLens-diagnostics-ui-"), StringComparison.OrdinalIgnoreCase)) throw new Exception("Unsafe cleanup");
++            if (Directory.EnumerateFileSystemEntries(root, "*", SearchOption.AllDirectories).Any(p => (File.GetAttributes(p) & FileAttributes.ReparsePoint) != 0)) throw new Exception("Redirected fixture");
++            Directory.Delete(root, true);
++        }
++    }
++}
+diff --git a/src/Diagnostics/DiagnosticEditors.cs b/src/Diagnostics/DiagnosticEditors.cs
+new file mode 100644
+index 0000000..8d24f78
+--- /dev/null
++++ b/src/Diagnostics/DiagnosticEditors.cs
+@@ -0,0 +1,89 @@
++namespace DiskAtlas;
++
++internal sealed class DiagnosticExportDialog : Form
++{
++    private bool saving;
++    private readonly CancellationTokenSource lifetime = new();
++    private readonly CancellationToken token;
++    internal string Preview { get; }
++    public DiagnosticExportDialog(string preview)
++    {
++        token = lifetime.Token;
++        Preview = preview; Text = "预览诊断导出"; Font = Theme.Font(9); AutoScaleMode = AutoScaleMode.Dpi;
++        AutoScaleDimensions = new SizeF(96, 96); ClientSize = new Size(760, 530); MinimumSize = new Size(580, 400);
++        StartPosition = FormStartPosition.CenterParent;
++        var root = DiagnosticsDialog.Rows(SizeType.AutoSize, 0, SizeType.Percent, 100, SizeType.AutoSize, 0); root.Padding = new Padding(12);
++        var status = DiagnosticsDialog.Caption("这是固定快照，只包含勾选的诊断；问题记录和之后的新事件不在其中。");
++        status.MaximumSize = new Size(700, 0); root.Controls.Add(status, 0, 0);
++        root.Controls.Add(new TextBox { Name = "exportPreview", Multiline = true, ReadOnly = true, Dock = DockStyle.Fill,
++            ScrollBars = ScrollBars.Both, WordWrap = false, Text = preview.Replace("\n", "\r\n", StringComparison.Ordinal) }, 0, 1);
++        var save = DiagnosticsDialog.Command("保存到文件…", "saveExport");
++        var cancel = DiagnosticsDialog.Command("取消", "cancelExport"); cancel.DialogResult = DialogResult.Cancel;
++        root.Controls.Add(DiagnosticsDialog.Flow(save, cancel), 0, 2); Controls.Add(root); CancelButton = cancel;
++        save.Click += async (_, _) =>
++        {
++            using var picker = new SaveFileDialog { Filter = "诊断文本|*.txt", FileName = "AsukaLens-diagnostics.txt", OverwritePrompt = true };
++            if (picker.ShowDialog(this) != DialogResult.OK) return;
++            saving = true; save.Enabled = cancel.Enabled = false; status.Text = "正在保存固定快照…";
++            try
++            {
++                await DiagnosticService.ExportAsync(picker.FileName, Preview, token);
++                if (!IsDisposed && !token.IsCancellationRequested) { saving = false; DialogResult = DialogResult.OK; Close(); }
++            }
++            catch (OperationCanceledException) { }
++            catch (Exception ex) when (DiagnosticStore.IsStorageError(ex))
++            { if (!IsDisposed) status.Text = "保存失败，已有目标未被替换。可以换一个位置重试；预览内容保持不变。"; }
++            finally { saving = false; if (!IsDisposed) save.Enabled = cancel.Enabled = true; }
++        };
++        FormClosing += (_, e) =>
++        {
++            if (saving && e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; status.Text = "正在保存，请稍候。"; }
++            else lifetime.Cancel();
++        };
++        DiagnosticsDialog.ApplyPalette(this);
++        Shown += (_, _) => { ((TextBox)Controls.Find("exportPreview", true).Single()).Select(0, 0); save.Focus(); };
++    }
++    protected override void Dispose(bool disposing) { if (disposing && !IsDisposed) { lifetime.Cancel(); lifetime.Dispose(); } base.Dispose(disposing); }
++}
++
++internal sealed class ProblemNoteDialog : Form
++{
++    private bool saving;
++    internal readonly TextBox TitleInput = new() { Name = "noteTitle", MaxLength = 100, Dock = DockStyle.Fill };
++    internal readonly TextBox BodyInput = new() { Name = "noteBody", MaxLength = 2000, Dock = DockStyle.Fill, Multiline = true, ScrollBars = ScrollBars.Vertical };
++    public ProblemNoteDialog(DiagnosticService service, ProblemNote? previous)
++    {
++        Text = previous == null ? "新增问题记录" : "编辑问题记录";
++        Font = Theme.Font(9); AutoScaleMode = AutoScaleMode.Dpi; AutoScaleDimensions = new(96, 96);
++        ClientSize = new Size(650, 470); MinimumSize = new Size(520, 360); StartPosition = FormStartPosition.CenterParent;
++        var root = DiagnosticsDialog.Rows(SizeType.AutoSize, 0, SizeType.AutoSize, 0, SizeType.AutoSize, 0, SizeType.Percent, 100, SizeType.AutoSize, 0, SizeType.AutoSize, 0);
++        root.Padding = new Padding(12); Controls.Add(root);
++        root.Controls.Add(DiagnosticsDialog.Caption("标题（最多 100 字符）"), 0, 0); root.Controls.Add(TitleInput, 0, 1);
++        root.Controls.Add(DiagnosticsDialog.Caption("现象、复现步骤、备注（合计最多 2,000 字符）"), 0, 2); root.Controls.Add(BodyInput, 0, 3);
++        var status = DiagnosticsDialog.Caption("仅在本机保存，不自动附加路径或截图，也不纳入诊断导出。"); status.MaximumSize = new Size(580, 0);
++        root.Controls.Add(status, 0, 4);
++        TitleInput.Text = previous?.Title ?? ""; BodyInput.Text = previous?.Body ?? "";
++        var save = DiagnosticsDialog.Command("保存", "saveNote"); var cancel = DiagnosticsDialog.Command("取消", "cancelNote");
++        cancel.DialogResult = DialogResult.Cancel; CancelButton = cancel;
++        root.Controls.Add(DiagnosticsDialog.Flow(save, cancel), 0, 5);
++        save.Click += async (_, _) =>
++        {
++            if (string.IsNullOrWhiteSpace(TitleInput.Text)) { status.Text = "请填写问题标题。"; TitleInput.Focus(); return; }
++            saving = true; save.Enabled = cancel.Enabled = TitleInput.Enabled = BodyInput.Enabled = false;
++            try
++            {
++                await service.SaveNoteAsync(previous, TitleInput.Text, BodyInput.Text);
++                if (!IsDisposed) { saving = false; DialogResult = DialogResult.OK; Close(); }
++            }
++            catch (Exception ex) when (DiagnosticStore.IsStorageError(ex))
++            {
++                if (!IsDisposed) status.Text = ex is NoteConflictException ? "原记录已在其他窗口改变。请保留当前文字，关闭后刷新再编辑。" :
++                    ex is NoteLimitException ? "已达到条数或大小限制，请先整理问题记录；当前内容仍保留。" :
++                    "保存失败。请检查存储空间或文件占用；当前内容仍保留。";
++            }
++            finally { saving = false; if (!IsDisposed) save.Enabled = cancel.Enabled = TitleInput.Enabled = BodyInput.Enabled = true; }
++        };
++        FormClosing += (_, e) => { if (saving && e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; status.Text = "正在保存，请稍候。"; } };
++        DiagnosticsDialog.ApplyPalette(this);
++    }
++}
+diff --git a/src/Diagnostics/DiagnosticRecord.cs b/src/Diagnostics/DiagnosticRecord.cs
+new file mode 100644
+index 0000000..efe4ceb
+--- /dev/null
++++ b/src/Diagnostics/DiagnosticRecord.cs
+@@ -0,0 +1,182 @@
++using System.Globalization;
++using System.Text;
++using System.Text.Json;
++using System.Text.Json.Serialization;
++using System.Text.RegularExpressions;
++
++namespace DiskAtlas;
++
++internal enum DiagnosticKind
++{
++    Started, Stopped, ScanStarted, PhaseChanged, ScanCompleted, ScanIncomplete,
++    ScanCancelled, ScanFailed, BackgroundReadFailed, BackgroundImportFailed,
++    BackgroundSaveFailed, BackgroundResetFailed, UnhandledError, QueueOverflow
++}
++internal enum DiagnosticLevel { Information, Warning, Error }
++internal enum ErrorCategory { Memory, Access, IO, Native, Argument, Cancelled, Operation, Unexpected }
++public enum RefreshReason
++{
++    FirstScan, Forced, RootChanged, ContinuousJournal, MissingCheckpoint, JournalUnavailable,
++    IncompleteBaseline, RootIdentityChanged, MissingIdentity, JournalFailure, VerificationFailure, VolumeChanged
++}
++
++// Only controlled identifiers and numbers may cross this boundary. Never add arbitrary text here.
++internal sealed record DiagnosticRecord
++{
++    public int Schema { get; init; } = 1;
++    public DateTimeOffset TimeUtc { get; init; }
++    public string? Build { get; init; } = typeof(DiagnosticRecord).Assembly.GetName().Version?.ToString();
++    public Guid Session { get; init; }
++    public long? Scan { get; init; }
++    public DiagnosticKind Kind { get; init; }
++    public ScanMode? Mode { get; init; }
++    public ScanPhase? Phase { get; init; }
++    public RefreshMethod? Method { get; init; }
++    public RefreshReason? Reason { get; init; }
++    public JournalState? Journal { get; init; }
++    public int? NativeError { get; init; }
++    public int? Workers { get; init; }
++    public int? PeakWorkers { get; init; }
++    public long? Files { get; init; }
++    public long? Directories { get; init; }
++    public long? Skipped { get; init; }
++    public long? UnknownAllocation { get; init; }
++    public long? VerifiedFiles { get; init; }
++    public long? VerifiedDirectories { get; init; }
++    public long? ReadDirectories { get; init; }
++    public long? ReusedFiles { get; init; }
++    public long? Dropped { get; init; }
++    public double? Milliseconds { get; init; }
++    public ErrorCategory? Category { get; init; }
++    public int? ErrorCode { get; init; }
++
++    [JsonIgnore] public DiagnosticLevel Level => Kind switch
++    {
++        DiagnosticKind.ScanCompleted when Reason is RefreshReason.JournalUnavailable or RefreshReason.MissingCheckpoint or
++            RefreshReason.IncompleteBaseline or RefreshReason.RootIdentityChanged or RefreshReason.MissingIdentity or
++            RefreshReason.JournalFailure or RefreshReason.VerificationFailure or RefreshReason.VolumeChanged => DiagnosticLevel.Warning,
++        DiagnosticKind.ScanIncomplete or DiagnosticKind.QueueOverflow => DiagnosticLevel.Warning,
++        DiagnosticKind.ScanFailed or DiagnosticKind.BackgroundReadFailed or DiagnosticKind.BackgroundImportFailed or
++        DiagnosticKind.BackgroundSaveFailed or DiagnosticKind.BackgroundResetFailed or DiagnosticKind.UnhandledError => DiagnosticLevel.Error,
++        _ => DiagnosticLevel.Information
++    };
++
++    public string Summary()
++    {
++        var lines = new List<string> { $"{Label} · {TimeUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}" };
++        if (Scan.HasValue) lines.Add($"扫描序号：{Scan}");
++        if (Mode is { } mode) lines.Add("策略：" + (mode switch { ScanMode.LowImpact => "低占用", ScanMode.HighSpeed => "高速", _ => "自动" }));
++        if (Phase is { } phase) lines.Add("阶段：" + ScanProgressControl.PhaseName(phase));
++        if (Method is { } method) lines.Add("刷新方式：" + RefreshPresentation.MethodName(method));
++        if (Reason is { } reason) lines.Add("原因：" + (reason switch
++        {
++            RefreshReason.FirstScan => "首次完整扫描", RefreshReason.Forced => "用户强制完整扫描", RefreshReason.RootChanged => "扫描目录切换",
++            RefreshReason.ContinuousJournal => "变化日志连续，重扫变化目录", RefreshReason.MissingCheckpoint => "上次无有效游标，核验全部元信息",
++            RefreshReason.JournalUnavailable => "日志不可用，核验全部元信息", RefreshReason.IncompleteBaseline => "旧结果不完整，回退完整扫描",
++            RefreshReason.RootIdentityChanged => "根目录身份无法确认，回退完整扫描", RefreshReason.MissingIdentity => "旧条目缺少身份，回退完整扫描",
++            RefreshReason.JournalFailure => "日志读取或连续性检查失败，回退完整扫描", RefreshReason.VolumeChanged => "卷发生变化，回退完整扫描",
++            _ => "刷新核验未完成，回退完整扫描"
++        }));
++        void Count(string label, long? value) { if (value.HasValue) lines.Add($"{label}：{value:N0}"); }
++        Count("文件", Files); Count("子目录", Directories); Count("跳过项", Skipped); Count("占用未知", UnknownAllocation);
++        Count("并发上限", Workers); Count("并发峰值", PeakWorkers); Count("重扫目录", ReadDirectories);
++        Count("核验文件", VerifiedFiles); Count("核验目录", VerifiedDirectories); Count("复用文件", ReusedFiles); Count("队列遗漏", Dropped);
++        if (Milliseconds.HasValue) lines.Add($"耗时：{Milliseconds:N1} ms");
++        if (Category.HasValue) lines.Add($"错误类别：{Category}；错误码：0x{ErrorCode.GetValueOrDefault():X8}");
++        if (NativeError is { } native && native != 0) lines.Add($"系统错误码：{native}");
++        return string.Join("\n", lines);
++    }
++    [JsonIgnore] public string Label => Kind switch
++    {
++        DiagnosticKind.Started => "程序启动", DiagnosticKind.Stopped => "正常退出",
++        DiagnosticKind.ScanStarted => "开始扫描", DiagnosticKind.PhaseChanged => "扫描阶段变化",
++        DiagnosticKind.ScanCompleted => "扫描完成", DiagnosticKind.ScanIncomplete => "扫描部分完成",
++        DiagnosticKind.ScanCancelled => "扫描取消", DiagnosticKind.ScanFailed => "扫描失败",
++        DiagnosticKind.BackgroundReadFailed => "背景读取失败", DiagnosticKind.BackgroundImportFailed => "背景导入失败",
++        DiagnosticKind.BackgroundSaveFailed => "背景保存失败", DiagnosticKind.BackgroundResetFailed => "背景恢复失败",
++        DiagnosticKind.UnhandledError => "程序异常", DiagnosticKind.QueueOverflow => "诊断队列遗漏", _ => "未知"
++    };
++
++    public bool IsValid() => Schema == 1 && TimeUtc.Offset == TimeSpan.Zero && TimeUtc.Year is >= 2020 and < 9999 &&
++        (Build == null || Build.Length <= 32 && Regex.IsMatch(Build, @"\A\d{1,5}(\.\d{1,5}){2,3}\z", RegexOptions.CultureInvariant)) &&
++        Enum.IsDefined(Kind) && Valid(Mode) && Valid(Phase) && Valid(Method) && Valid(Reason) && Valid(Journal) && Valid(Category) &&
++        new long?[] { Scan, Workers, PeakWorkers, Files, Directories, Skipped, UnknownAllocation, VerifiedFiles,
++            VerifiedDirectories, ReadDirectories, ReusedFiles, Dropped }.All(n => !n.HasValue || n.Value >= 0) &&
++        (!Milliseconds.HasValue || double.IsFinite(Milliseconds.Value) && Milliseconds.Value >= 0);
++    private static bool Valid<T>(T? value) where T : struct, Enum => !value.HasValue || Enum.IsDefined(value.Value);
++}
++
++internal static class DiagnosticCodec
++{
++    internal const int MaxRecordBytes = 1024;
++    internal static readonly JsonSerializerOptions Json = new()
++    {
++        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
++        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
++        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
++        MaxDepth = 8,
++        Converters = { new JsonStringEnumConverter(allowIntegerValues: false) }
++    };
++
++    public static string Encode(DiagnosticRecord record)
++    {
++        if (!record.IsValid()) throw new InvalidDataException();
++        string json = JsonSerializer.Serialize(record, Json);
++        if (Encoding.UTF8.GetByteCount(json) > MaxRecordBytes) throw new InvalidDataException();
++        return json;
++    }
++
++    public static DiagnosticRecord? Decode(string line)
++    {
++        if (line.Length > MaxRecordBytes || Encoding.UTF8.GetByteCount(line) > MaxRecordBytes) return null;
++        try
++        {
++            using var document = JsonDocument.Parse(line, new() { MaxDepth = 8 });
++            if (document.RootElement.ValueKind != JsonValueKind.Object) return null;
++            var keys = new HashSet<string>(StringComparer.Ordinal);
++            foreach (var property in document.RootElement.EnumerateObject()) if (!keys.Add(property.Name)) return null;
++            if (!new[] { "schema", "timeUtc", "build", "session", "kind" }.All(keys.Contains)) return null;
++            var value = JsonSerializer.Deserialize<DiagnosticRecord>(line, Json);
++            return value?.IsValid() == true ? value : null;
++        }
++        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException) { return null; }
++    }
++
++    public static string Preview(IEnumerable<DiagnosticRecord> selection, long dropped, int skipped, bool truncated, bool storageIncomplete = false)
++    {
++        // Regenerate each field; never export raw log lines or user-authored notes.
++        var pretty = new JsonSerializerOptions(Json) { WriteIndented = true };
++        var lines = selection.Select(record => { _ = Encode(record); return record.Summary() + "\n\n" + JsonSerializer.Serialize(record, pretty); }).ToArray();
++        return "AsukaLens local diagnostics / 本地诊断\nSchema=1\n" +
++            $"Records={lines.Length}\nQueueDropped={Math.Max(0, dropped)}\nUnreadableOrRejected={Math.Max(0, skipped)}\n" +
++            $"ViewLimited={truncated}\nStorageIncomplete={storageIncomplete}\n\n" + string.Join("\n\n---\n\n", lines) + "\n";
++    }
++
++    public static ErrorCategory Classify(Exception error) => error switch
++    {
++        OutOfMemoryException => ErrorCategory.Memory, UnauthorizedAccessException => ErrorCategory.Access,
++        IOException => ErrorCategory.IO, System.ComponentModel.Win32Exception => ErrorCategory.Native,
++        ArgumentException => ErrorCategory.Argument, OperationCanceledException => ErrorCategory.Cancelled,
++        InvalidOperationException => ErrorCategory.Operation, _ => ErrorCategory.Unexpected
++    };
++
++    public static DiagnosticRecord? ReadLegacy(string text)
++    {
++        if (Encoding.UTF8.GetByteCount(text) > 512) return null;
++        var fields = new Dictionary<string, string>(StringComparer.Ordinal);
++        foreach (string line in text.Split('\n', StringSplitOptions.RemoveEmptyEntries))
++        {
++            int separator = line.IndexOf('=');
++            if (separator < 1 || !fields.TryAdd(line[..separator], line[(separator + 1)..].TrimEnd('\r'))) return null;
++        }
++        if (fields.Count != 5 || fields.GetValueOrDefault("App") != "AsukaLens" || fields.GetValueOrDefault("Schema") != "1" ||
++            !DateTimeOffset.TryParseExact(fields.GetValueOrDefault("TimeUtc"), "O", CultureInfo.InvariantCulture,
++                DateTimeStyles.AssumeUniversal, out var time) || time.Offset != TimeSpan.Zero ||
++            !Enum.TryParse<ErrorCategory>(fields.GetValueOrDefault("Category"), out var category) || !Enum.IsDefined(category) ||
++            fields.GetValueOrDefault("Category") != category.ToString() ||
++            fields.GetValueOrDefault("Code") is not { Length: 10 } code || !code.StartsWith("0x", StringComparison.Ordinal) ||
++            !int.TryParse(code.AsSpan(2), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out int error)) return null;
++        var result = new DiagnosticRecord { TimeUtc = time, Build = null, Kind = DiagnosticKind.UnhandledError, Category = category, ErrorCode = error };
++        return result.IsValid() ? result : null;
++    }
++}
+diff --git a/src/Diagnostics/DiagnosticsDialog.cs b/src/Diagnostics/DiagnosticsDialog.cs
+new file mode 100644
+index 0000000..d16c1d1
+--- /dev/null
++++ b/src/Diagnostics/DiagnosticsDialog.cs
+@@ -0,0 +1,260 @@
++namespace DiskAtlas;
++
++internal sealed class DiagnosticsDialog : Form
++{
++    private readonly DiagnosticService service;
++    private readonly CheckBox enabled = new() { Name = "loggingEnabled", Text = "开启本地运行诊断", AutoSize = true };
++    private readonly Label summary = Caption("正在读取本地诊断…");
++    private readonly Label message = Caption("只记录必要计数与状态，不记录路径、文件名或异常原文。");
++    private readonly ComboBox period = Selector("timeFilter", ["全部时间", "最近 24 小时", "最近 7 天"]);
++    private readonly ComboBox severity = Selector("levelFilter", ["全部级别", "信息", "警告", "错误"]);
++    private readonly DataGridView records = Grid("diagnosticRecords");
++    private readonly TextBox detail = new() { Name = "recordDetails", Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill };
++    private readonly DataGridView notes = Grid("problemNotes");
++    private readonly Button refresh = Command("刷新", "refreshDiagnostics");
++    private readonly Button clear = Command("清空运行诊断…", "clearDiagnostics");
++    private readonly Button export = Command("预览导出…", "previewExport");
++    private readonly Button add = Command("新增问题记录", "addNote");
++    private readonly Button edit = Command("编辑", "editNote");
++    private readonly Button delete = Command("删除…", "deleteNote");
++    private DiagnosticSnapshot? snapshot;
++    private bool busy, updating;
++    private bool closed;
++    internal bool IsBusy => busy;
++    internal DiagnosticSnapshot? Snapshot => snapshot;
++
++    public DiagnosticsDialog(DiagnosticService service)
++    {
++        this.service = service;
++        Text = "AsukaLens · 诊断"; Name = "diagnosticsWindow";
++        Font = Theme.Font(9); AutoScaleMode = AutoScaleMode.Dpi;
++        AutoScaleDimensions = new SizeF(96, 96);
++        ClientSize = new Size(900, 640); MinimumSize = new Size(730, 530);
++        StartPosition = FormStartPosition.CenterParent;
++        var root = Rows(SizeType.AutoSize, 0, SizeType.Percent, 100, SizeType.AutoSize, 0);
++        root.Padding = new Padding(14);
++        var heading = Flow(enabled, summary); root.Controls.Add(heading, 0, 0);
++        var tabs = new TabControl { Dock = DockStyle.Fill, Name = "diagnosticTabs" };
++        root.Controls.Add(tabs, 0, 1);
++        var runtime = new TabPage("运行诊断"); var user = new TabPage("问题记录"); var dev = new TabPage("开发记录说明");
++        tabs.TabPages.AddRange([runtime, user, dev]);
++        var runtimeLayout = Rows(SizeType.AutoSize, 0, SizeType.Percent, 100, SizeType.Absolute, 130, SizeType.AutoSize, 0);
++        runtimeLayout.Padding = new Padding(8); runtime.Controls.Add(runtimeLayout);
++        runtimeLayout.Controls.Add(Flow(Caption("时间"), period, Caption("级别"), severity, refresh), 0, 0);
++        records.ReadOnly = false;
++        records.Columns.Add(new DataGridViewCheckBoxColumn { Name = "include", HeaderText = "导出", Width = 48, AutoSizeMode = DataGridViewAutoSizeColumnMode.None });
++        AddColumn(records, "time", "本地时间", 28); AddColumn(records, "level", "级别", 12);
++        AddColumn(records, "event", "事件", 29); AddColumn(records, "phase", "阶段 / 刷新方式", 31);
++        runtimeLayout.Controls.Add(records, 0, 1); runtimeLayout.Controls.Add(detail, 0, 2);
++        runtimeLayout.Controls.Add(Flow(clear, export, Caption("先勾选记录，再预览；不会自动上传。")), 0, 3);
++        var noteLayout = Rows(SizeType.AutoSize, 0, SizeType.Percent, 100, SizeType.AutoSize, 0);
++        noteLayout.Padding = new Padding(8); user.Controls.Add(noteLayout);
++        var noteHint = Caption("仅保存你主动填写的内容；最多 100 条。不自动采集，也不纳入运行诊断导出。");
++        noteHint.MaximumSize = new Size(680, 0); noteLayout.Controls.Add(noteHint, 0, 0);
++        AddColumn(notes, "title", "问题标题", 65); AddColumn(notes, "modified", "最后修改", 35);
++        noteLayout.Controls.Add(notes, 0, 1); noteLayout.Controls.Add(Flow(add, edit, delete), 0, 2);
++        dev.Controls.Add(new TextBox
++        {
++            Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, BorderStyle = BorderStyle.None, ScrollBars = ScrollBars.Vertical,
++            Text = "开发记录保存在项目 Git 历史与 iterations/ 中。\r\n\r\n" +
++                "每轮记录包含需求、决策、关键文件、验证结果、限制和可恢复补丁。此窗口不读取本机开发目录，也不从网络自动获取记录。\r\n\r\n" +
++                $"当前构建：{typeof(DiagnosticsDialog).Assembly.GetName().Version}\r\n\r\n" +
++                "项目仓库：https://github.com/M66Y/Hard-Drive-Space-Visualization\r\n\r\n" +
++                "运行诊断与问题记录只保存在本机的软件数据目录中。分享问题时，请先自行核对所选内容。"
++        });
++        var close = Command("关闭", "closeDiagnostics"); close.Click += (_, _) => Close();
++        root.Controls.Add(Flow(message, close), 0, 2); Controls.Add(root);
++        message.MaximumSize = new Size(710, 0);
++        enabled.CheckedChanged += async (_, _) => { if (!updating) await ToggleAsync(enabled.Checked); };
++        refresh.Click += async (_, _) => await RefreshAsync();
++        period.SelectedIndexChanged += (_, _) => RenderRecords(); severity.SelectedIndexChanged += (_, _) => RenderRecords();
++        records.SelectionChanged += (_, _) => ShowDetail();
++        notes.SelectionChanged += (_, _) => UpdateNoteActions();
++        records.CurrentCellDirtyStateChanged += (_, _) => { if (records.IsCurrentCellDirty) records.CommitEdit(DataGridViewDataErrorContexts.Commit); };
++        clear.Click += async (_, _) =>
++        {
++            if (MessageBox.Show(this, "清空运行诊断和最近异常报告？问题记录、背景与已导出文件会保留。", "清空运行诊断",
++                MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK) await ClearAsync();
++        };
++        export.Click += (_, _) =>
++        {
++            string? text = SelectedPreview();
++            if (text == null) { message.Text = "请先勾选需要导出的记录。"; return; }
++            using var preview = new DiagnosticExportDialog(text); preview.ShowDialog(this);
++        };
++        add.Click += async (_, _) => await EditNoteAsync(null);
++        edit.Click += async (_, _) => { if (SelectedNote() is { } note) await EditNoteAsync(note); };
++        notes.CellDoubleClick += async (_, e) => { if (e.RowIndex >= 0 && SelectedNote() is { } note) await EditNoteAsync(note); };
++        delete.Click += async (_, _) =>
++        {
++            if (SelectedNote() is not { } note) return;
++            if (MessageBox.Show(this, "删除当前选中的问题记录？此操作无法撤销。", "删除问题记录", MessageBoxButtons.OKCancel,
++                MessageBoxIcon.Question) != DialogResult.OK) return;
++            await WorkAsync(async () => { await service.DeleteNoteAsync(note); await LoadNotesAsync(); return "问题记录已删除。"; });
++        };
++        Shown += async (_, _) => await RefreshAsync();
++        FormClosing += (_, _) => closed = true;
++        ApplyTheme();
++        UpdateNoteActions();
++    }
++
++    protected override void OnLoad(EventArgs e)
++    {
++        base.OnLoad(e);
++        var area = Screen.FromControl(this).WorkingArea;
++        MinimumSize = new(Math.Min(MinimumSize.Width, area.Width), Math.Min(MinimumSize.Height, area.Height));
++        Size = new(Math.Min(Width, area.Width), Math.Min(Height, area.Height));
++        if (Owner != null) Location = new Point(Math.Clamp(Owner.Left + (Owner.Width - Width) / 2, area.Left, area.Right - Width),
++            Math.Clamp(Owner.Top + (Owner.Height - Height) / 2, area.Top, area.Bottom - Height));
++    }
++
++    internal async Task RefreshAsync() => await WorkAsync(async () =>
++    {
++        var result = await service.SnapshotAsync();
++        if (Gone) return "";
++        snapshot = result; RenderPolicy(); RenderRecords();
++        await LoadNotesAsync();
++        return !result.Policy.Healthy ? "诊断设置不可用，自动记录已暂停；请重新选择开关。" :
++            service.StorageFailed || result.MaintenanceFailed ? "部分诊断未保存或未能清理；当前仅显示可读取内容。请检查文件占用后重试。" :
++            $"已刷新。拒绝 / 无法读取 {result.Rejected} 条；本进程队列遗漏 {service.Dropped} 条。" +
++            (result.Limited ? "仅显示最近 2,000 条。" : "");
++    });
++
++    internal async Task ToggleAsync(bool value) => await WorkAsync(async () =>
++    {
++        await service.SetEnabledAsync(value); RenderPolicy();
++        return value ? "运行诊断已开启，仅记录必要状态与计数。" : "运行诊断已关闭，待写队列已丢弃；已有记录仍保留。";
++    });
++
++    internal async Task ClearAsync() => await WorkAsync(async () =>
++    {
++        var result = await service.ClearAsync();
++        var current = await service.SnapshotAsync();
++        if (!Gone) { snapshot = current; RenderRecords(); RenderPolicy(); }
++        return result.Failed == 0 ? "运行诊断已清空；之后发生的新事件仍按开关记录。" :
++            $"已清除 {result.Deleted} 个文件，{result.Failed} 个未清除；请解除占用后重试。";
++    });
++
++    private bool Gone => IsDisposed || Disposing || closed;
++    private async Task WorkAsync(Func<Task<string>> work)
++    {
++        if (busy || Gone) return;
++        busy = true; ControlsEnabled(false); message.Text = "正在处理，请稍候…";
++        try { string result = await work(); if (!Gone) message.Text = result; }
++        catch (Exception ex) when (DiagnosticStore.IsStorageError(ex))
++        {
++            if (!Gone) message.Text = ex is NoteConflictException ? "记录已被另一个窗口修改。请刷新后重试。" :
++                "操作未完成；请检查存储空间、文件占用或数据是否损坏。已有文件不会被当作空数据覆盖。";
++        }
++        finally { busy = false; if (!Gone) { RenderPolicy(); ControlsEnabled(true); } }
++    }
++    private void ControlsEnabled(bool value)
++    {
++        foreach (Control control in new Control[] { enabled, refresh, clear, export, add, edit, delete, period, severity }) control.Enabled = value;
++        UpdateNoteActions();
++    }
++    private void UpdateNoteActions() => edit.Enabled = delete.Enabled = !busy && SelectedNote() != null;
++    private void RenderPolicy()
++    {
++        if (Gone) return;
++        updating = true; enabled.Checked = service.Enabled; updating = false;
++        summary.Text = $"运行分段 {(snapshot?.Bytes ?? 0) / 1024d:0.#} KiB / 8 MiB · 保留 14 天";
++    }
++    private void RenderRecords()
++    {
++        if (Gone || busy && snapshot == null) return;
++        records.Rows.Clear(); detail.Clear();
++        if (snapshot == null) return;
++        var cutoff = period.SelectedIndex switch { 1 => DateTimeOffset.UtcNow.AddDays(-1), 2 => DateTimeOffset.UtcNow.AddDays(-7), _ => DateTimeOffset.MinValue };
++        foreach (var record in snapshot.Records.Where(r => r.TimeUtc >= cutoff && (severity.SelectedIndex == 0 || (int)r.Level == severity.SelectedIndex - 1)))
++        {
++            int index = records.Rows.Add(false, record.TimeUtc.ToLocalTime().ToString("MM-dd HH:mm:ss"),
++                new[] { "信息", "警告", "错误" }[(int)record.Level], record.Label,
++                record.Phase is { } phase ? ScanProgressControl.PhaseName(phase) : record.Method is { } method ? RefreshPresentation.MethodName(method) : "—");
++            records.Rows[index].Tag = record;
++        }
++        records.ClearSelection();
++    }
++    private void ShowDetail()
++    {
++        if (records.CurrentRow?.Tag is not DiagnosticRecord record) { detail.Clear(); return; }
++        detail.Text = record.Summary().Replace("\n", "\r\n", StringComparison.Ordinal);
++    }
++    internal string? SelectedPreview()
++    {
++        records.EndEdit();
++        var selected = records.Rows.Cast<DataGridViewRow>().Where(r => r.Cells[0].Value is true).Select(r => (DiagnosticRecord)r.Tag!).ToArray();
++        return selected.Length == 0 ? null : DiagnosticCodec.Preview(selected, service.Dropped, snapshot?.Rejected ?? 0,
++            snapshot?.Limited ?? false, service.StorageFailed || snapshot?.MaintenanceFailed == true);
++    }
++    private ProblemNote? SelectedNote() => notes.SelectedRows.Count == 1 ? notes.SelectedRows[0].Tag as ProblemNote : null;
++    private async Task LoadNotesAsync()
++    {
++        var result = await service.NotesAsync(); if (Gone) return;
++        notes.Rows.Clear();
++        foreach (var note in result) notes.Rows[notes.Rows.Add(note.Title, note.ModifiedUtc.ToLocalTime().ToString("g"))].Tag = note;
++        notes.ClearSelection();
++    }
++    private async Task EditNoteAsync(ProblemNote? previous)
++    {
++        using var editor = new ProblemNoteDialog(service, previous);
++        if (editor.ShowDialog(this) == DialogResult.OK) await WorkAsync(async () => { await LoadNotesAsync(); return "问题记录已保存，仅保留在本机。"; });
++    }
++
++    internal void ApplyTheme() => ApplyPalette(this);
++    internal static void ApplyPalette(Control control)
++    {
++        bool contrast = SystemInformation.HighContrast;
++        control.ForeColor = contrast ? SystemColors.WindowText : Theme.Text;
++        control.BackColor = contrast ? SystemColors.Window : Theme.Surface;
++        if (control is Button button)
++        {
++            button.FlatStyle = contrast ? FlatStyle.Standard : FlatStyle.Flat;
++            button.ForeColor = contrast ? SystemColors.ControlText : Theme.Accent;
++            button.FlatAppearance.BorderColor = Theme.Border;
++            button.FlatAppearance.MouseOverBackColor = Theme.Selection;
++        }
++        if (control is DataGridView grid)
++        {
++            grid.BackgroundColor = control.BackColor; grid.GridColor = contrast ? SystemColors.ControlDark : Theme.Border;
++            grid.DefaultCellStyle.BackColor = control.BackColor; grid.DefaultCellStyle.ForeColor = control.ForeColor;
++            grid.DefaultCellStyle.SelectionBackColor = contrast ? SystemColors.Highlight : Theme.Selection;
++            grid.DefaultCellStyle.SelectionForeColor = contrast ? SystemColors.HighlightText : Theme.Text;
++            grid.EnableHeadersVisualStyles = contrast;
++            grid.ColumnHeadersDefaultCellStyle.BackColor = control.BackColor; grid.ColumnHeadersDefaultCellStyle.ForeColor = control.ForeColor;
++        }
++        foreach (Control child in control.Controls) ApplyPalette(child);
++    }
++    internal static Button Command(string text, string name) => new() { Text = text, Name = name, AutoSize = true, MinimumSize = new Size(64, 30), Padding = new Padding(5, 2, 5, 2) };
++    internal static Label Caption(string text) => new() { Text = text, AutoSize = true, Margin = new Padding(4, 8, 8, 8) };
++    internal static FlowLayoutPanel Flow(params Control[] controls)
++    {
++        var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Margin = Padding.Empty };
++        panel.Controls.AddRange(controls); return panel;
++    }
++    internal static TableLayoutPanel Rows(params object[] sizes)
++    {
++        var panel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = sizes.Length / 2, Margin = Padding.Empty };
++        panel.ColumnStyles.Add(new(SizeType.Percent, 100));
++        for (int i = 0; i < sizes.Length; i += 2) panel.RowStyles.Add(new((SizeType)sizes[i], Convert.ToSingle(sizes[i + 1])));
++        return panel;
++    }
++    private static ComboBox Selector(string name, string[] choices)
++    {
++        var combo = new ComboBox { Name = name, DropDownStyle = ComboBoxStyle.DropDownList, Width = 130 };
++        combo.Items.AddRange(choices); combo.SelectedIndex = 0; return combo;
++    }
++    private static DataGridView Grid(string name) => new()
++    {
++        Name = name, Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
++        AllowUserToResizeRows = false, RowHeadersVisible = false, MultiSelect = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
++        AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, BorderStyle = BorderStyle.None
++    };
++    private static void AddColumn(DataGridView grid, string name, string title, float weight) => grid.Columns.Add(new DataGridViewTextBoxColumn
++    { Name = name, HeaderText = title, ReadOnly = true, FillWeight = weight, SortMode = DataGridViewColumnSortMode.NotSortable });
++    protected override void Dispose(bool disposing)
++    {
++        if (disposing) closed = true;
++        base.Dispose(disposing);
++    }
++}
+diff --git a/src/Diagnostics/DiagnosticService.cs b/src/Diagnostics/DiagnosticService.cs
+new file mode 100644
+index 0000000..487dc7f
+--- /dev/null
++++ b/src/Diagnostics/DiagnosticService.cs
+@@ -0,0 +1,167 @@
++using System.Text;
++
++namespace DiskAtlas;
++
++internal sealed class DiagnosticService : IDisposable
++{
++    internal const int QueueLimit = 128;
++    private readonly DiagnosticStore store;
++    private readonly object gate = new(), drainGate = new();
++    private readonly Queue<(Guid Generation, DiagnosticRecord Record)> queue = new();
++    private readonly SemaphoreSlim changeGate = new(1);
++    private readonly CancellationTokenSource lifetime = new();
++    private readonly Guid session = Guid.NewGuid();
++    private readonly Task worker;
++    private DiagnosticPolicy policy = DiagnosticPolicy.Unavailable;
++    private bool paused, stopping, failed;
++    private long epoch, scanSequence, dropped, unreportedDropped;
++    public Task Ready { get; }
++    public bool Enabled { get { lock (gate) return policy.Enabled; } }
++    public bool SettingsHealthy { get { lock (gate) return policy.Healthy; } }
++    public bool StorageFailed { get { lock (gate) return failed; } }
++    public long Dropped { get { lock (gate) return dropped; } }
++    internal int Pending { get { lock (gate) return queue.Count; } }
++
++    public DiagnosticService(string? root = null, DiagnosticStore? store = null)
++    {
++        this.store = store ?? new DiagnosticStore(root ?? Path.Combine(
++            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AsukaLens"));
++        Ready = Task.Run(() =>
++        {
++            try { var initial = this.store.Initialize(); lock (gate) policy = initial; }
++            catch (Exception ex) when (DiagnosticStore.IsStorageError(ex)) { lock (gate) failed = true; }
++            Record(new() { Kind = DiagnosticKind.Started });
++        });
++        worker = Task.Run(async () =>
++        {
++            await Ready.ConfigureAwait(false);
++            int idle = 0;
++            try
++            {
++                while (!lifetime.IsCancellationRequested)
++                {
++                    Drain();
++                    if (++idle == 10) { RefreshPolicy(); idle = 0; }
++                    await Task.Delay(200, lifetime.Token).ConfigureAwait(false);
++                }
++            }
++            catch (OperationCanceledException) { }
++        });
++    }
++
++    public long NextScan() => Interlocked.Increment(ref scanSequence);
++    public void Record(DiagnosticRecord record)
++    {
++        lock (gate)
++        {
++            if (stopping || paused || !policy.Enabled) return;
++            if (queue.Count == QueueLimit) { dropped++; unreportedDropped++; return; }
++            queue.Enqueue((policy.Generation, record with { Session = session, TimeUtc = DateTimeOffset.UtcNow }));
++        }
++    }
++    public void Failure(DiagnosticKind kind, Exception error, long? scan = null) => Record(new()
++    {
++        Kind = kind, Scan = scan, Category = DiagnosticCodec.Classify(error), ErrorCode = error.HResult
++    });
++
++    private void ApplyPolicy(DiagnosticPolicy current, long expectedEpoch)
++    {
++        lock (gate)
++        {
++            if (expectedEpoch != epoch) return;
++            if (policy.Generation != current.Generation) { queue.Clear(); unreportedDropped = 0; }
++            policy = current;
++        }
++    }
++    private void RefreshPolicy()
++    {
++        long version; lock (gate) { if (paused || stopping) return; version = epoch; }
++        try { ApplyPolicy(store.Policy(), version); }
++        catch (Exception ex) when (DiagnosticStore.IsStorageError(ex)) { lock (gate) failed = true; }
++    }
++    private void Drain()
++    {
++        lock (drainGate)
++        {
++            List<(Guid Generation, DiagnosticRecord Record)> batch; long version, missed;
++            lock (gate)
++            {
++                if (paused || !policy.Enabled || queue.Count == 0 && unreportedDropped == 0) return;
++                version = epoch; missed = unreportedDropped; unreportedDropped = 0;
++                batch = new(queue); queue.Clear();
++                if (missed > 0) batch.Add((policy.Generation, new()
++                {
++                    Kind = DiagnosticKind.QueueOverflow, Dropped = missed, TimeUtc = DateTimeOffset.UtcNow, Session = session
++                }));
++            }
++            try { ApplyPolicy(store.Append(batch), version); }
++            catch (Exception ex) when (DiagnosticStore.IsStorageError(ex))
++            {
++                // The write may have partially succeeded. Do not retry a batch and invent duplicate events.
++                lock (gate) { failed = true; unreportedDropped += missed; }
++            }
++        }
++    }
++
++    public async Task FlushAsync() { await Ready.ConfigureAwait(false); await Task.Run(Drain).ConfigureAwait(false); }
++    public async Task<DiagnosticSnapshot> SnapshotAsync()
++    {
++        await FlushAsync().ConfigureAwait(false);
++        long version; lock (gate) version = epoch;
++        var snapshot = await Task.Run(store.Read).ConfigureAwait(false);
++        ApplyPolicy(snapshot.Policy, version); return snapshot;
++    }
++
++    private async Task<T> ChangeAsync<T>(Func<T> change, Func<T, DiagnosticPolicy> getPolicy)
++    {
++        await Ready.ConfigureAwait(false);
++        await changeGate.WaitAsync().ConfigureAwait(false);
++        try
++        {
++            lock (gate) { paused = true; epoch++; }
++            var result = await Task.Run(change).ConfigureAwait(false);
++            lock (gate) { policy = getPolicy(result); queue.Clear(); unreportedDropped = 0; }
++            return result;
++        }
++        finally { lock (gate) paused = false; changeGate.Release(); }
++    }
++    public Task<DiagnosticPolicy> SetEnabledAsync(bool value) => ChangeAsync(() => store.SetEnabled(value), p => p);
++    public Task<DiagnosticClearResult> ClearAsync() => ChangeAsync(store.Clear, p => p.Policy);
++    public async Task<IReadOnlyList<ProblemNote>> NotesAsync() { await Ready.ConfigureAwait(false); return await Task.Run(store.Notes).ConfigureAwait(false); }
++    public Task<ProblemNote> SaveNoteAsync(ProblemNote? previous, string title, string body) => Task.Run(() => store.SaveNote(previous, title, body));
++    public Task DeleteNoteAsync(ProblemNote previous) => Task.Run(() => store.DeleteNote(previous));
++
++    public async Task<ErrorReportResult> ReportErrorAsync(Exception error)
++    {
++        await Ready.ConfigureAwait(false);
++        Failure(DiagnosticKind.UnhandledError, error);
++        try { return await Task.Run(() => store.ReportError(error)).ConfigureAwait(false); }
++        catch (Exception ex) when (DiagnosticStore.IsStorageError(ex))
++        {
++            lock (gate) failed = true;
++            return new(DiagnosticCodec.Classify(error).ToString(), $"0x{error.HResult:X8}", false, null);
++        }
++    }
++
++    public static Task ExportAsync(string path, string preview, CancellationToken token) => Task.Run(() =>
++    {
++        token.ThrowIfCancellationRequested();
++        DiagnosticStore.AtomicWrite(path, Encoding.UTF8.GetBytes(preview), token, export: true);
++    }, token);
++
++    public void Dispose()
++    {
++        lock (gate)
++        {
++            if (stopping) return;
++            if (policy.Enabled && !paused && queue.Count < QueueLimit)
++                queue.Enqueue((policy.Generation, new() { Kind = DiagnosticKind.Stopped, TimeUtc = DateTimeOffset.UtcNow, Session = session }));
++            stopping = true;
++        }
++        lifetime.Cancel();
++        var finish = Task.Run(async () => { await Ready.ConfigureAwait(false); await worker.ConfigureAwait(false); Drain(); });
++        // Background tasks cannot hold the application open; abnormal termination may lose the last events.
++        try { finish.Wait(1500); } catch (AggregateException) { }
++        _ = finish.ContinueWith(_ => lifetime.Dispose(), TaskScheduler.Default);
++    }
++}
+diff --git a/src/Diagnostics/DiagnosticStore.cs b/src/Diagnostics/DiagnosticStore.cs
+new file mode 100644
+index 0000000..7a8ab98
+--- /dev/null
++++ b/src/Diagnostics/DiagnosticStore.cs
+@@ -0,0 +1,318 @@
++using System.Security.Cryptography;
++using System.Text;
++using System.Text.Json;
++
++namespace DiskAtlas;
++
++internal sealed record DiagnosticPolicy(int Schema, bool Enabled, Guid Generation)
++{
++    internal static readonly DiagnosticPolicy Unavailable = new(1, false, Guid.Empty);
++    [System.Text.Json.Serialization.JsonIgnore]
++    public bool Healthy => Schema == 1 && Generation != Guid.Empty;
++}
++internal sealed record DiagnosticSnapshot(DiagnosticPolicy Policy, IReadOnlyList<DiagnosticRecord> Records,
++    long Bytes, int Rejected, bool Limited, bool MaintenanceFailed = false);
++internal sealed record DiagnosticClearResult(DiagnosticPolicy Policy, int Deleted, int Failed);
++internal sealed record ProblemNote(Guid Id, string Title, string Body, DateTimeOffset CreatedUtc, DateTimeOffset ModifiedUtc, Guid Revision);
++internal sealed record NoteFile(int Schema, List<ProblemNote> Notes);
++internal sealed class NoteConflictException : IOException;
++internal sealed class NoteLimitException : IOException;
++
++// All methods are synchronous and run on a worker. Mutex ownership must stay on one OS thread.
++internal sealed class DiagnosticStore
++{
++    internal const int SegmentLimit = 1024 * 1024, SegmentCount = 8, NoteLimit = 1024 * 1024;
++    internal const int ViewLimit = 2000;
++    internal readonly string Root, DirectoryPath;
++    private readonly string mutexName;
++    private readonly Func<DateTimeOffset> clock;
++    private readonly int segmentLimit;
++    private DateTimeOffset nextPrune;
++    private DateTimeOffset lastPrune;
++    private int rejectedByCleanup;
++    private bool maintenanceFailed;
++    internal string SettingsPath => Path.Combine(DirectoryPath, "preferences.json");
++    internal string NotesPath => Path.Combine(DirectoryPath, "problem-notes.json");
++    internal string LegacyPath => Path.Combine(Root, "last-error.log");
++    internal string Segment(int index) => Path.Combine(DirectoryPath, $"runtime-{index}.jsonl");
++    internal string MutexName => mutexName;
++
++    public DiagnosticStore(string root, Func<DateTimeOffset>? clock = null, int segmentLimit = SegmentLimit)
++    {
++        Root = Path.GetFullPath(root); DirectoryPath = Path.Combine(Root, "diagnostics");
++        this.clock = clock ?? (() => DateTimeOffset.UtcNow);
++        this.segmentLimit = Math.Clamp(segmentLimit, 2048, SegmentLimit);
++        mutexName = "Local\\AsukaLensDiagnostics-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Root.ToUpperInvariant())));
++    }
++
++    private T Locked<T>(Func<T> action)
++    {
++        using var mutex = new Mutex(false, mutexName);
++        bool acquired = false;
++        try
++        {
++            try { acquired = mutex.WaitOne(250); } catch (AbandonedMutexException) { acquired = true; }
++            if (!acquired) throw new IOException("Diagnostic lock unavailable");
++            CheckSafe(Root); CheckSafe(DirectoryPath);
++            Directory.CreateDirectory(DirectoryPath);
++            return action();
++        }
++        finally { if (acquired) mutex.ReleaseMutex(); }
++    }
++
++    private static void CheckSafe(string path)
++    {
++        // Refuse redirection of owned files/directories. Never follow a link when clearing or rotating.
++        for (string? item = path; item != null; item = Path.GetDirectoryName(item))
++        {
++            if ((File.Exists(item) || Directory.Exists(item)) && (File.GetAttributes(item) & FileAttributes.ReparsePoint) != 0)
++                throw new IOException("Diagnostic storage redirected");
++        }
++    }
++
++    internal static byte[] ReadBounded(string path, int limit)
++    {
++        CheckSafe(path);
++        using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
++        if (file.Length > limit) throw new InvalidDataException();
++        byte[] bytes = new byte[checked((int)file.Length)];
++        file.ReadExactly(bytes);
++        if (file.ReadByte() != -1) throw new InvalidDataException();
++        return bytes;
++    }
++
++    internal static void AtomicWrite(string path, byte[] bytes, CancellationToken token = default, bool export = false)
++    {
++        CheckSafe(path);
++        string pending = path + (export ? "." + Guid.NewGuid().ToString("N") : "") + ".tmp";
++        CheckSafe(pending);
++        try
++        {
++            using (var file = new FileStream(pending, export ? FileMode.CreateNew : FileMode.Create, FileAccess.Write, FileShare.None))
++            {
++                token.ThrowIfCancellationRequested(); file.Write(bytes); file.Flush(true);
++            }
++            token.ThrowIfCancellationRequested();
++            File.Move(pending, path, true);
++        }
++        finally { try { File.Delete(pending); } catch (Exception ex) when (IsStorageError(ex)) { } }
++    }
++
++    private DiagnosticPolicy LoadPolicy(bool create)
++    {
++        if (!File.Exists(SettingsPath))
++        {
++            if (!create) return DiagnosticPolicy.Unavailable;
++            var initial = new DiagnosticPolicy(1, true, Guid.NewGuid()); SavePolicy(initial); return initial;
++        }
++        try
++        {
++            var bytes = ReadBounded(SettingsPath, 4096);
++            using var document = JsonDocument.Parse(bytes);
++            if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.EnumerateObject()
++                .Select(p => p.Name).Order().SequenceEqual(new[] { "enabled", "generation", "schema" })) return DiagnosticPolicy.Unavailable;
++            var result = JsonSerializer.Deserialize<DiagnosticPolicy>(bytes, DiagnosticCodec.Json);
++            return result?.Healthy == true ? result : DiagnosticPolicy.Unavailable;
++        }
++        catch (Exception ex) when (IsStorageError(ex)) { return DiagnosticPolicy.Unavailable; }
++    }
++    private void SavePolicy(DiagnosticPolicy value) => AtomicWrite(SettingsPath, JsonSerializer.SerializeToUtf8Bytes(value, DiagnosticCodec.Json));
++
++    public DiagnosticPolicy Initialize() => Locked(() =>
++    {
++        var policy = LoadPolicy(true);
++        // These names belong exclusively to atomic saves in this module, under the same mutex.
++        foreach (string path in new[] { SettingsPath, NotesPath }.Concat(Enumerable.Range(0, SegmentCount).Select(Segment)))
++        {
++            CheckSafe(path + ".tmp"); File.Delete(path + ".tmp");
++        }
++        foreach (string pending in EmergencyTemps()) { CheckSafe(pending); File.Delete(pending); }
++        Prune(true);
++        return policy;
++    });
++
++    public DiagnosticPolicy Policy() => Locked(() => LoadPolicy(false));
++    public DiagnosticPolicy SetEnabled(bool enabled) => Locked(() =>
++    {
++        var policy = new DiagnosticPolicy(1, enabled, Guid.NewGuid()); SavePolicy(policy); return policy;
++    });
++
++    public DiagnosticPolicy Append(IReadOnlyList<(Guid Generation, DiagnosticRecord Record)> batch) => Locked(() =>
++    {
++        var policy = LoadPolicy(false);
++        Prune(false);
++        if (maintenanceFailed) throw new IOException("Diagnostic maintenance incomplete");
++        foreach (var item in batch)
++        {
++            if (!policy.Enabled || item.Generation != policy.Generation) continue;
++            byte[] bytes = Encoding.UTF8.GetBytes(DiagnosticCodec.Encode(item.Record) + "\n");
++            string path = Segment(0); CheckSafe(path);
++            if (File.Exists(path) && new FileInfo(path).Length + bytes.Length > segmentLimit)
++            {
++                CheckSafe(Segment(SegmentCount - 1)); File.Delete(Segment(SegmentCount - 1));
++                for (int i = SegmentCount - 2; i >= 0; i--)
++                {
++                    CheckSafe(Segment(i)); CheckSafe(Segment(i + 1));
++                    if (File.Exists(Segment(i))) File.Move(Segment(i), Segment(i + 1), true);
++                }
++            }
++            using var file = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read);
++            file.Write(bytes);
++            nextPrune = Min(nextPrune, item.Record.TimeUtc.AddDays(14));
++        }
++        return policy;
++    });
++
++    private static DateTimeOffset Min(DateTimeOffset a, DateTimeOffset b) => a < b ? a : b;
++    private void Prune(bool force)
++    {
++        var now = clock();
++        if (!force && now >= lastPrune && now < nextPrune) return;
++        lastPrune = now; nextPrune = now.AddDays(14);
++        maintenanceFailed = false;
++        for (int i = 0; i < SegmentCount; i++)
++        {
++            try { PruneSegment(i, now); }
++            catch (Exception ex) when (IsStorageError(ex)) { maintenanceFailed = true; }
++        }
++        try
++        {
++            CheckSafe(LegacyPath);
++            if (File.Exists(LegacyPath))
++            {
++                bool oversized = new FileInfo(LegacyPath).Length > 512;
++                bool expired = oversized;
++                if (!expired)
++                {
++                    var record = DiagnosticCodec.ReadLegacy(Encoding.UTF8.GetString(ReadBounded(LegacyPath, 512)));
++                    var time = record?.TimeUtc ?? new DateTimeOffset(File.GetLastWriteTimeUtc(LegacyPath), TimeSpan.Zero);
++                    expired = time <= now.AddDays(-14); nextPrune = Min(nextPrune, time.AddDays(14));
++                }
++                if (expired) { File.Delete(LegacyPath); if (oversized) rejectedByCleanup++; }
++            }
++        }
++        catch (Exception ex) when (IsStorageError(ex)) { maintenanceFailed = true; }
++        if (maintenanceFailed) nextPrune = now.AddSeconds(1);
++    }
++
++    private void PruneSegment(int i, DateTimeOffset now)
++    {
++            string path = Segment(i); CheckSafe(path);
++            if (!File.Exists(path)) return;
++            if (new FileInfo(path).Length > segmentLimit) { File.Delete(path); rejectedByCleanup++; return; }
++            string text = Encoding.UTF8.GetString(ReadBounded(path, segmentLimit));
++            using var reader = new StringReader(text);
++            var kept = new StringBuilder(); bool changed = false;
++            while (reader.ReadLine() is { } line)
++            {
++                if (line.Length == 0) continue;
++                var record = DiagnosticCodec.Decode(line);
++                if (record == null)
++                {
++                    changed = true; rejectedByCleanup++;
++                    continue;
++                }
++                if (record.TimeUtc <= now.AddDays(-14)) { changed = true; continue; }
++                nextPrune = Min(nextPrune, record.TimeUtc.AddDays(14)); kept.Append(line).Append('\n');
++            }
++            if (kept.Length == 0) File.Delete(path);
++            else if (changed) AtomicWrite(path, Encoding.UTF8.GetBytes(kept.ToString()));
++    }
++
++    public DiagnosticSnapshot Read() => Locked(() =>
++    {
++        Prune(true);
++        var records = new Queue<DiagnosticRecord>(); int rejected = rejectedByCleanup; bool limited = false; long bytes = 0;
++        void Add(DiagnosticRecord? record)
++        {
++            if (record == null) { rejected++; return; }
++            if (record.TimeUtc <= clock().AddDays(-14)) return;
++            if (records.Count == ViewLimit) { records.Dequeue(); limited = true; }
++            records.Enqueue(record);
++        }
++        for (int i = SegmentCount - 1; i >= 0; i--)
++        {
++            string path = Segment(i);
++            try
++            {
++                if (!File.Exists(path)) continue;
++                var data = ReadBounded(path, segmentLimit); bytes += data.Length;
++                using var reader = new StringReader(Encoding.UTF8.GetString(data));
++                while (reader.ReadLine() is { } line) if (line.Length != 0) Add(DiagnosticCodec.Decode(line));
++            }
++            catch (Exception ex) when (IsStorageError(ex)) { rejected++; }
++        }
++        if (File.Exists(LegacyPath))
++        {
++            try { var data = ReadBounded(LegacyPath, 512); Add(DiagnosticCodec.ReadLegacy(Encoding.UTF8.GetString(data))); }
++            catch (Exception ex) when (IsStorageError(ex)) { rejected++; }
++        }
++        return new DiagnosticSnapshot(LoadPolicy(false), records.OrderByDescending(r => r.TimeUtc).ToArray(), bytes, rejected, limited, maintenanceFailed);
++    });
++
++    public DiagnosticClearResult Clear() => Locked(() =>
++    {
++        var policy = LoadPolicy(false) with { Generation = Guid.NewGuid() };
++        SavePolicy(policy); // Cross-process barrier: batches queued before this point can never reappear.
++        int deleted = 0, failed = 0;
++        foreach (string path in Enumerable.Range(0, SegmentCount).Select(Segment).Append(LegacyPath).Concat(EmergencyTemps()))
++        {
++            try { CheckSafe(path); if (File.Exists(path)) { File.Delete(path); deleted++; } }
++            catch (Exception ex) when (IsStorageError(ex)) { failed++; }
++        }
++        nextPrune = default;
++        if (failed == 0) rejectedByCleanup = 0;
++        return new DiagnosticClearResult(policy, deleted, failed);
++    });
++
++    public ErrorReportResult ReportError(Exception error) => Locked(() =>
++    {
++        var policy = LoadPolicy(false);
++        if (!policy.Enabled) return new(DiagnosticCodec.Classify(error).ToString(), $"0x{error.HResult:X8}", false, null, Enabled: false);
++        CheckSafe(LegacyPath); Prune(false);
++        foreach (string pending in EmergencyTemps()) { CheckSafe(pending); File.Delete(pending); }
++        return ErrorReport.Write(error, Root);
++    });
++
++    private IEnumerable<string> EmergencyTemps() => Directory.EnumerateFiles(Root, "last-error.log.*.tmp", SearchOption.TopDirectoryOnly)
++        .Where(path => Path.GetFileName(path) is { Length: 51 } name && Guid.TryParseExact(name.Substring(15, 32), "N", out _));
++
++    private List<ProblemNote> LoadNotes()
++    {
++        if (!File.Exists(NotesPath)) return [];
++        var file = JsonSerializer.Deserialize<NoteFile>(ReadBounded(NotesPath, NoteLimit), DiagnosticCodec.Json);
++        if (file?.Schema != 1 || file.Notes == null || file.Notes.Count > 100 || file.Notes.Any(n => !ValidNote(n)) ||
++            file.Notes.Select(n => n.Id).Distinct().Count() != file.Notes.Count) throw new InvalidDataException();
++        return file.Notes;
++    }
++    private static bool ValidNote(ProblemNote? n) => n != null && n.Id != Guid.Empty && n.Revision != Guid.Empty &&
++        !string.IsNullOrWhiteSpace(n.Title) && n.Title.Length <= 100 && n.Body != null && n.Body.Length <= 2000 &&
++        n.CreatedUtc.Offset == TimeSpan.Zero && n.ModifiedUtc.Offset == TimeSpan.Zero;
++    public IReadOnlyList<ProblemNote> Notes() => Locked(() => (IReadOnlyList<ProblemNote>)LoadNotes().OrderByDescending(n => n.ModifiedUtc).ToArray());
++    public ProblemNote SaveNote(ProblemNote? previous, string title, string body) => Locked(() =>
++    {
++        var notes = LoadNotes(); var now = clock();
++        var note = new ProblemNote(previous?.Id ?? Guid.NewGuid(), title.Trim(), body, previous?.CreatedUtc ?? now, now, Guid.NewGuid());
++        if (!ValidNote(note)) throw new NoteLimitException();
++        int index = notes.FindIndex(n => n.Id == note.Id);
++        if (previous != null && (index < 0 || notes[index].Revision != previous.Revision)) throw new NoteConflictException();
++        if (index < 0) { if (notes.Count >= 100) throw new NoteLimitException(); notes.Add(note); }
++        else notes[index] = note;
++        SaveNotes(notes); return note;
++    });
++    public void DeleteNote(ProblemNote previous) => Locked(() =>
++    {
++        var notes = LoadNotes(); int index = notes.FindIndex(n => n.Id == previous.Id);
++        if (index < 0 || notes[index].Revision != previous.Revision) throw new NoteConflictException();
++        notes.RemoveAt(index); SaveNotes(notes); return true;
++    });
++    private void SaveNotes(List<ProblemNote> notes)
++    {
++        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(new NoteFile(1, notes), DiagnosticCodec.Json);
++        if (bytes.Length > NoteLimit) throw new NoteLimitException();
++        AtomicWrite(NotesPath, bytes);
++    }
++
++    internal static bool IsStorageError(Exception ex) => ex is IOException or UnauthorizedAccessException or
++        ArgumentException or NotSupportedException or System.Security.SecurityException or JsonException or OutOfMemoryException;
++}

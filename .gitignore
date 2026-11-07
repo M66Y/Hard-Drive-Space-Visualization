@@ -13,3 +13,8 @@ artifacts/
 background.dat
 background.dat.*.tmp
 last-error.log.*.tmp
+diagnostics/
+!src/Diagnostics/
+runtime-*.jsonl
+problem-notes.json
+problem-notes.json.tmp

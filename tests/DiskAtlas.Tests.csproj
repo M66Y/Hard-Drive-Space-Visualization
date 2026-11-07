@@ -8,6 +8,7 @@
     <RestoreConfigFile>$(MSBuildThisFileDirectory)..\NuGet.Config</RestoreConfigFile>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\src\Diagnostics\**\*.cs" Link="Diagnostics\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\ErrorReport.cs" Link="ErrorReport.cs" />
     <Compile Include="..\Core.cs" Link="Core.cs" />
     <Compile Include="..\NativeStorage.cs" Link="NativeStorage.cs" />

@@ -10,6 +10,9 @@ internal sealed class MainForm : Form
     internal BackgroundView BackgroundCrop { get; private set; } = BackgroundView.Default;
     internal bool HasCustomBackground { get; private set; }
     private readonly string backgroundSettingsPath;
+    private readonly DiagnosticService? diagnostics;
+    private DiagnosticsDialog? diagnosticsWindow;
+    private readonly ActionButton diagnosticsButton = new("诊断") { Dock = DockStyle.Fill };
     private Color automaticBackgroundAccent = Theme.DefaultAccent;
     private readonly ActionButton backgroundSettings = new("背景设置") { Dock = DockStyle.Fill };
     private readonly ScanCoordinator coordinator = new();
@@ -70,8 +73,9 @@ internal sealed class MainForm : Form
     private bool sortAscending;
     private bool updating;
 
-    public MainForm(string? initialPath, bool loadSavedBackground = false, string? backgroundSettingsPath = null)
+    public MainForm(string? initialPath, bool loadSavedBackground = false, string? backgroundSettingsPath = null, DiagnosticService? diagnostics = null)
     {
+        this.diagnostics = diagnostics;
         this.backgroundSettingsPath = backgroundSettingsPath ?? BackgroundSettings.PathForUser;
         Text = "AsukaLens · 磁盘空间可视化";
         if (Environment.ProcessPath is { } executable) Icon = Icon.ExtractAssociatedIcon(executable);
@@ -130,9 +134,13 @@ internal sealed class MainForm : Form
         DragDrop += async (_, e) => { if (scanCancellation == null && e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1) await ScanFolder(paths[0]); };
         FormClosing += (_, _) => { scanCancellation?.Cancel(); viewCancellation?.Cancel(); };
         backgroundSettings.Click += (_, _) => EditBackground();
+        diagnosticsButton.Enabled = diagnostics != null;
+        diagnosticsButton.Click += (_, _) => OpenDiagnostics();
         backgroundSettings.Enabled = !loadSavedBackground;
         Shown += async (_, _) =>
         {
+            if (diagnostics != null) await diagnostics.Ready;
+            if (IsDisposed || Disposing) return;
             if (loadSavedBackground) await RestoreSavedBackground();
             if (!IsDisposed && !Disposing && scanCancellation == null && scan == null &&
                 !string.IsNullOrWhiteSpace(initialPath)) await ScanFolder(initialPath);
@@ -222,10 +230,12 @@ internal sealed class MainForm : Form
         settings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         settings.Controls.Add(LabelOf("扫描策略", 9), 0, 0); settings.Controls.Add(new InputFrame(strategyCombo) { Margin = new Padding(0, 0, 20, 0) }, 1, 0);
         settings.Controls.Add(LabelOf("统计口径", 9), 2, 0); settings.Controls.Add(new InputFrame(metricCombo) { Margin = new Padding(0, 0, 15, 0) }, 3, 0);
-        settings.ColumnCount = 6;
+        settings.ColumnCount = 7;
         settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
         settings.Controls.Add(refreshInfo, 4, 0);
         settings.Controls.Add(backgroundSettings, 5, 0);
+        settings.Controls.Add(diagnosticsButton, 6, 0);
         main.Controls.Add(settings, 0, 1);
 
         var cards = Table(4, 1);
@@ -400,6 +410,10 @@ internal sealed class MainForm : Form
         bool previousAscending = sortAscending;
         var previousMetric = metric;
         var options = new ScanOptions((ScanMode)strategyCombo.SelectedIndex);
+        long? diagnosticScan = diagnostics?.NextScan();
+        diagnostics?.Record(new() { Kind = DiagnosticKind.ScanStarted, Scan = diagnosticScan, Mode = options.Mode });
+        var diagnosticWatch = Stopwatch.StartNew();
+        (ScanPhase Phase, RefreshMethod? Method)? lastDiagnosticPhase = null;
         bool forceFull = forceFullNext; forceFullNext = false;
         var previousScan = scan;
         using var cancellation = new CancellationTokenSource();
@@ -423,6 +437,13 @@ internal sealed class MainForm : Form
         var progress = new Progress<ScanProgress>(p =>
         {
             if (IsDisposed || Disposing || !ReferenceEquals(scanCancellation, cancellation) || cancellation.IsCancellationRequested) return;
+            var phaseKey = (p.Phase, p.Method);
+            if (lastDiagnosticPhase != phaseKey)
+            {
+                lastDiagnosticPhase = phaseKey;
+                diagnostics?.Record(new() { Kind = DiagnosticKind.PhaseChanged, Scan = diagnosticScan, Mode = options.Mode,
+                    Phase = p.Phase, Method = p.Method, Workers = p.WorkerLimit > 0 ? p.WorkerLimit : null });
+            }
             progressBar.Report(p);
             string stage = ScanProgressControl.PhaseName(p.Phase);
             if (p.Method is { } selectedMethod) activeRefreshMethod = selectedMethod;
@@ -442,6 +463,17 @@ internal sealed class MainForm : Form
                 coordinator.Scan(path, previousScan, options, progress, cancellation.Token, session, forceFull), cancellation.Token);
             if (IsDisposed || Disposing) return;
             cancellation.Token.ThrowIfCancellationRequested();
+            diagnostics?.Record(new()
+            {
+                Kind = result.Skipped > 0 || result.Root.Incomplete || result.Root.UnknownAllocationFiles > 0 ? DiagnosticKind.ScanIncomplete : DiagnosticKind.ScanCompleted,
+                Scan = diagnosticScan, Mode = options.Mode, Files = result.Root.FileCount, Directories = result.Root.FolderCount,
+                Skipped = result.Skipped, UnknownAllocation = result.Root.UnknownAllocationFiles, Milliseconds = result.Elapsed.TotalMilliseconds,
+                Method = result.Statistics?.Method, Reason = result.Statistics?.ReasonCode, Journal = result.Statistics?.Journal?.State,
+                NativeError = result.Statistics?.Journal?.NativeError, Workers = result.Statistics?.Workers,
+                PeakWorkers = result.Statistics is { } measured ? Math.Max(measured.PeakDirectoryWorkers, measured.PeakVerificationWorkers) : null,
+                ReadDirectories = result.Statistics?.ReadDirectories, ReusedFiles = result.Statistics?.ReusedFiles,
+                VerifiedFiles = result.Statistics?.VerifiedFiles, VerifiedDirectories = result.Statistics?.VerifiedDirectories
+            });
             bool isRefresh = scan != null && result.Root.Path.TrimEnd('\\', '/').Equals(scan.Root.Path.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
             string? desiredPath = showingPreview ? current?.Path : isRefresh ? previousDirectory?.Path : null;
             var restored = desiredPath != null ? result.Root.FindDirectory(desiredPath) : null;
@@ -468,6 +500,7 @@ internal sealed class MainForm : Form
         }
         catch (OperationCanceledException)
         {
+            diagnostics?.Record(new() { Kind = DiagnosticKind.ScanCancelled, Scan = diagnosticScan, Mode = options.Mode, Milliseconds = diagnosticWatch.Elapsed.TotalMilliseconds });
             if (!IsDisposed)
             {
                 RestorePrevious();
@@ -477,6 +510,7 @@ internal sealed class MainForm : Form
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Security.SecurityException)
         {
+            diagnostics?.Failure(DiagnosticKind.ScanFailed, ex, diagnosticScan);
             if (!IsDisposed)
             {
                 RestorePrevious();
@@ -541,6 +575,14 @@ internal sealed class MainForm : Form
     private void ApplyMotionPreference()
     {
         map.AnimationsEnabled = progressBar.AnimationsEnabled = !reduceMotion.Checked;
+    }
+
+    private void OpenDiagnostics()
+    {
+        if (diagnostics == null) return;
+        if (diagnosticsWindow is { IsDisposed: false }) { diagnosticsWindow.Activate(); return; }
+        diagnosticsWindow = new DiagnosticsDialog(diagnostics);
+        diagnosticsWindow.Show(this);
     }
 
     private async Task ForceRefresh()
@@ -904,6 +946,7 @@ internal sealed class MainForm : Form
         }
         catch (Exception error) when (BackgroundSettings.IsFileError(error))
         {
+            diagnostics?.Failure(DiagnosticKind.BackgroundReadFailed, error);
             if (!IsDisposed && !Disposing && scanCancellation == null)
                 status.Text = "自定义背景无法读取，已使用默认背景。";
         }
@@ -914,7 +957,8 @@ internal sealed class MainForm : Form
     {
         if (BackgroundImage is not { } current) return;
         using var dialog = new BackgroundDialog(current, BackgroundCrop, automaticBackgroundAccent, ClientSize,
-            backgroundSettingsPath, isDefault: !HasCustomBackground);
+            backgroundSettingsPath, isDefault: !HasCustomBackground,
+            reportFailure: (kind, error) => diagnostics?.Failure(kind, error));
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
         if (dialog.RestoredDefault) ApplyBackground(Wallpaper.Load(), BackgroundView.Default, Theme.DefaultAccent, useDefault: true);
         else if (dialog.Result is { } result) ApplyBackground(result.Image, result.View, result.AutomaticAccent);
@@ -927,6 +971,7 @@ internal sealed class MainForm : Form
         HasCustomBackground = !useDefault;
         automaticBackgroundAccent = automatic;
         Theme.SetAccent(useDefault ? null : view.AccentArgb is int argb ? Color.FromArgb(argb) : automatic);
+        if (diagnosticsWindow is { IsDisposed: false }) diagnosticsWindow.ApplyTheme();
         WallpaperRaster.Dispose();
         BackgroundImage = image;
         grid.DefaultCellStyle.SelectionBackColor = Theme.Selection;

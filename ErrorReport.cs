@@ -3,10 +3,10 @@ using System.Text;
 
 namespace DiskAtlas;
 
-internal sealed record ErrorReportResult(string Category, string Code, bool Saved, string? Path)
+internal sealed record ErrorReportResult(string Category, string Code, bool Saved, string? Path, bool Enabled = true)
 {
     public string UserMessage => $"程序遇到问题。错误类别：{Category}，代码：{Code}。\n\n" +
-        (Saved ? $"不含文件路径、文件名和堆栈的诊断已保存到：\n{Path}" : "本次诊断未能写入本地存储。") +
+        (!Enabled ? "未启用运行诊断，本次未保存记录。" : Saved ? $"不含文件路径、文件名和堆栈的诊断已保存到：\n{Path}" : "本次诊断未能写入本地存储。") +
         "\n\n可以重新打开软件后重试。";
 }
 
@@ -15,17 +15,7 @@ internal static class ErrorReport
 {
     public static ErrorReportResult Write(Exception error, string? directory = null)
     {
-        string category = error switch
-        {
-            OutOfMemoryException => "Memory",
-            UnauthorizedAccessException => "Access",
-            IOException => "IO",
-            System.ComponentModel.Win32Exception => "Native",
-            ArgumentException => "Argument",
-            OperationCanceledException => "Cancelled",
-            InvalidOperationException => "Operation",
-            _ => "Unexpected"
-        };
+        string category = DiagnosticCodec.Classify(error).ToString();
         string code = "0x" + error.HResult.ToString("X8", CultureInfo.InvariantCulture);
         string? pending = null;
         try

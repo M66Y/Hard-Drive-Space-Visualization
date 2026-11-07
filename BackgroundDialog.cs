@@ -21,6 +21,7 @@ internal sealed class BackgroundDialog : Form
     private bool committing, resetPending;
     private readonly CancellationTokenSource lifetime = new();
     private readonly Func<string, CancellationToken, BackgroundChoice> importImage;
+    private readonly Action<DiagnosticKind, Exception>? reportFailure;
     private Point dragStart;
     private decimal dragX, dragY;
     public bool RestoredDefault { get; private set; }
@@ -28,8 +29,10 @@ internal sealed class BackgroundDialog : Form
     internal bool IsBusy => busy;
 
     public BackgroundDialog(Image current, BackgroundView view, Color automaticAccent, Size referenceSize, string settingsPath,
-        bool isDefault = false, Func<string, CancellationToken, BackgroundChoice>? importImage = null)
+        bool isDefault = false, Func<string, CancellationToken, BackgroundChoice>? importImage = null,
+        Action<DiagnosticKind, Exception>? reportFailure = null)
     {
+        this.reportFailure = reportFailure;
         this.importImage = importImage ?? BackgroundSettings.Import;
         this.referenceSize = referenceSize;
         this.settingsPath = settingsPath;
@@ -99,7 +102,7 @@ internal sealed class BackgroundDialog : Form
         resetPending = isDefault;
     }
 
-    internal Task ImportImageAsync(string path) => RunFileWork("读取图片", false, async () =>
+    internal Task ImportImageAsync(string path) => RunFileWork("读取图片", DiagnosticKind.BackgroundImportFailed, false, async () =>
     {
         var token = lifetime.Token;
         var loaded = await Task.Run(() => importImage(path, token), token);
@@ -109,7 +112,7 @@ internal sealed class BackgroundDialog : Form
         status.Text = "图片已载入。调整后点击应用；取消会保留原设置。";
     });
 
-    internal Task RestoreDefaultAsync() => RunFileWork("读取默认背景", false, async () =>
+    internal Task RestoreDefaultAsync() => RunFileWork("读取默认背景", DiagnosticKind.BackgroundReadFailed, false, async () =>
     {
         var token = lifetime.Token;
         var image = await Task.Run(Wallpaper.Load, token);
@@ -120,7 +123,8 @@ internal sealed class BackgroundDialog : Form
         preview.Invalidate();
     });
 
-    internal Task ApplyAsync() => RunFileWork(resetPending ? "恢复默认设置" : "保存背景", true, async () =>
+    internal Task ApplyAsync() => RunFileWork(resetPending ? "恢复默认设置" : "保存背景",
+        resetPending ? DiagnosticKind.BackgroundResetFailed : DiagnosticKind.BackgroundSaveFailed, true, async () =>
     {
         if (choice == null) return;
         if (resetPending)
@@ -143,7 +147,7 @@ internal sealed class BackgroundDialog : Form
 
     private void Changed() { resetPending = false; preview.Invalidate(); }
 
-    private async Task RunFileWork(string operation, bool commit, Func<Task> work)
+    private async Task RunFileWork(string operation, DiagnosticKind failureKind, bool commit, Func<Task> work)
     {
         if (busy || IsDisposed || Disposing || lifetime.IsCancellationRequested) return;
         busy = true;
@@ -155,6 +159,7 @@ internal sealed class BackgroundDialog : Form
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (Exception error) when (BackgroundSettings.IsFileError(error))
         {
+            reportFailure?.Invoke(failureKind, error);
             if (!IsDisposed && !Disposing)
                 status.Text = commit ? $"{operation}失败，原设置保留。请检查本地存储是否可写，或稍后重试。"
                     : "读取失败。请选择可读取且不超过 24 MiB、4000 万像素的 PNG、JPEG 或 BMP。";

@@ -1,5 +1,7 @@
 # AsukaLens v1.4.2
 
+当前开发预览新增**本地诊断管理**：主窗“诊断”可查看、筛选、清空运行诊断，勾选后预览导出，也可主动填写本地问题记录。最小运行日志默认开启，可关闭，限制为 8 MiB / 14 天；不记录路径、文件名或异常原文，不自动上传。使用方法与边界见[诊断说明](docs/diagnostics.md)。
+
 开发预览已迁移到 .NET 10 LTS，见[迁移验收记录](iterations/2026-11-07-05-dotnet10-migration/README.md)。当前开发预览统一使用普通构建生成的 `bin/Release/net10.0-windows/DiskAtlas.exe`。第 5 轮背景设置已收尾，见[背景迭代记录](iterations/2026-11-07-02-background-settings/README.md)。下文各轮专用 Preview 路径仅是历史记录；`软件/` 和旧 ZIP 不含这些新功能。
 
 开发分支已包含尚未正式发布的扫描策略修正、扫描进度与图块反馈；`软件/` 和现有 ZIP 仍为原来的 v1.4.2。普通迭代只构建开发预览，不生成正式发行包。本次交互修正使用独立的 `bin/Preview/DiskAtlas.exe` 预览目录，以保留正在运行的旧窗口。详见[扫描策略记录](iterations/2026-11-01-02-scan-policy/README.md)、[第 2 轮交互记录](iterations/2026-11-02-02-scan-feedback/README.md)和[本次修正记录](iterations/2026-11-02-03-hover-fix/README.md)。
@@ -42,7 +44,7 @@ Windows 本地文件夹空间可视化软件。运行当前开发预览 `bin/Rel
 
 ## 开发与构建
 
-异常报告仅在本地用户数据目录的 `AsukaLens/last-error.log` 保留最近一份，包含产品标识、格式版本、UTC 时间、受控错误类别和数值代码，不包含原始异常消息、文件路径、文件名、堆栈或异常附加数据。只有保存成功才显示日志位置，失败会明确提示，不自动上传。本次修复不回溯读取或改写旧版生成的临时日志，也不等于完整日志管理系统。验证命令为测试 DLL 的 `--error-report-tests`，详见[异常报告隐私修复](iterations/2026-11-07-03-error-report-privacy/README.md)。
+最近异常仍以 `AsukaLens/last-error.log` 的字段白名单保存，现已纳入诊断开关、查看、清空与 14 天保留规则。关闭时明确提示未启用，保存失败不谎报成功。新诊断模块位于 `src/Diagnostics/`，测试入口为 `--diagnostics-tests`、`--diagnostics-ui` 及后者附加 `--dpi-96`；原有 `--error-report-tests` 继续验证最小异常文件。历史修复见[隐私修复记录](iterations/2026-11-07-03-error-report-privacy/README.md)。
 
 项目使用 C# / .NET 10 LTS Windows Forms，无第三方包，软件不联网。开发需要 `global.json` 所指定的 .NET 10 SDK（10.0.403，允许 10.0.4xx 后续补丁），运行需要 .NET 10 Windows Desktop Runtime；安装 SDK 已包含桌面运行时。可从[微软官方下载页](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)获取 Windows x64 安装程序，安装后用 `dotnet --version` 与 `dotnet --list-runtimes` 核对。
 
