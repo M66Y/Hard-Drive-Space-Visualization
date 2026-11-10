@@ -1,0 +1,15 @@
+{
+  "baseline": "8e4d9c0afc82dd0cf8671ec7d64f784e31e3c346",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "iterations/2026-11-10-01-windows10/windows10-observations.md",
+      "sha256": "2fa8aa8766c55d8c6c62270a295181a90d2be8c75365baf6a13e209ab7d5d687"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/windows10-installer-result.patch",
+      "sha256": "ce6e263616a4fd50e62eb2087b1d073a091257c8c2debf0e7ab2b32ada45ca3f"
+    }
+  ]
+}
