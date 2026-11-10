@@ -1,0 +1,28 @@
+{
+  "baseline": "ea99f27893f959309bc5f643f7b20b3116f54beb",
+  "candidate_source_commit": "2d54a681986127e3c966eca03b1d72ef3a33f9aa",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "docs/project-status.md",
+      "sha256": "9847d5853b72616ebb6fc5d17c56720504c22c4d7f89aad88be7b86b03da5403"
+    },
+    {
+      "path": "docs/release-readiness.md",
+      "sha256": "0035bf65b513c5aecd6eb06fbf5cc99cd81d895361caa649766b741947304441"
+    },
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/candidate.md",
+      "sha256": "2d32cbe07e9717004707c0ae63b54505169824b72245f33bfb35542a6c3997e8"
+    },
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/windows10-observations.md",
+      "sha256": "e4335fe17ca23774aa9e829d536f225b7f681d59f7a7b44be084334952eb5cc5"
+    },
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/windows10-installer-result.patch",
+      "sha256": "5e576c21c31c6af256766037d68c321b7961889e14af66f055e2bb36520ed9a5"
+    }
+  ]
+}
