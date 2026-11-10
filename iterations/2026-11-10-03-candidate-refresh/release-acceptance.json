@@ -1,0 +1,13 @@
+{
+  "commit": "2d54a681986127e3c966eca03b1d72ef3a33f9aa",
+  "manifest_sha256": "198d6dcf860ede30d418ac674a6c4c91fd3773d41c526d4d49d57da177968fce",
+  "checks": {
+    "clean_windows_10_no_dotnet": "pending",
+    "clean_windows_11_no_dotnet": "pending",
+    "portable_workflow": "pending",
+    "install_upgrade_uninstall": "pending",
+    "failure_recovery": "pending",
+    "source_builds": "passed",
+    "privacy_and_licenses": "pending"
+  }
+}

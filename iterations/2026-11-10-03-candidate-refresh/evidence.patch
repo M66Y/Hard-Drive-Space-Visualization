@@ -1,0 +1,255 @@
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 4b97917b5e4ebaa15c0dde939b1354b56fc3a5b3..05851411829a6f04cf1f0519cfff97525c835983 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -8,7 +8,7 @@
+ 
+ ## 当前判断
+ 
+-2026-11-10：Windows 10 22H2 x64 兼容改动已提交；候选 `6f6bdc0` 已完成开发机包级验收，用户在 Windows 10 虚拟机完成部分真实 EXE 使用观察，并报告扫描取消恢复、合成旧版升级和失败回退补测通过。该候选的源码说明待修正，新候选需单独绑定和验收；完整场景和干净环境来源仍待确认，干净 Windows 11 仍待单独验收，见[本轮记录](../iterations/2026-11-10-01-windows10/candidate.md)。微软 .NET 10 对 Windows 10 的官方支持限于指定 LTSC / Enterprise 版本，其他版本的项目兼容性测试不改变微软支持范围。
++2026-11-10：Windows 10 22H2 x64 兼容改动已提交；候选 `6f6bdc0` 已完成开发机包级验收，用户在 Windows 10 虚拟机完成部分真实 EXE 使用观察，并报告扫描取消恢复、合成旧版升级和失败回退补测通过。其源码说明问题已修正，候选 `2d54a68` 已重新生成并通过开发机包级检查，需单独完成系统验收，见[新候选记录](../iterations/2026-11-10-03-candidate-refresh/candidate.md)。完整场景和干净环境来源仍待确认，干净 Windows 11 仍待单独验收。微软 .NET 10 对 Windows 10 的官方支持限于指定 LTSC / Enterprise 版本，其他版本的项目兼容性测试不改变微软支持范围。
+ 
+ v1.5.0 四类正式身份候选资产已完成本机复验，绑定源码提交 `4e7431739d321d73e847d0ff585edefa14820ae2`，详见[候选记录](releases/v1.5.0-candidate.md)。本轮修正了首次正式打包暴露的 LOCAL TEST 身份判断问题；应用主要使用流程、两种源码构建、安装升级与失败恢复均已复验。干净 Windows 无现代 .NET、真实远程草稿/下载仍待完成，没有标签或正式发布。
+ 
+diff --git a/docs/release-readiness.md b/docs/release-readiness.md
+index 3135445095aca4c909d5e37765175f43eb70b770..5afc49fd070231469748a8f812e068e45a772b86 100644
+--- a/docs/release-readiness.md
++++ b/docs/release-readiness.md
+@@ -4,7 +4,7 @@
+ 
+ 最新补充：用户确认的 **v1.5.0 候选包已完成本机复验**，见[候选资产记录](releases/v1.5.0-candidate.md)和[本轮证据](../iterations/2026-11-07-21-v1.5.0-candidate/verification.md)。以下早期证据保留来源；干净环境与真实远程门槛仍未完成。
+ 
+-2026-11-10 已确认增加 Windows 10 22H2 x64 兼容性；此前[Windows 10/11 候选包](../iterations/2026-11-10-01-windows10/candidate.md)已生成并完成开发机包级验收，双系统的干净环境验收仍待完成。该候选的源码说明需要修正，正在准备新的源码快照；任何候选的证据只适用于其对应资产和清单。
++2026-11-10 已确认增加 Windows 10 22H2 x64 兼容性；此前[Windows 10/11 候选包](../iterations/2026-11-10-01-windows10/candidate.md)已完成开发机包级验收和部分虚拟机使用观察。其源码说明问题已修正并重新生成[新候选包](../iterations/2026-11-10-03-candidate-refresh/candidate.md)，新包开发机包级检查通过，双系统的干净环境验收仍待完成。任何候选的证据只适用于其对应资产和清单。
+ 
+ ## 早期本机证据
+ 
+@@ -23,12 +23,12 @@
+ | 项目 | 当前状态 | 后续动作 |
+ | --- | --- | --- |
+ | 正式版本和发布范围 | 用户已确认 v1.5.0 候选准备；项目数字版本为 `1.5.0`，双语说明已完成，历史预览未追认为正式发行 | 待前置验收及正式发布授权后使用确切候选提交；若候选内容改变则重新冻结、打包并复验，不移动已发布标签 |
+-| 确切候选资产：正在重冻 | 上一套 Windows 10/11 候选绑定 `6f6bdc0`，清单哈希及四类文件见[候选记录](../iterations/2026-11-10-01-windows10/candidate.md)；旧 Windows 11 候选 `4e74317` 保留供追溯 | 新候选生成后记录其确切提交及清单，两系统验收使用同一套资产；已有证据不能直接移用于不同清单 |
++| 确切候选资产：已重冻并完成开发机包级检查 | 新候选绑定 `2d54a68`，资产、哈希及本机检查见[候选记录](../iterations/2026-11-10-03-candidate-refresh/candidate.md)；此前 `6f6bdc0` 和 `4e74317` 保留供追溯 | 两系统验收使用同一套新资产并核对独立清单；已有证据不能直接移用于不同清单 |
+ | Windows 10 22H2 x64 | 用户在 VMware 完成主要使用、取消、合成升级与失败回退；未发现已知现代 .NET，但环境来源并非可确认的干净快照 | [实际观察和边界](../iterations/2026-11-10-01-windows10/windows10-observations.md)；干净环境门槛仍待满足，未覆盖项目不能记为通过 |
+ | 干净 Windows 11 x64 | 现有 VMware 客户机为 Windows 10，本机已有现代 .NET；尚无已确认的干净 Windows 11 环境。离线工具的存在不能代替环境 | 使用未额外安装现代 .NET SDK/共享运行时的新装系统或已知干净快照，按[离线手册](offline-acceptance.md)实际使用确切候选包；创建新虚拟机前确认镜像、许可与磁盘空间 |
+ | GitHub CLI 执行环境与登录：已补齐本轮检查 | 已准备官方便携版 2.103.3，用户完成浏览器授权，确认 keyring 存储；真实 CLI 只读访问成功且接口返回推送权限 | [操作与证据边界](github-publishing-access.md)。此结果不替代真实上传，正式执行前重新核对登录和权限 |
+ | 真实草稿上传与下载 | 本轮连接器只读查询 Release 返回空列表，Git 远程标签列表为空；没有创建草稿、标签或上传资产 | 所有前置验收真实通过、正式任务明确后，创建绑定提交的新标签，上传草稿、下载六个文件复核，确认仍是草稿，再按正式授权公开；失败保留草稿和已完成资产 |
+-| 对外入口同步 | 当前工作树 README 指向新候选；新候选源码包中的 README 仍指向旧候选，且旧版安装说明和系统支持描述需核对 | 发布前修正源码快照并生成、重新验收绑定新提交的资产；正式公开后同步真实下载入口。不把当前旧链接或预备说明当成最终发布状态 |
++| 对外入口同步 | 已修正中英文 README，重冻源码包的入口指向通用发布准备清单；新候选的发布说明为预备文本 | 完成新资产验收后复审源码与双语说明，正式公开后同步真实下载入口；不把预备链接当成已发布下载 |
+ 
+ 当前指定仓库没有可供真实迁移验收的正式旧版。首次按当前规范发布时，历史正式安装器迁移项记为“不适用，并说明原因”；本机合成旧版升级的证据仍可参考。后续有正式版本后，该项应按实际旧版到新版重新验收，不能沿用“不适用”。
+ 
+diff --git a/docs/releases/v1.5.0-candidate.md b/docs/releases/v1.5.0-candidate.md
+index 71f2b1db856c517579bbbdaec5d38ef91525d9b7..2e7e4bf883a2be95e18a6b840a026be6110715c8 100644
+--- a/docs/releases/v1.5.0-candidate.md
++++ b/docs/releases/v1.5.0-candidate.md
+@@ -1,6 +1,6 @@
+ # AsukaLens v1.5.0 候选记录 / Candidate record
+ 
+-**历史记录 / Historical record:** 以下仅对应 Windows 11 候选 `4e74317`。当前 Windows 10/11 候选及验收状态见[新候选记录](../../iterations/2026-11-10-01-windows10/candidate.md)；两套资产和证据不能互换。
++**历史记录 / Historical record:** 以下仅对应 Windows 11 候选 `4e74317`。后续 Windows 10/11 候选分别见[第一次兼容候选](../../iterations/2026-11-10-01-windows10/candidate.md)和[重冻候选](../../iterations/2026-11-10-03-candidate-refresh/candidate.md)；不同资产的证据不能互换。
+ 
+ 2026-11-07：四类正式身份候选资产已生成并完成本机复验。**尚未创建标签、上传资产或创建/公开 Release**，没有公开下载入口。候选包保留在本机 `artifacts/releases/v1.5.0/`；这是受 Git 忽略的本地位置，不是仓库下载链接。
+ 
+diff --git a/iterations/2026-11-10-03-candidate-refresh/candidate-notes.md b/iterations/2026-11-10-03-candidate-refresh/candidate-notes.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..920eaa7c65932665aaeecc0c94c561fa40687d28
+--- /dev/null
++++ b/iterations/2026-11-10-03-candidate-refresh/candidate-notes.md
+@@ -0,0 +1,113 @@
++# AsukaLens v1.5.0
++
++## 简体中文
++
++### 更新内容
++
++- 保留目录选择、空间分布、文件列表、大文件、类型统计、文件定位与复制路径，以及文件大小/实际占用两种口径。
++- 扫描中提供目录任务估算进度、移动头像、部分预览、阶段与并发说明、取消和旧结果恢复；增加有限图块动效及减弱选项。
++- NTFS 日志连续可读时按变化刷新；失效时明确回退核验。自动、低占用和高速策略具有独立调度约束，高速完整扫描支持目录优先与空闲文件读取额度。
++- 本地背景设置支持图片导入、缩放焦点、预览、自动/手动强调色、保存恢复及默认重置。
++- 新增本地诊断窗口、开关、8 MiB/14 天运行日志保留、筛选清空与选中预览导出；问题记录由用户主动填写。
++- 迁移至 .NET 10 LTS，统一源码启动与构建辨识，补充中英文用户说明、许可和离线验收工具；准备四类版本快照资产。
++
++### 修复
++
++- 修正背景持久化、损坏配置回退及异步关闭期间的资源释放；改善启动首帧和图块悬停重绘。
++- 异常和诊断采用白名单字段，避免将原始异常消息、堆栈与个人路径写入分享内容；主动问题记录不混入运行诊断导出。
++- 明确统计卡、搜索和筛选的范围，提示未知占用、未读取项及取消/失败时保留的旧结果。
++- 为安装器增加运行中阻止安装/卸载、拒绝降级、无关目录保护和替换失败恢复；正式候选验收拒绝覆盖现有安装。
++
++### 已知限制
++
++- 高速模式并非在所有目录上都快于自动模式，稳定提速问题留待初版后的同级优化。
++- 系统变化日志不可用时仍需核验目录和文件元信息；扫描缓存仅在本次进程内保留。
++- 实际占用不包含所有文件系统开销，不等于删除文件后释放的空间；未知占用与未读取项会单独提示。
++- 界面为简体中文。其他 Windows 版本与架构、跨显示器 DPI 等未覆盖情形不属于已验证范围。
++
++### 适用环境与依赖
++
++Windows 10 22H2 x64 和 Windows 11 x64，普通用户权限。本版便携包与安装器内含 .NET 10.0.14 Windows Desktop 运行时，无需另外安装现代 .NET；从源码构建仍需要仓库 `global.json` 指定的 .NET SDK。微软的 .NET 10 官方 Windows 10 支持限于指定 LTSC / Enterprise 版本；其他版本为本项目的兼容性测试范围。
++
++当前文件未代码签名，系统可能显示未知发行者提示。许可、运行环境和验收范围以本次确切资产为准。
++
++### 安装与便携使用
++
++- 便携版：完整解压 ZIP，运行 `AsukaLens.exe`，选择目录开始扫描。便携版的设置仍位于当前用户 AppData，不随程序文件夹移动。
++- 安装版：运行 EXE 安装器，按当前用户安装。升级前正常退出所有 AsukaLens 窗口；卸载保留背景、诊断和问题记录。
++- 本版按首次正式发行准备；候选阶段尚未公开，干净系统验收状态见候选记录。旧本地预览的手动替换不代表已验证历史安装器迁移。
++
++### 下载与校验
++
++| 文件 | 用途 |
++| --- | --- |
++| [AsukaLens v1.5.0.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.5.0/AsukaLens%20v1.5.0.zip) | 自包含便携版 |
++| [AsukaLens v1.5.0.exe](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.5.0/AsukaLens%20v1.5.0.exe) | 当前用户安装器 |
++| [AsukaLens v1.5.0-source.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.5.0/AsukaLens%20v1.5.0-source.zip) | 源码 ZIP |
++| [AsukaLens v1.5.0-source.tar.gz](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.5.0/AsukaLens%20v1.5.0-source.tar.gz) | 同一源码的 tar.gz |
++| [SHA256SUMS.txt](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.5.0/SHA256SUMS.txt) | 四类资产的 SHA-256 |
++| [release-manifest.json](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.5.0/release-manifest.json) | 版本、提交、工具链及逐文件清单 |
++
++下载后用 PowerShell 的 `Get-FileHash -Algorithm SHA256 -LiteralPath '下载文件'` 对照 `SHA256SUMS.txt`。草稿阶段链接不代表公众可下载；正式公开后才可作为下载入口。
++
++### 源码与许可
++
++对应提交：[2d54a681986127e3c966eca03b1d72ef3a33f9aa](https://github.com/M66Y/Hard-Drive-Space-Visualization/tree/2d54a681986127e3c966eca03b1d72ef3a33f9aa)。两种源码包来自同一提交；从源码构建步骤见包内中英文 README。
++
++AsukaLens — M66Y。项目代码使用 PolyForm Noncommercial 1.0.0；文档和 AI 生成的主题图片使用 CC BY-NC 4.0。第三方运行时与安装器组件保留原许可，完整内容随包提供。项目是源码可用的非商业软件，不宣称 OSI 开源。
++
++## English
++
++### Changes
++
++- Retains folder selection, treemap, file lists, largest files, type statistics, file location and path copying, and both logical and allocated size metrics.
++- Adds estimated directory-task progress, a moving avatar, partial previews, stage and concurrency details, cancellation and previous-result recovery, plus bounded tile animation and a reduced-motion option.
++- Uses continuous readable NTFS journal evidence for change-based refresh, with explicit verification fallback. Automatic, Low-impact and High-speed have separate scheduling constraints; full High-speed scans prioritize directories and use spare capacity for file reads.
++- Local backgrounds support image import, zoom and focus, preview, automatic/manual accent colors, persistence and reset.
++- Adds a local diagnostics window, logging toggle, 8 MiB/14-day runtime retention, filtering, clearing and selected preview export; problem notes are entered voluntarily.
++- Moves to .NET 10 LTS, adds a consistent source launcher and build identity, bilingual user documentation, licensing and offline acceptance tools, and prepares four snapshot asset formats.
++
++### Fixes
++
++- Fixes background persistence, corrupt-configuration fallback and resource disposal during asynchronous shutdown; improves the initial paint and tile hover redraw.
++- Uses allowlisted fields for errors and diagnostics to exclude raw exception messages, stack traces and personal paths from shareable records; voluntary notes are excluded from runtime exports.
++- Clarifies card, search and filter scope, unknown allocation, unread entries and the previous result retained after cancellation or failure.
++- Adds installer protections for running applications, downgrades and unrelated directories, with recovery after a failed replacement; formal candidate acceptance refuses to overwrite existing installations.
++
++### Known limitations
++
++- High-speed mode is not consistently faster than Automatic for every folder. Further tuning is deferred until after the initial delivery.
++- When the system change journal is unavailable, refresh still verifies folder and file metadata. Scan caches last only for the current process.
++- Allocated size excludes some filesystem overhead and is not the space freed by deletion. Unknown allocation and unread entries are reported separately.
++- The application UI is Simplified Chinese. Other Windows versions and architectures, and untested cross-monitor DPI scenarios, are outside the validated scope.
++
++### Requirements
++
++Windows 10 22H2 x64 and Windows 11 x64, using a standard user account. Both the portable package and installer include the .NET 10.0.14 Windows Desktop runtime; no separate modern .NET installation is required. Source builds require the SDK specified by the repository's `global.json`. Microsoft's official .NET 10 Windows 10 support is limited to specified LTSC / Enterprise editions; other editions are covered by project compatibility testing.
++
++These files are currently unsigned; Windows may display an unknown-publisher prompt. License, platform and acceptance statements apply to these exact assets.
++
++### Installation and portable use
++
++- Portable: extract the entire ZIP, run `AsukaLens.exe`, and choose a folder. Settings remain in the current user's AppData; they do not travel with the portable program folder.
++- Installer: run the EXE to install for the current user. Close all AsukaLens windows before upgrading. Uninstall preserves backgrounds, diagnostics and problem notes.
++- This version is being prepared for the first formal release. Candidates are not public; consult the candidate record for clean-system acceptance status. Replacing historical local previews manually is not evidence of migration from a historical installer.
++
++### Downloads and checksums
++
++| File | Purpose |
++| --- | --- |
++| [AsukaLens v1.5.0.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.5.0/AsukaLens%20v1.5.0.zip) | Self-contained portable package |
++| [AsukaLens v1.5.0.exe](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.5.0/AsukaLens%20v1.5.0.exe) | Per-user installer |
++| [AsukaLens v1.5.0-source.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.5.0/AsukaLens%20v1.5.0-source.zip) | Source ZIP |
++| [AsukaLens v1.5.0-source.tar.gz](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.5.0/AsukaLens%20v1.5.0-source.tar.gz) | Identical source in tar.gz format |
++| [SHA256SUMS.txt](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.5.0/SHA256SUMS.txt) | SHA-256 for all four assets |
++| [release-manifest.json](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.5.0/release-manifest.json) | Version, commit, toolchain and file inventory |
++
++Use PowerShell `Get-FileHash -Algorithm SHA256 -LiteralPath 'downloaded-file'` and compare with `SHA256SUMS.txt`. Draft links do not imply public availability; downloads become public only after publication.
++
++### Source and licensing
++
++Source commit: [2d54a681986127e3c966eca03b1d72ef3a33f9aa](https://github.com/M66Y/Hard-Drive-Space-Visualization/tree/2d54a681986127e3c966eca03b1d72ef3a33f9aa). Both source archives represent this commit. See the included bilingual READMEs for build instructions.
++
++AsukaLens — M66Y. Project code uses PolyForm Noncommercial 1.0.0; documentation and AI-generated theme artwork use CC BY-NC 4.0. Third-party runtime and installer components retain their own licenses, included in the packages. This is source-available, noncommercial software, not OSI-approved open source.
+diff --git a/iterations/2026-11-10-03-candidate-refresh/candidate.md b/iterations/2026-11-10-03-candidate-refresh/candidate.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..034e2a35af58d6acabd26e1acf56826b9d541e55
+--- /dev/null
++++ b/iterations/2026-11-10-03-candidate-refresh/candidate.md
+@@ -0,0 +1,18 @@
++# v1.5.0 重冻候选包
++
++源码提交 `2d54a681986127e3c966eca03b1d72ef3a33f9aa`，清单 SHA-256 `198d6dcf860ede30d418ac674a6c4c91fd3773d41c526d4d49d57da177968fce`。资产位于本机忽略目录 `artifacts/releases/refrozen-2d54a68/v1.5.0/`，未创建标签、上传或公开发布。相同版本的旧候选单独保留，不能混用清单或证据。
++
++| 资产 | 字节 | SHA-256 |
++| --- | ---: | --- |
++| AsukaLens v1.5.0.zip | 54691080 | `22e2a583920ba8a527b85939706e163c0639b4590d5d74e6384ce56e1ef1c9c3` |
++| AsukaLens v1.5.0.exe | 40334431 | `4ce6ef2e768bbfb34d0277658c00cd984eac15bbcb2258e6b74bd3aabb00375a` |
++| AsukaLens v1.5.0-source.zip | 8856352 | `b53cfa67dc9d21250e8b504351c24d040e7b32450452b75655d1333f45d035f3` |
++| AsukaLens v1.5.0-source.tar.gz | 8719202 | `7304cd926931964072703ecded5b12683b59cd72fd99c41cbb3f47b7346b99c9` |
++
++同目录另有 `SHA256SUMS.txt` 和 `release-manifest.json`。新源码 ZIP 的中英文 README 均指向通用发布准备清单；源码 ZIP/tar 的 292 文件及便携载荷的 283 文件经静态清单检查。与上一候选比较，`AsukaLens.exe`、`DiskAtlas.dll` 和 `build-info.json` 的哈希发生变化，故上一包的 Windows 10 虚拟机观察不能标作本包通过。
++
++开发机上新包完成 21 项包级检查，详见 `package-acceptance.json`：包括两份源码包独立构建、包内生产程序集和运行时的主要流程、非管理员安装/合成升级/降级拒绝/失败恢复/卸载及用户数据保护。此结果不代表新包真实 EXE 在 Windows 10 的桌面操作或两个系统的干净环境已验收。双语预备说明见 `candidate-notes.md`；`release-acceptance.json` 保守保留未完成门槛。
++
++源码 ZIP 的 288 个文本条目检查本机用户及工作目录前缀和常见凭据标记未命中；两个应用二进制检查 UTF-8/UTF-16 路径前缀未命中。检查不保证识别所有形式的敏感数据。包级测试的 1,220 个临时文件、独立干净检出和本轮便携编译器已清理；未修改原工作区的用户未跟踪文件，既有候选保留。
++
++待完成：新包 Windows 10 真实使用及安装核验、两种系统干净环境验收、隐私与许可最终人工审阅、正式授权后的远程标签/草稿上传及下载核验。当前两个系统的干净验收门槛均为 pending；未创建标签或 Release。文档证据提交不改变上面的资产源码提交。
+diff --git a/iterations/2026-11-10-03-candidate-refresh/package-acceptance.json b/iterations/2026-11-10-03-candidate-refresh/package-acceptance.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..b481dd95877ee20db6a153f71b7524182751aed5
+--- /dev/null
++++ b/iterations/2026-11-10-03-candidate-refresh/package-acceptance.json
+@@ -0,0 +1,34 @@
++{
++  "schema": 1,
++  "version": "v1.5.0",
++  "commit": "2d54a681986127e3c966eca03b1d72ef3a33f9aa",
++  "manifest_sha256": "198d6dcf860ede30d418ac674a6c4c91fd3773d41c526d4d49d57da177968fce",
++  "local_test": false,
++  "elevated": false,
++  "passed": [
++    "shipped assembly workflow with bundled runtime and isolated settings",
++    "source build: zip",
++    "source build: tar.gz",
++    "nonempty unrelated directory rejected",
++    "unrelated directory remains unchanged",
++    "standard-user installation",
++    "current-user registration and shortcuts",
++    "same-identity upgrade",
++    "upgraded version registration",
++    "downgrade rejected",
++    "running application blocks setup without termination",
++    "running application blocks uninstall",
++    "locked payload aborts installation",
++    "failure occurs after the probe was actually overwritten",
++    "rollback restores a file replaced before the failure",
++    "failed replacement preserves registration shortcuts and uninstaller",
++    "successful recovery removes its backup files",
++    "old payload remains intact after failed replacement",
++    "uninstall succeeds",
++    "registration and shortcuts removed",
++    "user data and unowned files preserved"
++  ],
++  "clean_machine_without_dotnet": "not tested; local bundle resolution verified",
++  "historical_version_migration": "not tested; synthetic older wrapper used",
++  "formal_release": false
++}
+diff --git a/iterations/2026-11-10-03-candidate-refresh/release-acceptance.json b/iterations/2026-11-10-03-candidate-refresh/release-acceptance.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9619124e71701cc8a42f0976a3c6998dee94499
+--- /dev/null
++++ b/iterations/2026-11-10-03-candidate-refresh/release-acceptance.json
+@@ -0,0 +1,13 @@
++{
++  "commit": "2d54a681986127e3c966eca03b1d72ef3a33f9aa",
++  "manifest_sha256": "198d6dcf860ede30d418ac674a6c4c91fd3773d41c526d4d49d57da177968fce",
++  "checks": {
++    "clean_windows_10_no_dotnet": "pending",
++    "clean_windows_11_no_dotnet": "pending",
++    "portable_workflow": "pending",
++    "install_upgrade_uninstall": "pending",
++    "failure_recovery": "pending",
++    "source_builds": "passed",
++    "privacy_and_licenses": "pending"
++  }
++}

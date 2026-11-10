@@ -1,0 +1,40 @@
+{
+  "baseline": "2d54a681986127e3c966eca03b1d72ef3a33f9aa",
+  "candidate_source_commit": "2d54a681986127e3c966eca03b1d72ef3a33f9aa",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "docs/project-status.md",
+      "sha256": "880cc9c3017c8863d7fe0ff35b5d979b2c82ec119f21c17cbe35e26b119897bd"
+    },
+    {
+      "path": "docs/release-readiness.md",
+      "sha256": "bface44bd0218ad83726343967fff6e45901746bc542f9ebdd8864cc0df307d8"
+    },
+    {
+      "path": "docs/releases/v1.5.0-candidate.md",
+      "sha256": "ea0e71b941161e5cc33ce4223128b83290a2d58da7e9646af849269f35ea4fe8"
+    },
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/candidate.md",
+      "sha256": "e04485c4fede2d763f8e4daf94694006624117187682badc95697625b8db189d"
+    },
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/candidate-notes.md",
+      "sha256": "d2bf64e71eeaf60138ac16ce680d14407afc3c30c4e98711a024fad2c9051a8e"
+    },
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/package-acceptance.json",
+      "sha256": "f4d3ca9b781bfbacd7ecc877507404b5a82c60e6093ab851547c91ed9617b1f0"
+    },
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/release-acceptance.json",
+      "sha256": "165d69ef27c3dfdfa2cc023aa445ad612b5e1242d48d214ff4525f829aaf891e"
+    },
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/evidence.patch",
+      "sha256": "c02db9c1efc9bbcf8d30ef9b740c4b6b3dd22742d1d48c19e9ce9256d28614bf"
+    }
+  ]
+}
