@@ -1,0 +1,19 @@
+{
+  "baseline": "27fe199433c8896dd949917761406199e9e14e46",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "docs/project-status.md",
+      "sha256": "89191d31f564a11b8ee8ec1896a858d60c99f7669008cfbfee6a4c90f960e98f"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/windows10-observations.md",
+      "sha256": "322d51903f3cddbdc137d1ad6bc1cbbb9912dc6bf66a75b0448d39a7e65cc4b8"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/windows10-cancel-result.patch",
+      "sha256": "c1a5a114e871b0758ffd82532add4944097530e3de2d018cd7d1c4d71729c67d"
+    }
+  ]
+}

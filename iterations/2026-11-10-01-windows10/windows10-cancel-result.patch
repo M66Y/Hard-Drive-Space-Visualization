@@ -1,0 +1,25 @@
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 8a5d13ffb2187f694af75b63bf3fdc52ed61455f..8e911c1b0f579183bd2170d3a92e80892e226fbe 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -8,7 +8,7 @@
+ 
+ ## 当前判断
+ 
+-2026-11-10：Windows 10 22H2 x64 兼容改动已提交，新候选包已生成并完成开发机包级验收；Windows 10 虚拟机已由用户完成部分真实 EXE 使用观察，完整场景和环境确认仍待完成，干净 Windows 11 仍待单独验收，见[本轮记录](../iterations/2026-11-10-01-windows10/candidate.md)。此前 Windows 11 候选包不能代表 Windows 10 验收通过。微软 .NET 10 对 Windows 10 的官方支持限于指定 LTSC / Enterprise 版本，其他版本的项目兼容性测试不改变微软支持范围。
++2026-11-10：Windows 10 22H2 x64 兼容改动已提交，新候选包已生成并完成开发机包级验收；用户在 Windows 10 虚拟机完成部分真实 EXE 使用观察，并报告扫描取消恢复、合成旧版升级和失败回退补测通过。完整场景和干净环境来源仍待确认，干净 Windows 11 仍待单独验收，见[本轮记录](../iterations/2026-11-10-01-windows10/candidate.md)。此前 Windows 11 候选包不能代表 Windows 10 验收通过。微软 .NET 10 对 Windows 10 的官方支持限于指定 LTSC / Enterprise 版本，其他版本的项目兼容性测试不改变微软支持范围。
+ 
+ v1.5.0 四类正式身份候选资产已完成本机复验，绑定源码提交 `4e7431739d321d73e847d0ff585edefa14820ae2`，详见[候选记录](releases/v1.5.0-candidate.md)。本轮修正了首次正式打包暴露的 LOCAL TEST 身份判断问题；应用主要使用流程、两种源码构建、安装升级与失败恢复均已复验。干净 Windows 无现代 .NET、真实远程草稿/下载仍待完成，没有标签或正式发布。
+ 
+diff --git a/iterations/2026-11-10-01-windows10/windows10-observations.md b/iterations/2026-11-10-01-windows10/windows10-observations.md
+index e74c5018062caeaa46ef61aec0d0b62ff8b5ae79..4b12ab5ad1d1d9329ace4f7a8b6083507c0227b5 100644
+--- a/iterations/2026-11-10-01-windows10/windows10-observations.md
++++ b/iterations/2026-11-10-01-windows10/windows10-observations.md
+@@ -12,4 +12,6 @@
+ 
+ 用户报告在该虚拟机运行 `installer-check.ps1` 对应的验收脚本，最终显示 `RESULT: PASS (14 checks)`。脚本校验候选及合成安装器哈希，覆盖合成旧版安装、候选升级、降级拒绝，以及文件锁定后确认探针已被覆盖、原字节恢复、注册和卸载器保留、备份清理与测试实例卸载。结果来自用户报告；未收取虚拟机日志、未自动观察每一项。合成旧版使用候选载荷，不代表真实历史版本或用户数据迁移，也不代表断电恢复。测试方法和来源见 `installer-check-plan.md`。
+ 
+-未验证：干净系统来源、源码资产逐项校验、程序加载运行时路径、便携/安装版全部功能、扫描取消与保留结果、诊断实际保存导出和笔记、真实历史版本迁移、断电恢复、Windows 11 干净环境。无测试目录、用户账户路径、个人文件名或诊断日志收集入仓库；未生成标签或 Release。
++用户报告在虚拟机的合成目录扫描中取消正常，原有小目录的结果恢复；未收集实际文件数量、耗时或截图，不将此作为性能结论。主机生成的合成安装器与编译缓存完成验证后清理；虚拟机上的合成目录及测试材料需由用户确认位置后清理。
++
++未验证：干净系统来源、源码资产逐项校验、程序加载运行时路径、便携/安装版全部功能、诊断实际保存导出和笔记、真实历史版本迁移、断电恢复、Windows 11 干净环境。无测试目录、用户账户路径、个人文件名或诊断日志收集入仓库；未生成标签或 Release。
