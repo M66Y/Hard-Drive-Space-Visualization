@@ -1,0 +1,32 @@
+{
+  "baseline": "6f6bdc07815e6b7cee3af079724672be62c7b515",
+  "candidate_source_commit": "6f6bdc07815e6b7cee3af079724672be62c7b515",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "docs/project-status.md",
+      "sha256": "647540124359da730168fb257797c03de0ea670c854b5a1db74e791cad519519"
+    },
+    {
+      "path": "docs/release-readiness.md",
+      "sha256": "d143a6c27c5ec896ec85a80a3c90405c2ae1e86806a2121dbebc6f4d663ffed5"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/candidate.md",
+      "sha256": "68df5e1b4961d86bfb57465d30d90a91f8d7b72330027134b269a2c29cd31308"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/candidate-notes.md",
+      "sha256": "54837031bb28e31657ae3b09f93eac9a2faaef183098462eca49b68799a81518"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/package-acceptance.json",
+      "sha256": "47cd453a0755c48b5915329043e540d0968a11544923021a833f3c2bc90b3766"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/evidence.patch",
+      "sha256": "4b0947071ffec162a4a314147026a79024407ee8ced4d39305ebd5ef95e6ee76"
+    }
+  ]
+}
