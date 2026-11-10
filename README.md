@@ -6,7 +6,7 @@
 
 [快速开始](#快速开始) · [从源码运行](#从源码运行) · [开发计划](docs/development-plan.md) · [许可与署名](NOTICE.md)
 
-> Windows 10 虚拟机已完成部分使用和安装验收；干净环境验收仍待完成。确切版本、资产和验收范围见[发布准备清单](docs/release-readiness.md)。源码开发入口见下文。
+> [AsukaLens v1.5.0 已发布](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/tag/v1.5.0)，提供便携版、安装器及源码。干净 Windows 10/11 环境尚未验收；此前的 Windows 10 虚拟机测试针对较早候选，最终资产未在该虚拟机重测。详见[验收记录](docs/release-readiness.md)。
 
 ![AsukaLens 浅色主窗：目录空间分布、文件列表、统计口径和扫描状态，使用合成演示数据](docs/images/overview.png)
 
@@ -20,7 +20,7 @@
 
 | 项目 | 当前要求 |
 | --- | --- |
-| 已测试系统 | Windows 11 x64 开发机及 Windows 10 22H2 x64 虚拟机；干净环境验收仍待完成。WinForms 桌面应用，无网页服务 |
+| 已测试系统 | Windows 11 x64 开发机已测试最终资产；Windows 10 22H2 x64 虚拟机测试的是较早候选。干净环境尚未验收 |
 | 从源码构建 | .NET 10 SDK **10.0.403 或同一 10.0.4xx 系列的后续补丁**，由 `global.json` 约束 |
 | 运行当前开发构建 | .NET 10 **Windows Desktop Runtime**；.NET SDK 的 Windows 安装包已包含该运行时 |
 | 权限与数据 | 使用当前账户权限，只读扫描目标目录；设置和诊断留在本机 |

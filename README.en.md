@@ -6,7 +6,7 @@
 
 [Quick start](#quick-start) · [Run from source](#run-from-source) · [Development plan](docs/development-plan.md) · [Licensing and credits](NOTICE.md)
 
-> Partial Windows 10 VM workflow and installation checks are complete; clean-system acceptance remains pending. See the [release readiness checklist](docs/release-readiness.md) for exact versions, assets and evidence. Source development instructions are below.
+> [AsukaLens v1.5.0 is available](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/tag/v1.5.0) as a portable package, installer and source archives. Clean Windows 10/11 environments have not been validated. Windows 10 VM tests covered an earlier candidate; the final assets were not retested in that VM. See the [acceptance record](docs/release-readiness.md).
 
 ![AsukaLens light interface showing a folder treemap, file list, size metrics and scan status with synthetic demo data](docs/images/overview.png)
 
@@ -20,7 +20,7 @@ See the [release-readiness checklist](docs/release-readiness.md) (Chinese) for c
 
 | Item | Current requirement |
 | --- | --- |
-| Tested systems | Windows 11 x64 development host and Windows 10 22H2 x64 VM; clean-system acceptance remains pending. Native WinForms desktop app, no web server |
+| Tested systems | Final assets were tested on a Windows 11 x64 development host; an earlier candidate was tested in a Windows 10 22H2 x64 VM. Clean-system acceptance remains pending |
 | Build from source | .NET 10 SDK **10.0.403 or a later patch in the same 10.0.4xx band**, constrained by `global.json` |
 | Run the current development build | .NET 10 **Windows Desktop Runtime**; included in the Windows .NET SDK installer |
 | Permissions and data | Uses your current account permissions; scans the selected folder without modifying it; settings and diagnostics stay local |

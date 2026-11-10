@@ -1,0 +1,184 @@
+diff --git a/README.en.md b/README.en.md
+index 3e4f45b..d752d5d 100644
+--- a/README.en.md
++++ b/README.en.md
+@@ -6,7 +6,7 @@
+ 
+ [Quick start](#quick-start) · [Run from source](#run-from-source) · [Development plan](docs/development-plan.md) · [Licensing and credits](NOTICE.md)
+ 
+-> Partial Windows 10 VM workflow and installation checks are complete; clean-system acceptance remains pending. See the [release readiness checklist](docs/release-readiness.md) for exact versions, assets and evidence. Source development instructions are below.
++> [AsukaLens v1.5.0 is available](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/tag/v1.5.0) as a portable package, installer and source archives. Clean Windows 10/11 environments have not been validated. Windows 10 VM tests covered an earlier candidate; the final assets were not retested in that VM. See the [acceptance record](docs/release-readiness.md).
+ 
+ ![AsukaLens light interface showing a folder treemap, file list, size metrics and scan status with synthetic demo data](docs/images/overview.png)
+ 
+@@ -20,7 +20,7 @@ See the [release-readiness checklist](docs/release-readiness.md) (Chinese) for c
+ 
+ | Item | Current requirement |
+ | --- | --- |
+-| Tested systems | Windows 11 x64 development host and Windows 10 22H2 x64 VM; clean-system acceptance remains pending. Native WinForms desktop app, no web server |
++| Tested systems | Final assets were tested on a Windows 11 x64 development host; an earlier candidate was tested in a Windows 10 22H2 x64 VM. Clean-system acceptance remains pending |
+ | Build from source | .NET 10 SDK **10.0.403 or a later patch in the same 10.0.4xx band**, constrained by `global.json` |
+ | Run the current development build | .NET 10 **Windows Desktop Runtime**; included in the Windows .NET SDK installer |
+ | Permissions and data | Uses your current account permissions; scans the selected folder without modifying it; settings and diagnostics stay local |
+diff --git a/README.md b/README.md
+index 42f524a..373f995 100644
+--- a/README.md
++++ b/README.md
+@@ -6,7 +6,7 @@
+ 
+ [快速开始](#快速开始) · [从源码运行](#从源码运行) · [开发计划](docs/development-plan.md) · [许可与署名](NOTICE.md)
+ 
+-> Windows 10 虚拟机已完成部分使用和安装验收；干净环境验收仍待完成。确切版本、资产和验收范围见[发布准备清单](docs/release-readiness.md)。源码开发入口见下文。
++> [AsukaLens v1.5.0 已发布](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/tag/v1.5.0)，提供便携版、安装器及源码。干净 Windows 10/11 环境尚未验收；此前的 Windows 10 虚拟机测试针对较早候选，最终资产未在该虚拟机重测。详见[验收记录](docs/release-readiness.md)。
+ 
+ ![AsukaLens 浅色主窗：目录空间分布、文件列表、统计口径和扫描状态，使用合成演示数据](docs/images/overview.png)
+ 
+@@ -20,7 +20,7 @@
+ 
+ | 项目 | 当前要求 |
+ | --- | --- |
+-| 已测试系统 | Windows 11 x64 开发机及 Windows 10 22H2 x64 虚拟机；干净环境验收仍待完成。WinForms 桌面应用，无网页服务 |
++| 已测试系统 | Windows 11 x64 开发机已测试最终资产；Windows 10 22H2 x64 虚拟机测试的是较早候选。干净环境尚未验收 |
+ | 从源码构建 | .NET 10 SDK **10.0.403 或同一 10.0.4xx 系列的后续补丁**，由 `global.json` 约束 |
+ | 运行当前开发构建 | .NET 10 **Windows Desktop Runtime**；.NET SDK 的 Windows 安装包已包含该运行时 |
+ | 权限与数据 | 使用当前账户权限，只读扫描目标目录；设置和诊断留在本机 |
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 955643a..28222f1 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,5 +1,7 @@
+ # 后续开发计划
+ 
++2026-11-10：v1.5.0 已正式发布。干净 Windows 10/11 环境仍未验收，最终资产未在 Windows 10 虚拟机重测；详情见[发布记录](../iterations/2026-11-10-07-publication/README.md)。现有通用草稿脚本尚未适配 GitHub 对资产名称的规范化，后续发行前须先修复并测试，不应直接复用本次专用修复脚本。以下保留各轮计划和历史状态。
++
+ 依据 [2026-11-07 项目现状](project-status.md)。背景收尾与异常报告修复已完成；用户随后选择系统安装 .NET 10 SDK，迁移与自动回归已完成，本地诊断管理随后已获完整范围确认并完成；其他条目不自动启动。长期工作规则见 [AGENTS.md](../AGENTS.md)。
+ 
+ ## 当前阶段与优先级（2026-11-07 用户调整）
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 2eff172..597ab85 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-10：**v1.5.0 已正式发布**，源码标签指向 `4d473747f88370a1b411129743e2169229c78dcc`。最终资产在 Windows 11 开发机复验；Windows 10 虚拟机验证的是此前候选，最终资产未在该虚拟机重测。干净 Windows 10/11 环境未验收，已按用户同意作为例外披露。见[发布记录](../iterations/2026-11-10-07-publication/README.md)。下文保留历史日期与当时状态。
++
+ 核查日期：2026-11-07。本文描述当日源码与工作区，不把开发预览当作正式版本。长期规则见 [AGENTS.md](../AGENTS.md)，下一步见 [开发计划](development-plan.md)，本次证据见 [审计记录](../iterations/2026-11-07-01-project-audit/README.md)。
+ 
+ ## 当前阶段
+diff --git a/docs/release-readiness.md b/docs/release-readiness.md
+index cd81fb2..dc5a67a 100644
+--- a/docs/release-readiness.md
++++ b/docs/release-readiness.md
+@@ -1,5 +1,7 @@
+ # 正式发布前缺口清单
+ 
++2026-11-10：[v1.5.0 已公开发布](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/tag/v1.5.0)。干净 Windows 10/11 验收仍未完成，用户同意作为例外发布；最终资产未在 Windows 10 虚拟机重测，较早候选通过该虚拟机的主要流程及合成升级/失败恢复检查。确切资产、本机验证及文件名处理见[发布记录](../iterations/2026-11-10-07-publication/README.md)。下方内容是各轮历史状态。
++
+ 本文件保留各轮准备过程；源码压缩包内的内容仅反映其冻结提交时的记录。最新公开版本与下载状态以 [GitHub Releases](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases) 为准。维护者已同意在缺少干净环境时继续准备发布，具体例外必须绑定确切资产并披露未验收状态，其他验收不受豁免。
+ 
+ 核查日期：2026-11-07；本轮基线：`9ac05ce5cb3a5eef3dff6a297652a729abb3cd4b`。这是发布准备审查，不是正式发布批准，也不是某一份候选资产的全通过证明。当前七项核心功能与真实 EXE 的本机使用流程已有证据；**仍不能将所有发布门槛填写为 passed**。
+diff --git a/iterations/2026-11-10-07-publication/README.md b/iterations/2026-11-10-07-publication/README.md
+new file mode 100644
+index 0000000..a8e17d2
+--- /dev/null
++++ b/iterations/2026-11-10-07-publication/README.md
+@@ -0,0 +1,18 @@
++# v1.5.0 正式发布记录
++
++2026-11-10，用户明确要求继续正式发布；[AsukaLens v1.5.0](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/tag/v1.5.0) 已公开，非草稿、非预发布。标签绑定源码提交 `4d473747f88370a1b411129743e2169229c78dcc`。本记录基线为 `8e78881d83c41b6d0805eb6b55030fed6e0588ea`。
++
++最终候选与验收范围见[候选验证](../2026-11-10-06-release-waiver/host-verification.md)。最终资产在 Windows 11 开发机完成包级检查和实际桌面主要流程检查；此前 Windows 10 虚拟机验证的是另一候选，最终资产未在该虚拟机重测。干净 Windows 10/11 环境未验收，维护者明确同意作为例外发布，发布说明保留此限制。
++
++GitHub 将资产名称中的空格转换为点号。最初草稿的下载核对因此失败，资产内容未变。修复时先验证原候选与验收绑定、标签、草稿正文，以及全部六个远程资产的哈希；下载并核对后，仅替换草稿中的清单与校验文件并调整双语下载链接，再重新下载六个文件逐项核对。发布后确认公开状态和六个远程 SHA-256：
++
++| 文件 | SHA-256 |
++| --- | --- |
++| AsukaLens.v1.5.0.zip | `ebde9611fc9320b18ce057cca6c9f2c63e37ed41226a899a7d61f7aa42bc7c10` |
++| AsukaLens.v1.5.0.exe | `d5cd5d59ad31198cfcfc16451f2dad31c9b5798d474adbc9e9e395d526a54d8d` |
++| AsukaLens.v1.5.0-source.zip | `3f6107458a28e1aeebe9c1d942dc44bb7db3873e156f89ffccdaecdb876458c8` |
++| AsukaLens.v1.5.0-source.tar.gz | `dbc9f025512bfeb2f4a6057386e72cc0dced7539055030a9ef1b74312466b82a` |
++| release-manifest.json | `282cf2aa83468ebbefb9e8dade5e914bc80dcb956e46f43710b86e9fd16a54b9` |
++| SHA256SUMS.txt | `2103ddd4a7ee2aa1c9059bfb5ae9a2c1d1dcb72d8cd856ded6bf541522d74029` |
++
++`repair-draft.ps1` 是本次专用脚本的历史证据，归档移动后不能直接运行，且只能操作当时未公开的特定草稿；SHA-256 为 `e26650baafd1f52fef45441a20043c8c64b42bb76c96b554302b60dd89c6b879`。通用上传脚本未修复该文件名问题，后续发行前需设计并测试通用处理，不应复用此历史脚本。临时下载目录由脚本清理；候选及历史资产保留。
+diff --git a/iterations/2026-11-10-07-publication/repair-draft.ps1 b/iterations/2026-11-10-07-publication/repair-draft.ps1
+new file mode 100644
+index 0000000..7b1ed73
+--- /dev/null
++++ b/iterations/2026-11-10-07-publication/repair-draft.ps1
+@@ -0,0 +1,74 @@
++#requires -Version 7.4
++[CmdletBinding(SupportsShouldProcess, ConfirmImpact='High')]
++param([Parameter(Mandatory)][string]$Directory,[Parameter(Mandatory)][string]$Notes,[Parameter(Mandatory)][string]$Acceptance)
++. (Join-Path $PSScriptRoot 'Release.Common.ps1')
++$ErrorActionPreference = 'Stop'
++$Directory = (Resolve-Path -LiteralPath $Directory).Path
++& (Join-Path $PSScriptRoot 'Upload-Draft.ps1') -Directory $Directory -Notes $Notes -Acceptance $Acceptance -AllowCleanEnvironmentWaiver -WhatIf | Out-Host
++$manifest = Get-Content -LiteralPath (Join-Path $Directory 'release-manifest.json') -Raw | ConvertFrom-Json
++$accepted = Get-Content -LiteralPath $Acceptance -Raw | ConvertFrom-Json
++$hash = (Get-FileHash -LiteralPath (Join-Path $Directory 'release-manifest.json')).Hash.ToLowerInvariant()
++if ($manifest.local_test -or $accepted.commit -cne $manifest.commit -or $accepted.manifest_sha256 -cne $hash) { throw 'Acceptance does not match the original candidate.' }
++if ($manifest.version -cne 'v1.5.0' -or $manifest.commit -cne '4d473747f88370a1b411129743e2169229c78dcc') { throw 'This repair is restricted to the reviewed candidate.' }
++$notesText = Get-Content -LiteralPath $Notes -Raw -Encoding utf8
++Assert-ReleaseNotes $notesText $manifest -RequireCleanEnvDisclosure
++$repo='M66Y/Hard-Drive-Space-Visualization'
++$gh=Resolve-ReleaseGitHubCli
++function GhJson([string[]]$Arguments) { $v=Invoke-ReleaseGitHub $gh ($Arguments + @('--hostname','github.com','-H','X-GitHub-Api-Version: 2026-03-10')); return ($v -join "`n" | ConvertFrom-Json) }
++$pages=GhJson @('api',"repos/$repo/releases",'--paginate','--slurp')
++$found=@($pages | ForEach-Object { foreach($r in $_) { $r } } | Where-Object { $_.tag_name -ceq $manifest.version })
++if ($found.Count -ne 1 -or -not $found[0].draft -or $found[0].name -cne ('AsukaLens '+$manifest.version)) { throw 'Expected a single matching unpublished draft.' }
++$draft=$found[0]
++$normalize = { param($s) ([string]$s).Replace("`r`n","`n").TrimEnd([char]10) }
++if ((& $normalize $draft.body) -cne (& $normalize $notesText)) { throw 'Draft notes differ from reviewed notes.' }
++$tag=GhJson @('api',"repos/$repo/git/ref/tags/$($manifest.version)")
++$object=$tag.object
++if ($object.type -ceq 'tag') { $object=(GhJson @('api',"repos/$repo/git/tags/$($object.sha)")).object }
++if ($object.type -cne 'commit' -or $object.sha -cne $manifest.commit) { throw 'Tag does not match the candidate.' }
++$expected=@{}
++foreach($asset in $manifest.assets) {
++    $name=$asset.path.Replace('AsukaLens v','AsukaLens.v')
++    $expected[$name]=$asset.sha256
++}
++foreach($name in @('release-manifest.json','SHA256SUMS.txt')) { $expected[$name]=(Get-FileHash -LiteralPath (Join-Path $Directory $name)).Hash.ToLowerInvariant() }
++if (@($draft.assets).Count -ne 6) { throw 'Draft must contain exactly six assets.' }
++foreach($asset in $draft.assets) {
++    if (-not $expected.ContainsKey($asset.name) -or $asset.digest -cne ('sha256:'+$expected[$asset.name])) { throw 'Draft has an unexpected or modified asset.' }
++}
++if (-not $PSCmdlet.ShouldProcess($repo,'Repair only draft metadata and release links for GitHub filename normalization')) { return }
++$temp=Join-Path $Directory ('.github-name-repair-'+[guid]::NewGuid().ToString('N'))
++try {
++    [IO.Directory]::CreateDirectory($temp) | Out-Null
++    # Download all original draft assets and verify every byte before replacing metadata.
++    Invoke-ReleaseGitHub $gh @('release','download',$manifest.version,'--repo',('github.com/'+$repo),'--dir',$temp) | Out-Host
++    foreach($entry in $expected.GetEnumerator()) { if ((Get-FileHash -LiteralPath (Join-Path $temp $entry.Key)).Hash.ToLowerInvariant() -cne $entry.Value) { throw 'Downloaded asset checksum mismatch.' } }
++    foreach($asset in $manifest.assets) { $asset.path=$asset.path.Replace('AsukaLens v','AsukaLens.v') }
++    $newManifest=Join-Path $temp 'new-manifest.json'
++    $newSums=Join-Path $temp 'new-sums.txt'
++    $newNotes=Join-Path $temp 'new-notes.md'
++    [IO.File]::WriteAllText($newManifest,($manifest | ConvertTo-Json -Depth 100),[Text.UTF8Encoding]::new($false))
++    [IO.File]::WriteAllLines($newSums,[string[]]@($manifest.assets | ForEach-Object { $_.sha256+'  '+$_.path }),[Text.UTF8Encoding]::new($false))
++    [IO.File]::WriteAllText($newNotes,$notesText.Replace('AsukaLens%20v1.5.0','AsukaLens.v1.5.0').Replace('AsukaLens v1.5.0.', 'AsukaLens.v1.5.0.').Replace('AsukaLens v1.5.0-', 'AsukaLens.v1.5.0-'),[Text.UTF8Encoding]::new($false))
++    $current=GhJson @('api',"repos/$repo/releases/$($draft.id)")
++    if (-not $current.draft -or (& $normalize $current.body) -cne (& $normalize $notesText)) { throw 'Draft changed during verification.' }
++    foreach($name in @('release-manifest.json','SHA256SUMS.txt')) {
++        $match=@($current.assets | Where-Object { $_.name -ceq $name })
++        if ($match.Count -ne 1 -or $match[0].digest -cne ('sha256:'+$expected[$name])) { throw 'Draft metadata changed.' }
++        Invoke-ReleaseGitHub $gh @('api','--method','DELETE',"repos/$repo/releases/assets/$($match[0].id)") | Out-Null
++    }
++    Copy-Item -LiteralPath $newManifest -Destination (Join-Path $temp 'release-manifest.json') -Force
++    Copy-Item -LiteralPath $newSums -Destination (Join-Path $temp 'SHA256SUMS.txt') -Force
++    foreach($name in @('release-manifest.json','SHA256SUMS.txt')) { Invoke-ReleaseGitHub $gh @('release','upload',$manifest.version,(Join-Path $temp $name),'--repo',('github.com/'+$repo)) | Out-Host }
++    Invoke-ReleaseGitHub $gh @('release','edit',$manifest.version,'--repo',('github.com/'+$repo),'--notes-file',$newNotes) | Out-Host
++    $expected['release-manifest.json']=(Get-FileHash -LiteralPath (Join-Path $temp 'release-manifest.json')).Hash.ToLowerInvariant()
++    $expected['SHA256SUMS.txt']=(Get-FileHash -LiteralPath (Join-Path $temp 'SHA256SUMS.txt')).Hash.ToLowerInvariant()
++    $verify=Join-Path $temp 'verify'
++    [IO.Directory]::CreateDirectory($verify) | Out-Null
++    Invoke-ReleaseGitHub $gh @('release','download',$manifest.version,'--repo',('github.com/'+$repo),'--dir',$verify) | Out-Host
++    if (@(Get-ChildItem -LiteralPath $verify -File).Count -ne 6) { throw 'Unexpected downloaded asset count.' }
++    foreach($entry in $expected.GetEnumerator()) { if ((Get-FileHash -LiteralPath (Join-Path $verify $entry.Key)).Hash.ToLowerInvariant() -cne $entry.Value) { throw 'Repaired download checksum mismatch.' } }
++    $current=GhJson @('api',"repos/$repo/releases/$($draft.id)")
++    if (-not $current.draft -or (& $normalize $current.body) -cne (& $normalize ([IO.File]::ReadAllText($newNotes)))) { throw 'Final draft state differs.' }
++    foreach($a in $current.assets) { if (-not $expected.ContainsKey($a.name) -or $a.digest -cne ('sha256:'+$expected[$a.name])) { throw 'Final remote asset differs.' } }
++    Write-Host 'Repaired draft assets downloaded and verified; draft remains unpublished.'
++} finally { Remove-OwnedDirectory $temp $Directory }
