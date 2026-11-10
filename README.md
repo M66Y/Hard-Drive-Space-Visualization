@@ -6,7 +6,7 @@
 
 [快速开始](#快速开始) · [从源码运行](#从源码运行) · [开发计划](docs/development-plan.md) · [许可与署名](NOTICE.md)
 
-> **v1.5.0 候选版本 · 验收中** — Windows 10/11 候选资产已准备，Windows 10 虚拟机已完成部分使用和安装验收；干净环境验收仍待完成，尚未公开正式 Release。详见[当前候选记录](iterations/2026-11-10-01-windows10/candidate.md)。请从源码启动当前版本；旧 `软件/` 目录和 ZIP 不含最新功能。
+> **v1.5.0 · 发布准备中** — Windows 10 虚拟机已完成部分使用和安装验收；干净环境验收仍待完成，尚未公开正式 Release。确切候选资产和验收范围见[发布准备清单](docs/release-readiness.md)。请从源码启动当前版本；旧 `软件/` 目录和 ZIP 不含最新功能。
 
 ![AsukaLens 浅色主窗：目录空间分布、文件列表、统计口径和扫描状态，使用合成演示数据](docs/images/overview.png)
 

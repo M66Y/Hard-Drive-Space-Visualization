@@ -1,0 +1,35 @@
+{
+  "baseline": "6982242d98af4dca5c51079c3cffb62f1d50705f",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "07767642e90b5ad23aa2ada1dbec3d98c420bef04a2a892cbf1390ad69d4bc2f"
+    },
+    {
+      "path": "README.en.md",
+      "sha256": "d51803e997028123b50626d8203c90dc9f17b30cc15de13709a8a4a1209fcc0e"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "9baf01ab5dea1291e108b1b7f58be7da555444adee93a517572b81a8fe599cbb"
+    },
+    {
+      "path": "docs/release-readiness.md",
+      "sha256": "ba590680cb9060cd8ee258cb413a9e2b809131effbd45192dbc68ee630f3fc71"
+    },
+    {
+      "path": "docs/releasing.md",
+      "sha256": "3b2a1368cc8f50f3500765e2e8d0c9d2f88dbb772668a343beedd7f9a5e1c206"
+    },
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/README.md",
+      "sha256": "08d957a2df90ed63cf1c944658b649a0582d1cbf01edad45efe5ff20d845c445"
+    },
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/changes.patch",
+      "sha256": "a088095f465c43764d41de64f5e476eec901c8125dd2e90ebb438837b1713761"
+    }
+  ]
+}

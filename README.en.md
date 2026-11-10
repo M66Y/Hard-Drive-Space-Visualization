@@ -6,7 +6,7 @@
 
 [Quick start](#quick-start) · [Run from source](#run-from-source) · [Development plan](docs/development-plan.md) · [Licensing and credits](NOTICE.md)
 
-> **v1.5.0 candidate · Acceptance in progress** — Windows 10/11 candidate assets are ready, with partial Windows 10 VM workflow and installation checks completed. Clean-system acceptance remains pending and no formal Release is public. See the [current candidate record](iterations/2026-11-10-01-windows10/candidate.md). Build from source for the current version; historical local binaries and ZIPs do not contain the latest changes.
+> **v1.5.0 · Release preparation in progress** — Partial Windows 10 VM workflow and installation checks are complete. Clean-system acceptance remains pending and no formal Release is public. See the [release readiness checklist](docs/release-readiness.md) for the exact assets and evidence. Build from source for the current version; historical local binaries and ZIPs do not contain the latest changes.
 
 ![AsukaLens light interface showing a folder treemap, file list, size metrics and scan status with synthetic demo data](docs/images/overview.png)
 

@@ -1,0 +1,82 @@
+diff --git a/README.en.md b/README.en.md
+index cafbc462e477cc8ffe7e3d852e9dee2001dc1796..4048eec0cf12728d27fb7f9e226e8dd2a17b4091 100644
+--- a/README.en.md
++++ b/README.en.md
+@@ -6,7 +6,7 @@
+ 
+ [Quick start](#quick-start) · [Run from source](#run-from-source) · [Development plan](docs/development-plan.md) · [Licensing and credits](NOTICE.md)
+ 
+-> **v1.5.0 candidate · Acceptance in progress** — Windows 10/11 candidate assets are ready, with partial Windows 10 VM workflow and installation checks completed. Clean-system acceptance remains pending and no formal Release is public. See the [current candidate record](iterations/2026-11-10-01-windows10/candidate.md). Build from source for the current version; historical local binaries and ZIPs do not contain the latest changes.
++> **v1.5.0 · Release preparation in progress** — Partial Windows 10 VM workflow and installation checks are complete. Clean-system acceptance remains pending and no formal Release is public. See the [release readiness checklist](docs/release-readiness.md) for the exact assets and evidence. Build from source for the current version; historical local binaries and ZIPs do not contain the latest changes.
+ 
+ ![AsukaLens light interface showing a folder treemap, file list, size metrics and scan status with synthetic demo data](docs/images/overview.png)
+ 
+diff --git a/README.md b/README.md
+index 9919f6fd0338c13fdfc400fbc08fafcb76c5f796..5b4f7f9d2d26b1c639febc9fc4733e547b787f62 100644
+--- a/README.md
++++ b/README.md
+@@ -6,7 +6,7 @@
+ 
+ [快速开始](#快速开始) · [从源码运行](#从源码运行) · [开发计划](docs/development-plan.md) · [许可与署名](NOTICE.md)
+ 
+-> **v1.5.0 候选版本 · 验收中** — Windows 10/11 候选资产已准备，Windows 10 虚拟机已完成部分使用和安装验收；干净环境验收仍待完成，尚未公开正式 Release。详见[当前候选记录](iterations/2026-11-10-01-windows10/candidate.md)。请从源码启动当前版本；旧 `软件/` 目录和 ZIP 不含最新功能。
++> **v1.5.0 · 发布准备中** — Windows 10 虚拟机已完成部分使用和安装验收；干净环境验收仍待完成，尚未公开正式 Release。确切候选资产和验收范围见[发布准备清单](docs/release-readiness.md)。请从源码启动当前版本；旧 `软件/` 目录和 ZIP 不含最新功能。
+ 
+ ![AsukaLens 浅色主窗：目录空间分布、文件列表、统计口径和扫描状态，使用合成演示数据](docs/images/overview.png)
+ 
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 8e911c1b0f579183bd2170d3a92e80892e226fbe..4b97917b5e4ebaa15c0dde939b1354b56fc3a5b3 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -8,7 +8,7 @@
+ 
+ ## 当前判断
+ 
+-2026-11-10：Windows 10 22H2 x64 兼容改动已提交，新候选包已生成并完成开发机包级验收；用户在 Windows 10 虚拟机完成部分真实 EXE 使用观察，并报告扫描取消恢复、合成旧版升级和失败回退补测通过。完整场景和干净环境来源仍待确认，干净 Windows 11 仍待单独验收，见[本轮记录](../iterations/2026-11-10-01-windows10/candidate.md)。此前 Windows 11 候选包不能代表 Windows 10 验收通过。微软 .NET 10 对 Windows 10 的官方支持限于指定 LTSC / Enterprise 版本，其他版本的项目兼容性测试不改变微软支持范围。
++2026-11-10：Windows 10 22H2 x64 兼容改动已提交；候选 `6f6bdc0` 已完成开发机包级验收，用户在 Windows 10 虚拟机完成部分真实 EXE 使用观察，并报告扫描取消恢复、合成旧版升级和失败回退补测通过。该候选的源码说明待修正，新候选需单独绑定和验收；完整场景和干净环境来源仍待确认，干净 Windows 11 仍待单独验收，见[本轮记录](../iterations/2026-11-10-01-windows10/candidate.md)。微软 .NET 10 对 Windows 10 的官方支持限于指定 LTSC / Enterprise 版本，其他版本的项目兼容性测试不改变微软支持范围。
+ 
+ v1.5.0 四类正式身份候选资产已完成本机复验，绑定源码提交 `4e7431739d321d73e847d0ff585edefa14820ae2`，详见[候选记录](releases/v1.5.0-candidate.md)。本轮修正了首次正式打包暴露的 LOCAL TEST 身份判断问题；应用主要使用流程、两种源码构建、安装升级与失败恢复均已复验。干净 Windows 无现代 .NET、真实远程草稿/下载仍待完成，没有标签或正式发布。
+ 
+diff --git a/docs/release-readiness.md b/docs/release-readiness.md
+index a3185e16b20f3bbefde5c58e3f2533e93cadaff5..3135445095aca4c909d5e37765175f43eb70b770 100644
+--- a/docs/release-readiness.md
++++ b/docs/release-readiness.md
+@@ -4,7 +4,7 @@
+ 
+ 最新补充：用户确认的 **v1.5.0 候选包已完成本机复验**，见[候选资产记录](releases/v1.5.0-candidate.md)和[本轮证据](../iterations/2026-11-07-21-v1.5.0-candidate/verification.md)。以下早期证据保留来源；干净环境与真实远程门槛仍未完成。
+ 
+-2026-11-10 已确认增加 Windows 10 22H2 x64 兼容性；对应的[新候选包](../iterations/2026-11-10-01-windows10/candidate.md)已生成并完成开发机包级验收，双系统的干净环境验收仍待完成。历史候选包与其证据只适用于原有资产，不能代替新候选包的检查。
++2026-11-10 已确认增加 Windows 10 22H2 x64 兼容性；此前[Windows 10/11 候选包](../iterations/2026-11-10-01-windows10/candidate.md)已生成并完成开发机包级验收，双系统的干净环境验收仍待完成。该候选的源码说明需要修正，正在准备新的源码快照；任何候选的证据只适用于其对应资产和清单。
+ 
+ ## 早期本机证据
+ 
+@@ -23,7 +23,7 @@
+ | 项目 | 当前状态 | 后续动作 |
+ | --- | --- | --- |
+ | 正式版本和发布范围 | 用户已确认 v1.5.0 候选准备；项目数字版本为 `1.5.0`，双语说明已完成，历史预览未追认为正式发行 | 待前置验收及正式发布授权后使用确切候选提交；若候选内容改变则重新冻结、打包并复验，不移动已发布标签 |
+-| 确切候选资产：已完成开发机包级验收 | 当前 Windows 10/11 候选绑定 `6f6bdc0`，清单哈希及四类文件见[新候选记录](../iterations/2026-11-10-01-windows10/candidate.md)；旧 Windows 11 候选 `4e74317` 保留供追溯 | 两系统验收使用同一套新资产并核对独立清单哈希；改变包内容时必须重新冻结和复验 |
++| 确切候选资产：正在重冻 | 上一套 Windows 10/11 候选绑定 `6f6bdc0`，清单哈希及四类文件见[候选记录](../iterations/2026-11-10-01-windows10/candidate.md)；旧 Windows 11 候选 `4e74317` 保留供追溯 | 新候选生成后记录其确切提交及清单，两系统验收使用同一套资产；已有证据不能直接移用于不同清单 |
+ | Windows 10 22H2 x64 | 用户在 VMware 完成主要使用、取消、合成升级与失败回退；未发现已知现代 .NET，但环境来源并非可确认的干净快照 | [实际观察和边界](../iterations/2026-11-10-01-windows10/windows10-observations.md)；干净环境门槛仍待满足，未覆盖项目不能记为通过 |
+ | 干净 Windows 11 x64 | 现有 VMware 客户机为 Windows 10，本机已有现代 .NET；尚无已确认的干净 Windows 11 环境。离线工具的存在不能代替环境 | 使用未额外安装现代 .NET SDK/共享运行时的新装系统或已知干净快照，按[离线手册](offline-acceptance.md)实际使用确切候选包；创建新虚拟机前确认镜像、许可与磁盘空间 |
+ | GitHub CLI 执行环境与登录：已补齐本轮检查 | 已准备官方便携版 2.103.3，用户完成浏览器授权，确认 keyring 存储；真实 CLI 只读访问成功且接口返回推送权限 | [操作与证据边界](github-publishing-access.md)。此结果不替代真实上传，正式执行前重新核对登录和权限 |
+diff --git a/docs/releasing.md b/docs/releasing.md
+index b9edca525864d987030a24d4ce492a31064753d7..e84590ccd355b4e20bf0ff37328dcdebf7955084 100644
+--- a/docs/releasing.md
++++ b/docs/releasing.md
+@@ -1,6 +1,6 @@
+ # 打包、验收与草稿快照
+ 
+-当前候选面向 Windows 10 22H2 x64 和 Windows 11 x64，提供 .NET 10 自包含便携 ZIP、当前用户 Inno Setup EXE 安装器、源码 ZIP / tar.gz，以及 SHA-256 与文件清单。两个系统的完整干净环境验收和正式发布仍未完成；具体结果见[当前候选记录](../iterations/2026-11-10-01-windows10/candidate.md)。微软 .NET 10 的 Windows 10 官方支持限于指定 LTSC / Enterprise 版本，普通版仅属于项目兼容测试范围。
++候选目标为 Windows 10 22H2 x64 和 Windows 11 x64，提供 .NET 10 自包含便携 ZIP、当前用户 Inno Setup EXE 安装器、源码 ZIP / tar.gz，以及 SHA-256 与文件清单。两个系统的完整干净环境验收和正式发布仍未完成；上一套候选的具体结果见[候选记录](../iterations/2026-11-10-01-windows10/candidate.md)，新资产须单独验收。微软 .NET 10 的 Windows 10 官方支持限于指定 LTSC / Enterprise 版本，普通版仅属于项目兼容测试范围。
+ 
+ ## 工具与来源
+ 
+@@ -84,7 +84,7 @@ $app = [Diagnostics.Process]::Start($start)
+ 
+ ### v1.5.0 候选包的本机复验
+ 
+-用户已授权准备 v1.5.0 候选资产和本机复验，本轮不创建标签、不上传资产、不公开 Release。当前候选的资产身份与本机复验见[候选记录](releases/v1.5.0-candidate.md)。固定版本的实际更新条目见 [v1.5.0.changes.json](releases/v1.5.0.changes.json)；冻结提交后将条目、运行时与确切提交代入双语模板生成候选说明，不将未知提交伪装成最终值。
++用户已授权准备 v1.5.0 候选资产和本机复验，未授权创建标签、上传资产或公开 Release。上一套候选的资产身份与本机复验见[候选记录](../iterations/2026-11-10-01-windows10/candidate.md)。固定版本的实际更新条目见 [v1.5.0.changes.json](releases/v1.5.0.changes.json)；冻结提交后将条目、运行时与确切提交代入双语模板生成候选说明，不将未知提交伪装成最终值。
+ 
+ ```powershell
+ # 仅在本机没有既有正式安装时执行；脚本先检查并拒绝任何冲突。

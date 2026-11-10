@@ -1,6 +1,6 @@
 # 打包、验收与草稿快照
 
-当前候选面向 Windows 10 22H2 x64 和 Windows 11 x64，提供 .NET 10 自包含便携 ZIP、当前用户 Inno Setup EXE 安装器、源码 ZIP / tar.gz，以及 SHA-256 与文件清单。两个系统的完整干净环境验收和正式发布仍未完成；具体结果见[当前候选记录](../iterations/2026-11-10-01-windows10/candidate.md)。微软 .NET 10 的 Windows 10 官方支持限于指定 LTSC / Enterprise 版本，普通版仅属于项目兼容测试范围。
+候选目标为 Windows 10 22H2 x64 和 Windows 11 x64，提供 .NET 10 自包含便携 ZIP、当前用户 Inno Setup EXE 安装器、源码 ZIP / tar.gz，以及 SHA-256 与文件清单。两个系统的完整干净环境验收和正式发布仍未完成；上一套候选的具体结果见[候选记录](../iterations/2026-11-10-01-windows10/candidate.md)，新资产须单独验收。微软 .NET 10 的 Windows 10 官方支持限于指定 LTSC / Enterprise 版本，普通版仅属于项目兼容测试范围。
 
 ## 工具与来源
 
@@ -84,7 +84,7 @@ $app = [Diagnostics.Process]::Start($start)
 
 ### v1.5.0 候选包的本机复验
 
-用户已授权准备 v1.5.0 候选资产和本机复验，本轮不创建标签、不上传资产、不公开 Release。当前候选的资产身份与本机复验见[候选记录](releases/v1.5.0-candidate.md)。固定版本的实际更新条目见 [v1.5.0.changes.json](releases/v1.5.0.changes.json)；冻结提交后将条目、运行时与确切提交代入双语模板生成候选说明，不将未知提交伪装成最终值。
+用户已授权准备 v1.5.0 候选资产和本机复验，未授权创建标签、上传资产或公开 Release。上一套候选的资产身份与本机复验见[候选记录](../iterations/2026-11-10-01-windows10/candidate.md)。固定版本的实际更新条目见 [v1.5.0.changes.json](releases/v1.5.0.changes.json)；冻结提交后将条目、运行时与确切提交代入双语模板生成候选说明，不将未知提交伪装成最终值。
 
 ```powershell
 # 仅在本机没有既有正式安装时执行；脚本先检查并拒绝任何冲突。
