@@ -1,0 +1,15 @@
+{
+  "baseline": "493b9d1cce1db596aa1e9df8ecde3e3668a85886",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "iterations/2026-11-10-01-windows10/candidate.md",
+      "sha256": "73d7af706efa678fe0a902a940aac1952a8fdad6889bc9298d3df81a03101cd0"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/cleanup-followup.patch",
+      "sha256": "cedd87501a57841dc11f9afec566e6c074926ce2c0eaf8cc43b5f817343d91e6"
+    }
+  ]
+}
