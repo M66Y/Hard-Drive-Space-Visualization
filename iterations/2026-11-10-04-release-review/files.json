@@ -1,0 +1,20 @@
+{
+  "baseline": "8f450384736fb2572184a5046e8e59e529f1dd6b",
+  "candidate_source_commit": "2d54a681986127e3c966eca03b1d72ef3a33f9aa",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/candidate.md",
+      "sha256": "fef8728fd46e27cfa852d262f2912a60a11a69f8ccd152734221287a470a8cc5"
+    },
+    {
+      "path": "iterations/2026-11-10-04-release-review/README.md",
+      "sha256": "7a2ae216e38e08006b381a1e1e6f4263f9c514a4030fb553ccf3e984e97f9d55"
+    },
+    {
+      "path": "iterations/2026-11-10-04-release-review/changes.patch",
+      "sha256": "d72098fcd93ebca4272d044e6e1868e1f5b9626ce02a05d19dee620d1d45613f"
+    }
+  ]
+}
