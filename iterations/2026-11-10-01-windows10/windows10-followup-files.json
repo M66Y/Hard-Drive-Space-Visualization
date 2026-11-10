@@ -1,0 +1,20 @@
+{
+  "baseline": "5d43110df3a757e17d5e07a0c1f9b87ed55a2d11",
+  "candidate_source_commit": "6f6bdc07815e6b7cee3af079724672be62c7b515",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "iterations/2026-11-10-01-windows10/candidate.md",
+      "sha256": "2520a6fa84a7128dccf60a62578c7dda4e5e74b4d85cad41ba50df2e2038fe4f"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/windows10-observations.md",
+      "sha256": "b44e353fa7a8f6709f3d28dcd69dfd22a5a0536cd908f6d0c007342fb286d537"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/windows10-followup.patch",
+      "sha256": "7bb04f3802d23fe5f77a91aac1be0f0d9a36aae125f202e47e7d00386c1e14cd"
+    }
+  ]
+}
