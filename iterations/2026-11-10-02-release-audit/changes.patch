@@ -1,0 +1,109 @@
+diff --git a/README.en.md b/README.en.md
+index 92149a6fde6149515e0fb6d418fdfa88b10a5523..cafbc462e477cc8ffe7e3d852e9dee2001dc1796 100644
+--- a/README.en.md
++++ b/README.en.md
+@@ -6,7 +6,7 @@
+ 
+ [Quick start](#quick-start) · [Run from source](#run-from-source) · [Development plan](docs/development-plan.md) · [Licensing and credits](NOTICE.md)
+ 
+-> **v1.5.0 candidate · Local acceptance completed** — Four candidate asset formats are ready. No formal Release or installer download is public yet; clean-system acceptance remains pending. See the [candidate record](docs/releases/v1.5.0-candidate.md). Build from source for the current version. Historical local binaries and ZIPs do not contain the latest changes.
++> **v1.5.0 candidate · Acceptance in progress** — Windows 10/11 candidate assets are ready, with partial Windows 10 VM workflow and installation checks completed. Clean-system acceptance remains pending and no formal Release is public. See the [current candidate record](iterations/2026-11-10-01-windows10/candidate.md). Build from source for the current version; historical local binaries and ZIPs do not contain the latest changes.
+ 
+ ![AsukaLens light interface showing a folder treemap, file list, size metrics and scan status with synthetic demo data](docs/images/overview.png)
+ 
+@@ -20,7 +20,7 @@ See the [release-readiness checklist](docs/release-readiness.md) (Chinese) for c
+ 
+ | Item | Current requirement |
+ | --- | --- |
+-| Tested system | Windows 11 x64; native WinForms desktop app, no web server |
++| Tested systems | Windows 11 x64 development host and Windows 10 22H2 x64 VM; clean-system acceptance remains pending. Native WinForms desktop app, no web server |
+ | Build from source | .NET 10 SDK **10.0.403 or a later patch in the same 10.0.4xx band**, constrained by `global.json` |
+ | Run the current development build | .NET 10 **Windows Desktop Runtime**; included in the Windows .NET SDK installer |
+ | Permissions and data | Uses your current account permissions; scans the selected folder without modifying it; settings and diagnostics stay local |
+diff --git a/README.md b/README.md
+index 60188c33518951503cb12ec6e35e1cbcae8e7870..9919f6fd0338c13fdfc400fbc08fafcb76c5f796 100644
+--- a/README.md
++++ b/README.md
+@@ -6,7 +6,7 @@
+ 
+ [快速开始](#快速开始) · [从源码运行](#从源码运行) · [开发计划](docs/development-plan.md) · [许可与署名](NOTICE.md)
+ 
+-> **v1.5.0 候选版本 · 本机验收完成** — 四类候选资产已准备，尚未公开正式 Release 或安装包；干净系统继续待验收。详见[候选记录](docs/releases/v1.5.0-candidate.md)。请从源码启动当前版本；旧 `软件/` 目录和 ZIP 不含最新功能。
++> **v1.5.0 候选版本 · 验收中** — Windows 10/11 候选资产已准备，Windows 10 虚拟机已完成部分使用和安装验收；干净环境验收仍待完成，尚未公开正式 Release。详见[当前候选记录](iterations/2026-11-10-01-windows10/candidate.md)。请从源码启动当前版本；旧 `软件/` 目录和 ZIP 不含最新功能。
+ 
+ ![AsukaLens 浅色主窗：目录空间分布、文件列表、统计口径和扫描状态，使用合成演示数据](docs/images/overview.png)
+ 
+@@ -20,7 +20,7 @@
+ 
+ | 项目 | 当前要求 |
+ | --- | --- |
+-| 已验证系统 | Windows 11 x64；WinForms 桌面应用，无网页服务 |
++| 已测试系统 | Windows 11 x64 开发机及 Windows 10 22H2 x64 虚拟机；干净环境验收仍待完成。WinForms 桌面应用，无网页服务 |
+ | 从源码构建 | .NET 10 SDK **10.0.403 或同一 10.0.4xx 系列的后续补丁**，由 `global.json` 约束 |
+ | 运行当前开发构建 | .NET 10 **Windows Desktop Runtime**；.NET SDK 的 Windows 安装包已包含该运行时 |
+ | 权限与数据 | 使用当前账户权限，只读扫描目标目录；设置和诊断留在本机 |
+diff --git a/docs/release-readiness.md b/docs/release-readiness.md
+index 50e95b72685ab3ecd4e9173f36efd4bf4d01c8bb..a3185e16b20f3bbefde5c58e3f2533e93cadaff5 100644
+--- a/docs/release-readiness.md
++++ b/docs/release-readiness.md
+@@ -23,11 +23,12 @@
+ | 项目 | 当前状态 | 后续动作 |
+ | --- | --- | --- |
+ | 正式版本和发布范围 | 用户已确认 v1.5.0 候选准备；项目数字版本为 `1.5.0`，双语说明已完成，历史预览未追认为正式发行 | 待前置验收及正式发布授权后使用确切候选提交；若候选内容改变则重新冻结、打包并复验，不移动已发布标签 |
+-| 确切候选资产：已完成本机复验 | v1.5.0 绑定 `4e74317`，清单哈希及四类文件见候选记录；只保留当前必要一套 | 后续干净环境复用同一套文件并核对独立清单哈希；改变包内容时必须重新冻结和复验 |
+-| 干净 Windows 11 x64 | 当前没有独立电脑/虚拟机，本机已有现代 .NET。离线工具的存在不能代替环境 | 使用未额外安装现代 .NET SDK/共享运行时的新装系统或已知干净快照，按[离线手册](offline-acceptance.md)实际使用确切候选包。若使用本机 VM，先确定虚拟化软件、镜像、许可与磁盘空间方案 |
++| 确切候选资产：已完成开发机包级验收 | 当前 Windows 10/11 候选绑定 `6f6bdc0`，清单哈希及四类文件见[新候选记录](../iterations/2026-11-10-01-windows10/candidate.md)；旧 Windows 11 候选 `4e74317` 保留供追溯 | 两系统验收使用同一套新资产并核对独立清单哈希；改变包内容时必须重新冻结和复验 |
++| Windows 10 22H2 x64 | 用户在 VMware 完成主要使用、取消、合成升级与失败回退；未发现已知现代 .NET，但环境来源并非可确认的干净快照 | [实际观察和边界](../iterations/2026-11-10-01-windows10/windows10-observations.md)；干净环境门槛仍待满足，未覆盖项目不能记为通过 |
++| 干净 Windows 11 x64 | 现有 VMware 客户机为 Windows 10，本机已有现代 .NET；尚无已确认的干净 Windows 11 环境。离线工具的存在不能代替环境 | 使用未额外安装现代 .NET SDK/共享运行时的新装系统或已知干净快照，按[离线手册](offline-acceptance.md)实际使用确切候选包；创建新虚拟机前确认镜像、许可与磁盘空间 |
+ | GitHub CLI 执行环境与登录：已补齐本轮检查 | 已准备官方便携版 2.103.3，用户完成浏览器授权，确认 keyring 存储；真实 CLI 只读访问成功且接口返回推送权限 | [操作与证据边界](github-publishing-access.md)。此结果不替代真实上传，正式执行前重新核对登录和权限 |
+ | 真实草稿上传与下载 | 本轮连接器只读查询 Release 返回空列表，Git 远程标签列表为空；没有创建草稿、标签或上传资产 | 所有前置验收真实通过、正式任务明确后，创建绑定提交的新标签，上传草稿、下载六个文件复核，确认仍是草稿，再按正式授权公开；失败保留草稿和已完成资产 |
+-| 对外入口同步 | 中英文 README 标注 v1.5.0 候选已完成本机验收、暂无公开下载；本轮双语说明已填入确切提交，未来下载 URL 尚未生效 | 正式公开后同步中英文 README 的版本/下载入口、说明与校验链接。未公开前不写“已有下载”，不把模板当发布说明定稿 |
++| 对外入口同步 | 当前工作树 README 指向新候选；新候选源码包中的 README 仍指向旧候选，且旧版安装说明和系统支持描述需核对 | 发布前修正源码快照并生成、重新验收绑定新提交的资产；正式公开后同步真实下载入口。不把当前旧链接或预备说明当成最终发布状态 |
+ 
+ 当前指定仓库没有可供真实迁移验收的正式旧版。首次按当前规范发布时，历史正式安装器迁移项记为“不适用，并说明原因”；本机合成旧版升级的证据仍可参考。后续有正式版本后，该项应按实际旧版到新版重新验收，不能沿用“不适用”。
+ 
+diff --git a/docs/releases/v1.5.0-candidate.md b/docs/releases/v1.5.0-candidate.md
+index 70dc5d761a74b6a70e9cade5bfe278f5ae37559c..71f2b1db856c517579bbbdaec5d38ef91525d9b7 100644
+--- a/docs/releases/v1.5.0-candidate.md
++++ b/docs/releases/v1.5.0-candidate.md
+@@ -1,5 +1,7 @@
+ # AsukaLens v1.5.0 候选记录 / Candidate record
+ 
++**历史记录 / Historical record:** 以下仅对应 Windows 11 候选 `4e74317`。当前 Windows 10/11 候选及验收状态见[新候选记录](../../iterations/2026-11-10-01-windows10/candidate.md)；两套资产和证据不能互换。
++
+ 2026-11-07：四类正式身份候选资产已生成并完成本机复验。**尚未创建标签、上传资产或创建/公开 Release**，没有公开下载入口。候选包保留在本机 `artifacts/releases/v1.5.0/`；这是受 Git 忽略的本地位置，不是仓库下载链接。
+ 
+ All four formal-identity candidate formats passed local acceptance. **No tag, asset upload or GitHub Release was created.** The local directory is `artifacts/releases/v1.5.0/`; it is ignored by Git and is not a public download link. Clean Windows 11 x64 acceptance without modern .NET remains pending.
+diff --git a/docs/releasing.md b/docs/releasing.md
+index 69087009f5e5b51747208f0e4631958ba8d06376..b9edca525864d987030a24d4ce492a31064753d7 100644
+--- a/docs/releasing.md
++++ b/docs/releasing.md
+@@ -1,6 +1,6 @@
+ # 打包、验收与草稿快照
+ 
+-当前实现：Windows 11 x64、.NET 10 自包含便携 ZIP、当前用户 Inno Setup EXE 安装器、同一文件集合的源码 ZIP / tar.gz，以及 SHA-256 与文件清单。**脚本存在和本机验收通过不等于正式发布。** 此前已获授权并完成本机临时包验收；当前尚未正式发布。后续打包和上传仍以当次明确范围为准。
++当前候选面向 Windows 10 22H2 x64 和 Windows 11 x64，提供 .NET 10 自包含便携 ZIP、当前用户 Inno Setup EXE 安装器、源码 ZIP / tar.gz，以及 SHA-256 与文件清单。两个系统的完整干净环境验收和正式发布仍未完成；具体结果见[当前候选记录](../iterations/2026-11-10-01-windows10/candidate.md)。微软 .NET 10 的 Windows 10 官方支持限于指定 LTSC / Enterprise 版本，普通版仅属于项目兼容测试范围。
+ 
+ ## 工具与来源
+ 
+@@ -97,7 +97,7 @@ pwsh -File tests/PackageAcceptance.ps1 -Directory artifacts/releases/v1.5.0 `
+ 
+ ## 安装、升级与卸载约定
+ 
+-- 只支持 Windows 11 x64，按当前用户安装到本地 Programs；不请求管理员权限，不添加服务、自启、文件关联或联网下载步骤。
++- 当前候选安装器支持 Windows 10 22H2 x64 和 Windows 11 x64，按当前用户安装到本地 Programs；不请求管理员权限，不添加服务、自启、文件关联或联网下载步骤。干净环境验收状态以当前候选记录为准。
+ - 提供简体中文/English 安装向导、完整许可和双语安装提示。开始菜单快捷方式默认创建，桌面快捷方式可选。
+ - 正式安装器固定 AppId；新版本沿用旧目录并保留用户数据，低版本拒绝覆盖。无关非空目录拒绝安装，避免覆盖用户文件。
+ - 应用入口代码在整个进程生命周期持有命名互斥体；安装/卸载要求先关闭窗口，不结束用户进程。初次包级检查使用同名合成互斥体，后续已用本机真正的便携及安装 EXE 验证阻止安装/卸载；干净环境仍未验证。其他文件占用仍可能导致失败；初次包级检查使用锁定 EXE 验证了失败回滚及旧载荷哈希保持一致。
+diff --git a/iterations/2026-11-10-01-windows10/windows10-observations.md b/iterations/2026-11-10-01-windows10/windows10-observations.md
+index 4b12ab5ad1d1d9329ace4f7a8b6083507c0227b5..e30030e569fb0383f0e1b8edd68dde4dff5e83e3 100644
+--- a/iterations/2026-11-10-01-windows10/windows10-observations.md
++++ b/iterations/2026-11-10-01-windows10/windows10-observations.md
+@@ -12,6 +12,6 @@
+ 
+ 用户报告在该虚拟机运行 `installer-check.ps1` 对应的验收脚本，最终显示 `RESULT: PASS (14 checks)`。脚本校验候选及合成安装器哈希，覆盖合成旧版安装、候选升级、降级拒绝，以及文件锁定后确认探针已被覆盖、原字节恢复、注册和卸载器保留、备份清理与测试实例卸载。结果来自用户报告；未收取虚拟机日志、未自动观察每一项。合成旧版使用候选载荷，不代表真实历史版本或用户数据迁移，也不代表断电恢复。测试方法和来源见 `installer-check-plan.md`。
+ 
+-用户报告在虚拟机的合成目录扫描中取消正常，原有小目录的结果恢复；未收集实际文件数量、耗时或截图，不将此作为性能结论。主机生成的合成安装器与编译缓存完成验证后清理；虚拟机上的合成目录及测试材料需由用户确认位置后清理。
++用户报告在虚拟机的合成目录扫描中取消正常，原有小目录的结果恢复；未收集实际文件数量、耗时或截图，不将此作为性能结论。主机生成的合成安装器与编译缓存完成验证后清理；用户确认虚拟机合成扫描目录和桌面测试材料已清理。安装测试脚本在虚拟机临时目录保留的本地日志目录不在上述确认范围内。
+ 
+ 未验证：干净系统来源、源码资产逐项校验、程序加载运行时路径、便携/安装版全部功能、诊断实际保存导出和笔记、真实历史版本迁移、断电恢复、Windows 11 干净环境。无测试目录、用户账户路径、个人文件名或诊断日志收集入仓库；未生成标签或 Release。

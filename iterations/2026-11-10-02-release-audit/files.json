@@ -1,0 +1,39 @@
+{
+  "baseline": "a8e3661d4a6575b860213a61cf8614e675c8fe28",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "ffeb8e597ab0bc640eed94ad21d64b8427edb681a2a564826377bfaf51e472d5"
+    },
+    {
+      "path": "README.en.md",
+      "sha256": "9320fc7b8f655972caf30144129a84825d0987fc2109868b78d4e444f581e781"
+    },
+    {
+      "path": "docs/release-readiness.md",
+      "sha256": "5489f2f60fb8b91cc1a3e1d0f3f678c0db67a01cefef5bacca2d17779d69349e"
+    },
+    {
+      "path": "docs/releases/v1.5.0-candidate.md",
+      "sha256": "4b33344f28161273a81dcca521cf49527e4f03165d8e296003f673e1e7a6db7b"
+    },
+    {
+      "path": "docs/releasing.md",
+      "sha256": "b53b4c21bab6f8fa09bd55b478bf2b30daa818ed37997803dbdcd6b84b212cdb"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/windows10-observations.md",
+      "sha256": "92c95b4779bcd076002cfd76e055cf67804f81b1903ee3d5f51a2998c01ceff6"
+    },
+    {
+      "path": "iterations/2026-11-10-02-release-audit/README.md",
+      "sha256": "a5147d3eac246db775b6c5dd65b49e5d56eca92fdc3a21561baa2b17deee5ef9"
+    },
+    {
+      "path": "iterations/2026-11-10-02-release-audit/changes.patch",
+      "sha256": "51055f69588f2c9699bc988fb66f67b87d501dcfe08c8129954d8e59263a7de6"
+    }
+  ]
+}
