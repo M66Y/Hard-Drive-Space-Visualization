@@ -1,0 +1,53 @@
+diff --git a/docs/offline-acceptance.md b/docs/offline-acceptance.md
+index 9b3c7665bfa94b053442623bc7709ea72b189c1d..9c93a414f4a1c57a29bc8bc90bbc2abc63fd92d0 100644
+--- a/docs/offline-acceptance.md
++++ b/docs/offline-acceptance.md
+@@ -73,7 +73,7 @@ $report = 'C:\AsukaLens-acceptance\observations.json'
+ # 已知干净快照使用 known-clean-snapshot；未确认使用 unconfirmed。
+ ```
+ 
+-声明时会再做一次环境探测；发现已安装证据或探测不完整即拒绝。用户声明仍不是工具对整个磁盘的证明。报告始终为 `release_gate=not-evaluated`，与正式上传模板不是同一种格式；没有 `clean_windows_no_dotnet=passed` 的自动生成逻辑。维护者须在真实正式候选资产完成全部验收后，另行审阅并填写发布门槛。
++声明时会再做一次环境探测；发现已安装证据或探测不完整即拒绝。用户声明仍不是工具对整个磁盘的证明。报告始终为 `release_gate=not-evaluated`，与正式上传模板不是同一种格式；工具不会自动填写 `clean_windows_10_no_dotnet` 或 `clean_windows_11_no_dotnet`。维护者须在确切候选资产分别完成两种系统的验收后，另行审阅并填写发布门槛。
+ 
+ ## 清理与失败恢复
+ 
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 9e987b2667eff6be1f02504bce20dbf20c10325c..8a5d13ffb2187f694af75b63bf3fdc52ed61455f 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -8,7 +8,7 @@
+ 
+ ## 当前判断
+ 
+-2026-11-10：Windows 10 22H2 x64 兼容改动已提交，新候选包已生成并完成开发机包级验收，真实 Windows 10 虚拟机和干净 Windows 11 仍待分别验收，见[本轮记录](../iterations/2026-11-10-01-windows10/candidate.md)。此前 Windows 11 候选包不能代表 Windows 10 验收通过。微软 .NET 10 对 Windows 10 的官方支持限于指定 LTSC / Enterprise 版本，其他版本的项目兼容性测试不改变微软支持范围。
++2026-11-10：Windows 10 22H2 x64 兼容改动已提交，新候选包已生成并完成开发机包级验收；Windows 10 虚拟机已由用户完成部分真实 EXE 使用观察，完整场景和环境确认仍待完成，干净 Windows 11 仍待单独验收，见[本轮记录](../iterations/2026-11-10-01-windows10/candidate.md)。此前 Windows 11 候选包不能代表 Windows 10 验收通过。微软 .NET 10 对 Windows 10 的官方支持限于指定 LTSC / Enterprise 版本，其他版本的项目兼容性测试不改变微软支持范围。
+ 
+ v1.5.0 四类正式身份候选资产已完成本机复验，绑定源码提交 `4e7431739d321d73e847d0ff585edefa14820ae2`，详见[候选记录](releases/v1.5.0-candidate.md)。本轮修正了首次正式打包暴露的 LOCAL TEST 身份判断问题；应用主要使用流程、两种源码构建、安装升级与失败恢复均已复验。干净 Windows 无现代 .NET、真实远程草稿/下载仍待完成，没有标签或正式发布。
+ 
+diff --git a/iterations/2026-11-10-01-windows10/candidate.md b/iterations/2026-11-10-01-windows10/candidate.md
+index 6cbd32db86de3358e9316ad15a9f664948920cd3..6baf0c18f981f14046f60cc306dc21196b4864f3 100644
+--- a/iterations/2026-11-10-01-windows10/candidate.md
++++ b/iterations/2026-11-10-01-windows10/candidate.md
+@@ -13,4 +13,4 @@
+ 
+ 本轮自动检查：应用及测试项目构建 0 警告、0 错误；离线工具 102 项、发布说明 47 项、发布脚本 48 项、上传离线替身 80 项、验收保护 32 项、真实 Inno 身份编译 6 项通过。未创建远程标签、草稿或 Release。
+ 
+-待完成：Windows 10 22H2 x64 虚拟机对确切新资产执行真实便携和安装使用流程，核实现代 .NET 环境及测试来源；干净 Windows 11 对同一资产单独验收；完成前不宣称相应系统通过或正式发布。当前候选说明为预备文本，不能视为已发布说明。测试中未纳入用户真实目录、背景和诊断；本机包级夹具与解压副本已清理，候选及后续仍需的编译工具暂留。
++Windows 10 虚拟机真实 EXE 的部分使用观察见 `windows10-observations.md`。仍待确认现代 .NET 环境和完整验收场景；干净 Windows 11 对同一资产单独验收；完成前不宣称完整验收或正式发布。当前候选说明为预备文本，不能视为已发布说明。本机包级夹具与解压副本已清理，候选及后续仍需的编译工具暂留。
+diff --git a/iterations/2026-11-10-01-windows10/windows10-observations.md b/iterations/2026-11-10-01-windows10/windows10-observations.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..118e62d09852df1962fc8897ddedacd38009ed16
+--- /dev/null
++++ b/iterations/2026-11-10-01-windows10/windows10-observations.md
+@@ -0,0 +1,11 @@
++# Windows 10 虚拟机：部分人工观察
++
++对象为用户确认的 Windows 10 22H2 x64 VMware 虚拟机。用户表示没有安装现代 .NET SDK、没有创建升级后的干净快照；是否存在现代 .NET 运行时或其他安装位置未核验，不将该环境记为干净系统。虚拟机已有其他应用，不能据此推断其余系统状态。
++
++用户在虚拟机核对 `release-manifest.json`、便携 ZIP 和安装 EXE 的 SHA-256，均与 `candidate.md` 的新候选一致。此为用户报告，不代表已在虚拟机重新核对两个源码包或解压后每个文件的哈希。
++
++用户启动真实便携 EXE 并扫描复制到虚拟机的候选包目录。观察到界面显示扫描完成、289 文件、20 子目录、空间分布图；用户确认大文件和文件类型视图切换、实际占用口径、重新扫描、资源管理器定位均正常。画面中实际占用口径的结果仍为 289 文件。自动化输入未可靠作用于 VMware 客户机，这些操作由用户执行，不能标为自动回归。
++
++用户关闭便携版，运行真实安装 EXE，确认安装、启动和扫描正常；又确认背景设置预览后取消、打开及关闭诊断窗口、正常退出和从系统应用管理中卸载均正常。用户对结果的反馈不证明升级、安装失败回滚、卸载后个人数据状态或用户数据隔离。上述项目在开发机的包级合成检查通过，但不能直接移作 Windows 10 实测结果。
++
++未验证：现代 .NET 运行时检测与干净系统来源、源码资产逐项校验、程序加载运行时路径、便携/安装版全部功能、扫描取消与保留结果、编辑/恢复背景、诊断导出和笔记、同身份升级/失败恢复/降级拒绝、Windows 11 干净环境。无测试目录、用户账户路径、个人文件名或诊断日志收集入仓库；未生成标签或 Release。

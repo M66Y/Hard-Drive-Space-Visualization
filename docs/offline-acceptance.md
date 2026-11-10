@@ -73,7 +73,7 @@ $report = 'C:\AsukaLens-acceptance\observations.json'
 # 已知干净快照使用 known-clean-snapshot；未确认使用 unconfirmed。
 ```
 
-声明时会再做一次环境探测；发现已安装证据或探测不完整即拒绝。用户声明仍不是工具对整个磁盘的证明。报告始终为 `release_gate=not-evaluated`，与正式上传模板不是同一种格式；没有 `clean_windows_no_dotnet=passed` 的自动生成逻辑。维护者须在真实正式候选资产完成全部验收后，另行审阅并填写发布门槛。
+声明时会再做一次环境探测；发现已安装证据或探测不完整即拒绝。用户声明仍不是工具对整个磁盘的证明。报告始终为 `release_gate=not-evaluated`，与正式上传模板不是同一种格式；工具不会自动填写 `clean_windows_10_no_dotnet` 或 `clean_windows_11_no_dotnet`。维护者须在确切候选资产分别完成两种系统的验收后，另行审阅并填写发布门槛。
 
 ## 清理与失败恢复
 
