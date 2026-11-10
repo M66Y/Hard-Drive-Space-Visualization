@@ -1,0 +1,43 @@
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 05851411829a6f04cf1f0519cfff97525c835983..b2262acd765aeef5d1a3e95e14784969e5eed011 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -8,7 +8,7 @@
+ 
+ ## 当前判断
+ 
+-2026-11-10：Windows 10 22H2 x64 兼容改动已提交；候选 `6f6bdc0` 已完成开发机包级验收，用户在 Windows 10 虚拟机完成部分真实 EXE 使用观察，并报告扫描取消恢复、合成旧版升级和失败回退补测通过。其源码说明问题已修正，候选 `2d54a68` 已重新生成并通过开发机包级检查，需单独完成系统验收，见[新候选记录](../iterations/2026-11-10-03-candidate-refresh/candidate.md)。完整场景和干净环境来源仍待确认，干净 Windows 11 仍待单独验收。微软 .NET 10 对 Windows 10 的官方支持限于指定 LTSC / Enterprise 版本，其他版本的项目兼容性测试不改变微软支持范围。
++2026-11-10：Windows 10 22H2 x64 兼容改动已提交；候选 `6f6bdc0` 已完成开发机包级验收，用户在 Windows 10 虚拟机完成部分真实 EXE 使用观察，并报告扫描取消恢复、合成旧版升级和失败回退补测通过。其源码说明问题已修正，候选 `2d54a68` 已重新生成并通过开发机包级检查，用户报告新包在 Windows 10 虚拟机的便携与安装基本流程正常，见[新候选记录](../iterations/2026-11-10-03-candidate-refresh/candidate.md)。完整场景和干净环境来源仍待确认，干净 Windows 11 仍待单独验收。微软 .NET 10 对 Windows 10 的官方支持限于指定 LTSC / Enterprise 版本，其他版本的项目兼容性测试不改变微软支持范围。
+ 
+ v1.5.0 四类正式身份候选资产已完成本机复验，绑定源码提交 `4e7431739d321d73e847d0ff585edefa14820ae2`，详见[候选记录](releases/v1.5.0-candidate.md)。本轮修正了首次正式打包暴露的 LOCAL TEST 身份判断问题；应用主要使用流程、两种源码构建、安装升级与失败恢复均已复验。干净 Windows 无现代 .NET、真实远程草稿/下载仍待完成，没有标签或正式发布。
+ 
+diff --git a/iterations/2026-11-10-03-candidate-refresh/candidate.md b/iterations/2026-11-10-03-candidate-refresh/candidate.md
+index 034e2a35af58d6acabd26e1acf56826b9d541e55..58cb5d16b10210bf3ac740124f49a350b55ec9df 100644
+--- a/iterations/2026-11-10-03-candidate-refresh/candidate.md
++++ b/iterations/2026-11-10-03-candidate-refresh/candidate.md
+@@ -11,8 +11,8 @@
+ 
+ 同目录另有 `SHA256SUMS.txt` 和 `release-manifest.json`。新源码 ZIP 的中英文 README 均指向通用发布准备清单；源码 ZIP/tar 的 292 文件及便携载荷的 283 文件经静态清单检查。与上一候选比较，`AsukaLens.exe`、`DiskAtlas.dll` 和 `build-info.json` 的哈希发生变化，故上一包的 Windows 10 虚拟机观察不能标作本包通过。
+ 
+-开发机上新包完成 21 项包级检查，详见 `package-acceptance.json`：包括两份源码包独立构建、包内生产程序集和运行时的主要流程、非管理员安装/合成升级/降级拒绝/失败恢复/卸载及用户数据保护。此结果不代表新包真实 EXE 在 Windows 10 的桌面操作或两个系统的干净环境已验收。双语预备说明见 `candidate-notes.md`；`release-acceptance.json` 保守保留未完成门槛。
++开发机上新包完成 21 项包级检查，详见 `package-acceptance.json`：包括两份源码包独立构建、包内生产程序集和运行时的主要流程、非管理员安装/合成升级/降级拒绝/失败恢复/卸载及用户数据保护。Windows 10 用户已补充[新包基本使用观察](windows10-observations.md)；该结果不代表两个系统的干净环境已验收。双语预备说明见 `candidate-notes.md`；`release-acceptance.json` 保守保留未完成门槛。
+ 
+ 源码 ZIP 的 288 个文本条目检查本机用户及工作目录前缀和常见凭据标记未命中；两个应用二进制检查 UTF-8/UTF-16 路径前缀未命中。检查不保证识别所有形式的敏感数据。包级测试的 1,220 个临时文件、独立干净检出和本轮便携编译器已清理；未修改原工作区的用户未跟踪文件，既有候选保留。
+ 
+-待完成：新包 Windows 10 真实使用及安装核验、两种系统干净环境验收、隐私与许可最终人工审阅、正式授权后的远程标签/草稿上传及下载核验。当前两个系统的干净验收门槛均为 pending；未创建标签或 Release。文档证据提交不改变上面的资产源码提交。
++待完成：新包 Windows 10 的取消、背景和诊断等未重复场景，两种系统干净环境验收、隐私与许可最终人工审阅、正式授权后的远程标签/草稿上传及下载核验。当前两个系统的干净验收门槛均为 pending；未创建标签或 Release。文档证据提交不改变上面的资产源码提交。
+diff --git a/iterations/2026-11-10-03-candidate-refresh/windows10-observations.md b/iterations/2026-11-10-03-candidate-refresh/windows10-observations.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..a3932cd47f89b301f80821be2e47c2e3a4b8ecb0
+--- /dev/null
++++ b/iterations/2026-11-10-03-candidate-refresh/windows10-observations.md
+@@ -0,0 +1,9 @@
++# 重冻候选在 Windows 10 的基本使用观察
++
++候选源码提交 `2d54a681986127e3c966eca03b1d72ef3a33f9aa`，清单 SHA-256 `198d6dcf860ede30d418ac674a6c4c91fd3773d41c526d4d49d57da177968fce`。用户将本候选复制到 Windows 10 22H2 x64 虚拟机的独立目录，报告清单、便携 ZIP 和安装 EXE 的 SHA-256 均与本候选相符。没有逐项核对虚拟机中的源码包或解压后的文件，未收集用户目录路径。
++
++用户报告：解压真实便携 ZIP、启动 EXE、扫描合成目录、查看空间分布/大文件/文件类型、切换实际占用并刷新正常；正常退出后运行真实候选安装器，安装、启动、扫描和退出后卸载均正常。这些为用户操作及报告，未将其记为自动化结果。
++
++同一虚拟机在上一轮的环境探针未发现已知现代 .NET，且用户此前表示未创建升级后的干净快照、系统已有其他软件；本轮未重新探测环境或确认快照来源。上一候选的取消、背景、诊断、合成升级与失败恢复结果不能自动继承至本候选；新包完整使用流程及 Windows 10、Windows 11 干净环境仍待验收。开发机本候选包级检查另见 `package-acceptance.json`，不能代替虚拟机真实 EXE 操作。
++
++未收集原始截图、个人文件清单、扫描路径或诊断日志；未创建标签、草稿或 Release。用户复制的新候选及解压副本位于其虚拟机，由用户决定清理时机。
