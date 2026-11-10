@@ -1,0 +1,28 @@
+{
+  "baseline": "8b9d1e61b2449b184805c882fbcd3de188379db1",
+  "candidate_source_commit": "2d54a681986127e3c966eca03b1d72ef3a33f9aa",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/candidate.md",
+      "sha256": "1227e6b32fc4d6cb49d69d9c71b3d507c7d3461cd33fb375943143fc33160b28"
+    },
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/windows10-observations.md",
+      "sha256": "5a3305d588970b6cebcc4b78732f81d662ad0af5b9ccbede7defa46ab5564a3e"
+    },
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/installer-check-plan.md",
+      "sha256": "3ddcc14de4b50c8bd658c6412a63087caa5a99755d9bedee02fbb7be671b3256"
+    },
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/installer-check.ps1",
+      "sha256": "425893bb1c1881f2f1d3cdb8e05a4b68b2bbe891fe778858c7c073cd44ddbd6f"
+    },
+    {
+      "path": "iterations/2026-11-10-03-candidate-refresh/windows10-interaction.patch",
+      "sha256": "0fc82266eaf1516f2d6cf3ece82f68ea6e59219474e545b0fe139ed58fec9b0b"
+    }
+  ]
+}
