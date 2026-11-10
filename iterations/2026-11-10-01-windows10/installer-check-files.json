@@ -1,0 +1,19 @@
+{
+  "baseline": "c7510cd7fda15f0e500e237e5cfb5ddf3d740a92",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "iterations/2026-11-10-01-windows10/installer-check.ps1",
+      "sha256": "da34ca0ceb149318f8ae9473db79bd6cb6edb93c6fae466f6c3780fed91889f0"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/installer-check-plan.md",
+      "sha256": "adb1dbe6cbdd8129a64ad498a0a78b803f00b0067a8d6ff6f919a06719f52a44"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/installer-check.patch",
+      "sha256": "9a50d4ca16b3708e8baa7cb9e123c19b2039cb96f7e467d0a96e1a00fd588a60"
+    }
+  ]
+}

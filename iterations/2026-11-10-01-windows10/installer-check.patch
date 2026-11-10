@@ -1,0 +1,118 @@
+diff --git a/iterations/2026-11-10-01-windows10/installer-check-plan.md b/iterations/2026-11-10-01-windows10/installer-check-plan.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ffe9809be709962596b7bdfdd818426fb1e99cc1
+--- /dev/null
++++ b/iterations/2026-11-10-01-windows10/installer-check-plan.md
+@@ -0,0 +1,12 @@
++# Windows 10 安装升级与失败恢复测试材料
++
++范围为用户确认的虚拟机补测。旧版本安装器是以相同候选载荷和正式安装身份构建的合成 v1.4.1，不代表真实历史版本或用户数据迁移；故障安装器在相同载荷中加入合成探针，仅用于产生覆盖后失败，不可作为发布包。
++
++- 真实候选源码提交 `6f6bdc07815e6b7cee3af079724672be62c7b515`，清单 SHA-256 `d3c404122ee1df31bfde72957caa6928a9e4b97fadd7bb2b7d72c706e7785487`；候选安装器与两个合成安装器哈希固定在 `installer-check.ps1`。
++- 合成旧版 SHA-256 `07538f2fcff4d4c50b93a1d3835936500ffde7ab371f75f68d3e25d219f33b20`；合成故障包 SHA-256 `985978e182648759df185f832b56c3bbf59b6161fa733ea33dc3b43837088c47`。
++- 测试脚本 SHA-256 `da34ca0ceb149318f8ae9473db79bd6cb6edb93c6fae466f6c3780fed91889f0`；实际运行副本与此源文件字节相同。固定 Inno Setup 7.1.1 的来源、签名及哈希核验沿用 `scripts/release/toolchain.json` 和项目发行手册。
++- 脚本检查既有正式安装、注册、快捷方式及恢复目录，发现冲突即停止；不接管用户已有实例。仅在随机临时目录安装测试实例，卸载前核对注册位置。日志保留在测试环境本地，包含路径，不进入仓库。
++- 检查内容包括旧版安装、候选升级与注册、运行程序哈希、降级拒绝、锁定目标文件导致失败、探针确实已被替换、旧探针内容恢复、注册和卸载器保留、备份清理、程序文件哈希及卸载。
++- 开发机 Windows PowerShell 5.1 初次演练因字符串分段的版本差异误报；已改用正则分段并验证日志中探针确实覆盖，第二次 14 项通过。Windows 10 客户机结果需单独记录，不能从开发机推断。
++
++测试脚本和合成安装器只用于本次验收，不上传二进制、不创建标签或 Release。虚拟机环境来源、实际执行结果和用户观察另行记录。
+diff --git a/iterations/2026-11-10-01-windows10/installer-check.ps1 b/iterations/2026-11-10-01-windows10/installer-check.ps1
+new file mode 100644
+index 0000000000000000000000000000000000000000..3d8b9ac65d3fea2656516d2498909472c54bb16d
+--- /dev/null
++++ b/iterations/2026-11-10-01-windows10/installer-check.ps1
+@@ -0,0 +1,94 @@
++#requires -Version 5.1
++[CmdletBinding()]
++param([Parameter(Mandatory=$true)][string]$CandidateDirectory)
++Set-StrictMode -Version Latest
++$ErrorActionPreference = 'Stop'
++function Assert-NoReparse([string]$path) {
++    $item = [IO.Path]::GetFullPath($path)
++    while ($item) {
++        if ((Test-Path -LiteralPath $item) -and ((Get-Item -LiteralPath $item -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Reparse path rejected.' }
++        $item = [IO.Path]::GetDirectoryName($item)
++    }
++}
++
++# Synthetic wrappers exercise upgrade and rollback; they are not historical releases.
++$id = 'AsukaLens.8E3208AB-7151-4AC5-983C-22C5529B8746'
++$key = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\' + $id + '_is1'
++$registry = 'HKCU:\' + $key
++$name = 'AsukaLens'
++$defaultDir = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Programs\AsukaLens'
++$recovery = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) ('AsukaLens\InstallerRecovery-' + $id)
++$locations = @($registry, ('HKLM:\' + $key), ('HKCU:\Software\WOW6432Node\' + $key.Substring(9)), ('HKLM:\Software\WOW6432Node\' + $key.Substring(9)), $defaultDir, $recovery)
++foreach ($folder in @('Programs','DesktopDirectory','CommonPrograms','CommonDesktopDirectory')) {
++    $locations += Join-Path ([Environment]::GetFolderPath($folder)) ($name + '.lnk')
++}
++foreach ($location in $locations) {
++    if (Test-Path -LiteralPath $location -ErrorAction Stop) { throw 'Existing AsukaLens installation, shortcut or recovery state found; test stopped without replacing it.' }
++}
++if (Get-Process -Name AsukaLens,DiskAtlas -ErrorAction SilentlyContinue) { throw 'Close AsukaLens before running this test.' }
++$candidate = Join-Path $CandidateDirectory 'AsukaLens v1.5.0.exe'
++$manifest = Join-Path $CandidateDirectory 'release-manifest.json'
++$old = Join-Path $PSScriptRoot 'older\AsukaLens v1.4.1.exe'
++$failure = Join-Path $PSScriptRoot 'failure\AsukaLens v1.5.0.exe'
++$expected = @(
++    @($candidate,'07232a9893f2287621e28c17c7fd417f8cefae559345f655391e8af9ad0ec72e'),
++    @($manifest,'d3c404122ee1df31bfde72957caa6928a9e4b97fadd7bb2b7d72c706e7785487'),
++    @($old,'07538f2fcff4d4c50b93a1d3835936500ffde7ab371f75f68d3e25d219f33b20'),
++    @($failure,'985978e182648759df185f832b56c3bbf59b6161fa733ea33dc3b43837088c47')
++)
++foreach ($item in $expected) {
++    Assert-NoReparse $item[0]
++    if ((Get-FileHash -LiteralPath $item[0] -Algorithm SHA256).Hash.ToLowerInvariant() -cne $item[1]) { throw 'Test input checksum mismatch.' }
++}
++$release = Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
++if ($release.commit -cne '6f6bdc07815e6b7cee3af079724672be62c7b515' -or $release.version -cne 'v1.5.0' -or $release.local_test -ne $false) { throw 'Candidate identity mismatch.' }
++$exeRecord = @($release.payload_files | Where-Object { $_.path -ceq 'AsukaLens.exe' })
++if ($exeRecord.Count -ne 1) { throw 'Candidate payload manifest invalid.' }
++$root = Join-Path ([IO.Path]::GetFullPath($env:TEMP)) ('AsukaLensInstallerCheck-' + [guid]::NewGuid().ToString('N'))
++$installation = Join-Path $root 'installed'
++Assert-NoReparse $root
++[IO.Directory]::CreateDirectory($root) | Out-Null
++$checks = New-Object 'System.Collections.Generic.List[string]'
++function Check([bool]$value,[string]$label) {
++    if (-not $value) { throw ('FAILED: ' + $label) }
++    $checks.Add($label); Write-Host ('PASS: ' + $label)
++}
++function Invoke-Setup([string]$file,[string]$log,[string[]]$extra = @()) {
++    $arguments = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',('/LOG="' + (Join-Path $root $log) + '"')) + $extra
++    $p = Start-Process -FilePath $file -ArgumentList $arguments -WindowStyle Hidden -PassThru
++    if (-not $p.WaitForExit(90000)) { throw 'Installer timed out; process was not terminated.' }
++    return $p.ExitCode
++}
++try {
++    Check ((Invoke-Setup $old 'old.log' @(('/DIR="' + $installation + '"'),'/TASKS=desktopicon')) -eq 0) 'synthetic older version installed'
++    Check ((Get-ItemProperty -LiteralPath $registry).DisplayVersion -eq '1.4.1') 'old version registration'
++    Check ((Invoke-Setup $candidate 'upgrade.log') -eq 0) 'candidate upgrade installed'
++    Check ((Get-ItemProperty -LiteralPath $registry).DisplayVersion -eq '1.5.0') 'candidate version registration'
++    Check ((Get-FileHash -LiteralPath (Join-Path $installation 'AsukaLens.exe')).Hash.ToLowerInvariant() -ceq $exeRecord[0].sha256) 'candidate application bytes match manifest'
++    Check ((Invoke-Setup $old 'downgrade.log') -ne 0) 'downgrade rejected'
++    $probe = Join-Path $installation '000-recovery-probe.txt'
++    [IO.File]::WriteAllText($probe,'previous synthetic bytes',[Text.UTF8Encoding]::new($false))
++    $locked = [IO.File]::Open((Join-Path $installation 'AsukaLens.exe'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
++    try { Check ((Invoke-Setup $failure 'failure.log') -ne 0) 'locked replacement rejected' } finally { $locked.Dispose() }
++    $log = [IO.File]::ReadAllText((Join-Path $root 'failure.log'))
++    Check (@([regex]::Split($log,[regex]::Escape('-- File entry --')) | Where-Object { $_.Contains('000-recovery-probe.txt') -and $_.Contains('Successfully installed the file.') }).Count -eq 1) 'synthetic probe was overwritten before failure'
++    Check ([IO.File]::ReadAllText($probe) -ceq 'previous synthetic bytes') 'rollback restored previous probe bytes'
++    Check ((Get-ItemProperty -LiteralPath $registry).DisplayVersion -eq '1.5.0' -and (Test-Path -LiteralPath (Join-Path $installation 'unins000.exe'))) 'registration and uninstaller retained'
++    Check (-not (Test-Path -LiteralPath $recovery)) 'recovery backup cleared after successful rollback'
++    Assert-NoReparse $probe
++    Remove-Item -LiteralPath $probe
++    Check ((Get-FileHash -LiteralPath (Join-Path $installation 'AsukaLens.exe')).Hash.ToLowerInvariant() -ceq $exeRecord[0].sha256) 'candidate application remains intact'
++    Check ((Invoke-Setup (Join-Path $installation 'unins000.exe') 'uninstall.log') -eq 0) 'synthetic installation uninstalled'
++    Check (-not (Test-Path -LiteralPath $registry)) 'test registration removed'
++    Write-Host ('RESULT: PASS (' + $checks.Count + ' checks). Logs are local and contain paths; do not share them.')
++} finally {
++    if (Test-Path -LiteralPath $registry) {
++        $registered = [string](Get-ItemProperty -LiteralPath $registry).InstallLocation
++        if ([string]::IsNullOrWhiteSpace($registered) -or -not [IO.Path]::GetFullPath($registered).TrimEnd('\').Equals([IO.Path]::GetFullPath($installation).TrimEnd('\'),[StringComparison]::OrdinalIgnoreCase)) {
++            Write-Warning 'Installation ownership is unclear; automatic cleanup refused.'
++        } else {
++            $uninstaller = Join-Path $installation 'unins000.exe'
++            if (Test-Path -LiteralPath $uninstaller) { [void](Invoke-Setup $uninstaller 'cleanup.log') }
++        }
++    }
++}
