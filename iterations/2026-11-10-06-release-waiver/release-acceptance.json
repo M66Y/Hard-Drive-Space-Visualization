@@ -1,0 +1,22 @@
+{
+  "commit": "4d473747f88370a1b411129743e2169229c78dcc",
+  "manifest_sha256": "2514325fd65d3f5ab7b6959fd653bb1ed1e3695874a3ce661eb08d19a106cee5",
+  "checks": {
+    "clean_windows_10_no_dotnet": "waived",
+    "clean_windows_11_no_dotnet": "waived",
+    "portable_workflow": "passed",
+    "install_upgrade_uninstall": "passed",
+    "failure_recovery": "passed",
+    "source_builds": "passed",
+    "privacy_and_licenses": "passed"
+  },
+  "clean_environment_waiver": {
+    "commit": "4d473747f88370a1b411129743e2169229c78dcc",
+    "manifest_sha256": "2514325fd65d3f5ab7b6959fd653bb1ed1e3695874a3ce661eb08d19a106cee5",
+    "reason_code": "environment_unavailable",
+    "checks": [
+      "clean_windows_10_no_dotnet",
+      "clean_windows_11_no_dotnet"
+    ]
+  }
+}

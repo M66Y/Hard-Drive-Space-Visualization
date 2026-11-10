@@ -1,0 +1,32 @@
+{
+  "baseline": "4d473747f88370a1b411129743e2169229c78dcc",
+  "candidate_source_commit": "4d473747f88370a1b411129743e2169229c78dcc",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "iterations/2026-11-10-06-release-waiver/cleanup.json",
+      "sha256": "3de85485c32d7cb583580f0566e06a7a7321507bc01042912310911c8dae1cff"
+    },
+    {
+      "path": "iterations/2026-11-10-06-release-waiver/host-verification.md",
+      "sha256": "2697d441a0cd6748be09a44fb9a08d63d94a40e89cad85b68f995c4382168c5f"
+    },
+    {
+      "path": "iterations/2026-11-10-06-release-waiver/package-acceptance.json",
+      "sha256": "16a4ba0d5f182233a1973abe9b7526e9e8fab1f85168225c612340a5bfece9cf"
+    },
+    {
+      "path": "iterations/2026-11-10-06-release-waiver/release-acceptance.json",
+      "sha256": "73c8ebf6af4071640507070f18cf7705a7f460acc28c7d6a835b64a1004ac29a"
+    },
+    {
+      "path": "iterations/2026-11-10-06-release-waiver/release-notes.md",
+      "sha256": "f5abbd351b064d7b1225dfabbda11f4237cb4a6b804d8ca0032aea8afdb6ebae"
+    },
+    {
+      "path": "iterations/2026-11-10-06-release-waiver/release-evidence.patch",
+      "sha256": "cd7e61b1481bcdeee5673516137ac51e1f3412ae59f9dfc78001ced3765102b3"
+    }
+  ]
+}

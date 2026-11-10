@@ -1,0 +1,29 @@
+{
+  "removed": [
+    {
+      "kind": "package-acceptance-f93e0908272b474bb66a4cb71db14e6f",
+      "files": 1274,
+      "logical_bytes": 376884054
+    },
+    {
+      "kind": "release-live-check-4d47374",
+      "files": 5,
+      "logical_bytes": 7831
+    },
+    {
+      "kind": "inno-7.1.1",
+      "files": 133,
+      "logical_bytes": 52761025
+    },
+    {
+      "kind": "portable-compiler-installer",
+      "files": 1,
+      "logical_bytes": 14336568
+    }
+  ],
+  "candidate_manifest_unchanged": true,
+  "previous_candidates_retained": true,
+  "git_cli_retained": true,
+  "guest_test_logs_cleanup_unconfirmed": true,
+  "unit": "logical bytes; not measured physical disk space"
+}
