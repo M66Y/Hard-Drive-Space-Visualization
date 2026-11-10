@@ -256,7 +256,7 @@ function Assert-ReleaseNotes([string]$Text, $Manifest) {
         }
         $requirements=$bodies[$required[3]]
         $runtimeToken='\.NET '+[regex]::Escape($Manifest.runtime)+'(?![A-Za-z0-9_.+-])'
-        if (-not $requirements.Contains('Windows 11 x64') -or $requirements -cnotmatch $runtimeToken -or
+        if (-not $requirements.Contains('Windows 11 x64') -or -not $requirements.Contains('Windows 10 22H2 x64') -or $requirements -cnotmatch $runtimeToken -or
             $requirements -notmatch $(if ($chinese) {'内含|包含'} else {'(?i)include|bundled'}) -or
             $requirements -notmatch $(if ($chinese) {'签名'} else {'(?i)sign(?:ed|ing|ature)'})) { throw 'State the platform, bundled runtime version and signing status in both languages.' }
         $links=@([regex]::Matches($bodies[$required[5]],'(?<!!)\[[^\]\n]+\]\((https://[^\s)]+)\)') | ForEach-Object {$_.Groups[1].Value})

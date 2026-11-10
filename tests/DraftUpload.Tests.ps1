@@ -30,7 +30,7 @@ function New-Case([string]$Scenario='normal') {
         Replace('{{CHANGES_ZH}}','合成测试内容。').Replace('{{FIXES_ZH}}','合成修复内容。').Replace('{{CHANGES_EN}}','Synthetic changes.').Replace('{{FIXES_EN}}','Synthetic fixes.')
     [IO.File]::WriteAllText($script:notes,$noteFixture)
     $script:acceptance=Join-Path $script:case 'acceptance.json'
-    Write-ReleaseJson @{commit=$manifest.commit;manifest_sha256=(Get-FileHash -LiteralPath (Join-Path $script:assets 'release-manifest.json')).Hash.ToLowerInvariant();checks=@{clean_windows_no_dotnet='passed';portable_workflow='passed';install_upgrade_uninstall='passed';failure_recovery='passed';source_builds='passed';privacy_and_licenses='passed'}} $script:acceptance
+    Write-ReleaseJson @{commit=$manifest.commit;manifest_sha256=(Get-FileHash -LiteralPath (Join-Path $script:assets 'release-manifest.json')).Hash.ToLowerInvariant();checks=@{clean_windows_10_no_dotnet='passed';clean_windows_11_no_dotnet='passed';portable_workflow='passed';install_upgrade_uninstall='passed';failure_recovery='passed';source_builds='passed';privacy_and_licenses='passed'}} $script:acceptance
     Save @{scenario=$Scenario;commit=$manifest.commit;version=$manifest.version;release=$null;calls=@();created=0;uploaded=@();downloaded=0;interrupted=$false}
     $env:ASUKALENS_DRAFT_TEST_ROOT=$script:case
 }
@@ -76,8 +76,14 @@ foreach($f in $m.assets){ if((Get-FileHash -LiteralPath (Join-Path $Directory $f
     New-Case; Upload -WhatIf
     Check ((State).calls.Count -eq 0) 'WhatIf performs no GitHub calls'
     New-Case
-    $accepted=Get-Content $script:acceptance -Raw | ConvertFrom-Json -AsHashtable; $accepted.checks.clean_windows_no_dotnet='pending'; Write-ReleaseJson $accepted $script:acceptance
+    $accepted=Get-Content $script:acceptance -Raw | ConvertFrom-Json -AsHashtable; $accepted.checks.clean_windows_10_no_dotnet='pending'; Write-ReleaseJson $accepted $script:acceptance
     Reject { Upload } 'incomplete acceptance rejected'; Check ((State).calls.Count -eq 0) 'acceptance failure is offline'
+    New-Case
+    $accepted=Get-Content $script:acceptance -Raw | ConvertFrom-Json -AsHashtable; $accepted.checks.clean_windows_11_no_dotnet='pending'; Write-ReleaseJson $accepted $script:acceptance
+    Reject { Upload } 'Windows 11 acceptance is independently required'; Check ((State).calls.Count -eq 0) 'Windows 11 gate is offline'
+    New-Case
+    $accepted=Get-Content $script:acceptance -Raw | ConvertFrom-Json -AsHashtable; $accepted.checks.Remove('clean_windows_10_no_dotnet'); $accepted.checks.Remove('clean_windows_11_no_dotnet'); $accepted.checks.clean_windows_no_dotnet='passed'; Write-ReleaseJson $accepted $script:acceptance
+    Reject { Upload } 'legacy single OS acceptance rejected'; Check ((State).calls.Count -eq 0) 'legacy gate is offline'
     New-Case
     $testManifest=Get-Content (Join-Path $script:assets 'release-manifest.json') -Raw | ConvertFrom-Json -AsHashtable
     $testManifest.local_test=$true; Write-ReleaseJson $testManifest (Join-Path $script:assets 'release-manifest.json')

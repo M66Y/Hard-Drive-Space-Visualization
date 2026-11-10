@@ -19,7 +19,7 @@
 
 ### 适用环境与依赖
 
-Windows 11 x64，普通用户权限。本版便携包与安装器内含 .NET {{RUNTIME}} Windows Desktop 运行时，无需另外安装现代 .NET；从源码构建仍需要仓库 `global.json` 指定的 .NET SDK。
+Windows 10 22H2 x64 和 Windows 11 x64，普通用户权限。本版便携包与安装器内含 .NET {{RUNTIME}} Windows Desktop 运行时，无需另外安装现代 .NET；从源码构建仍需要仓库 `global.json` 指定的 .NET SDK。微软的 .NET 10 官方 Windows 10 支持限于指定 LTSC / Enterprise 版本；其他版本为本项目的兼容性测试范围。
 
 当前文件未代码签名，系统可能显示未知发行者提示。许可、运行环境和验收范围以本次确切资产为准。
 
@@ -67,7 +67,7 @@ AsukaLens — M66Y。项目代码使用 PolyForm Noncommercial 1.0.0；文档和
 
 ### Requirements
 
-Windows 11 x64, using a standard user account. Both the portable package and installer include the .NET {{RUNTIME}} Windows Desktop runtime; no separate modern .NET installation is required. Source builds require the SDK specified by the repository's `global.json`.
+Windows 10 22H2 x64 and Windows 11 x64, using a standard user account. Both the portable package and installer include the .NET {{RUNTIME}} Windows Desktop runtime; no separate modern .NET installation is required. Source builds require the SDK specified by the repository's `global.json`. Microsoft's official .NET 10 Windows 10 support is limited to specified LTSC / Enterprise editions; other editions are covered by project compatibility testing.
 
 These files are currently unsigned; Windows may display an unknown-publisher prompt. License, platform and acceptance statements apply to these exact assets.
 

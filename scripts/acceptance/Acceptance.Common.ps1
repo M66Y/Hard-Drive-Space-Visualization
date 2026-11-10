@@ -134,12 +134,19 @@ function Get-AcceptanceEnvironment {
     try {
         $build = [int](Get-ItemPropertyValue -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name CurrentBuildNumber)
         $installation = Get-ItemPropertyValue -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name InstallationType
-        $os = if ($build -ge 22000 -and $installation -eq 'Client') { 'windows-11' } else { 'other-windows' }
+        $os = Get-AcceptanceOs $build $installation
         $arch = Get-ItemPropertyValue -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment' -Name PROCESSOR_ARCHITECTURE
         $architecture = switch ($arch) { 'AMD64' {'x64'} 'ARM64' {'arm64'} 'x86' {'x86'} default {'unknown'} }
     } catch { }
     return [pscustomobject][ordered]@{ os=$os; architecture=$architecture; host_x64=[Environment]::Is64BitProcess;
         powershell_major=$PSVersionTable.PSVersion.Major; modern_dotnet=(Resolve-AcceptanceRuntimeEvidence $evidence.ToArray() $incomplete) }
+}
+
+function Get-AcceptanceOs([int]$Build,[string]$Installation) {
+    if ($Installation -ne 'Client') { return 'other-windows' }
+    if ($Build -ge 22000) { return 'windows-11' }
+    if ($Build -ge 19045 -and $Build -lt 22000) { return 'windows-10-22h2' }
+    return 'other-windows'
 }
 
 function Assert-AcceptanceManifest($Manifest) {
@@ -238,7 +245,7 @@ function New-AcceptanceWorkspace([string]$Assets,[string]$ManifestSha256,[string
     if ($Workspace.StartsWith($Assets+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'ACCEPT_WORKSPACE_INSIDE_ASSETS' }
     Assert-AcceptanceTree $Assets
     $environment=Get-AcceptanceEnvironment
-    if ($environment.os -ne 'windows-11' -or $environment.architecture -ne 'x64' -or -not $environment.host_x64) { throw 'ACCEPT_UNSUPPORTED_ENVIRONMENT' }
+    if ($environment.os -notin @('windows-10-22h2','windows-11') -or $environment.architecture -ne 'x64' -or -not $environment.host_x64) { throw 'ACCEPT_UNSUPPORTED_ENVIRONMENT' }
     $handles=[Collections.Generic.List[IO.Stream]]::new(); $zip=$null; $created=$false
     try {
         $manifestStream=[IO.File]::Open((Join-Path $Assets 'release-manifest.json'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
@@ -376,7 +383,7 @@ function Set-AcceptanceResult($Session,[string]$Check,[string]$Result,[string]$P
             $current=Get-AcceptanceEnvironment
             if ($Session.state.environment.modern_dotnet.status -ne 'not-detected' -or -not $Session.state.environment.modern_dotnet.checks_complete -or
                 $current.modern_dotnet.status -ne 'not-detected' -or -not $current.modern_dotnet.checks_complete -or
-                $current.os -ne 'windows-11' -or $current.architecture -ne 'x64') { throw 'ACCEPT_CLEAN_ENVIRONMENT_NOT_ESTABLISHED' }
+                $current.os -notin @('windows-10-22h2','windows-11') -or $current.os -ne $Session.state.environment.os -or $current.architecture -ne 'x64') { throw 'ACCEPT_CLEAN_ENVIRONMENT_NOT_ESTABLISHED' }
         }
         $Session.state.provenance=$Provenance
     } else {
@@ -391,7 +398,7 @@ function Set-AcceptanceResult($Session,[string]$Check,[string]$Result,[string]$P
 function Get-AcceptanceReport($Session) {
     $envState=$Session.state.environment
     # Whitelist reconstruction: local owner paths, process IDs and free text never leave the workspace.
-    if ($envState.os -cnotin @('windows-11','other-windows','unknown') -or $envState.architecture -cnotin @('x64','x86','arm64','unknown') -or
+    if ($envState.os -cnotin @('windows-10-22h2','windows-11','other-windows','unknown') -or $envState.architecture -cnotin @('x64','x86','arm64','unknown') -or
         $envState.host_x64 -isnot [bool] -or $envState.powershell_major -notin @(5,7) -or $envState.modern_dotnet.checks_complete -isnot [bool]) { throw 'ACCEPT_ENVIRONMENT_SCHEMA' }
     $runtime=Resolve-AcceptanceRuntimeEvidence @($envState.modern_dotnet.evidence) (-not $envState.modern_dotnet.checks_complete)
     if ($runtime.status -cne $envState.modern_dotnet.status) { throw 'ACCEPT_ENVIRONMENT_SCHEMA' }

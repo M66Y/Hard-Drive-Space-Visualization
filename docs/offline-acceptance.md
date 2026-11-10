@@ -1,6 +1,6 @@
 # 在另一台 Windows 电脑上离线验收
 
-这套工具为验收者准备隔离样本、核对包并记录观察结果。支持 **Windows 11 x64、64 位 Windows PowerShell 5.1**；目标电脑不需要 PowerShell 7、Git、现代 .NET SDK 或编译器。它不会安装或卸载软件、创建虚拟机、上传数据或改变发布门槛。
+这套工具为验收者准备隔离样本、核对包并记录观察结果。支持 **Windows 10 22H2 x64 和 Windows 11 x64、64 位 Windows PowerShell 5.1**；目标电脑不需要 PowerShell 7、Git、现代 .NET SDK 或编译器。它不会安装或卸载软件、创建虚拟机、上传数据或改变发布门槛。两个系统分别验收并记录，不能用一个系统的结果代替另一个。
 
 当前已完成工具在开发机上的合成检查；本机有现代 .NET，**不代表干净系统或正式候选包通过**。实际发行 EXE 的既有本机证据见[第 16 轮记录](../iterations/2026-11-07-16-executable-workflow/README.md)。
 

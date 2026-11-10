@@ -90,6 +90,10 @@ try {
         Check ($errors.Count -eq 0) ('syntax '+$script.Name)
     }
     Check ($PSVersionTable.PSVersion.Major -eq 5 -and [Environment]::Is64BitProcess) 'actual Windows PowerShell 5.1 x64 host'
+    Check ((Get-AcceptanceOs 19044 'Client') -eq 'other-windows') 'older Windows 10 rejected'
+    Check ((Get-AcceptanceOs 19045 'Client') -eq 'windows-10-22h2') 'Windows 10 22H2 accepted'
+    Check ((Get-AcceptanceOs 22000 'Client') -eq 'windows-11') 'Windows 11 accepted'
+    Check ((Get-AcceptanceOs 19045 'Server') -eq 'other-windows') 'server excluded'
     Check ((Resolve-AcceptanceRuntimeEvidence @() $false).status -eq 'not-detected') 'no known runtime evidence remains qualified'
     Check ((Resolve-AcceptanceRuntimeEvidence @() $true).status -eq 'unknown') 'incomplete probe is unknown'
     Check ((Resolve-AcceptanceRuntimeEvidence @('path_host') $true).status -eq 'detected') 'positive evidence wins with incomplete flag'

@@ -77,7 +77,7 @@ try {
     Copy-Item -LiteralPath $compilerLicense -Destination (Join-Path $payload 'licenses/Inno-Setup.txt')
     $notice = @"
 AsukaLens $Version — M66Y
-Windows 11 x64; .NET $($tools.runtime) runtime included.
+Windows 10 22H2 x64 and Windows 11 x64; .NET $($tools.runtime) runtime included.
 Noncommercial use: project code uses PolyForm Noncommercial 1.0.0.
 Documentation/artwork use CC BY-NC 4.0. Third-party components retain their own licenses.
 See LICENSE, NOTICE.md and licenses/. AI-generated artwork by M66Y.

@@ -1,0 +1,238 @@
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index c878030d8701e873971455fd9c7ac1603abaa237..955643aed2f073a1bf50e062654344cf8aa6e549 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -4,6 +4,8 @@
+ 
+ ## 当前阶段与优先级（2026-11-07 用户调整）
+ 
++2026-11-10 用户已确认增加 Windows 10 22H2 x64 兼容性：调整安装器、验收工具及两套系统发布门槛；重新冻结并生成候选包，在 Windows 10 虚拟机实际验收。Windows 11 干净系统仍需分别验收，普通版 Windows 10 的测试结论不等于微软 .NET 官方支持。
++
+ 先完成初版使用流程与可交付能力，再集中处理同优先级的非阻塞优化。这里的初版按核心流程验收、用户说明与可用交付入口齐全来推进；正式打包和发布仍按发布规则另行执行。P0/P1 的统计错误、隐私泄露、崩溃或使用阻塞应及时处理，不能因优化延期一起搁置。
+ 
+ | 编号 | 优先级 / 状态 | 问题与处理顺序 | 恢复或验收条件 |
+diff --git a/docs/offline-acceptance.md b/docs/offline-acceptance.md
+index c95b8043cdd235caefa9064b50b943687eeff216..9b3c7665bfa94b053442623bc7709ea72b189c1d 100644
+--- a/docs/offline-acceptance.md
++++ b/docs/offline-acceptance.md
+@@ -1,6 +1,6 @@
+ # 在另一台 Windows 电脑上离线验收
+ 
+-这套工具为验收者准备隔离样本、核对包并记录观察结果。支持 **Windows 11 x64、64 位 Windows PowerShell 5.1**；目标电脑不需要 PowerShell 7、Git、现代 .NET SDK 或编译器。它不会安装或卸载软件、创建虚拟机、上传数据或改变发布门槛。
++这套工具为验收者准备隔离样本、核对包并记录观察结果。支持 **Windows 10 22H2 x64 和 Windows 11 x64、64 位 Windows PowerShell 5.1**；目标电脑不需要 PowerShell 7、Git、现代 .NET SDK 或编译器。它不会安装或卸载软件、创建虚拟机、上传数据或改变发布门槛。两个系统分别验收并记录，不能用一个系统的结果代替另一个。
+ 
+ 当前已完成工具在开发机上的合成检查；本机有现代 .NET，**不代表干净系统或正式候选包通过**。实际发行 EXE 的既有本机证据见[第 16 轮记录](../iterations/2026-11-07-16-executable-workflow/README.md)。
+ 
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 97c993ccc9a59444f469d46efabf1b17748ec8ed..755489785a8c01817f942dee9ea1ecf2ab6d8b13 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -8,6 +8,8 @@
+ 
+ ## 当前判断
+ 
++2026-11-10：正在实施 Windows 10 22H2 x64 兼容性支持，安装器与离线验收调整尚需真实候选包和虚拟机验证；此前 Windows 11 候选包不能代表 Windows 10 验收通过。微软 .NET 10 对 Windows 10 的官方支持限于指定 LTSC / Enterprise 版本，其他版本的项目兼容性测试不改变微软支持范围。
++
+ v1.5.0 四类正式身份候选资产已完成本机复验，绑定源码提交 `4e7431739d321d73e847d0ff585edefa14820ae2`，详见[候选记录](releases/v1.5.0-candidate.md)。本轮修正了首次正式打包暴露的 LOCAL TEST 身份判断问题；应用主要使用流程、两种源码构建、安装升级与失败恢复均已复验。干净 Windows 无现代 .NET、真实远程草稿/下载仍待完成，没有标签或正式发布。
+ 
+ 第 20 轮已准备 GitHub CLI 2.103.3 便携工具并由用户完成授权，确认系统凭据存储、真实仓库只读访问和接口返回的推送权限，Release 列表仍为空。项目探针和上传调用关闭 CLI 遥测，工具备用路径核对固定 EXE 哈希。CLI 环境与登录缺口已关闭，正式候选包随后完成本机验收；干净环境与真实上传仍未完成，见[工具说明](github-publishing-access.md)。
+diff --git a/docs/release-notes.template.md b/docs/release-notes.template.md
+index 878c2c8947eb944556555f875395bd5196f027f9..713ad1c268833a9b3029b494dbb29a9a7689bc56 100644
+--- a/docs/release-notes.template.md
++++ b/docs/release-notes.template.md
+@@ -19,7 +19,7 @@
+ 
+ ### 适用环境与依赖
+ 
+-Windows 11 x64，普通用户权限。本版便携包与安装器内含 .NET {{RUNTIME}} Windows Desktop 运行时，无需另外安装现代 .NET；从源码构建仍需要仓库 `global.json` 指定的 .NET SDK。
++Windows 10 22H2 x64 和 Windows 11 x64，普通用户权限。本版便携包与安装器内含 .NET {{RUNTIME}} Windows Desktop 运行时，无需另外安装现代 .NET；从源码构建仍需要仓库 `global.json` 指定的 .NET SDK。微软的 .NET 10 官方 Windows 10 支持限于指定 LTSC / Enterprise 版本；其他版本为本项目的兼容性测试范围。
+ 
+ 当前文件未代码签名，系统可能显示未知发行者提示。许可、运行环境和验收范围以本次确切资产为准。
+ 
+@@ -67,7 +67,7 @@ AsukaLens — M66Y。项目代码使用 PolyForm Noncommercial 1.0.0；文档和
+ 
+ ### Requirements
+ 
+-Windows 11 x64, using a standard user account. Both the portable package and installer include the .NET {{RUNTIME}} Windows Desktop runtime; no separate modern .NET installation is required. Source builds require the SDK specified by the repository's `global.json`.
++Windows 10 22H2 x64 and Windows 11 x64, using a standard user account. Both the portable package and installer include the .NET {{RUNTIME}} Windows Desktop runtime; no separate modern .NET installation is required. Source builds require the SDK specified by the repository's `global.json`. Microsoft's official .NET 10 Windows 10 support is limited to specified LTSC / Enterprise editions; other editions are covered by project compatibility testing.
+ 
+ These files are currently unsigned; Windows may display an unknown-publisher prompt. License, platform and acceptance statements apply to these exact assets.
+ 
+diff --git a/docs/release-readiness.md b/docs/release-readiness.md
+index 68338f1f6dc6d3cc9724816de7593365afb064f6..725d07ce068c5140150541dd505f8a1f7d878e70 100644
+--- a/docs/release-readiness.md
++++ b/docs/release-readiness.md
+@@ -4,6 +4,8 @@
+ 
+ 最新补充：用户确认的 **v1.5.0 候选包已完成本机复验**，见[候选资产记录](releases/v1.5.0-candidate.md)和[本轮证据](../iterations/2026-11-07-21-v1.5.0-candidate/verification.md)。以下早期证据保留来源；干净环境与真实远程门槛仍未完成。
+ 
++2026-11-10 已确认增加 Windows 10 22H2 x64 兼容性；对应的新候选包尚待生成和双系统验收。历史候选包与其证据只适用于原有资产，不能代替新候选包的检查。
++
+ ## 早期本机证据
+ 
+ | 项目 | 当前证据与实际边界 |
+diff --git a/scripts/acceptance/Acceptance.Common.ps1 b/scripts/acceptance/Acceptance.Common.ps1
+index 587653f3d65cc7f909e22111b7b2a7211745b652..972c04cd13b7b5619930af88639054432a060dd9 100644
+--- a/scripts/acceptance/Acceptance.Common.ps1
++++ b/scripts/acceptance/Acceptance.Common.ps1
+@@ -134,7 +134,7 @@ function Get-AcceptanceEnvironment {
+     try {
+         $build = [int](Get-ItemPropertyValue -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name CurrentBuildNumber)
+         $installation = Get-ItemPropertyValue -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name InstallationType
+-        $os = if ($build -ge 22000 -and $installation -eq 'Client') { 'windows-11' } else { 'other-windows' }
++        $os = Get-AcceptanceOs $build $installation
+         $arch = Get-ItemPropertyValue -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment' -Name PROCESSOR_ARCHITECTURE
+         $architecture = switch ($arch) { 'AMD64' {'x64'} 'ARM64' {'arm64'} 'x86' {'x86'} default {'unknown'} }
+     } catch { }
+@@ -142,6 +142,13 @@ function Get-AcceptanceEnvironment {
+         powershell_major=$PSVersionTable.PSVersion.Major; modern_dotnet=(Resolve-AcceptanceRuntimeEvidence $evidence.ToArray() $incomplete) }
+ }
+ 
++function Get-AcceptanceOs([int]$Build,[string]$Installation) {
++    if ($Installation -ne 'Client') { return 'other-windows' }
++    if ($Build -ge 22000) { return 'windows-11' }
++    if ($Build -ge 19045 -and $Build -lt 22000) { return 'windows-10-22h2' }
++    return 'other-windows'
++}
++
+ function Assert-AcceptanceManifest($Manifest) {
+     if ($Manifest.schema -ne 1 -or $Manifest.product -cne 'AsukaLens' -or $Manifest.version -cnotmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' -or
+         $Manifest.commit -cnotmatch '^[0-9a-f]{40}$' -or $Manifest.rid -cne 'win-x64' -or $Manifest.self_contained -isnot [bool] -or
+@@ -238,7 +245,7 @@ function New-AcceptanceWorkspace([string]$Assets,[string]$ManifestSha256,[string
+     if ($Workspace.StartsWith($Assets+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'ACCEPT_WORKSPACE_INSIDE_ASSETS' }
+     Assert-AcceptanceTree $Assets
+     $environment=Get-AcceptanceEnvironment
+-    if ($environment.os -ne 'windows-11' -or $environment.architecture -ne 'x64' -or -not $environment.host_x64) { throw 'ACCEPT_UNSUPPORTED_ENVIRONMENT' }
++    if ($environment.os -notin @('windows-10-22h2','windows-11') -or $environment.architecture -ne 'x64' -or -not $environment.host_x64) { throw 'ACCEPT_UNSUPPORTED_ENVIRONMENT' }
+     $handles=[Collections.Generic.List[IO.Stream]]::new(); $zip=$null; $created=$false
+     try {
+         $manifestStream=[IO.File]::Open((Join-Path $Assets 'release-manifest.json'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+@@ -376,7 +383,7 @@ function Set-AcceptanceResult($Session,[string]$Check,[string]$Result,[string]$P
+             $current=Get-AcceptanceEnvironment
+             if ($Session.state.environment.modern_dotnet.status -ne 'not-detected' -or -not $Session.state.environment.modern_dotnet.checks_complete -or
+                 $current.modern_dotnet.status -ne 'not-detected' -or -not $current.modern_dotnet.checks_complete -or
+-                $current.os -ne 'windows-11' -or $current.architecture -ne 'x64') { throw 'ACCEPT_CLEAN_ENVIRONMENT_NOT_ESTABLISHED' }
++                $current.os -notin @('windows-10-22h2','windows-11') -or $current.os -ne $Session.state.environment.os -or $current.architecture -ne 'x64') { throw 'ACCEPT_CLEAN_ENVIRONMENT_NOT_ESTABLISHED' }
+         }
+         $Session.state.provenance=$Provenance
+     } else {
+@@ -391,7 +398,7 @@ function Set-AcceptanceResult($Session,[string]$Check,[string]$Result,[string]$P
+ function Get-AcceptanceReport($Session) {
+     $envState=$Session.state.environment
+     # Whitelist reconstruction: local owner paths, process IDs and free text never leave the workspace.
+-    if ($envState.os -cnotin @('windows-11','other-windows','unknown') -or $envState.architecture -cnotin @('x64','x86','arm64','unknown') -or
++    if ($envState.os -cnotin @('windows-10-22h2','windows-11','other-windows','unknown') -or $envState.architecture -cnotin @('x64','x86','arm64','unknown') -or
+         $envState.host_x64 -isnot [bool] -or $envState.powershell_major -notin @(5,7) -or $envState.modern_dotnet.checks_complete -isnot [bool]) { throw 'ACCEPT_ENVIRONMENT_SCHEMA' }
+     $runtime=Resolve-AcceptanceRuntimeEvidence @($envState.modern_dotnet.evidence) (-not $envState.modern_dotnet.checks_complete)
+     if ($runtime.status -cne $envState.modern_dotnet.status) { throw 'ACCEPT_ENVIRONMENT_SCHEMA' }
+diff --git a/scripts/release/AsukaLens.iss b/scripts/release/AsukaLens.iss
+index 07eeebc92eac0d460f782e59829e29749e230efe..e1ccb8ad916d80c4702d7495d373cd33081ddb25 100644
+--- a/scripts/release/AsukaLens.iss
++++ b/scripts/release/AsukaLens.iss
+@@ -35,7 +35,7 @@ DefaultGroupName={#ProductName}
+ PrivilegesRequired=lowest
+ ArchitecturesAllowed=x64compatible and not arm64
+ ArchitecturesInstallIn64BitMode=x64compatible
+-MinVersion=10.0.22000
++MinVersion=10.0.19045
+ LicenseFile={#PayloadDir}\LICENSE
+ InfoBeforeFile={#PayloadDir}\INSTALL-NOTICE.txt
+ SetupIconFile={#PayloadDir}\app.ico
+diff --git a/scripts/release/New-Release.ps1 b/scripts/release/New-Release.ps1
+index 6b005380890197373b5150e2e4131a5d0f4e3466..89cfd2b4653dfb9e4a01873950688d3fc31ff3b5 100644
+--- a/scripts/release/New-Release.ps1
++++ b/scripts/release/New-Release.ps1
+@@ -77,7 +77,7 @@ try {
+     Copy-Item -LiteralPath $compilerLicense -Destination (Join-Path $payload 'licenses/Inno-Setup.txt')
+     $notice = @"
+ AsukaLens $Version — M66Y
+-Windows 11 x64; .NET $($tools.runtime) runtime included.
++Windows 10 22H2 x64 and Windows 11 x64; .NET $($tools.runtime) runtime included.
+ Noncommercial use: project code uses PolyForm Noncommercial 1.0.0.
+ Documentation/artwork use CC BY-NC 4.0. Third-party components retain their own licenses.
+ See LICENSE, NOTICE.md and licenses/. AI-generated artwork by M66Y.
+diff --git a/scripts/release/Release.Common.ps1 b/scripts/release/Release.Common.ps1
+index afdb6502754d960e6ebba6ae05947b296f6ad0ab..b80d2070318a3645904435f64f795496e2246ddc 100644
+--- a/scripts/release/Release.Common.ps1
++++ b/scripts/release/Release.Common.ps1
+@@ -256,7 +256,7 @@ function Assert-ReleaseNotes([string]$Text, $Manifest) {
+         }
+         $requirements=$bodies[$required[3]]
+         $runtimeToken='\.NET '+[regex]::Escape($Manifest.runtime)+'(?![A-Za-z0-9_.+-])'
+-        if (-not $requirements.Contains('Windows 11 x64') -or $requirements -cnotmatch $runtimeToken -or
++        if (-not $requirements.Contains('Windows 11 x64') -or -not $requirements.Contains('Windows 10 22H2 x64') -or $requirements -cnotmatch $runtimeToken -or
+             $requirements -notmatch $(if ($chinese) {'内含|包含'} else {'(?i)include|bundled'}) -or
+             $requirements -notmatch $(if ($chinese) {'签名'} else {'(?i)sign(?:ed|ing|ature)'})) { throw 'State the platform, bundled runtime version and signing status in both languages.' }
+         $links=@([regex]::Matches($bodies[$required[5]],'(?<!!)\[[^\]\n]+\]\((https://[^\s)]+)\)') | ForEach-Object {$_.Groups[1].Value})
+diff --git a/scripts/release/Upload-Draft.ps1 b/scripts/release/Upload-Draft.ps1
+index f8c35b09d071ec8ddaa03778617d30836501a9b8..d3aa47a34f17bc77368e872a9e76fc0d84fde878 100644
+--- a/scripts/release/Upload-Draft.ps1
++++ b/scripts/release/Upload-Draft.ps1
+@@ -17,7 +17,7 @@ $notesText = Get-Content -LiteralPath $Notes -Raw -Encoding utf8
+ Assert-ReleaseNotes $notesText $manifest
+ $accepted = Get-Content -LiteralPath $Acceptance -Raw | ConvertFrom-Json
+ if ($accepted.commit -ne $manifest.commit -or $accepted.manifest_sha256 -ne (Get-FileHash -LiteralPath (Join-Path $Directory 'release-manifest.json')).Hash.ToLowerInvariant()) { throw 'Acceptance does not cover these assets.' }
+-foreach ($check in @('clean_windows_no_dotnet','portable_workflow','install_upgrade_uninstall','failure_recovery','source_builds','privacy_and_licenses')) {
++foreach ($check in @('clean_windows_10_no_dotnet','clean_windows_11_no_dotnet','portable_workflow','install_upgrade_uninstall','failure_recovery','source_builds','privacy_and_licenses')) {
+     if ($accepted.checks.$check -ne 'passed') { throw ('Package acceptance is incomplete: ' + $check) }
+ }
+ if ($WhatIfPreference) {
+diff --git a/tests/DraftUpload.Tests.ps1 b/tests/DraftUpload.Tests.ps1
+index 4b34f3fbff180ef38716bd9739228c274b1bad07..5f7daddcffe4afae8f0798bace325c1c330d3ad6 100644
+--- a/tests/DraftUpload.Tests.ps1
++++ b/tests/DraftUpload.Tests.ps1
+@@ -30,7 +30,7 @@ function New-Case([string]$Scenario='normal') {
+         Replace('{{CHANGES_ZH}}','合成测试内容。').Replace('{{FIXES_ZH}}','合成修复内容。').Replace('{{CHANGES_EN}}','Synthetic changes.').Replace('{{FIXES_EN}}','Synthetic fixes.')
+     [IO.File]::WriteAllText($script:notes,$noteFixture)
+     $script:acceptance=Join-Path $script:case 'acceptance.json'
+-    Write-ReleaseJson @{commit=$manifest.commit;manifest_sha256=(Get-FileHash -LiteralPath (Join-Path $script:assets 'release-manifest.json')).Hash.ToLowerInvariant();checks=@{clean_windows_no_dotnet='passed';portable_workflow='passed';install_upgrade_uninstall='passed';failure_recovery='passed';source_builds='passed';privacy_and_licenses='passed'}} $script:acceptance
++    Write-ReleaseJson @{commit=$manifest.commit;manifest_sha256=(Get-FileHash -LiteralPath (Join-Path $script:assets 'release-manifest.json')).Hash.ToLowerInvariant();checks=@{clean_windows_10_no_dotnet='passed';clean_windows_11_no_dotnet='passed';portable_workflow='passed';install_upgrade_uninstall='passed';failure_recovery='passed';source_builds='passed';privacy_and_licenses='passed'}} $script:acceptance
+     Save @{scenario=$Scenario;commit=$manifest.commit;version=$manifest.version;release=$null;calls=@();created=0;uploaded=@();downloaded=0;interrupted=$false}
+     $env:ASUKALENS_DRAFT_TEST_ROOT=$script:case
+ }
+@@ -76,9 +76,15 @@ foreach($f in $m.assets){ if((Get-FileHash -LiteralPath (Join-Path $Directory $f
+     New-Case; Upload -WhatIf
+     Check ((State).calls.Count -eq 0) 'WhatIf performs no GitHub calls'
+     New-Case
+-    $accepted=Get-Content $script:acceptance -Raw | ConvertFrom-Json -AsHashtable; $accepted.checks.clean_windows_no_dotnet='pending'; Write-ReleaseJson $accepted $script:acceptance
++    $accepted=Get-Content $script:acceptance -Raw | ConvertFrom-Json -AsHashtable; $accepted.checks.clean_windows_10_no_dotnet='pending'; Write-ReleaseJson $accepted $script:acceptance
+     Reject { Upload } 'incomplete acceptance rejected'; Check ((State).calls.Count -eq 0) 'acceptance failure is offline'
+     New-Case
++    $accepted=Get-Content $script:acceptance -Raw | ConvertFrom-Json -AsHashtable; $accepted.checks.clean_windows_11_no_dotnet='pending'; Write-ReleaseJson $accepted $script:acceptance
++    Reject { Upload } 'Windows 11 acceptance is independently required'; Check ((State).calls.Count -eq 0) 'Windows 11 gate is offline'
++    New-Case
++    $accepted=Get-Content $script:acceptance -Raw | ConvertFrom-Json -AsHashtable; $accepted.checks.Remove('clean_windows_10_no_dotnet'); $accepted.checks.Remove('clean_windows_11_no_dotnet'); $accepted.checks.clean_windows_no_dotnet='passed'; Write-ReleaseJson $accepted $script:acceptance
++    Reject { Upload } 'legacy single OS acceptance rejected'; Check ((State).calls.Count -eq 0) 'legacy gate is offline'
++    New-Case
+     $testManifest=Get-Content (Join-Path $script:assets 'release-manifest.json') -Raw | ConvertFrom-Json -AsHashtable
+     $testManifest.local_test=$true; Write-ReleaseJson $testManifest (Join-Path $script:assets 'release-manifest.json')
+     Reject { Upload } 'local test identity never reaches GitHub'; Check ((State).calls.Count -eq 0) 'local test rejection is offline'
+diff --git a/tests/OfflineAcceptance.Tests.ps1 b/tests/OfflineAcceptance.Tests.ps1
+index 3556241e7123ea90317a06ca3e577b8ea4e37ab8..a693cee5a8fa43739e119a8c162c55d404b09cda 100644
+--- a/tests/OfflineAcceptance.Tests.ps1
++++ b/tests/OfflineAcceptance.Tests.ps1
+@@ -90,6 +90,10 @@ try {
+         Check ($errors.Count -eq 0) ('syntax '+$script.Name)
+     }
+     Check ($PSVersionTable.PSVersion.Major -eq 5 -and [Environment]::Is64BitProcess) 'actual Windows PowerShell 5.1 x64 host'
++    Check ((Get-AcceptanceOs 19044 'Client') -eq 'other-windows') 'older Windows 10 rejected'
++    Check ((Get-AcceptanceOs 19045 'Client') -eq 'windows-10-22h2') 'Windows 10 22H2 accepted'
++    Check ((Get-AcceptanceOs 22000 'Client') -eq 'windows-11') 'Windows 11 accepted'
++    Check ((Get-AcceptanceOs 19045 'Server') -eq 'other-windows') 'server excluded'
+     Check ((Resolve-AcceptanceRuntimeEvidence @() $false).status -eq 'not-detected') 'no known runtime evidence remains qualified'
+     Check ((Resolve-AcceptanceRuntimeEvidence @() $true).status -eq 'unknown') 'incomplete probe is unknown'
+     Check ((Resolve-AcceptanceRuntimeEvidence @('path_host') $true).status -eq 'detected') 'positive evidence wins with incomplete flag'
+diff --git a/tests/ReleaseNotes.Tests.ps1 b/tests/ReleaseNotes.Tests.ps1
+index abf2f3bbf6a5a68de0a7ecd6c4c884263395730d..67a787ae5df897765da5de2c7a6038a9c848ed46 100644
+--- a/tests/ReleaseNotes.Tests.ps1
++++ b/tests/ReleaseNotes.Tests.ps1
+@@ -35,7 +35,8 @@ Reject ($valid+"`n<!-- unterminated") 'unterminated comment rejected'
+ Reject ($valid.Replace('## English','## ENGLISH')) 'explicit English section required'
+ Reject ($valid+"`n## English`nDuplicate") 'duplicate language rejected'
+ Reject ($valid+"`n### Changes`nDuplicate") 'duplicate subsection rejected'
+-Reject ($valid.Replace('Windows 11 x64','Windows 10 x64')) 'wrong supported platform rejected'
++Reject ($valid.Replace('Windows 11 x64','Windows 10 x64')) 'missing Windows 11 rejected'
++Reject ($valid.Replace('Windows 10 22H2 x64','Windows 10 x64')) 'missing Windows 10 baseline rejected'
+ Reject ($valid.Replace('.NET 10.0.14','.NET 10.0.140')) 'runtime substring mismatch rejected'
+ Reject ($valid.Replace('未代码签名','未确认发行者')) 'Chinese signing disclosure required'
+ Reject ($valid.Replace('unsigned','unverified')) 'English signing disclosure required'

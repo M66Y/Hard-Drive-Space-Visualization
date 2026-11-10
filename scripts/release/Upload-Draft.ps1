@@ -17,7 +17,7 @@ $notesText = Get-Content -LiteralPath $Notes -Raw -Encoding utf8
 Assert-ReleaseNotes $notesText $manifest
 $accepted = Get-Content -LiteralPath $Acceptance -Raw | ConvertFrom-Json
 if ($accepted.commit -ne $manifest.commit -or $accepted.manifest_sha256 -ne (Get-FileHash -LiteralPath (Join-Path $Directory 'release-manifest.json')).Hash.ToLowerInvariant()) { throw 'Acceptance does not cover these assets.' }
-foreach ($check in @('clean_windows_no_dotnet','portable_workflow','install_upgrade_uninstall','failure_recovery','source_builds','privacy_and_licenses')) {
+foreach ($check in @('clean_windows_10_no_dotnet','clean_windows_11_no_dotnet','portable_workflow','install_upgrade_uninstall','failure_recovery','source_builds','privacy_and_licenses')) {
     if ($accepted.checks.$check -ne 'passed') { throw ('Package acceptance is incomplete: ' + $check) }
 }
 if ($WhatIfPreference) {

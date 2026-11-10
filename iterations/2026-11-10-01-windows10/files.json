@@ -1,0 +1,67 @@
+{
+  "baseline": "06e489e9ee3da95256883fce595c78291fe2c2cd",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "6af3409355ad2bfb6ba9ab081264c899f152eee3efcdcc79bb8a28e98a4cb2c3"
+    },
+    {
+      "path": "docs/offline-acceptance.md",
+      "sha256": "e3a54398c46d7f469a9f74d1ee10cf81e6df4b024e9af2a529b4060fc8039b00"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "e935ab84eecfb81be6dad1a5dbed5d5db04846f17fd5677b6fb1ead8378190a6"
+    },
+    {
+      "path": "docs/release-notes.template.md",
+      "sha256": "de2130a0a20662fde069bf4410283fb3dfb57d021555c181f09c2fbf15b56fe3"
+    },
+    {
+      "path": "docs/release-readiness.md",
+      "sha256": "eac3216b3e538eb53f89475fbad62455eaa49f7cc2a1e76bc3f212d1b3965fe5"
+    },
+    {
+      "path": "scripts/acceptance/Acceptance.Common.ps1",
+      "sha256": "19106c194c9e8acab8cb9e4772af016c313c6f14978c1ccc5be1b75bdc664aff"
+    },
+    {
+      "path": "scripts/release/AsukaLens.iss",
+      "sha256": "ac5bd1f1553ab39692fbbd20504bf615fd8d48e771bf32cc1b91250ebd3cf5d2"
+    },
+    {
+      "path": "scripts/release/New-Release.ps1",
+      "sha256": "672a19b6b9e25f8ec967bf4f884d906b4ecea60a76e2f410a835021eeb42b857"
+    },
+    {
+      "path": "scripts/release/Release.Common.ps1",
+      "sha256": "8d5a021a2f086bb8edaa812f937cb0f95425fb7f02ca464fa3a91a6b4fbe08ee"
+    },
+    {
+      "path": "scripts/release/Upload-Draft.ps1",
+      "sha256": "c624b2bebbd0b7936d6301e78997476050012579d87c043b7242c9ffb4759191"
+    },
+    {
+      "path": "tests/DraftUpload.Tests.ps1",
+      "sha256": "9d0b43c70397a3d3fb4cded90c5503cce55a80ab63649a36215b6edf9462485a"
+    },
+    {
+      "path": "tests/OfflineAcceptance.Tests.ps1",
+      "sha256": "1c904259d5fc1c4e7bb82248d09c2595363d6b695aeaf3d5313bdea695e5addd"
+    },
+    {
+      "path": "tests/ReleaseNotes.Tests.ps1",
+      "sha256": "2cc44c3c8824dc12b38868d5274b7b1f69d110da615658cf3a81a7ef00ad8c25"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/README.md",
+      "sha256": "487fbc3029ecd117cd884acef6349c05cf5d563334dc411d2c4ca27e09c09aaf"
+    },
+    {
+      "path": "iterations/2026-11-10-01-windows10/changes.patch",
+      "sha256": "fea7c7adb87c89914a20ef8938d6f8e7a4ff3dbb98c86e79f7623e66508cff22"
+    }
+  ]
+}
