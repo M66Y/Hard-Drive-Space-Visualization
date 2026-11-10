@@ -116,9 +116,10 @@ Ctrl+O 选择文件夹；Ctrl+F 搜索；F5 刷新（按变化证据选择方式
 Alt+↑ 上一级；Esc 清空搜索。
 
 运行环境
-自包含发行/验收包面向 Windows 11 x64，内含随包清单标明的 .NET 10 运行时。
+自包含发行/验收包面向 Windows 10 22H2 x64 和 Windows 11 x64，内含随包清单标明的 .NET 10 运行时。
 源码普通构建需要 .NET 10 Windows Desktop Runtime；开发使用 global.json 指定的 SDK。
-源码开发预览已在 Windows 11 x64 验证。干净系统、正式发行的验收状态以 README 和发布说明为准。
+Windows 11 x64 开发机和 Windows 10 22H2 x64 虚拟机已进行部分测试；干净系统及正式发行的验收状态以 README 和发布说明为准。
+微软 .NET 10 官方 Windows 10 支持限于指定 LTSC / Enterprise 版本；其他版本为项目兼容性测试范围。
 其他系统和架构尚未逐一验收。移动程序时完整复制文件夹，保留 DLL、JSON、许可和说明文件。
 
 本程序仅读取文件元信息，不修改或删除扫描内容，不自动联网或上传文件。

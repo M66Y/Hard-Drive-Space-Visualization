@@ -1,0 +1,51 @@
+{
+  "baseline": "a32bb89436670b6e6745d9255bd0050f9d041617",
+  "patch_verified": true,
+  "hash_mode": "utf8-lf-preserving-bom",
+  "files": [
+    {
+      "path": "README.en.md",
+      "sha256": "cb7f3d1f269242aa1eaa01fe85a9c16ef8d253280079a7884c2519c855c4c9ca"
+    },
+    {
+      "path": "README.md",
+      "sha256": "201cf7ceb4fb4b4eb5f31bc26410e07a45dc68db55c47a0af96293532a118f34"
+    },
+    {
+      "path": "docs/release-notes.template.md",
+      "sha256": "21940d2af28d35164faf4f54387987c0ed70e02ebdcf8040ede8be47cd952e76"
+    },
+    {
+      "path": "docs/release-readiness.md",
+      "sha256": "07cf63b18a9796488d2bf627b2da39e0f4336f4a5c397f6ec6ef8ae061a74cc3"
+    },
+    {
+      "path": "docs/releasing.md",
+      "sha256": "fbb25ea21af6d1504a02654e8167299a3f1dd8b25b6ef5a724a084356d181ad3"
+    },
+    {
+      "path": "scripts/release/Release.Common.ps1",
+      "sha256": "a4d6131b48d6da49b5377598074d579c41c0fb07b8a2825157d07486d14206b2"
+    },
+    {
+      "path": "scripts/release/Upload-Draft.ps1",
+      "sha256": "e17c773ab7d8672bf7565e476ecd9a85f6687e316da94fc7d16ee8d56100a5fa"
+    },
+    {
+      "path": "tests/DraftUpload.Tests.ps1",
+      "sha256": "d7fff86429970876e155fcebff9b2b8aafce84cd5166c4689db3261e2d06a581"
+    },
+    {
+      "path": "使用说明.txt",
+      "sha256": "af066f582a860d21998e3a84e45ec58f3f3f8767d8b6c0f10b25b2a66de39641"
+    },
+    {
+      "path": "iterations/2026-11-10-06-release-waiver/README.md",
+      "sha256": "bf62b2d8f622aa5ae93dfe817328dbabeb76d6b61391a40da76cd0e1a1111d11"
+    },
+    {
+      "path": "iterations/2026-11-10-06-release-waiver/changes.patch",
+      "sha256": "b7c36cfcc3a511974e902ffddf2c31db5b1aa093e151d7216c13e12790013eae"
+    }
+  ]
+}

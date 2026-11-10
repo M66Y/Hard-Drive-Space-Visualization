@@ -6,13 +6,13 @@
 
 [快速开始](#快速开始) · [从源码运行](#从源码运行) · [开发计划](docs/development-plan.md) · [许可与署名](NOTICE.md)
 
-> **v1.5.0 · 发布准备中** — Windows 10 虚拟机已完成部分使用和安装验收；干净环境验收仍待完成，尚未公开正式 Release。确切候选资产和验收范围见[发布准备清单](docs/release-readiness.md)。请从源码启动当前版本；旧 `软件/` 目录和 ZIP 不含最新功能。
+> Windows 10 虚拟机已完成部分使用和安装验收；干净环境验收仍待完成。确切版本、资产和验收范围见[发布准备清单](docs/release-readiness.md)。源码开发入口见下文。
 
 ![AsukaLens 浅色主窗：目录空间分布、文件列表、统计口径和扫描状态，使用合成演示数据](docs/images/overview.png)
 
 *真实主窗的合成数据预览。图中名称、大小和用时均为示例，不代表实测速度；背景与头像由 M66Y 使用 AI 工具生成。*
 
-[查看 Release 页面](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases)（当前无正式下载） · [详细使用说明](使用说明.txt)
+[查看 Release 页面](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases) · [详细使用说明](使用说明.txt)
 
 当前发行准备进度与待验收项见[发布前缺口清单](docs/release-readiness.md)。
 

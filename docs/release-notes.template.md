@@ -16,6 +16,7 @@
 - 系统变化日志不可用时仍需核验目录和文件元信息；扫描缓存仅在本次进程内保留。
 - 实际占用不包含所有文件系统开销，不等于删除文件后释放的空间；未知占用与未读取项会单独提示。
 - 界面为简体中文。其他 Windows 版本与架构、跨显示器 DPI 等未覆盖情形不属于已验证范围。
+- 干净 Windows 10 和 Windows 11 环境尚未验收。
 
 ### 适用环境与依赖
 
@@ -27,7 +28,7 @@ Windows 10 22H2 x64 和 Windows 11 x64，普通用户权限。本版便携包与
 
 - 便携版：完整解压 ZIP，运行 `AsukaLens.exe`，选择目录开始扫描。便携版的设置仍位于当前用户 AppData，不随程序文件夹移动。
 - 安装版：运行 EXE 安装器，按当前用户安装。升级前正常退出所有 AsukaLens 窗口；卸载保留背景、诊断和问题记录。
-- 本版按首次正式发行准备；候选阶段尚未公开，干净系统验收状态见候选记录。旧本地预览的手动替换不代表已验证历史安装器迁移。
+- 这是本项目首个正式发行版本。旧本地预览的手动替换不代表已验证历史安装器迁移。
 
 ### 下载与校验
 
@@ -64,6 +65,7 @@ AsukaLens — M66Y。项目代码使用 PolyForm Noncommercial 1.0.0；文档和
 - When the system change journal is unavailable, refresh still verifies folder and file metadata. Scan caches last only for the current process.
 - Allocated size excludes some filesystem overhead and is not the space freed by deletion. Unknown allocation and unread entries are reported separately.
 - The application UI is Simplified Chinese. Other Windows versions and architectures, and untested cross-monitor DPI scenarios, are outside the validated scope.
+- Clean Windows 10 and Windows 11 environments have not been validated.
 
 ### Requirements
 
@@ -75,7 +77,7 @@ These files are currently unsigned; Windows may display an unknown-publisher pro
 
 - Portable: extract the entire ZIP, run `AsukaLens.exe`, and choose a folder. Settings remain in the current user's AppData; they do not travel with the portable program folder.
 - Installer: run the EXE to install for the current user. Close all AsukaLens windows before upgrading. Uninstall preserves backgrounds, diagnostics and problem notes.
-- This version is being prepared for the first formal release. Candidates are not public; consult the candidate record for clean-system acceptance status. Replacing historical local previews manually is not evidence of migration from a historical installer.
+- This is the first formal release. Replacing historical local previews manually is not evidence of migration from a historical installer.
 
 ### Downloads and checksums
 

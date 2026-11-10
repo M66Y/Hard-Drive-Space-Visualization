@@ -4,6 +4,7 @@ param(
     [Parameter(Mandatory)][string]$Directory,
     [Parameter(Mandatory)][string]$Notes,
     [Parameter(Mandatory)][string]$Acceptance,
+    [switch]$AllowCleanEnvironmentWaiver,
     [switch]$Resume
 )
 . (Join-Path $PSScriptRoot 'Release.Common.ps1')
@@ -14,12 +15,30 @@ if ($manifest.local_test) { throw 'Local-test assets can never be uploaded by th
 $repository = 'M66Y/Hard-Drive-Space-Visualization'
 $qualifiedRepository = 'github.com/' + $repository
 $notesText = Get-Content -LiteralPath $Notes -Raw -Encoding utf8
-Assert-ReleaseNotes $notesText $manifest
 $accepted = Get-Content -LiteralPath $Acceptance -Raw | ConvertFrom-Json
-if ($accepted.commit -ne $manifest.commit -or $accepted.manifest_sha256 -ne (Get-FileHash -LiteralPath (Join-Path $Directory 'release-manifest.json')).Hash.ToLowerInvariant()) { throw 'Acceptance does not cover these assets.' }
+$manifestHash = (Get-FileHash -LiteralPath (Join-Path $Directory 'release-manifest.json')).Hash.ToLowerInvariant()
+if ($accepted.commit -ne $manifest.commit -or $accepted.manifest_sha256 -ne $manifestHash) { throw 'Acceptance does not cover these assets.' }
+$waived = [Collections.Generic.List[string]]::new()
 foreach ($check in @('clean_windows_10_no_dotnet','clean_windows_11_no_dotnet','portable_workflow','install_upgrade_uninstall','failure_recovery','source_builds','privacy_and_licenses')) {
-    if ($accepted.checks.$check -ne 'passed') { throw ('Package acceptance is incomplete: ' + $check) }
+    $property = $accepted.checks.PSObject.Properties[$check]
+    $status = if ($property) { [string]$property.Value } else { '' }
+    if ($status -ceq 'passed') { continue }
+    if ($check -cin @('clean_windows_10_no_dotnet','clean_windows_11_no_dotnet') -and $status -ceq 'waived') { $waived.Add($check); continue }
+    throw ('Package acceptance is incomplete: ' + $check)
 }
+if ($waived.Count -gt 0) {
+    if (-not $AllowCleanEnvironmentWaiver) { throw 'Clean-environment waiver requires explicit opt-in.' }
+    if ($waived.Count -ne 2) { throw 'This approved waiver applies only when both clean-system checks are waived.' }
+    $waiverProperty = $accepted.PSObject.Properties['clean_environment_waiver']
+    if (-not $waiverProperty -or -not $waiverProperty.Value) { throw 'Clean-environment waiver details are required.' }
+    $waiver = $waiverProperty.Value
+    if ($waiver.commit -cne $manifest.commit -or $waiver.manifest_sha256 -cne $manifestHash -or
+        $waiver.reason_code -cne 'environment_unavailable' -or @($waiver.checks).Count -ne $waived.Count -or
+        (Compare-Object @($waived | Sort-Object) @($waiver.checks | Sort-Object) -CaseSensitive)) {
+        throw 'Clean-environment waiver must match the candidate and exact waived checks.'
+    }
+} elseif ($AllowCleanEnvironmentWaiver) { throw 'Waiver opt-in supplied without waived checks.' }
+Assert-ReleaseNotes $notesText $manifest -RequireCleanEnvDisclosure:($waived.Count -gt 0)
 if ($WhatIfPreference) {
     $PSCmdlet.ShouldProcess("$repository / $($manifest.version)",'Create or resume a draft; remote commit/tag/draft checks will run on execution') | Out-Null
     return

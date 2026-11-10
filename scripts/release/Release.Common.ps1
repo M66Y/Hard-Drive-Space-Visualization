@@ -206,7 +206,7 @@ function Assert-DraftState($Releases, [switch]$Resume) {
     }
 }
 
-function Assert-ReleaseNotes([string]$Text, $Manifest) {
+function Assert-ReleaseNotes([string]$Text, $Manifest, [switch]$RequireCleanEnvDisclosure) {
     [void](Assert-ReleaseVersion $Manifest.version)
     if ($Manifest.commit -cnotmatch '^[0-9a-f]{40}$' -or $Manifest.runtime -cnotmatch '^[0-9]+\.[0-9]+\.[0-9]+$') { throw 'Invalid notes identity.' }
     if ([string]::IsNullOrWhiteSpace($Text) -or $Text.Length -gt 100000 -or
@@ -253,6 +253,10 @@ function Assert-ReleaseNotes([string]$Text, $Manifest) {
         }
         foreach ($name in $required) {
             if ($name -cnotin @($bodies.Keys) -or [string]::IsNullOrWhiteSpace($bodies[$name])) { throw 'Release notes are missing a required subsection or its content.' }
+        }
+        if ($RequireCleanEnvDisclosure) {
+            $disclosure = if ($chinese) { '干净 Windows 10 和 Windows 11 环境尚未验收。' } else { 'Clean Windows 10 and Windows 11 environments have not been validated.' }
+            if (-not $bodies[$required[2]].Contains($disclosure)) { throw 'The clean-environment exception must be disclosed in both known-limitations sections.' }
         }
         $requirements=$bodies[$required[3]]
         $runtimeToken='\.NET '+[regex]::Escape($Manifest.runtime)+'(?![A-Za-z0-9_.+-])'

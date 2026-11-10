@@ -13,6 +13,12 @@
 
 ## 本机临时验收
 
+### 干净环境不可用时的发布例外
+
+维护者已明确同意在没有干净系统的情况下继续准备发行。`Upload-Draft.ps1` 默认仍要求所有检查为 `passed`；仅可同时将两个干净环境检查设为 `waived`，不把未验收伪装为通过。例外须在验收 JSON 的 `clean_environment_waiver` 中记录与资产清单一致的 `commit`、`manifest_sha256`、`reason_code: environment_unavailable` 和与实际 `waived` 项完全一致的 `checks` 数组。显式传入 `-AllowCleanEnvironmentWaiver`，并在双语发布说明的“已知限制”中准确披露干净 Windows 10 与 Windows 11 未验收。无例外时不要传此参数。
+
+例外只覆盖环境来源这两项，不可豁免核心使用、安装升级、失败恢复、源码构建及隐私许可检查；任何未完成项仍会拒绝上传。验收记录及例外绑定确切提交和清单，更换资产后须重新审核。此例外不改变测试事实、不承诺其他系统经过验收，也不自动创建标签或公开 Release。
+
 下面的命令只用于**用户明确允许的临时验收**。`-LocalTest` 从当前工作区制作快照，清单记录真实 HEAD 基线和 `source_kind=working-tree`，不冒充已提交源码。安装器使用单独的 `AsukaLens.LocalTest` 身份，标题标记 LOCAL TEST，且上传脚本拒绝此类资产。程序的数据约定仍与正式程序相同，不能把测试安装身份误解成自动隔离个人设置。
 
 ```powershell

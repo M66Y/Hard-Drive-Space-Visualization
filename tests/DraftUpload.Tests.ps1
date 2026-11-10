@@ -39,8 +39,8 @@ function Existing-Draft {
     $state.release=@{id=42;draft=$true;tag_name=$state.version;name=('AsukaLens '+$state.version);body=[IO.File]::ReadAllText($script:notes);assets=@()}
     Save $state
 }
-function Upload([switch]$Resume,[switch]$WhatIf) {
-    try { & (Join-Path $root 'scripts/Upload-Draft.ps1') -Directory $script:assets -Notes $script:notes -Acceptance $script:acceptance -Resume:$Resume -WhatIf:$WhatIf -Confirm:$false | Out-Null }
+function Upload([switch]$Resume,[switch]$WhatIf,[switch]$AllowCleanEnvironmentWaiver) {
+    try { & (Join-Path $root 'scripts/Upload-Draft.ps1') -Directory $script:assets -Notes $script:notes -Acceptance $script:acceptance -Resume:$Resume -WhatIf:$WhatIf -AllowCleanEnvironmentWaiver:$AllowCleanEnvironmentWaiver -Confirm:$false | Out-Null }
     finally { if ([Environment]::GetEnvironmentVariable('GH_TELEMETRY','Process') -cne 'log') { throw 'Caller telemetry environment was not restored.' } }
 }
 function Reject([scriptblock]$Action,[string]$Name) {
@@ -84,6 +84,38 @@ foreach($f in $m.assets){ if((Get-FileHash -LiteralPath (Join-Path $Directory $f
     New-Case
     $accepted=Get-Content $script:acceptance -Raw | ConvertFrom-Json -AsHashtable; $accepted.checks.Remove('clean_windows_10_no_dotnet'); $accepted.checks.Remove('clean_windows_11_no_dotnet'); $accepted.checks.clean_windows_no_dotnet='passed'; Write-ReleaseJson $accepted $script:acceptance
     Reject { Upload } 'legacy single OS acceptance rejected'; Check ((State).calls.Count -eq 0) 'legacy gate is offline'
+    New-Case
+    $accepted=Get-Content $script:acceptance -Raw | ConvertFrom-Json -AsHashtable
+    $accepted.checks.clean_windows_10_no_dotnet='waived'; $accepted.checks.clean_windows_11_no_dotnet='waived'
+    $accepted.clean_environment_waiver=@{commit=$accepted.commit;manifest_sha256=$accepted.manifest_sha256;reason_code='environment_unavailable';checks=@('clean_windows_10_no_dotnet','clean_windows_11_no_dotnet')}
+    Write-ReleaseJson $accepted $script:acceptance
+    Reject { Upload -WhatIf } 'waiver without opt-in rejected'; Check ((State).calls.Count -eq 0) 'waiver opt-in rejection offline'
+    Upload -WhatIf -AllowCleanEnvironmentWaiver; Check ((State).calls.Count -eq 0) 'bound clean-environment waiver accepts disclosed notes offline'
+    Upload -AllowCleanEnvironmentWaiver
+    $state=State; Check ($state.created -eq 1 -and $state.uploaded.Count -eq 6 -and $state.downloaded -eq 1 -and $state.release.draft) 'waiver permits offline draft upload and download verification'
+    $accepted.clean_environment_waiver.commit=('c'*40); Write-ReleaseJson $accepted $script:acceptance
+    Reject { Upload -WhatIf -AllowCleanEnvironmentWaiver } 'waiver wrong commit rejected'
+    $accepted.clean_environment_waiver.commit=$accepted.commit; $accepted.clean_environment_waiver.manifest_sha256=('c'*64); Write-ReleaseJson $accepted $script:acceptance
+    Reject { Upload -WhatIf -AllowCleanEnvironmentWaiver } 'waiver wrong manifest rejected'
+    $accepted.clean_environment_waiver.manifest_sha256=$accepted.manifest_sha256; $accepted.clean_environment_waiver.checks=@('clean_windows_10_no_dotnet'); Write-ReleaseJson $accepted $script:acceptance
+    Reject { Upload -WhatIf -AllowCleanEnvironmentWaiver } 'waiver scope mismatch rejected'
+    $accepted.clean_environment_waiver.checks=@('clean_windows_10_no_dotnet','clean_windows_11_no_dotnet','clean_windows_11_no_dotnet'); Write-ReleaseJson $accepted $script:acceptance
+    Reject { Upload -WhatIf -AllowCleanEnvironmentWaiver } 'duplicate waiver scope rejected'
+    $accepted.clean_environment_waiver.checks=@('clean_windows_10_no_dotnet'); $accepted.checks.clean_windows_11_no_dotnet='passed'; Write-ReleaseJson $accepted $script:acceptance
+    Reject { Upload -WhatIf -AllowCleanEnvironmentWaiver } 'single clean-system waiver rejected'
+    $accepted.checks.clean_windows_11_no_dotnet='waived'
+    $accepted.clean_environment_waiver.checks=@('clean_windows_10_no_dotnet','clean_windows_11_no_dotnet'); $accepted.clean_environment_waiver.reason_code='other'; Write-ReleaseJson $accepted $script:acceptance
+    Reject { Upload -WhatIf -AllowCleanEnvironmentWaiver } 'waiver unsupported reason rejected'
+    $accepted.clean_environment_waiver.reason_code='environment_unavailable'; $accepted.checks.failure_recovery='waived'; Write-ReleaseJson $accepted $script:acceptance
+    Reject { Upload -WhatIf -AllowCleanEnvironmentWaiver } 'non-environment waiver rejected'
+    $accepted.checks.failure_recovery='passed'; Write-ReleaseJson $accepted $script:acceptance
+    $originalNotes=[IO.File]::ReadAllText($script:notes)
+    [IO.File]::WriteAllText($script:notes,$originalNotes.Replace('干净 Windows 10 和 Windows 11 环境尚未验收。',''))
+    Reject { Upload -WhatIf -AllowCleanEnvironmentWaiver } 'missing Chinese disclosure rejected'
+    [IO.File]::WriteAllText($script:notes,$originalNotes.Replace('Clean Windows 10 and Windows 11 environments have not been validated.',''))
+    Reject { Upload -WhatIf -AllowCleanEnvironmentWaiver } 'missing English disclosure rejected'
+    [IO.File]::WriteAllText($script:notes,$originalNotes.Replace('干净 Windows 10 和 Windows 11 环境尚未验收。','<!-- 干净 Windows 10 和 Windows 11 环境尚未验收。 -->'))
+    Reject { Upload -WhatIf -AllowCleanEnvironmentWaiver } 'commented disclosure rejected'
     New-Case
     $testManifest=Get-Content (Join-Path $script:assets 'release-manifest.json') -Raw | ConvertFrom-Json -AsHashtable
     $testManifest.local_test=$true; Write-ReleaseJson $testManifest (Join-Path $script:assets 'release-manifest.json')
