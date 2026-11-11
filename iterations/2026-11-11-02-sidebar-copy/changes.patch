@@ -1,0 +1,27 @@
+diff --git a/Theme.cs b/Theme.cs
+index f1b2f31..0628b35 100644
+--- a/Theme.cs
++++ b/Theme.cs
+@@ -369,8 +369,7 @@ internal sealed class NavigationPanel : Control
+         }
+         if (Height > 740 * s)
+         {
+-            Theme.TextAt(g, "看清空间，让文件井然有序。", smallFont, Theme.Muted, new Rectangle((int)(25 * s), Height - (int)(70 * s), Width - (int)(40 * s), (int)(25 * s)));
+-            Theme.TextAt(g, "本地扫描  ·  文件不上传", smallFont, Theme.Muted, new Rectangle((int)(25 * s), Height - (int)(46 * s), Width - (int)(40 * s), (int)(25 * s)));
++            Theme.TextAt(g, "本地扫描 · 文字不上传", smallFont, Theme.Muted, new Rectangle((int)(25 * s), Height - (int)(46 * s), Width - (int)(40 * s), (int)(25 * s)));
+         }
+     }
+ }
+diff --git a/iterations/2026-11-11-02-sidebar-copy/README.md b/iterations/2026-11-11-02-sidebar-copy/README.md
+new file mode 100644
+index 0000000..5be32c8
+--- /dev/null
++++ b/iterations/2026-11-11-02-sidebar-copy/README.md
+@@ -0,0 +1,7 @@
++# 左下角文案调整
++
++基线 `3461077`。左下角移除原两行说明，仅显示“本地扫描 · 文字不上传”；同步更新合成数据的真实窗口截图。截图已人工检查，不含真实扫描文件。
++
++应用及测试项目以 `--no-restore` 构建通过；144 和 96 DPI 界面回归通过。已清理临时截图备份。本轮没有打包或发布，已有 v1.5.0 发行包不变。截图由 Git 保存，补丁不重复包含二进制文件。
++
++截图 SHA-256：`24876aa72cdf796bc5c8886a92c5feb4afa0855266252812930c5d28811ffcb2`。
