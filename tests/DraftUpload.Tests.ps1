@@ -19,7 +19,7 @@ function New-Case([string]$Scenario='normal') {
     [IO.Directory]::CreateDirectory($script:assets) | Out-Null
     [IO.Directory]::CreateDirectory((Join-Path $script:case 'server')) | Out-Null
     [IO.File]::WriteAllText((Join-Path $script:case 'offline-fixture'),'offline synthetic content; never a distributable package')
-    $files=@('AsukaLens v1.4.2.zip','AsukaLens v1.4.2.exe','AsukaLens v1.4.2-source.zip','AsukaLens v1.4.2-source.tar.gz')
+    $files=@('AsukaLens.v1.4.2.zip','AsukaLens.v1.4.2.exe','AsukaLens.v1.4.2-source.zip','AsukaLens.v1.4.2-source.tar.gz')
     foreach($name in $files){ [IO.File]::WriteAllText((Join-Path $script:assets $name),'NONEXECUTABLE SYNTHETIC TEST FIXTURE '+$name) }
     $manifest=[ordered]@{version='v1.4.2';commit=('b'*40);runtime='10.0.14';local_test=$false;assets=@(Get-FileInventory $script:assets)}
     Write-ReleaseJson $manifest (Join-Path $script:assets 'release-manifest.json')
@@ -69,10 +69,21 @@ foreach($f in $m.assets){ if((Get-FileHash -LiteralPath (Join-Path $Directory $f
     New-Case; Upload
     $state=State
     Check ($state.created -eq 1 -and $state.uploaded.Count -eq 6 -and $state.downloaded -eq 1 -and $state.release.draft) 'create upload download verify; annotated tag and paginated draft'
+    Check (@($state.release.assets | Where-Object { $_.name.Contains(' ') }).Count -eq 0) 'GitHub-normalized filenames match local assets and download verification'
     $state.release.body=$state.release.body.Replace("`n","`r`n"); Save $state
     Upload -Resume
     $state=State
     Check ($state.uploaded.Count -eq 6 -and $state.downloaded -eq 2) 'complete resume skips matching assets and accepts normalized newlines'
+    New-Case
+    $legacyManifest=Get-Content (Join-Path $script:assets 'release-manifest.json') -Raw | ConvertFrom-Json
+    foreach($asset in $legacyManifest.assets) {
+        $renamed=$asset.path.Replace('AsukaLens.v','AsukaLens v')
+        Move-Item -LiteralPath (Join-Path $script:assets $asset.path) -Destination (Join-Path $script:assets $renamed)
+        $asset.path=$renamed
+    }
+    Write-ReleaseJson $legacyManifest (Join-Path $script:assets 'release-manifest.json')
+    Reject { Upload } 'legacy names cannot reach GitHub'
+    Check ((State).calls.Count -eq 0) 'legacy name rejection performs no GitHub calls'
     New-Case; Upload -WhatIf
     Check ((State).calls.Count -eq 0) 'WhatIf performs no GitHub calls'
     New-Case
@@ -141,7 +152,7 @@ foreach($f in $m.assets){ if((Get-FileHash -LiteralPath (Join-Path $Directory $f
         New-Case; Existing-Draft; $state=State; $state.release[$field]='different release content'; Save $state
         Reject { Upload -Resume } ('mismatched draft '+$field); No-Writes ('mismatched '+$field+' has no writes')
     }
-    foreach($asset in @(@{name='AsukaLens v1.4.2.zip';digest='sha256:different'},@{name='unrelated.zip';digest='sha256:different'})) {
+    foreach($asset in @(@{name='AsukaLens.v1.4.2.zip';digest='sha256:different'},@{name='unrelated.zip';digest='sha256:different'})) {
         New-Case; Existing-Draft; $state=State; $state.release.assets=@($asset); Save $state
         Reject { Upload -Resume } ('conflicting asset '+$asset.name); No-Writes 'conflicting assets not overwritten'
     }

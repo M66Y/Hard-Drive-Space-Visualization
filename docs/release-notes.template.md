@@ -34,10 +34,10 @@ Windows 10 22H2 x64 和 Windows 11 x64，普通用户权限。本版便携包与
 
 | 文件 | 用途 |
 | --- | --- |
-| [AsukaLens {{VERSION}}.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}.zip) | 自包含便携版 |
-| [AsukaLens {{VERSION}}.exe](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}.exe) | 当前用户安装器 |
-| [AsukaLens {{VERSION}}-source.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}-source.zip) | 源码 ZIP |
-| [AsukaLens {{VERSION}}-source.tar.gz](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}-source.tar.gz) | 同一源码的 tar.gz |
+| [AsukaLens.{{VERSION}}.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}.zip) | 自包含便携版 |
+| [AsukaLens.{{VERSION}}.exe](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}.exe) | 当前用户安装器 |
+| [AsukaLens.{{VERSION}}-source.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}-source.zip) | 源码 ZIP |
+| [AsukaLens.{{VERSION}}-source.tar.gz](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}-source.tar.gz) | 同一源码的 tar.gz |
 | [SHA256SUMS.txt](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/SHA256SUMS.txt) | 四类资产的 SHA-256 |
 | [release-manifest.json](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/release-manifest.json) | 版本、提交、工具链及逐文件清单 |
 
@@ -83,10 +83,10 @@ These files are currently unsigned; Windows may display an unknown-publisher pro
 
 | File | Purpose |
 | --- | --- |
-| [AsukaLens {{VERSION}}.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}.zip) | Self-contained portable package |
-| [AsukaLens {{VERSION}}.exe](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}.exe) | Per-user installer |
-| [AsukaLens {{VERSION}}-source.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}-source.zip) | Source ZIP |
-| [AsukaLens {{VERSION}}-source.tar.gz](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}-source.tar.gz) | Identical source in tar.gz format |
+| [AsukaLens.{{VERSION}}.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}.zip) | Self-contained portable package |
+| [AsukaLens.{{VERSION}}.exe](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}.exe) | Per-user installer |
+| [AsukaLens.{{VERSION}}-source.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}-source.zip) | Source ZIP |
+| [AsukaLens.{{VERSION}}-source.tar.gz](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}-source.tar.gz) | Identical source in tar.gz format |
 | [SHA256SUMS.txt](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/SHA256SUMS.txt) | SHA-256 for all four assets |
 | [release-manifest.json](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/release-manifest.json) | Version, commit, toolchain and file inventory |
 

@@ -42,7 +42,7 @@ try {
     $out = Join-Path $stage 'assets'
     $payload = Join-Path $stage 'payload'
     [IO.Directory]::CreateDirectory($out) | Out-Null
-    New-SourceArchives $source (Join-Path $out "AsukaLens $Version-source.zip") (Join-Path $out "AsukaLens $Version-source.tar.gz")
+    New-SourceArchives $source (Join-Path $out "AsukaLens.$Version-source.zip") (Join-Path $out "AsukaLens.$Version-source.tar.gz")
     $cache = Join-Path $repository 'artifacts/release-cache'
     Assert-NoReparse $cache
     $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
@@ -94,7 +94,7 @@ Uninstall removes program files and shortcuts; it keeps user data. Close the app
     [IO.File]::WriteAllText((Join-Path $payload 'INSTALL-NOTICE.txt'), $notice, [Text.UTF8Encoding]::new($true))
     Write-ReleaseJson ([ordered]@{ schema=1; version=$Version; commit=$Commit; local_test=[bool]$LocalTest; runtime=$tools.runtime }) (Join-Path $payload 'build-info.json')
     $payloadFiles = @(Get-FileInventory $payload)
-    [IO.Compression.ZipFile]::CreateFromDirectory($payload, (Join-Path $out "AsukaLens $Version.zip"), [IO.Compression.CompressionLevel]::Optimal, $false)
+    [IO.Compression.ZipFile]::CreateFromDirectory($payload, (Join-Path $out "AsukaLens.$Version.zip"), [IO.Compression.CompressionLevel]::Optimal, $false)
     Invoke-ReleaseTool $Compiler @('--quiet','--no-ide-signtools',('--define=AppVersion='+$numeric),('--define=PayloadDir='+$payload),
         ('--define=OutputDir='+$out),('--define=LocalTest='+[int][bool]$LocalTest),(Join-Path $PSScriptRoot 'AsukaLens.iss'))
     $assets = @(Get-FileInventory $out)

@@ -17,6 +17,7 @@ function Reject([string]$Text,[string]$Name) {
     Check $failed $Name
 }
 Assert-ReleaseNotes $valid $manifest; Check $true 'completed production template accepted'
+Reject ($valid.Replace('AsukaLens.v1.4.2','AsukaLens%20v1.4.2')) 'legacy download URLs rejected for a new release'
 Assert-ReleaseNotes ($valid.Replace("`r`n","`n").Replace("`n","`r`n")) $manifest; Check $true 'CRLF accepted'
 Assert-ReleaseNotes ($valid+"`n``````powershell`nGet-FileHash -Algorithm SHA256 'synthetic.zip'`n```````n") $manifest
 Check $true 'additional fenced usage example accepted'
@@ -41,7 +42,7 @@ Reject ($valid.Replace('.NET 10.0.14','.NET 10.0.140')) 'runtime substring misma
 Reject ($valid.Replace('未代码签名','未确认发行者')) 'Chinese signing disclosure required'
 Reject ($valid.Replace('unsigned','unverified')) 'English signing disclosure required'
 $base='https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.4.2/'
-foreach ($file in @('AsukaLens v1.4.2.zip','AsukaLens v1.4.2.exe','AsukaLens v1.4.2-source.zip','AsukaLens v1.4.2-source.tar.gz','SHA256SUMS.txt','release-manifest.json')) {
+foreach ($file in @('AsukaLens.v1.4.2.zip','AsukaLens.v1.4.2.exe','AsukaLens.v1.4.2-source.zip','AsukaLens.v1.4.2-source.tar.gz','SHA256SUMS.txt','release-manifest.json')) {
     $link=$base+[Uri]::EscapeDataString($file)
     Reject ($valid.Replace($link,'https://example.invalid/missing')) ('missing asset link '+$file)
 }

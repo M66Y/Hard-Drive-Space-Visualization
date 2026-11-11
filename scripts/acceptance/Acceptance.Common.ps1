@@ -149,14 +149,20 @@ function Get-AcceptanceOs([int]$Build,[string]$Installation) {
     return 'other-windows'
 }
 
+function Get-AcceptanceAssetStem($Manifest) {
+    $legacy='AsukaLens '+$Manifest.version
+    if (@($Manifest.assets | Where-Object { $_.path -ceq ($legacy+'.zip') }).Count -eq 1) { return $legacy }
+    return 'AsukaLens.'+$Manifest.version
+}
+
 function Assert-AcceptanceManifest($Manifest) {
     if ($Manifest.schema -ne 1 -or $Manifest.product -cne 'AsukaLens' -or $Manifest.version -cnotmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' -or
         $Manifest.commit -cnotmatch '^[0-9a-f]{40}$' -or $Manifest.rid -cne 'win-x64' -or $Manifest.self_contained -isnot [bool] -or
         -not $Manifest.self_contained -or $Manifest.local_test -isnot [bool] -or $Manifest.runtime -cnotmatch '^10\.0\.[0-9]+$' -or
         $Manifest.source_kind -cne $(if ($Manifest.local_test) {'working-tree'} else {'git-commit'})) { throw 'ACCEPT_MANIFEST_IDENTITY' }
     foreach ($part in $Manifest.version.Substring(1).Split('.')) { if ([long]$part -gt 65535) { throw 'ACCEPT_MANIFEST_VERSION' } }
-    $v=$Manifest.version
-    $expected=@("AsukaLens $v.zip","AsukaLens $v.exe","AsukaLens $v-source.zip","AsukaLens $v-source.tar.gz")
+    $stem=Get-AcceptanceAssetStem $Manifest
+    $expected=@("$stem.zip","$stem.exe","$stem-source.zip","$stem-source.tar.gz")
     $actual=@($Manifest.assets | ForEach-Object { $_.path })
     if ($actual.Count -ne 4 -or (Compare-Object ($expected | Sort-Object) ($actual | Sort-Object) -CaseSensitive)) { throw 'ACCEPT_ASSET_NAMES' }
     foreach ($list in @(@{items=$Manifest.assets;limit=2GB},@{items=$Manifest.payload_files;limit=1GB})) {
@@ -263,7 +269,7 @@ function New-AcceptanceWorkspace([string]$Assets,[string]$ManifestSha256,[string
             $stream=[IO.File]::Open((Join-Path $Assets $asset.path),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
             $handles.Add($stream)
             if ($stream.Length -ne $asset.bytes -or (Get-AcceptanceHash $stream) -ne $asset.sha256) { throw 'ACCEPT_ASSET_HASH' }
-            if ($asset.path -ceq "AsukaLens $($manifest.version).zip") { $portable=$stream; $stream.Position=0 }
+            if ($asset.path -ceq ((Get-AcceptanceAssetStem $manifest)+'.zip')) { $portable=$stream; $stream.Position=0 }
         }
         $sums=@([IO.File]::ReadAllLines((Join-Path $Assets 'SHA256SUMS.txt')))
         $expectedSums=@($manifest.assets | ForEach-Object { $_.sha256+'  '+$_.path })

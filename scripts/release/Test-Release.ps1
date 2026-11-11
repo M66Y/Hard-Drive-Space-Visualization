@@ -10,7 +10,8 @@ if ($manifest.schema -ne 1 -or $manifest.product -ne 'AsukaLens' -or $manifest.c
     $manifest.rid -ne 'win-x64' -or $manifest.self_contained -ne $true -or $manifest.local_test -isnot [bool] -or
     $manifest.source_kind -ne $(if ($manifest.local_test) { 'working-tree' } else { 'git-commit' })) { throw 'Invalid release manifest.' }
 $version = $manifest.version
-$expectedNames = @("AsukaLens $version.zip", "AsukaLens $version.exe", "AsukaLens $version-source.zip", "AsukaLens $version-source.tar.gz")
+$stem = Get-ReleaseAssetStem $manifest
+$expectedNames = @("$stem.zip", "$stem.exe", "$stem-source.zip", "$stem-source.tar.gz")
 $assetNames = @($manifest.assets | ForEach-Object { $_.path })
 if ($assetNames.Count -ne 4 -or (Compare-Object ($expectedNames | Sort-Object) ($assetNames | Sort-Object) -CaseSensitive)) { throw 'Exactly four correctly named assets are required.' }
 $expectedFiles = $expectedNames + @('release-manifest.json','SHA256SUMS.txt')
@@ -24,12 +25,12 @@ foreach ($asset in $manifest.assets) {
 $checksumLines = @([IO.File]::ReadAllLines((Join-Path $Directory 'SHA256SUMS.txt')))
 $expectedChecksums = @($manifest.assets | ForEach-Object { $_.sha256 + '  ' + $_.path })
 if ($checksumLines.Count -ne 4 -or (Compare-Object $expectedChecksums $checksumLines)) { throw 'SHA256SUMS does not match the manifest.' }
-$sourceZip = @(Get-ArchiveInventory (Join-Path $Directory "AsukaLens $version-source.zip"))
-$sourceTar = @(Get-ArchiveInventory (Join-Path $Directory "AsukaLens $version-source.tar.gz") -TarGz)
+$sourceZip = @(Get-ArchiveInventory (Join-Path $Directory "$stem-source.zip"))
+$sourceTar = @(Get-ArchiveInventory (Join-Path $Directory "$stem-source.tar.gz") -TarGz)
 foreach ($file in $sourceZip) { Assert-SourcePath $file.path }
 Assert-SameInventory $manifest.source_files $sourceZip
 Assert-SameInventory $sourceZip $sourceTar
-$payload = @(Get-ArchiveInventory (Join-Path $Directory "AsukaLens $version.zip"))
+$payload = @(Get-ArchiveInventory (Join-Path $Directory "$stem.zip"))
 Assert-SameInventory $manifest.payload_files $payload
 $payloadNames = @($payload | ForEach-Object { $_.path })
 foreach ($required in @('AsukaLens.exe','DiskAtlas.dll','DiskAtlas.runtimeconfig.json','DiskAtlas.deps.json','coreclr.dll','hostfxr.dll','hostpolicy.dll',
@@ -40,7 +41,7 @@ foreach ($pack in @('microsoft.netcore.app.runtime.win-x64','microsoft.windowsde
     $minimum = if ($pack -like 'microsoft.netcore.*') { 2 } else { 1 }
     if (@($payloadNames | Where-Object { $_ -like "licenses/runtime/$pack/*" }).Count -lt $minimum) { throw 'Missing third-party runtime notices.' }
 }
-$zip = [IO.Compression.ZipFile]::OpenRead((Join-Path $Directory "AsukaLens $version.zip"))
+$zip = [IO.Compression.ZipFile]::OpenRead((Join-Path $Directory "$stem.zip"))
 try {
     function Read-ZipJson([string]$Name) {
         $reader = [IO.StreamReader]::new($zip.GetEntry($Name).Open())
@@ -54,7 +55,7 @@ try {
     $identity = Read-ZipJson 'build-info.json'
     if ($identity.version -ne $version -or $identity.commit -ne $manifest.commit -or $identity.local_test -ne $manifest.local_test) { throw 'Payload build identity mismatch.' }
 } finally { $zip.Dispose() }
-$installer = Join-Path $Directory "AsukaLens $version.exe"
+$installer = Join-Path $Directory "$stem.exe"
 $exe = [IO.File]::OpenRead($installer)
 try { if ($exe.ReadByte() -ne 77 -or $exe.ReadByte() -ne 90) { throw 'Installer is not a Windows executable.' } }
 finally { $exe.Dispose() }

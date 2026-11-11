@@ -1,5 +1,7 @@
 # 正式发布前缺口清单
 
+2026-11-11：后续发布工具已统一点号资产名称，并补充模拟 GitHub 规范化的离线回归。旧快照本地验收保持兼容；下次新包的安装与真实远程上传验证仍须执行，详见[工具修复记录](../iterations/2026-11-11-05-release-names/README.md)。
+
 2026-11-10：[v1.5.0 已公开发布](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/tag/v1.5.0)。干净 Windows 10/11 验收仍未完成，用户同意作为例外发布；最终资产未在 Windows 10 虚拟机重测，较早候选通过该虚拟机的主要流程及合成升级/失败恢复检查。确切资产、本机验证及文件名处理见[发布记录](../iterations/2026-11-10-07-publication/README.md)。下方内容是各轮历史状态。
 
 本文件保留各轮准备过程；源码压缩包内的内容仅反映其冻结提交时的记录。最新公开版本与下载状态以 [GitHub Releases](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases) 为准。维护者已同意在缺少干净环境时继续准备发布，具体例外必须绑定确切资产并披露未验收状态，其他验收不受豁免。

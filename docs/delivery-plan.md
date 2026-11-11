@@ -52,10 +52,10 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| `AsukaLens vX.X.X.zip` | 完整 Windows x64 自包含便携目录 |
-| `AsukaLens vX.X.X.exe` | 真正的安装包，安装与便携内容来自同一发布暂存目录 |
-| `AsukaLens vX.X.X-source.zip` | 对应发布提交的源码 |
-| `AsukaLens vX.X.X-source.tar.gz` | 同一源码文件集合 |
+| `AsukaLens.vX.X.X.zip` | 完整 Windows x64 自包含便携目录 |
+| `AsukaLens.vX.X.X.exe` | 真正的安装包，安装与便携内容来自同一发布暂存目录 |
+| `AsukaLens.vX.X.X-source.zip` | 对应发布提交的源码 |
+| `AsukaLens.vX.X.X-source.tar.gz` | 同一源码文件集合 |
 | `SHA256SUMS.txt` | 四类资产 SHA-256；另记录提交及工具版本清单 |
 
 项目纯数字版本为唯一来源；展示/标签为 `vX.X.X`，Release 标题为 `AsukaLens vX.X.X`。新版本号在正式发布任务中确定，本轮不把项目改成示例版本。

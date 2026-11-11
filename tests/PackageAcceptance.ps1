@@ -13,6 +13,7 @@ $compilerHash = (Get-Content -LiteralPath (Join-Path $PSScriptRoot '../scripts/r
 if ((Get-FileHash -LiteralPath $Compiler).Hash.ToLowerInvariant() -ne $compilerHash) { throw 'Compiler does not match the pinned toolchain.' }
 $compileIdentity = '--define=LocalTest=' + [int][bool]$manifest.local_test
 $version = $manifest.version
+$stem = Get-ReleaseAssetStem $manifest
 $parent = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../artifacts'))
 $root = Join-Path $parent ('package-acceptance-' + [guid]::NewGuid().ToString('N'))
 Assert-NoReparse $root
@@ -44,7 +45,7 @@ function Assert-InstalledPayload {
 }
 try {
     $payload = Join-Path $root 'payload'
-    [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $Directory "AsukaLens $version.zip"),$payload)
+    [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $Directory "$stem.zip"),$payload)
     # Prepare a separate host using the same payload CoreCLR and Windows Desktop runtime.
     $hostRoot = Join-Path $root 'smoke'
     [IO.Directory]::CreateDirectory($hostRoot) | Out-Null
@@ -69,9 +70,9 @@ try {
     foreach ($format in @('zip','tar.gz')) {
         $source = Join-Path $root ('source-' + $format.Replace('.','-'))
         [IO.Directory]::CreateDirectory($source) | Out-Null
-        if ($format -eq 'zip') { [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $Directory "AsukaLens $version-source.zip"),$source) }
+        if ($format -eq 'zip') { [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $Directory "$stem-source.zip"),$source) }
         else {
-            $file=[IO.File]::OpenRead((Join-Path $Directory "AsukaLens $version-source.tar.gz"))
+            $file=[IO.File]::OpenRead((Join-Path $Directory "$stem-source.tar.gz"))
             $gzip=[IO.Compression.GZipStream]::new($file,[IO.Compression.CompressionMode]::Decompress)
             try { [System.Formats.Tar.TarFile]::ExtractToDirectory($gzip,$source,$false) } finally { $gzip.Dispose(); $file.Dispose() }
         }
@@ -85,7 +86,7 @@ try {
     [IO.Directory]::CreateDirectory($older) | Out-Null
     Invoke-ReleaseTool $Compiler @('--quiet','--no-ide-signtools','--define=AppVersion=1.4.1',('--define=PayloadDir='+$payload),
         ('--define=OutputDir='+$older),$compileIdentity,(Join-Path $PSScriptRoot '../scripts/release/AsukaLens.iss'))
-    $oldExe = Join-Path $older 'AsukaLens v1.4.1.exe'
+    $oldExe = Join-Path $older 'AsukaLens.v1.4.1.exe'
     $unrelated = Join-Path $root 'unrelated'
     [IO.Directory]::CreateDirectory($unrelated) | Out-Null
     [IO.File]::WriteAllText((Join-Path $unrelated 'keep.txt'),'unrelated synthetic file')
@@ -94,7 +95,7 @@ try {
     Pass ((Run-Installer $oldExe 'install.log' @(('/DIR="'+$installation+'"'),'/TASKS=desktopicon')) -eq 0) 'standard-user installation'
     Pass ((Test-Path -LiteralPath $registry) -and @($shortcuts | Where-Object { Test-Path -LiteralPath $_ }).Count -eq 2) 'current-user registration and shortcuts'
     Assert-InstalledPayload
-    $setup = Join-Path $Directory "AsukaLens $version.exe"
+    $setup = Join-Path $Directory "$stem.exe"
     Pass ((Run-Installer $setup 'upgrade.log') -eq 0) 'same-identity upgrade'
     Assert-InstalledPayload
     Pass ((Get-ItemProperty -LiteralPath $registry).DisplayVersion -eq $version.Substring(1)) 'upgraded version registration'
@@ -113,7 +114,7 @@ try {
     Invoke-ReleaseTool $Compiler @('--quiet','--no-ide-signtools',('--define=AppVersion='+$version.Substring(1)),('--define=PayloadDir='+$payload),
         ('--define=OutputDir='+$failureBuild),$compileIdentity,(Join-Path $PSScriptRoot '../scripts/release/AsukaLens.iss'))
     $locked = [IO.File]::Open((Join-Path $installation 'AsukaLens.exe'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
-    try { Pass ((Run-Installer (Join-Path $failureBuild "AsukaLens $version.exe") 'locked.log') -ne 0) 'locked payload aborts installation' }
+    try { Pass ((Run-Installer (Join-Path $failureBuild "AsukaLens.$version.exe") 'locked.log') -ne 0) 'locked payload aborts installation' }
     finally { $locked.Dispose() }
     $failureLog=[IO.File]::ReadAllText((Join-Path $root 'locked.log'))
     Pass (@($failureLog.Split('-- File entry --') | Where-Object { $_.Contains($probeName) -and $_.Contains('Successfully installed the file.') }).Count -eq 1) 'failure occurs after the probe was actually overwritten'

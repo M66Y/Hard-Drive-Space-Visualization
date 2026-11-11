@@ -1,0 +1,543 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 5630ce1..e9f64c4 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -149,11 +149,12 @@
+ - 仅在本次任务明确包含正式发布时打包、创建标签和 Release；普通迭代只构建、验证、记录与提交，不自行发布。用户可明确授权仅供本机验收的临时包：必须使用 `-LocalTest`、单独安装身份和测试标识，不上传包、不创建标签/Release；本轮 2026-11-07 已获得该临时验收授权，不扩展为以后迭代的默认打包授权。
+ - 对外版本号统一为 `vX.X.X`，例如 `v1.5.0`；标签与展示必须一致。Release 标题为 `AsukaLens vX.X.X`。
+ - .NET 项目、程序集及安装器中要求纯数字的技术字段使用对应 `X.X.X` 或 `X.X.X.0`，发布脚本从同一版本来源生成对外的 `vX.X.X`，避免多处手改失配。
++- 资产文件名使用点号分隔产品名和版本，避免 GitHub 转换空格后导致清单和链接不匹配。Release 标题仍使用空格。历史快照不重命名；旧空格名称仅保留本地验收兼容，上传必须使用新的点号名称。
+ - 每个正式 Release 至少提供以下四个可用资产。两个 ZIP 用 `-source` 区分，保留统一产品名与版本前缀：
+-  - `AsukaLens vX.X.X.zip`：ZIP 便携版，包含全部必需运行文件。
+-  - `AsukaLens vX.X.X.exe`：真正的软件 EXE 安装包，不是改名后的普通启动程序。
+-  - `AsukaLens vX.X.X-source.zip`：对应发布提交的源码 ZIP。
+-  - `AsukaLens vX.X.X-source.tar.gz`：同一源码快照的 tar.gz。
++  - `AsukaLens.vX.X.X.zip`：ZIP 便携版，包含全部必需运行文件。
++  - `AsukaLens.vX.X.X.exe`：真正的软件 EXE 安装包，不是改名后的普通启动程序。
++  - `AsukaLens.vX.X.X-source.zip`：对应发布提交的源码 ZIP。
++  - `AsukaLens.vX.X.X-source.tar.gz`：同一源码快照的 tar.gz。
+ - 同步中英文发布说明、功能变更、修复、已知限制、适用环境、依赖、安装/便携使用方法和资产下载链接；提供 SHA-256 校验信息，标明是否含 .NET 运行时。
+ - 在干净或受控环境验证便携版解压运行、安装器安装/启动/升级/卸载、源码解压及按文档构建；两种源码包应对应相同提交，解压后的必要文件一致。单文件启动器不等于安装器，文件存在不等于可用。
+ - 源码包不得打入 `.git`、凭据、个人日志、用户图片、编译缓存和发布二进制；必须包含构建所需且可分发的资源。默认背景等第三方素材的来源和分发许可未明确时先解决，不自行声称有授权。
+diff --git a/docs/delivery-plan.md b/docs/delivery-plan.md
+index c41d84c..e25e582 100644
+--- a/docs/delivery-plan.md
++++ b/docs/delivery-plan.md
+@@ -52,10 +52,10 @@
+ 
+ | 文件 | 内容 |
+ | --- | --- |
+-| `AsukaLens vX.X.X.zip` | 完整 Windows x64 自包含便携目录 |
+-| `AsukaLens vX.X.X.exe` | 真正的安装包，安装与便携内容来自同一发布暂存目录 |
+-| `AsukaLens vX.X.X-source.zip` | 对应发布提交的源码 |
+-| `AsukaLens vX.X.X-source.tar.gz` | 同一源码文件集合 |
++| `AsukaLens.vX.X.X.zip` | 完整 Windows x64 自包含便携目录 |
++| `AsukaLens.vX.X.X.exe` | 真正的安装包，安装与便携内容来自同一发布暂存目录 |
++| `AsukaLens.vX.X.X-source.zip` | 对应发布提交的源码 |
++| `AsukaLens.vX.X.X-source.tar.gz` | 同一源码文件集合 |
+ | `SHA256SUMS.txt` | 四类资产 SHA-256；另记录提交及工具版本清单 |
+ 
+ 项目纯数字版本为唯一来源；展示/标签为 `vX.X.X`，Release 标题为 `AsukaLens vX.X.X`。新版本号在正式发布任务中确定，本轮不把项目改成示例版本。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 28222f1..c0cce4e 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,5 +1,7 @@
+ # 后续开发计划
+ 
++2026-11-11：通用发布工具的文件名问题已完成本轮修复与离线验证，见[迭代记录](../iterations/2026-11-11-05-release-names/README.md)。下一次正式发行仍需验证新安装器和真实远程草稿；本轮不启动性能、界面重构或新版本发布。下文保留历史计划状态。
++
+ 2026-11-10：v1.5.0 已正式发布。干净 Windows 10/11 环境仍未验收，最终资产未在 Windows 10 虚拟机重测；详情见[发布记录](../iterations/2026-11-10-07-publication/README.md)。现有通用草稿脚本尚未适配 GitHub 对资产名称的规范化，后续发行前须先修复并测试，不应直接复用本次专用修复脚本。以下保留各轮计划和历史状态。
+ 
+ 依据 [2026-11-07 项目现状](project-status.md)。背景收尾与异常报告修复已完成；用户随后选择系统安装 .NET 10 SDK，迁移与自动回归已完成，本地诊断管理随后已获完整范围确认并完成；其他条目不自动启动。长期工作规则见 [AGENTS.md](../AGENTS.md)。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 8cf0875..719b9dc 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-11：后续发布资产统一使用点号文件名，通用上传流程已补 GitHub 文件名规范化的离线回归；本地验证兼容旧空格名称，拒绝两种命名混用。详见[发布工具修复](../iterations/2026-11-11-05-release-names/README.md)。本轮没有打包、创建标签或上传资产。
++
+ 2026-11-11：开发版主窗口标题简化为 `AsukaLens`，版本与构建标识仍可在诊断信息中查看；README 预览更新为采用合成数据的实际窗口截图。已发布的 v1.5.0 安装包未更改。
+ 
+ 2026-11-10：**v1.5.0 已正式发布**，源码标签指向 `4d473747f88370a1b411129743e2169229c78dcc`。最终资产在 Windows 11 开发机复验；Windows 10 虚拟机验证的是此前候选，最终资产未在该虚拟机重测。干净 Windows 10/11 环境未验收，已按用户同意作为例外披露。见[发布记录](../iterations/2026-11-10-07-publication/README.md)。下文保留历史日期与当时状态。
+diff --git a/docs/release-notes.template.md b/docs/release-notes.template.md
+index f8ad252..653be1b 100644
+--- a/docs/release-notes.template.md
++++ b/docs/release-notes.template.md
+@@ -34,10 +34,10 @@ Windows 10 22H2 x64 和 Windows 11 x64，普通用户权限。本版便携包与
+ 
+ | 文件 | 用途 |
+ | --- | --- |
+-| [AsukaLens {{VERSION}}.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}.zip) | 自包含便携版 |
+-| [AsukaLens {{VERSION}}.exe](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}.exe) | 当前用户安装器 |
+-| [AsukaLens {{VERSION}}-source.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}-source.zip) | 源码 ZIP |
+-| [AsukaLens {{VERSION}}-source.tar.gz](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}-source.tar.gz) | 同一源码的 tar.gz |
++| [AsukaLens.{{VERSION}}.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}.zip) | 自包含便携版 |
++| [AsukaLens.{{VERSION}}.exe](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}.exe) | 当前用户安装器 |
++| [AsukaLens.{{VERSION}}-source.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}-source.zip) | 源码 ZIP |
++| [AsukaLens.{{VERSION}}-source.tar.gz](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}-source.tar.gz) | 同一源码的 tar.gz |
+ | [SHA256SUMS.txt](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/SHA256SUMS.txt) | 四类资产的 SHA-256 |
+ | [release-manifest.json](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/release-manifest.json) | 版本、提交、工具链及逐文件清单 |
+ 
+@@ -83,10 +83,10 @@ These files are currently unsigned; Windows may display an unknown-publisher pro
+ 
+ | File | Purpose |
+ | --- | --- |
+-| [AsukaLens {{VERSION}}.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}.zip) | Self-contained portable package |
+-| [AsukaLens {{VERSION}}.exe](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}.exe) | Per-user installer |
+-| [AsukaLens {{VERSION}}-source.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}-source.zip) | Source ZIP |
+-| [AsukaLens {{VERSION}}-source.tar.gz](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens%20{{VERSION}}-source.tar.gz) | Identical source in tar.gz format |
++| [AsukaLens.{{VERSION}}.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}.zip) | Self-contained portable package |
++| [AsukaLens.{{VERSION}}.exe](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}.exe) | Per-user installer |
++| [AsukaLens.{{VERSION}}-source.zip](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}-source.zip) | Source ZIP |
++| [AsukaLens.{{VERSION}}-source.tar.gz](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/AsukaLens.{{VERSION}}-source.tar.gz) | Identical source in tar.gz format |
+ | [SHA256SUMS.txt](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/SHA256SUMS.txt) | SHA-256 for all four assets |
+ | [release-manifest.json](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/{{VERSION}}/release-manifest.json) | Version, commit, toolchain and file inventory |
+ 
+diff --git a/docs/release-readiness.md b/docs/release-readiness.md
+index dc5a67a..5629eda 100644
+--- a/docs/release-readiness.md
++++ b/docs/release-readiness.md
+@@ -1,5 +1,7 @@
+ # 正式发布前缺口清单
+ 
++2026-11-11：后续发布工具已统一点号资产名称，并补充模拟 GitHub 规范化的离线回归。旧快照本地验收保持兼容；下次新包的安装与真实远程上传验证仍须执行，详见[工具修复记录](../iterations/2026-11-11-05-release-names/README.md)。
++
+ 2026-11-10：[v1.5.0 已公开发布](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/tag/v1.5.0)。干净 Windows 10/11 验收仍未完成，用户同意作为例外发布；最终资产未在 Windows 10 虚拟机重测，较早候选通过该虚拟机的主要流程及合成升级/失败恢复检查。确切资产、本机验证及文件名处理见[发布记录](../iterations/2026-11-10-07-publication/README.md)。下方内容是各轮历史状态。
+ 
+ 本文件保留各轮准备过程；源码压缩包内的内容仅反映其冻结提交时的记录。最新公开版本与下载状态以 [GitHub Releases](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases) 为准。维护者已同意在缺少干净环境时继续准备发布，具体例外必须绑定确切资产并披露未验收状态，其他验收不受豁免。
+diff --git a/docs/releasing.md b/docs/releasing.md
+index c7ced5f..0833182 100644
+--- a/docs/releasing.md
++++ b/docs/releasing.md
+@@ -1,5 +1,7 @@
+ # 打包、验收与草稿快照
+ 
++2026-11-11：v1.5.0 已发布，历史验收范围见[发布记录](../iterations/2026-11-10-07-publication/README.md)。后续资产使用 `AsukaLens.vX.X.X…` 文件名，Release 标题仍为 `AsukaLens vX.X.X`；打包、清单、发布说明模板、离线验收及草稿下载核对已同步。旧空格名称可在本地验收，但上传入口在任何远程调用前拒绝它们；不要修改已公开版本的文件来迁就新规则。真实新安装器与下次远程上传仍须在正式发布任务中验证。
++
+ 候选目标为 Windows 10 22H2 x64 和 Windows 11 x64，提供 .NET 10 自包含便携 ZIP、当前用户 Inno Setup EXE 安装器、源码 ZIP / tar.gz，以及 SHA-256 与文件清单。两个系统的完整干净环境验收和正式发布仍未完成；上一套候选的具体结果见[候选记录](../iterations/2026-11-10-01-windows10/candidate.md)，新资产须单独验收。微软 .NET 10 的 Windows 10 官方支持限于指定 LTSC / Enterprise 版本，普通版仅属于项目兼容测试范围。
+ 
+ ## 工具与来源
+@@ -77,10 +79,10 @@ $app = [Diagnostics.Process]::Start($start)
+ 
+ | 文件 | 内容 |
+ | --- | --- |
+-| `AsukaLens vX.X.X.zip` | 完整自包含程序目录，解压后运行 `AsukaLens.exe` |
+-| `AsukaLens vX.X.X.exe` | 当前用户安装器，安装载荷与便携包相同 |
+-| `AsukaLens vX.X.X-source.zip` | 指定提交的源码 |
+-| `AsukaLens vX.X.X-source.tar.gz` | 与源码 ZIP 逐文件相同的源码 |
++| `AsukaLens.vX.X.X.zip` | 完整自包含程序目录，解压后运行 `AsukaLens.exe` |
++| `AsukaLens.vX.X.X.exe` | 当前用户安装器，安装载荷与便携包相同 |
++| `AsukaLens.vX.X.X-source.zip` | 指定提交的源码 |
++| `AsukaLens.vX.X.X-source.tar.gz` | 与源码 ZIP 逐文件相同的源码 |
+ | `SHA256SUMS.txt` | 上述四个文件的 SHA-256 |
+ | `release-manifest.json` | 版本、提交、工具链、四类资产、源码和载荷的逐文件清单 |
+ 
+diff --git a/iterations/2026-11-11-05-release-names/README.md b/iterations/2026-11-11-05-release-names/README.md
+new file mode 100644
+index 0000000..44376ae
+--- /dev/null
++++ b/iterations/2026-11-11-05-release-names/README.md
+@@ -0,0 +1,27 @@
++# 发布资产文件名统一
++
++日期：2026-11-11；基线：`d8ea50b`。用户要求继续后续开发，按此前建议先修复通用发布流程中的文件名问题。
++
++## 范围与决策
++
++GitHub 将资产名的空格转成点号，曾导致 v1.5.0 草稿的下载校验失败。后续打包直接生成 `AsukaLens.vX.X.X.zip`、`.exe`、`-source.zip` 和 `-source.tar.gz`，清单及中英文下载模板同步。Release 标题仍为 `AsukaLens vX.X.X`。这是文件名规则调整，不改变软件或安装身份。
++
++旧空格名称仅保留本地验证兼容，上传入口在网络调用前拒绝旧名称；本地验收要求四类资产全部采用同一命名。离线工具保持 Windows PowerShell 5.1 支持。历史快照、旧候选和 v1.5.0 远程资产没有修改。
++
++## 关键文件与验证
++
++- 发布工具：`New-Release.ps1`、`AsukaLens.iss`、`Release.Common.ps1`、`Test-Release.ps1`、`Upload-Draft.ps1`。
++- 验收工具和脚本：`Acceptance.Common.ps1`、`PackageAcceptance.ps1` 及对应测试；同步项目规则、发布说明及模板。
++- `ReleaseScripts.Tests.ps1`：50 项通过。
++- `ReleaseNotes.Tests.ps1`：48 项通过，包括新版本拒绝旧空格 URL。
++- `DraftUpload.Tests.ps1`：109 项通过；真实上传脚本通过离线 CLI 替身验证，该替身现在会把上传名中的空格改为点号，覆盖上传、续传、校验、异常和状态冲突；旧名称在任何 GitHub 调用前被拒绝。测试不连接 GitHub。
++- 64 位 Windows PowerShell 5.1 的 `OfflineAcceptance.Tests.ps1`：105 项通过，覆盖旧名称、新名称完整核对及提取、混合命名拒绝。
++- 重用本机已有候选，分别以原名称和点号名称运行真实 `Test-Release.ps1`；均核对四资产、319 个源码文件和 283 个载荷文件成功；混用名称被拒绝。仅复制既有文件及生成临时清单，没有编译或安装新软件包。临时副本已清理。
++
++## 健壮性与边界
++
++保留清单哈希、版本和源码提交绑定、草稿状态保护、已有资产哈希冲突拒绝及失败清理。未改取消、扫描和用户数据逻辑。名称选择函数用于本地兼容，实际资产仍由完整四名称集合和内容校验约束。离线测试不能替代下一份发行安装器的运行检查或真实远程上传；本轮没有打包、创建标签、上传或公开 Release。
++
++## 归档与清理
++
++本轮变更见 `changes.patch`，哈希见 `changes.sha256`；补丁不包含自己。测试临时目录由各入口清理，保留既有候选与历史证据。未归档原始本机日志或个人扫描数据。
+diff --git a/scripts/acceptance/Acceptance.Common.ps1 b/scripts/acceptance/Acceptance.Common.ps1
+index 972c04c..012b389 100644
+--- a/scripts/acceptance/Acceptance.Common.ps1
++++ b/scripts/acceptance/Acceptance.Common.ps1
+@@ -149,14 +149,20 @@ function Get-AcceptanceOs([int]$Build,[string]$Installation) {
+     return 'other-windows'
+ }
+ 
++function Get-AcceptanceAssetStem($Manifest) {
++    $legacy='AsukaLens '+$Manifest.version
++    if (@($Manifest.assets | Where-Object { $_.path -ceq ($legacy+'.zip') }).Count -eq 1) { return $legacy }
++    return 'AsukaLens.'+$Manifest.version
++}
++
+ function Assert-AcceptanceManifest($Manifest) {
+     if ($Manifest.schema -ne 1 -or $Manifest.product -cne 'AsukaLens' -or $Manifest.version -cnotmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' -or
+         $Manifest.commit -cnotmatch '^[0-9a-f]{40}$' -or $Manifest.rid -cne 'win-x64' -or $Manifest.self_contained -isnot [bool] -or
+         -not $Manifest.self_contained -or $Manifest.local_test -isnot [bool] -or $Manifest.runtime -cnotmatch '^10\.0\.[0-9]+$' -or
+         $Manifest.source_kind -cne $(if ($Manifest.local_test) {'working-tree'} else {'git-commit'})) { throw 'ACCEPT_MANIFEST_IDENTITY' }
+     foreach ($part in $Manifest.version.Substring(1).Split('.')) { if ([long]$part -gt 65535) { throw 'ACCEPT_MANIFEST_VERSION' } }
+-    $v=$Manifest.version
+-    $expected=@("AsukaLens $v.zip","AsukaLens $v.exe","AsukaLens $v-source.zip","AsukaLens $v-source.tar.gz")
++    $stem=Get-AcceptanceAssetStem $Manifest
++    $expected=@("$stem.zip","$stem.exe","$stem-source.zip","$stem-source.tar.gz")
+     $actual=@($Manifest.assets | ForEach-Object { $_.path })
+     if ($actual.Count -ne 4 -or (Compare-Object ($expected | Sort-Object) ($actual | Sort-Object) -CaseSensitive)) { throw 'ACCEPT_ASSET_NAMES' }
+     foreach ($list in @(@{items=$Manifest.assets;limit=2GB},@{items=$Manifest.payload_files;limit=1GB})) {
+@@ -263,7 +269,7 @@ function New-AcceptanceWorkspace([string]$Assets,[string]$ManifestSha256,[string
+             $stream=[IO.File]::Open((Join-Path $Assets $asset.path),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+             $handles.Add($stream)
+             if ($stream.Length -ne $asset.bytes -or (Get-AcceptanceHash $stream) -ne $asset.sha256) { throw 'ACCEPT_ASSET_HASH' }
+-            if ($asset.path -ceq "AsukaLens $($manifest.version).zip") { $portable=$stream; $stream.Position=0 }
++            if ($asset.path -ceq ((Get-AcceptanceAssetStem $manifest)+'.zip')) { $portable=$stream; $stream.Position=0 }
+         }
+         $sums=@([IO.File]::ReadAllLines((Join-Path $Assets 'SHA256SUMS.txt')))
+         $expectedSums=@($manifest.assets | ForEach-Object { $_.sha256+'  '+$_.path })
+diff --git a/scripts/release/AsukaLens.iss b/scripts/release/AsukaLens.iss
+index e1ccb8a..0020aea 100644
+--- a/scripts/release/AsukaLens.iss
++++ b/scripts/release/AsukaLens.iss
+@@ -41,7 +41,7 @@ InfoBeforeFile={#PayloadDir}\INSTALL-NOTICE.txt
+ SetupIconFile={#PayloadDir}\app.ico
+ UninstallDisplayIcon={app}\AsukaLens.exe
+ OutputDir={#OutputDir}
+-OutputBaseFilename=AsukaLens v{#AppVersion}
++OutputBaseFilename=AsukaLens.v{#AppVersion}
+ VersionInfoVersion={#AppVersion}.0
+ VersionInfoProductName={#ProductName}
+ Compression=lzma2
+diff --git a/scripts/release/New-Release.ps1 b/scripts/release/New-Release.ps1
+index 89cfd2b..f16d24a 100644
+--- a/scripts/release/New-Release.ps1
++++ b/scripts/release/New-Release.ps1
+@@ -42,7 +42,7 @@ try {
+     $out = Join-Path $stage 'assets'
+     $payload = Join-Path $stage 'payload'
+     [IO.Directory]::CreateDirectory($out) | Out-Null
+-    New-SourceArchives $source (Join-Path $out "AsukaLens $Version-source.zip") (Join-Path $out "AsukaLens $Version-source.tar.gz")
++    New-SourceArchives $source (Join-Path $out "AsukaLens.$Version-source.zip") (Join-Path $out "AsukaLens.$Version-source.tar.gz")
+     $cache = Join-Path $repository 'artifacts/release-cache'
+     Assert-NoReparse $cache
+     $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
+@@ -94,7 +94,7 @@ Uninstall removes program files and shortcuts; it keeps user data. Close the app
+     [IO.File]::WriteAllText((Join-Path $payload 'INSTALL-NOTICE.txt'), $notice, [Text.UTF8Encoding]::new($true))
+     Write-ReleaseJson ([ordered]@{ schema=1; version=$Version; commit=$Commit; local_test=[bool]$LocalTest; runtime=$tools.runtime }) (Join-Path $payload 'build-info.json')
+     $payloadFiles = @(Get-FileInventory $payload)
+-    [IO.Compression.ZipFile]::CreateFromDirectory($payload, (Join-Path $out "AsukaLens $Version.zip"), [IO.Compression.CompressionLevel]::Optimal, $false)
++    [IO.Compression.ZipFile]::CreateFromDirectory($payload, (Join-Path $out "AsukaLens.$Version.zip"), [IO.Compression.CompressionLevel]::Optimal, $false)
+     Invoke-ReleaseTool $Compiler @('--quiet','--no-ide-signtools',('--define=AppVersion='+$numeric),('--define=PayloadDir='+$payload),
+         ('--define=OutputDir='+$out),('--define=LocalTest='+[int][bool]$LocalTest),(Join-Path $PSScriptRoot 'AsukaLens.iss'))
+     $assets = @(Get-FileInventory $out)
+diff --git a/scripts/release/Release.Common.ps1 b/scripts/release/Release.Common.ps1
+index d77f9d9..ecd1123 100644
+--- a/scripts/release/Release.Common.ps1
++++ b/scripts/release/Release.Common.ps1
+@@ -2,6 +2,15 @@
+ Set-StrictMode -Version Latest
+ $ErrorActionPreference = 'Stop'
+ 
++# Old local snapshots used spaces; new assets use names GitHub preserves.
++function Get-ReleaseAssetStem($Manifest) {
++    [void](Assert-ReleaseVersion $Manifest.version)
++    $legacy = 'AsukaLens ' + $Manifest.version
++    if ($Manifest.PSObject.Properties['assets'] -and
++        @($Manifest.assets | Where-Object { $_.path -ceq ($legacy + '.zip') }).Count -eq 1) { return $legacy }
++    return 'AsukaLens.' + $Manifest.version
++}
++
+ function Assert-ReleaseVersion([string]$Version) {
+     if ($Version -notmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') { throw 'Use vX.X.X without leading zeroes.' }
+     foreach ($part in $Version.Substring(1).Split('.')) {
+@@ -235,8 +244,9 @@ function Assert-ReleaseNotes([string]$Text, $Manifest, [switch]$RequireCleanEnvD
+     }
+     $base='https://github.com/M66Y/Hard-Drive-Space-Visualization'
+     $downloadBase=$base+'/releases/download/'+$Manifest.version+'/'
+-    $files=@("AsukaLens $($Manifest.version).zip","AsukaLens $($Manifest.version).exe","AsukaLens $($Manifest.version)-source.zip",
+-        "AsukaLens $($Manifest.version)-source.tar.gz",'SHA256SUMS.txt','release-manifest.json')
++    $stem=Get-ReleaseAssetStem $Manifest
++    $files=@("$stem.zip","$stem.exe","$stem-source.zip",
++        "$stem-source.tar.gz",'SHA256SUMS.txt','release-manifest.json')
+     $expectedLinks=@($files | ForEach-Object { $downloadBase+[Uri]::EscapeDataString($_) })
+     for ($i=0;$i -lt $languages.Count;$i++) {
+         $end=if ($i+1 -lt $languages.Count) {$languages[$i+1].Index} else {$visible.Length}
+diff --git a/scripts/release/Test-Release.ps1 b/scripts/release/Test-Release.ps1
+index df131ff..6d0c3dd 100644
+--- a/scripts/release/Test-Release.ps1
++++ b/scripts/release/Test-Release.ps1
+@@ -10,7 +10,8 @@ if ($manifest.schema -ne 1 -or $manifest.product -ne 'AsukaLens' -or $manifest.c
+     $manifest.rid -ne 'win-x64' -or $manifest.self_contained -ne $true -or $manifest.local_test -isnot [bool] -or
+     $manifest.source_kind -ne $(if ($manifest.local_test) { 'working-tree' } else { 'git-commit' })) { throw 'Invalid release manifest.' }
+ $version = $manifest.version
+-$expectedNames = @("AsukaLens $version.zip", "AsukaLens $version.exe", "AsukaLens $version-source.zip", "AsukaLens $version-source.tar.gz")
++$stem = Get-ReleaseAssetStem $manifest
++$expectedNames = @("$stem.zip", "$stem.exe", "$stem-source.zip", "$stem-source.tar.gz")
+ $assetNames = @($manifest.assets | ForEach-Object { $_.path })
+ if ($assetNames.Count -ne 4 -or (Compare-Object ($expectedNames | Sort-Object) ($assetNames | Sort-Object) -CaseSensitive)) { throw 'Exactly four correctly named assets are required.' }
+ $expectedFiles = $expectedNames + @('release-manifest.json','SHA256SUMS.txt')
+@@ -24,12 +25,12 @@ foreach ($asset in $manifest.assets) {
+ $checksumLines = @([IO.File]::ReadAllLines((Join-Path $Directory 'SHA256SUMS.txt')))
+ $expectedChecksums = @($manifest.assets | ForEach-Object { $_.sha256 + '  ' + $_.path })
+ if ($checksumLines.Count -ne 4 -or (Compare-Object $expectedChecksums $checksumLines)) { throw 'SHA256SUMS does not match the manifest.' }
+-$sourceZip = @(Get-ArchiveInventory (Join-Path $Directory "AsukaLens $version-source.zip"))
+-$sourceTar = @(Get-ArchiveInventory (Join-Path $Directory "AsukaLens $version-source.tar.gz") -TarGz)
++$sourceZip = @(Get-ArchiveInventory (Join-Path $Directory "$stem-source.zip"))
++$sourceTar = @(Get-ArchiveInventory (Join-Path $Directory "$stem-source.tar.gz") -TarGz)
+ foreach ($file in $sourceZip) { Assert-SourcePath $file.path }
+ Assert-SameInventory $manifest.source_files $sourceZip
+ Assert-SameInventory $sourceZip $sourceTar
+-$payload = @(Get-ArchiveInventory (Join-Path $Directory "AsukaLens $version.zip"))
++$payload = @(Get-ArchiveInventory (Join-Path $Directory "$stem.zip"))
+ Assert-SameInventory $manifest.payload_files $payload
+ $payloadNames = @($payload | ForEach-Object { $_.path })
+ foreach ($required in @('AsukaLens.exe','DiskAtlas.dll','DiskAtlas.runtimeconfig.json','DiskAtlas.deps.json','coreclr.dll','hostfxr.dll','hostpolicy.dll',
+@@ -40,7 +41,7 @@ foreach ($pack in @('microsoft.netcore.app.runtime.win-x64','microsoft.windowsde
+     $minimum = if ($pack -like 'microsoft.netcore.*') { 2 } else { 1 }
+     if (@($payloadNames | Where-Object { $_ -like "licenses/runtime/$pack/*" }).Count -lt $minimum) { throw 'Missing third-party runtime notices.' }
+ }
+-$zip = [IO.Compression.ZipFile]::OpenRead((Join-Path $Directory "AsukaLens $version.zip"))
++$zip = [IO.Compression.ZipFile]::OpenRead((Join-Path $Directory "$stem.zip"))
+ try {
+     function Read-ZipJson([string]$Name) {
+         $reader = [IO.StreamReader]::new($zip.GetEntry($Name).Open())
+@@ -54,7 +55,7 @@ try {
+     $identity = Read-ZipJson 'build-info.json'
+     if ($identity.version -ne $version -or $identity.commit -ne $manifest.commit -or $identity.local_test -ne $manifest.local_test) { throw 'Payload build identity mismatch.' }
+ } finally { $zip.Dispose() }
+-$installer = Join-Path $Directory "AsukaLens $version.exe"
++$installer = Join-Path $Directory "$stem.exe"
+ $exe = [IO.File]::OpenRead($installer)
+ try { if ($exe.ReadByte() -ne 77 -or $exe.ReadByte() -ne 90) { throw 'Installer is not a Windows executable.' } }
+ finally { $exe.Dispose() }
+diff --git a/scripts/release/Upload-Draft.ps1 b/scripts/release/Upload-Draft.ps1
+index 0ccf609..e484056 100644
+--- a/scripts/release/Upload-Draft.ps1
++++ b/scripts/release/Upload-Draft.ps1
+@@ -12,6 +12,9 @@ $Directory = (Resolve-Path -LiteralPath $Directory).Path
+ & (Join-Path $PSScriptRoot 'Test-Release.ps1') -Directory $Directory | Out-Host
+ $manifest = Get-Content -LiteralPath (Join-Path $Directory 'release-manifest.json') -Raw | ConvertFrom-Json
+ if ($manifest.local_test) { throw 'Local-test assets can never be uploaded by this script.' }
++if ((Get-ReleaseAssetStem $manifest) -cne ('AsukaLens.' + $manifest.version)) {
++    throw 'Legacy space-separated asset names are local-only. Build a new snapshot with GitHub-safe filenames before uploading.'
++}
+ $repository = 'M66Y/Hard-Drive-Space-Visualization'
+ $qualifiedRepository = 'github.com/' + $repository
+ $notesText = Get-Content -LiteralPath $Notes -Raw -Encoding utf8
+diff --git a/tests/DraftUpload.Tests.ps1 b/tests/DraftUpload.Tests.ps1
+index ed0318f..5f45e00 100644
+--- a/tests/DraftUpload.Tests.ps1
++++ b/tests/DraftUpload.Tests.ps1
+@@ -19,7 +19,7 @@ function New-Case([string]$Scenario='normal') {
+     [IO.Directory]::CreateDirectory($script:assets) | Out-Null
+     [IO.Directory]::CreateDirectory((Join-Path $script:case 'server')) | Out-Null
+     [IO.File]::WriteAllText((Join-Path $script:case 'offline-fixture'),'offline synthetic content; never a distributable package')
+-    $files=@('AsukaLens v1.4.2.zip','AsukaLens v1.4.2.exe','AsukaLens v1.4.2-source.zip','AsukaLens v1.4.2-source.tar.gz')
++    $files=@('AsukaLens.v1.4.2.zip','AsukaLens.v1.4.2.exe','AsukaLens.v1.4.2-source.zip','AsukaLens.v1.4.2-source.tar.gz')
+     foreach($name in $files){ [IO.File]::WriteAllText((Join-Path $script:assets $name),'NONEXECUTABLE SYNTHETIC TEST FIXTURE '+$name) }
+     $manifest=[ordered]@{version='v1.4.2';commit=('b'*40);runtime='10.0.14';local_test=$false;assets=@(Get-FileInventory $script:assets)}
+     Write-ReleaseJson $manifest (Join-Path $script:assets 'release-manifest.json')
+@@ -69,10 +69,21 @@ foreach($f in $m.assets){ if((Get-FileHash -LiteralPath (Join-Path $Directory $f
+     New-Case; Upload
+     $state=State
+     Check ($state.created -eq 1 -and $state.uploaded.Count -eq 6 -and $state.downloaded -eq 1 -and $state.release.draft) 'create upload download verify; annotated tag and paginated draft'
++    Check (@($state.release.assets | Where-Object { $_.name.Contains(' ') }).Count -eq 0) 'GitHub-normalized filenames match local assets and download verification'
+     $state.release.body=$state.release.body.Replace("`n","`r`n"); Save $state
+     Upload -Resume
+     $state=State
+     Check ($state.uploaded.Count -eq 6 -and $state.downloaded -eq 2) 'complete resume skips matching assets and accepts normalized newlines'
++    New-Case
++    $legacyManifest=Get-Content (Join-Path $script:assets 'release-manifest.json') -Raw | ConvertFrom-Json
++    foreach($asset in $legacyManifest.assets) {
++        $renamed=$asset.path.Replace('AsukaLens.v','AsukaLens v')
++        Move-Item -LiteralPath (Join-Path $script:assets $asset.path) -Destination (Join-Path $script:assets $renamed)
++        $asset.path=$renamed
++    }
++    Write-ReleaseJson $legacyManifest (Join-Path $script:assets 'release-manifest.json')
++    Reject { Upload } 'legacy names cannot reach GitHub'
++    Check ((State).calls.Count -eq 0) 'legacy name rejection performs no GitHub calls'
+     New-Case; Upload -WhatIf
+     Check ((State).calls.Count -eq 0) 'WhatIf performs no GitHub calls'
+     New-Case
+@@ -141,7 +152,7 @@ foreach($f in $m.assets){ if((Get-FileHash -LiteralPath (Join-Path $Directory $f
+         New-Case; Existing-Draft; $state=State; $state.release[$field]='different release content'; Save $state
+         Reject { Upload -Resume } ('mismatched draft '+$field); No-Writes ('mismatched '+$field+' has no writes')
+     }
+-    foreach($asset in @(@{name='AsukaLens v1.4.2.zip';digest='sha256:different'},@{name='unrelated.zip';digest='sha256:different'})) {
++    foreach($asset in @(@{name='AsukaLens.v1.4.2.zip';digest='sha256:different'},@{name='unrelated.zip';digest='sha256:different'})) {
+         New-Case; Existing-Draft; $state=State; $state.release.assets=@($asset); Save $state
+         Reject { Upload -Resume } ('conflicting asset '+$asset.name); No-Writes 'conflicting assets not overwritten'
+     }
+diff --git a/tests/InstallerIdentity.Tests.ps1 b/tests/InstallerIdentity.Tests.ps1
+index 9b897b5..8e49d88 100644
+--- a/tests/InstallerIdentity.Tests.ps1
++++ b/tests/InstallerIdentity.Tests.ps1
+@@ -31,7 +31,7 @@ try {
+         $arguments+=(Join-Path $PSScriptRoot '../scripts/release/AsukaLens.iss')
+         & $Compiler @arguments *> (Join-Path $output 'compiler.txt')
+         $exit=$LASTEXITCODE
+-        $exe=Join-Path $output 'AsukaLens v1.5.0.exe'
++        $exe=Join-Path $output 'AsukaLens.v1.5.0.exe'
+         if ($null -eq $case.expected) {
+             if ($exit -eq 0 -or (Test-Path -LiteralPath $exe)) { throw ('Invalid identity was compiled: '+$case.name) }
+         } else {
+diff --git a/tests/OfflineAcceptance.Tests.ps1 b/tests/OfflineAcceptance.Tests.ps1
+index a693cee..8bf49c7 100644
+--- a/tests/OfflineAcceptance.Tests.ps1
++++ b/tests/OfflineAcceptance.Tests.ps1
+@@ -43,7 +43,7 @@ function Save-Fixture($Fixture,[switch]$RebuildZip) {
+             }
+         } finally { $archive.Dispose() }
+     }
+-    $Fixture.manifest.assets=@(Get-ChildItem -LiteralPath $Fixture.assets -File | Where-Object { $_.Name -like 'AsukaLens *' } | Sort-Object Name | ForEach-Object { File-Record $_.FullName $_.Name })
++    $Fixture.manifest.assets=@(Get-ChildItem -LiteralPath $Fixture.assets -File | Where-Object { $_.Name -like 'AsukaLens *' -or $_.Name -like 'AsukaLens.*' } | Sort-Object Name | ForEach-Object { File-Record $_.FullName $_.Name })
+     [IO.File]::WriteAllText((Join-Path $Fixture.assets 'release-manifest.json'),($Fixture.manifest | ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
+     [IO.File]::WriteAllLines((Join-Path $Fixture.assets 'SHA256SUMS.txt'),[string[]]@($Fixture.manifest.assets | ForEach-Object {$_.sha256+'  '+$_.path}),[Text.UTF8Encoding]::new($false))
+     $Fixture.hash=(Get-FileHash -LiteralPath (Join-Path $Fixture.assets 'release-manifest.json') -Algorithm SHA256).Hash.ToLowerInvariant()
+@@ -159,6 +159,21 @@ public static class AcceptanceFixture {
+     } 'payload entry missing' 'ACCEPT_PAYLOAD_INVENTORY'
+     Reject-Fixture { param($f) $f.manifest.payload_files+=@($f.manifest.payload_files[0]); Save-Fixture $f } 'duplicate inventory path' 'ACCEPT_DUPLICATE_PATH'
+     Reject-Fixture { param($f) $f.manifest.self_contained=$false; Save-Fixture $f } 'framework dependent manifest rejected' 'ACCEPT_MANIFEST_IDENTITY'
++    Reject-Fixture {
++        param($f)
++        Move-Item -LiteralPath (Join-Path $f.assets 'AsukaLens v1.4.2.exe') -Destination (Join-Path $f.assets 'AsukaLens.v1.4.2.exe')
++        Save-Fixture $f
++    } 'mixed legacy and GitHub-safe asset names rejected' 'ACCEPT_ASSET_NAMES'
++    $safe=New-Fixture
++    try {
++        foreach($asset in $safe.manifest.assets) {
++            Move-Item -LiteralPath (Join-Path $safe.assets $asset.path) -Destination (Join-Path $safe.assets $asset.path.Replace('AsukaLens v','AsukaLens.v'))
++        }
++        Save-Fixture $safe
++        $safeWork=Join-Path $safe.base 'safe-work'
++        New-AcceptanceWorkspace $safe.assets $safe.hash $safeWork
++        Check (Test-Path -LiteralPath (Join-Path $safeWork 'portable/AsukaLens.exe')) 'GitHub-safe manifest verifies and extracts portable payload'
++    } finally { Remove-TestTree $safe.base }
+     $good=New-Fixture
+     $workspace=Join-Path $good.base '工作目录'
+     New-AcceptanceWorkspace $good.assets $good.hash $workspace
+diff --git a/tests/PackageAcceptance.ps1 b/tests/PackageAcceptance.ps1
+index d2c302e..e2762f0 100644
+--- a/tests/PackageAcceptance.ps1
++++ b/tests/PackageAcceptance.ps1
+@@ -13,6 +13,7 @@ $compilerHash = (Get-Content -LiteralPath (Join-Path $PSScriptRoot '../scripts/r
+ if ((Get-FileHash -LiteralPath $Compiler).Hash.ToLowerInvariant() -ne $compilerHash) { throw 'Compiler does not match the pinned toolchain.' }
+ $compileIdentity = '--define=LocalTest=' + [int][bool]$manifest.local_test
+ $version = $manifest.version
++$stem = Get-ReleaseAssetStem $manifest
+ $parent = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../artifacts'))
+ $root = Join-Path $parent ('package-acceptance-' + [guid]::NewGuid().ToString('N'))
+ Assert-NoReparse $root
+@@ -44,7 +45,7 @@ function Assert-InstalledPayload {
+ }
+ try {
+     $payload = Join-Path $root 'payload'
+-    [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $Directory "AsukaLens $version.zip"),$payload)
++    [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $Directory "$stem.zip"),$payload)
+     # Prepare a separate host using the same payload CoreCLR and Windows Desktop runtime.
+     $hostRoot = Join-Path $root 'smoke'
+     [IO.Directory]::CreateDirectory($hostRoot) | Out-Null
+@@ -69,9 +70,9 @@ try {
+     foreach ($format in @('zip','tar.gz')) {
+         $source = Join-Path $root ('source-' + $format.Replace('.','-'))
+         [IO.Directory]::CreateDirectory($source) | Out-Null
+-        if ($format -eq 'zip') { [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $Directory "AsukaLens $version-source.zip"),$source) }
++        if ($format -eq 'zip') { [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $Directory "$stem-source.zip"),$source) }
+         else {
+-            $file=[IO.File]::OpenRead((Join-Path $Directory "AsukaLens $version-source.tar.gz"))
++            $file=[IO.File]::OpenRead((Join-Path $Directory "$stem-source.tar.gz"))
+             $gzip=[IO.Compression.GZipStream]::new($file,[IO.Compression.CompressionMode]::Decompress)
+             try { [System.Formats.Tar.TarFile]::ExtractToDirectory($gzip,$source,$false) } finally { $gzip.Dispose(); $file.Dispose() }
+         }
+@@ -85,7 +86,7 @@ try {
+     [IO.Directory]::CreateDirectory($older) | Out-Null
+     Invoke-ReleaseTool $Compiler @('--quiet','--no-ide-signtools','--define=AppVersion=1.4.1',('--define=PayloadDir='+$payload),
+         ('--define=OutputDir='+$older),$compileIdentity,(Join-Path $PSScriptRoot '../scripts/release/AsukaLens.iss'))
+-    $oldExe = Join-Path $older 'AsukaLens v1.4.1.exe'
++    $oldExe = Join-Path $older 'AsukaLens.v1.4.1.exe'
+     $unrelated = Join-Path $root 'unrelated'
+     [IO.Directory]::CreateDirectory($unrelated) | Out-Null
+     [IO.File]::WriteAllText((Join-Path $unrelated 'keep.txt'),'unrelated synthetic file')
+@@ -94,7 +95,7 @@ try {
+     Pass ((Run-Installer $oldExe 'install.log' @(('/DIR="'+$installation+'"'),'/TASKS=desktopicon')) -eq 0) 'standard-user installation'
+     Pass ((Test-Path -LiteralPath $registry) -and @($shortcuts | Where-Object { Test-Path -LiteralPath $_ }).Count -eq 2) 'current-user registration and shortcuts'
+     Assert-InstalledPayload
+-    $setup = Join-Path $Directory "AsukaLens $version.exe"
++    $setup = Join-Path $Directory "$stem.exe"
+     Pass ((Run-Installer $setup 'upgrade.log') -eq 0) 'same-identity upgrade'
+     Assert-InstalledPayload
+     Pass ((Get-ItemProperty -LiteralPath $registry).DisplayVersion -eq $version.Substring(1)) 'upgraded version registration'
+@@ -113,7 +114,7 @@ try {
+     Invoke-ReleaseTool $Compiler @('--quiet','--no-ide-signtools',('--define=AppVersion='+$version.Substring(1)),('--define=PayloadDir='+$payload),
+         ('--define=OutputDir='+$failureBuild),$compileIdentity,(Join-Path $PSScriptRoot '../scripts/release/AsukaLens.iss'))
+     $locked = [IO.File]::Open((Join-Path $installation 'AsukaLens.exe'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
+-    try { Pass ((Run-Installer (Join-Path $failureBuild "AsukaLens $version.exe") 'locked.log') -ne 0) 'locked payload aborts installation' }
++    try { Pass ((Run-Installer (Join-Path $failureBuild "AsukaLens.$version.exe") 'locked.log') -ne 0) 'locked payload aborts installation' }
+     finally { $locked.Dispose() }
+     $failureLog=[IO.File]::ReadAllText((Join-Path $root 'locked.log'))
+     Pass (@($failureLog.Split('-- File entry --') | Where-Object { $_.Contains($probeName) -and $_.Contains('Successfully installed the file.') }).Count -eq 1) 'failure occurs after the probe was actually overwritten'
+diff --git a/tests/ReleaseNotes.Tests.ps1 b/tests/ReleaseNotes.Tests.ps1
+index 67a787a..ace32fc 100644
+--- a/tests/ReleaseNotes.Tests.ps1
++++ b/tests/ReleaseNotes.Tests.ps1
+@@ -17,6 +17,7 @@ function Reject([string]$Text,[string]$Name) {
+     Check $failed $Name
+ }
+ Assert-ReleaseNotes $valid $manifest; Check $true 'completed production template accepted'
++Reject ($valid.Replace('AsukaLens.v1.4.2','AsukaLens%20v1.4.2')) 'legacy download URLs rejected for a new release'
+ Assert-ReleaseNotes ($valid.Replace("`r`n","`n").Replace("`n","`r`n")) $manifest; Check $true 'CRLF accepted'
+ Assert-ReleaseNotes ($valid+"`n``````powershell`nGet-FileHash -Algorithm SHA256 'synthetic.zip'`n```````n") $manifest
+ Check $true 'additional fenced usage example accepted'
+@@ -41,7 +42,7 @@ Reject ($valid.Replace('.NET 10.0.14','.NET 10.0.140')) 'runtime substring misma
+ Reject ($valid.Replace('未代码签名','未确认发行者')) 'Chinese signing disclosure required'
+ Reject ($valid.Replace('unsigned','unverified')) 'English signing disclosure required'
+ $base='https://github.com/M66Y/Hard-Drive-Space-Visualization/releases/download/v1.4.2/'
+-foreach ($file in @('AsukaLens v1.4.2.zip','AsukaLens v1.4.2.exe','AsukaLens v1.4.2-source.zip','AsukaLens v1.4.2-source.tar.gz','SHA256SUMS.txt','release-manifest.json')) {
++foreach ($file in @('AsukaLens.v1.4.2.zip','AsukaLens.v1.4.2.exe','AsukaLens.v1.4.2-source.zip','AsukaLens.v1.4.2-source.tar.gz','SHA256SUMS.txt','release-manifest.json')) {
+     $link=$base+[Uri]::EscapeDataString($file)
+     Reject ($valid.Replace($link,'https://example.invalid/missing')) ('missing asset link '+$file)
+ }
+diff --git a/tests/ReleaseScripts.Tests.ps1 b/tests/ReleaseScripts.Tests.ps1
+index 21e8915..329d3a5 100644
+--- a/tests/ReleaseScripts.Tests.ps1
++++ b/tests/ReleaseScripts.Tests.ps1
+@@ -21,6 +21,8 @@ try {
+         Check ($errors.Count -eq 0) ('syntax: ' + $script.Name)
+     }
+     Check ((Assert-ReleaseVersion 'v1.4.2') -eq '1.4.2') 'canonical version'
++    Check ((Get-ReleaseAssetStem ([pscustomobject]@{version='v1.4.2'})) -ceq 'AsukaLens.v1.4.2') 'new assets use GitHub-safe names'
++    Check ((Get-ReleaseAssetStem ([pscustomobject]@{version='v1.4.2';assets=@([pscustomobject]@{path='AsukaLens v1.4.2.zip'})})) -ceq 'AsukaLens v1.4.2') 'legacy snapshot validation retains original names'
+     foreach ($bad in @('1.4.2','v1.2','v01.2.3','v1.2.3-preview','v65536.0.0','v1.2.3/../')) {
+         Reject { Assert-ReleaseVersion $bad } ('reject version: ' + $bad)
+     }
+diff --git a/tests/fixtures/release/FakeGitHub.ps1 b/tests/fixtures/release/FakeGitHub.ps1
+index 43d2499..fd0669f 100644
+--- a/tests/fixtures/release/FakeGitHub.ps1
++++ b/tests/fixtures/release/FakeGitHub.ps1
+@@ -60,7 +60,7 @@ switch ($arguments[1]) {
+         if ($state.scenario -eq 'interrupt' -and $state.uploaded.Count -eq 1 -and -not $state.interrupted) {
+             $state.interrupted = $true; Fail 'Synthetic interrupted upload.'
+         }
+-        $file = $arguments[3]; $name = [IO.Path]::GetFileName($file)
++        $file = $arguments[3]; $name = [IO.Path]::GetFileName($file).Replace(' ','.')
+         if (@($state.release.assets | Where-Object { $_.name -ceq $name }).Count) { Fail 'Duplicate upload.' }
+         [IO.File]::Copy($file, (Join-Path $root "server/$name"), $false)
+         $state.release.assets += @{name=$name; digest=('sha256:' + (Get-FileHash -LiteralPath $file).Hash.ToLowerInvariant())}
+@@ -71,7 +71,7 @@ switch ($arguments[1]) {
+     'download' {
+         $destination = Option '--dir'
+         foreach ($file in Get-ChildItem -LiteralPath (Join-Path $root 'server') -File) { [IO.File]::Copy($file.FullName, (Join-Path $destination $file.Name), $false) }
+-        if ($state.scenario -eq 'corrupt-download') { [IO.File]::AppendAllText((Join-Path $destination "AsukaLens $($state.version).zip"), 'CORRUPT') }
++        if ($state.scenario -eq 'corrupt-download') { [IO.File]::AppendAllText((Join-Path $destination "AsukaLens.$($state.version).zip"), 'CORRUPT') }
+         if ($state.scenario -eq 'missing-download') { Remove-Item -LiteralPath (Join-Path $destination 'SHA256SUMS.txt') }
+         if ($state.scenario -eq 'extra-download') { [IO.File]::WriteAllText((Join-Path $destination 'unexpected.txt'), 'synthetic extra') }
+         if ($state.scenario -eq 'publish-after-download') { $state.release.draft=$false }

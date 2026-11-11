@@ -1,5 +1,7 @@
 # 打包、验收与草稿快照
 
+2026-11-11：v1.5.0 已发布，历史验收范围见[发布记录](../iterations/2026-11-10-07-publication/README.md)。后续资产使用 `AsukaLens.vX.X.X…` 文件名，Release 标题仍为 `AsukaLens vX.X.X`；打包、清单、发布说明模板、离线验收及草稿下载核对已同步。旧空格名称可在本地验收，但上传入口在任何远程调用前拒绝它们；不要修改已公开版本的文件来迁就新规则。真实新安装器与下次远程上传仍须在正式发布任务中验证。
+
 候选目标为 Windows 10 22H2 x64 和 Windows 11 x64，提供 .NET 10 自包含便携 ZIP、当前用户 Inno Setup EXE 安装器、源码 ZIP / tar.gz，以及 SHA-256 与文件清单。两个系统的完整干净环境验收和正式发布仍未完成；上一套候选的具体结果见[候选记录](../iterations/2026-11-10-01-windows10/candidate.md)，新资产须单独验收。微软 .NET 10 的 Windows 10 官方支持限于指定 LTSC / Enterprise 版本，普通版仅属于项目兼容测试范围。
 
 ## 工具与来源
@@ -77,10 +79,10 @@ $app = [Diagnostics.Process]::Start($start)
 
 | 文件 | 内容 |
 | --- | --- |
-| `AsukaLens vX.X.X.zip` | 完整自包含程序目录，解压后运行 `AsukaLens.exe` |
-| `AsukaLens vX.X.X.exe` | 当前用户安装器，安装载荷与便携包相同 |
-| `AsukaLens vX.X.X-source.zip` | 指定提交的源码 |
-| `AsukaLens vX.X.X-source.tar.gz` | 与源码 ZIP 逐文件相同的源码 |
+| `AsukaLens.vX.X.X.zip` | 完整自包含程序目录，解压后运行 `AsukaLens.exe` |
+| `AsukaLens.vX.X.X.exe` | 当前用户安装器，安装载荷与便携包相同 |
+| `AsukaLens.vX.X.X-source.zip` | 指定提交的源码 |
+| `AsukaLens.vX.X.X-source.tar.gz` | 与源码 ZIP 逐文件相同的源码 |
 | `SHA256SUMS.txt` | 上述四个文件的 SHA-256 |
 | `release-manifest.json` | 版本、提交、工具链、四类资产、源码和载荷的逐文件清单 |
 

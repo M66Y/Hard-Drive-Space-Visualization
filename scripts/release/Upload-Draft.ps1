@@ -12,6 +12,9 @@ $Directory = (Resolve-Path -LiteralPath $Directory).Path
 & (Join-Path $PSScriptRoot 'Test-Release.ps1') -Directory $Directory | Out-Host
 $manifest = Get-Content -LiteralPath (Join-Path $Directory 'release-manifest.json') -Raw | ConvertFrom-Json
 if ($manifest.local_test) { throw 'Local-test assets can never be uploaded by this script.' }
+if ((Get-ReleaseAssetStem $manifest) -cne ('AsukaLens.' + $manifest.version)) {
+    throw 'Legacy space-separated asset names are local-only. Build a new snapshot with GitHub-safe filenames before uploading.'
+}
 $repository = 'M66Y/Hard-Drive-Space-Visualization'
 $qualifiedRepository = 'github.com/' + $repository
 $notesText = Get-Content -LiteralPath $Notes -Raw -Encoding utf8

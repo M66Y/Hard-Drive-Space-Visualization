@@ -43,7 +43,7 @@ function Save-Fixture($Fixture,[switch]$RebuildZip) {
             }
         } finally { $archive.Dispose() }
     }
-    $Fixture.manifest.assets=@(Get-ChildItem -LiteralPath $Fixture.assets -File | Where-Object { $_.Name -like 'AsukaLens *' } | Sort-Object Name | ForEach-Object { File-Record $_.FullName $_.Name })
+    $Fixture.manifest.assets=@(Get-ChildItem -LiteralPath $Fixture.assets -File | Where-Object { $_.Name -like 'AsukaLens *' -or $_.Name -like 'AsukaLens.*' } | Sort-Object Name | ForEach-Object { File-Record $_.FullName $_.Name })
     [IO.File]::WriteAllText((Join-Path $Fixture.assets 'release-manifest.json'),($Fixture.manifest | ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
     [IO.File]::WriteAllLines((Join-Path $Fixture.assets 'SHA256SUMS.txt'),[string[]]@($Fixture.manifest.assets | ForEach-Object {$_.sha256+'  '+$_.path}),[Text.UTF8Encoding]::new($false))
     $Fixture.hash=(Get-FileHash -LiteralPath (Join-Path $Fixture.assets 'release-manifest.json') -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -159,6 +159,21 @@ public static class AcceptanceFixture {
     } 'payload entry missing' 'ACCEPT_PAYLOAD_INVENTORY'
     Reject-Fixture { param($f) $f.manifest.payload_files+=@($f.manifest.payload_files[0]); Save-Fixture $f } 'duplicate inventory path' 'ACCEPT_DUPLICATE_PATH'
     Reject-Fixture { param($f) $f.manifest.self_contained=$false; Save-Fixture $f } 'framework dependent manifest rejected' 'ACCEPT_MANIFEST_IDENTITY'
+    Reject-Fixture {
+        param($f)
+        Move-Item -LiteralPath (Join-Path $f.assets 'AsukaLens v1.4.2.exe') -Destination (Join-Path $f.assets 'AsukaLens.v1.4.2.exe')
+        Save-Fixture $f
+    } 'mixed legacy and GitHub-safe asset names rejected' 'ACCEPT_ASSET_NAMES'
+    $safe=New-Fixture
+    try {
+        foreach($asset in $safe.manifest.assets) {
+            Move-Item -LiteralPath (Join-Path $safe.assets $asset.path) -Destination (Join-Path $safe.assets $asset.path.Replace('AsukaLens v','AsukaLens.v'))
+        }
+        Save-Fixture $safe
+        $safeWork=Join-Path $safe.base 'safe-work'
+        New-AcceptanceWorkspace $safe.assets $safe.hash $safeWork
+        Check (Test-Path -LiteralPath (Join-Path $safeWork 'portable/AsukaLens.exe')) 'GitHub-safe manifest verifies and extracts portable payload'
+    } finally { Remove-TestTree $safe.base }
     $good=New-Fixture
     $workspace=Join-Path $good.base '工作目录'
     New-AcceptanceWorkspace $good.assets $good.hash $workspace

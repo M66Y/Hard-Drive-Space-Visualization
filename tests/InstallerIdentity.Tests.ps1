@@ -31,7 +31,7 @@ try {
         $arguments+=(Join-Path $PSScriptRoot '../scripts/release/AsukaLens.iss')
         & $Compiler @arguments *> (Join-Path $output 'compiler.txt')
         $exit=$LASTEXITCODE
-        $exe=Join-Path $output 'AsukaLens v1.5.0.exe'
+        $exe=Join-Path $output 'AsukaLens.v1.5.0.exe'
         if ($null -eq $case.expected) {
             if ($exit -eq 0 -or (Test-Path -LiteralPath $exe)) { throw ('Invalid identity was compiled: '+$case.name) }
         } else {

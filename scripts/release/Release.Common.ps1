@@ -2,6 +2,15 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Old local snapshots used spaces; new assets use names GitHub preserves.
+function Get-ReleaseAssetStem($Manifest) {
+    [void](Assert-ReleaseVersion $Manifest.version)
+    $legacy = 'AsukaLens ' + $Manifest.version
+    if ($Manifest.PSObject.Properties['assets'] -and
+        @($Manifest.assets | Where-Object { $_.path -ceq ($legacy + '.zip') }).Count -eq 1) { return $legacy }
+    return 'AsukaLens.' + $Manifest.version
+}
+
 function Assert-ReleaseVersion([string]$Version) {
     if ($Version -notmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') { throw 'Use vX.X.X without leading zeroes.' }
     foreach ($part in $Version.Substring(1).Split('.')) {
@@ -235,8 +244,9 @@ function Assert-ReleaseNotes([string]$Text, $Manifest, [switch]$RequireCleanEnvD
     }
     $base='https://github.com/M66Y/Hard-Drive-Space-Visualization'
     $downloadBase=$base+'/releases/download/'+$Manifest.version+'/'
-    $files=@("AsukaLens $($Manifest.version).zip","AsukaLens $($Manifest.version).exe","AsukaLens $($Manifest.version)-source.zip",
-        "AsukaLens $($Manifest.version)-source.tar.gz",'SHA256SUMS.txt','release-manifest.json')
+    $stem=Get-ReleaseAssetStem $Manifest
+    $files=@("$stem.zip","$stem.exe","$stem-source.zip",
+        "$stem-source.tar.gz",'SHA256SUMS.txt','release-manifest.json')
     $expectedLinks=@($files | ForEach-Object { $downloadBase+[Uri]::EscapeDataString($_) })
     for ($i=0;$i -lt $languages.Count;$i++) {
         $end=if ($i+1 -lt $languages.Count) {$languages[$i+1].Index} else {$visible.Length}

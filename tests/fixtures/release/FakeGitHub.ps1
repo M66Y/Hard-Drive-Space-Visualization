@@ -60,7 +60,7 @@ switch ($arguments[1]) {
         if ($state.scenario -eq 'interrupt' -and $state.uploaded.Count -eq 1 -and -not $state.interrupted) {
             $state.interrupted = $true; Fail 'Synthetic interrupted upload.'
         }
-        $file = $arguments[3]; $name = [IO.Path]::GetFileName($file)
+        $file = $arguments[3]; $name = [IO.Path]::GetFileName($file).Replace(' ','.')
         if (@($state.release.assets | Where-Object { $_.name -ceq $name }).Count) { Fail 'Duplicate upload.' }
         [IO.File]::Copy($file, (Join-Path $root "server/$name"), $false)
         $state.release.assets += @{name=$name; digest=('sha256:' + (Get-FileHash -LiteralPath $file).Hash.ToLowerInvariant())}
@@ -71,7 +71,7 @@ switch ($arguments[1]) {
     'download' {
         $destination = Option '--dir'
         foreach ($file in Get-ChildItem -LiteralPath (Join-Path $root 'server') -File) { [IO.File]::Copy($file.FullName, (Join-Path $destination $file.Name), $false) }
-        if ($state.scenario -eq 'corrupt-download') { [IO.File]::AppendAllText((Join-Path $destination "AsukaLens $($state.version).zip"), 'CORRUPT') }
+        if ($state.scenario -eq 'corrupt-download') { [IO.File]::AppendAllText((Join-Path $destination "AsukaLens.$($state.version).zip"), 'CORRUPT') }
         if ($state.scenario -eq 'missing-download') { Remove-Item -LiteralPath (Join-Path $destination 'SHA256SUMS.txt') }
         if ($state.scenario -eq 'extra-download') { [IO.File]::WriteAllText((Join-Path $destination 'unexpected.txt'), 'synthetic extra') }
         if ($state.scenario -eq 'publish-after-download') { $state.release.draft=$false }

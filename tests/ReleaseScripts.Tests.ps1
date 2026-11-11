@@ -21,6 +21,8 @@ try {
         Check ($errors.Count -eq 0) ('syntax: ' + $script.Name)
     }
     Check ((Assert-ReleaseVersion 'v1.4.2') -eq '1.4.2') 'canonical version'
+    Check ((Get-ReleaseAssetStem ([pscustomobject]@{version='v1.4.2'})) -ceq 'AsukaLens.v1.4.2') 'new assets use GitHub-safe names'
+    Check ((Get-ReleaseAssetStem ([pscustomobject]@{version='v1.4.2';assets=@([pscustomobject]@{path='AsukaLens v1.4.2.zip'})})) -ceq 'AsukaLens v1.4.2') 'legacy snapshot validation retains original names'
     foreach ($bad in @('1.4.2','v1.2','v01.2.3','v1.2.3-preview','v65536.0.0','v1.2.3/../')) {
         Reject { Assert-ReleaseVersion $bad } ('reject version: ' + $bad)
     }
