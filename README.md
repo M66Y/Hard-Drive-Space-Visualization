@@ -10,7 +10,7 @@
 
 ![AsukaLens 浅色主窗：目录空间分布、文件列表、统计口径和扫描状态，使用合成演示数据](docs/images/overview.png)
 
-*真实主窗的合成数据预览。图中名称、大小和用时均为示例，不代表实测速度；背景与头像由 M66Y 使用 AI 工具生成。*
+*真实主窗截图，使用合成演示数据。图中名称、大小和用时均为示例，不代表实测速度；背景与头像由 M66Y 使用 AI 工具生成。*
 
 [查看 Release 页面](https://github.com/M66Y/Hard-Drive-Space-Visualization/releases) · [详细使用说明](使用说明.txt)
 

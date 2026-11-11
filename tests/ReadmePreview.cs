@@ -23,8 +23,9 @@ internal static class ReadmePreview
         Exception? failure = null;
         var thread = new Thread(() =>
         {
-            Application.SetHighDpiMode(HighDpiMode.DpiUnaware); Application.EnableVisualStyles();
+            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
             var root = new DiskEntry(@"X:\AsukaLens-Demo", true);
             void Folder(string name, params (string Name, long Bytes)[] files)
             {
@@ -53,11 +54,14 @@ internal static class ReadmePreview
                     const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
                     await (Task)typeof(MainForm).GetMethod("ScanFolder", flags)!.Invoke(form, [root.Path])!;
                     await (Task)typeof(MainForm).GetMethod("UpdateViewAsync", flags)!.Invoke(form, [false])!;
-                    form.Text = "AsukaLens · 合成演示数据 / Synthetic demo";
-                    await Task.Delay(200);
+                    form.Text = "AsukaLens";
+                    form.Activate();
+                    Cursor.Position = form.PointToScreen(new Point(12, 12));
+                    await Task.Delay(1000);
                     form.PerformLayout(); form.Refresh();
-                    using var image = new Bitmap(form.Width, form.Height);
-                    form.DrawToBitmap(image, new Rectangle(Point.Empty, image.Size));
+                    using var image = new Bitmap(form.Width - 20, form.Height - 12);
+                    using (var graphics = Graphics.FromImage(image))
+                        graphics.CopyFromScreen(form.Left + 10, form.Top + 2, 0, 0, image.Size);
                     Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                     using (var file = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                         image.Save(file, System.Drawing.Imaging.ImageFormat.Png);
