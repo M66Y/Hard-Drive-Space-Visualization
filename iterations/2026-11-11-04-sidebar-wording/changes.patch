@@ -1,0 +1,24 @@
+diff --git a/Theme.cs b/Theme.cs
+index 2424efd..a75cb60 100644
+--- a/Theme.cs
++++ b/Theme.cs
+@@ -369,7 +369,7 @@ internal sealed class NavigationPanel : Control
+         }
+         if (Height > 740 * s)
+         {
+-            Theme.TextAt(g, "本地扫描，文件不上传", smallFont, Theme.Muted, new Rectangle((int)(25 * s), Height - (int)(46 * s), Width - (int)(40 * s), (int)(25 * s)));
++            Theme.TextAt(g, "本地扫描 文件不上传", smallFont, Theme.Muted, new Rectangle((int)(25 * s), Height - (int)(46 * s), Width - (int)(40 * s), (int)(25 * s)));
+         }
+     }
+ }
+diff --git a/iterations/2026-11-11-04-sidebar-wording/README.md b/iterations/2026-11-11-04-sidebar-wording/README.md
+new file mode 100644
+index 0000000..fd336cb
+--- /dev/null
++++ b/iterations/2026-11-11-04-sidebar-wording/README.md
+@@ -0,0 +1,5 @@
++# 左下角文案调整
++
++基线 `723398b`。用户更正文案为“本地扫描 文件不上传”；同步更新使用合成数据的真实窗口截图，已目视检查。应用与测试项目构建通过，144 与 96 DPI 界面回归通过；临时截图备份已清理。本轮不打包或发布。截图由 Git 保存，不重复收入补丁。
++
++截图 SHA-256：`f0b9f91069d8b1112f83e0349b65e23513ae135395e4bdf4b2efb5f60a4f5e71`。

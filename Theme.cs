@@ -369,7 +369,7 @@ internal sealed class NavigationPanel : Control
         }
         if (Height > 740 * s)
         {
-            Theme.TextAt(g, "本地扫描，文件不上传", smallFont, Theme.Muted, new Rectangle((int)(25 * s), Height - (int)(46 * s), Width - (int)(40 * s), (int)(25 * s)));
+            Theme.TextAt(g, "本地扫描 文件不上传", smallFont, Theme.Muted, new Rectangle((int)(25 * s), Height - (int)(46 * s), Width - (int)(40 * s), (int)(25 * s)));
         }
     }
 }
