@@ -17,6 +17,17 @@ if (args.Length > 0 && args[0] == "--ntfs-record-replay")
 Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
 if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
 if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
+if (args.Contains("--ntfs-bitmap-attribute-tests"))
+{
+    try
+    {
+        int core = DiskAtlas.NtfsPrototype.NtfsMftBitmapAttributeTests.Run();
+        int adversarial = DiskAtlas.NtfsPrototype.NtfsMftBitmapAttributeAdversarialTests.Run();
+        Console.WriteLine($"PASS NTFS bitmap attribute checks: {core} core; {adversarial} adversarial; synthetic records only");
+        return 0;
+    }
+    catch { Console.Error.WriteLine("FAIL NTFS bitmap attribute; no private details emitted"); return 1; }
+}
 if (args.Contains("--ntfs-bitmap-model-tests"))
 {
     try

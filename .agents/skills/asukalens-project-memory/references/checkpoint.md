@@ -1,28 +1,28 @@
 # AsukaLens 开发检查点
 
-2026-11-12；第19轮基线 `643c11ed7c31de8ad4246cfbf72e5d0537fccdf4`（第18轮已独立提交并推送main）。C19开发/相称检查/审查完成，归档恢复与提交绑定见本轮files.json及Git。事实入口docs/project-status.md、docs/development-plan.md。
+2026-11-12；本次最后一轮C20基线 `cc4a09165de032426dcd63f27ce7e5da63d983f2`。C20开发、相称验证、独立审查与清理完成；恢复补丁/提交绑定以archive20、files.json及Git为准。事实入口docs/project-status.md和docs/development-plan.md。
 
-## 用户目标及授权
+## 用户目标与时效
 
-连续开发2小时窗口10:09:17–12:09:17 UTC。C16新建256MiB自有VHD22目标已批；C17另批有界MFT有效范围（系统/空闲槽，最多4096槽/4MiB+1024/256次尝试），C18固定分类诊断沿用窗口VHD许可；C19另批纯合成位图模型，不新增真实操作。仅自有新镜像测后卸载清理，不个人盘/VSS/新原始留样/产品或发布。许可不延续到以后；C19不需要VHD。
+连续开发2小时窗口10:09:17–12:09:17 UTC。C16自有新建256MiB VHD22目标已批；C17另批有界有效范围（系统/空闲槽、最多4096槽/4MiB+1024请求字节/256次尝试），C18固定原因诊断沿用窗口VHD；C19纯合成位图模型、C20纯内存属性定位均另批，不新增真实操作。仅自有新镜像测后卸载清理，不个人盘/VSS/新原始留样/生产或发布。许可不延续到以后；下一轮真实来源方案仍未获实施授权。
 
-## 本窗口已完成
+## 本窗口完成与证据
 
-- C16 `73c184e` 已推main，固定来源owner/归属/无父链/准备守卫及22目标闭环，archive16不改。
-- C17 `e01f672` 已推main，32文件正向恢复与33条committed SHA通过；有界分页/新固定lease profile/私有token-map/独立mode完成。真实256槽/4页、21匹配14目标unknown，5reads263168请求字节，67decoded/0free/183invalid/6unsupported；关闭/后验/解锁/卸载清理通过。旧source473/raw860兼容仍22条，不用不同工作量5对22宣称加速。archive17不改。
-- C18 `643c11e` 已推main，19文件正向恢复与20条committed SHA通过。v2 CodeCounts/AllZeroInvalid32固定配对诊断完成。真实473检查，256槽=67Decoded+182全零Invalid/Signature+1Invalid/SparseMappingFlags+6Unsupported/RecordFlags。21匹配14目标unknown、5reads263168、闭环清理通过。不是182槽未分配/其他7槽损坏/格式全支持/完整占用或性能证明。archive18不改。
-- C19新增 NtfsSyntheticBitmapModel/核心Tests/独立AdversarialTests及Program入口 --ntfs-bitmap-model-tests；最多4096槽/512B，模拟SourceToken/MapEpoch只比对象引用，全部报告Synthetic。三态位图声明与四类解码12交叉格独立；缺失/未覆盖Unknown，Provided截断/超量拒绝、padding忽略，完整唯一观察不可遗漏。
-- C19构建0warn/error；48core+58独立反例过；旧enum91/bounded68过。AllZero仅Invalid且header=null；Decoded/Free提供header时须自洽，其他header只是模拟观察，冲突只计数不修复/不判断损坏。模型LSB-first不证明真实NTFS位序。
-- C19审查修复外部Count/Memory/indexer抛伪造OCE/ModelException绕过净化。ReadExternal捕任何外部异常，先传入token取消，否则新固定BitmapModelInput，无原Message/Code/Inner；12注入组合过，最终独立只读复核无阻塞。无模型文件/卷I/O，不接v2/Native/生产统计。
+- C16 `73c184e` 已推main：真实固定来源owner、准备守卫/无父链、22目标闭环；archive16不改。
+- C17 `e01f672` 已推main：32文件正向恢复、33条committed SHA通过。有界分页、私有token/map与独立profile/guard完成；实际256槽/4页、67decoded/0free/183invalid/6unsupported、21匹配14目标unknown，5reads263168请求字节，关闭/后验/卸载清理通过。旧source473/raw860兼容仍22条，不把不同工作量5对22当加速。archive17不改。
+- C18 `643c11e` 已推main：19文件正向恢复、20条committed SHA通过；v2 CodeCounts/AllZeroInvalid32固定配对。真实473通过，256槽=67Decoded+182全零Invalid/Signature+1Invalid/SparseMappingFlags+6Unsupported/RecordFlags；21匹配14目标unknown、5reads263168、闭环清理通过。不是182槽未分配/其他7槽损坏/全格式或性能证明。archive18不改。
+- C19 `cc4a091` 已推main：14文件正向恢复、15条committed SHA通过。纯合成位图模型最多4096槽/512B，48core+58独立反例及旧enum91/bounded68通过；全部Synthetic，3态声明×4类decode独立，缺失/未覆盖Unknown，padding忽略。模拟对象只比引用，LSB-first不背书真实格式。Count/Memory/indexer伪造异常隐私边界经12注入组合修复并复核。archive19不改。
+- C20纯内存定位完成：NtfsMftBitmapAttribute及core/adversarial新增三文件，Program入口 --ntfs-bitmap-attribute-tests。最多1024B record0/4096槽/512B payload；同一私有源交既有Map.Parse严格核验，再恢复私有USA定位。只取unique/unnamed/plain resident；Missing/Partial/Deferred/Invalid分开，nonresident只有3受限长度、无读取地址。既有Map/decoder/fixtures不改，不接model/v2/Native/prod。
+- C20构建0warn/error；43core+60独立反例通过，旧Map199/enum91/model48+58通过。跨510尾字512B payload、raw damaged/mixed/restored拒绝、512/513上限、copy双向隔离、Deferred/畸形/取消均过，独立只读审查无阻塞。所有Synthetic；ResidentComplete只表示容量min(expectedSlots,payloadBytes*8)，不验证bit值/位序/来源/分配。payload不自动序列化，CopyPayload再复制。
 
-## 当前工作与清理
+## 当前归属与清理
 
-C19作者封板：attribute_probe新增Model+coreTests，special_contract独立反例，special_tests_plan只读复核；Root负责Program/docs/AGENTS/记忆与archive19。当前无运行中exec/UAC/Native，无VHD或ntfs-test目录，无本轮临时目录。C18结果已SHA归档后删除副本，旧kernel六条样本会话8文件/9683字节不变、不上传。
+C20作者封板：attribute_probe locator+core、special_contract独立反例、special_tests_plan只读复核；Root Program/docs/AGENTS/记忆与archive20。本轮仅纯内存，不需VHD或临时目录；当前无运行中exec/UAC/Native，无VHD/ntfs-test目录。本窗口Native结果副本均SHA核对归档后删除；旧kernel六样本会话8文件/9683B未变，不上传。
 
-C19归档 iterations/2026-11-12-19-bitmap-model，基线643c11e；显式stage本轮必要文件，patch不递归旧archives/自身，fetch检查后commit/push main，不force/tag/Release。原自动/高速扫描未改变，v1.5.0仍最后正式发行。
+C20归档 iterations/2026-11-12-20-bitmap-attribute；patch不递归旧archives/自身，显式stage、恢复核验、fetch后commit/push main，不force/tag/Release。正常开发构建保留，无新预览目录/发行包。原自动/高速路径未改，v1.5.0仍最后正式发行。
 
-## 下一步边界
+## 下一轮已备方案但未实施
 
-真实MFT记录BITMAP提取/位序/驻留和非驻留映射、同持锁来源绑定/后验、182槽实际分配、RecordFlags/SparseMappingFlags支持、4096真实槽/其他几何系统、VSS/活跃卷、完整建树和资源收益仍未实现。MFT记录位图与卷簇位图不能混用。
+见 docs/ntfs-bitmap-source-plan.md：另获本轮许可后，仅新建自有VHD复用同owner已有bootstrap观察BITMAP形态；独立mode/factory/revision与字段白名单，21目标及关闭/后验/卸载清理仍需通过，不增加非驻留块读。真实来源与位图解释分开，ResidentCapacityOnly/Missing/Partial/Deferred不生成VerifiedAllocation；实际非驻留到Deferred即停，不临时扩大预算。当前没有该轮实施授权或新VHD许可。
 
-Root在评估“受限BITMAP属性定位/提取纯原型”的下一轮最小范围，用户已确认docs/ntfs-bitmap-attribute-plan.md纯内存范围，C19独立提交后实施第20轮；不把普通继续/过去VHD许可扩展为真实位图读取，不为时限放宽解析。用户窗口12:09:17UTC结束；新的真实操作需有效范围授权。Skill正文不改，事实写references。
+非驻留run映射/块读取、真实位序/释放槽对照、同来源位图解释/后验、182槽实际分配、RecordFlags/SparseMappingFlags支持、4096真实槽/其他系统几何、VSS/活跃卷、完整建树/补查融合/资源基准和产品入口仍未完成。下一步不把纯模型/定位器改标签当Native证明，不把记录位图与卷簇位图混用。窗口结束后等待下一次明确任务；Skill正文不改，事实写references。

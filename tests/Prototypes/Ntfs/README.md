@@ -28,6 +28,16 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-bitmap-model
 
 48核心/58独立反例通过，全部输出Synthetic。模型LSB-first和模拟对象绑定不证明真实NTFS位序或来源；未接入现有v2报告、Native/产品统计。外部集合/Memory异常均在访问边界净化，取消以传入token为准。实际182槽的分配状态仍未知，细节见[方案](../../../docs/ntfs-bitmap-model-plan.md)与[第19轮](../../../iterations/2026-11-12-19-bitmap-model/README.md)。
 
+## 受限BITMAP属性定位
+
+`NtfsMftBitmapAttribute` 只在内存处理1024字节合成record0；先私有复制并交既有Map严格核验，再恢复自己的USA定位唯一普通未命名驻留payload（最多512字节）。Missing/ResidentPartial/Deferred/Invalid分开，非驻留只返回受限长度元数据，无读取地址；不改decoder/Map或接入位图模型、v2和产品。
+
+```powershell
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-bitmap-attribute-tests
+```
+
+43核心/60独立反例通过，包含跨USA尾字payload恢复与私有副本隔离。结果固定Synthetic，Complete仅是容量覆盖，不验证bit值/位序/真实来源/实际分配。正文不自动序列化，取出也返回副本。未读取任何真实位图，见[方案](../../../docs/ntfs-bitmap-attribute-plan.md)与[第20轮](../../../iterations/2026-11-12-20-bitmap-attribute/README.md)。
+
 ## 有限原始读取原型
 
 `NtfsMftMap` 从严格校验的原始record0建立不可变映射，限定一个未命名普通非驻留DATA、最多128区段；验证VCN、带符号LCN增量、大小及物理范围，不支持属性扩展或稀疏MFT。`PlanRecord` 生成有界连续目标切片，不假定MFT在磁盘上连续。

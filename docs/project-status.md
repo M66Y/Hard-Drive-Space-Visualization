@@ -1,5 +1,7 @@
 # AsukaLens 项目现状
 
+2026-11-12：测试程序新增受限record0 BITMAP属性定位原型，仅在严格Map/USA核验后提取普通唯一未命名驻留payload，最多512字节；缺失/不足明确区分，非驻留/扩展等Deferred，无可读地址。43核心/60独立反例及Map199/枚举91/模型48+58通过。全部Synthetic，Complete只表示字节容量覆盖，未读取真实位图、未验证182槽状态或接入产品，见[第20轮](../iterations/2026-11-12-20-bitmap-attribute/README.md)。
+
 2026-11-12：测试程序新增纯合成MFT记录分配位图模型，保留三态声明与四类解码的12格交叉计数，缺失/未覆盖保持Unknown，全零不推断空闲。48核心/58独立反例及旧枚举91/来源68通过；修复了外部访问器伪造异常绕过净化的边界。结果全部标为Synthetic，没有读取真实位图或验证182槽的分配状态，不接产品统计，见[第19轮](../iterations/2026-11-12-19-bitmap-model/README.md)。
 
 2026-11-12：有界MFT摘要升级v2，新增固定原因码计数及全零Invalid观察。本机隔离VHD仍256槽/21对象匹配，183 Invalid细分为182全零Signature与1 SparseMappingFlags，6 Unsupported为RecordFlags；来源关闭、后验、卸载清理通过。严格decoder/四类/预算未改，不能将全零当已证明空闲或将拒绝当磁盘损坏。枚举91、来源68、PS477及外层284项通过，详见[第18轮](../iterations/2026-11-12-18-mft-classification/README.md)。无产品扫描提速或新发行包。

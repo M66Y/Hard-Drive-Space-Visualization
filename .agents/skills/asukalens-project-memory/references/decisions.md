@@ -25,3 +25,5 @@
 - 2026-11-12：第18轮只加固定聚合原因诊断，保持严格decoder/分类/预算。真实183 Invalid分解为182全零Signature与1 SparseMappingFlags，6 Unsupported为RecordFlags；不凭全零改成Free，也不凭错误码宣布损坏。理由是字节形态与记录分配是两种证据，下一步先设计纯合成位图模型，真实来源后续单独验证。依据 iterations/2026-11-12-18-mft-classification/README.md 与 docs/ntfs-classification-diagnostics-plan.md。
 
 - 2026-11-12：第19轮先实现无I/O位图模型，位图三态声明与四类decode交叉统计，不将全零推断成Free。模拟对象绑定只比引用，所有结果Synthetic，不自动提升为真实位图验证。Count/Memory/indexer视作不可信输入边界，即便外部伪装受控异常也统一净化；理由是异常类型不能证明来源。真实BITMAP解析/同来源读取/后验仍需另行方案。依据 iterations/2026-11-12-19-bitmap-model/README.md 与 docs/ntfs-bitmap-model-plan.md。
+
+- 2026-11-12：第20轮仅在严格Map/USA后的私有record0提取普通驻留BITMAP，非驻留只Deferred元数据、无读取地址。ResidentComplete仅指字节容量，不证明bit值/位序/来源/分配；不把Synthetic定位器改标签提升为Native。下一轮先观察同owner真实bootstrap的属性形态，再决定非驻留映射/预算；实际Deferred就停，不为通过临时扩读。理由是当前合成布局未证明实际卷形式，来源真实与解释正确需要分别验收。依据 iterations/2026-11-12-20-bitmap-attribute/README.md、docs/ntfs-bitmap-attribute-plan.md、docs/ntfs-bitmap-source-plan.md。

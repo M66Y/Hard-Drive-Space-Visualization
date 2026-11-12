@@ -1,0 +1,715 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index 697a07a..8a19b59 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,28 +1,28 @@
+ # AsukaLens 开发检查点
+ 
+-2026-11-12；第19轮基线 `643c11ed7c31de8ad4246cfbf72e5d0537fccdf4`（第18轮已独立提交并推送main）。C19开发/相称检查/审查完成，归档恢复与提交绑定见本轮files.json及Git。事实入口docs/project-status.md、docs/development-plan.md。
++2026-11-12；本次最后一轮C20基线 `cc4a09165de032426dcd63f27ce7e5da63d983f2`。C20开发、相称验证、独立审查与清理完成；恢复补丁/提交绑定以archive20、files.json及Git为准。事实入口docs/project-status.md和docs/development-plan.md。
+ 
+-## 用户目标及授权
++## 用户目标与时效
+ 
+-连续开发2小时窗口10:09:17–12:09:17 UTC。C16新建256MiB自有VHD22目标已批；C17另批有界MFT有效范围（系统/空闲槽，最多4096槽/4MiB+1024/256次尝试），C18固定分类诊断沿用窗口VHD许可；C19另批纯合成位图模型，不新增真实操作。仅自有新镜像测后卸载清理，不个人盘/VSS/新原始留样/产品或发布。许可不延续到以后；C19不需要VHD。
++连续开发2小时窗口10:09:17–12:09:17 UTC。C16自有新建256MiB VHD22目标已批；C17另批有界有效范围（系统/空闲槽、最多4096槽/4MiB+1024请求字节/256次尝试），C18固定原因诊断沿用窗口VHD；C19纯合成位图模型、C20纯内存属性定位均另批，不新增真实操作。仅自有新镜像测后卸载清理，不个人盘/VSS/新原始留样/生产或发布。许可不延续到以后；下一轮真实来源方案仍未获实施授权。
+ 
+-## 本窗口已完成
++## 本窗口完成与证据
+ 
+-- C16 `73c184e` 已推main，固定来源owner/归属/无父链/准备守卫及22目标闭环，archive16不改。
+-- C17 `e01f672` 已推main，32文件正向恢复与33条committed SHA通过；有界分页/新固定lease profile/私有token-map/独立mode完成。真实256槽/4页、21匹配14目标unknown，5reads263168请求字节，67decoded/0free/183invalid/6unsupported；关闭/后验/解锁/卸载清理通过。旧source473/raw860兼容仍22条，不用不同工作量5对22宣称加速。archive17不改。
+-- C18 `643c11e` 已推main，19文件正向恢复与20条committed SHA通过。v2 CodeCounts/AllZeroInvalid32固定配对诊断完成。真实473检查，256槽=67Decoded+182全零Invalid/Signature+1Invalid/SparseMappingFlags+6Unsupported/RecordFlags。21匹配14目标unknown、5reads263168、闭环清理通过。不是182槽未分配/其他7槽损坏/格式全支持/完整占用或性能证明。archive18不改。
+-- C19新增 NtfsSyntheticBitmapModel/核心Tests/独立AdversarialTests及Program入口 --ntfs-bitmap-model-tests；最多4096槽/512B，模拟SourceToken/MapEpoch只比对象引用，全部报告Synthetic。三态位图声明与四类解码12交叉格独立；缺失/未覆盖Unknown，Provided截断/超量拒绝、padding忽略，完整唯一观察不可遗漏。
+-- C19构建0warn/error；48core+58独立反例过；旧enum91/bounded68过。AllZero仅Invalid且header=null；Decoded/Free提供header时须自洽，其他header只是模拟观察，冲突只计数不修复/不判断损坏。模型LSB-first不证明真实NTFS位序。
+-- C19审查修复外部Count/Memory/indexer抛伪造OCE/ModelException绕过净化。ReadExternal捕任何外部异常，先传入token取消，否则新固定BitmapModelInput，无原Message/Code/Inner；12注入组合过，最终独立只读复核无阻塞。无模型文件/卷I/O，不接v2/Native/生产统计。
++- C16 `73c184e` 已推main：真实固定来源owner、准备守卫/无父链、22目标闭环；archive16不改。
++- C17 `e01f672` 已推main：32文件正向恢复、33条committed SHA通过。有界分页、私有token/map与独立profile/guard完成；实际256槽/4页、67decoded/0free/183invalid/6unsupported、21匹配14目标unknown，5reads263168请求字节，关闭/后验/卸载清理通过。旧source473/raw860兼容仍22条，不把不同工作量5对22当加速。archive17不改。
++- C18 `643c11e` 已推main：19文件正向恢复、20条committed SHA通过；v2 CodeCounts/AllZeroInvalid32固定配对。真实473通过，256槽=67Decoded+182全零Invalid/Signature+1Invalid/SparseMappingFlags+6Unsupported/RecordFlags；21匹配14目标unknown、5reads263168、闭环清理通过。不是182槽未分配/其他7槽损坏/全格式或性能证明。archive18不改。
++- C19 `cc4a091` 已推main：14文件正向恢复、15条committed SHA通过。纯合成位图模型最多4096槽/512B，48core+58独立反例及旧enum91/bounded68通过；全部Synthetic，3态声明×4类decode独立，缺失/未覆盖Unknown，padding忽略。模拟对象只比引用，LSB-first不背书真实格式。Count/Memory/indexer伪造异常隐私边界经12注入组合修复并复核。archive19不改。
++- C20纯内存定位完成：NtfsMftBitmapAttribute及core/adversarial新增三文件，Program入口 --ntfs-bitmap-attribute-tests。最多1024B record0/4096槽/512B payload；同一私有源交既有Map.Parse严格核验，再恢复私有USA定位。只取unique/unnamed/plain resident；Missing/Partial/Deferred/Invalid分开，nonresident只有3受限长度、无读取地址。既有Map/decoder/fixtures不改，不接model/v2/Native/prod。
++- C20构建0warn/error；43core+60独立反例通过，旧Map199/enum91/model48+58通过。跨510尾字512B payload、raw damaged/mixed/restored拒绝、512/513上限、copy双向隔离、Deferred/畸形/取消均过，独立只读审查无阻塞。所有Synthetic；ResidentComplete只表示容量min(expectedSlots,payloadBytes*8)，不验证bit值/位序/来源/分配。payload不自动序列化，CopyPayload再复制。
+ 
+-## 当前工作与清理
++## 当前归属与清理
+ 
+-C19作者封板：attribute_probe新增Model+coreTests，special_contract独立反例，special_tests_plan只读复核；Root负责Program/docs/AGENTS/记忆与archive19。当前无运行中exec/UAC/Native，无VHD或ntfs-test目录，无本轮临时目录。C18结果已SHA归档后删除副本，旧kernel六条样本会话8文件/9683字节不变、不上传。
++C20作者封板：attribute_probe locator+core、special_contract独立反例、special_tests_plan只读复核；Root Program/docs/AGENTS/记忆与archive20。本轮仅纯内存，不需VHD或临时目录；当前无运行中exec/UAC/Native，无VHD/ntfs-test目录。本窗口Native结果副本均SHA核对归档后删除；旧kernel六样本会话8文件/9683B未变，不上传。
+ 
+-C19归档 iterations/2026-11-12-19-bitmap-model，基线643c11e；显式stage本轮必要文件，patch不递归旧archives/自身，fetch检查后commit/push main，不force/tag/Release。原自动/高速扫描未改变，v1.5.0仍最后正式发行。
++C20归档 iterations/2026-11-12-20-bitmap-attribute；patch不递归旧archives/自身，显式stage、恢复核验、fetch后commit/push main，不force/tag/Release。正常开发构建保留，无新预览目录/发行包。原自动/高速路径未改，v1.5.0仍最后正式发行。
+ 
+-## 下一步边界
++## 下一轮已备方案但未实施
+ 
+-真实MFT记录BITMAP提取/位序/驻留和非驻留映射、同持锁来源绑定/后验、182槽实际分配、RecordFlags/SparseMappingFlags支持、4096真实槽/其他几何系统、VSS/活跃卷、完整建树和资源收益仍未实现。MFT记录位图与卷簇位图不能混用。
++见 docs/ntfs-bitmap-source-plan.md：另获本轮许可后，仅新建自有VHD复用同owner已有bootstrap观察BITMAP形态；独立mode/factory/revision与字段白名单，21目标及关闭/后验/卸载清理仍需通过，不增加非驻留块读。真实来源与位图解释分开，ResidentCapacityOnly/Missing/Partial/Deferred不生成VerifiedAllocation；实际非驻留到Deferred即停，不临时扩大预算。当前没有该轮实施授权或新VHD许可。
+ 
+-Root在评估“受限BITMAP属性定位/提取纯原型”的下一轮最小范围，用户已确认docs/ntfs-bitmap-attribute-plan.md纯内存范围，C19独立提交后实施第20轮；不把普通继续/过去VHD许可扩展为真实位图读取，不为时限放宽解析。用户窗口12:09:17UTC结束；新的真实操作需有效范围授权。Skill正文不改，事实写references。
++非驻留run映射/块读取、真实位序/释放槽对照、同来源位图解释/后验、182槽实际分配、RecordFlags/SparseMappingFlags支持、4096真实槽/其他系统几何、VSS/活跃卷、完整建树/补查融合/资源基准和产品入口仍未完成。下一步不把纯模型/定位器改标签当Native证明，不把记录位图与卷簇位图混用。窗口结束后等待下一次明确任务；Skill正文不改，事实写references。
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index 0f81f69..1576202 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -25,3 +25,5 @@
+ - 2026-11-12：第18轮只加固定聚合原因诊断，保持严格decoder/分类/预算。真实183 Invalid分解为182全零Signature与1 SparseMappingFlags，6 Unsupported为RecordFlags；不凭全零改成Free，也不凭错误码宣布损坏。理由是字节形态与记录分配是两种证据，下一步先设计纯合成位图模型，真实来源后续单独验证。依据 iterations/2026-11-12-18-mft-classification/README.md 与 docs/ntfs-classification-diagnostics-plan.md。
+ 
+ - 2026-11-12：第19轮先实现无I/O位图模型，位图三态声明与四类decode交叉统计，不将全零推断成Free。模拟对象绑定只比引用，所有结果Synthetic，不自动提升为真实位图验证。Count/Memory/indexer视作不可信输入边界，即便外部伪装受控异常也统一净化；理由是异常类型不能证明来源。真实BITMAP解析/同来源读取/后验仍需另行方案。依据 iterations/2026-11-12-19-bitmap-model/README.md 与 docs/ntfs-bitmap-model-plan.md。
++
++- 2026-11-12：第20轮仅在严格Map/USA后的私有record0提取普通驻留BITMAP，非驻留只Deferred元数据、无读取地址。ResidentComplete仅指字节容量，不证明bit值/位序/来源/分配；不把Synthetic定位器改标签提升为Native。下一轮先观察同owner真实bootstrap的属性形态，再决定非驻留映射/预算；实际Deferred就停，不为通过临时扩读。理由是当前合成布局未证明实际卷形式，来源真实与解释正确需要分别验收。依据 iterations/2026-11-12-20-bitmap-attribute/README.md、docs/ntfs-bitmap-attribute-plan.md、docs/ntfs-bitmap-source-plan.md。
+diff --git a/AGENTS.md b/AGENTS.md
+index 2302eee..c3554aa 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -138,6 +138,7 @@
+ - NTFS 有界MFT范围运行 `--ntfs-mft-enumerator-tests`、`--ntfs-bounded-mft-tests`，共享改动另跑map/raw-volume/fixture-source检查及 `tests/NtfsMftEnumerationEvidence.Tests.ps1`、`tests/NtfsFixtureCodeEvidence.Tests.ps1`。`-MftRange` 独立于旧22目标模式，仅本轮另获范围授权后操作新建VHD，最多4096槽/4MiB+bootstrap/256次读取尝试。`range_classified` 只表示严格四类覆盖与21对象/关闭核验，不代表全格式、完整占用或速度；invalid/unsupported不得当空闲、零占用或磁盘损坏。见[有界方案](docs/ntfs-bounded-mft-plan.md)，当前许可不延续到以后、个人卷或VSS。
+ - 有界MFT分类诊断当前使用v2摘要；`CodeCounts`只接收32种固定Status/Code配对，`AllZeroInvalid`只是严格Invalid中的全零观察，不改变Free或证明未分配。更改诊断合同需同步上述C#/PS检查、版本及深白名单，保留历史revision，不输出原始记录或任意异常文本；来源关闭/失败隔离仍适用，见[分类方案](docs/ntfs-classification-diagnostics-plan.md)。
+ - NTFS 位图模型运行 `--ntfs-bitmap-model-tests`，仅合成输入，最多4096槽/512字节；结果固定Synthetic，三态位图声明与四类解码独立，缺失或未覆盖保持Unknown，不凭全零改成Free。真实MFT记录位图与卷簇位图不得混用，模拟绑定不是真实来源验证器；不由此新增Native读取或产品入口。外部集合/Memory访问的异常不可信，统一净化并用传入token检查取消，不能因异常类型看似受控而透传任意文本。见[模型方案](docs/ntfs-bitmap-model-plan.md)。
++- NTFS 受限BITMAP属性定位运行 `--ntfs-bitmap-attribute-tests`，改动另核对Map/枚举/位图模型回归；只从1024字节合成record0经严格Map/USA校验提取<=512字节普通驻留payload。Missing/Partial/Deferred/Invalid明确区分，非驻留不返回读取地址。Complete只表示字节容量，结果Synthetic不证明真实位序/来源/分配；不序列化payload，不默认接Native、v2或产品。见[属性方案](docs/ntfs-bitmap-attribute-plan.md)。
+ - NTFS 自有来源适配器运行 `--ntfs-fixture-source-tests`、`tests/NtfsSourceEvidence.Tests.ps1`、`tests/NtfsFixtureCodeEvidence.Tests.ps1` 及原隔离守卫。真实脚本 `-SourceAdapter` 只在本轮明确VHD许可内运行，固定record0+21对象；新模式为 `fixture-source`、成功为 `source_verified`，不与旧raw成功混用。准备期先验证fixed/no-parent、实际VHD/卷/marker归属再调用旧准备路径；实际来源factory另开自持句柄、私有token/map及固定Native后验，不能由caller bool、任意路径/句柄或模拟来源伪造。结果envelope关闭失效，旧immutable副本不能当当前证明。仅当前受控静态来源，不是全MFT/VSS/活跃卷验证，详见[来源方案](docs/ntfs-fixture-source-plan.md)。
+ - 存储属性提示分支改动另运行 `--storage-attribute-tests`，只使用自有临时 NTFS 普通/压缩/稀疏及命名流夹具，能力缺失明确跳过。`--storage-attribute-observe` 只记录差异，退出成功不代表回归通过；对照无差异时不得宣称已复现误算或证明所有文件系统支持。
+ - 混合目录调度改动补测 `--mixed-benchmark before/after` 的同夹具对比；用户明确指定实际目录后才使用 `--folder-benchmark`，其报告与隔离诊断仅留本机临时目录，不进入仓库。比较自动与高速必须核对完整扫描、结果一致性和运行顺序，保留异常波动样本。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index a69d337..b0add5b 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -2,7 +2,11 @@
+ 
+ ## 当前执行计划（2026-11-12）
+ 
+-第19轮[纯合成位图模型](ntfs-bitmap-model-plan.md)已完成48核心/58独立反例，旧枚举91/来源68回归通过；三态声明与四类计数独立，缺失/未覆盖Unknown，不凭全零推断空闲，见[归档](../iterations/2026-11-12-19-bitmap-model/README.md)。下一步需要独立设计真实MFT记录位图的受限提取、与同一持锁来源绑定和后置核验；模型没有验证真实位序或182槽状态，不直接提升为Native证据。格式支持、完整建树和资源基准仍分别安排，不把本模型接入产品或扩大读盘授权。
++第20轮[受限属性定位](ntfs-bitmap-attribute-plan.md)已完成43核心/60独立反例，Map199/枚举91/模型48+58回归通过；只从合成record0提取普通驻留payload，非驻留等Deferred，无新I/O/地址，见[归档](../iterations/2026-11-12-20-bitmap-attribute/README.md)。下一步先确定受控真实record0中的BITMAP形态及来源绑定；如果非驻留，先独立完成其run映射与预算方案，不直接读块。真实位序/分配状态与后验仍未验，不把容量Complete当真实统计完成。
++
++下一轮的[自有来源形态观察方案](ntfs-bitmap-source-plan.md)已备好，尚未实施或获新一轮真实操作许可；先复用同owner bootstrap观察形态，不新增非驻留块读取。观察完成与位图解释分开，实际Deferred就停在该阶段，不临时扩预算。
++
++第19轮[纯合成位图模型](ntfs-bitmap-model-plan.md)已完成48核心/58独立反例，旧枚举91/来源68回归通过；三态声明与四类计数独立，缺失/未覆盖Unknown，不凭全零推断空闲，见[归档](../iterations/2026-11-12-19-bitmap-model/README.md)。模型本身没有验证真实位序、来源或182槽状态，不直接提升为Native证据。格式支持、完整建树和资源基准仍分别安排，不把本模型接入产品或扩大读盘授权。
+ 
+ 第18轮[分类诊断](ntfs-classification-diagnostics-plan.md)已完成：实际183 Invalid中182为全零Signature、1为SparseMappingFlags，6 Unsupported为RecordFlags，21对象与关闭/清理仍通过，见[归档](../iterations/2026-11-12-18-mft-classification/README.md)。只是解释严格拒绝分支，不改变其有效性或证明空闲；后续纯模型以上方第19轮为准。计划不等于真实来源实施授权，不凭全零跳过或放松decoder。
+ 
+diff --git a/docs/ntfs-bitmap-attribute-plan.md b/docs/ntfs-bitmap-attribute-plan.md
+index 3fed88f..10db1c6 100644
+--- a/docs/ntfs-bitmap-attribute-plan.md
++++ b/docs/ntfs-bitmap-attribute-plan.md
+@@ -1,6 +1,6 @@
+-# 建议下一步：受限BITMAP属性定位原型
++# 受限BITMAP属性定位原型方案
+ 
+-2026-11-12，第19轮模型已完成，尚无真实位图提取。本文件是待确认的纯内存方案，不启动读取卷或文件，也不获得以后VHD授权。
++2026-11-12，第19轮模型已完成，尚无真实位图提取。用户确认本纯内存范围后，已完成实现和相称验收，见[第20轮](../iterations/2026-11-12-20-bitmap-attribute/README.md)。不读取卷或文件，也不获得以后VHD授权。
+ 
+ ## 建议范围
+ 
+@@ -17,3 +17,9 @@
+ 真实位序/来源、非驻留run完整验证与只读读取、同持锁owner绑定/前后核验、182槽实际状态仍未完成。若窗口不足，不为赶时间扩大支持或放松校验，先记录明确状态。
+ 
+ 格式依据：[属性记录头与驻留/非驻留](https://learn.microsoft.com/en-us/windows/win32/devnotes/attribute-record-header)、[属性列表与扩展记录](https://learn.microsoft.com/en-us/windows/win32/devnotes/attribute-list-entry)、[MFT记录位图](https://learn.microsoft.com/en-us/windows/win32/devnotes/master-file-table)。
++
++## 已实现与验证
++
++新入口 `--ntfs-bitmap-attribute-tests` 通过43核心、60独立反例；测试构建0警告/0错误，旧Map199、枚举91、模型48+58回归通过。跨第一扇区510尾字的512字节payload在严格验证后私有恢复，损坏、混合或全已恢复的raw输入仍拒绝；不存在kernel fallback。
++
++结果只有Synthetic内部属性；payload通过CopyPayload独立复制访问，不自动序列化正文。`ResidentComplete` / `ResidentPartial` 仅指提取字节相对预期槽数的容量覆盖，不验证bit值、真实位序、来源或实际分配。非驻留始终Deferred，最多返回受限长度元数据，不提供LCN/run/offset地址。本轮没有真实位图或新磁盘操作。
+diff --git a/docs/ntfs-bitmap-source-plan.md b/docs/ntfs-bitmap-source-plan.md
+new file mode 100644
+index 0000000..e3fab3a
+--- /dev/null
++++ b/docs/ntfs-bitmap-source-plan.md
+@@ -0,0 +1,62 @@
++# 下一步建议：绑定自有来源的BITMAP形态观察
++
++2026-11-12，基于第20轮纯内存定位器。本文件只有方案，尚未实施；本次2小时窗口的VHD许可不自动延续。现有v2有界范围、位图模型与定位器均不证明182个全零槽未分配，也未接入产品扫描。
++
++## 先回答哪个问题
++
++先在另获允许的新建隔离VHD中，观察同一真实record0内记录位图的形态和容量，再决定是否需要非驻留读取器。不能假定合成驻留夹具就是实际布局，也不能将Deferred当成失败已修复或位图全零。
++
++`$Mft` 的未命名 `$BITMAP` 描述MFT记录是否在用；卷簇位图及 `FSCTL_GET_VOLUME_BITMAP` 是另一口径，不替代本来源。参见微软[MFT说明](https://learn.microsoft.com/en-us/windows/win32/devnotes/master-file-table)与[卷位图接口](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_volume_bitmap)。
++
++## 建议第一阶段范围
++
++- 另给固定测试模式，例如 `-BitmapBootstrap` / `bitmap-bootstrap` / `bitmap_observed`，不改变旧mft-range v2或22目标模式的成功含义。模式工厂、摘要revision与深白名单独立，不能凭caller bool或模拟token声称真实来源。
++- 继续仅自有新建256MiB VHD，准备期验证固定/无父链/镜像与卷归属；同一owner锁成功后，复用它已经读取的1024字节bootstrap交纯定位器，不新增非驻留块读取或扩展记录读取。保留4096槽/4MiB+bootstrap/256次旧预算、21对象对照及关闭/后验/卸载清理。
++- 真实报告只观察属性存在性、驻留/Deferred类别、字节容量及受限长度元数据。来源owner与bootstrap归属证据由真实工厂建立；定位器的Synthetic结果不靠改字段升级为Native。来源真实与“已验证位图解释”分开表达。
++- 普通驻留容量足够也只报告ResidentCapacityOnly；Missing/Partial/非驻留/扩展等分别保留Unknown或Deferred，不调用位图模型推断真实分配，不跳过全零槽，不改四类decode结果。原始记录、位图正文、引用/路径/LCN/run和token不落盘或进入分享摘要。
++- 锁、输入、目标对照、后验或清理失败则清空成功报告；不强制卸载或自动改用个人盘。所有状态为固定字段/代码，关闭期间取消仍检查。
++
++`bitmap_observed` 只表示受控来源的形态观察及闭环完成，不代表位图已解释、182槽已确认、全格式/全占用或性能通过。如果实际是非驻留，此阶段到Deferred即结束，不临时扩大读取范围以获得“通过”。
++
++## 建议接口与摘要合同
++
++真实入口只收新建夹具manifest，不接收volume handle、物理偏移、caller验证标志、任意预算或位图正文。新mode使用固定工厂；测试替身始终输出Synthetic，即使所有模拟校验通过也不能通过真实摘要入口。
++
++bootstrap仍由同一私有owner读入，来源/map/有效长度改变即废弃该代；定位器只消费该私有bootstrap副本，不能用调用方传入的新记录替换。观察数据在内存暂存，到21对象、解锁、后验、fresh facts、backend关闭及最终取消检查全部通过之后才组装公开摘要。父脚本仍以卸载和清理完成为最后成功条件。
++
++第一阶段不需要保存payload：定位完成立即提取固定形态/容量元数据，释放对原始bootstrap及定位器结果的引用；不把CopyPayload放入缓存、队列或报告，也不新增持久状态。owner关闭或初始化失败清空暂存观察与map绑定，旧观察只可作为本次历史结果，不成为后续读盘的当前证明。资源和同步取消边界沿用已验证的自有来源生命周期，不宣称能即时打断系统调用。
++
++建议把现有v2范围摘要作为独立受检字段，新增的属性观察摘要仅有以下受控内容，不能直接序列化内部定位器对象：
++
++| 字段类别 | 约束与含义 |
++| --- | --- |
++| 来源与阶段 | 真实owner建立的来源类别；阶段固定ObservedShapeOnly，无VerifiedAllocation或SnapshotComplete值 |
++| 状态/代码 | 固定Missing、ResidentPartial、ResidentCapacityOnly、Deferred、Invalid及已审查代码，不接任意字符串 |
++| 预期与容量 | 预期槽数等于范围摘要，1..4096；payload字节0..512，驻留容量=min(预期槽,payload字节×8)，未提取则0 |
++| 非驻留元数据 | 只在对应Deferred代码下允许三个长度整数，范围/大小关系严格校验；其他情况必须null，不含映射或地址 |
++| 禁止内容 | bitmap/record正文、逐槽行、真实引用/路径、token、LCN/run、异常文本、真实分配总数与“已修复”标志 |
++
++来源真实只证明受控bootstrap从哪里来，不证明位图格式/bit解释已完成。公开摘要不得提供从容量Complete推导实际Free的捷径。新helper对字段、类型、排序/关系及额外字段深白名单，版本不得混用；旧v2文件快照不改名或重写。
++
++预算不会因复用定位器而增加：没有新的原始读取调用，仍仅bootstrap及原有有界范围；定位/复制的CPU和内存成本另记，不把Raw ReadCalls等同物理I/O，也不承诺实际调用数恒为5。若需要新增读取或不同几何，退出此阶段另给方案。
++
++## 第一阶段验收
++
++纯替身验证来源/模式隔离、一次bootstrap私有来源不换代、容量语义、各Deferred、失败/取消/释放和白名单注入；保留旧Map、枚举、来源及模式回归。若另获当前轮VHD许可，再完成一次真实形态观察、21对象及清理；没有实际许可就只做合成开发，真实项保持待验收。
++
++| 场景 | 必须观察到的行为 |
++| --- | --- |
++| 位图缺失/空/容量不足 | 保留对应状态，不生成零分配或Verified字段 |
++| 普通驻留容量足够 | 只为ResidentCapacityOnly，来源和关闭核验仍独立 |
++| 非驻留/扩展/命名/多重/特殊 | Deferred不包含读取地址，不能触发额外读取 |
++| 目标缺失、读取/Map失效、形态定位Invalid | 整体失败并清空成功证据，不发布先前页或半个属性摘要 |
++| 取消与关闭/清理同时发生 | 复用既有主错误优先规则，最后取消检查阻止成功，卸载不明不删镜像 |
++| 旧模式/替身/未知字段或版本混用 | 严格拒绝或保留旧模式，不伪装真实来源或位图完成 |
++
++## 形态明确之后另行决定
++
++1. 若驻留：先设计可核验的位序/已用与释放槽合成对照、同来源绑定和后验，不只验证21个正例或把模拟模型标成真实证明。
++2. 若非驻留：先实现纯合成run映射验证（符号delta、VCN覆盖、物理边界/重叠、初始化/EOF、上限及溢出），再明确最多读取多少对齐字节/调用、如何绑定同一owner和清理，单独确认扩大预算及真实操作；当前长度描述符不是读取地址。
++3. 属性扩展/压缩/稀疏/加密、额外BITMAP仍保守Deferred，另立范围。真实位图可用后，才讨论与记录四类交叉核验、RecordFlags/SparseMappingFlags支持、完整建树、扩大规模与资源基准。
++
++非驻留与扩展的格式依据见微软[属性记录头](https://learn.microsoft.com/en-us/windows/win32/devnotes/attribute-record-header)和[属性列表](https://learn.microsoft.com/en-us/windows/win32/devnotes/attribute-list-entry)。此方案不包含VSS、活跃个人卷、产品入口、安装打包或发布。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 7ca29dc..8bc147d 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-12：测试程序新增受限record0 BITMAP属性定位原型，仅在严格Map/USA核验后提取普通唯一未命名驻留payload，最多512字节；缺失/不足明确区分，非驻留/扩展等Deferred，无可读地址。43核心/60独立反例及Map199/枚举91/模型48+58通过。全部Synthetic，Complete只表示字节容量覆盖，未读取真实位图、未验证182槽状态或接入产品，见[第20轮](../iterations/2026-11-12-20-bitmap-attribute/README.md)。
++
+ 2026-11-12：测试程序新增纯合成MFT记录分配位图模型，保留三态声明与四类解码的12格交叉计数，缺失/未覆盖保持Unknown，全零不推断空闲。48核心/58独立反例及旧枚举91/来源68通过；修复了外部访问器伪造异常绕过净化的边界。结果全部标为Synthetic，没有读取真实位图或验证182槽的分配状态，不接产品统计，见[第19轮](../iterations/2026-11-12-19-bitmap-model/README.md)。
+ 
+ 2026-11-12：有界MFT摘要升级v2，新增固定原因码计数及全零Invalid观察。本机隔离VHD仍256槽/21对象匹配，183 Invalid细分为182全零Signature与1 SparseMappingFlags，6 Unsupported为RecordFlags；来源关闭、后验、卸载清理通过。严格decoder/四类/预算未改，不能将全零当已证明空闲或将拒绝当磁盘损坏。枚举91、来源68、PS477及外层284项通过，详见[第18轮](../iterations/2026-11-12-18-mft-classification/README.md)。无产品扫描提速或新发行包。
+diff --git a/iterations/2026-11-12-20-bitmap-attribute/README.md b/iterations/2026-11-12-20-bitmap-attribute/README.md
+new file mode 100644
+index 0000000..2ef66bf
+--- /dev/null
++++ b/iterations/2026-11-12-20-bitmap-attribute/README.md
+@@ -0,0 +1,21 @@
++# 受限MFT BITMAP属性定位原型
++
++2026-11-12，基线 `cc4a09165de032426dcd63f27ce7e5da63d983f2`（第19轮已提交并推送）。用户已确认[本轮纯内存方案](../../docs/ntfs-bitmap-attribute-plan.md)，只处理合成record0，不新增I/O/Native/VHD，不修改已有Map/decoder/fixtures，不接model/v2/产品或发行。
++
++实现与相称验收已完成，独立只读审查无阻塞。所有提取结果标为Synthetic，不证明真实位图格式、来源、位序或实际分配状态。
++
++## 范围与预定验收
++
++最多1024字节record0、4096预期槽、512字节驻留位图；先私有复制并用现有Map.Parse严格核验，再恢复私有USA定位属性。仅唯一未命名无flags/扩展的普通驻留形态可提取payload；缺失/不足保留明确状态，非驻留/命名/多重/特殊/扩展Deferred，无可读物理地址。畸形输入固定拒绝，不修改严格校验。
++
++Release测试构建0警告、0错误；新入口 `--ntfs-bitmap-attribute-tests` 43核心、60独立反例通过，旧Map199、枚举91、位图模型48+58回归通过，见[validation.json](validation.json)。
++
++独立夹具将512字节payload跨过首扇区510尾字，确认raw保护值与保存值不同，严格seed验证后返回恢复值；损坏、混合/全已恢复raw记录仍拒绝，无kernel fallback。覆盖缺失、空/部分/足够/额外容量、512/513界限、命名/多重/扩展/flags及非驻留Deferred、畸形偏移/长度、错误geometry/预期槽、取消及输入不变。
++
++先在复制前检查1024记录/4096槽及geometry绑定，再用同一私有源交Map.Parse；Unsupported→Deferred、严格失败→Invalid，不能把它们说成磁盘损坏。随后只恢复自己的USA副本并定位，payload为新数组，CopyPayload再复制，输入/每次返回互不别名，默认结果序列化不带正文。Nonresident只允许受限长度元数据，不返回run/LCN/offset。结果中的Complete/Partial只表示容量min(expectedSlots,payloadBytes*8)，不是bit值/真实位序/来源或分配核验。
++
++本轮无I/O、Native、VHD、原始样本/位图落盘或临时目录，正常测试构建保留；旧本机kernel六样本未变不上传。不更改生产自动/高速路径，不打包、标签或Release。真实读取、非驻留run验证/块访问、同来源绑定与后验、182槽实际状态、复杂格式/完整建树和资源收益仍未完成。
++
++`changes.patch`以本轮基线正向恢复并逐文件核对，`files.json`记录必要文件SHA-256，不递归自身或旧归档；提交推送状态以Git历史为准。
++
++已准备下一轮[绑定自有来源的形态观察方案](../../docs/ntfs-bitmap-source-plan.md)，仅方案未实施；它区分来源真实、容量与位图解释，不新增当前轮真实操作或以后默认VHD许可。
+diff --git a/iterations/2026-11-12-20-bitmap-attribute/validation.json b/iterations/2026-11-12-20-bitmap-attribute/validation.json
+new file mode 100644
+index 0000000..29d82b3
+--- /dev/null
++++ b/iterations/2026-11-12-20-bitmap-attribute/validation.json
+@@ -0,0 +1,19 @@
++{
++  "baseline": "cc4a09165de032426dcd63f27ce7e5da63d983f2",
++  "scope": "PureSyntheticBoundedMftBitmapAttributeLocator",
++  "build": { "configuration": "Release", "warnings": 0, "errors": 0 },
++  "synthetic": { "core": 43, "independent_adversarial": 60 },
++  "regression": { "mft_map": 199, "mft_enumerator": 91, "bitmap_model_core": 48, "bitmap_model_adversarial": 58 },
++  "independent_review": "NoBlockingFinding",
++  "all_results_synthetic": true,
++  "resident_complete_means_capacity_only": true,
++  "nonresident_read_addresses_returned": false,
++  "payload_automatically_serialized": false,
++  "volume_or_file_io_by_locator": false,
++  "vhd_operations": false,
++  "native_or_production_integration": false,
++  "existing_decoder_or_map_changed": false,
++  "raw_capture_added": false,
++  "performance_claim": false,
++  "packaging_or_release": false
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 6f80f70..6291b0d 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -17,6 +17,17 @@ if (args.Length > 0 && args[0] == "--ntfs-record-replay")
+ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+ if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
+ if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
++if (args.Contains("--ntfs-bitmap-attribute-tests"))
++{
++    try
++    {
++        int core = DiskAtlas.NtfsPrototype.NtfsMftBitmapAttributeTests.Run();
++        int adversarial = DiskAtlas.NtfsPrototype.NtfsMftBitmapAttributeAdversarialTests.Run();
++        Console.WriteLine($"PASS NTFS bitmap attribute checks: {core} core; {adversarial} adversarial; synthetic records only");
++        return 0;
++    }
++    catch { Console.Error.WriteLine("FAIL NTFS bitmap attribute; no private details emitted"); return 1; }
++}
+ if (args.Contains("--ntfs-bitmap-model-tests"))
+ {
+     try
+diff --git a/tests/Prototypes/Ntfs/NtfsMftBitmapAttribute.cs b/tests/Prototypes/Ntfs/NtfsMftBitmapAttribute.cs
+new file mode 100644
+index 0000000..d44b7f1
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsMftBitmapAttribute.cs
+@@ -0,0 +1,109 @@
++using System.Buffers.Binary;
++
++namespace DiskAtlas.NtfsPrototype;
++
++internal sealed record NtfsMftBitmapNonresidentMetadata(long LogicalBytes, long InitializedBytes, long AllocatedBytes);
++
++// Internal-only parsed data. Payload is accessible solely as a fresh copy, not
++// a serializable property; no raw record, source token or read address is kept.
++internal sealed class NtfsMftBitmapAttributeResult
++{
++    private readonly byte[] payload;
++    internal string Revision => "synthetic-mft-bitmap-attribute-v1";
++    internal string EvidenceKind => "Synthetic";
++    internal string Status { get; }
++    internal string Code { get; }
++    internal int ExpectedSlots { get; }
++    internal int CoveredSlots { get; }
++    internal int PayloadBytes => payload.Length;
++    internal NtfsMftBitmapNonresidentMetadata? NonresidentMetadata { get; }
++    internal byte[] CopyPayload() => (byte[])payload.Clone();
++    internal NtfsMftBitmapAttributeResult(string status, string code, int expectedSlots, int coveredSlots = 0,
++        byte[]? privatePayload = null, NtfsMftBitmapNonresidentMetadata? metadata = null)
++    { Status = status; Code = code; ExpectedSlots = expectedSlots; CoveredSlots = coveredSlots; payload = privatePayload ?? []; NonresidentMetadata = metadata; }
++}
++
++// Pure attribute location only. Synthetic bytes/geometry do not establish a
++// Native source. There is no I/O, nonresident mapping, model integration or
++// fallback from a strict raw USA rejection to the kernel representation.
++internal static class NtfsMftBitmapAttribute
++{
++    internal const int MaximumRecordBytes = 1024, MaximumPayloadBytes = 512, MaximumSlots = 4096;
++    private static ushort U16(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(offset));
++    private static uint U32(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset));
++    private static long I64(byte[] bytes, int offset) => BinaryPrimitives.ReadInt64LittleEndian(bytes.AsSpan(offset));
++    private static bool Fits(int start, long length, int end) => start >= 0 && length >= 0 && start <= end && length <= end - start;
++
++    internal static NtfsMftBitmapAttributeResult Parse(ReadOnlySpan<byte> rawRecord0, NtfsMftGeometry geometry,
++        int expectedSlots, CancellationToken token = default)
++    {
++        token.ThrowIfCancellationRequested();
++        NtfsMftBitmapAttributeResult Result(string status, string code)
++        { token.ThrowIfCancellationRequested(); return new(status, code, expectedSlots); }
++        if (rawRecord0.Length != MaximumRecordBytes) return Result("Invalid", "BitmapInput");
++        if (geometry == null || geometry is not { SectorBytes: 512, ClusterBytes: 4096, RecordBytes: 1024 })
++            return Result("Invalid", "BitmapGeometry");
++        if (expectedSlots is < 1 or > MaximumSlots || geometry.MftValidDataLength != (long)expectedSlots * 1024)
++            return Result("Invalid", "BitmapSlotBudget");
++        // Copy exactly once before consulting any parser, so all later reads
++        // refer to this same private source rather than the mutable caller span.
++        byte[] owned = rawRecord0.ToArray();
++        token.ThrowIfCancellationRequested();
++        var seed = NtfsMftMap.Parse(owned, geometry, token);
++        if (seed.Status == "Unsupported") return Result("Deferred", "BitmapSeedUnsupported");
++        if (seed.Status != "Mapped" || seed.Map == null) return Result("Invalid", "BitmapSeedInvalid");
++        try
++        {
++            int usa = U16(owned, 4), usaCount = U16(owned, 6);
++            for (int i = 1; i < usaCount; i++)
++            {
++                token.ThrowIfCancellationRequested();
++                BinaryPrimitives.WriteUInt16LittleEndian(owned.AsSpan(i * 512 - 2), U16(owned, usa + i * 2));
++            }
++            int used = checked((int)U32(owned, 24)), found = -1, foundLength = 0, bitmapCount = 0;
++            bool ended = false;
++            for (int offset = U16(owned, 20), count = 0; offset < used;)
++            {
++                token.ThrowIfCancellationRequested();
++                if (!Fits(offset, 4, used)) return Result("Invalid", "BitmapAttributeBounds");
++                uint type = U32(owned, offset);
++                if (type == uint.MaxValue) { ended = true; break; }
++                if (++count > 64 || !Fits(offset, 24, used)) return Result("Invalid", "BitmapAttributeBounds");
++                uint length = U32(owned, offset + 4);
++                if (length < 24 || length % 8 != 0 || !Fits(offset, length, used)) return Result("Invalid", "BitmapAttributeBounds");
++                if (type == 0x20) return Result("Deferred", "BitmapExtent");
++                if (type == 0xb0) { bitmapCount++; found = offset; foundLength = checked((int)length); }
++                offset = checked(offset + (int)length);
++            }
++            if (!ended) return Result("Invalid", "BitmapAttributeBounds");
++            if (bitmapCount == 0) return Result("Missing", "BitmapMissing");
++            if (bitmapCount != 1) return Result("Deferred", "BitmapMultiple");
++            if (owned[found + 9] != 0) return Result("Deferred", "BitmapNamed");
++            if (U16(owned, found + 12) != 0) return Result("Deferred", "BitmapFlags");
++            if (owned[found + 8] == 0)
++            {
++                uint size = U32(owned, found + 16); int value = U16(owned, found + 20);
++                if (value < 24 || !Fits(value, size, foundLength)) return Result("Invalid", "BitmapAttributeBounds");
++                if (size > MaximumPayloadBytes) return Result("Deferred", "BitmapPayloadBudget");
++                byte[] payload = owned.AsSpan(found + value, checked((int)size)).ToArray();
++                int covered = Math.Min(expectedSlots, checked(payload.Length * 8));
++                token.ThrowIfCancellationRequested();
++                return new(covered == expectedSlots ? "ResidentComplete" : "ResidentPartial",
++                    covered == expectedSlots ? "BitmapResidentComplete" : "BitmapResidentPartial", expectedSlots, covered, payload);
++            }
++            if (owned[found + 8] != 1 || foundLength < 64) return Result("Invalid", "BitmapAttributeBounds");
++            if (U16(owned, found + 34) != 0) return Result("Deferred", "BitmapFlags");
++            if (I64(owned, found + 16) != 0) return Result("Deferred", "BitmapExtent");
++            long allocated = I64(owned, found + 40), logical = I64(owned, found + 48), initialized = I64(owned, found + 56);
++            if (logical < 0 || initialized < 0 || initialized > logical || allocated < logical || allocated < 0 ||
++                allocated % geometry.ClusterBytes != 0 || allocated > geometry.VolumeBytes)
++                return Result("Invalid", "BitmapNonresidentBounds");
++            if (logical > MaximumPayloadBytes) return Result("Deferred", "BitmapPayloadBudget");
++            token.ThrowIfCancellationRequested();
++            // Metadata is bounded; this does not validate its physical mapping
++            // or authorize reading. No offsets, LCNs or mapping bytes escape.
++            return new("Deferred", "BitmapNonresident", expectedSlots, metadata: new(logical, initialized, allocated));
++        }
++        catch (OverflowException) { return Result("Invalid", "BitmapAttributeBounds"); }
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsMftBitmapAttributeAdversarialTests.cs b/tests/Prototypes/Ntfs/NtfsMftBitmapAttributeAdversarialTests.cs
+new file mode 100644
+index 0000000..1ced389
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsMftBitmapAttributeAdversarialTests.cs
+@@ -0,0 +1,169 @@
++using System.Buffers.Binary;
++using System.Text.Json;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// Bounded synthetic record bytes only. No bitmap extraction from a real file,
++// volume handle, native operation or readable nonresident address is involved.
++internal static class NtfsMftBitmapAttributeAdversarialTests
++{
++    private static NtfsMftGeometry Geometry(int slots) => new(512, 4096, 1024,
++        256L * 1024 * 1024, 65536, 10, slots * 1024L);
++
++    private static byte[] Seed(int slots, params byte[][] extras)
++    {
++        long valid = slots * 1024L;
++        int clusters = checked((int)((valid + 4095) / 4096));
++        byte[] data = new byte[72];
++        NtfsRecordFixtures.U32(data, 0, 0x80); NtfsRecordFixtures.U32(data, 4, 72); data[8] = 1;
++        NtfsRecordFixtures.U64(data, 24, (ulong)(clusters - 1)); NtfsRecordFixtures.U16(data, 32, 64);
++        NtfsRecordFixtures.U64(data, 40, (ulong)clusters * 4096); NtfsRecordFixtures.U64(data, 48, (ulong)valid);
++        NtfsRecordFixtures.U64(data, 56, (ulong)valid);
++        data[64] = 0x12; NtfsRecordFixtures.U16(data, 65, (ushort)clusters); data[67] = 10;
++        var attributes = new List<byte[]> { NtfsRecordFixtures.Name("$MFT"), data };
++        attributes.AddRange(extras);
++        return NtfsRecordFixtures.Record(attributes);
++    }
++
++    private static byte[] NonresidentBitmap(long logical = 512, long initialized = 512, long allocated = 4096)
++    {
++        var attribute = new byte[72];
++        NtfsRecordFixtures.U32(attribute, 0, 0xb0); NtfsRecordFixtures.U32(attribute, 4, 72); attribute[8] = 1;
++        NtfsRecordFixtures.U64(attribute, 24, 0); NtfsRecordFixtures.U16(attribute, 32, 64);
++        NtfsRecordFixtures.U64(attribute, 40, unchecked((ulong)allocated)); NtfsRecordFixtures.U64(attribute, 48, unchecked((ulong)logical));
++        NtfsRecordFixtures.U64(attribute, 56, unchecked((ulong)initialized));
++        attribute[64] = 0x11; attribute[65] = 1; attribute[66] = 10;
++        return attribute;
++    }
++
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("MFT bitmap attribute adversarial check failed: " + name);
++            passed++; Console.WriteLine("PASS MFT bitmap attribute adversarial " + name);
++        }
++        void SafeCode(NtfsMftBitmapAttributeResult result) => Check(result.Revision == "synthetic-mft-bitmap-attribute-v1" &&
++            result.EvidenceKind == "Synthetic" && result.Code.Length is > 0 and <= 80 && result.Code.All(character => character is >= 'A' and <= 'Z' or >= 'a' and <= 'z'),
++            "every result stays synthetic with a bounded fixed code rather than arbitrary input text");
++
++        byte[] payload = Enumerable.Range(0, 512).Select(index => (byte)index).ToArray();
++        byte[] crossing = Seed(4096, NtfsRecordFixtures.Resident(0xb0, payload)); var before = crossing.ToArray();
++        Check(BinaryPrimitives.ReadUInt16LittleEndian(crossing.AsSpan(510)) == 0xa55a &&
++            BinaryPrimitives.ReadUInt16LittleEndian(crossing.AsSpan(50)) == 0xfffe,
++            "independent fixture places bitmap payload bytes across the first protected sector tail");
++        var result = NtfsMftBitmapAttribute.Parse(crossing, Geometry(4096), 4096);
++        Check(result.Status == "ResidentComplete" && result.Code == "BitmapResidentComplete" && result.ExpectedSlots == 4096 &&
++            result.CoveredSlots == 4096 && result.PayloadBytes == 512 && result.CopyPayload().SequenceEqual(payload),
++            "private USA restoration returns all original payload bytes including the protected tail word");
++        Check(crossing.SequenceEqual(before), "strict seed validation and payload extraction never rewrite caller record bytes");
++        byte[] firstCopy = result.CopyPayload(); firstCopy[0] ^= 0xff; crossing[256] ^= 0xff;
++        Check(result.CopyPayload().SequenceEqual(payload) && !ReferenceEquals(firstCopy, result.CopyPayload()),
++            "payload copies remain independent of both caller raw bytes and earlier returned arrays");
++        SafeCode(result);
++        string json = JsonSerializer.Serialize(result);
++        Check(!json.Contains(Convert.ToBase64String(payload), StringComparison.Ordinal) &&
++            !result.GetType().GetProperties().Any(property => property.Name is "Payload" or "RawRecord" or "RawBytes" or "Runs" or "VolumeOffset"),
++            "default result serialization exposes no bitmap body raw record or readable addresses");
++
++        foreach (string shape in new[] { "Damaged", "FirstRestored", "AllRestored" })
++        {
++            byte[] raw = before.ToArray();
++            if (shape == "Damaged") raw[510] ^= 1;
++            else
++            {
++                NtfsRecordFixtures.U16(raw, 510, BinaryPrimitives.ReadUInt16LittleEndian(raw.AsSpan(50)));
++                if (shape == "AllRestored") NtfsRecordFixtures.U16(raw, 1022, BinaryPrimitives.ReadUInt16LittleEndian(raw.AsSpan(52)));
++            }
++            var snapshot = raw.ToArray();
++            var rejected = NtfsMftBitmapAttribute.Parse(raw, Geometry(4096), 4096);
++            Check(rejected.Status == "Invalid" && rejected.Code == "BitmapSeedInvalid" && rejected.CopyPayload().Length == 0 && raw.SequenceEqual(snapshot),
++                "damaged mixed-restored and fully restored tails cannot enter the strict raw-record locator");
++            SafeCode(rejected);
++        }
++        foreach ((int slots, int length, string status, int covered) in new[] {
++            (1,0,"ResidentPartial",0), (9,1,"ResidentPartial",8), (9,2,"ResidentComplete",9), (4096,511,"ResidentPartial",4088),
++            (4096,512,"ResidentComplete",4096), (1,512,"ResidentComplete",1) })
++        {
++            byte[] body = Enumerable.Repeat((byte)0x5c, length).ToArray();
++            byte[] raw = Seed(slots, NtfsRecordFixtures.Resident(0xb0, body));
++            var parsed = NtfsMftBitmapAttribute.Parse(raw, Geometry(slots), slots);
++            Check(parsed.Status == status && parsed.ExpectedSlots == slots && parsed.CoveredSlots == covered && parsed.PayloadBytes == length &&
++                parsed.CopyPayload().SequenceEqual(body), "resident coverage distinguishes empty partial exact and extra-capacity bodies without zero substitution");
++        }
++        var absent = NtfsMftBitmapAttribute.Parse(Seed(12), Geometry(12), 12);
++        Check(absent.Status == "Missing" && absent.Code == "BitmapMissing" && absent.CoveredSlots == 0 && absent.PayloadBytes == 0 && absent.CopyPayload().Length == 0,
++            "missing bitmap has no payload or inferred zero allocation coverage");
++        SafeCode(absent);
++        var tooLarge = NtfsMftBitmapAttribute.Parse(Seed(4096, NtfsRecordFixtures.Resident(0xb0, new byte[513])), Geometry(4096), 4096);
++        Check(tooLarge.Code == "BitmapPayloadBudget" && tooLarge.Status == "Deferred" && tooLarge.CopyPayload().Length == 0 && tooLarge.CoveredSlots == 0,
++            "resident byte 513 cannot escape the payload ceiling or publish truncated coverage");
++
++        foreach (byte[][] extras in new byte[][][] {
++            [NtfsRecordFixtures.Resident(0xb0,new byte[2],"named")],
++            [NtfsRecordFixtures.Resident(0xb0,new byte[2]),NtfsRecordFixtures.Resident(0xb0,new byte[2])],
++            [NtfsRecordFixtures.Resident(0xb0,new byte[2]),NtfsRecordFixtures.Resident(0xb0,new byte[2],"named")],
++            [NtfsRecordFixtures.Resident(0x20,[]),NtfsRecordFixtures.Resident(0xb0,new byte[2])] })
++        {
++            var deferred = NtfsMftBitmapAttribute.Parse(Seed(12, extras), Geometry(12), 12);
++            Check(deferred.Status == "Deferred" && deferred.CopyPayload().Length == 0 && deferred.CoveredSlots == 0,
++                "named duplicate mixed or attribute-list forms stay deferred without opportunistic payload selection");
++            SafeCode(deferred);
++        }
++        foreach (ushort flags in new ushort[] { 1, 0x8000, 0x4000, 0x8001 })
++        {
++            var deferred = NtfsMftBitmapAttribute.Parse(Seed(12, NtfsRecordFixtures.Resident(0xb0, new byte[2], flags: flags)), Geometry(12), 12);
++            Check(deferred.Status == "Deferred" && deferred.CopyPayload().Length == 0 && deferred.CoveredSlots == 0,
++                "special bitmap flags never leak a resident payload into the supported ordinary path");
++            SafeCode(deferred);
++        }
++        {
++            byte[] raw = Seed(12, NtfsRecordFixtures.Resident(0xb0, new byte[2])); NtfsRecordFixtures.U64(raw, 32, NtfsRecordFixtures.Reference(9, 3));
++            var deferred = NtfsMftBitmapAttribute.Parse(raw, Geometry(12), 12);
++            Check(deferred.Status == "Deferred" && deferred.CopyPayload().Length == 0, "an extension record cannot masquerade as a base record-zero bitmap");
++        }
++        var nonresident = NtfsMftBitmapAttribute.Parse(Seed(4096, NonresidentBitmap()), Geometry(4096), 4096);
++        Check(nonresident.Status == "Deferred" && nonresident.Code == "BitmapNonresident" && nonresident.CoveredSlots == 0 && nonresident.CopyPayload().Length == 0 &&
++            nonresident.NonresidentMetadata is { LogicalBytes: 512, InitializedBytes: 512, AllocatedBytes: 4096 },
++            "nonresident metadata remains bounded descriptive information without payload coverage or run reading");
++        Check(!nonresident.NonresidentMetadata!.GetType().GetProperties(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public |
++            System.Reflection.BindingFlags.NonPublic).Any(property => property.Name.Contains("Offset", StringComparison.Ordinal) ||
++            property.Name.Contains("Lcn", StringComparison.OrdinalIgnoreCase) || property.Name.Contains("Run", StringComparison.Ordinal)),
++            "nonresident result offers no physical offset or readable-run addressing contract");
++        SafeCode(nonresident);
++
++        foreach (string malformed in new[] { "ValueOffset", "ValueLength", "AttributeLength", "NameOffset", "MappingOffset" })
++        {
++            byte[] attribute = malformed == "MappingOffset" ? NonresidentBitmap() :
++                NtfsRecordFixtures.Resident(0xb0, new byte[2], malformed == "NameOffset" ? "n" : "");
++            if (malformed == "ValueOffset") NtfsRecordFixtures.U16(attribute, 20, 1);
++            if (malformed == "ValueLength") NtfsRecordFixtures.U32(attribute, 16, uint.MaxValue);
++            if (malformed == "AttributeLength") NtfsRecordFixtures.U32(attribute, 4, 25);
++            if (malformed == "NameOffset") NtfsRecordFixtures.U16(attribute, 10, ushort.MaxValue);
++            if (malformed == "MappingOffset") NtfsRecordFixtures.U16(attribute, 32, ushort.MaxValue);
++            byte[] raw = Seed(12, attribute); var snapshot = raw.ToArray();
++            var rejected = NtfsMftBitmapAttribute.Parse(raw, Geometry(12), 12);
++            Check(rejected.Status == "Invalid" && rejected.CopyPayload().Length == 0 && rejected.CoveredSlots == 0 && raw.SequenceEqual(snapshot),
++                "malformed resident name attribute and mapping bounds reject before any payload publication");
++            SafeCode(rejected);
++        }
++        foreach (int slots in new[] { -1, 0, 4097, int.MaxValue })
++        {
++            var rejected = NtfsMftBitmapAttribute.Parse(Seed(12), Geometry(12), slots);
++            Check(rejected.Status == "Invalid" && rejected.Code == "BitmapSlotBudget" && rejected.CopyPayload().Length == 0,
++                "out-of-contract expected slot counts cannot inflate coverage or allocation");
++        }
++        var wrongExpected = NtfsMftBitmapAttribute.Parse(Seed(12), Geometry(12), 11);
++        Check(wrongExpected.Status == "Invalid" && wrongExpected.CopyPayload().Length == 0, "expected slots must bind the seed map valid-data length");
++        foreach (byte[] raw in new[] { new byte[1023], new byte[1025], Array.Empty<byte>() })
++            Check(NtfsMftBitmapAttribute.Parse(raw, Geometry(12), 12).Status == "Invalid", "input remains exactly one bounded record rather than an arbitrary byte source");
++        using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
++        byte[] cancelRaw = Seed(12, NtfsRecordFixtures.Resident(0xb0, new byte[2])); var cancelBefore = cancelRaw.ToArray();
++        NtfsMftBitmapAttributeResult? partial = null; bool canceled = false;
++        try { partial = NtfsMftBitmapAttribute.Parse(cancelRaw, Geometry(12), 12, cancellation.Token); }
++        catch (OperationCanceledException error) { canceled = error.CancellationToken == cancellation.Token; }
++        Check(canceled && partial == null && cancelRaw.SequenceEqual(cancelBefore), "cancellation publishes no partial locator result and preserves the input record");
++        return passed;
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsMftBitmapAttributeTests.cs b/tests/Prototypes/Ntfs/NtfsMftBitmapAttributeTests.cs
+new file mode 100644
+index 0000000..d12f287
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsMftBitmapAttributeTests.cs
+@@ -0,0 +1,133 @@
++using System.Buffers.Binary;
++using System.Text.Json;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// Synthetic protected record0 bytes only. No file/volume/native/source use.
++internal static class NtfsMftBitmapAttributeTests
++{
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("BITMAP attribute check failed: " + name);
++            passed++; Console.WriteLine("PASS BITMAP attribute " + name);
++        }
++        NtfsMftBitmapAttributeResult Parse(byte[] record, int slots = 4) => NtfsMftBitmapAttribute.Parse(record, Geometry(slots), slots);
++        void Rejected(byte[] record, string status, string code, string name, int slots = 4)
++        {
++            var result = Parse(record, slots);
++            Check(result.Status == status && result.Code == code && result.EvidenceKind == "Synthetic" &&
++                result.CopyPayload().Length == 0 && result.CoveredSlots == 0 &&
++                result.Code.All(char.IsAsciiLetterOrDigit), name);
++        }
++        byte[] payload = [0xa5, 0x53];
++        byte[] source = Seed(NtfsRecordFixtures.Resident(0xb0, payload));
++        byte[] before = source.ToArray();
++        var complete = Parse(source);
++        Check(complete is { Revision: "synthetic-mft-bitmap-attribute-v1", EvidenceKind: "Synthetic", Status: "ResidentComplete",
++            Code: "BitmapResidentComplete", ExpectedSlots: 4, CoveredSlots: 4, PayloadBytes: 2, NonresidentMetadata: null } &&
++            complete.CopyPayload().SequenceEqual(payload), "unique ordinary unnamed resident bitmap yields only a copied synthetic payload");
++        Check(source.SequenceEqual(before), "strict seed parsing and USA restoration never modify caller record bytes");
++        byte[] returned = complete.CopyPayload(); returned[0] ^= 0xff; source.AsSpan().Clear();
++        Check(complete.CopyPayload().SequenceEqual(payload), "caller record and returned payload changes cannot alter the owned payload");
++        Check(JsonSerializer.Serialize(complete) == "{}", "default serialization exposes neither resident payload nor record or source details");
++        var partial = Parse(Seed(NtfsRecordFixtures.Resident(0xb0, new byte[] { 0x81 }), 16), 16);
++        Check(partial is { Status: "ResidentPartial", Code: "BitmapResidentPartial", ExpectedSlots: 16, CoveredSlots: 8, PayloadBytes: 1 },
++            "a shorter valid payload reports partial coverage rather than implied zero remainder");
++        var empty = Parse(Seed(NtfsRecordFixtures.Resident(0xb0, [])));
++        Check(empty is { Status: "ResidentPartial", CoveredSlots: 0, PayloadBytes: 0 },
++            "an empty resident value supplies no allocation coverage");
++        byte[] maximumPayload = Enumerable.Range(0, 512).Select(index => (byte)index).ToArray();
++        byte[] crossing = Seed(NtfsRecordFixtures.Resident(0xb0, maximumPayload), 4096);
++        byte[] crossingBefore = crossing.ToArray();
++        var maximum = Parse(crossing, 4096);
++        Check(maximum is { Status: "ResidentComplete", CoveredSlots: 4096, PayloadBytes: 512 } &&
++            maximum.CopyPayload().SequenceEqual(maximumPayload) && crossing.SequenceEqual(crossingBefore),
++            "exact record slot and payload ceilings preserve bytes across a protected sector tail");
++        Check(BinaryPrimitives.ReadUInt16LittleEndian(crossing.AsSpan(510)) == 0xa55a &&
++            maximum.CopyPayload().SequenceEqual(maximumPayload), "resident bytes at the USA tail are restored solely in a private copy");
++        Rejected(Seed(NtfsRecordFixtures.Resident(0xb0, new byte[513])), "Deferred", "BitmapPayloadBudget",
++            "oversized but well-formed resident payload stays deferred rather than treated as corruption");
++        Rejected(Seed(), "Missing", "BitmapMissing", "missing bitmap is explicit and never synthesized as zero payload");
++        Rejected(Seed(NtfsRecordFixtures.Resident(0xb0, [1], "named")), "Deferred", "BitmapNamed",
++            "named bitmaps do not silently substitute for the unnamed MFT bitmap");
++        byte[] ordinaryData = NtfsRecordFixtures.Nonresident(4096, 8192);
++        byte[] multiple = NtfsRecordFixtures.Record([NtfsRecordFixtures.Name("$MFT"), ordinaryData,
++            NtfsRecordFixtures.Resident(0xb0, [1]), NtfsRecordFixtures.Resident(0xb0, [2])]);
++        Rejected(multiple, "Deferred", "BitmapMultiple", "multiple bitmap attributes cannot publish the first candidate");
++        foreach (ushort flags in new ushort[] { 1, 0x8000, 0x4000 })
++            Rejected(Seed(NtfsRecordFixtures.Resident(0xb0, [1], flags: flags)), "Deferred", "BitmapFlags",
++                "compressed sparse or encrypted bitmap flags remain outside this extraction scope");
++        Rejected(Seed(NtfsRecordFixtures.Resident(0x20, [])), "Deferred", "BitmapSeedUnsupported",
++            "attribute extensions are deferred by the unchanged strict seed contract");
++        byte[] bitmapNonresident = NonresidentBitmap(8, 4096, 8);
++        var deferred = Parse(Seed(bitmapNonresident));
++        Check(deferred is { Status: "Deferred", Code: "BitmapNonresident", CoveredSlots: 0, PayloadBytes: 0 } &&
++            deferred.NonresidentMetadata == new NtfsMftBitmapNonresidentMetadata(8, 8, 4096) && deferred.CopyPayload().Length == 0,
++            "a nonresident form exposes bounded lengths but no payload or readable run address");
++        string[] metadataFields = typeof(NtfsMftBitmapNonresidentMetadata).GetProperties().Select(property => property.Name).ToArray();
++        Check(metadataFields.OrderBy(name => name).SequenceEqual(new[] { "AllocatedBytes", "InitializedBytes", "LogicalBytes" }),
++            "deferred metadata has no offsets LCN run list or authority fields");
++        var uninitialized = Parse(Seed(NonresidentBitmap(8, 4096, 0)));
++        Check(uninitialized.Status == "Deferred" && uninitialized.NonresidentMetadata?.InitializedBytes == 0 && uninitialized.CoveredSlots == 0,
++            "uninitialized nonresident bytes are not exposed as initialized zero bitmap data");
++        Rejected(Seed(NonresidentBitmap(513, 4096, 513)), "Deferred", "BitmapPayloadBudget",
++            "nonresident logical size beyond the payload budget is deferred without a descriptor");
++        var compressionUnit = NonresidentBitmap(8, 4096, 8); NtfsRecordFixtures.U16(compressionUnit, 34, 1);
++        Rejected(Seed(compressionUnit), "Deferred", "BitmapFlags", "a nonzero compression unit cannot imply ordinary bitmap support");
++        foreach (var lengths in new (long Logical, long Allocated, long Initialized)[] {
++            (-1, 4096, 0), (8, 4096, -1), (8, 4096, 9), (8, 7, 8), (8, 4097, 8), (8, 512 * 1024 * 1024, 8) })
++            Rejected(Seed(NonresidentBitmap(lengths.Logical, lengths.Allocated, lengths.Initialized)), "Invalid", "BitmapNonresidentBounds",
++                "invalid nonresident lengths cannot become a usable deferred descriptor");
++        var continuation = NonresidentBitmap(8, 4096, 8); NtfsRecordFixtures.U64(continuation, 16, 1); NtfsRecordFixtures.U64(continuation, 24, 1);
++        Rejected(Seed(continuation), "Deferred", "BitmapExtent", "continuation extents cannot impersonate a complete bitmap attribute");
++        var malformed = NtfsRecordFixtures.Resident(0xb0, [1]); NtfsRecordFixtures.U16(malformed, 20, 1);
++        Rejected(Seed(malformed), "Invalid", "BitmapSeedInvalid", "malformed resident offsets stay strict rejection before locating payload");
++        var hugeLength = NtfsRecordFixtures.Resident(0xb0, [1]); NtfsRecordFixtures.U32(hugeLength, 16, uint.MaxValue);
++        Rejected(Seed(hugeLength), "Invalid", "BitmapSeedInvalid", "overflowing resident value lengths never reach a copy");
++        byte[] damaged = Seed(NtfsRecordFixtures.Resident(0xb0, [1])); damaged[510] ^= 1;
++        Rejected(damaged, "Invalid", "BitmapSeedInvalid", "USA damage has no restored-byte or kernel fallback");
++        byte[] restored = Restore(Seed(NtfsRecordFixtures.Resident(0xb0, [1])));
++        Rejected(restored, "Invalid", "BitmapSeedInvalid", "already restored logical bytes cannot enter the strict raw locator");
++        foreach (int length in new[] { 0, 1023, 1025, 65536 })
++            Rejected(new byte[length], "Invalid", "BitmapInput", "non-exact bounded record input is rejected before copying");
++        foreach (int slots in new[] { 0, -1, 4097, int.MaxValue })
++        {
++            var invalid = NtfsMftBitmapAttribute.Parse(before, Geometry(4), slots);
++            Check(invalid.Status == "Invalid" && invalid.Code == "BitmapSlotBudget" && invalid.PayloadBytes == 0,
++                "invalid expected slot budgets never publish a resident candidate");
++        }
++        var wrongRange = NtfsMftBitmapAttribute.Parse(before, Geometry(4), 8);
++        Check(wrongRange.Status == "Invalid" && wrongRange.Code == "BitmapSlotBudget", "expected slots must bind the declared native valid range");
++        var wrongGeometry = NtfsMftBitmapAttribute.Parse(before, Geometry(4) with { ClusterBytes = 512 }, 4);
++        Check(wrongGeometry.Status == "Invalid" && wrongGeometry.Code == "BitmapGeometry", "other geometry is not silently accepted by this fixture-only locator");
++        using var canceled = new CancellationTokenSource(); canceled.Cancel(); bool cancellationSeen = false;
++        try { NtfsMftBitmapAttribute.Parse(before, Geometry(4), 4, canceled.Token); } catch (OperationCanceledException) { cancellationSeen = true; }
++        Check(cancellationSeen && before.SequenceEqual(Seed(NtfsRecordFixtures.Resident(0xb0, payload))),
++            "cancellation throws without publishing a partial result or changing input");
++        return passed;
++    }
++
++    private static NtfsMftGeometry Geometry(int slots) => new(512, 4096, 1024, 256L * 1024 * 1024, 65536, 10, (long)slots * 1024);
++    private static byte[] Seed(byte[]? extra = null, int slots = 4)
++    {
++        int clusters = Math.Max(1, (slots + 3) / 4);
++        return NtfsMftMapTests.Record0([0x12, (byte)clusters, (byte)(clusters >> 8), 10, 0], (ulong)(clusters - 1),
++            (long)clusters * 4096, (long)slots * 1024, (long)slots * 1024, extra: extra);
++    }
++    private static byte[] NonresidentBitmap(long logical, long allocated, long initialized)
++    {
++        var attribute = NtfsRecordFixtures.Nonresident(logical, allocated); NtfsRecordFixtures.U32(attribute, 0, 0xb0);
++        NtfsRecordFixtures.U64(attribute, 24, 0); attribute[65] = 1;
++        NtfsRecordFixtures.U64(attribute, 56, unchecked((ulong)initialized)); return attribute;
++    }
++    private static byte[] Restore(byte[] source)
++    {
++        var result = source.ToArray(); int usa = BinaryPrimitives.ReadUInt16LittleEndian(result.AsSpan(4));
++        for (int i = 1; i < 3; i++)
++            NtfsRecordFixtures.U16(result, i * 512 - 2, BinaryPrimitives.ReadUInt16LittleEndian(result.AsSpan(usa + i * 2)));
++        return result;
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/README.md b/tests/Prototypes/Ntfs/README.md
+index be38d33..a3fa3c5 100644
+--- a/tests/Prototypes/Ntfs/README.md
++++ b/tests/Prototypes/Ntfs/README.md
+@@ -28,6 +28,16 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-bitmap-model
+ 
+ 48核心/58独立反例通过，全部输出Synthetic。模型LSB-first和模拟对象绑定不证明真实NTFS位序或来源；未接入现有v2报告、Native/产品统计。外部集合/Memory异常均在访问边界净化，取消以传入token为准。实际182槽的分配状态仍未知，细节见[方案](../../../docs/ntfs-bitmap-model-plan.md)与[第19轮](../../../iterations/2026-11-12-19-bitmap-model/README.md)。
+ 
++## 受限BITMAP属性定位
++
++`NtfsMftBitmapAttribute` 只在内存处理1024字节合成record0；先私有复制并交既有Map严格核验，再恢复自己的USA定位唯一普通未命名驻留payload（最多512字节）。Missing/ResidentPartial/Deferred/Invalid分开，非驻留只返回受限长度元数据，无读取地址；不改decoder/Map或接入位图模型、v2和产品。
++
++```powershell
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-bitmap-attribute-tests
++```
++
++43核心/60独立反例通过，包含跨USA尾字payload恢复与私有副本隔离。结果固定Synthetic，Complete仅是容量覆盖，不验证bit值/位序/真实来源/实际分配。正文不自动序列化，取出也返回副本。未读取任何真实位图，见[方案](../../../docs/ntfs-bitmap-attribute-plan.md)与[第20轮](../../../iterations/2026-11-12-20-bitmap-attribute/README.md)。
++
+ ## 有限原始读取原型
+ 
+ `NtfsMftMap` 从严格校验的原始record0建立不可变映射，限定一个未命名普通非驻留DATA、最多128区段；验证VCN、带符号LCN增量、大小及物理范围，不支持属性扩展或稀疏MFT。`PlanRecord` 生成有界连续目标切片，不假定MFT在磁盘上连续。

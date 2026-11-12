@@ -2,7 +2,11 @@
 
 ## 当前执行计划（2026-11-12）
 
-第19轮[纯合成位图模型](ntfs-bitmap-model-plan.md)已完成48核心/58独立反例，旧枚举91/来源68回归通过；三态声明与四类计数独立，缺失/未覆盖Unknown，不凭全零推断空闲，见[归档](../iterations/2026-11-12-19-bitmap-model/README.md)。下一步需要独立设计真实MFT记录位图的受限提取、与同一持锁来源绑定和后置核验；模型没有验证真实位序或182槽状态，不直接提升为Native证据。格式支持、完整建树和资源基准仍分别安排，不把本模型接入产品或扩大读盘授权。
+第20轮[受限属性定位](ntfs-bitmap-attribute-plan.md)已完成43核心/60独立反例，Map199/枚举91/模型48+58回归通过；只从合成record0提取普通驻留payload，非驻留等Deferred，无新I/O/地址，见[归档](../iterations/2026-11-12-20-bitmap-attribute/README.md)。下一步先确定受控真实record0中的BITMAP形态及来源绑定；如果非驻留，先独立完成其run映射与预算方案，不直接读块。真实位序/分配状态与后验仍未验，不把容量Complete当真实统计完成。
+
+下一轮的[自有来源形态观察方案](ntfs-bitmap-source-plan.md)已备好，尚未实施或获新一轮真实操作许可；先复用同owner bootstrap观察形态，不新增非驻留块读取。观察完成与位图解释分开，实际Deferred就停在该阶段，不临时扩预算。
+
+第19轮[纯合成位图模型](ntfs-bitmap-model-plan.md)已完成48核心/58独立反例，旧枚举91/来源68回归通过；三态声明与四类计数独立，缺失/未覆盖Unknown，不凭全零推断空闲，见[归档](../iterations/2026-11-12-19-bitmap-model/README.md)。模型本身没有验证真实位序、来源或182槽状态，不直接提升为Native证据。格式支持、完整建树和资源基准仍分别安排，不把本模型接入产品或扩大读盘授权。
 
 第18轮[分类诊断](ntfs-classification-diagnostics-plan.md)已完成：实际183 Invalid中182为全零Signature、1为SparseMappingFlags，6 Unsupported为RecordFlags，21对象与关闭/清理仍通过，见[归档](../iterations/2026-11-12-18-mft-classification/README.md)。只是解释严格拒绝分支，不改变其有效性或证明空闲；后续纯模型以上方第19轮为准。计划不等于真实来源实施授权，不凭全零跳过或放松decoder。
 

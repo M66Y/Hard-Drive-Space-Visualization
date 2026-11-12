@@ -1,0 +1,19 @@
+{
+  "baseline": "cc4a09165de032426dcd63f27ce7e5da63d983f2",
+  "scope": "PureSyntheticBoundedMftBitmapAttributeLocator",
+  "build": { "configuration": "Release", "warnings": 0, "errors": 0 },
+  "synthetic": { "core": 43, "independent_adversarial": 60 },
+  "regression": { "mft_map": 199, "mft_enumerator": 91, "bitmap_model_core": 48, "bitmap_model_adversarial": 58 },
+  "independent_review": "NoBlockingFinding",
+  "all_results_synthetic": true,
+  "resident_complete_means_capacity_only": true,
+  "nonresident_read_addresses_returned": false,
+  "payload_automatically_serialized": false,
+  "volume_or_file_io_by_locator": false,
+  "vhd_operations": false,
+  "native_or_production_integration": false,
+  "existing_decoder_or_map_changed": false,
+  "raw_capture_added": false,
+  "performance_claim": false,
+  "packaging_or_release": false
+}
