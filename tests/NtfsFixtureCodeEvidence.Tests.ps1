@@ -19,7 +19,7 @@ function RejectSuccess($Code, $Status) {
     try { ConvertTo-FixtureCodeEvidence $Code $Status | Out-Null } catch { $message = $_.Exception.Message }
     Check ($message -ceq 'FIXTURE_CODE_EVIDENCE_INVALID') 'success rejects a missing or non-None result code'
 }
-foreach ($status in @('passed','collected','verified')) {
+foreach ($status in @('passed','collected','verified','source_verified')) {
     Check ((ConvertTo-FixtureCodeEvidence 'None' $status) -ceq 'None') 'successful fixture mode has exactly None code'
     foreach ($bad in @($null,'','none','OperationFailed','RawUnlockSucceeded','PrivateMarker123',$true,1,@('None'))) { RejectSuccess $bad $status }
 }
@@ -27,7 +27,7 @@ foreach ($status in @('running','cleanup_failed','PASSED',$null,1,$true,@('passe
 foreach ($code in @('FixtureGuard','FixtureIO','AccessDenied','ManifestJson','RawMetadataVolumeBinding',
     'RawUnlockSucceeded','RawPostNativeObjectStable','RawPostNativeAliasStable','RawPostNamedStreamContent',
     'RawLookupReasonsMatchFixture','RAW_EVIDENCE_MISSING','RAW_COMPARISON_EVIDENCE_INVALID','MATRIX_JSON_INVALID',
-    'COMPARISON_FAILED','FIXTURE_CODE_EVIDENCE_INVALID','OperationFailed')) {
+    'COMPARISON_FAILED','FIXTURE_CODE_EVIDENCE_INVALID','SOURCE_EVIDENCE_MISSING','SOURCE_ADAPTER_EVIDENCE_INVALID','OperationFailed')) {
     Check ((ConvertTo-FixtureCodeEvidence $code 'failed') -ceq $code) 'known semantic failure code preserved'
 }
 foreach ($bad in @('PrivateMarker123','SECRET_IDENTIFIER','None','fixtureIO','FixtureIOPrivate','RawNative-Private-5',
@@ -92,24 +92,33 @@ $gate = @($main[0].Body.Statements | Where-Object {$_ -is [Management.Automation
 Check ($codeStatements.Count -eq 2 -and $gate.Count -eq 1) 'actual summary code conversion precedes mode and exit gating'
 $codeBlock = [scriptblock]::Create(($codeStatements.Extent.Text -join "`n"))
 $gateBlock = [scriptblock]::Create($gate[0].Extent.Text)
+$nativeStatements = @($main[0].Body.Statements | Where-Object {$_ -is [Management.Automation.Language.IfStatementAst] -and ($_.Extent.Text.StartsWith('if ($SourceAdapter -and $summary.PSObject.Properties[''native_error''])') -or $_.Extent.Text.StartsWith('if ($SourceAdapter -and $summary.PSObject.Properties[''native_operation''])'))})
+Check ($nativeStatements.Count -eq 2) 'native failure fields use only actual bounded source-mode gates'
+$nativeBlock = [scriptblock]::Create(($nativeStatements.Extent.Text -join "`n"))
+
 $catchBlock = [scriptblock]::Create($main[0].CatchClauses[0].Body.Extent.Text.TrimStart('{').TrimEnd('}'))
 $exports = @($main[0].Finally.Statements | Where-Object {$_.Extent.Text.StartsWith('$result.')})
 Check ($exports.Count -ge 10) 'extract only final mode evidence export assignments'
 $exportBlock = [scriptblock]::Create(($exports.Extent.Text -join "`n"))
-function SummaryResult($Code, [string]$SummaryStatus, [string]$Expected, [int]$ExitCode, [bool]$Missing = $false, [bool]$CleanupFailure = $false) {
+function SummaryResult($Code, [string]$SummaryStatus, [string]$Expected, [int]$ExitCode, [bool]$Missing = $false, [bool]$CleanupFailure = $false, $InputNativeError = $null, $InputNativeOperation = $null) {
     $summary = [pscustomobject]@{status=$SummaryStatus;code=$Code}
     if ($Missing) {$summary.PSObject.Properties.Remove('code')}
     $status = 'failed'; $failureCode = 'None'; $runnerExit = $ExitCode; $failureCount = 0; $expectedStatus = $Expected
     $RawRecords = $Expected -ceq 'verified'; $KernelDiagnostics = $Expected -ceq 'collected'
+    $SourceAdapter = $Expected -ceq 'source_verified'; $sourceEvidence='synthetic-source'
+    $nativeError=0; $nativeOperation='None'
+    if ($null -ne $InputNativeError) {$summary | Add-Member -NotePropertyName native_error -NotePropertyValue $InputNativeError}
+    if ($null -ne $InputNativeOperation) {$summary | Add-Member -NotePropertyName native_operation -NotePropertyValue $InputNativeOperation}
+
     $rawEvidence = 'synthetic-raw'; $matrixEvidence = [pscustomobject]@{DecodeFailures=0}; $captureCleanup='EmptyRemoved'
     $lookupEvidence='synthetic-lookup'; $leaseEvidence='synthetic-lease'; $specialEvidence='synthetic-special'; $specialCostEvidence='synthetic-cost'
-    try { . $codeBlock; . $gateBlock; $status=$Expected } catch { . $catchBlock }
+    try { . $codeBlock; . $nativeBlock; . $gateBlock; $status=$Expected } catch { . $catchBlock }
     if ($CleanupFailure) {$status='cleanup_failed'}
     $result = [ordered]@{status=$status;code=$failureCode}
     . $exportBlock
     return $result
 }
-foreach ($mode in @('passed','collected','verified')) {
+foreach ($mode in @('passed','collected','verified','source_verified')) {
     $result = SummaryResult 'None' $mode $mode 0
     Check ($result.status -ceq $mode -and $result.code -ceq 'None') 'valid result keeps its own success mode'
     $result = SummaryResult 'PrivateMarker123' $mode $mode 0
@@ -129,4 +138,44 @@ $result = SummaryResult 'None' 'passed' 'verified' 0
 Check ($result.status -ceq 'failed' -and $result.code -ceq 'COMPARISON_FAILED' -and -not $result.raw_verified) 'comparison success cannot satisfy raw mode'
 $result = SummaryResult 'None' 'verified' 'passed' 0
 Check ($result.status -ceq 'failed' -and $null -eq $result.raw_comparison -and $null -eq $result.lookup_experiment) 'raw success cannot satisfy old comparison mode'
+$result = SummaryResult 'None' 'source_verified' 'source_verified' 0
+Check ($result.mode -ceq 'fixture-source' -and $result.source_verified -and $null -ne $result.source_adapter -and -not $result.raw_verified -and $null -eq $result.raw_comparison) 'source evidence has a distinct success mode and no raw success alias'
+$result = SummaryResult 'None' 'source_verified' 'source_verified' 0 -CleanupFailure $true
+Check (-not $result.source_verified -and $null -eq $result.source_adapter) 'source cleanup failure clears its success evidence'
+foreach ($foreign in @('passed','collected','verified')) {
+    $result = SummaryResult 'None' $foreign 'source_verified' 0
+    Check ($result.status -ceq 'failed' -and -not $result.source_verified -and $null -eq $result.source_adapter) 'other mode success cannot satisfy source mode'
+    $result = SummaryResult 'None' 'source_verified' $foreign 0
+    Check ($result.status -ceq 'failed' -and -not $result.source_verified -and $null -eq $result.source_adapter) 'source success cannot satisfy another mode'
+}
+$conflict = @($wrapperAst.EndBlock.Statements | Where-Object {$_ -is [Management.Automation.Language.IfStatementAst] -and $_.Extent.Text.Contains('CONFLICTING_FIXTURE_MODES')})
+Check ($conflict.Count -eq 1) 'identify pure fixture mode conflict guard'
+$conflictBlock = [scriptblock]::Create($conflict[0].Extent.Text)
+foreach ($kernel in @($false,$true)) { foreach ($raw in @($false,$true)) { foreach ($source in @($false,$true)) {
+    $KernelDiagnostics=$kernel; $RawRecords=$raw; $SourceAdapter=$source
+    $message=$null
+    try { . $conflictBlock } catch { $message=$_.Exception.Message }
+    $expectedConflict=([int]$kernel+[int]$raw+[int]$source) -gt 1
+    Check (($expectedConflict -and $message -ceq 'CONFLICTING_FIXTURE_MODES') -or (-not $expectedConflict -and $null -eq $message)) 'only one real fixture mode may be selected'
+} } }
+foreach ($code in @('SourceNativeFailed','SourceTokenMismatch','SourceNotActive','SourceUnlockFailed','SourceFactsChanged','FixtureImageFixedType','FixtureImageSubtype','FixturePartitionIdentity')) {
+    Check ((ConvertTo-FixtureCodeEvidence $code 'failed') -ceq $code) 'source and guard error categories are semantic fixed codes'
+}
+foreach ($code in @('SourcePrivateMarker','FixturePrivateMarker','SourceTokenMismatch-Private','FixtureImageSubtype-Private')) {
+    Check ((ConvertTo-FixtureCodeEvidence $code 'failed') -ceq 'OperationFailed') 'source-like arbitrary markers cannot escape code redaction'
+}
+$result = SummaryResult 'SourceNativeFailed' 'failed' 'source_verified' 1 -InputNativeError 5 -InputNativeOperation 'LockFailed'
+Check ($result.status -ceq 'failed' -and $result.native_operation -ceq 'LockFailed' -and $null -eq $result.source_adapter) 'bounded native failure operation remains a failure without source evidence'
+foreach ($bad in @(-1,2147483648L,$true,'5',1.5,@(5))) {
+    $result = SummaryResult 'None' 'source_verified' 'source_verified' 0 -InputNativeError $bad
+    Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID' -and -not $result.source_verified) 'native error rejects out of range and noninteger values'
+}
+foreach ($bad in @('PrivateMarker','None-Private','lockfailed',$true,5,@('None'))) {
+    $result = SummaryResult 'None' 'source_verified' 'source_verified' 0 -InputNativeOperation $bad
+    Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID' -and -not $result.source_verified) 'native operation rejects arbitrary text and wrong types'
+}
+$result = SummaryResult 'None' 'source_verified' 'source_verified' 0 -InputNativeError 5
+Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID') 'source success cannot carry a nonzero native error'
+$result = SummaryResult 'None' 'source_verified' 'source_verified' 0 -InputNativeOperation 'ReadFailed'
+Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID') 'source success cannot carry a native failure operation'
 Write-Output ('PASS NTFS fixture code evidence checks: ' + $checks)

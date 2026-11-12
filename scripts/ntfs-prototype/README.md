@@ -86,3 +86,16 @@ pwsh -NoProfile -File scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 `
 结果文件必须不存在并处于允许的artifacts范围；不能覆盖旧报告。成功状态为 `verified`，必须同时检查 `raw_verified`、`detached`、`cleanup_completed` 和 `raw_comparison`。`RawDecoded=22` 只说明这22条严格解码，`UnknownAllocationObjects=14` 如实保留特殊分配未知，不是整卷或占用统计全部完成。锁失败不读取，也不用强制卸载重试；失败/清理失败清空成功摘要。最多128次ReadFile尝试、2MiB请求、每次64KiB；实际受控夹具为22次/22528字节，不能当物理I/O或性能结论。
 
 原始记录仅在内存，raw模式不创建留样会话；旧6条kernel样本仍仅本机保留。公开结果经过深层字段及语义代码白名单，不转发任意异常或标识。真实成功、失败尝试和未验收项见[本轮记录](../../iterations/2026-11-12-14-raw-records/README.md)。授权不延续到以后，不锁个人卷，不提供生产入口或打包。
+
+## 自有来源适配器模式
+
+在本轮已明确获准重复隔离VHD时，使用既有新结果路径入口加 `-SourceAdapter`（与 `-RawRecords` / `-KernelDiagnostics` 互斥）：
+
+```powershell
+$result = Join-Path (Resolve-Path artifacts) ('ntfs-live-result-' + [guid]::NewGuid().ToString('N') + '.json')
+pwsh -NoProfile -File scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 -ResultPath $result -SourceAdapter
+```
+
+模式为 `fixture-source`，成功状态 `source_verified`；必须同时核对 `source_verified`、`detached`、`cleanup_completed` 及 `source_adapter.Comparison`。新适配器先在准备期核对固定/无父链/真实卷归属，再由独立owner打开自己的句柄，成功锁定后读既有22记录并执行固定后验；不复用caller bool或任意句柄作为证明。真实结果token与映射只在内存，关闭后envelope失效；模拟Native报告不能通过真实来源摘要白名单。
+
+新来源失败只允许固定类别、数值 `native_error` 和枚举 `native_operation`，任意异常文本/路径/身份不输出；失败/清理失败清空成功证据，旧 `raw_verified` 不为新模式别名。预算、占用未知与未接产品的边界见[第16轮方案](../../docs/ntfs-fixture-source-plan.md)。不因这个模式存在而获得以后VHD、全MFT、个人卷或VSS许可。

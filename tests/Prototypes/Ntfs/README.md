@@ -30,6 +30,18 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-read-session
 
 该入口运行核心与独立反例检查，不创建文件、快照或VHD。具体合同、重入边界及后续真实来源要求见[会话计划](../../../docs/ntfs-read-session-plan.md)，不替换已有解码器/统计/生产扫描路径。
 
+## 自有测试卷来源适配器
+
+`NtfsVerifiedFixtureContext` 从本轮manifest独立核对nonce、固定VHD与无父链、卷extents/MBR分区/NTFS几何/marker，并派生21条受控路径。准备入口允许数据根尚未创建，始终先验证实际归属；完整factory仍要求夹具存在。`NtfsFixtureSource` 私有创建并自持新卷句柄，锁成功后建立私有映射，opaque token/结果envelope绑定同一owner；旧准备句柄在Open前关闭，不向来源传任意裸句柄或validated布尔值。
+
+```powershell
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-fixture-source-tests
+pwsh -NoProfile -File tests/NtfsSourceEvidence.Tests.ps1
+pwsh -NoProfile -File tests/NtfsFixtureCodeEvidence.Tests.ps1
+```
+
+这些检查只用合成Native替身。真实 `-SourceAdapter` 另需当轮自有VHD授权，固定22记录/21对象，128次ReadFile/2MiB/单次64KiB；14特殊占用未知仍保留。单条结果是暂存，envelope关闭后不能解包；已取出的不可变副本不能被物理撤回，也不构成当前来源证明。仅解锁/固定Native后验/清理成功才导出 `source_verified`，普通Dispose不生成成功报告。它不接入模拟NameToken模型或生产后端，详情见[方案](../../../docs/ntfs-fixture-source-plan.md)。
+
 构建测试项目后运行：
 
 ```powershell

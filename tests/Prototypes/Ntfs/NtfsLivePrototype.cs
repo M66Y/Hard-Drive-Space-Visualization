@@ -53,7 +53,16 @@ internal static class NtfsLivePrototype
             string Field(string name) => json.GetProperty(name).GetString() ?? throw new FixtureFailure("ManifestField");
             string nonce = Field("nonce"), root = Field("drive_root"), volumeGuid = Field("volume_guid");
             string mode = Field("mode");
-            Check(mode is "comparison" or "kernel-diagnostics" or "raw-records", "KnownFixtureMode");
+            Check(mode is "comparison" or "kernel-diagnostics" or "raw-records" or "fixture-source", "KnownFixtureMode");
+            if (mode == "fixture-source")
+            {
+                // Reject wrong backing volumes or parent chains before the
+                // legacy preparation path touches any marker or volume data.
+                string preparationSummary = Path.Combine(workspace, "live-summary.json");
+                Check(!File.Exists(preparationSummary), "FreshSummary");
+                summaryPath = preparationSummary;
+                NtfsVerifiedFixtureContext.VerifyPreparation(manifestFile.FullName);
+            }
             string image = Field("image_path");
             Check(json.GetProperty("schema").GetInt32() == 1 && Guid.TryParseExact(nonce, "N", out _) &&
                 suffix == "ntfs-live-" + nonce &&
@@ -84,7 +93,7 @@ internal static class NtfsLivePrototype
             var storageType = new StorageType { DeviceId = 2, Vendor = new Guid("ec984aec-a0f9-47e9-901f-71415a66345b") };
             var open = new OpenParameters { Version = 1, Depth = 1 };
             // GET_INFO plus DETACH access for a permanently mounted VHD; no detach API is called here.
-            Check(OpenVirtualDisk(ref storageType, image, 0xc0000, 0, ref open, out var virtualDisk) == 0, "OpenOwnedVirtualDiskInfo");
+            Check(OpenVirtualDisk(ref storageType, image, 0xc0000, mode == "fixture-source" ? 1u : 0u, ref open, out var virtualDisk) == 0, "OpenOwnedVirtualDiskInfo");
             long ownedPartitionBytes = 0;
             uint ownedPhysicalNumber = 0;
             using (virtualDisk)
@@ -120,7 +129,7 @@ internal static class NtfsLivePrototype
 
             string data = Path.Combine(volumeGuid, "AsukaLensFixture-" + nonce);
             Check(!Directory.Exists(data), "FreshSyntheticDirectory");
-            if (mode is "kernel-diagnostics" or "raw-records")
+            if (mode is "kernel-diagnostics" or "raw-records" or "fixture-source")
             {
                 var rawTargets = new Dictionary<string, NtfsRawTarget>(StringComparer.Ordinal);
                 NtfsKernelRead ReadKernel(string path)
@@ -164,6 +173,24 @@ internal static class NtfsLivePrototype
                         rawTargets[caseId] = new(caseId, path, parentPath, after!, parent!, File.GetAttributes(path));
                     }
                     return new(output, count, before, after!, sector, cluster, 3, 1);
+                }
+                if (mode == "fixture-source")
+                {
+                    var control = NtfsKernelMatrix.Run(data, ReadKernel, null, Check, retainFailures: false);
+                    // The new source owns a freshly verified handle; the preparation
+                    // handle must not survive into its locking/read lifetime.
+                    volume.Dispose();
+                    using var source = NtfsFixtureSource.Open(manifestFile.FullName);
+                    var sourceReport = source.RunFixedComparison(control);
+                    Check(sourceReport.EvidenceKind == "NativeOwnedFixture" && sourceReport.GuardOwned &&
+                        sourceReport.TokenBound && sourceReport.MapBound && sourceReport.Closed,
+                        "SourceOwnedClosureVerified");
+                    Check(sourceReport.Comparison.RawDecoded == 22 && sourceReport.Comparison.MatchedObjects == 21 &&
+                        sourceReport.Comparison.UnknownAllocationObjects == 14, "SourceFixedComparisonVerified");
+                    File.WriteAllText(summaryPath, JsonSerializer.Serialize(new { schema = 1, status = "source_verified", checks,
+                        failures = 0, code = "None", source_adapter = sourceReport }));
+                    Console.WriteLine("VERIFIED fixture source: known records only; source and closure bound");
+                    return 0;
                 }
                 if (mode == "raw-records")
                 {
@@ -394,12 +421,31 @@ internal static class NtfsLivePrototype
         catch (Exception error)
         {
             if (error is FixtureFailure specific) failureCode = specific.Code;
+            else if (error is NtfsFixtureSourceException sourceFailure) failureCode = sourceFailure.Code;
+            else if (error is NtfsFixtureGuardException guardFailure) failureCode = guardFailure.Code;
             else failureCode = error switch
             {
                 UnauthorizedAccessException => "AccessDenied", IOException => "FixtureIO",
                 JsonException => "ManifestJson", _ => "FixtureFailure"
             };
-            if (summaryPath != null) try { WriteSummary(summaryPath, "failed", checks, 1, failureCode); } catch { }
+            if (summaryPath != null) try
+            {
+                if (error is NtfsFixtureSourceException or NtfsFixtureGuardException)
+                {
+                    int nativeError = error switch
+                    {
+                        NtfsFixtureSourceException sourceError when sourceError.NativeErrorCode >= 0 => sourceError.NativeErrorCode,
+                        NtfsFixtureGuardException guardError when guardError.NativeErrorCode >= 0 => guardError.NativeErrorCode,
+                        _ => 0
+                    };
+                    string nativeOperation = error is NtfsFixtureSourceException sourceErrorWithOperation &&
+                        sourceErrorWithOperation.NativeCode is "LockFailed" or "SeekFailed" or "ReadFailed" or "ShortRead" or "AllocationFailed" or "BufferReleaseFailed"
+                        ? sourceErrorWithOperation.NativeCode : "None";
+                    File.WriteAllText(summaryPath, JsonSerializer.Serialize(new { schema = 1, status = "failed", checks,
+                        failures = 1, code = failureCode, native_error = nativeError, native_operation = nativeOperation }));
+                }
+                else WriteSummary(summaryPath, "failed", checks, 1, failureCode);
+            } catch { }
             Console.Error.WriteLine("FAIL NTFS live " + failureCode + "; checks=" + checks);
             return 1;
         }

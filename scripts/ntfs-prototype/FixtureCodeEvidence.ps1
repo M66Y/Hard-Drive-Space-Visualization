@@ -1,7 +1,7 @@
 #requires -Version 7.4
 # Semantic result-code whitelist. Unknown text is never forwarded to retained results.
 function ConvertTo-FixtureCodeEvidence($Value, $Status) {
-    if ($Status -isnot [string] -or $Status -cnotin @('passed','collected','verified','failed')) {
+    if ($Status -isnot [string] -or $Status -cnotin @('passed','collected','verified','source_verified','failed')) {
         throw 'FIXTURE_CODE_EVIDENCE_INVALID'
     }
     if ($Status -cne 'failed') {
@@ -22,6 +22,27 @@ function ConvertTo-FixtureCodeEvidence($Value, $Status) {
         'RawResultCoverage','ADMINISTRATOR_REQUIRED','COMPARISON_FAILED','CONFLICTING_FIXTURE_MODES',
         'RUNNER_LIMIT','RUNNER_NOT_BUILT','RUNNER_STILL_ACTIVE','SUMMARY_INVALID','SUMMARY_MISSING',
         'RAW_EVIDENCE_MISSING','RAW_COMPARISON_EVIDENCE_INVALID','MATRIX_JSON_INVALID',
+        'SOURCE_EVIDENCE_MISSING','SOURCE_ADAPTER_EVIDENCE_INVALID',
+        'FixtureAbsolutePath','FixtureAdapter','FixtureAliasBinding','FixtureAlignmentBounds',
+        'FixtureBaselineBudget','FixtureBaselineCase','FixtureBaselinePath','FixtureCaseBudget',
+        'FixtureContextClosed','FixtureControlBounds','FixtureControlFailed','FixtureDataRoot',
+        'FixtureGuardOperation','FixtureImageBounds','FixtureImageChanged','FixtureImageDevice',
+        'FixtureImageFixedType','FixtureImageInformation','FixtureImageOpen','FixtureImageSize',
+        'FixtureImageSubtype','FixtureJsonFields','FixtureJsonSchema','FixtureJsonShape',
+        'FixtureJsonValue','FixtureManifestBounds','FixtureManifestChanged','FixtureManifestIdentity',
+        'FixtureMarkerBinding','FixtureMarkerBounds','FixtureMftGeometry','FixtureMountedVolume',
+        'FixtureNamedStream','FixtureNonce','FixtureNtfsGeometry','FixturePartitionBounds',
+        'FixturePartitionChanged','FixturePartitionIdentity','FixturePhysicalDevice','FixturePhysicalSector',
+        'FixturePostTargetChanged','FixtureReadBounds','FixtureReparse','FixtureRepositoryRoot',
+        'FixtureResolveVolume','FixtureStorageFailed','FixtureTargetAttributes','FixtureTargetIdentity',
+        'FixtureTargetType','FixtureVolumeDataBounds','FixtureVolumeExtents','FixtureVolumeOpen',
+        'FixtureVolumeSyntax','FixtureWorkspace','SourceAllocationMismatch','SourceCaseInvalid',
+        'SourceCleanupFailed','SourceControlInvalid','SourceCoverageInvalid','SourceFactsChanged',
+        'SourceGeometryInvalid','SourceIdentityMismatch','SourceLinksMismatch','SourceLogicalMismatch',
+        'SourceMapBindingMismatch','SourceMapInvalid','SourceNamesMismatch','SourceNativeFailed',
+        'SourceNotActive','SourceReadCoverageInvalid','SourceResultMismatch','SourceScopeMismatch',
+        'SourceStrictDecodeFailed','SourceTargetContextInvalid','SourceTargetScopeInvalid','SourceTokenMismatch',
+        'SourceUnlockFailed',
         'KERNEL_MATRIX_EVIDENCE_INVALID','CAPTURE_CLEANUP_INVALID','FIXTURE_CODE_EVIDENCE_INVALID'
     )
     if ($Value -cin $fixed) { return $Value }

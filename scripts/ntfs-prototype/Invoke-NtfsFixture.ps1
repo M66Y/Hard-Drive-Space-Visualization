@@ -1,12 +1,12 @@
 #requires -Version 7.4
 [CmdletBinding()]
-param([Parameter(Mandatory)][string]$ResultPath, [switch]$KernelDiagnostics, [switch]$RawRecords)
+param([Parameter(Mandatory)][string]$ResultPath, [switch]$KernelDiagnostics, [switch]$RawRecords, [switch]$SourceAdapter)
 
 # Destructive commands below are bound only to a newly created disposable image.
 # No disk number, drive letter, existing image, or general command can be supplied.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-if ($KernelDiagnostics -and $RawRecords) { throw 'CONFLICTING_FIXTURE_MODES' }
+if (($KernelDiagnostics -and $RawRecords) -or ($KernelDiagnostics -and $SourceAdapter) -or ($RawRecords -and $SourceAdapter)) { throw 'CONFLICTING_FIXTURE_MODES' }
 $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $artifactsRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot 'artifacts'))
 $fixtureNonce = [guid]::NewGuid().ToString('N')
@@ -19,6 +19,7 @@ $detached = $false; $cleaned = $false; $runner = $null; $runnerExit = $null
 $checks = 0; $failureCount = 0; $status = 'failed'
 $failureCode = 'None'; $runnerStopped = $true
 $nativeError = 0
+$nativeOperation = 'None'
 $lookupEvidence = $null
 $leaseEvidence = $null
 $specialEvidence = $null
@@ -26,11 +27,13 @@ $specialCostEvidence = $null
 $matrixEvidence = $null
 $captureCleanup = $null
 $rawEvidence = $null
+$sourceEvidence = $null
 . (Join-Path $PSScriptRoot 'LeaseEvidence.ps1')
 . (Join-Path $PSScriptRoot 'SpecialEvidence.ps1')
 . (Join-Path $PSScriptRoot 'SpecialCostEvidence.ps1')
 . (Join-Path $PSScriptRoot 'KernelMatrixEvidence.ps1')
 . (Join-Path $PSScriptRoot 'RawComparisonEvidence.ps1')
+. (Join-Path $PSScriptRoot 'SourceAdapterEvidence.ps1')
 . (Join-Path $PSScriptRoot 'FixtureCodeEvidence.ps1')
 $diskNumber = $null; $diskPath = $null; $imageDevicePath = $null
 
@@ -251,7 +254,7 @@ public static class AsukaLensFixtureImage {
     $confirmedVolume = @($confirmedPartition | Get-Volume -ErrorAction Stop)
     if ([string]$confirmedPartition.DriveLetter -cne $driveLetter -or $confirmedVolume.Count -ne 1 -or
         [string]$confirmedVolume[0].UniqueId -cne $volumeId) { throw 'VOLUME_CHANGED_BEFORE_MARKER' }
-    $mode = if ($RawRecords) { 'raw-records' } elseif ($KernelDiagnostics) { 'kernel-diagnostics' } else { 'comparison' }
+    $mode = if ($SourceAdapter) { 'fixture-source' } elseif ($RawRecords) { 'raw-records' } elseif ($KernelDiagnostics) { 'kernel-diagnostics' } else { 'comparison' }
     $fixture = [ordered]@{schema=1;image_path=$imagePath;volume_guid=[string]$volume.UniqueId;drive_root=$driveRoot;workspace=$workspace;nonce=$fixtureNonce;mode=$mode}
     $manifestPath = Join-Path $workspace 'fixture.json'
     Write-SafeJson $fixture $manifestPath
@@ -270,21 +273,37 @@ public static class AsukaLensFixtureImage {
     $runnerExit = $runner.ExitCode
     $summaryPath = Join-Path $workspace 'live-summary.json'
     [void](Assert-NoReparsePath $summaryPath)
-    $summaryLimit = if ($KernelDiagnostics -or $RawRecords) { 65536 } else { 16384 }
+    $summaryLimit = if ($KernelDiagnostics -or $RawRecords -or $SourceAdapter) { 65536 } else { 16384 }
     if (-not (Test-Path -LiteralPath $summaryPath -PathType Leaf) -or (Get-Item -LiteralPath $summaryPath).Length -gt $summaryLimit) { throw 'SUMMARY_MISSING' }
     $summaryText = Get-Content -LiteralPath $summaryPath -Raw -Encoding utf8
     Assert-UniqueJsonKeys $summaryText
     $summary = $summaryText | ConvertFrom-Json
-    if ($summary.schema -ne 1 -or $summary.status -cnotin @('passed','failed','collected','verified') -or
+    if ($summary.schema -ne 1 -or $summary.status -cnotin @('passed','failed','collected','verified','source_verified') -or
         ($summary.checks -isnot [long] -and $summary.checks -isnot [int]) -or
         ($summary.failures -isnot [long] -and $summary.failures -isnot [int]) -or
         $summary.checks -lt 1 -or $summary.checks -gt 10000 -or $summary.failures -lt 0 -or $summary.failures -gt $summary.checks) { throw 'SUMMARY_INVALID' }
     $checks = [int]$summary.checks; $failureCount = [int]$summary.failures
     $summaryCode = if ($summary.PSObject.Properties['code']) { $summary.code } else { $null }
     $failureCode = ConvertTo-FixtureCodeEvidence $summaryCode $summary.status
-    $expectedStatus = if ($RawRecords) { 'verified' } elseif ($KernelDiagnostics) { 'collected' } else { 'passed' }
+    if ($SourceAdapter -and $summary.PSObject.Properties['native_error']) {
+        if (($summary.native_error -isnot [int] -and $summary.native_error -isnot [long]) -or
+            $summary.native_error -lt 0 -or $summary.native_error -gt [int]::MaxValue -or
+            ($summary.status -ceq 'source_verified' -and $summary.native_error -ne 0)) { throw 'SUMMARY_INVALID' }
+        $nativeError = [int]$summary.native_error
+    }
+    if ($SourceAdapter -and $summary.PSObject.Properties['native_operation']) {
+        if ($summary.native_operation -isnot [string] -or $summary.native_operation -cnotin
+            @('None','LockFailed','SeekFailed','ReadFailed','ShortRead','AllocationFailed','BufferReleaseFailed') -or
+            ($summary.status -ceq 'source_verified' -and $summary.native_operation -cne 'None')) { throw 'SUMMARY_INVALID' }
+        $nativeOperation = $summary.native_operation
+    }
+    $expectedStatus = if ($SourceAdapter) { 'source_verified' } elseif ($RawRecords) { 'verified' } elseif ($KernelDiagnostics) { 'collected' } else { 'passed' }
     if ($runnerExit -ne 0 -or $summary.status -cne $expectedStatus -or $failureCount -ne 0) { throw 'COMPARISON_FAILED' }
-    if ($RawRecords) {
+    if ($SourceAdapter) {
+        if (-not $summary.PSObject.Properties['source_adapter']) { throw 'SOURCE_EVIDENCE_MISSING' }
+        $sourceEvidence = ConvertTo-SourceAdapterEvidence $summary.source_adapter
+        $status = 'source_verified'; $stage = 'SourceAdapterCompleted'
+    } elseif ($RawRecords) {
         if (-not $summary.PSObject.Properties['raw_comparison']) { throw 'RAW_EVIDENCE_MISSING' }
         $rawEvidence = ConvertTo-RawComparisonEvidence $summary.raw_comparison
         $status = 'verified'; $stage = 'RawComparisonCompleted'
@@ -338,12 +357,15 @@ public static class AsukaLensFixtureImage {
     $result.lease_experiment = if ($status -ceq 'passed') { $leaseEvidence } else { $null }
     $result.special_lookup = if ($status -ceq 'passed') { $specialEvidence } else { $null }
     $result.special_cost = if ($status -ceq 'passed') { $specialCostEvidence } else { $null }
-    $result.mode = if ($RawRecords) { 'raw-records' } elseif ($KernelDiagnostics) { 'kernel-diagnostics' } else { 'comparison' }
+    $result.mode = if ($SourceAdapter) { 'fixture-source' } elseif ($RawRecords) { 'raw-records' } elseif ($KernelDiagnostics) { 'kernel-diagnostics' } else { 'comparison' }
     $result.kernel_matrix = if ($status -ceq 'collected') { $matrixEvidence } else { $null }
     $result.all_decoded = if ($status -ceq 'collected') { $matrixEvidence.DecodeFailures -eq 0 } else { $null }
     $result.capture_cleanup_status = if ($status -ceq 'collected') { $captureCleanup } else { $null }
     $result.raw_comparison = if ($status -ceq 'verified') { $rawEvidence } else { $null }
     $result.raw_verified = $status -ceq 'verified'
+    $result.source_adapter = if ($status -ceq 'source_verified') { $sourceEvidence } else { $null }
+    $result.source_verified = $status -ceq 'source_verified'
+    $result.native_operation = $nativeOperation
     $resultTemp = $ResultPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
     try {
         [void](Assert-NoReparsePath $ResultPath)
@@ -352,4 +374,4 @@ public static class AsukaLensFixtureImage {
     } finally { if (Test-Path -LiteralPath $resultTemp) { Remove-Item -LiteralPath $resultTemp -Force } }
 }
 Write-Output ('RESULT: ' + $status)
-if ($status -cnotin @('passed','collected','verified')) { exit 1 }
+if ($status -cnotin @('passed','collected','verified','source_verified')) { exit 1 }

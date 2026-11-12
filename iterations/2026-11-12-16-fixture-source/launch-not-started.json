@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "status": "not-started",
+  "code": "ElevationLaunchCancelled",
+  "fixture_created": false,
+  "native_validation_run": false,
+  "resolution": "UserConfirmedThenRelaunched"
+}

@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "scope": "owned-fixture-source",
+  "guard_checks": 189,
+  "source_checks": 63,
+  "source_evidence_checks": 137,
+  "mode_code_checks": 248,
+  "fixture_script_guard_checks": 36,
+  "prior_synthetic": 147,
+  "prior_mft_map": 174,
+  "prior_raw_lease": 84,
+  "prior_raw_comparison": 130,
+  "build_warnings": 0,
+  "build_errors": 0,
+  "source_native_checks": 472,
+  "source_final_checks": 473,
+  "old_comparison_checks": 1583,
+  "old_raw_checks": 860,
+  "production_integration": false,
+  "vss_created": false,
+  "new_raw_samples": 0
+}

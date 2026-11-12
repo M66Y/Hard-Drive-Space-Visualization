@@ -17,6 +17,17 @@ if (args.Length > 0 && args[0] == "--ntfs-record-replay")
 Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
 if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
 if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
+if (args.Contains("--ntfs-fixture-source-tests"))
+{
+    try
+    {
+        int guards = DiskAtlas.NtfsPrototype.NtfsVerifiedFixtureContextTests.Run();
+        int source = DiskAtlas.NtfsPrototype.NtfsFixtureSourceTests.Run();
+        Console.WriteLine($"PASS NTFS fixture source checks: {guards} guard; {source} source; test-owned synthetic inputs only");
+        return 0;
+    }
+    catch { Console.Error.WriteLine("FAIL NTFS fixture source checks; no private details emitted"); return 1; }
+}
 if (args.Contains("--ntfs-read-session-tests"))
 {
     try

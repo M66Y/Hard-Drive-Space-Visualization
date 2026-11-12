@@ -1,0 +1,3479 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index 8a04417..89c4dbd 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,19 +1,30 @@
+-# 当前交接点：第15轮纯合成会话
++# 当前交接点：第16轮已验收，准备提交；第17轮已获单独确认
+ 
+-2026-11-12，暂停后用户要求继续20分钟，窗口09:33:32–09:53:32 UTC（本地17:33–17:53）。本轮从a4af42662a36928de9d698215b7288a27f1dd144恢复同一已确认范围；暂停前半成品已核对并收尾。源码与证据由本交接点所属第15轮提交保存，提交/推送状态仍需结合实际Git与远程核对，不据记忆猜测。
++2026-11-12，用户要求连续2小时，10:09:17–12:09:17 UTC（本地18:09–20:09）。起点/当前HEAD fdc5aa040c308ae660dd07604f250e39c55ce2d3，main。当前约10:54UTC，仍有约75分钟，不能提前结束。第16轮完整改动未提交；本轮开始工作区干净，所有新改动归此轮。
+ 
+-## 已完成的实现与检查
++## 第16轮授权与完成事实
+ 
+-- NtfsReadSession只在测试程序集，受限批次全或无、全会话累计4096接受记录/每批256/2次重启，重启不返还工作预算；未知Total保留null与未知计数，已知求和溢出拒绝。
+-- 全部异步入口带generation；旧代/未来代不改变当前状态，Cancel独立终态。来源/映射/增长失效要求在等待重启时继续累加并保留观察高水位；错binding批次直接Reject，不当新proof。外部集合Count/indexer每项后gate，复制期禁嵌套提交/完成/重启，避免取消复活与在途前缀。
+-- 最终测试Release构建0警告0错误。Root运行新CLI --ntfs-read-session-tests：103核心+144独立反例，其中24项有限真实线程案例；原--ntfs-prototype-tests为147通过。没有继续跑无关UI或性能基准。摘要与范围见[第15轮](../../../../iterations/2026-11-12-15-read-session/README.md)。108个相关本地链接检查通过；模型/测试未见文件/进程/NativeStorage调用，0遗留VHD工作目录。
+-- SourceStamp是模拟重新验证epoch，不是卷ID；ValidatedImmutable只是模型断言，无真实验证器；LiveUnproven即使NoNewUsn也不能Complete。CompletedSyntheticSession是调用方模拟收集结束，不证明全MFT覆盖、建树、硬链接归属、真实VSS/活跃卷可靠。
+-- 更新契约、现状、计划、AGENTS测试命令、原型README与迭代证据；必要文件哈希/真实基线恢复补丁按本轮流程保存。只包含本轮继承和新增文件，不改第14轮历史归档。没有新增临时磁盘/镜像/重复预览，保留正常测试构建。
++用户明确批准 docs/ntfs-fixture-source-plan.md，允许本2小时按需重复256MiB新建自有VHD，只record0+固定21对象；不个人卷/VSS/新留样/全MFT/发布，许可不延续以后。
+ 
+-## 保留边界与下一步
++- 新 NtfsVerifiedFixtureContext(.cs/Tests)：独立manifest/nonce/严格JSON/固定VHD subtype2+NO_PARENTS/actual extents+MBR分区/geometry/marker守卫，自持新volume/image句柄；固定Case路径由数据根派生。Create严格要求数据根；VerifyPreparation允许尚不存在，仍先核真实归属并关闭自己句柄。最后Stat后取消检查已加，最终pure guard189。
++- 新 NtfsFixtureSource(.cs/Tests)：Open(manifest)无caller bool/targets/handle注入，私有owner/map/token；ReadKnown返回绑定envelope，Value/ValidateResult跨source/关闭后拒；不可变副本无法撤回但不作当前证明。RunFixedComparison control固定63/21/3stage，CloseAndVerify固定Native后验、fresh facts、cleanup；Dispose触发cancel后再次检查，主验证错误仍优先。Fake只SyntheticFixture/GuardOwnedfalse，最终source63。
++- Root集成Program --ntfs-fixture-source-tests；Live新mode fixture-source，准备阶段先VerifyPreparation（在旧marker/volume访问之前）、旧OpenVirtualDisk仅新mode NO_PARENTS，matrix(retainFailures:false)后关闭旧volume再Open新source。catch只取Guard/Source固定Code，新source失败只输出有界native_error/enum native_operation。
++- wrapper新-SourceAdapter互斥三switch，status source_verified、独立source_adapter/source_verified；失败/cleanup失败清摘要，旧raw状态不混用。SourceAdapterEvidence8字段+Comparison复用raw深白名单，Synthetic拒。FixtureCodeEvidence有固定Source/Guard码与新成功None，Native字段边界/错误操作枚举拒任意文本。
+ 
+-没有生产扫描、严格Decoder、UI或发行包变化，没有真实卷/快照/VHD操作，也没有整盘提速结论。第14轮raw受控验证仍独立属于a4af426，旧6条kernel样本仅本机保留；不要重复留样或自动重跑VHD。
++## 实际验证（不需无故重跑）
+ 
+-下一步先选择/细化真实读取来源的身份、生命周期与失败恢复，再单独确认适配器、分批读取/建树和真实验收。用户本轮只批准纯合成模型，没有实际VSS或个人卷操作许可；旧VHD授权不延续。有限线程案例不代表全面并发/压力验收，构建/提交也不是正式Release。没有自动启动后续开发或后台任务。
++测试Release最终0warn/error；C#189 guard+63 source；PS source evidence137、code/实际wrapper流程248、fixture guards36。原合成147、map174、raw lease84、raw comparison130通过；无无关UI/性能基准。
+ 
+-正式入口：[现状](../../../../docs/project-status.md)、[计划](../../../../docs/development-plan.md)、[契约](../../../../docs/ntfs-read-session-plan.md)。接续前先检查Git与证据新鲜度；只有工作方式变化才改SKILL.md，日常事实留在references。
+\ No newline at end of file
++4次已启动VHD全部卸载清理：source-native.json首次472checks（22strict/21matches/14unknown/22ReadFile/22528bytes）；comparison.json旧1583；raw-compatibility.json旧860(raw true/source false)；source-final.json最终473checks、source_verified，closed/后验/父脚本detach+cleanup全true。一回StartProcess管理员启动被取消未创建VHD，用户后确认后重启成功，单列launch-not-started.json，不算Native失败。当前无运行中exec或挂载VHD。
++
++归档 iterations/2026-11-12-16-fixture-source/ 已有README、validation、4安全结果+launch摘要。4原结果副本已哈希核对后删除；0遗留VHD工作目录，旧6条kernel样本仍1 ignored session。无新原始字节落盘。
++
++## 待收尾与下一授权
++
++Root已更新AGENTS、现状、计划、原型README、脚本README。仍需本轮隐私/链接/白字符、必要文件清单/SHA及基线fdc正向恢复changes.patch、公开Git身份/远程检查后提交推送。不要忘新docs/ntfs-vss-source-research.md（只读官方研究，不实际VSS）及本轮批准方案；不改旧归档。
++
++已准备 docs/ntfs-bounded-mft-plan.md 并发异步问题：是否剩余窗口实施有界MFT遍历并允许同样新VHD从0到VDL最多4096槽（系统/空闲槽，4MiB+bootstrap）。此前只22目标不能自动扩大；用户已回复“按方案实施，允许本轮有界VHD遍历”，第17轮已开始独立分工；读取范围最多4096槽/4MiB+bootstrap仅此窗口自有新VHD。当前先固定第16轮提交，不误暂存第17轮半成品。
++
++第17轮建议若获准：独立新mode/状态/摘要，游标全覆盖，visited=decoded+free+unsupported+invalid，decoded unknown/lookup另计，不汇全占用；只保留21目标对照。新专属256调用/4MiB+1024预算，旧模式2MiB/128不改；ReadInto配一个aligned native缓冲+一个64KiB managed页，decoder另有每记录副本，不预取/不留全MFT。生产/VSS/活跃卷与速度仍未验。各Agent已完成第16轮，下一轮需followup_task重新分工（send_message不触发idle agent）。
++
++恢复先查时间、Git、用户最新回复与文件事实。第15轮/14轮证据仍独立，模型不证明真实来源/覆盖。窗口结束、暂停或交接前同步这里，不用重复测试凑时，不自动发布。
+\ No newline at end of file
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index befc3b6..ed6c587 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -17,3 +17,5 @@
+ - 2026-11-12：不放宽复杂USA失败，改为在自有静态VHD内成功锁卷后经同一只读句柄读取严格原始记录。三次22条/21对象对照通过，证明受限替代来源可用，不能解释内核缓存根因或推广到个人活跃卷；旧6条kernel样本不扩容。随后用户确认先做无I/O的读取会话契约，避免在来源一致性未明确时直接扩展整卷吞吐。依据 iterations/2026-11-12-14-raw-records/README.md 与 docs/ntfs-read-session-plan.md。
+ 
+ - 2026-11-12：受控raw之后先落地无I/O读取会话模型，避免在真实来源一致性未知时直接扩大批量扫描。SourceStamp只作模拟验证epoch；错绑定批次直接拒绝、失效高水位不可回退、重启不返还累计预算、unknown总值保持null。有限线程反例验证模型终态，不背书真实VSS/活跃卷或全MFT覆盖；下一步实际来源另行设计。依据 iterations/2026-11-12-15-read-session/README.md 与 docs/ntfs-read-session-plan.md。
++
++- 2026-11-12：真实来源先选自有固定VHD的短生命周期owner，准备阶段也先守卫真实归属/无父链，读者不可凭caller bool/裸句柄/旧token复用map。固定Native后验与Dispose分开，关闭期间取消必须复查；VSS只读研究不当现成来源。理由是先建立可核查真实绑定，再扩大批量范围；第16轮仍22目标，扩大4096槽另需确认。依据 iterations/2026-11-12-16-fixture-source/README.md 与 docs/ntfs-fixture-source-plan.md。
+diff --git a/AGENTS.md b/AGENTS.md
+index 4ac02d6..fd445e5 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -135,6 +135,7 @@
+ - NTFS 记录留样/矩阵修改运行 `--ntfs-record-evidence-tests`、`--ntfs-kernel-matrix-tests` 和 `tests/NtfsKernelMatrixEvidence.Tests.ps1`。隔离脚本 `-KernelDiagnostics` 仅在本轮有效授权内使用，固定21对象/63请求；`collected` 只表示收集完成，另看 `all_decoded`、失败/留样计数及卸载清理。`--ntfs-record-replay` 匹配原失败码不代表解码成功。原始记录及完整身份仅留本机 ignored artifacts，公开归档只保存白名单摘要。
+ - NTFS 受限原始读取修改运行 `--ntfs-mft-map-tests`、`--ntfs-raw-volume-tests`、`--ntfs-raw-comparison-tests`、`tests/NtfsRawComparisonEvidence.Tests.ps1` 与 `tests/NtfsFixtureCodeEvidence.Tests.ps1`。隔离脚本 `-RawRecords` 仅在本轮明确授权内使用，先锁自有新建VHD，固定record0及21对象、同句柄对齐读取，解锁后复核；锁或任何校验失败即停止，不强制卸载。`verified` 必须同时核对解锁、卸载清理及占用未知项；不等于活跃卷快照、生产后端或整盘性能。原始记录只在内存，不能自动沿用为个人卷读取许可，范围见[受控方案](docs/ntfs-raw-record-plan.md)。
+ - NTFS 读取会话模型运行 `--ntfs-read-session-tests`，只用合成输入，不访问卷。全会话累计最多4096条、2次重启、每批256条；来源断言不是实际验证器，`CompletedSyntheticSession` 不代表MFT覆盖或真实快照完成。映射/来源失效、已观察高水位、全部异步入口代际、取消/重入、未知值及溢出按[会话契约](docs/ntfs-read-session-plan.md)检查，不据此启用VSS、真实卷读取或产品入口。
++- NTFS 自有来源适配器运行 `--ntfs-fixture-source-tests`、`tests/NtfsSourceEvidence.Tests.ps1`、`tests/NtfsFixtureCodeEvidence.Tests.ps1` 及原隔离守卫。真实脚本 `-SourceAdapter` 只在本轮明确VHD许可内运行，固定record0+21对象；新模式为 `fixture-source`、成功为 `source_verified`，不与旧raw成功混用。准备期先验证fixed/no-parent、实际VHD/卷/marker归属再调用旧准备路径；实际来源factory另开自持句柄、私有token/map及固定Native后验，不能由caller bool、任意路径/句柄或模拟来源伪造。结果envelope关闭失效，旧immutable副本不能当当前证明。仅当前受控静态来源，不是全MFT/VSS/活跃卷验证，详见[来源方案](docs/ntfs-fixture-source-plan.md)。
+ - 存储属性提示分支改动另运行 `--storage-attribute-tests`，只使用自有临时 NTFS 普通/压缩/稀疏及命名流夹具，能力缺失明确跳过。`--storage-attribute-observe` 只记录差异，退出成功不代表回归通过；对照无差异时不得宣称已复现误算或证明所有文件系统支持。
+ - 混合目录调度改动补测 `--mixed-benchmark before/after` 的同夹具对比；用户明确指定实际目录后才使用 `--folder-benchmark`，其报告与隔离诊断仅留本机临时目录，不进入仓库。比较自动与高速必须核对完整扫描、结果一致性和运行顺序，保留异常波动样本。
+ - 本地目录比较出现指纹差异时，可使用 `--folder-benchmark --pair` 做针对性正确性诊断；额外保留的逐项快照影响测量条件，其计时不并入常规性能基准。差异计数和实际耗时仍只在本机核查，不纳入公开归档。工具边界检查使用 `--folder-comparison-tests`。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 993c075..1fcb4c5 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -2,6 +2,8 @@
+ 
+ ## 当前执行计划（2026-11-12）
+ 
++第16轮[自有来源适配器](ntfs-fixture-source-plan.md)已完成有限真实对照：factory/准备期真实守卫、独立句柄、来源绑定、关闭/后置核验与旧模式兼容均有证据，见[归档](../iterations/2026-11-12-16-fixture-source/README.md)。读取仍限record0+21目标，不代表全MFT后端。下一步建议[有界MFT分批遍历](ntfs-bounded-mft-plan.md)，需单独确认读取系统/空闲槽及独立预算；VSS仍仅[只读研究](ntfs-vss-source-research.md)，实际快照未实施。
++
+ 读取会话的[纯合成契约](ntfs-read-session-plan.md)已实现并通过103项核心/144项独立反例，包含有界线程竞争；见[第15轮](../iterations/2026-11-12-15-read-session/README.md)。它只约束模拟批次的接受、失效与终态，未实现真实来源验证器、全MFT覆盖、批量读盘或建树。下一步先选择并细化真实读取来源的身份/生命周期/失败恢复方案，再实施适配器；VSS与活跃卷直接读取均未获本轮实际操作授权，不自动启动。
+ 
+ 最新进展：用户确认[受控原始读取方案](ntfs-raw-record-plan.md)后，测试原型从严格record0建立有限MFT映射，通过同一持锁句柄读取既有21对象；三次隔离VHD对照（含最终代码）均严格解码22条并匹配Native上下文，14个特殊分配量继续未知。IOCTL的27次严格失败并未修复；替代路径仅证明本机静态自有卷可读，不代表可锁用户卷、活跃卷快照或整盘提速，详见[证据](../iterations/2026-11-12-14-raw-records/README.md)。用户已确认下一步[纯合成读取会话契约](ntfs-read-session-plan.md)，先验证批次隔离与失效，再扩大读取范围；该确认不包含真实快照或个人卷访问，本轮VHD授权不延续为下一轮。
+diff --git a/docs/ntfs-bounded-mft-plan.md b/docs/ntfs-bounded-mft-plan.md
+new file mode 100644
+index 0000000..7b2f490
+--- /dev/null
++++ b/docs/ntfs-bounded-mft-plan.md
+@@ -0,0 +1,24 @@
++# 后续建议：自有测试卷的有界MFT分批遍历
++
++2026-11-12，基于第16轮来源适配器；用户已另行确认本方案及本2小时窗口内的有界VHD遍历，当前尚未实现；它独立扩展了此前仅22目标的许可，不延续到以后或个人卷。
++
++## 目的与范围
++
++在自有固定VHD来源上走通连续读取、范围覆盖和严格分类，验证下一阶段批量读取的基础。仅遍历这次新建256MiB测试盘的MFT有效范围，不扫描个人盘、不创建VSS、不接生产入口、不保存原始记录。它比已有22目标多读系统及空闲槽，必须单独明确确认。
++
++- native几何仍固定512字节扇区/4096字节簇/1024字节记录；Native MFT有效长度必须整记录对齐，最多4096槽（4MiB），超限在遍历前拒绝，不截取前缀后称范围完整。
++- 从0到绑定的有效长度逐段读取，经已严格校验的MFT run映射寻址；每页最多64KiB，末页精确余量。私有source token/map epoch绑定同一持锁实例，关闭或取消后不继续读取，不接受任意卷/物理偏移。
++- 新模式专属预算最多256次ReadFile、4MiB+1024字节（含bootstrap）；旧RawRecords和来源适配器保持2MiB/128次/22目标限制，不通过caller任意数值扩预算。
++- 使用ReadInto与串行复用：一个对齐原生缓冲、一个64KiB managed页；不预取、不保留整MFT，不制造Read返回数组+拼页的第三份大缓冲。严格decoder仍有每记录私有副本，21个已知目标的解析结果可有限保留用于对照。
++
++## 正确性与结果含义
++
++游标覆盖不跳跃、不重叠，visited = decoded + free + unsupported + invalid。保留原严格解码；invalid/unsupported不能归为零占用或“空闲”，也不能据此断定磁盘损坏。Decoded中补查理由及逻辑/分配未知单独计数。本轮不汇总全卷占用，不把范围读完当所有格式已经支持。
++
++固定21对象必须在同一来源读出的记录中找到，并与锁前Native及关闭后的固定核验一致；缺失、身份/名称/链接/大小不符、短读、取消或关闭失败不能报告对照通过。报告分别表达范围覆盖、四类计数、目标匹配、占用未知与source关闭/父脚本清理，不复用旧RawReport的RawRecords=22/ReadCalls最小22含义。
++
++## 验收与停止条件
++
++纯合成覆盖页末/EOF/跨run/负LCN/预算上限、四类状态、原生缓冲复用、取消/短读及来源失效；guard复用已有固定/无父链/nonce/镜像/分区/marker验证。新摘要深白名单与外层模式隔离、失败清空，仍不输出真实路径、引用、卷或设备身份。
++
++如另行获准，本2小时窗口内新建隔离VHD做一次端到端范围分类与21对象对照，按需在新修正后复验；源/后置事实及清理必须完成。计数/请求字节不当物理I/O或性能保证，首轮不做WizTree倍数比较、用户盘测试或正式发布。VSS实际来源、活跃卷一致性、扩展属性/大小补查、完整建树及生产回退仍另行安排。
+diff --git a/docs/ntfs-fixture-source-plan.md b/docs/ntfs-fixture-source-plan.md
+new file mode 100644
+index 0000000..a3d0a4b
+--- /dev/null
++++ b/docs/ntfs-fixture-source-plan.md
+@@ -0,0 +1,41 @@
++# 第16轮建议：自有测试卷的真实来源适配器
++
++2026-11-12，代码基线 `fdc5aa040c308ae660dd07604f250e39c55ce2d3`。用户确认本2小时窗口内的重复256MiB隔离VHD后，第16轮已完成受限来源实现与真实验收，见[证据](../iterations/2026-11-12-16-fixture-source/README.md)；不扩展为真实VSS、个人卷或全MFT许可。下文保留选择理由与实施合同，原纯会话模型仍不是真实来源验证器。
++
++## 本轮建议
++
++先把已通过对照的**新建自有VHD、成功锁定、同句柄有限读取、解锁后复核**做成测试专用来源适配器。VSS本轮先完成可行性与资源/清理说明，保持未实现；不直接锁定用户卷，不将布尔值包装成真实快照证明。
++
++- 来源实例只能由现有workspace/nonce/镜像/卷extents/几何/marker守卫通过后，在成功锁定的factory内创建；映射与读取结果绑定同一实例和lease epoch，拒绝跨来源映射、过期结果和关闭后的读取。
++- 保留严格record0映射及既有21对象，真实原始读取仍为22条、128次ReadFile尝试/2MiB、每次最多64KiB；不新增全MFT枚举、任意卷/偏移入口或原始留样，不改变原先大小未知语义。
++- 明确借用/持有句柄、锁、映射和取消的所有权；读取失败/取消不发布半成品，最后先结束同步调用并释放缓冲，再解锁；只有解锁、Native对象/别名/命名流/卷绑定复核与父进程卸载清理都通过，才生成可分享的受控对照摘要。
++- 不将真实记录强塞进现有NameToken模型冒充真实树或完整覆盖。模型与适配器分别验收，来源实例token仅留内存，不输出路径、设备/卷标识、原始引用或字节。
++
++## 验收与回退
++
++纯合成/Native替身覆盖跨来源误用、锁失败、关闭/取消、迟到结果、短读、映射过期、失败优先级与资源释放；必要时复用已验证底层lease，不新增宽松解码分支。真实验收仅在本轮明确同意的新建256MiB隔离VHD中对照既有21对象，沿用经过审查的归属守卫、创建格式化、挂载、停止、卸载与清理流程。每次完成后立即清理镜像，旧6条kernel样本保持原本机范围。
++
++若本轮2小时窗口内获准重复验证，许可也只限本轮自有镜像，不延续到以后；失败不扫描个人卷或改系统日志补救。应用/测试构建与相关NTFS检查按改动选择，文档/隐私审查、每轮恢复补丁与文件哈希、清理后提交main；普通迭代不打包或发布。
++
++## 后续而非本轮默认范围
++
++适配器验收后，再提出来源无关的有界批量读取/覆盖游标与紧凑建树方案；扩大真实槽位范围另行确认。VSS实际快照、差异区设置、主机卷或个人盘操作均不在本方案中。任何原型通过都不能当作整盘提速或活跃卷一致性已经解决。
++
++## 接口边界与测试清单
++
++建议将来源视作独立所有者，而非给已有裸句柄加一个validated布尔值：私有factory在真实守卫通过后打开并持有卷句柄，成功锁定后从严格record0建立私有映射；source token与map epoch均由它产生，不能接收调用方给出的任意设备字符串/物理偏移/映射。旧Live的卷句柄与新owner交接需显式完成，避免锁竞争或解锁后继续使用旧句柄。
++
++真实factory核对固定CaseId与本次nonce数据根的路径，并实际重读Native上下文；后置验证用固定实现，不能由外部Func<bool>声称成功。合成Native替身仅用于明确标记的测试路径，不能据此生成真实来源证明。返回批次仍为暂存，只有来源关闭/后置校验成功才转成有限fixture对照结果；普通Dispose只释放资源，不生成成功结论。
++
++| 边界 | 必要结果 |
++| --- | --- |
++| manifest/marker/镜像/extents/几何不一致 | 锁定与原始读取前拒绝 |
++| 非固定对象或路径越出本次数据根 | 读取文件/原始数据前拒绝 |
++| 来源A的token用于B，或关闭后的token | 不发起新读取，不复用映射 |
++| 锁失败、短读、严格解析或完整引用不匹配 | 无可发布批次，按所有权释放 |
++| 读取中取消、迟到结果、复制/关闭竞争 | 不发布前缀或复活来源；同步调用不能假称被即时抢占 |
++| 解锁失败、后置对象/别名/命名流/卷变化 | 不能生成验证成功，失败优先级保留 |
++| 正常关闭与重复Dispose | 按顺序释放一次，父进程仍独立核对卸载清理 |
++| 摘要字段注入、任意错误文本 | 深层白名单拒绝，不输出来源token、路径或身份 |
++
++实际通过范围、曾发现并修复的边界、真实复验及未验项以[第16轮证据](../iterations/2026-11-12-16-fixture-source/README.md)为准；这份方案本身不替代测试与授权。
+diff --git a/docs/ntfs-vss-source-research.md b/docs/ntfs-vss-source-research.md
+new file mode 100644
+index 0000000..7a951bd
+--- /dev/null
++++ b/docs/ntfs-vss-source-research.md
+@@ -0,0 +1,26 @@
++# VSS来源：只读可行性研究
++
++2026-11-12，基线fdc5aa0。本文只整理官方合同与下一步待验内容，没有调用VSS、创建快照、提权或读盘，不构成实施许可。现有读取会话的ValidatedImmutable仍只是模型条件。
++
++## 对当前路线的影响
++
++VSS值得作为稳定来源候选，但先验证生命周期和文件访问，再验证快照设备的原始NTFS读取；不能从“快照文件可访问”推导所有DASD/FSCTL接口可用。本轮建议先完善自有锁定fixture来源适配器，让来源归属与有效期有真实实现，之后再用同一读取边界评估VSS，不把快照设成现有扫描的默认依赖。
++
++## 官方约束
++
++- [创建细节](https://learn.microsoft.com/en-us/windows/win32/vss/shadow-copy-creation-details)与[上下文](https://learn.microsoft.com/en-us/windows/win32/api/vss/ne-vss-vss_snapshot_context)：FILE_SHARE_BACKUP无writer、非持久并自动释放；该上下文不照搬writer备份流程，AddComponent/PrepareForBackup/BackupComplete不适用。
++- [来源加入](https://learn.microsoft.com/en-us/windows/win32/api/vsbackup/nf-vsbackup-ivssbackupcomponents-addtosnapshotset)与[能力查询](https://learn.microsoft.com/en-us/windows/win32/api/vsbackup/nf-vsbackup-ivssbackupcomponents-isvolumesupported)：VHD有嵌套限制，不同时将VHD和其宿主卷加入同一集合。支持查询不是当前创建一定成功的证明。
++- [差异区合同](https://learn.microsoft.com/en-us/windows/win32/api/vsmgmt/nf-vsmgmt-ivssdifferentialsoftwaresnapshotmgmt-adddiffarea)：VHD源的差异区必须位于同一VHD卷。该配置方法的最低客户端栏为None supported，不能将主动配置方案当成Windows客户端已验证能力。
++- [默认空间规则](https://learn.microsoft.com/en-us/windows/win32/backup/registry-keys-for-backup-and-restore)：未配置全局最小值时，小于500MB卷的初始最低差异区为32MB，大于500MB为320MB。256MiB不能直接判定必败；建议后续另行确认1GiB夹具留余量，成功仍需实测，不为测试修改全局注册表。
++- [Requester权限](https://learn.microsoft.com/en-us/windows/win32/vss/security-considerations-for-requestors)：通常需要管理员、Backup Operators或Local System权限及合适COM安全配置。本项目不为绕过权限修改系统VSS访问控制，也不将主窗口默认提权。
++- [属性](https://learn.microsoft.com/en-us/windows/win32/api/vss/ns-vss-vss_snapshot_prop)和[访问方式](https://learn.microsoft.com/en-us/windows/win32/vss/requestor-access-to-shadow-copied-data)：仅使用本次创建并返回的snapshot/set/provider身份、原卷和device object绑定来源，不接收任意设备字符串。原始记录、映射及Native对照必须来自同一快照时间点。
++- [对象生命周期](https://learn.microsoft.com/en-us/windows/win32/api/vsbackup/nl-vsbackup-ivssbackupcomponents)、[删除](https://learn.microsoft.com/en-us/windows/win32/api/vsbackup/nf-vsbackup-ivssbackupcomponents-deletesnapshots)和[异步取消](https://learn.microsoft.com/en-us/windows/win32/api/vss/nf-vss-ivssasync-cancel)：一次操作一份owner，先结束读者并关句柄再释放来源；只清理本次拥有的对象。取消可能遇到操作已完成，必须核对是否已生成快照，不能假定没有资源。
++
++## 后续最小实验（待独立确认）
++
++1. 新建自有1GiB NTFS VHD，只生成受控文件；仅将它加入无writer、自动释放的单卷集合，等待异步最终状态。
++2. 核对本次快照属性及差异区归属；不添加/缩放/删除主机卷关联，不修改全局设置。先改写自有源文件，验证快照保留原受控内容。
++3. 保持COM owner存活，再独立探测快照设备的只读打开、卷数据查询与严格原始记录读取；失败明确停止，不改用live路径混合对照。
++4. 覆盖创建/取消/超时/进程退出、快照消失与清理失败，核对仅本次快照已删除后才卸载清理VHD。公开摘要只保留类别/计数/错误码，不输出实际快照、provider、设备或机器标识。
++
++可约束程序不创建、删除或调整主机卷快照及配置；VSS服务、系统日志及VHD文件本身仍涉及系统活动，不能承诺宿主零写入。需要连系统活动也隔离时应在虚拟机验收。当前没有测量创建成本、差异区峰值、端到端速度或Win10/11实际支持，不作秒数或提速承诺。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 38fcd7a..e0bcdec 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-12：测试程序新增真实自有fixture来源适配器，私有factory核对固定/无父链VHD、卷/marker/分区归属后自持新句柄，token/map及结果envelope随owner失效。最终隔离VHD对照22严格解码、21对象匹配、14特殊占用未知，关闭/后置核验与卸载清理通过；旧comparison/RawRecords分别1583/860通过。该来源仍仅用于自有静态测试盘，不是VSS、全MFT或生产扫描，见[第16轮](../iterations/2026-11-12-16-fixture-source/README.md)。
++
+ 2026-11-12：测试程序新增纯合成读取会话模型，验证批次隔离、来源失效、有限重启、取消/重入及未知大小。103项核心、144项独立反例（含24项有限线程案例）通过，原NTFS合成147项仍通过。模型不访问卷，不验证真实VSS、MFT覆盖或活跃卷一致性，不改变现有扫描速度，见[第15轮记录](../iterations/2026-11-12-15-read-session/README.md)。
+ 
+ 2026-11-12：受控原始记录读取已在三次新建隔离VHD中完成对照（含审查修正后的最终代码）：各22条严格解码、21个对象与Native上下文匹配，14个特殊对象的分配量仍未知；解锁、卸载与清理均完成。原始入口没有放宽USA检查，旧IOCTL矩阵仍36成功/27失败。只读原型限于锁定的自有静态测试卷，不是活跃卷扫描、整卷性能或生产后端，证据见[原始读取记录](../iterations/2026-11-12-14-raw-records/README.md)。
+diff --git a/iterations/2026-11-12-16-fixture-source/README.md b/iterations/2026-11-12-16-fixture-source/README.md
+new file mode 100644
+index 0000000..a8211dc
+--- /dev/null
++++ b/iterations/2026-11-12-16-fixture-source/README.md
+@@ -0,0 +1,34 @@
++# 自有测试卷来源适配器
++
++2026-11-12，基线 `fdc5aa040c308ae660dd07604f250e39c55ce2d3`。用户要求连续2小时（本地18:09至20:09）推进后续开发，并确认[第16轮方案](../../docs/ntfs-fixture-source-plan.md)，允许本窗口内按需重复新建256MiB隔离VHD、有限读取后解锁/卸载清理。起始工作区干净，不沿用旧轮授权，不操作个人卷、不创建VSS快照、不新增原始留样、全MFT或发行。
++
++## 问题与取舍
++
++前一轮只是纯合成会话，不能把调用方布尔值当真实来源。旧raw对照虽然成功，但卷句柄、映射和时效由调用方组合。本轮新增有实际守卫与生命周期的测试专用owner，固定record0+既有21对象，保持128次ReadFile/2MiB/单次64KiB预算和14个特殊分配未知；不将实际名字塞NameToken模型冒充真实树。
++
++真实factory从固定manifest/nonce数据根重新验证镜像、卷extents和Native上下文，自己持有句柄；Live先关闭准备阶段旧句柄再打开新来源。token/map绑定owner，单条结果以绑定envelope返回，关闭后不能再作为当前结果解包。最终对照与普通Dispose分开，只有关闭/后置校验及父脚本清理均通过才导出source_verified；旧verified/collected含义保留。
++
++## 当前实施与证据
++
++来源实现与最终真实复验均已完成。测试Release构建0警告0错误；来源入口189项guard+63项source通过；摘要137项、实际wrapper语义码/模式/有界Native错误字段248项、原隔离守卫36项通过。原合成147、MFT map174、raw lease84、raw对照130也通过，未跑无关UI/性能基准。
++
++关键文件是新NtfsVerifiedFixtureContext/Tests、NtfsFixtureSource/Tests、SourceAdapterEvidence及测试，Root集成Live/Program/fixture脚本/语义码；入口与固定限制同步AGENTS/原型README。独立VSS研究见[来源说明](../../docs/ntfs-vss-source-research.md)，仅官方文档调查，不是已实现后端或快照许可。
++
++## 实际VHD观察与健壮性审查
++
++- source-native.json：首次新来源对照source_verified，基础runner检查472；22严格解码、21对象匹配、14特殊分配未知，22次ReadFile/22528请求字节。source关闭/后置核验、父脚本卸载与清理全部完成。后续又收紧了准备入口的守卫顺序，不能只以这份早期证据替代最终代码复验。
++- source-final.json：准备期守卫顺序及最后取消检查收紧后的最终代码，source_verified、473项基础runner检查；22/21/14及来源关闭、后置核验、卸载清理均通过。一次管理员启动返回取消且未生成VHD，随后用户确认后重新启动成功；这不是Native校验失败。
++- comparison.json：旧普通路径1583项通过并卸载清理。
++- raw-compatibility.json：旧RawRecords 860项通过，raw_verified=true且source_verified=false，旧状态含义未被新模式混用；卸载清理完成。
++
++审查修复关闭期间取消漏检，保留已有主验证错误；最终factory返回前也检查取消。来源结果使用绑定envelope，不能将已取出的不可变副本重新当作当前来源证明。纯假实现固定SyntheticFixture，真实白名单不接受。新增VHD Fixed subtype=2与NO_PARENTS核验、独立MBR/分区/几何重核；新模式准备期也必须先守卫，再触碰旧准备路径的marker/volume，避免验证顺序倒置。准备入口仅允许派生数据根尚未创建，不返回authority或降低完整Create的约束。
++
++仅数值native_error与固定枚举native_operation可从新来源失败摘要传出，缺失/类型不符/任意文本或成功携带失败字段均拒绝；不转发异常Message、堆栈或源标识。假摘要只验证传输字段，不能独立证明真实来源。
++
++## 收尾与边界
++
++后续实际源生命周期、全MFT覆盖、批量读取/建树、活跃卷与VSS、整盘速度及生产入口仍未完成。本轮的有限静态夹具成功不能作为这些结论。旧6条kernel失败样本仍保持原本机范围，不公开原始记录、引用、卷/设备/机器标识或本机路径。
++
++本轮必要代码、测试及脱敏摘要与SHA-256/基线恢复补丁统一留在本目录，不递归包含补丁自身或旧归档。四次已启动VHD均已卸载删除；原始数据只在内存，旧6条kernel样本保持原本机范围。结果副本核对归档后清理，正常测试构建保留用于复现。实际基线正向恢复并核对暂存字节、隐私/链接/白字符检查后提交main。普通构建不打包、不创建标签或Release。
++
++用户随后另行确认[有界MFT方案](../../docs/ntfs-bounded-mft-plan.md)，将由第17轮独立实施；不将其4096槽/新预算并入本轮22目标的验收。
+diff --git a/iterations/2026-11-12-16-fixture-source/comparison.json b/iterations/2026-11-12-16-fixture-source/comparison.json
+new file mode 100644
+index 0000000..5f45f14
+--- /dev/null
++++ b/iterations/2026-11-12-16-fixture-source/comparison.json
+@@ -0,0 +1,303 @@
++{
++  "schema": 1,
++  "status": "passed",
++  "stage": "ComparisonPassed",
++  "code": "None",
++  "native_error": 0,
++  "exit_code": 0,
++  "checks": 1583,
++  "failures": 0,
++  "detached": true,
++  "cleanup_completed": true,
++  "lookup_experiment": {
++    "Objects": 25,
++    "ResidentObjects": 20,
++    "DirectObjects": 5,
++    "UnsupportedExcluded": 7,
++    "SelectiveNativeCalls": 40,
++    "AllHandleNativeCalls": 50,
++    "Samples": [
++      {
++        "Round": 1,
++        "Order": "selective-first",
++        "SelectiveMilliseconds": 2.6015,
++        "AllHandleMilliseconds": 2.6321,
++        "SelectiveNativeMilliseconds": 2.454,
++        "AllHandleNativeMilliseconds": 2.3956
++      },
++      {
++        "Round": 2,
++        "Order": "handle-first",
++        "SelectiveMilliseconds": 1.9464,
++        "AllHandleMilliseconds": 3.1959,
++        "SelectiveNativeMilliseconds": 1.8496,
++        "AllHandleNativeMilliseconds": 3.0117
++      },
++      {
++        "Round": 3,
++        "Order": "selective-first",
++        "SelectiveMilliseconds": 1.0792,
++        "AllHandleMilliseconds": 3.1986,
++        "SelectiveNativeMilliseconds": 1.0051,
++        "AllHandleNativeMilliseconds": 3.044
++      },
++      {
++        "Round": 4,
++        "Order": "handle-first",
++        "SelectiveMilliseconds": 1.4172,
++        "AllHandleMilliseconds": 3.4754,
++        "SelectiveNativeMilliseconds": 1.3446,
++        "AllHandleNativeMilliseconds": 3.2958
++      },
++      {
++        "Round": 5,
++        "Order": "selective-first",
++        "SelectiveMilliseconds": 2.7346,
++        "AllHandleMilliseconds": 1.3563,
++        "SelectiveNativeMilliseconds": 2.5604,
++        "AllHandleNativeMilliseconds": 1.2785
++      },
++      {
++        "Round": 6,
++        "Order": "handle-first",
++        "SelectiveMilliseconds": 1.1709,
++        "AllHandleMilliseconds": 3.1852,
++        "SelectiveNativeMilliseconds": 1.1102,
++        "AllHandleNativeMilliseconds": 3.009
++      }
++    ],
++    "ResidentExamples": [
++      {
++        "LogicalBytes": 18,
++        "LookupAllocatedBytes": 24
++      },
++      {
++        "LogicalBytes": 1,
++        "LookupAllocatedBytes": 8
++      },
++      {
++        "LogicalBytes": 7,
++        "LookupAllocatedBytes": 8
++      },
++      {
++        "LogicalBytes": 8,
++        "LookupAllocatedBytes": 8
++      },
++      {
++        "LogicalBytes": 9,
++        "LookupAllocatedBytes": 16
++      },
++      {
++        "LogicalBytes": 15,
++        "LookupAllocatedBytes": 16
++      },
++      {
++        "LogicalBytes": 16,
++        "LookupAllocatedBytes": 16
++      },
++      {
++        "LogicalBytes": 17,
++        "LookupAllocatedBytes": 24
++      },
++      {
++        "LogicalBytes": 31,
++        "LookupAllocatedBytes": 32
++      },
++      {
++        "LogicalBytes": 32,
++        "LookupAllocatedBytes": 32
++      },
++      {
++        "LogicalBytes": 33,
++        "LookupAllocatedBytes": 40
++      },
++      {
++        "LogicalBytes": 63,
++        "LookupAllocatedBytes": 64
++      },
++      {
++        "LogicalBytes": 64,
++        "LookupAllocatedBytes": 64
++      },
++      {
++        "LogicalBytes": 65,
++        "LookupAllocatedBytes": 72
++      },
++      {
++        "LogicalBytes": 127,
++        "LookupAllocatedBytes": 128
++      },
++      {
++        "LogicalBytes": 128,
++        "LookupAllocatedBytes": 128
++      },
++      {
++        "LogicalBytes": 255,
++        "LookupAllocatedBytes": 256
++      },
++      {
++        "LogicalBytes": 256,
++        "LookupAllocatedBytes": 256
++      },
++      {
++        "LogicalBytes": 400,
++        "LookupAllocatedBytes": 400
++      },
++      {
++        "LogicalBytes": 512,
++        "LookupAllocatedBytes": 512
++      }
++    ]
++  },
++  "lease_experiment": {
++    "Objects": 25,
++    "ResidentObjects": 20,
++    "DirectObjects": 5,
++    "UnsupportedExcluded": 7,
++    "DoubleReadCalls": 40,
++    "LeaseCalls": 20,
++    "LeaseHandles": 20,
++    "LeaseSnapshots": 40,
++    "Samples": [
++      {
++        "Round": 1,
++        "Order": "double-first",
++        "DoubleMilliseconds": 1.1909,
++        "LeaseMilliseconds": 0.5835,
++        "DoubleNativeMilliseconds": 1.1003,
++        "LeaseNativeMilliseconds": 0.5333
++      },
++      {
++        "Round": 2,
++        "Order": "lease-first",
++        "DoubleMilliseconds": 1.1146,
++        "LeaseMilliseconds": 0.7417,
++        "DoubleNativeMilliseconds": 1.0542,
++        "LeaseNativeMilliseconds": 0.6699
++      },
++      {
++        "Round": 3,
++        "Order": "double-first",
++        "DoubleMilliseconds": 2.2886,
++        "LeaseMilliseconds": 0.562,
++        "DoubleNativeMilliseconds": 2.1331,
++        "LeaseNativeMilliseconds": 0.5238
++      },
++      {
++        "Round": 4,
++        "Order": "lease-first",
++        "DoubleMilliseconds": 1.6011,
++        "LeaseMilliseconds": 1.6677,
++        "DoubleNativeMilliseconds": 1.5094,
++        "LeaseNativeMilliseconds": 1.4947
++      },
++      {
++        "Round": 5,
++        "Order": "double-first",
++        "DoubleMilliseconds": 2.7367,
++        "LeaseMilliseconds": 1.4002,
++        "DoubleNativeMilliseconds": 2.5583,
++        "LeaseNativeMilliseconds": 1.2857
++      },
++      {
++        "Round": 6,
++        "Order": "lease-first",
++        "DoubleMilliseconds": 2.4965,
++        "LeaseMilliseconds": 1.6916,
++        "DoubleNativeMilliseconds": 2.3383,
++        "LeaseNativeMilliseconds": 1.5375
++      }
++    ]
++  },
++  "special_lookup": {
++    "Objects": 7,
++    "CompressedObjects": 2,
++    "SparseObjects": 2,
++    "UnsupportedObjects": 3,
++    "ResolvedObjects": 4,
++    "FailedObjects": 0,
++    "LeaseCalls": 4,
++    "HandlesOpened": 4,
++    "SnapshotReads": 8,
++    "Cases": [
++      {
++        "Kind": "CompressedZero",
++        "LogicalBytes": 131072,
++        "AllocatedBytes": 0,
++        "Source": "HandleLookup"
++      },
++      {
++        "Kind": "CompressedRandom",
++        "LogicalBytes": 131072,
++        "AllocatedBytes": 131072,
++        "Source": "HandleLookup"
++      },
++      {
++        "Kind": "SparseHole",
++        "LogicalBytes": 2097152,
++        "AllocatedBytes": 0,
++        "Source": "HandleLookup"
++      },
++      {
++        "Kind": "SparseWritten",
++        "LogicalBytes": 2097152,
++        "AllocatedBytes": 131072,
++        "Source": "HandleLookup"
++      }
++    ]
++  },
++  "special_cost": {
++    "Objects": 4,
++    "ReferenceCalls": 4,
++    "LeaseCalls": 4,
++    "HandlesOpened": 4,
++    "SnapshotReads": 8,
++    "Samples": [
++      {
++        "Round": 1,
++        "Order": "reference-first",
++        "ReferenceMilliseconds": 0.363,
++        "LeaseMilliseconds": 0.4697
++      },
++      {
++        "Round": 2,
++        "Order": "lease-first",
++        "ReferenceMilliseconds": 0.2294,
++        "LeaseMilliseconds": 0.4621
++      },
++      {
++        "Round": 3,
++        "Order": "reference-first",
++        "ReferenceMilliseconds": 0.2757,
++        "LeaseMilliseconds": 0.3964
++      },
++      {
++        "Round": 4,
++        "Order": "lease-first",
++        "ReferenceMilliseconds": 0.2322,
++        "LeaseMilliseconds": 0.5104
++      },
++      {
++        "Round": 5,
++        "Order": "reference-first",
++        "ReferenceMilliseconds": 0.1597,
++        "LeaseMilliseconds": 0.1965
++      },
++      {
++        "Round": 6,
++        "Order": "lease-first",
++        "ReferenceMilliseconds": 0.1045,
++        "LeaseMilliseconds": 0.1798
++      }
++    ]
++  },
++  "mode": "comparison",
++  "kernel_matrix": null,
++  "all_decoded": null,
++  "capture_cleanup_status": null,
++  "raw_comparison": null,
++  "raw_verified": false,
++  "source_adapter": null,
++  "source_verified": false,
++  "native_operation": "None"
++}
+\ No newline at end of file
+diff --git a/iterations/2026-11-12-16-fixture-source/launch-not-started.json b/iterations/2026-11-12-16-fixture-source/launch-not-started.json
+new file mode 100644
+index 0000000..2fc29ed
+--- /dev/null
++++ b/iterations/2026-11-12-16-fixture-source/launch-not-started.json
+@@ -0,0 +1,8 @@
++{
++  "schema": 1,
++  "status": "not-started",
++  "code": "ElevationLaunchCancelled",
++  "fixture_created": false,
++  "native_validation_run": false,
++  "resolution": "UserConfirmedThenRelaunched"
++}
+diff --git a/iterations/2026-11-12-16-fixture-source/raw-compatibility.json b/iterations/2026-11-12-16-fixture-source/raw-compatibility.json
+new file mode 100644
+index 0000000..76f9915
+--- /dev/null
++++ b/iterations/2026-11-12-16-fixture-source/raw-compatibility.json
+@@ -0,0 +1,296 @@
++{
++  "schema": 1,
++  "status": "verified",
++  "stage": "RawComparisonCompleted",
++  "code": "None",
++  "native_error": 0,
++  "exit_code": 0,
++  "checks": 860,
++  "failures": 0,
++  "detached": true,
++  "cleanup_completed": true,
++  "lookup_experiment": null,
++  "lease_experiment": null,
++  "special_lookup": null,
++  "special_cost": null,
++  "mode": "raw-records",
++  "kernel_matrix": null,
++  "all_decoded": null,
++  "capture_cleanup_status": null,
++  "raw_comparison": {
++    "Revision": "raw-records-v1",
++    "Objects": 21,
++    "KernelRequests": 63,
++    "KernelDecoded": 36,
++    "KernelRejected": 27,
++    "RawRecords": 22,
++    "RawDecoded": 22,
++    "MatchedObjects": 21,
++    "UnknownAllocationObjects": 14,
++    "MftRuns": 1,
++    "ReadCalls": 22,
++    "RequestedBytes": 22528,
++    "PhysicalSectorBytes": 512,
++    "LockAcquired": true,
++    "UnlockSucceeded": true,
++    "PostNativeStable": true,
++    "Cases": [
++      {
++        "CaseId": "A-Ordinary-8",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "KernelCode": "Decoded",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Matched"
++      },
++      {
++        "CaseId": "A-Ordinary-24",
++        "Kind": "Ordinary",
++        "NameLength": 24,
++        "KernelCode": "Decoded",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Matched"
++      },
++      {
++        "CaseId": "A-Ordinary-64",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "KernelCode": "FixupMismatch",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Matched"
++      },
++      {
++        "CaseId": "A-Compressed-8",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "KernelCode": "Decoded",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Unknown"
++      },
++      {
++        "CaseId": "A-Compressed-24",
++        "Kind": "Compressed",
++        "NameLength": 24,
++        "KernelCode": "Decoded",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Unknown"
++      },
++      {
++        "CaseId": "A-Compressed-64",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "KernelCode": "FixupMismatch",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Unknown"
++      },
++      {
++        "CaseId": "A-Sparse-8",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "KernelCode": "Decoded",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Unknown"
++      },
++      {
++        "CaseId": "A-Sparse-24",
++        "Kind": "Sparse",
++        "NameLength": 24,
++        "KernelCode": "Decoded",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Unknown"
++      },
++      {
++        "CaseId": "A-Sparse-64",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "KernelCode": "FixupMismatch",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Unknown"
++      },
++      {
++        "CaseId": "B-Ordinary-8",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "KernelCode": "Decoded",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Matched"
++      },
++      {
++        "CaseId": "B-Ordinary-64",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "KernelCode": "FixupMismatch",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Matched"
++      },
++      {
++        "CaseId": "B-Compressed-8",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "KernelCode": "Decoded",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Unknown"
++      },
++      {
++        "CaseId": "B-Compressed-64",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "KernelCode": "FixupMismatch",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Unknown"
++      },
++      {
++        "CaseId": "B-Sparse-8",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "KernelCode": "Decoded",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Unknown"
++      },
++      {
++        "CaseId": "B-Sparse-64",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "KernelCode": "FixupMismatch",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Unknown"
++      },
++      {
++        "CaseId": "C-Ordinary-8",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "KernelCode": "Decoded",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Matched"
++      },
++      {
++        "CaseId": "C-Ordinary-64",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "KernelCode": "FixupMismatch",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Matched"
++      },
++      {
++        "CaseId": "C-Compressed-8",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "KernelCode": "Decoded",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Unknown"
++      },
++      {
++        "CaseId": "C-Compressed-64",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "KernelCode": "FixupMismatch",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Unknown"
++      },
++      {
++        "CaseId": "C-Sparse-8",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "KernelCode": "Decoded",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Unknown"
++      },
++      {
++        "CaseId": "C-Sparse-64",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "KernelCode": "FixupMismatch",
++        "RawCode": "Decoded",
++        "IdentityMatched": true,
++        "LogicalMatched": true,
++        "LinksMatched": true,
++        "NamesMatched": true,
++        "AllocationCheck": "Unknown"
++      }
++    ]
++  },
++  "raw_verified": true,
++  "source_adapter": null,
++  "source_verified": false,
++  "native_operation": "None"
++}
+\ No newline at end of file
+diff --git a/iterations/2026-11-12-16-fixture-source/source-final.json b/iterations/2026-11-12-16-fixture-source/source-final.json
+new file mode 100644
+index 0000000..af29697
+--- /dev/null
++++ b/iterations/2026-11-12-16-fixture-source/source-final.json
+@@ -0,0 +1,305 @@
++{
++  "schema": 1,
++  "status": "source_verified",
++  "stage": "SourceAdapterCompleted",
++  "code": "None",
++  "native_error": 0,
++  "exit_code": 0,
++  "checks": 473,
++  "failures": 0,
++  "detached": true,
++  "cleanup_completed": true,
++  "lookup_experiment": null,
++  "lease_experiment": null,
++  "special_lookup": null,
++  "special_cost": null,
++  "mode": "fixture-source",
++  "kernel_matrix": null,
++  "all_decoded": null,
++  "capture_cleanup_status": null,
++  "raw_comparison": null,
++  "raw_verified": false,
++  "source_adapter": {
++    "Revision": "fixture-source-v1",
++    "EvidenceKind": "NativeOwnedFixture",
++    "GuardOwned": true,
++    "TokenBound": true,
++    "MapBound": true,
++    "Closed": true,
++    "RejectedReads": 0,
++    "Comparison": {
++      "Revision": "raw-records-v1",
++      "Objects": 21,
++      "KernelRequests": 63,
++      "KernelDecoded": 36,
++      "KernelRejected": 27,
++      "RawRecords": 22,
++      "RawDecoded": 22,
++      "MatchedObjects": 21,
++      "UnknownAllocationObjects": 14,
++      "MftRuns": 1,
++      "ReadCalls": 22,
++      "RequestedBytes": 22528,
++      "PhysicalSectorBytes": 512,
++      "LockAcquired": true,
++      "UnlockSucceeded": true,
++      "PostNativeStable": true,
++      "Cases": [
++        {
++          "CaseId": "A-Ordinary-8",
++          "Kind": "Ordinary",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "A-Ordinary-24",
++          "Kind": "Ordinary",
++          "NameLength": 24,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "A-Ordinary-64",
++          "Kind": "Ordinary",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "A-Compressed-8",
++          "Kind": "Compressed",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Compressed-24",
++          "Kind": "Compressed",
++          "NameLength": 24,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Compressed-64",
++          "Kind": "Compressed",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Sparse-8",
++          "Kind": "Sparse",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Sparse-24",
++          "Kind": "Sparse",
++          "NameLength": 24,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Sparse-64",
++          "Kind": "Sparse",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "B-Ordinary-8",
++          "Kind": "Ordinary",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "B-Ordinary-64",
++          "Kind": "Ordinary",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "B-Compressed-8",
++          "Kind": "Compressed",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "B-Compressed-64",
++          "Kind": "Compressed",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "B-Sparse-8",
++          "Kind": "Sparse",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "B-Sparse-64",
++          "Kind": "Sparse",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "C-Ordinary-8",
++          "Kind": "Ordinary",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "C-Ordinary-64",
++          "Kind": "Ordinary",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "C-Compressed-8",
++          "Kind": "Compressed",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "C-Compressed-64",
++          "Kind": "Compressed",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "C-Sparse-8",
++          "Kind": "Sparse",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "C-Sparse-64",
++          "Kind": "Sparse",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        }
++      ]
++    }
++  },
++  "source_verified": true,
++  "native_operation": "None"
++}
+\ No newline at end of file
+diff --git a/iterations/2026-11-12-16-fixture-source/source-native.json b/iterations/2026-11-12-16-fixture-source/source-native.json
+new file mode 100644
+index 0000000..f112b97
+--- /dev/null
++++ b/iterations/2026-11-12-16-fixture-source/source-native.json
+@@ -0,0 +1,305 @@
++{
++  "schema": 1,
++  "status": "source_verified",
++  "stage": "SourceAdapterCompleted",
++  "code": "None",
++  "native_error": 0,
++  "exit_code": 0,
++  "checks": 472,
++  "failures": 0,
++  "detached": true,
++  "cleanup_completed": true,
++  "lookup_experiment": null,
++  "lease_experiment": null,
++  "special_lookup": null,
++  "special_cost": null,
++  "mode": "fixture-source",
++  "kernel_matrix": null,
++  "all_decoded": null,
++  "capture_cleanup_status": null,
++  "raw_comparison": null,
++  "raw_verified": false,
++  "source_adapter": {
++    "Revision": "fixture-source-v1",
++    "EvidenceKind": "NativeOwnedFixture",
++    "GuardOwned": true,
++    "TokenBound": true,
++    "MapBound": true,
++    "Closed": true,
++    "RejectedReads": 0,
++    "Comparison": {
++      "Revision": "raw-records-v1",
++      "Objects": 21,
++      "KernelRequests": 63,
++      "KernelDecoded": 36,
++      "KernelRejected": 27,
++      "RawRecords": 22,
++      "RawDecoded": 22,
++      "MatchedObjects": 21,
++      "UnknownAllocationObjects": 14,
++      "MftRuns": 1,
++      "ReadCalls": 22,
++      "RequestedBytes": 22528,
++      "PhysicalSectorBytes": 512,
++      "LockAcquired": true,
++      "UnlockSucceeded": true,
++      "PostNativeStable": true,
++      "Cases": [
++        {
++          "CaseId": "A-Ordinary-8",
++          "Kind": "Ordinary",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "A-Ordinary-24",
++          "Kind": "Ordinary",
++          "NameLength": 24,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "A-Ordinary-64",
++          "Kind": "Ordinary",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "A-Compressed-8",
++          "Kind": "Compressed",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Compressed-24",
++          "Kind": "Compressed",
++          "NameLength": 24,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Compressed-64",
++          "Kind": "Compressed",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Sparse-8",
++          "Kind": "Sparse",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Sparse-24",
++          "Kind": "Sparse",
++          "NameLength": 24,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Sparse-64",
++          "Kind": "Sparse",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "B-Ordinary-8",
++          "Kind": "Ordinary",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "B-Ordinary-64",
++          "Kind": "Ordinary",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "B-Compressed-8",
++          "Kind": "Compressed",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "B-Compressed-64",
++          "Kind": "Compressed",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "B-Sparse-8",
++          "Kind": "Sparse",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "B-Sparse-64",
++          "Kind": "Sparse",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "C-Ordinary-8",
++          "Kind": "Ordinary",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "C-Ordinary-64",
++          "Kind": "Ordinary",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "C-Compressed-8",
++          "Kind": "Compressed",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "C-Compressed-64",
++          "Kind": "Compressed",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "C-Sparse-8",
++          "Kind": "Sparse",
++          "NameLength": 8,
++          "KernelCode": "Decoded",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "C-Sparse-64",
++          "Kind": "Sparse",
++          "NameLength": 64,
++          "KernelCode": "FixupMismatch",
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        }
++      ]
++    }
++  },
++  "source_verified": true,
++  "native_operation": "None"
++}
+\ No newline at end of file
+diff --git a/iterations/2026-11-12-16-fixture-source/validation.json b/iterations/2026-11-12-16-fixture-source/validation.json
+new file mode 100644
+index 0000000..d7838a4
+--- /dev/null
++++ b/iterations/2026-11-12-16-fixture-source/validation.json
+@@ -0,0 +1,22 @@
++{
++  "schema": 1,
++  "scope": "owned-fixture-source",
++  "guard_checks": 189,
++  "source_checks": 63,
++  "source_evidence_checks": 137,
++  "mode_code_checks": 248,
++  "fixture_script_guard_checks": 36,
++  "prior_synthetic": 147,
++  "prior_mft_map": 174,
++  "prior_raw_lease": 84,
++  "prior_raw_comparison": 130,
++  "build_warnings": 0,
++  "build_errors": 0,
++  "source_native_checks": 472,
++  "source_final_checks": 473,
++  "old_comparison_checks": 1583,
++  "old_raw_checks": 860,
++  "production_integration": false,
++  "vss_created": false,
++  "new_raw_samples": 0
++}
+diff --git a/scripts/ntfs-prototype/FixtureCodeEvidence.ps1 b/scripts/ntfs-prototype/FixtureCodeEvidence.ps1
+index 72290fa..2329c95 100644
+--- a/scripts/ntfs-prototype/FixtureCodeEvidence.ps1
++++ b/scripts/ntfs-prototype/FixtureCodeEvidence.ps1
+@@ -1,7 +1,7 @@
+ #requires -Version 7.4
+ # Semantic result-code whitelist. Unknown text is never forwarded to retained results.
+ function ConvertTo-FixtureCodeEvidence($Value, $Status) {
+-    if ($Status -isnot [string] -or $Status -cnotin @('passed','collected','verified','failed')) {
++    if ($Status -isnot [string] -or $Status -cnotin @('passed','collected','verified','source_verified','failed')) {
+         throw 'FIXTURE_CODE_EVIDENCE_INVALID'
+     }
+     if ($Status -cne 'failed') {
+@@ -22,6 +22,27 @@ function ConvertTo-FixtureCodeEvidence($Value, $Status) {
+         'RawResultCoverage','ADMINISTRATOR_REQUIRED','COMPARISON_FAILED','CONFLICTING_FIXTURE_MODES',
+         'RUNNER_LIMIT','RUNNER_NOT_BUILT','RUNNER_STILL_ACTIVE','SUMMARY_INVALID','SUMMARY_MISSING',
+         'RAW_EVIDENCE_MISSING','RAW_COMPARISON_EVIDENCE_INVALID','MATRIX_JSON_INVALID',
++        'SOURCE_EVIDENCE_MISSING','SOURCE_ADAPTER_EVIDENCE_INVALID',
++        'FixtureAbsolutePath','FixtureAdapter','FixtureAliasBinding','FixtureAlignmentBounds',
++        'FixtureBaselineBudget','FixtureBaselineCase','FixtureBaselinePath','FixtureCaseBudget',
++        'FixtureContextClosed','FixtureControlBounds','FixtureControlFailed','FixtureDataRoot',
++        'FixtureGuardOperation','FixtureImageBounds','FixtureImageChanged','FixtureImageDevice',
++        'FixtureImageFixedType','FixtureImageInformation','FixtureImageOpen','FixtureImageSize',
++        'FixtureImageSubtype','FixtureJsonFields','FixtureJsonSchema','FixtureJsonShape',
++        'FixtureJsonValue','FixtureManifestBounds','FixtureManifestChanged','FixtureManifestIdentity',
++        'FixtureMarkerBinding','FixtureMarkerBounds','FixtureMftGeometry','FixtureMountedVolume',
++        'FixtureNamedStream','FixtureNonce','FixtureNtfsGeometry','FixturePartitionBounds',
++        'FixturePartitionChanged','FixturePartitionIdentity','FixturePhysicalDevice','FixturePhysicalSector',
++        'FixturePostTargetChanged','FixtureReadBounds','FixtureReparse','FixtureRepositoryRoot',
++        'FixtureResolveVolume','FixtureStorageFailed','FixtureTargetAttributes','FixtureTargetIdentity',
++        'FixtureTargetType','FixtureVolumeDataBounds','FixtureVolumeExtents','FixtureVolumeOpen',
++        'FixtureVolumeSyntax','FixtureWorkspace','SourceAllocationMismatch','SourceCaseInvalid',
++        'SourceCleanupFailed','SourceControlInvalid','SourceCoverageInvalid','SourceFactsChanged',
++        'SourceGeometryInvalid','SourceIdentityMismatch','SourceLinksMismatch','SourceLogicalMismatch',
++        'SourceMapBindingMismatch','SourceMapInvalid','SourceNamesMismatch','SourceNativeFailed',
++        'SourceNotActive','SourceReadCoverageInvalid','SourceResultMismatch','SourceScopeMismatch',
++        'SourceStrictDecodeFailed','SourceTargetContextInvalid','SourceTargetScopeInvalid','SourceTokenMismatch',
++        'SourceUnlockFailed',
+         'KERNEL_MATRIX_EVIDENCE_INVALID','CAPTURE_CLEANUP_INVALID','FIXTURE_CODE_EVIDENCE_INVALID'
+     )
+     if ($Value -cin $fixed) { return $Value }
+diff --git a/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 b/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1
+index 3369dde..06f4b2b 100644
+--- a/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1
++++ b/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1
+@@ -1,12 +1,12 @@
+ #requires -Version 7.4
+ [CmdletBinding()]
+-param([Parameter(Mandatory)][string]$ResultPath, [switch]$KernelDiagnostics, [switch]$RawRecords)
++param([Parameter(Mandatory)][string]$ResultPath, [switch]$KernelDiagnostics, [switch]$RawRecords, [switch]$SourceAdapter)
+ 
+ # Destructive commands below are bound only to a newly created disposable image.
+ # No disk number, drive letter, existing image, or general command can be supplied.
+ $ErrorActionPreference = 'Stop'
+ Set-StrictMode -Version Latest
+-if ($KernelDiagnostics -and $RawRecords) { throw 'CONFLICTING_FIXTURE_MODES' }
++if (($KernelDiagnostics -and $RawRecords) -or ($KernelDiagnostics -and $SourceAdapter) -or ($RawRecords -and $SourceAdapter)) { throw 'CONFLICTING_FIXTURE_MODES' }
+ $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+ $artifactsRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot 'artifacts'))
+ $fixtureNonce = [guid]::NewGuid().ToString('N')
+@@ -19,6 +19,7 @@ $detached = $false; $cleaned = $false; $runner = $null; $runnerExit = $null
+ $checks = 0; $failureCount = 0; $status = 'failed'
+ $failureCode = 'None'; $runnerStopped = $true
+ $nativeError = 0
++$nativeOperation = 'None'
+ $lookupEvidence = $null
+ $leaseEvidence = $null
+ $specialEvidence = $null
+@@ -26,11 +27,13 @@ $specialCostEvidence = $null
+ $matrixEvidence = $null
+ $captureCleanup = $null
+ $rawEvidence = $null
++$sourceEvidence = $null
+ . (Join-Path $PSScriptRoot 'LeaseEvidence.ps1')
+ . (Join-Path $PSScriptRoot 'SpecialEvidence.ps1')
+ . (Join-Path $PSScriptRoot 'SpecialCostEvidence.ps1')
+ . (Join-Path $PSScriptRoot 'KernelMatrixEvidence.ps1')
+ . (Join-Path $PSScriptRoot 'RawComparisonEvidence.ps1')
++. (Join-Path $PSScriptRoot 'SourceAdapterEvidence.ps1')
+ . (Join-Path $PSScriptRoot 'FixtureCodeEvidence.ps1')
+ $diskNumber = $null; $diskPath = $null; $imageDevicePath = $null
+ 
+@@ -251,7 +254,7 @@ public static class AsukaLensFixtureImage {
+     $confirmedVolume = @($confirmedPartition | Get-Volume -ErrorAction Stop)
+     if ([string]$confirmedPartition.DriveLetter -cne $driveLetter -or $confirmedVolume.Count -ne 1 -or
+         [string]$confirmedVolume[0].UniqueId -cne $volumeId) { throw 'VOLUME_CHANGED_BEFORE_MARKER' }
+-    $mode = if ($RawRecords) { 'raw-records' } elseif ($KernelDiagnostics) { 'kernel-diagnostics' } else { 'comparison' }
++    $mode = if ($SourceAdapter) { 'fixture-source' } elseif ($RawRecords) { 'raw-records' } elseif ($KernelDiagnostics) { 'kernel-diagnostics' } else { 'comparison' }
+     $fixture = [ordered]@{schema=1;image_path=$imagePath;volume_guid=[string]$volume.UniqueId;drive_root=$driveRoot;workspace=$workspace;nonce=$fixtureNonce;mode=$mode}
+     $manifestPath = Join-Path $workspace 'fixture.json'
+     Write-SafeJson $fixture $manifestPath
+@@ -270,21 +273,37 @@ public static class AsukaLensFixtureImage {
+     $runnerExit = $runner.ExitCode
+     $summaryPath = Join-Path $workspace 'live-summary.json'
+     [void](Assert-NoReparsePath $summaryPath)
+-    $summaryLimit = if ($KernelDiagnostics -or $RawRecords) { 65536 } else { 16384 }
++    $summaryLimit = if ($KernelDiagnostics -or $RawRecords -or $SourceAdapter) { 65536 } else { 16384 }
+     if (-not (Test-Path -LiteralPath $summaryPath -PathType Leaf) -or (Get-Item -LiteralPath $summaryPath).Length -gt $summaryLimit) { throw 'SUMMARY_MISSING' }
+     $summaryText = Get-Content -LiteralPath $summaryPath -Raw -Encoding utf8
+     Assert-UniqueJsonKeys $summaryText
+     $summary = $summaryText | ConvertFrom-Json
+-    if ($summary.schema -ne 1 -or $summary.status -cnotin @('passed','failed','collected','verified') -or
++    if ($summary.schema -ne 1 -or $summary.status -cnotin @('passed','failed','collected','verified','source_verified') -or
+         ($summary.checks -isnot [long] -and $summary.checks -isnot [int]) -or
+         ($summary.failures -isnot [long] -and $summary.failures -isnot [int]) -or
+         $summary.checks -lt 1 -or $summary.checks -gt 10000 -or $summary.failures -lt 0 -or $summary.failures -gt $summary.checks) { throw 'SUMMARY_INVALID' }
+     $checks = [int]$summary.checks; $failureCount = [int]$summary.failures
+     $summaryCode = if ($summary.PSObject.Properties['code']) { $summary.code } else { $null }
+     $failureCode = ConvertTo-FixtureCodeEvidence $summaryCode $summary.status
+-    $expectedStatus = if ($RawRecords) { 'verified' } elseif ($KernelDiagnostics) { 'collected' } else { 'passed' }
++    if ($SourceAdapter -and $summary.PSObject.Properties['native_error']) {
++        if (($summary.native_error -isnot [int] -and $summary.native_error -isnot [long]) -or
++            $summary.native_error -lt 0 -or $summary.native_error -gt [int]::MaxValue -or
++            ($summary.status -ceq 'source_verified' -and $summary.native_error -ne 0)) { throw 'SUMMARY_INVALID' }
++        $nativeError = [int]$summary.native_error
++    }
++    if ($SourceAdapter -and $summary.PSObject.Properties['native_operation']) {
++        if ($summary.native_operation -isnot [string] -or $summary.native_operation -cnotin
++            @('None','LockFailed','SeekFailed','ReadFailed','ShortRead','AllocationFailed','BufferReleaseFailed') -or
++            ($summary.status -ceq 'source_verified' -and $summary.native_operation -cne 'None')) { throw 'SUMMARY_INVALID' }
++        $nativeOperation = $summary.native_operation
++    }
++    $expectedStatus = if ($SourceAdapter) { 'source_verified' } elseif ($RawRecords) { 'verified' } elseif ($KernelDiagnostics) { 'collected' } else { 'passed' }
+     if ($runnerExit -ne 0 -or $summary.status -cne $expectedStatus -or $failureCount -ne 0) { throw 'COMPARISON_FAILED' }
+-    if ($RawRecords) {
++    if ($SourceAdapter) {
++        if (-not $summary.PSObject.Properties['source_adapter']) { throw 'SOURCE_EVIDENCE_MISSING' }
++        $sourceEvidence = ConvertTo-SourceAdapterEvidence $summary.source_adapter
++        $status = 'source_verified'; $stage = 'SourceAdapterCompleted'
++    } elseif ($RawRecords) {
+         if (-not $summary.PSObject.Properties['raw_comparison']) { throw 'RAW_EVIDENCE_MISSING' }
+         $rawEvidence = ConvertTo-RawComparisonEvidence $summary.raw_comparison
+         $status = 'verified'; $stage = 'RawComparisonCompleted'
+@@ -338,12 +357,15 @@ public static class AsukaLensFixtureImage {
+     $result.lease_experiment = if ($status -ceq 'passed') { $leaseEvidence } else { $null }
+     $result.special_lookup = if ($status -ceq 'passed') { $specialEvidence } else { $null }
+     $result.special_cost = if ($status -ceq 'passed') { $specialCostEvidence } else { $null }
+-    $result.mode = if ($RawRecords) { 'raw-records' } elseif ($KernelDiagnostics) { 'kernel-diagnostics' } else { 'comparison' }
++    $result.mode = if ($SourceAdapter) { 'fixture-source' } elseif ($RawRecords) { 'raw-records' } elseif ($KernelDiagnostics) { 'kernel-diagnostics' } else { 'comparison' }
+     $result.kernel_matrix = if ($status -ceq 'collected') { $matrixEvidence } else { $null }
+     $result.all_decoded = if ($status -ceq 'collected') { $matrixEvidence.DecodeFailures -eq 0 } else { $null }
+     $result.capture_cleanup_status = if ($status -ceq 'collected') { $captureCleanup } else { $null }
+     $result.raw_comparison = if ($status -ceq 'verified') { $rawEvidence } else { $null }
+     $result.raw_verified = $status -ceq 'verified'
++    $result.source_adapter = if ($status -ceq 'source_verified') { $sourceEvidence } else { $null }
++    $result.source_verified = $status -ceq 'source_verified'
++    $result.native_operation = $nativeOperation
+     $resultTemp = $ResultPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
+     try {
+         [void](Assert-NoReparsePath $ResultPath)
+@@ -352,4 +374,4 @@ public static class AsukaLensFixtureImage {
+     } finally { if (Test-Path -LiteralPath $resultTemp) { Remove-Item -LiteralPath $resultTemp -Force } }
+ }
+ Write-Output ('RESULT: ' + $status)
+-if ($status -cnotin @('passed','collected','verified')) { exit 1 }
++if ($status -cnotin @('passed','collected','verified','source_verified')) { exit 1 }
+diff --git a/scripts/ntfs-prototype/README.md b/scripts/ntfs-prototype/README.md
+index 3b2de54..08061a0 100644
+--- a/scripts/ntfs-prototype/README.md
++++ b/scripts/ntfs-prototype/README.md
+@@ -86,3 +86,16 @@ pwsh -NoProfile -File scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 `
+ 结果文件必须不存在并处于允许的artifacts范围；不能覆盖旧报告。成功状态为 `verified`，必须同时检查 `raw_verified`、`detached`、`cleanup_completed` 和 `raw_comparison`。`RawDecoded=22` 只说明这22条严格解码，`UnknownAllocationObjects=14` 如实保留特殊分配未知，不是整卷或占用统计全部完成。锁失败不读取，也不用强制卸载重试；失败/清理失败清空成功摘要。最多128次ReadFile尝试、2MiB请求、每次64KiB；实际受控夹具为22次/22528字节，不能当物理I/O或性能结论。
+ 
+ 原始记录仅在内存，raw模式不创建留样会话；旧6条kernel样本仍仅本机保留。公开结果经过深层字段及语义代码白名单，不转发任意异常或标识。真实成功、失败尝试和未验收项见[本轮记录](../../iterations/2026-11-12-14-raw-records/README.md)。授权不延续到以后，不锁个人卷，不提供生产入口或打包。
++
++## 自有来源适配器模式
++
++在本轮已明确获准重复隔离VHD时，使用既有新结果路径入口加 `-SourceAdapter`（与 `-RawRecords` / `-KernelDiagnostics` 互斥）：
++
++```powershell
++$result = Join-Path (Resolve-Path artifacts) ('ntfs-live-result-' + [guid]::NewGuid().ToString('N') + '.json')
++pwsh -NoProfile -File scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 -ResultPath $result -SourceAdapter
++```
++
++模式为 `fixture-source`，成功状态 `source_verified`；必须同时核对 `source_verified`、`detached`、`cleanup_completed` 及 `source_adapter.Comparison`。新适配器先在准备期核对固定/无父链/真实卷归属，再由独立owner打开自己的句柄，成功锁定后读既有22记录并执行固定后验；不复用caller bool或任意句柄作为证明。真实结果token与映射只在内存，关闭后envelope失效；模拟Native报告不能通过真实来源摘要白名单。
++
++新来源失败只允许固定类别、数值 `native_error` 和枚举 `native_operation`，任意异常文本/路径/身份不输出；失败/清理失败清空成功证据，旧 `raw_verified` 不为新模式别名。预算、占用未知与未接产品的边界见[第16轮方案](../../docs/ntfs-fixture-source-plan.md)。不因这个模式存在而获得以后VHD、全MFT、个人卷或VSS许可。
+diff --git a/scripts/ntfs-prototype/SourceAdapterEvidence.ps1 b/scripts/ntfs-prototype/SourceAdapterEvidence.ps1
+new file mode 100644
+index 0000000..9584d15
+--- /dev/null
++++ b/scripts/ntfs-prototype/SourceAdapterEvidence.ps1
+@@ -0,0 +1,26 @@
++#requires -Version 7.4
++# Pure whitelist conversion. Load RawComparisonEvidence.ps1 before calling.
++# A validated JSON report is evidence transport, not an independent source verifier.
++function ConvertTo-SourceAdapterEvidence($Value) {
++    try {
++        if ($null -eq $Value -or $Value -isnot [pscustomobject]) { throw 'SOURCE_ADAPTER_EVIDENCE_INVALID' }
++        $expected = @('Revision','EvidenceKind','GuardOwned','TokenBound','MapBound','Closed','RejectedReads','Comparison')
++        $properties = @($Value.PSObject.Properties)
++        $actual = @($properties.Name)
++        if ($actual.Count -ne $expected.Count -or (Compare-Object $expected $actual -CaseSensitive) -or
++            @($properties | Where-Object MemberType -ne NoteProperty).Count -ne 0) { throw 'SOURCE_ADAPTER_EVIDENCE_INVALID' }
++        if ($Value.Revision -isnot [string] -or $Value.Revision -cne 'fixture-source-v1' -or
++            $Value.EvidenceKind -isnot [string] -or $Value.EvidenceKind -cne 'NativeOwnedFixture') { throw 'SOURCE_ADAPTER_EVIDENCE_INVALID' }
++        foreach ($field in @('GuardOwned','TokenBound','MapBound','Closed')) {
++            if ($Value.$field -isnot [bool] -or -not $Value.$field) { throw 'SOURCE_ADAPTER_EVIDENCE_INVALID' }
++        }
++        if (($Value.RejectedReads -isnot [int] -and $Value.RejectedReads -isnot [long]) -or
++            $Value.RejectedReads -lt 0 -or $Value.RejectedReads -gt 128) { throw 'SOURCE_ADAPTER_EVIDENCE_INVALID' }
++        # Rebuild every nested field through the existing strict 22-record/21-object
++        # contract. In particular 14 special allocations remain Unknown, never zero.
++        $comparison = ConvertTo-RawComparisonEvidence $Value.Comparison
++        return [ordered]@{Revision='fixture-source-v1';EvidenceKind='NativeOwnedFixture';GuardOwned=$true;
++            TokenBound=$true;MapBound=$true;Closed=$true;RejectedReads=[int]$Value.RejectedReads;Comparison=$comparison}
++    }
++    catch { throw 'SOURCE_ADAPTER_EVIDENCE_INVALID' }
++}
+diff --git a/tests/NtfsFixtureCodeEvidence.Tests.ps1 b/tests/NtfsFixtureCodeEvidence.Tests.ps1
+index 8f7f846..0ed8577 100644
+--- a/tests/NtfsFixtureCodeEvidence.Tests.ps1
++++ b/tests/NtfsFixtureCodeEvidence.Tests.ps1
+@@ -19,7 +19,7 @@ function RejectSuccess($Code, $Status) {
+     try { ConvertTo-FixtureCodeEvidence $Code $Status | Out-Null } catch { $message = $_.Exception.Message }
+     Check ($message -ceq 'FIXTURE_CODE_EVIDENCE_INVALID') 'success rejects a missing or non-None result code'
+ }
+-foreach ($status in @('passed','collected','verified')) {
++foreach ($status in @('passed','collected','verified','source_verified')) {
+     Check ((ConvertTo-FixtureCodeEvidence 'None' $status) -ceq 'None') 'successful fixture mode has exactly None code'
+     foreach ($bad in @($null,'','none','OperationFailed','RawUnlockSucceeded','PrivateMarker123',$true,1,@('None'))) { RejectSuccess $bad $status }
+ }
+@@ -27,7 +27,7 @@ foreach ($status in @('running','cleanup_failed','PASSED',$null,1,$true,@('passe
+ foreach ($code in @('FixtureGuard','FixtureIO','AccessDenied','ManifestJson','RawMetadataVolumeBinding',
+     'RawUnlockSucceeded','RawPostNativeObjectStable','RawPostNativeAliasStable','RawPostNamedStreamContent',
+     'RawLookupReasonsMatchFixture','RAW_EVIDENCE_MISSING','RAW_COMPARISON_EVIDENCE_INVALID','MATRIX_JSON_INVALID',
+-    'COMPARISON_FAILED','FIXTURE_CODE_EVIDENCE_INVALID','OperationFailed')) {
++    'COMPARISON_FAILED','FIXTURE_CODE_EVIDENCE_INVALID','SOURCE_EVIDENCE_MISSING','SOURCE_ADAPTER_EVIDENCE_INVALID','OperationFailed')) {
+     Check ((ConvertTo-FixtureCodeEvidence $code 'failed') -ceq $code) 'known semantic failure code preserved'
+ }
+ foreach ($bad in @('PrivateMarker123','SECRET_IDENTIFIER','None','fixtureIO','FixtureIOPrivate','RawNative-Private-5',
+@@ -92,24 +92,33 @@ $gate = @($main[0].Body.Statements | Where-Object {$_ -is [Management.Automation
+ Check ($codeStatements.Count -eq 2 -and $gate.Count -eq 1) 'actual summary code conversion precedes mode and exit gating'
+ $codeBlock = [scriptblock]::Create(($codeStatements.Extent.Text -join "`n"))
+ $gateBlock = [scriptblock]::Create($gate[0].Extent.Text)
++$nativeStatements = @($main[0].Body.Statements | Where-Object {$_ -is [Management.Automation.Language.IfStatementAst] -and ($_.Extent.Text.StartsWith('if ($SourceAdapter -and $summary.PSObject.Properties[''native_error''])') -or $_.Extent.Text.StartsWith('if ($SourceAdapter -and $summary.PSObject.Properties[''native_operation''])'))})
++Check ($nativeStatements.Count -eq 2) 'native failure fields use only actual bounded source-mode gates'
++$nativeBlock = [scriptblock]::Create(($nativeStatements.Extent.Text -join "`n"))
++
+ $catchBlock = [scriptblock]::Create($main[0].CatchClauses[0].Body.Extent.Text.TrimStart('{').TrimEnd('}'))
+ $exports = @($main[0].Finally.Statements | Where-Object {$_.Extent.Text.StartsWith('$result.')})
+ Check ($exports.Count -ge 10) 'extract only final mode evidence export assignments'
+ $exportBlock = [scriptblock]::Create(($exports.Extent.Text -join "`n"))
+-function SummaryResult($Code, [string]$SummaryStatus, [string]$Expected, [int]$ExitCode, [bool]$Missing = $false, [bool]$CleanupFailure = $false) {
++function SummaryResult($Code, [string]$SummaryStatus, [string]$Expected, [int]$ExitCode, [bool]$Missing = $false, [bool]$CleanupFailure = $false, $InputNativeError = $null, $InputNativeOperation = $null) {
+     $summary = [pscustomobject]@{status=$SummaryStatus;code=$Code}
+     if ($Missing) {$summary.PSObject.Properties.Remove('code')}
+     $status = 'failed'; $failureCode = 'None'; $runnerExit = $ExitCode; $failureCount = 0; $expectedStatus = $Expected
+     $RawRecords = $Expected -ceq 'verified'; $KernelDiagnostics = $Expected -ceq 'collected'
++    $SourceAdapter = $Expected -ceq 'source_verified'; $sourceEvidence='synthetic-source'
++    $nativeError=0; $nativeOperation='None'
++    if ($null -ne $InputNativeError) {$summary | Add-Member -NotePropertyName native_error -NotePropertyValue $InputNativeError}
++    if ($null -ne $InputNativeOperation) {$summary | Add-Member -NotePropertyName native_operation -NotePropertyValue $InputNativeOperation}
++
+     $rawEvidence = 'synthetic-raw'; $matrixEvidence = [pscustomobject]@{DecodeFailures=0}; $captureCleanup='EmptyRemoved'
+     $lookupEvidence='synthetic-lookup'; $leaseEvidence='synthetic-lease'; $specialEvidence='synthetic-special'; $specialCostEvidence='synthetic-cost'
+-    try { . $codeBlock; . $gateBlock; $status=$Expected } catch { . $catchBlock }
++    try { . $codeBlock; . $nativeBlock; . $gateBlock; $status=$Expected } catch { . $catchBlock }
+     if ($CleanupFailure) {$status='cleanup_failed'}
+     $result = [ordered]@{status=$status;code=$failureCode}
+     . $exportBlock
+     return $result
+ }
+-foreach ($mode in @('passed','collected','verified')) {
++foreach ($mode in @('passed','collected','verified','source_verified')) {
+     $result = SummaryResult 'None' $mode $mode 0
+     Check ($result.status -ceq $mode -and $result.code -ceq 'None') 'valid result keeps its own success mode'
+     $result = SummaryResult 'PrivateMarker123' $mode $mode 0
+@@ -129,4 +138,44 @@ $result = SummaryResult 'None' 'passed' 'verified' 0
+ Check ($result.status -ceq 'failed' -and $result.code -ceq 'COMPARISON_FAILED' -and -not $result.raw_verified) 'comparison success cannot satisfy raw mode'
+ $result = SummaryResult 'None' 'verified' 'passed' 0
+ Check ($result.status -ceq 'failed' -and $null -eq $result.raw_comparison -and $null -eq $result.lookup_experiment) 'raw success cannot satisfy old comparison mode'
++$result = SummaryResult 'None' 'source_verified' 'source_verified' 0
++Check ($result.mode -ceq 'fixture-source' -and $result.source_verified -and $null -ne $result.source_adapter -and -not $result.raw_verified -and $null -eq $result.raw_comparison) 'source evidence has a distinct success mode and no raw success alias'
++$result = SummaryResult 'None' 'source_verified' 'source_verified' 0 -CleanupFailure $true
++Check (-not $result.source_verified -and $null -eq $result.source_adapter) 'source cleanup failure clears its success evidence'
++foreach ($foreign in @('passed','collected','verified')) {
++    $result = SummaryResult 'None' $foreign 'source_verified' 0
++    Check ($result.status -ceq 'failed' -and -not $result.source_verified -and $null -eq $result.source_adapter) 'other mode success cannot satisfy source mode'
++    $result = SummaryResult 'None' 'source_verified' $foreign 0
++    Check ($result.status -ceq 'failed' -and -not $result.source_verified -and $null -eq $result.source_adapter) 'source success cannot satisfy another mode'
++}
++$conflict = @($wrapperAst.EndBlock.Statements | Where-Object {$_ -is [Management.Automation.Language.IfStatementAst] -and $_.Extent.Text.Contains('CONFLICTING_FIXTURE_MODES')})
++Check ($conflict.Count -eq 1) 'identify pure fixture mode conflict guard'
++$conflictBlock = [scriptblock]::Create($conflict[0].Extent.Text)
++foreach ($kernel in @($false,$true)) { foreach ($raw in @($false,$true)) { foreach ($source in @($false,$true)) {
++    $KernelDiagnostics=$kernel; $RawRecords=$raw; $SourceAdapter=$source
++    $message=$null
++    try { . $conflictBlock } catch { $message=$_.Exception.Message }
++    $expectedConflict=([int]$kernel+[int]$raw+[int]$source) -gt 1
++    Check (($expectedConflict -and $message -ceq 'CONFLICTING_FIXTURE_MODES') -or (-not $expectedConflict -and $null -eq $message)) 'only one real fixture mode may be selected'
++} } }
++foreach ($code in @('SourceNativeFailed','SourceTokenMismatch','SourceNotActive','SourceUnlockFailed','SourceFactsChanged','FixtureImageFixedType','FixtureImageSubtype','FixturePartitionIdentity')) {
++    Check ((ConvertTo-FixtureCodeEvidence $code 'failed') -ceq $code) 'source and guard error categories are semantic fixed codes'
++}
++foreach ($code in @('SourcePrivateMarker','FixturePrivateMarker','SourceTokenMismatch-Private','FixtureImageSubtype-Private')) {
++    Check ((ConvertTo-FixtureCodeEvidence $code 'failed') -ceq 'OperationFailed') 'source-like arbitrary markers cannot escape code redaction'
++}
++$result = SummaryResult 'SourceNativeFailed' 'failed' 'source_verified' 1 -InputNativeError 5 -InputNativeOperation 'LockFailed'
++Check ($result.status -ceq 'failed' -and $result.native_operation -ceq 'LockFailed' -and $null -eq $result.source_adapter) 'bounded native failure operation remains a failure without source evidence'
++foreach ($bad in @(-1,2147483648L,$true,'5',1.5,@(5))) {
++    $result = SummaryResult 'None' 'source_verified' 'source_verified' 0 -InputNativeError $bad
++    Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID' -and -not $result.source_verified) 'native error rejects out of range and noninteger values'
++}
++foreach ($bad in @('PrivateMarker','None-Private','lockfailed',$true,5,@('None'))) {
++    $result = SummaryResult 'None' 'source_verified' 'source_verified' 0 -InputNativeOperation $bad
++    Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID' -and -not $result.source_verified) 'native operation rejects arbitrary text and wrong types'
++}
++$result = SummaryResult 'None' 'source_verified' 'source_verified' 0 -InputNativeError 5
++Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID') 'source success cannot carry a nonzero native error'
++$result = SummaryResult 'None' 'source_verified' 'source_verified' 0 -InputNativeOperation 'ReadFailed'
++Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID') 'source success cannot carry a native failure operation'
+ Write-Output ('PASS NTFS fixture code evidence checks: ' + $checks)
+diff --git a/tests/NtfsSourceEvidence.Tests.ps1 b/tests/NtfsSourceEvidence.Tests.ps1
+new file mode 100644
+index 0000000..5af1fcc
+--- /dev/null
++++ b/tests/NtfsSourceEvidence.Tests.ps1
+@@ -0,0 +1,125 @@
++#requires -Version 7.4
++# Pure-memory report checks; never opens a volume, source adapter or real fixture.
++$ErrorActionPreference = 'Stop'
++Set-StrictMode -Version Latest
++$checks = 0
++function Check([bool]$Condition, [string]$Name) {
++    if (-not $Condition) { throw ('FAIL ' + $Name) }
++    $script:checks++; Write-Output ('PASS NTFS source evidence ' + $Name)
++}
++function Load-PureFunction([string]$Relative, [string]$Name, [int]$ExpectedFunctions) {
++    $path = Join-Path $PSScriptRoot $Relative
++    $tokens = $null; $errors = $null
++    $ast = [Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $path).Path, [ref]$tokens, [ref]$errors)
++    Check ($errors.Count -eq 0) ('pure script syntax ' + $Name)
++    $definitions = @($ast.EndBlock.Statements | Where-Object {$_ -is [Management.Automation.Language.FunctionDefinitionAst]})
++    Check ($definitions.Count -eq $ExpectedFunctions -and $ast.EndBlock.Statements.Count -eq $ExpectedFunctions) ('no executable top-level operations ' + $Name)
++    $selected = @($definitions | Where-Object Name -CEQ $Name)
++    Check ($selected.Count -eq 1) ('identify pure function ' + $Name)
++    return [scriptblock]::Create($selected[0].Extent.Text)
++}
++# Dot-source in this script scope, not in Load-PureFunction's local scope.
++. (Load-PureFunction '../scripts/ntfs-prototype/RawComparisonEvidence.ps1' 'ConvertTo-RawComparisonEvidence' 1 | Select-Object -Last 1)
++. (Load-PureFunction '../scripts/ntfs-prototype/SourceAdapterEvidence.ps1' 'ConvertTo-SourceAdapterEvidence' 1 | Select-Object -Last 1)
++. (Load-PureFunction '../scripts/ntfs-prototype/KernelMatrixEvidence.ps1' 'Assert-UniqueJsonKeys' 2 | Select-Object -Last 1)
++
++function Fixture {
++    $cases = @(
++        foreach ($phase in @('A','B','C')) {
++            $lengths = if ($phase -ceq 'A') {@(8,24,64)} else {@(8,64)}
++            foreach ($kind in @('Ordinary','Compressed','Sparse')) {
++                foreach ($length in $lengths) {
++                    [pscustomobject]@{CaseId="$phase-$kind-$length";Kind=$kind;NameLength=$length;
++                        KernelCode=$(if ($length -eq 64) {'FixupMismatch'} else {'Decoded'});RawCode='Decoded';
++                        IdentityMatched=$true;LogicalMatched=$true;LinksMatched=$true;NamesMatched=$true;
++                        AllocationCheck=$(if ($kind -ceq 'Ordinary') {'Matched'} else {'Unknown'})}
++                }
++            }
++        }
++    )
++    $comparison = [pscustomobject]@{Revision='raw-records-v1';Objects=21;KernelRequests=63;KernelDecoded=36;KernelRejected=27;
++        RawRecords=22;RawDecoded=22;MatchedObjects=21;UnknownAllocationObjects=14;MftRuns=1;ReadCalls=22;
++        RequestedBytes=22528;PhysicalSectorBytes=512;LockAcquired=$true;UnlockSucceeded=$true;PostNativeStable=$true;Cases=$cases}
++    return [pscustomobject]@{Revision='fixture-source-v1';EvidenceKind='NativeOwnedFixture';GuardOwned=$true;
++        TokenBound=$true;MapBound=$true;Closed=$true;RejectedReads=0;Comparison=$comparison}
++}
++function Reject([scriptblock]$Mutation, [string]$Name) {
++    $value = Fixture; & $Mutation $value
++    $message = $null
++    try { ConvertTo-SourceAdapterEvidence $value | Out-Null } catch {$message=$_.Exception.Message}
++    Check ($message -ceq 'SOURCE_ADAPTER_EVIDENCE_INVALID') $Name
++}
++function RejectValue($Value, [string]$Name) {
++    $message = $null
++    try { ConvertTo-SourceAdapterEvidence $Value | Out-Null } catch {$message=$_.Exception.Message}
++    Check ($message -ceq 'SOURCE_ADAPTER_EVIDENCE_INVALID') $Name
++}
++
++$value = Fixture; $safe = ConvertTo-SourceAdapterEvidence $value
++Check (($safe.Keys -join ',') -ceq 'Revision,EvidenceKind,GuardOwned,TokenBound,MapBound,Closed,RejectedReads,Comparison') 'exact canonical source fields'
++Check ($safe.Comparison.RawDecoded -eq 22 -and $safe.Comparison.MatchedObjects -eq 21 -and $safe.Comparison.UnknownAllocationObjects -eq 14) 'nested finite fixture contract preserved'
++Check (@($safe.Comparison.Cases | Where-Object AllocationCheck -CEQ 'Unknown').Count -eq 14) 'special allocations stay unknown in nested output'
++Check ($safe.RejectedReads -eq 0) 'zero observed rejections is a count rather than a claim of exercised rejection paths'
++$value.RejectedReads=99; $value.Comparison.Cases[0].CaseId='private-marker'; $value.Comparison.KernelRejected=0
++Check ($safe.RejectedReads -eq 0 -and $safe.Comparison.KernelRejected -eq 27 -and $safe.Comparison.Cases[0].CaseId -ceq 'A-Ordinary-8') 'nested output is independent of caller mutations'
++$safe.Comparison.Cases[0].CaseId='different-marker'
++Check ($value.Comparison.Cases[0].CaseId -ceq 'private-marker') 'output mutation cannot alter input objects'
++$value=Fixture; $safe=ConvertTo-SourceAdapterEvidence $value
++$json=$safe|ConvertTo-Json -Depth 8
++Assert-UniqueJsonKeys $json
++Check ((ConvertTo-SourceAdapterEvidence ($json|ConvertFrom-Json)).Comparison.Cases.Count -eq 21) 'deep evidence JSON roundtrip'
++Check ($json -cnotmatch 'private-marker|different-marker|SourceToken|MapEpoch|Reference|Sha256|VolumeGuid|DevicePath') 'canonical synthetic output contains no original source identities or test injection text'
++foreach ($count in @(0,1,128,[long]128)) {
++    $value=Fixture; $value.RejectedReads=$count
++    Check ((ConvertTo-SourceAdapterEvidence $value).RejectedReads -eq $count) 'rejection count bounded endpoints accepted'
++}
++RejectValue $null 'null source report rejected'
++RejectValue @{} 'hashtable source report rejected'
++RejectValue @((Fixture),(Fixture)) 'array source report rejected'
++foreach ($field in @('Revision','EvidenceKind','GuardOwned','TokenBound','MapBound','Closed','RejectedReads','Comparison')) {
++    Reject {param($v) $v.PSObject.Properties.Remove($field)} ('missing source field ' + $field)
++}
++foreach ($field in @('SourceToken','Token','MapEpoch','Epoch','Path','Volume','Reference','Identity','Raw','Sha256','Exception','Skipped')) {
++    Reject {param($v) $v | Add-Member -NotePropertyName $field -NotePropertyValue 'private-marker'} ('source identity injection ' + $field)
++    Reject {param($v) $v.Comparison | Add-Member -NotePropertyName $field -NotePropertyValue 'private-marker'} ('nested identity injection ' + $field)
++    Reject {param($v) $v.Comparison.Cases[0] | Add-Member -NotePropertyName $field -NotePropertyValue 'private-marker'} ('case identity injection ' + $field)
++}
++Reject {param($v) $v.PSObject.Properties.Remove('GuardOwned');$v | Add-Member -NotePropertyName guardOwned -NotePropertyValue $true} 'source field casing exact'
++Reject {param($v) $v.PSObject.Properties.Remove('Closed');$v | Add-Member -MemberType ScriptProperty -Name Closed -Value {throw 'private-marker'}} 'active source property rejected without evaluation'
++foreach ($bad in @('fixture-source-v2','FIXTURE-SOURCE-V1',$true,1,$null,@('fixture-source-v1'))) {
++    Reject {param($v) $v.Revision=$bad} 'revision value and type exact'
++}
++foreach ($bad in @('SyntheticFixture','NativeOwnedFixture-Private','nativeownedfixture','ValidatedImmutable','VSS',$true,1,$null)) {
++    Reject {param($v) $v.EvidenceKind=$bad} 'synthetic or unknown evidence cannot mint a real fixture report'
++}
++Reject {param($v) $v.EvidenceKind='SyntheticFixture';$v.GuardOwned=$false} 'actual synthetic test-report shape is rejected by native success converter'
++foreach ($field in @('GuardOwned','TokenBound','MapBound','Closed')) {
++    foreach ($bad in @($false,'true',1,$null,@($true))) {Reject {param($v) $v.$field=$bad} ('required source boolean ' + $field)}
++}
++foreach ($bad in @(-1,129,[long]::MaxValue,'0',$true,[double]0,[decimal]0,$null,@(0))) {
++    Reject {param($v) $v.RejectedReads=$bad} 'rejection count range and numeric type strict'
++}
++Reject {param($v) $v.Comparison=$null} 'missing nested comparison rejected'
++Reject {param($v) $v.Comparison=@{}} 'hashtable nested comparison rejected'
++Reject {param($v) $v.Comparison.RawDecoded=21} 'incomplete strict raw decoding cannot publish source success'
++Reject {param($v) $v.Comparison.MatchedObjects=20} 'missing Native object match cannot publish source success'
++Reject {param($v) $v.Comparison.UnknownAllocationObjects=0} 'unknown allocations cannot become known zero'
++Reject {param($v) $v.Comparison.ReadCalls=129} 'nested read budget remains bounded'
++Reject {param($v) $v.Comparison.RequestedBytes=2097664} 'nested byte budget remains bounded'
++foreach ($field in @('LockAcquired','UnlockSucceeded','PostNativeStable')) {
++    Reject {param($v) $v.Comparison.$field=$false} ('nested source lifecycle proof required ' + $field)
++}
++Reject {param($v) $v.Comparison.Cases=$v.Comparison.Cases[0..19]} 'all known targets required'
++Reject {param($v) $v.Comparison.Cases[1].CaseId=$v.Comparison.Cases[0].CaseId} 'duplicate target cannot hide a missing target'
++Reject {param($v) $v.Comparison.Cases[0].KernelCode='PrivateMarker123'} 'nested kernel code semantic whitelist preserved'
++Reject {param($v) $v.Comparison.Cases[0].RawCode='FixupMismatch'} 'nested strict failure cannot be published as source success'
++foreach ($field in @('IdentityMatched','LogicalMatched','LinksMatched','NamesMatched')) {
++    Reject {param($v) $v.Comparison.Cases[0].$field=$false} ('nested target proof required ' + $field)
++}
++Reject {param($v) $v.Comparison.Cases[3].AllocationCheck='Matched'} 'special allocation uncertainty survives source wrapping'
++foreach ($rawJson in @('{"Closed":true,"Closed":true}', '{"Closed":true,"closed":true}',
++    '{"Comparison":{"RawDecoded":22,"rawDecoded":22}}','{"Comparison":{"Cases":[{"CaseId":"A","caseid":"B"}]}}')) {
++    $message=$null;try {Assert-UniqueJsonKeys $rawJson} catch {$message=$_.Exception.Message}
++    Check ($message -ceq 'MATRIX_JSON_INVALID') 'shared wrapper guard rejects duplicate or case-variant JSON keys at every depth'
++}
++Write-Output ('PASS NTFS source evidence checks: ' + $checks)
+diff --git a/tests/Program.cs b/tests/Program.cs
+index f10cdd3..911c527 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -17,6 +17,17 @@ if (args.Length > 0 && args[0] == "--ntfs-record-replay")
+ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+ if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
+ if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
++if (args.Contains("--ntfs-fixture-source-tests"))
++{
++    try
++    {
++        int guards = DiskAtlas.NtfsPrototype.NtfsVerifiedFixtureContextTests.Run();
++        int source = DiskAtlas.NtfsPrototype.NtfsFixtureSourceTests.Run();
++        Console.WriteLine($"PASS NTFS fixture source checks: {guards} guard; {source} source; test-owned synthetic inputs only");
++        return 0;
++    }
++    catch { Console.Error.WriteLine("FAIL NTFS fixture source checks; no private details emitted"); return 1; }
++}
+ if (args.Contains("--ntfs-read-session-tests"))
+ {
+     try
+diff --git a/tests/Prototypes/Ntfs/NtfsFixtureSource.cs b/tests/Prototypes/Ntfs/NtfsFixtureSource.cs
+new file mode 100644
+index 0000000..6ac92fd
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsFixtureSource.cs
+@@ -0,0 +1,329 @@
++using System.Diagnostics.CodeAnalysis;
++using Microsoft.Win32.SafeHandles;
++
++namespace DiskAtlas.NtfsPrototype;
++
++internal sealed class NtfsFixtureSourceException : IOException
++{
++    internal string Code { get; }
++    internal int NativeErrorCode { get; }
++    internal string NativeCode { get; }
++    internal NtfsFixtureSourceException(string code, int nativeErrorCode = 0, string nativeCode = "None") : base(code)
++    { Code = code; NativeErrorCode = nativeErrorCode; NativeCode = nativeCode; }
++}
++
++// Tokens have no serializable identity. Possession alone is insufficient: every
++// use checks the exact owning source instance, its current map and active state.
++internal sealed class NtfsFixtureSourceToken { }
++internal sealed class NtfsFixtureSourceReadResult
++{
++    private readonly NtfsFixtureSource owner;
++    internal string CaseId { get; }
++    internal NtfsFixtureSourceReadResult(NtfsFixtureSource owner, string caseId)
++    { this.owner = owner; CaseId = caseId; }
++    internal NtfsRecord Value => owner.GetValue(this);
++}
++
++internal sealed record NtfsFixtureSourceReport(string Revision, string EvidenceKind, bool GuardOwned,
++    bool TokenBound, bool MapBound, bool Closed, int RejectedReads, NtfsRawComparisonReport Comparison);
++
++// A source owner for the finite, locally generated fixture only. No VSS/live
++// factory, arbitrary offset/path API, production scanner or simulated proof bool.
++internal sealed class NtfsFixtureSource : IDisposable
++{
++    internal interface IBackend : IDisposable
++    {
++        SafeFileHandle Volume { get; }
++        NtfsRawVolumeFacts QueryFacts(bool reopen, CancellationToken token);
++        IReadOnlyList<NtfsRawTarget> CaptureFixedTargets(CancellationToken token);
++        void VerifyFixedTargets(IReadOnlyList<NtfsRawTarget> baseline, CancellationToken token);
++    }
++    private sealed class RealBackend(NtfsVerifiedFixtureContext context) : IBackend
++    {
++        public SafeFileHandle Volume => context.Volume;
++        public NtfsRawVolumeFacts QueryFacts(bool reopen, CancellationToken token) => context.QueryFacts(reopen, token);
++        public IReadOnlyList<NtfsRawTarget> CaptureFixedTargets(CancellationToken token) => context.CaptureFixedTargets(token);
++        public void VerifyFixedTargets(IReadOnlyList<NtfsRawTarget> baseline, CancellationToken token) => context.VerifyFixedTargets(baseline, token);
++        public void Dispose() => context.Dispose();
++    }
++
++    private readonly object gate = new();
++    private readonly IBackend backend;
++    private readonly bool nativeProvenance;
++    private readonly NtfsFixtureSourceToken token = new();
++    private readonly Dictionary<string, NtfsRawTarget> targets = new(StringComparer.Ordinal);
++    private readonly Dictionary<string, NtfsRecord> records = new(StringComparer.Ordinal);
++    private readonly Dictionary<string, NtfsFixtureSourceReadResult> results = new(StringComparer.Ordinal);
++    private readonly Dictionary<string, NtfsKernelMatrixCase> descriptors = NtfsKernelMatrix.Cases.ToDictionary(item => item.CaseId, StringComparer.Ordinal);
++    private NtfsRawVolumeFacts facts = null!;
++    private NtfsRawVolumeLease? lease;
++    private NtfsMftMap? map;
++    private NtfsFixtureSourceToken? mapToken;
++    private bool active, disposed, backendDisposed, backendDisposeSucceeded;
++    private int rejectedReads;
++
++    private NtfsFixtureSource(IBackend backend, bool nativeProvenance)
++    { this.backend = backend; this.nativeProvenance = nativeProvenance; }
++    internal NtfsFixtureSourceToken Token => token;
++
++    internal static NtfsFixtureSource Open(string manifestPath, CancellationToken token = default)
++    {
++        token.ThrowIfCancellationRequested();
++        // This is the sole real factory. Callers supply neither a handle nor
++        // target paths, snapshots, injected native operations, or a proof flag.
++        var context = NtfsVerifiedFixtureContext.Create(manifestPath, token);
++        return Create(new RealBackend(context), true, null, token);
++    }
++
++    // Explicitly synthetic: even perfect fake operations cannot produce the
++    // NativeOwnedFixture/GuardOwned evidence accepted by the real CLI wrapper.
++    internal static NtfsFixtureSource OpenForTests(IBackend backend, NtfsRawVolumeLease.INative native,
++        CancellationToken token = default)
++    {
++        ArgumentNullException.ThrowIfNull(backend); ArgumentNullException.ThrowIfNull(native);
++        return Create(backend, false, native, token);
++    }
++
++    private static NtfsFixtureSource Create(IBackend backend, bool isNative, NtfsRawVolumeLease.INative? native,
++        CancellationToken cancellation)
++    {
++        var source = new NtfsFixtureSource(backend, isNative);
++        try { source.Initialize(native, cancellation); return source; }
++        catch (NtfsRawVolumeException error)
++        { source.Dispose(); throw new NtfsFixtureSourceException("SourceNativeFailed", error.NativeErrorCode, error.Code); }
++        catch { source.Dispose(); throw; }
++    }
++    private static void Require([DoesNotReturnIf(false)] bool condition, string code)
++    { if (!condition) throw new NtfsFixtureSourceException(code); }
++
++    private void Initialize(NtfsRawVolumeLease.INative? native, CancellationToken cancellation)
++    {
++        cancellation.ThrowIfCancellationRequested();
++        var baseline = backend.CaptureFixedTargets(cancellation);
++        Require(baseline != null && baseline.Count == 21, "SourceTargetScopeInvalid");
++        for (int i = 0; i < 21; i++)
++        {
++            cancellation.ThrowIfCancellationRequested();
++            var target = baseline![i];
++            Require(target != null && target.Storage != null && target.ParentStorage != null &&
++                descriptors.ContainsKey(target.CaseId) && targets.TryAdd(target.CaseId, target), "SourceTargetScopeInvalid");
++        }
++        facts = backend.QueryFacts(false, cancellation);
++        Require(facts != null && facts.Geometry is { SectorBytes: 512, ClusterBytes: 4096, RecordBytes: 1024 }, "SourceGeometryInvalid");
++        Require(targets.Values.Select(item => item.Storage.Identity).Distinct().Count() == 21, "SourceTargetScopeInvalid");
++        foreach (var target in targets.Values)
++        {
++            cancellation.ThrowIfCancellationRequested();
++            var descriptor = descriptors[target.CaseId];
++            Require(target.Storage != null && target.ParentStorage != null &&
++                target.Storage.Identity.Volume == facts.Serial && target.Storage.Identity.High == 0 && target.Storage.Identity.Low >> 48 != 0 &&
++                target.ParentStorage.Identity.Volume == facts.Serial && target.ParentStorage.Identity.High == 0 && target.ParentStorage.Identity.Low >> 48 != 0 &&
++                target.Storage.LogicalBytes == descriptor.LogicalBytes && target.Storage.AllocatedBytes >= 0 &&
++                target.Storage.LinkCount == (descriptor.HardLink ? 2u : 1u) && target.Storage.Modified.HasValue && !target.Storage.WritableHandleOpen,
++                "SourceTargetContextInvalid");
++        }
++        cancellation.ThrowIfCancellationRequested();
++        lease = native == null ? NtfsRawVolumeLease.Acquire(backend.Volume, facts.Geometry.VolumeBytes,
++            facts.Geometry.SectorBytes, facts.PhysicalSectorBytes, cancellation) :
++            NtfsRawVolumeLease.AcquireForTests(backend.Volume, facts.Geometry.VolumeBytes,
++                facts.Geometry.SectorBytes, facts.PhysicalSectorBytes, native, cancellation);
++        long start;
++        try { start = checked(facts.Geometry.MftStartLcn * facts.Geometry.ClusterBytes); }
++        catch (OverflowException) { throw new NtfsFixtureSourceException("SourceGeometryInvalid"); }
++        byte[] raw0 = lease.Read(start, facts.Geometry.RecordBytes, cancellation);
++        var parsed = NtfsMftMap.Parse(raw0, facts.Geometry, cancellation);
++        Require(parsed.Status == "Mapped" && parsed.Map != null, "SourceMapInvalid");
++        map = parsed.Map!;
++        var bootstrap = map.PlanRecord(0, cancellation);
++        Require(bootstrap.Count == 1 && bootstrap[0].VolumeOffset == start && bootstrap[0].RecordOffset == 0 &&
++            bootstrap[0].Length == facts.Geometry.RecordBytes, "SourceMapBindingMismatch");
++        mapToken = token;
++        cancellation.ThrowIfCancellationRequested();
++        active = true;
++    }
++
++    [DoesNotReturn]
++    private void RejectRequest(string code)
++    {
++        if (active && rejectedReads < 128) rejectedReads++;
++        throw new NtfsFixtureSourceException(code);
++    }
++    private void CheckActive(NtfsFixtureSourceToken requested)
++    {
++        if (!active || disposed) RejectRequest("SourceNotActive");
++        if (!ReferenceEquals(requested, token)) RejectRequest("SourceTokenMismatch");
++        if (map == null || !ReferenceEquals(mapToken, token)) RejectRequest("SourceMapBindingMismatch");
++    }
++
++    internal NtfsFixtureSourceReadResult ReadKnown(NtfsFixtureSourceToken requested, string caseId,
++        CancellationToken cancellation = default)
++    {
++        lock (gate)
++        {
++            CheckActive(requested);
++            if (caseId == null) RejectRequest("SourceCaseInvalid");
++            if (!targets.TryGetValue(caseId!, out var target)) RejectRequest("SourceCaseInvalid");
++            try
++            {
++                cancellation.ThrowIfCancellationRequested();
++                if (results.TryGetValue(caseId!, out var cached)) return cached;
++                var descriptor = descriptors[caseId!];
++                ulong slot = target!.Storage.Identity.Low & NtfsRecordDecoder.MaximumRecordNumber;
++                var raw = new byte[facts.Geometry.RecordBytes];
++                int copied = 0;
++                foreach (var slice in map!.PlanRecord(slot, cancellation))
++                {
++                    cancellation.ThrowIfCancellationRequested();
++                    Require(slice.RecordOffset == copied && slice.Length > 0 && slice.Length <= raw.Length - copied, "SourceReadCoverageInvalid");
++                    byte[] bytes = lease!.Read(slice.VolumeOffset, slice.Length, cancellation);
++                    bytes.CopyTo(raw, slice.RecordOffset); copied += bytes.Length;
++                }
++                Require(copied == raw.Length, "SourceReadCoverageInvalid");
++                var decoded = NtfsRecordDecoder.Decode(raw, facts.Geometry.SectorBytes, token: cancellation,
++                    recordNumber: slot, clusterSize: facts.Geometry.ClusterBytes);
++                Require(decoded.Status == NtfsDecodeStatus.Decoded && decoded.Record != null, "SourceStrictDecodeFailed");
++                var record = decoded.Record!;
++                Require(record.Reference == target.Storage.Identity.Low && record.BaseReference == 0 && !record.IsDirectory, "SourceIdentityMismatch");
++                Require(record.LogicalBytes == target.Storage.LogicalBytes, "SourceLogicalMismatch");
++                Require(NtfsRawComparison.MatchesLinks(record, target.Storage.LinkCount), "SourceLinksMismatch");
++                Require(NtfsRawComparison.MatchesNames(record, target.ParentStorage.Identity.Low, descriptor), "SourceNamesMismatch");
++                var reason = descriptor.Kind switch { "Compressed" => NtfsLookupReason.Compressed, "Sparse" => NtfsLookupReason.Sparse, _ => NtfsLookupReason.None };
++                if (descriptor.NamedStream) reason |= NtfsLookupReason.NamedData;
++                Require(record.LookupReasons == reason, "SourceScopeMismatch");
++                Require(descriptor.Kind == "Ordinary" ? record.AllocatedBytes == target.Storage.AllocatedBytes : record.AllocatedBytes == null,
++                    "SourceAllocationMismatch");
++                cancellation.ThrowIfCancellationRequested();
++                var result = new NtfsFixtureSourceReadResult(this, caseId!);
++                records.Add(caseId!, record); results.Add(caseId!, result);
++                return result;
++            }
++            catch (NtfsRawVolumeException error)
++            { Dispose(); throw new NtfsFixtureSourceException("SourceNativeFailed", error.NativeErrorCode, error.Code); }
++            catch { Dispose(); throw; }
++        }
++    }
++
++    internal void ValidateResult(NtfsFixtureSourceToken requested, NtfsFixtureSourceReadResult result)
++    {
++        lock (gate)
++        {
++            CheckActive(requested);
++            if (result == null || !results.TryGetValue(result.CaseId, out var current) || !ReferenceEquals(current, result))
++                RejectRequest("SourceResultMismatch");
++        }
++    }
++    internal NtfsRecord GetValue(NtfsFixtureSourceReadResult result)
++    {
++        lock (gate)
++        { ValidateResult(token, result); return records[result.CaseId]; }
++    }
++
++    internal NtfsFixtureSourceReport RunFixedComparison(NtfsKernelMatrixReport control, CancellationToken cancellation = default)
++    {
++        lock (gate)
++        {
++            CheckActive(token);
++            try
++            {
++                cancellation.ThrowIfCancellationRequested();
++                var kernel = ValidateControl(control);
++                var rows = new List<NtfsRawComparisonCase>(21);
++                int unknown = 0;
++                foreach (var descriptor in NtfsKernelMatrix.Cases)
++                {
++                    cancellation.ThrowIfCancellationRequested();
++                    var result = ReadKnown(token, descriptor.CaseId, cancellation);
++                    ValidateResult(token, result);
++                    var record = result.Value;
++                    bool known = descriptor.Kind == "Ordinary";
++                    if (!known) unknown++;
++                    rows.Add(new(descriptor.CaseId, descriptor.Kind, descriptor.NameLength, kernel[descriptor.CaseId].Code,
++                        "Decoded", true, true, true, true, known ? "Matched" : "Unknown"));
++                }
++                Require(records.Count == 21 && rows.Count == 21 && unknown == 14 && map != null && lease != null, "SourceCoverageInvalid");
++                int runs = map!.Runs.Count, reads = lease!.ReadCalls;
++                long bytes = lease.RequestedBytes;
++                cancellation.ThrowIfCancellationRequested();
++                CloseAndVerify(cancellation);
++                var comparison = new NtfsRawComparisonReport("raw-records-v1", 21, control.Requests, control.Decoded, control.DecodeFailures,
++                    22, 22, 21, 14, runs, reads, bytes, facts.PhysicalSectorBytes, true, true, true, rows.AsReadOnly());
++                cancellation.ThrowIfCancellationRequested();
++                return new("fixture-source-v1", nativeProvenance ? "NativeOwnedFixture" : "SyntheticFixture", nativeProvenance,
++                    true, true, true, rejectedReads, comparison);
++            }
++            catch (NtfsRawVolumeException error)
++            { Dispose(); throw new NtfsFixtureSourceException("SourceNativeFailed", error.NativeErrorCode, error.Code); }
++            catch { Dispose(); throw; }
++        }
++    }
++
++    private Dictionary<string, NtfsKernelMatrixRow> ValidateControl(NtfsKernelMatrixReport control)
++    {
++        Require(control != null && control.Revision == NtfsKernelMatrix.Revision && control.Objects == 21 && control.Requests == 63 &&
++            control.Rows != null && control.Rows.Count == 63 && control.Decoded is >= 0 and <= 63 &&
++            control.DecodeFailures == 63 - control.Decoded && control.Captured == 0 && control.CaptureFailures == 0 &&
++            control.CaptureLimited == control.DecodeFailures, "SourceControlInvalid");
++        var seen = new HashSet<string>(StringComparer.Ordinal);
++        var flushed = new Dictionary<string, NtfsKernelMatrixRow>(StringComparer.Ordinal);
++        int decoded = 0;
++        for (int i = 0; i < 63; i++)
++        {
++            var row = control!.Rows[i];
++            Require(row != null && NtfsKernelMatrix.ReadStages.Contains(row.Stage), "SourceControlInvalid");
++            string suffix = "-" + row!.Stage;
++            Require(row.CaseId != null && row.CaseId.EndsWith(suffix, StringComparison.Ordinal), "SourceControlInvalid");
++            string id = row.CaseId![..^suffix.Length];
++            Require(descriptors.TryGetValue(id, out var descriptor) && row.Kind == descriptor.Kind && row.NameLength == descriptor.NameLength &&
++                seen.Add(row.CaseId) && ValidKernelCode(row.Status, row.Code), "SourceControlInvalid");
++            if (row.Status == "Decoded") decoded++;
++            if (row.Stage == "Flushed") flushed.Add(id, row);
++        }
++        Require(decoded == control!.Decoded && flushed.Count == 21, "SourceControlInvalid");
++        return flushed;
++    }
++    private static bool ValidKernelCode(string status, string code) => status switch
++    {
++        "Decoded" => code == "Decoded", "Free" => code == "FreeRecord",
++        "Invalid" => code is "RecordNumber" or "RecordLength" or "Signature" or "RecordHeader" or "FixupMismatch" or "Sequence" or
++            "AttributeHeader" or "AttributeLength" or "DuplicateAttributeId" or "AttributeName" or "ResidentBounds" or "MappingBounds" or
++            "MappingPairs" or "SparseMappingFlags" or "StandardInformation" or "FileName" or "DataSize" or "MissingEndMarker" or "AllocationGeometry",
++        "Unsupported" => code is "NtfsVersion" or "FixupStride" or "ClusterGeometry" or "RecordFlags" or "AttributeLimit" or "AttributeForm" or
++            "AttributeFlags" or "MetadataFlags" or "NameLimit" or "MultipleUnnamedData" or "AttributeType", _ => false
++    };
++
++    private void CloseAndVerify(CancellationToken cancellation)
++    {
++        active = false;
++        try
++        {
++            lease!.Dispose();
++            Require(lease.UnlockSucceeded, "SourceUnlockFailed");
++            cancellation.ThrowIfCancellationRequested();
++            backend.VerifyFixedTargets(targets.Values.ToArray(), cancellation);
++            cancellation.ThrowIfCancellationRequested();
++            Require(backend.QueryFacts(true, cancellation) == facts, "SourceFactsChanged");
++            cancellation.ThrowIfCancellationRequested();
++        }
++        finally { Dispose(); }
++        cancellation.ThrowIfCancellationRequested();
++        Require(backendDisposeSucceeded, "SourceCleanupFailed");
++    }
++    public void Dispose()
++    {
++        lock (gate)
++        {
++            if (disposed) return;
++            active = false; disposed = true;
++            try { lease?.Dispose(); }
++            finally
++            {
++                map = null; mapToken = null; records.Clear(); results.Clear();
++                if (!backendDisposed)
++                {
++                    backendDisposed = true;
++                    try { backend.Dispose(); backendDisposeSucceeded = true; } catch { backendDisposeSucceeded = false; }
++                }
++            }
++        }
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsFixtureSourceTests.cs b/tests/Prototypes/Ntfs/NtfsFixtureSourceTests.cs
+new file mode 100644
+index 0000000..c8390bc
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsFixtureSourceTests.cs
+@@ -0,0 +1,290 @@
++using System.Runtime.InteropServices;
++using System.Text.Json;
++using Microsoft.Win32.SafeHandles;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// Deterministic in-memory record bytes, inert handles and fake native operations.
++// This is not a formatted filesystem and never opens a volume, file or snapshot.
++internal static class NtfsFixtureSourceTests
++{
++    private sealed class Fixture : NtfsFixtureSource.IBackend, NtfsRawVolumeLease.INative
++    {
++        internal const int MftOffset = 10 * 4096;
++        private readonly byte[] image = new byte[1024 * 1024];
++        private readonly SafeFileHandle volume = new(new IntPtr(12345), false);
++        private long offset;
++        private bool disposed;
++        internal int Locks, Unlocks, Reads, Allocations, Frees, Captures, Verifies, Queries, Disposes;
++        internal bool LockFails, UnlockFails, PostFails, FactsChange, DisposeFails;
++        internal int FailReadAt, ShortReadAt;
++        internal Action<int>? AfterRead;
++        internal Action<bool>? OnQuery;
++        internal Action? OnDispose;
++        internal Exception? PostError;
++        internal List<NtfsRawTarget> Targets { get; } = [];
++        internal NtfsRawVolumeFacts Facts { get; set; } = new(
++            new(512, 4096, 1024, 1024 * 1024, 256, 10, 65536), 41, 4096);
++        public SafeFileHandle Volume => volume;
++
++        internal Fixture()
++        {
++            Put(0, NtfsRecordFixtures.Record([NtfsRecordFixtures.Name("$MFT"), Data(65536, 65536, 16, 0)]));
++            int index = 0;
++            foreach (var item in NtfsKernelMatrix.Cases)
++            {
++                int slot = ++index;
++                ulong parent = NtfsRecordFixtures.Reference((ulong)(31 + index), 5);
++                var attributes = new List<byte[]> { NtfsRecordFixtures.Name(NtfsKernelMatrix.FileName(item.NameLength), 1, parent) };
++                if (item.HardLink) attributes.Add(NtfsRecordFixtures.Name("link.bin", 1, parent));
++                ushort flags = item.Kind == "Compressed" ? (ushort)1 : item.Kind == "Sparse" ? (ushort)0x8000 : (ushort)0;
++                attributes.Add(Data(item.LogicalBytes, item.Kind == "Ordinary" ? 131072 : 8192,
++                    item.Kind == "Ordinary" ? (byte)32 : (byte)2, flags));
++                if (item.NamedStream) attributes.Add(NtfsRecordFixtures.Data(1, "meta"));
++                Put(slot, NtfsRecordFixtures.Record(attributes, links: item.HardLink ? (ushort)2 : (ushort)1));
++                var storage = new FileStorageInfo(new(41, NtfsRecordFixtures.Reference((ulong)slot, 3), 0),
++                    item.Kind == "Ordinary" ? 131072 : 4096, item.HardLink ? 2u : 1u, false, item.LogicalBytes,
++                    new DateTime(2020, 1, 1));
++                string directory = @"X:\Synthetic\" + item.CaseId;
++                FileAttributes attrib = FileAttributes.Archive | (item.Kind == "Compressed" ? FileAttributes.Compressed :
++                    item.Kind == "Sparse" ? FileAttributes.SparseFile : 0);
++                Targets.Add(new(item.CaseId, Path.Combine(directory, NtfsKernelMatrix.FileName(item.NameLength)), directory,
++                    storage, new(new(41, parent, 0), 0, 1, false, -1, new DateTime(2020, 1, 1)), attrib));
++            }
++        }
++        private static byte[] Data(long logical, long allocated, byte clusters, ushort flags)
++        {
++            int header = flags == 0 ? 64 : 72;
++            var data = new byte[header + 8];
++            NtfsRecordFixtures.U32(data, 0, 0x80); NtfsRecordFixtures.U32(data, 4, (uint)data.Length); data[8] = 1;
++            NtfsRecordFixtures.U16(data, 12, flags); NtfsRecordFixtures.U64(data, 24, (ulong)(clusters - 1));
++            NtfsRecordFixtures.U16(data, 32, (ushort)header); NtfsRecordFixtures.U16(data, 34, flags == 1 ? (ushort)4 : (ushort)0);
++            NtfsRecordFixtures.U64(data, 40, (ulong)allocated); NtfsRecordFixtures.U64(data, 48, (ulong)logical);
++            NtfsRecordFixtures.U64(data, 56, (ulong)logical);
++            if (header == 72) NtfsRecordFixtures.U64(data, 64, (ulong)allocated);
++            data[header] = 0x11; data[header + 1] = clusters; data[header + 2] = 10;
++            return data;
++        }
++        private void Put(int slot, byte[] data) => data.CopyTo(image, MftOffset + slot * 1024);
++        internal void Corrupt(int slot, int position, byte value) => image[MftOffset + slot * 1024 + position] = value;
++        public IReadOnlyList<NtfsRawTarget> CaptureFixedTargets(CancellationToken token)
++        { token.ThrowIfCancellationRequested(); Captures++; return Array.AsReadOnly(Targets.ToArray()); }
++        public NtfsRawVolumeFacts QueryFacts(bool reopen, CancellationToken token)
++        {
++            Queries++; OnQuery?.Invoke(reopen); token.ThrowIfCancellationRequested();
++            return reopen && FactsChange ? Facts with { Geometry = Facts.Geometry with { MftValidDataLength = 66560 } } : Facts;
++        }
++        public void VerifyFixedTargets(IReadOnlyList<NtfsRawTarget> baseline, CancellationToken token)
++        { token.ThrowIfCancellationRequested(); Verifies++; if (PostError != null) throw PostError; if (PostFails) throw new IOException("SyntheticPostFailure"); }
++        public NtfsRawVolumeLease.NativeResult Lock(SafeFileHandle _) { Locks++; return new(!LockFails, LockFails ? 5 : 0); }
++        public NtfsRawVolumeLease.NativeResult Unlock(SafeFileHandle _) { Unlocks++; return new(!UnlockFails, UnlockFails ? 5 : 0); }
++        public NtfsRawVolumeLease.NativeResult Seek(SafeFileHandle _, long value) { offset = value; return new(true, 0); }
++        public NtfsRawVolumeLease.NativeReadResult Read(SafeFileHandle _, IntPtr buffer, int length)
++        {
++            Reads++;
++            if (Reads == FailReadAt) return new(false, 0, 5);
++            int count = Reads == ShortReadAt ? length - 512 : length;
++            Marshal.Copy(image, checked((int)offset), buffer, count);
++            AfterRead?.Invoke(Reads);
++            return new(true, count, 0);
++        }
++        public IntPtr Allocate(int bytes) { Allocations++; return Marshal.AllocHGlobal(bytes); }
++        public void Free(IntPtr allocation) { Frees++; Marshal.FreeHGlobal(allocation); }
++        public void Dispose()
++        {
++            if (disposed) return;
++            disposed = true; Disposes++; volume.Dispose();
++            OnDispose?.Invoke();
++            if (DisposeFails) throw new IOException("SyntheticCleanupFailure");
++        }
++    }
++
++    private static NtfsKernelMatrixReport Control()
++    {
++        var rows = new List<NtfsKernelMatrixRow>(63);
++        foreach (var item in NtfsKernelMatrix.Cases)
++            foreach (var stage in NtfsKernelMatrix.ReadStages)
++                rows.Add(new(item.CaseId + "-" + stage, stage, item.Kind, item.NameLength, "Decoded", "Decoded", 2, 0, 2, 512, item.HardLink ? 2 : 1));
++        return new(NtfsKernelMatrix.Revision, 21, 63, 63, 0, 0, 0, 0, rows.AsReadOnly());
++    }
++
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("NTFS fixture source check failed: " + name);
++            passed++; Console.WriteLine("PASS NTFS fixture source " + name);
++        }
++        Exception? Catch(Action action) { try { action(); return null; } catch (Exception error) { return error; } }
++        void Rejected(Action action, string code, string name) =>
++            Check(Catch(action) is NtfsFixtureSourceException error && error.Code == code, name);
++        var first = NtfsKernelMatrix.Cases[0];
++        {
++            using var fixture = new Fixture(); using var source = NtfsFixtureSource.OpenForTests(fixture, fixture);
++            Check(fixture.Locks == 1 && fixture.Reads == 1 && fixture.Captures == 1 && fixture.Queries == 1,
++                "opening a synthetic source acquires one lock and a strict record-zero map");
++            var result = source.ReadKnown(source.Token, first.CaseId);
++            source.ValidateResult(source.Token, result);
++            Check(result.Value.LogicalBytes == first.LogicalBytes && fixture.Reads == 2,
++                "known record envelope is bound to the active source and strict decoded value");
++            Check(ReferenceEquals(source.ReadKnown(source.Token, first.CaseId), result) && fixture.Reads == 2,
++                "same-source repeated reads reuse the same bound envelope without consuming more I/O");
++            var report = source.RunFixedComparison(Control());
++            Check(report is { Revision: "fixture-source-v1", EvidenceKind: "SyntheticFixture", GuardOwned: false,
++                TokenBound: true, MapBound: true, Closed: true, RejectedReads: 0 },
++                "even perfect fake operations cannot mint native-owned fixture evidence");
++            Check(report.Comparison is { RawRecords: 22, RawDecoded: 22, MatchedObjects: 21, UnknownAllocationObjects: 14,
++                ReadCalls: 22, RequestedBytes: 22528, UnlockSucceeded: true, PostNativeStable: true },
++                "fixed-scope output preserves strict counts and unknown special allocation");
++            Check(fixture.Unlocks == 1 && fixture.Verifies == 1 && fixture.Disposes == 1 && fixture.Allocations == fixture.Frees,
++                "successful closure verifies after unlocking and releases its owned backend once");
++            Rejected(() => _ = result.Value, "SourceNotActive", "an envelope cannot be unpacked after its owner closes");
++            Rejected(() => source.ReadKnown(source.Token, first.CaseId), "SourceNotActive", "closed sources cannot reopen their old map");
++            string json = JsonSerializer.Serialize(report);
++            Check(!json.Contains("X:", StringComparison.Ordinal) && !json.Contains("SourceStamp", StringComparison.Ordinal) &&
++                !json.Contains("\"Reference\"", StringComparison.Ordinal), "controlled report carries no paths full references or source stamps");
++        }
++        {
++            using var left = new Fixture(); using var right = new Fixture();
++            using var a = NtfsFixtureSource.OpenForTests(left, left); using var b = NtfsFixtureSource.OpenForTests(right, right);
++            var other = b.ReadKnown(b.Token, first.CaseId);
++            Rejected(() => a.ReadKnown(b.Token, first.CaseId), "SourceTokenMismatch", "identical geometry and references do not permit a foreign source token");
++            Rejected(() => a.ValidateResult(a.Token, other), "SourceResultMismatch", "a foreign envelope cannot become current by using a local token");
++            Rejected(() => a.ReadKnown(new NtfsFixtureSourceToken(), first.CaseId), "SourceTokenMismatch", "a caller-created token has no authority");
++            var own = a.ReadKnown(a.Token, first.CaseId);
++            Rejected(() => a.ValidateResult(a.Token, new NtfsFixtureSourceReadResult(a, first.CaseId)), "SourceResultMismatch",
++                "a forged envelope cannot replace the registered read instance");
++            Check(left.Reads == 2 && own.Value.LogicalBytes == first.LogicalBytes,
++                "rejected requests neither read additional records nor damage the valid owner");
++            Check(a.RunFixedComparison(Control()).RejectedReads == 4, "only controlled active-source rejection counts enter the report");
++        }
++        foreach (string fault in new[] { "Missing", "Duplicate", "ForeignVolume", "WrongSize", "WrongLinks", "HighIdentity" })
++        {
++            using var fixture = new Fixture();
++            if (fault == "Missing") fixture.Targets.RemoveAt(20);
++            else if (fault == "Duplicate") fixture.Targets[20] = fixture.Targets[0];
++            else
++            {
++                var target = fixture.Targets[0]; var storage = target.Storage;
++                storage = fault switch
++                {
++                    "ForeignVolume" => storage with { Identity = storage.Identity with { Volume = 42 } },
++                    "WrongSize" => storage with { LogicalBytes = storage.LogicalBytes + 1 },
++                    "WrongLinks" => storage with { LinkCount = 99 },
++                    _ => storage with { Identity = storage.Identity with { High = 1 } }
++                };
++                fixture.Targets[0] = target with { Storage = storage };
++            }
++            Check(Catch(() => NtfsFixtureSource.OpenForTests(fixture, fixture)) is NtfsFixtureSourceException &&
++                fixture.Locks == 0 && fixture.Reads == 0 && fixture.Disposes == 1,
++                "invalid target scope or native context fails before locking and releases its owner");
++        }
++        foreach (string fault in new[] { "Lock", "Bootstrap", "ShortBootstrap" })
++        {
++            using var fixture = new Fixture();
++            if (fault == "Lock") fixture.LockFails = true;
++            else if (fault == "Bootstrap") fixture.Corrupt(0, 0, (byte)'B');
++            else fixture.ShortReadAt = 1;
++            var error = Catch(() => NtfsFixtureSource.OpenForTests(fixture, fixture));
++            Check(error is NtfsFixtureSourceException && fixture.Disposes == 1 &&
++                fixture.Unlocks == (fault == "Lock" ? 0 : 1) && fixture.Allocations == fixture.Frees,
++                "failed source construction releases only acquired resources and returns no owner");
++        }
++        foreach (string fault in new[] { "Read", "ShortRead", "Strict", "Sequence" })
++        {
++            using var fixture = new Fixture(); using var source = NtfsFixtureSource.OpenForTests(fixture, fixture);
++            var earlier = source.ReadKnown(source.Token, first.CaseId);
++            string next = NtfsKernelMatrix.Cases[1].CaseId;
++            if (fault == "Read") fixture.FailReadAt = 3;
++            else if (fault == "ShortRead") fixture.ShortReadAt = 3;
++            else if (fault == "Strict") fixture.Corrupt(2, 0, (byte)'B');
++            else fixture.Corrupt(2, 16, 4);
++            Check(Catch(() => source.ReadKnown(source.Token, next)) is NtfsFixtureSourceException && fixture.Unlocks == 1 &&
++                fixture.Disposes == 1 && fixture.Allocations == fixture.Frees, "native strict or identity failure invalidates the entire source");
++            Rejected(() => _ = earlier.Value, "SourceNotActive", "previous envelopes become unusable after a later source failure");
++        }
++        foreach (string fault in new[] { "Unlock", "Post", "Facts", "Cleanup" })
++        {
++            using var fixture = new Fixture(); using var source = NtfsFixtureSource.OpenForTests(fixture, fixture);
++            if (fault == "Unlock") fixture.UnlockFails = true;
++            if (fault == "Post") fixture.PostFails = true;
++            if (fault == "Facts") fixture.FactsChange = true;
++            if (fault == "Cleanup") fixture.DisposeFails = true;
++            Check(Catch(() => source.RunFixedComparison(Control())) is IOException && fixture.Disposes == 1 && fixture.Unlocks == 1,
++                "unlock post-verification fact or cleanup failure never returns a successful report");
++            Check(fixture.Allocations == fixture.Frees, "failed closure leaves no owned native buffer");
++        }
++        foreach (string location in new[] { "Open", "Bootstrap", "Known", "Cached", "FinalFacts" })
++        {
++            using var cts = new CancellationTokenSource(); using var fixture = new Fixture();
++            if (location == "Open")
++            {
++                cts.Cancel();
++                Check(Catch(() => NtfsFixtureSource.OpenForTests(fixture, fixture, cts.Token)) is OperationCanceledException &&
++                    fixture.Locks == 0 && fixture.Disposes == 1, "cancelled opening never acquires a volume lock");
++                continue;
++            }
++            if (location == "Bootstrap") fixture.AfterRead = _ => cts.Cancel();
++            if (location == "Bootstrap")
++            {
++                Check(Catch(() => NtfsFixtureSource.OpenForTests(fixture, fixture, cts.Token)) is OperationCanceledException &&
++                    fixture.Unlocks == 1 && fixture.Disposes == 1 && fixture.Allocations == fixture.Frees,
++                    "cancellation after bootstrap I/O waits for completion then releases every resource");
++                continue;
++            }
++            using var source = NtfsFixtureSource.OpenForTests(fixture, fixture);
++            if (location == "Cached") _ = source.ReadKnown(source.Token, first.CaseId);
++            if (location == "FinalFacts") fixture.OnQuery = reopen => { if (reopen) cts.Cancel(); };
++            else cts.Cancel();
++            Exception? error = location == "FinalFacts" ? Catch(() => source.RunFixedComparison(Control(), cts.Token)) :
++                Catch(() => source.ReadKnown(source.Token, first.CaseId, cts.Token));
++            Check(error is OperationCanceledException && fixture.Unlocks == 1 && fixture.Disposes == 1 && fixture.Allocations == fixture.Frees,
++                "cancellation at cached read or final metadata query cannot produce a usable source or report");
++        }
++        foreach (string fault in new[] { "Count", "Stage", "Duplicate", "Kind", "Code", "Retained" })
++        {
++            using var fixture = new Fixture(); using var source = NtfsFixtureSource.OpenForTests(fixture, fixture);
++            var control = Control(); var rows = control.Rows.ToArray();
++            if (fault == "Count") control = control with { Requests = 62 };
++            if (fault == "Stage") rows[0] = rows[0] with { Stage = "Other" };
++            if (fault == "Duplicate") rows[1] = rows[0];
++            if (fault == "Kind") rows[0] = rows[0] with { Kind = "Other" };
++            if (fault == "Code") rows[0] = rows[0] with { Code = "Injected" };
++            if (fault == "Retained") control = control with { Captured = 1 };
++            control = control with { Rows = rows };
++            Rejected(() => source.RunFixedComparison(control), "SourceControlInvalid", "partial forged or retained control output cannot claim a fixed-scope comparison");
++            Check(fixture.Reads == 1 && fixture.Unlocks == 1 && fixture.Disposes == 1,
++                "invalid comparison metadata fails before object reads and closes the source");
++        }
++        foreach (bool cleanupFails in new[] { false, true })
++        {
++            using var cts = new CancellationTokenSource(); using var fixture = new Fixture();
++            using var source = NtfsFixtureSource.OpenForTests(fixture, fixture);
++            var earlier = source.ReadKnown(source.Token, first.CaseId);
++            fixture.OnDispose = cts.Cancel; fixture.DisposeFails = cleanupFails;
++            Check(Catch(() => source.RunFixedComparison(Control(), cts.Token)) is OperationCanceledException &&
++                fixture.Unlocks == 1 && fixture.Disposes == 1 && fixture.Allocations == fixture.Frees,
++                "cancellation delivered by synchronous owner disposal prevents final evidence even if cleanup also fails");
++            Rejected(() => _ = earlier.Value, "SourceNotActive", "dispose-time cancellation leaves no active result envelope");
++        }
++        {
++            using var cts = new CancellationTokenSource(); using var fixture = new Fixture();
++            using var source = NtfsFixtureSource.OpenForTests(fixture, fixture);
++            var primary = new IOException("SyntheticPrimaryPostFailure");
++            fixture.PostError = primary; fixture.OnDispose = cts.Cancel; fixture.DisposeFails = true;
++            Check(ReferenceEquals(Catch(() => source.RunFixedComparison(Control(), cts.Token)), primary) &&
++                fixture.Unlocks == 1 && fixture.Disposes == 1 && fixture.Allocations == fixture.Frees,
++                "an existing verification error survives simultaneous disposal cancellation and cleanup failure");
++        }
++        {
++            using var fixture = new Fixture(); using var source = NtfsFixtureSource.OpenForTests(fixture, fixture);
++            int rejected = 0;
++            for (int i = 0; i < 130; i++)
++                if (Catch(() => source.ReadKnown(new NtfsFixtureSourceToken(), first.CaseId)) is NtfsFixtureSourceException { Code: "SourceTokenMismatch" }) rejected++;
++            Check(rejected == 130 && fixture.Reads == 1 && source.RunFixedComparison(Control()).RejectedReads == 128,
++                "rejected-request evidence saturates without unbounded work or extra native reads");
++        }
++        return passed;
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsLivePrototype.cs b/tests/Prototypes/Ntfs/NtfsLivePrototype.cs
+index 678cc95..13bcd41 100644
+--- a/tests/Prototypes/Ntfs/NtfsLivePrototype.cs
++++ b/tests/Prototypes/Ntfs/NtfsLivePrototype.cs
+@@ -53,7 +53,16 @@ internal static class NtfsLivePrototype
+             string Field(string name) => json.GetProperty(name).GetString() ?? throw new FixtureFailure("ManifestField");
+             string nonce = Field("nonce"), root = Field("drive_root"), volumeGuid = Field("volume_guid");
+             string mode = Field("mode");
+-            Check(mode is "comparison" or "kernel-diagnostics" or "raw-records", "KnownFixtureMode");
++            Check(mode is "comparison" or "kernel-diagnostics" or "raw-records" or "fixture-source", "KnownFixtureMode");
++            if (mode == "fixture-source")
++            {
++                // Reject wrong backing volumes or parent chains before the
++                // legacy preparation path touches any marker or volume data.
++                string preparationSummary = Path.Combine(workspace, "live-summary.json");
++                Check(!File.Exists(preparationSummary), "FreshSummary");
++                summaryPath = preparationSummary;
++                NtfsVerifiedFixtureContext.VerifyPreparation(manifestFile.FullName);
++            }
+             string image = Field("image_path");
+             Check(json.GetProperty("schema").GetInt32() == 1 && Guid.TryParseExact(nonce, "N", out _) &&
+                 suffix == "ntfs-live-" + nonce &&
+@@ -84,7 +93,7 @@ internal static class NtfsLivePrototype
+             var storageType = new StorageType { DeviceId = 2, Vendor = new Guid("ec984aec-a0f9-47e9-901f-71415a66345b") };
+             var open = new OpenParameters { Version = 1, Depth = 1 };
+             // GET_INFO plus DETACH access for a permanently mounted VHD; no detach API is called here.
+-            Check(OpenVirtualDisk(ref storageType, image, 0xc0000, 0, ref open, out var virtualDisk) == 0, "OpenOwnedVirtualDiskInfo");
++            Check(OpenVirtualDisk(ref storageType, image, 0xc0000, mode == "fixture-source" ? 1u : 0u, ref open, out var virtualDisk) == 0, "OpenOwnedVirtualDiskInfo");
+             long ownedPartitionBytes = 0;
+             uint ownedPhysicalNumber = 0;
+             using (virtualDisk)
+@@ -120,7 +129,7 @@ internal static class NtfsLivePrototype
+ 
+             string data = Path.Combine(volumeGuid, "AsukaLensFixture-" + nonce);
+             Check(!Directory.Exists(data), "FreshSyntheticDirectory");
+-            if (mode is "kernel-diagnostics" or "raw-records")
++            if (mode is "kernel-diagnostics" or "raw-records" or "fixture-source")
+             {
+                 var rawTargets = new Dictionary<string, NtfsRawTarget>(StringComparer.Ordinal);
+                 NtfsKernelRead ReadKernel(string path)
+@@ -165,6 +174,24 @@ internal static class NtfsLivePrototype
+                     }
+                     return new(output, count, before, after!, sector, cluster, 3, 1);
+                 }
++                if (mode == "fixture-source")
++                {
++                    var control = NtfsKernelMatrix.Run(data, ReadKernel, null, Check, retainFailures: false);
++                    // The new source owns a freshly verified handle; the preparation
++                    // handle must not survive into its locking/read lifetime.
++                    volume.Dispose();
++                    using var source = NtfsFixtureSource.Open(manifestFile.FullName);
++                    var sourceReport = source.RunFixedComparison(control);
++                    Check(sourceReport.EvidenceKind == "NativeOwnedFixture" && sourceReport.GuardOwned &&
++                        sourceReport.TokenBound && sourceReport.MapBound && sourceReport.Closed,
++                        "SourceOwnedClosureVerified");
++                    Check(sourceReport.Comparison.RawDecoded == 22 && sourceReport.Comparison.MatchedObjects == 21 &&
++                        sourceReport.Comparison.UnknownAllocationObjects == 14, "SourceFixedComparisonVerified");
++                    File.WriteAllText(summaryPath, JsonSerializer.Serialize(new { schema = 1, status = "source_verified", checks,
++                        failures = 0, code = "None", source_adapter = sourceReport }));
++                    Console.WriteLine("VERIFIED fixture source: known records only; source and closure bound");
++                    return 0;
++                }
+                 if (mode == "raw-records")
+                 {
+                     int factsObservation = 0;
+@@ -394,12 +421,31 @@ internal static class NtfsLivePrototype
+         catch (Exception error)
+         {
+             if (error is FixtureFailure specific) failureCode = specific.Code;
++            else if (error is NtfsFixtureSourceException sourceFailure) failureCode = sourceFailure.Code;
++            else if (error is NtfsFixtureGuardException guardFailure) failureCode = guardFailure.Code;
+             else failureCode = error switch
+             {
+                 UnauthorizedAccessException => "AccessDenied", IOException => "FixtureIO",
+                 JsonException => "ManifestJson", _ => "FixtureFailure"
+             };
+-            if (summaryPath != null) try { WriteSummary(summaryPath, "failed", checks, 1, failureCode); } catch { }
++            if (summaryPath != null) try
++            {
++                if (error is NtfsFixtureSourceException or NtfsFixtureGuardException)
++                {
++                    int nativeError = error switch
++                    {
++                        NtfsFixtureSourceException sourceError when sourceError.NativeErrorCode >= 0 => sourceError.NativeErrorCode,
++                        NtfsFixtureGuardException guardError when guardError.NativeErrorCode >= 0 => guardError.NativeErrorCode,
++                        _ => 0
++                    };
++                    string nativeOperation = error is NtfsFixtureSourceException sourceErrorWithOperation &&
++                        sourceErrorWithOperation.NativeCode is "LockFailed" or "SeekFailed" or "ReadFailed" or "ShortRead" or "AllocationFailed" or "BufferReleaseFailed"
++                        ? sourceErrorWithOperation.NativeCode : "None";
++                    File.WriteAllText(summaryPath, JsonSerializer.Serialize(new { schema = 1, status = "failed", checks,
++                        failures = 1, code = failureCode, native_error = nativeError, native_operation = nativeOperation }));
++                }
++                else WriteSummary(summaryPath, "failed", checks, 1, failureCode);
++            } catch { }
+             Console.Error.WriteLine("FAIL NTFS live " + failureCode + "; checks=" + checks);
+             return 1;
+         }
+diff --git a/tests/Prototypes/Ntfs/NtfsVerifiedFixtureContext.cs b/tests/Prototypes/Ntfs/NtfsVerifiedFixtureContext.cs
+new file mode 100644
+index 0000000..2cc6d3e
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsVerifiedFixtureContext.cs
+@@ -0,0 +1,457 @@
++using System.Buffers.Binary;
++using System.Globalization;
++using System.Diagnostics.CodeAnalysis;
++using System.Runtime.InteropServices;
++using System.Text;
++using System.Text.Json;
++using Microsoft.Win32.SafeHandles;
++
++namespace DiskAtlas.NtfsPrototype;
++
++internal sealed class NtfsFixtureGuardException : IOException
++{
++    internal string Code { get; }
++    internal int NativeErrorCode { get; }
++    internal NtfsFixtureGuardException(string code, int nativeErrorCode = 0) : base(code)
++    { Code = code; NativeErrorCode = nativeErrorCode; }
++}
++
++// Test-only owner for exactly one newly created fixture. It never accepts a
++// caller-supplied volume, target path, disk number, or a validated boolean.
++internal sealed class NtfsVerifiedFixtureContext : IDisposable
++{
++    internal readonly record struct PathInfo(FileAttributes Attributes, long Length);
++    internal interface INative
++    {
++        PathInfo Stat(string path);
++        byte[] ReadFile(string path, int maximum);
++        string ResolveVolume(string driveRoot);
++        string DriveFormat(string driveRoot);
++        SafeFileHandle OpenImage(string imagePath);
++        (string Device, long VirtualBytes, uint ProviderSubtype) ImageInfo(SafeFileHandle image);
++        SafeFileHandle OpenVolume(string volumeGuidWithoutSlash);
++        byte[] Control(SafeFileHandle volume, uint code, byte[]? input, int maximum);
++        FileStorageInfo ReadStorage(string path, bool directory, FileAttributes attributes);
++    }
++    private sealed record Manifest(string Nonce, string Workspace, string Image, string DriveRoot, string Volume, string Mode);
++    private const long ImageBytes = 256L * 1024 * 1024;
++    private readonly object gate = new();
++    private readonly INative native;
++    private readonly Manifest fixture;
++    private readonly string manifestPath;
++    private readonly SafeFileHandle volume, image;
++    private readonly uint diskNumber;
++    private readonly long partitionStart, partitionBytes;
++    private readonly ulong serial;
++    private bool disposed;
++    internal bool IsSynthetic { get; }
++    internal string DataRoot { get; }
++    // Borrowed only; the context owns and closes this handle after the lease.
++    internal SafeFileHandle Volume { get { lock (gate) { Active(); return volume; } } }
++
++    private NtfsVerifiedFixtureContext(INative adapter, Manifest binding, string manifest,
++        SafeFileHandle ownedVolume, SafeFileHandle ownedImage, uint number, long start, long length,
++        ulong volumeSerial, bool synthetic)
++    {
++        native = adapter; fixture = binding; manifestPath = manifest; volume = ownedVolume; image = ownedImage;
++        diskNumber = number; partitionStart = start; partitionBytes = length; serial = volumeSerial; IsSynthetic = synthetic;
++        DataRoot = Path.Combine(binding.Volume, "AsukaLensFixture-" + binding.Nonce);
++    }
++
++    internal static NtfsVerifiedFixtureContext Create(string manifestPath, CancellationToken token = default) =>
++        CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: true, token);
++
++    // Preparation proves ownership before the legacy matrix can create data or
++    // open any old control path. It never returns a source/context authority.
++    internal static void VerifyPreparation(string manifestPath, CancellationToken token = default)
++    {
++        using var context = CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: false, token);
++    }
++
++    // Explicit synthetic seam: it does not invoke the real native adapter, and
++    // its result cannot be passed into the real source factory.
++    internal static NtfsVerifiedFixtureContext CreateForTests(string manifestPath, string repositoryRoot,
++        INative adapter, CancellationToken token = default) => CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: true, token);
++
++    internal static void VerifyPreparationForTests(string manifestPath, string repositoryRoot,
++        INative adapter, CancellationToken token = default)
++    {
++        using var context = CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: false, token);
++    }
++
++    private static NtfsVerifiedFixtureContext CreateCore(string manifestPath, string repositoryRoot,
++        INative adapter, bool synthetic, bool requireDataRoot, CancellationToken token) => Guard(() =>
++    {
++        token.ThrowIfCancellationRequested();
++        Require(adapter != null, "FixtureAdapter");
++        string repository = Full(repositoryRoot), manifest = Full(manifestPath);
++        string artifacts = Path.Combine(repository, "artifacts");
++        string workspace = Path.GetDirectoryName(manifest) ?? throw Failure("FixtureWorkspace");
++        string leaf = Path.GetFileName(workspace);
++        Require(Path.GetDirectoryName(workspace)?.Equals(artifacts, StringComparison.OrdinalIgnoreCase) == true &&
++            Path.GetFileName(manifest) == "fixture.json" && leaf.StartsWith("ntfs-live-", StringComparison.Ordinal) &&
++            Nonce(leaf[10..]), "FixtureWorkspace");
++        NoReparse(adapter, manifest); RequireFile(adapter.Stat(manifest), 1, 16383, "FixtureManifestBounds");
++        var binding = Parse(Read(adapter, manifest, 16383));
++        Require(binding.Mode == "fixture-source" && binding.Nonce == leaf[10..] &&
++            SamePath(Full(binding.Workspace), workspace) && SamePath(Full(binding.Image), Path.Combine(workspace, "fixture.vhd")),
++            "FixtureManifestIdentity");
++        Require(binding.DriveRoot.Length == 3 && binding.DriveRoot[0] is >= 'D' and <= 'Z' && binding.DriveRoot[1..] == ":\\" &&
++            VolumeSyntax(binding.Volume), "FixtureVolumeSyntax");
++        NoReparse(adapter, binding.Image); RequireFile(adapter.Stat(binding.Image), ImageBytes, ImageBytes + 1024 * 1024, "FixtureImageBounds");
++        SafeFileHandle? openedImage = null, openedVolume = null;
++        try
++        {
++            token.ThrowIfCancellationRequested();
++            openedImage = adapter.OpenImage(binding.Image);
++            Require(!openedImage.IsInvalid && !openedImage.IsClosed, "FixtureImageOpen");
++            token.ThrowIfCancellationRequested();
++            var info = adapter.ImageInfo(openedImage);
++            uint number = PhysicalNumber(info.Device);
++            Require(info.VirtualBytes == ImageBytes, "FixtureImageSize");
++            Require(info.ProviderSubtype == 2, "FixtureImageFixedType");
++            Require(adapter.ResolveVolume(binding.DriveRoot).Equals(binding.Volume, StringComparison.OrdinalIgnoreCase) &&
++                adapter.DriveFormat(binding.DriveRoot).Equals("NTFS", StringComparison.OrdinalIgnoreCase), "FixtureMountedVolume");
++            token.ThrowIfCancellationRequested();
++            openedVolume = adapter.OpenVolume(binding.Volume.TrimEnd('\\'));
++            Require(!openedVolume.IsInvalid && !openedVolume.IsClosed, "FixtureVolumeOpen");
++            token.ThrowIfCancellationRequested();
++            var extent = Extent(adapter, openedVolume, number);
++            Partition(adapter, openedVolume, extent.Start, extent.Length);
++            // Marker bytes are not touched until the actual opened volume has
++            // been proved to be backed by this owned virtual image.
++            string marker = Path.Combine(binding.Volume, ".asukalens-ntfs-fixture.json");
++            NoReparse(adapter, marker); RequireFile(adapter.Stat(marker), 1, 16383, "FixtureMarkerBounds");
++            Require(Parse(Read(adapter, marker, 16383)) == binding, "FixtureMarkerBinding");
++            var facts = Facts(adapter, openedVolume, extent.Length, null);
++            token.ThrowIfCancellationRequested();
++            var result = new NtfsVerifiedFixtureContext(adapter, binding, manifest, openedVolume, openedImage,
++                number, extent.Start, extent.Length, facts.Serial, synthetic);
++            CheckDataRoot(adapter, result.DataRoot, requireDataRoot);
++            token.ThrowIfCancellationRequested();
++            openedImage = null; openedVolume = null;
++            return result;
++        }
++        finally { openedVolume?.Dispose(); openedImage?.Dispose(); }
++    });
++
++    internal NtfsRawVolumeFacts QueryFacts(bool reopen = false, CancellationToken token = default) => Guard(() =>
++    {
++        lock (gate)
++        {
++            Active(); token.ThrowIfCancellationRequested(); VerifyOrigin();
++            using var fresh = reopen ? native.OpenVolume(fixture.Volume.TrimEnd('\\')) : null;
++            var target = fresh ?? volume;
++            Require(!target.IsInvalid && !target.IsClosed, "FixtureVolumeOpen");
++            var extent = Extent(native, target, diskNumber);
++            Require(extent.Start == partitionStart && extent.Length == partitionBytes, "FixturePartitionChanged");
++            Partition(native, target, extent.Start, extent.Length);
++            var result = Facts(native, target, partitionBytes, serial);
++            token.ThrowIfCancellationRequested(); Active(); return result;
++        }
++    });
++
++    internal IReadOnlyList<NtfsRawTarget> CaptureFixedTargets(CancellationToken token = default) => Guard(() =>
++    {
++        lock (gate)
++        {
++            Active(); token.ThrowIfCancellationRequested();
++            var targets = new List<NtfsRawTarget>(21);
++            var identities = new HashSet<FileIdentity>();
++            var slots = new HashSet<ulong>();
++            Require(NtfsKernelMatrix.Cases.Count == 21, "FixtureCaseBudget");
++            foreach (var descriptor in NtfsKernelMatrix.Cases)
++            {
++                token.ThrowIfCancellationRequested();
++                string parent = Path.Combine(DataRoot, descriptor.CaseId), path = Path.Combine(parent, NtfsKernelMatrix.FileName(descriptor.NameLength));
++                NoReparse(native, parent); NoReparse(native, path);
++                var attributes = native.Stat(path).Attributes;
++                Require((native.Stat(parent).Attributes & FileAttributes.Directory) != 0 && (attributes & FileAttributes.Directory) == 0,
++                    "FixtureTargetType");
++                FileAttributes expected = descriptor.Kind switch { "Compressed" => FileAttributes.Compressed, "Sparse" => FileAttributes.SparseFile, _ => 0 };
++                Require((attributes & (FileAttributes.Compressed | FileAttributes.SparseFile)) == expected &&
++                    (attributes & (FileAttributes.Encrypted | FileAttributes.Offline | FileAttributes.ReparsePoint)) == 0,
++                    "FixtureTargetAttributes");
++                var storage = native.ReadStorage(path, false, attributes);
++                var parentStorage = native.ReadStorage(parent, true, native.Stat(parent).Attributes);
++                Require(Storage(storage, serial) && Storage(parentStorage, serial, directory: true) && storage.LogicalBytes == descriptor.LogicalBytes &&
++                    storage.LinkCount == (descriptor.HardLink ? 2u : 1u) && identities.Add(storage.Identity) &&
++                    slots.Add(storage.Identity.Low & NtfsRecordDecoder.MaximumRecordNumber), "FixtureTargetIdentity");
++                if (descriptor.HardLink)
++                {
++                    string alias = Path.Combine(parent, "link.bin"); NoReparse(native, alias);
++                    var aliasAttributes = native.Stat(alias).Attributes;
++                    Require((aliasAttributes & FileAttributes.Directory) == 0 && native.ReadStorage(alias, false, aliasAttributes) == storage,
++                        "FixtureAliasBinding");
++                }
++                if (descriptor.NamedStream)
++                    Require(Read(native, path + ":meta", 64).AsSpan().SequenceEqual("synthetic named stream"u8), "FixtureNamedStream");
++                targets.Add(new(descriptor.CaseId, path, parent, storage, parentStorage, attributes));
++            }
++            token.ThrowIfCancellationRequested(); Active(); return Array.AsReadOnly(targets.ToArray());
++        }
++    });
++
++    internal void VerifyFixedTargets(IReadOnlyList<NtfsRawTarget> baseline, CancellationToken token = default) => Guard(() =>
++    {
++        lock (gate)
++        {
++            Active(); token.ThrowIfCancellationRequested();
++            Require(baseline != null && baseline.Count == 21, "FixtureBaselineBudget");
++            var expected = new Dictionary<string, NtfsRawTarget>(StringComparer.Ordinal);
++            foreach (var item in baseline)
++            {
++                token.ThrowIfCancellationRequested();
++                var descriptor = NtfsKernelMatrix.Cases.SingleOrDefault(value => value.CaseId == item?.CaseId);
++                Require(item != null && descriptor != null && !expected.ContainsKey(item.CaseId), "FixtureBaselineCase");
++                string parent = Path.Combine(DataRoot, descriptor!.CaseId), path = Path.Combine(parent, NtfsKernelMatrix.FileName(descriptor.NameLength));
++                Require(SamePath(item!.Path, path) && SamePath(item.ParentPath, parent), "FixtureBaselinePath");
++                expected.Add(item.CaseId, item);
++            }
++            Active();
++            foreach (var current in CaptureFixedTargets(token))
++            {
++                var old = expected[current.CaseId];
++                Require(current.Storage == old.Storage && current.ParentStorage == old.ParentStorage && current.Attributes == old.Attributes,
++                    "FixturePostTargetChanged");
++            }
++            _ = QueryFacts(reopen: true, token);
++            token.ThrowIfCancellationRequested(); Active(); return true;
++        }
++    });
++
++    private void VerifyOrigin()
++    {
++        NoReparse(native, manifestPath); NoReparse(native, fixture.Image);
++        Require(Parse(Read(native, manifestPath, 16383)) == fixture, "FixtureManifestChanged");
++        RequireFile(native.Stat(fixture.Image), ImageBytes, ImageBytes + 1024 * 1024, "FixtureImageBounds");
++        var current = native.ImageInfo(image);
++        Require(current.VirtualBytes == ImageBytes && current.ProviderSubtype == 2 && PhysicalNumber(current.Device) == diskNumber,
++            "FixtureImageChanged");
++        Require(native.ResolveVolume(fixture.DriveRoot).Equals(fixture.Volume, StringComparison.OrdinalIgnoreCase) &&
++            native.DriveFormat(fixture.DriveRoot).Equals("NTFS", StringComparison.OrdinalIgnoreCase), "FixtureMountedVolume");
++        string marker = Path.Combine(fixture.Volume, ".asukalens-ntfs-fixture.json");
++        NoReparse(native, marker);
++        Require(Parse(Read(native, marker, 16383)) == fixture, "FixtureMarkerBinding");
++    }
++
++    private static bool Storage(FileStorageInfo? value, ulong volumeSerial, bool directory = false) => value != null && value.Identity.Volume == volumeSerial &&
++        value.Identity.High == 0 && value.Identity.Low >> 48 != 0 && (directory ? value.LogicalBytes == -1 : value.LogicalBytes >= 0) && value.AllocatedBytes >= 0 &&
++        value.LinkCount > 0 && !value.WritableHandleOpen && value.Modified.HasValue;
++    private static (long Start, long Length) Extent(INative adapter, SafeFileHandle target, uint number)
++    {
++        byte[] bytes = adapter.Control(target, 0x560000, null, 128);
++        Require(bytes.Length is >= 32 and <= 128 && U32(bytes, 0) == 1 && U32(bytes, 8) == number, "FixtureVolumeExtents");
++        long start = I64(bytes, 16), length = I64(bytes, 24);
++        Require(start >= 0 && start % 512 == 0 && length > 0 && length % 512 == 0 && start <= ImageBytes - length,
++            "FixturePartitionBounds");
++        return (start, length);
++    }
++    private static void Partition(INative adapter, SafeFileHandle target, long start, long length)
++    {
++        byte[] bytes = adapter.Control(target, 0x70048, null, 144);
++        Require(bytes.Length is >= 40 and <= 144 && U32(bytes, 0) == 0 && I64(bytes, 8) == start && I64(bytes, 16) == length &&
++            U32(bytes, 24) > 0 && bytes[29] == 0 && bytes[32] == 7 && bytes[33] == 0 && bytes[34] != 0,
++            "FixturePartitionIdentity");
++    }
++    private static NtfsRawVolumeFacts Facts(INative adapter, SafeFileHandle target, long partitionLength, ulong? expectedSerial)
++    {
++        byte[] bytes = adapter.Control(target, 0x90064, null, 128);
++        Require(bytes.Length is >= 104 and <= 128, "FixtureVolumeDataBounds");
++        ulong volumeSerial = U64(bytes, 0);
++        long sectors = I64(bytes, 8), clusters = I64(bytes, 16);
++        Require((!expectedSerial.HasValue || volumeSerial == expectedSerial.Value) && U32(bytes, 40) == 512 &&
++            U32(bytes, 44) == 4096 && U32(bytes, 48) == 1024 && sectors > 0 && sectors <= partitionLength / 512 &&
++            clusters > 0 && clusters <= sectors / 8 && U16(bytes, 100) == 3 && U16(bytes, 102) == 1,
++            "FixtureNtfsGeometry");
++        long mftStart = I64(bytes, 64), valid = I64(bytes, 56);
++        Require(mftStart >= 0 && mftStart < clusters && valid >= 1024 && valid % 1024 == 0 && valid <= sectors * 512,
++            "FixtureMftGeometry");
++        var query = new byte[12]; BinaryPrimitives.WriteUInt32LittleEndian(query, 6);
++        byte[] alignment = adapter.Control(target, 0x2d1400, query, 64);
++        Require(alignment.Length is >= 28 and <= 64 && U32(alignment, 0) >= 28 && U32(alignment, 4) >= 28 &&
++            U32(alignment, 4) <= alignment.Length && U32(alignment, 16) == 512, "FixtureAlignmentBounds");
++        uint physical = U32(alignment, 20);
++        Require(physical is >= 512 and <= 65536 && (physical & (physical - 1)) == 0, "FixturePhysicalSector");
++        return new(new(512, 4096, 1024, sectors * 512, clusters, mftStart, valid), volumeSerial, (int)physical);
++    }
++
++    private static Manifest Parse(byte[] bytes)
++    {
++        using var document = JsonDocument.Parse(bytes);
++        var root = document.RootElement;
++        string[] allowed = ["schema", "image_path", "volume_guid", "drive_root", "workspace", "nonce", "mode"];
++        Require(root.ValueKind == JsonValueKind.Object, "FixtureJsonShape");
++        var seen = new HashSet<string>(StringComparer.Ordinal);
++        foreach (var field in root.EnumerateObject()) Require(allowed.Contains(field.Name, StringComparer.Ordinal) && seen.Add(field.Name), "FixtureJsonFields");
++        Require(seen.Count == allowed.Length && root.GetProperty("schema").TryGetInt32(out int schema) && schema == 1, "FixtureJsonSchema");
++        string Text(string name)
++        {
++            var value = root.GetProperty(name);
++            Require(value.ValueKind == JsonValueKind.String, "FixtureJsonValue");
++            return value.GetString() ?? throw Failure("FixtureJsonValue");
++        }
++        string nonce = Text("nonce"); Require(Nonce(nonce), "FixtureNonce");
++        return new(nonce, Text("workspace"), Text("image_path"), Text("drive_root"), Text("volume_guid"), Text("mode"));
++    }
++    private static byte[] Read(INative adapter, string path, int limit)
++    {
++        byte[] bytes = adapter.ReadFile(path, limit);
++        Require(bytes != null && bytes.Length >= 1 && bytes.Length <= limit, "FixtureReadBounds");
++        return (byte[])bytes.Clone();
++    }
++    private static void NoReparse(INative adapter, string path)
++    {
++        for (string? current = path; current != null; current = Path.GetDirectoryName(current))
++            Require((adapter.Stat(current).Attributes & FileAttributes.ReparsePoint) == 0, "FixtureReparse");
++    }
++    private static void CheckDataRoot(INative adapter, string path, bool required)
++    {
++        try
++        {
++            NoReparse(adapter, path);
++            Require((adapter.Stat(path).Attributes & FileAttributes.Directory) != 0, "FixtureDataRoot");
++        }
++        catch (Exception error) when (!required && (error is FileNotFoundException or DirectoryNotFoundException))
++        {
++            // Absence is allowed only for this exact derived data root, never
++            // for its existing volume/ancestors. No directories are created.
++            NoReparse(adapter, Path.GetDirectoryName(path) ?? throw Failure("FixtureDataRoot"));
++        }
++    }
++    private static void RequireFile(PathInfo info, long minimum, long maximum, string code) =>
++        Require((info.Attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) == 0 && info.Length >= minimum && info.Length <= maximum, code);
++    private static uint PhysicalNumber(string value)
++    {
++        const string prefix = @"\\.\PhysicalDrive";
++        Require(value != null && value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
++            uint.TryParse(value.AsSpan(prefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out _), "FixturePhysicalDevice");
++        return uint.Parse(value.AsSpan(prefix.Length), NumberStyles.None, CultureInfo.InvariantCulture);
++    }
++    private static bool Nonce(string value) => value is { Length: 32 } && value.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
++    private static bool VolumeSyntax(string value) => value != null && value.Length == 49 && value.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase) &&
++        value.EndsWith(@"}\", StringComparison.Ordinal) && Guid.TryParseExact(value.AsSpan(11, 36), "D", out _);
++    private static string Full(string value)
++    {
++        Require(!string.IsNullOrWhiteSpace(value) && Path.IsPathFullyQualified(value), "FixtureAbsolutePath");
++        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(value));
++    }
++    private static bool SamePath(string left, string right) => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
++    private static NtfsFixtureGuardException Failure(string code) => new(code);
++    private static void Require([DoesNotReturnIf(false)] bool condition, string code) { if (!condition) throw Failure(code); }
++    private void Active() { Require(!disposed && !volume.IsClosed && !image.IsClosed, "FixtureContextClosed"); }
++    private static T Guard<T>(Func<T> action)
++    {
++        try { return action(); }
++        catch (OperationCanceledException) { throw; }
++        catch (NtfsFixtureGuardException) { throw; }
++        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or JsonException or OverflowException)
++        { throw Failure("FixtureGuardOperation"); }
++    }
++    private static string RepositoryRoot()
++    {
++        var directory = new DirectoryInfo(AppContext.BaseDirectory);
++        for (int i = 0; i < 8 && directory != null; i++, directory = directory.Parent)
++            if (File.Exists(Path.Combine(directory.FullName, "DiskAtlas.csproj")) && File.Exists(Path.Combine(directory.FullName, "global.json")))
++                return directory.FullName;
++        throw Failure("FixtureRepositoryRoot");
++    }
++    private static ushort U16(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(offset));
++    private static uint U32(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset));
++    private static ulong U64(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(offset));
++    private static long I64(byte[] bytes, int offset) => BinaryPrimitives.ReadInt64LittleEndian(bytes.AsSpan(offset));
++    public void Dispose()
++    {
++        lock (gate)
++        {
++            if (disposed) return; disposed = true;
++            try { volume.Dispose(); } finally { image.Dispose(); }
++        }
++    }
++
++    private sealed class Native : INative
++    {
++        internal static readonly Native Instance = new();
++        [StructLayout(LayoutKind.Sequential)] private struct StorageType { public uint DeviceId; public Guid Vendor; }
++        [StructLayout(LayoutKind.Sequential)] private struct OpenParameters { public uint Version, Depth; }
++        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
++        private static extern bool GetVolumeNameForVolumeMountPointW(string root, StringBuilder volume, int length);
++        [DllImport("virtdisk.dll", CharSet = CharSet.Unicode)]
++        private static extern uint OpenVirtualDisk(ref StorageType type, string path, uint access, uint flags, ref OpenParameters parameters, out SafeFileHandle handle);
++        [DllImport("virtdisk.dll", CharSet = CharSet.Unicode)]
++        private static extern uint GetVirtualDiskPhysicalPath(SafeFileHandle handle, ref uint bytes, StringBuilder path);
++        [DllImport("virtdisk.dll")]
++        private static extern uint GetVirtualDiskInformation(SafeFileHandle handle, ref uint bytes, IntPtr info, out uint used);
++        public PathInfo Stat(string path)
++        {
++            var attributes = File.GetAttributes(path);
++            return new(attributes, (attributes & FileAttributes.Directory) != 0 ? 0 : new FileInfo(path).Length);
++        }
++        public byte[] ReadFile(string path, int maximum)
++        {
++            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
++            Require(stream.Length is > 0 && stream.Length <= maximum, "FixtureReadBounds");
++            var bytes = new byte[(int)stream.Length]; stream.ReadExactly(bytes);
++            Require(stream.Position == stream.Length, "FixtureReadBounds"); return bytes;
++        }
++        public string ResolveVolume(string driveRoot)
++        {
++            var name = new StringBuilder(128);
++            if (!GetVolumeNameForVolumeMountPointW(driveRoot, name, name.Capacity)) throw new NtfsFixtureGuardException("FixtureResolveVolume", Marshal.GetLastWin32Error());
++            return name.ToString();
++        }
++        public string DriveFormat(string driveRoot) => new DriveInfo(driveRoot).DriveFormat;
++        public SafeFileHandle OpenImage(string path)
++        {
++            var type = new StorageType { DeviceId = 2, Vendor = new("ec984aec-a0f9-47e9-901f-71415a66345b") };
++            var parameters = new OpenParameters { Version = 1, Depth = 1 };
++            // NO_PARENTS prevents even opening a differencing-chain parent;
++            // ProviderSubtype is separately required to be Fixed before use.
++            uint error = OpenVirtualDisk(ref type, path, 0xc0000, 1, ref parameters, out var result);
++            if (error != 0) { result?.Dispose(); throw new NtfsFixtureGuardException("FixtureImageOpen", unchecked((int)error)); }
++            return result;
++        }
++        public (string Device, long VirtualBytes, uint ProviderSubtype) ImageInfo(SafeFileHandle handle)
++        {
++            var name = new StringBuilder(128); uint bytes = 256;
++            uint error = GetVirtualDiskPhysicalPath(handle, ref bytes, name);
++            if (error != 0) throw new NtfsFixtureGuardException("FixtureImageDevice", unchecked((int)error));
++            IntPtr info = Marshal.AllocHGlobal(64);
++            try
++            {
++                Marshal.Copy(new byte[64], 0, info, 64); Marshal.WriteInt32(info, 1); bytes = 64;
++                error = GetVirtualDiskInformation(handle, ref bytes, info, out uint used);
++                if (error != 0) throw new NtfsFixtureGuardException("FixtureImageInformation", unchecked((int)error));
++                Require(used >= 32 && used <= 64 && Marshal.ReadInt32(info) == 1, "FixtureImageInformation");
++                long virtualBytes = Marshal.ReadInt64(info, 8);
++                // GET_VIRTUAL_DISK_INFO_PROVIDER_SUBTYPE = 7. Its DWORD union
++                // member uses the same eight-byte aligned union offset.
++                Marshal.Copy(new byte[64], 0, info, 64); Marshal.WriteInt32(info, 7); bytes = 64;
++                error = GetVirtualDiskInformation(handle, ref bytes, info, out used);
++                if (error != 0) throw new NtfsFixtureGuardException("FixtureImageSubtype", unchecked((int)error));
++                Require(used >= 12 && used <= 64 && Marshal.ReadInt32(info) == 7, "FixtureImageSubtype");
++                return (name.ToString(), virtualBytes, unchecked((uint)Marshal.ReadInt32(info, 8)));
++            }
++            finally { Marshal.FreeHGlobal(info); }
++        }
++        public SafeFileHandle OpenVolume(string name)
++        {
++            var result = NativeStorage.CreateFileW(name, 0x80000000, NativeStorage.ShareAll, IntPtr.Zero, 3, 0, IntPtr.Zero);
++            if (result.IsInvalid) { int error = Marshal.GetLastWin32Error(); result.Dispose(); throw new NtfsFixtureGuardException("FixtureVolumeOpen", error); }
++            return result;
++        }
++        public byte[] Control(SafeFileHandle volume, uint code, byte[]? input, int maximum)
++        {
++            var bytes = new byte[maximum];
++            if (!NativeStorage.DeviceIoControl(volume, code, input, input?.Length ?? 0, bytes, bytes.Length, out int used, IntPtr.Zero))
++                throw new NtfsFixtureGuardException("FixtureControlFailed", Marshal.GetLastWin32Error());
++            Require(used >= 0 && used <= maximum, "FixtureControlBounds"); return bytes.AsSpan(0, used).ToArray();
++        }
++        public FileStorageInfo ReadStorage(string path, bool directory, FileAttributes attributes)
++        {
++            if (!NativeStorage.TryRead(path, directory, attributes, out var storage, out _) || storage == null)
++                throw new NtfsFixtureGuardException("FixtureStorageFailed");
++            return storage;
++        }
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsVerifiedFixtureContextTests.cs b/tests/Prototypes/Ntfs/NtfsVerifiedFixtureContextTests.cs
+new file mode 100644
+index 0000000..4e34406
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsVerifiedFixtureContextTests.cs
+@@ -0,0 +1,268 @@
++using System.Buffers.Binary;
++using System.Text;
++using System.Text.Json;
++using System.Text.Json.Nodes;
++using Microsoft.Win32.SafeHandles;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// Inert handles and memory-only native/filesystem operations. Never opens VHDs,
++// devices, files or personal paths, and never invokes the real context factory.
++internal static class NtfsVerifiedFixtureContextTests
++{
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("Fixture context check failed: " + name);
++            passed++; Console.WriteLine("PASS fixture context " + name);
++        }
++        void Reject(Action<Fake> alter, string name, bool noOpen = false)
++        {
++            var fake = new Fake(); alter(fake);
++            string? code = null;
++            try { using var ignored = fake.Open(); }
++            catch (NtfsFixtureGuardException error) { code = error.Code; Check(error.Message == error.Code && error.InnerException == null,
++                "guard error contains only its fixed code"); }
++            Check(code != null && code.All(c => char.IsAsciiLetterOrDigit(c) || c == '-'), name);
++            Check(fake.Handles.All(value => value.IsClosed), "rejected creation closes every opened synthetic handle");
++            if (noOpen) Check(fake.Handles.Count == 0, "invalid ownership is rejected before a volume or image opens");
++            if (code is "FixtureImageFixedType" or "FakeImageInfoFailure")
++                Check(fake.Handles.Count == 1 && fake.StoragePaths.Count == 0 && !fake.FileReads.Contains(fake.MarkerPath),
++                    "unproven image type is rejected before opening the volume or reading its marker and targets");
++        }
++        var valid = new Fake();
++        var preparation = new Fake(); preparation.MissingPaths.Add(preparation.Data);
++        preparation.Prepare();
++        Check(preparation.Handles.Count == 2 && preparation.Handles.All(x => x.IsClosed) && preparation.StoragePaths.Count == 0,
++            "preparation permits the missing derived data root and releases metadata handles without capturing targets");
++        bool requiresData = false;
++        try { using var ignored = preparation.Open(); } catch (NtfsFixtureGuardException) { requiresData = true; }
++        Check(requiresData && preparation.Handles.All(x => x.IsClosed), "real source construction still requires the complete data directory");
++        foreach (uint subtype in new uint[] { 3, 4, 0 })
++        {
++            var badPreparation = new Fake { ProviderSubtype = subtype }; badPreparation.MissingPaths.Add(badPreparation.Data);
++            bool rejected = false;
++            try { badPreparation.Prepare(); } catch (NtfsFixtureGuardException error) { rejected = error.Code == "FixtureImageFixedType"; }
++            Check(rejected && badPreparation.Handles.Count == 1 && badPreparation.Handles.All(x => x.IsClosed) &&
++                badPreparation.StoragePaths.Count == 0, "preparation never weakens fixed-image checks just because data is not created yet");
++        }
++        var redirectedPreparation = new Fake(); redirectedPreparation.ManifestPath = Path.Combine(redirectedPreparation.Repository, "fixture.json");
++        bool preparationRejected = false;
++        try { redirectedPreparation.Prepare(); } catch (NtfsFixtureGuardException) { preparationRejected = true; }
++        Check(preparationRejected && redirectedPreparation.Handles.Count == 0, "preparation rejects foreign workspace before opening native objects");
++        var linkedPreparation = new Fake(); linkedPreparation.StatOverrides[linkedPreparation.Data] = new(FileAttributes.Directory | FileAttributes.ReparsePoint, 0);
++        preparationRejected = false;
++        try { linkedPreparation.Prepare(); } catch (NtfsFixtureGuardException) { preparationRejected = true; }
++        Check(preparationRejected && linkedPreparation.Handles.All(x => x.IsClosed), "existing preparation data root cannot be a reparse entry");
++        using (var context = valid.Open())
++        {
++            Check(context.IsSynthetic && !context.Volume.IsClosed && valid.Handles.Count == 2, "synthetic guard result owns exactly its two inert handles");
++            Check(context.DataRoot == valid.Data, "data root is derived from the verified volume and nonce");
++            var facts = context.QueryFacts();
++            Check(facts.Serial == 41 && facts.Geometry is { SectorBytes: 512, ClusterBytes: 4096, RecordBytes: 1024 } &&
++                facts.Geometry.MftStartLcn == 10 && facts.PhysicalSectorBytes == 4096, "facts preserve verified volume geometry");
++            var targets = context.CaptureFixedTargets();
++            Check(targets.Count == 21 && targets.Select(x => x.CaseId).Distinct().Count() == 21 &&
++                targets.All(x => x.Path.StartsWith(valid.Data + Path.DirectorySeparatorChar, StringComparison.Ordinal)),
++                "only all twenty-one fixed paths are captured under this nonce root");
++            Check(valid.StoragePaths.All(path => valid.Storages.ContainsKey(path)), "metadata operations never use a caller-provided path");
++            context.VerifyFixedTargets(targets);
++            Check(valid.Handles.Count == 3 && valid.Handles[2].IsClosed && !context.Volume.IsClosed,
++                "post-unlock fact requery closes its fresh handle and retains the owned handle");
++            var redirected = targets.ToArray(); redirected[0] = redirected[0] with { Path = @"C:\SyntheticOther\not-owned.bin" };
++            valid.StoragePaths.Clear(); valid.FileReads.Clear();
++            bool rejected = false;
++            try { context.VerifyFixedTargets(redirected); } catch (NtfsFixtureGuardException) { rejected = true; }
++            Check(rejected && valid.StoragePaths.Count == 0 && valid.FileReads.Count == 0,
++                "redirected baseline is rejected before any file or Native metadata operation");
++            var changed = targets.ToArray(); changed[0] = changed[0] with { Storage = changed[0].Storage with { LogicalBytes = 1 } };
++            rejected = false;
++            try { context.VerifyFixedTargets(changed); } catch (NtfsFixtureGuardException) { rejected = true; }
++            Check(rejected, "post-verifier cannot accept a caller assertion of different object data");
++            context.Dispose(); context.Dispose();
++            rejected = false;
++            try { context.QueryFacts(); } catch (NtfsFixtureGuardException error) { rejected = error.Code == "FixtureContextClosed"; }
++            Check(rejected && valid.Handles.All(x => x.IsClosed), "closed or twice-disposed context cannot query again");
++        }
++        Reject(fake => fake.ManifestPath = Path.Combine(fake.Repository, "fixture.json"), "workspace must be a direct owned artifacts child", true);
++        Reject(fake => fake.ManifestPath = Path.Combine(fake.Workspace, "nested", "fixture.json"), "nested workspaces cannot pass prefix checks", true);
++        Reject(fake => fake.ManifestPath = "fixture.json", "relative manifest is rejected", true);
++        Reject(fake => fake.ChangeManifest(value => value["nonce"] = new string('b', 32)), "manifest nonce must match directory identity", true);
++        Reject(fake => fake.ChangeManifest(value => value["mode"] = "raw-records"), "new factory cannot silently accept another fixture mode", true);
++        Reject(fake => fake.ChangeManifest(value => value["image_path"] = @"C:\SyntheticOther\fixture.vhd"), "image cannot leave the owned workspace", true);
++        Reject(fake => fake.ChangeManifest(value => value["workspace"] = @"C:\SyntheticOther"), "workspace field cannot redirect ownership", true);
++        Reject(fake => fake.ChangeManifest(value => value["drive_root"] = "C:\\"), "system drive spelling is outside the fixture letter range", true);
++        Reject(fake => fake.ChangeManifest(value => value["volume_guid"] = "\\\\?\\Volume{bad}\\"), "volume name must contain one complete GUID", true);
++        Reject(fake => fake.ChangeManifest(value => value["Path"] = "private-marker"), "extra manifest fields are rejected", true);
++        Reject(fake => fake.ChangeManifest(value => value.Remove("schema")), "missing manifest field is rejected", true);
++        Reject(fake => fake.ChangeManifest(value => value["schema"] = 1.5), "noninteger schema is rejected", true);
++        Reject(fake => fake.Manifest = Encoding.UTF8.GetBytes("{\"schema\":1," + Encoding.UTF8.GetString(fake.Manifest)[1..]),
++            "duplicate JSON fields are rejected before their values can be lost", true);
++        Reject(fake => fake.Manifest = Encoding.UTF8.GetBytes("{\"Schema\":1," + Encoding.UTF8.GetString(fake.Manifest)[1..]),
++            "case variant manifest fields are rejected", true);
++        Reject(fake => fake.Manifest = new byte[16384], "manifest byte bound is enforced", true);
++        Reject(fake => fake.StatOverrides[fake.ManifestPath] = new(FileAttributes.ReparsePoint, fake.Manifest.Length), "manifest reparse entry is rejected", true);
++        Reject(fake => fake.StatOverrides[fake.Workspace] = new(FileAttributes.Directory | FileAttributes.ReparsePoint, 0), "workspace reparse ancestor is rejected", true);
++        Reject(fake => fake.StatOverrides[fake.Image] = new(FileAttributes.ReparsePoint, 256L * 1024 * 1024), "image reparse entry is rejected", true);
++        Reject(fake => fake.StatOverrides[fake.Image] = new(FileAttributes.Archive, 255L * 1024 * 1024), "undersized image cannot be treated as the owned VHD", true);
++        Reject(fake => fake.VirtualBytes++, "native VHD virtual size must be exactly the fixture budget");
++        foreach (uint subtype in new uint[] { 0, 3, 4, uint.MaxValue })
++            Reject(fake => fake.ProviderSubtype = subtype, "dynamic differencing or unknown VHD subtype is rejected before volume access");
++        Reject(fake => fake.FailImageInfo = true, "image subtype or size query failure cannot be replaced by caller assertions");
++        Reject(fake => fake.Device = @"\\.\PhysicalDrive-1", "invalid physical device identifier is rejected");
++        Reject(fake => fake.ResolvedVolume = @"\\?\Volume{00000000-0000-0000-0000-000000000002}\", "drive root must resolve to the bound volume GUID");
++        Reject(fake => fake.Format = "ReFS", "volume must be NTFS");
++        Reject(fake => fake.MutateControl(0x560000, bytes => W32(bytes, 8, 8)), "volume extents must refer to the opened image device");
++        Reject(fake => fake.MutateControl(0x560000, bytes => W32(bytes, 0, 2)), "multiple physical extents are unsupported");
++        Reject(fake => fake.MutateControl(0x560000, bytes => W64(bytes, 16, -1)), "negative partition start is rejected");
++        Reject(fake => fake.MutateControl(0x560000, bytes => W64(bytes, 24, 256L * 1024 * 1024)), "partition cannot extend beyond virtual disk bounds");
++        Reject(fake => fake.MutateControl(0x70048, bytes => W32(bytes, 0, 1)), "unexpected partition style is rejected");
++        Reject(fake => fake.MutateControl(0x70048, bytes => bytes[33] = 1), "boot partition flag is rejected");
++        Reject(fake => fake.MutateControl(0x70048, bytes => W64(bytes, 8, 2 * 1024 * 1024)), "partition info must match volume extents");
++        Reject(fake => fake.Marker = Encoding.UTF8.GetBytes("{}"), "volume marker must match every manifest field");
++        Reject(fake => fake.StatOverrides[fake.MarkerPath] = new(FileAttributes.ReparsePoint, fake.Marker.Length), "marker reparse entry is rejected");
++        Reject(fake => fake.MutateControl(0x90064, bytes => W32(bytes, 44, 8192)), "unexpected cluster size is rejected");
++        Reject(fake => fake.MutateControl(0x90064, bytes => W32(bytes, 48, 4096)), "unexpected real record size is rejected");
++        Reject(fake => fake.MutateControl(0x90064, bytes => W64(bytes, 8, long.MaxValue)), "sector count overflow is rejected before multiplication");
++        Reject(fake => fake.MutateControl(0x90064, bytes => W64(bytes, 16, long.MaxValue)), "cluster count cannot exceed partition geometry");
++        Reject(fake => fake.MutateControl(0x90064, bytes => W64(bytes, 64, long.MaxValue)), "MFT start must be a valid volume LCN");
++        Reject(fake => fake.MutateControl(0x90064, bytes => W64(bytes, 56, 1025)), "MFT valid length must contain complete records");
++        Reject(fake => fake.MutateControl(0x2d1400, bytes => W32(bytes, 20, 3072)), "invalid physical buffer alignment is rejected");
++        Reject(fake => fake.ControlData[0x90064] = new byte[103], "short native geometry is rejected");
++        Reject(fake => fake.StatOverrides[fake.Data] = new(FileAttributes.Directory | FileAttributes.ReparsePoint, 0), "nonce data directory cannot redirect to another tree");
++        foreach (string change in new[] { "identity", "writer", "parent", "alias", "ads", "attribute", "reparse" })
++        {
++            var fake = new Fake(); using var context = fake.Open(); var baseline = context.CaptureFixedTargets();
++            var primary = baseline.First(x => change == "alias" ? x.CaseId.StartsWith("B-", StringComparison.Ordinal) :
++                change == "ads" ? x.CaseId.StartsWith("C-", StringComparison.Ordinal) : true);
++            switch (change)
++            {
++                case "identity": fake.Storages[primary.Path] = primary.Storage with { Identity = new(42, primary.Storage.Identity.Low, 0) }; break;
++                case "writer": fake.Storages[primary.Path] = primary.Storage with { WritableHandleOpen = true }; break;
++                case "parent": fake.Storages[primary.ParentPath] = primary.ParentStorage with { Identity = new(41, primary.ParentStorage.Identity.Low + 1, 0) }; break;
++                case "alias": fake.Storages[Path.Combine(primary.ParentPath, "link.bin")] = primary.Storage with { AllocatedBytes = 1 }; break;
++                case "ads": fake.Stream = "changed"u8.ToArray(); break;
++                case "attribute": fake.StatOverrides[primary.Path] = new(primary.Attributes | FileAttributes.Compressed, 0); break;
++                default: fake.StatOverrides[primary.ParentPath] = new(FileAttributes.Directory | FileAttributes.ReparsePoint, 0); break;
++            }
++            bool rejected = false;
++            try { context.VerifyFixedTargets(baseline); } catch (NtfsFixtureGuardException) { rejected = true; }
++            Check(rejected, "post-verification rejects changed identities types aliases streams and reparse paths");
++        }
++        var canceled = new Fake(); using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
++        bool cancelled = false;
++        try { using var ignored = canceled.Open(cancellation.Token); } catch (OperationCanceledException) { cancelled = true; }
++        Check(cancelled && canceled.Handles.Count == 0, "pre-cancellation performs no native open");
++        var cancelDuring = new Fake(); using var during = new CancellationTokenSource();
++        cancelDuring.OnVolumeOpen = during.Cancel; cancelled = false;
++        try { using var ignored = cancelDuring.Open(during.Token); } catch (OperationCanceledException) { cancelled = true; }
++        Check(cancelled && cancelDuring.Handles.All(x => x.IsClosed), "canceled construction releases every handle and publishes no context");
++        foreach (bool preparationPhase in new[] { false, true })
++        {
++            var cancelFinal = new Fake(); using var final = new CancellationTokenSource();
++            cancelFinal.OnStat = path => { if (path == cancelFinal.Data) final.Cancel(); };
++            cancelled = false;
++            try
++            {
++                if (preparationPhase) cancelFinal.Prepare(final.Token);
++                else { using var ignored = cancelFinal.Open(final.Token); }
++            }
++            catch (OperationCanceledException) { cancelled = true; }
++            Check(cancelled && cancelFinal.Handles.Count == 2 && cancelFinal.Handles.All(x => x.IsClosed),
++                "cancellation at the final data-root check cannot publish context or successful preparation");
++        }
++        return passed;
++    }
++
++    private sealed class Fake : NtfsVerifiedFixtureContext.INative
++    {
++        internal string Repository = @"C:\Synthetic\FixtureProject";
++        internal string Workspace => Path.Combine(Repository, "artifacts", "ntfs-live-" + new string('a', 32));
++        internal string ManifestPath;
++        internal string Image => Path.Combine(Workspace, "fixture.vhd");
++        internal string Volume = @"\\?\Volume{00000000-0000-0000-0000-000000000001}\";
++        internal string Data => Path.Combine(Volume, "AsukaLensFixture-" + new string('a', 32));
++        internal string MarkerPath => Path.Combine(Volume, ".asukalens-ntfs-fixture.json");
++        internal byte[] Manifest, Marker, Stream = "synthetic named stream"u8.ToArray();
++        internal string Device = @"\\.\PhysicalDrive7", Format = "NTFS", ResolvedVolume;
++        internal long VirtualBytes = 256L * 1024 * 1024;
++        internal uint ProviderSubtype = 2;
++        internal bool FailImageInfo;
++        internal Action? OnVolumeOpen;
++        internal Action<string>? OnStat;
++        internal readonly List<SafeFileHandle> Handles = new();
++        internal readonly Dictionary<string, NtfsVerifiedFixtureContext.PathInfo> StatOverrides = new(StringComparer.OrdinalIgnoreCase);
++        internal readonly HashSet<string> MissingPaths = new(StringComparer.OrdinalIgnoreCase);
++        internal readonly Dictionary<uint, byte[]> ControlData = new();
++        internal readonly Dictionary<string, FileStorageInfo> Storages = new(StringComparer.OrdinalIgnoreCase);
++        internal readonly List<string> StoragePaths = new(), FileReads = new();
++        private readonly Dictionary<string, FileAttributes> attributes = new(StringComparer.OrdinalIgnoreCase);
++        internal Fake()
++        {
++            ManifestPath = Path.Combine(Workspace, "fixture.json"); ResolvedVolume = Volume;
++            Manifest = JsonSerializer.SerializeToUtf8Bytes(new { schema = 1, image_path = Image, volume_guid = Volume,
++                drive_root = "E:\\", workspace = Workspace, nonce = new string('a', 32), mode = "fixture-source" });
++            Marker = (byte[])Manifest.Clone();
++            byte[] extents = new byte[32]; W32(extents, 0, 1); W32(extents, 8, 7); W64(extents, 16, 1024 * 1024); W64(extents, 24, 255L * 1024 * 1024);
++            ControlData[0x560000] = extents;
++            byte[] partition = new byte[144]; W64(partition, 8, 1024 * 1024); W64(partition, 16, 255L * 1024 * 1024);
++            W32(partition, 24, 1); partition[32] = 7; partition[34] = 1; ControlData[0x70048] = partition;
++            byte[] geometry = new byte[104]; W64(geometry, 0, 41); W64(geometry, 8, 255L * 1024 * 1024 / 512);
++            W64(geometry, 16, 255L * 1024 * 1024 / 4096); W32(geometry, 40, 512); W32(geometry, 44, 4096); W32(geometry, 48, 1024);
++            W64(geometry, 56, 65536); W64(geometry, 64, 10); BinaryPrimitives.WriteUInt16LittleEndian(geometry.AsSpan(100), 3);
++            BinaryPrimitives.WriteUInt16LittleEndian(geometry.AsSpan(102), 1); ControlData[0x90064] = geometry;
++            byte[] alignment = new byte[28]; W32(alignment, 0, 28); W32(alignment, 4, 28); W32(alignment, 16, 512); W32(alignment, 20, 4096);
++            ControlData[0x2d1400] = alignment;
++            int index = 0;
++            foreach (var descriptor in NtfsKernelMatrix.Cases)
++            {
++                string parent = Path.Combine(Data, descriptor.CaseId), path = Path.Combine(parent, NtfsKernelMatrix.FileName(descriptor.NameLength));
++                var time = new DateTime(2020, 1, 1);
++                var storage = new FileStorageInfo(new(41, NtfsRecordFixtures.Reference((ulong)(100 + index), 1), 0),
++                    descriptor.Kind == "Ordinary" ? descriptor.LogicalBytes : 0, descriptor.HardLink ? 2u : 1u, false, descriptor.LogicalBytes, time);
++                Storages[path] = storage; Storages[parent] = new(new(41, NtfsRecordFixtures.Reference((ulong)(50 + index), 1), 0), 0, 1, false, -1, time);
++                var kind = descriptor.Kind == "Compressed" ? FileAttributes.Compressed : descriptor.Kind == "Sparse" ? FileAttributes.SparseFile : 0;
++                attributes[path] = FileAttributes.Archive | kind;
++                if (descriptor.HardLink) { string alias = Path.Combine(parent, "link.bin"); Storages[alias] = storage; attributes[alias] = attributes[path]; }
++                index++;
++            }
++        }
++        internal NtfsVerifiedFixtureContext Open(CancellationToken token = default) => NtfsVerifiedFixtureContext.CreateForTests(ManifestPath, Repository, this, token);
++        internal void Prepare(CancellationToken token = default) => NtfsVerifiedFixtureContext.VerifyPreparationForTests(ManifestPath, Repository, this, token);
++        internal void ChangeManifest(Action<JsonObject> edit) { var value = JsonNode.Parse(Manifest)!.AsObject(); edit(value); Manifest = Encoding.UTF8.GetBytes(value.ToJsonString()); }
++        internal void MutateControl(uint code, Action<byte[]> mutate) => mutate(ControlData[code]);
++        public NtfsVerifiedFixtureContext.PathInfo Stat(string path)
++        {
++            OnStat?.Invoke(path);
++            if (MissingPaths.Contains(path)) throw new FileNotFoundException("SyntheticMissing");
++            if (StatOverrides.TryGetValue(path, out var changed)) return changed;
++            if (path == ManifestPath) return new(FileAttributes.Archive, Manifest.Length);
++            if (path == MarkerPath) return new(FileAttributes.Archive, Marker.Length);
++            if (path == Image) return new(FileAttributes.Archive, 256L * 1024 * 1024 + 512);
++            if (attributes.TryGetValue(path, out var flags)) return new(flags, 0);
++            return new(FileAttributes.Directory, 0);
++        }
++        public byte[] ReadFile(string path, int maximum)
++        {
++            FileReads.Add(path);
++            if (path == ManifestPath) return (byte[])Manifest.Clone();
++            if (path == MarkerPath) return (byte[])Marker.Clone();
++            if (path.EndsWith(":meta", StringComparison.Ordinal) && Storages.ContainsKey(path[..^5])) return (byte[])Stream.Clone();
++            throw new NtfsFixtureGuardException("FakeUnexpectedRead");
++        }
++        public string ResolveVolume(string driveRoot) => ResolvedVolume;
++        public string DriveFormat(string driveRoot) => Format;
++        private SafeFileHandle Handle() { var handle = new SafeFileHandle((IntPtr)(100 + Handles.Count), false); Handles.Add(handle); return handle; }
++        public SafeFileHandle OpenImage(string imagePath) => Handle();
++        public (string Device, long VirtualBytes, uint ProviderSubtype) ImageInfo(SafeFileHandle image) =>
++            FailImageInfo ? throw new NtfsFixtureGuardException("FakeImageInfoFailure") : (Device, VirtualBytes, ProviderSubtype);
++        public SafeFileHandle OpenVolume(string volumeGuidWithoutSlash) { var result = Handle(); OnVolumeOpen?.Invoke(); return result; }
++        public byte[] Control(SafeFileHandle volume, uint code, byte[]? input, int maximum) => (byte[])ControlData[code].Clone();
++        public FileStorageInfo ReadStorage(string path, bool directory, FileAttributes ignored)
++        { StoragePaths.Add(path); return Storages.TryGetValue(path, out var value) ? value : throw new NtfsFixtureGuardException("FakeUnexpectedStorage"); }
++    }
++    private static void W32(byte[] bytes, int offset, uint value) => BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset), value);
++    private static void W64(byte[] bytes, int offset, long value) => BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(offset), value);
++}
+diff --git a/tests/Prototypes/Ntfs/README.md b/tests/Prototypes/Ntfs/README.md
+index 4b7b6b8..07aad77 100644
+--- a/tests/Prototypes/Ntfs/README.md
++++ b/tests/Prototypes/Ntfs/README.md
+@@ -30,6 +30,18 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-read-session
+ 
+ 该入口运行核心与独立反例检查，不创建文件、快照或VHD。具体合同、重入边界及后续真实来源要求见[会话计划](../../../docs/ntfs-read-session-plan.md)，不替换已有解码器/统计/生产扫描路径。
+ 
++## 自有测试卷来源适配器
++
++`NtfsVerifiedFixtureContext` 从本轮manifest独立核对nonce、固定VHD与无父链、卷extents/MBR分区/NTFS几何/marker，并派生21条受控路径。准备入口允许数据根尚未创建，始终先验证实际归属；完整factory仍要求夹具存在。`NtfsFixtureSource` 私有创建并自持新卷句柄，锁成功后建立私有映射，opaque token/结果envelope绑定同一owner；旧准备句柄在Open前关闭，不向来源传任意裸句柄或validated布尔值。
++
++```powershell
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-fixture-source-tests
++pwsh -NoProfile -File tests/NtfsSourceEvidence.Tests.ps1
++pwsh -NoProfile -File tests/NtfsFixtureCodeEvidence.Tests.ps1
++```
++
++这些检查只用合成Native替身。真实 `-SourceAdapter` 另需当轮自有VHD授权，固定22记录/21对象，128次ReadFile/2MiB/单次64KiB；14特殊占用未知仍保留。单条结果是暂存，envelope关闭后不能解包；已取出的不可变副本不能被物理撤回，也不构成当前来源证明。仅解锁/固定Native后验/清理成功才导出 `source_verified`，普通Dispose不生成成功报告。它不接入模拟NameToken模型或生产后端，详情见[方案](../../../docs/ntfs-fixture-source-plan.md)。
++
+ 构建测试项目后运行：
+ 
+ ```powershell
