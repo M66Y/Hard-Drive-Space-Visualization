@@ -1,0 +1,816 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index e9f64c4..6733683 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -119,6 +119,7 @@
+ 
+ - 可选 `--policy-benchmark` 用于三策略对比，`--refresh-benchmark` 用于刷新同条件诊断；方法与限制见 README 和相关迭代。先保留已有报告，再运行会覆盖报告的基准。
+ - 高速目录内并行改动另运行 `--parallel-file-tests`；可选 `--response-benchmark` 在真实桌面测量同条件主窗扫描、预览、搜索和取消，报告存在时拒绝覆盖。固定夹具与测量边界见扫描性能方案及本轮归档。
++- NTFS 合成记录原型位于 `tests/Prototypes/Ntfs/`，测试入口为测试 DLL 的 `--ntfs-prototype-tests`。本轮只获合成记录验证授权，没有真实卷读取器；不得把原型输出当作真实卷快照或性能验收，未来真实读取须先指定受控测试卷并验证格式与几何。
+ - 混合目录调度改动补测 `--mixed-benchmark before/after` 的同夹具对比；用户明确指定实际目录后才使用 `--folder-benchmark`，其报告与隔离诊断仅留本机临时目录，不进入仓库。比较自动与高速必须核对完整扫描、结果一致性和运行顺序，保留异常波动样本。
+ - 本地目录比较出现指纹差异时，可使用 `--folder-benchmark --pair` 做针对性正确性诊断；额外保留的逐项快照影响测量条件，其计时不并入常规性能基准。差异计数和实际耗时仍只在本机核查，不纳入公开归档。工具边界检查使用 `--folder-comparison-tests`。
+ - 合成目录与软件配置隔离测试，不默认扫描用户整盘或覆盖真实背景设置。缺权限/文件系统特性的跳过、程序断言、人工观察和性能实测分别记录。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index b8dda5c..51ef51f 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,5 +1,7 @@
+ # 后续开发计划
+ 
++2026-11-12：NTFS 快速扫描阶段 A 的合成记录原型已实现，用户明确暂不进行真实测试卷比对。实际卷读取、大小语义对照和阶段 B 吞吐尚未验收；后续需受控 NTFS 测试卷再推进，见[原型边界](../tests/Prototypes/Ntfs/README.md)。普通“继续”不自动扫描个人整盘或启用提权助手。
++
+ 2026-11-12：用户要求研究接近 WizTree 整卷速度的可选 NTFS 快速路径，PERF-001 进入可行性研究。已形成[研究与原型方案](ntfs-fast-scan-plan.md)，区别 USN 名称枚举与 MFT 大小属性解析。建议先独立只读原型，验证统计契约再测吞吐；本轮仅研究，未实现快速后端、提权助手或整卷读取。原并发优化方案暂不与此路线同时实施，待用户确定后续范围。
+ 
+ 2026-11-11：通用发布工具的文件名问题已完成本轮修复与离线验证，见[迭代记录](../iterations/2026-11-11-05-release-names/README.md)。下一次正式发行仍需验证新安装器和真实远程草稿；本轮不启动性能、界面重构或新版本发布。下文保留历史计划状态。
+diff --git a/docs/ntfs-fast-scan-plan.md b/docs/ntfs-fast-scan-plan.md
+index 04ff00b..4d8e518 100644
+--- a/docs/ntfs-fast-scan-plan.md
++++ b/docs/ntfs-fast-scan-plan.md
+@@ -1,5 +1,7 @@
+ # 可选 NTFS 快速扫描：研究与原型方案
+ 
++2026-11-12 后续进展：用户批准第 1 步，并确认仅做合成记录验证。测试程序内的[离线原型](../tests/Prototypes/Ntfs/README.md)已实现；本文件下方保留原研究范围，阶段 A 的真实卷比对、阶段 B/C 仍待后续授权和验收。原型将属性扩展、压缩/稀疏分配等未支持内容明确标记为待补查，没有实现实际补查器。
++
+ 日期：2026-11-12。研究基线：`1d098b4`。本轮授权为可行性研究，不表示原型或产品功能已实现，不触发 UAC、访问原始卷或扫描真实磁盘。
+ 
+ ## 结论
+diff --git a/docs/project-status.md b/docs/project-status.md
+index d4e285a..2240c2f 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-12：用户确认先仅做合成记录验证，已实现测试程序内的 NTFS 3.1 记录解码与有界索引原型，见[原型说明](../tests/Prototypes/Ntfs/README.md)。支持普通驻留/非驻留 DATA 的合成大小校验、硬链接入口与对象区分、DOS 别名处理；特殊类型和属性扩展保留待补查。没有真实卷读取器或生产入口，阶段 A 的真实 NTFS 比对仍未验收；不得据此宣称已提速。
++
+ 2026-11-12：已完成可选 NTFS 快速扫描的代码与官方接口可行性研究，见[研究方案](ntfs-fast-scan-plan.md)。尚未实现 MFT 扫描器或新的权限助手，也未执行原始卷读取；现有自动/高速仍使用原扫描路径。
+ 
+ 2026-11-11：后续发布资产统一使用点号文件名，通用上传流程已补 GitHub 文件名规范化的离线回归；本地验证兼容旧空格名称，拒绝两种命名混用。详见[发布工具修复](../iterations/2026-11-11-05-release-names/README.md)。本轮没有打包、创建标签或上传资产。
+diff --git a/iterations/2026-11-12-02-ntfs-prototype/README.md b/iterations/2026-11-12-02-ntfs-prototype/README.md
+new file mode 100644
+index 0000000..6539d3e
+--- /dev/null
++++ b/iterations/2026-11-12-02-ntfs-prototype/README.md
+@@ -0,0 +1,24 @@
++# NTFS 合成记录解析原型
++
++日期：2026-11-12。基线：`cecf3012688984736366f7921cce0c428597f6ec`。用户批准第 1 步原型，并明确没有专用测试卷，先只做合成记录验证。本轮未访问原始卷、请求管理员权限或扫描个人磁盘。
++
++## 实现与边界
++
++原型全部位于 `tests/Prototypes/Ntfs/`，测试入口 `--ntfs-prototype-tests`。仅编入测试项目；应用项目继续排除 `tests/`，未增加运行时依赖或生产扫描分支。
++
++- `NtfsRecordDecoder.cs`：解析有界合成 NTFS 3.1 FILE 记录，校验 USA 修复、属性布局、Unicode、数据长度、runlist、VCN/LCN 和普通分配簇几何；完整文件引用来自外部槽号加序列。
++- `NtfsPrototypeIndex.cs`：分开文件对象与目录入口；逻辑大小按入口累计，实际占用按对象去重；保留未知大小，拒绝冲突、目录循环、槽位复用、容量越界和总量溢出。
++- `NtfsRecordFixtures.cs` / `NtfsPrototypeTests.cs` / `NtfsIndexTests.cs`：内存合成记录、边界检查、固定种子有限变异、取消前与构建中途取消，无磁盘镜像或真实名称。
++- 特殊压缩/稀疏分配、加密/重解析、属性列表/扩展记录等明确标记待补查；尚未实际补查、拼接或回退。驻留数据分配 0 只表示独立数据簇为零，尚未对照真实 NativeStorage 语义。完整限制、容量和来源见原型 README。
++
++## 审查与验证
++
++独立审查补齐了未知属性拒绝、run 终点溢出、普通分配长度与簇几何矛盾、元数据属性标志、空输入误报、目录入口碰撞等边界。名称索引有条目与字符预算，避免单靠记录数上限掩盖硬链接展开。没有路径写入或采集流程，错误输出为固定类别。
++
++应用与测试项目 Release 构建均 0 警告、0 错误；使用已还原依赖构建。原型 79 项检查通过（含 512 次固定种子变异），现有核心与高级回归通过（高级 25 项）。没有测性能；这不是活跃卷一致性、真实 NTFS 结构兼容或 Windows 10 原型实测通过证明。
++
++本轮不打包或发布，不改动 v1.5.0 资产。阶段 A 的真实卷比对尚未验收；阶段 B/C 未实施。合成解析不产生临时数据文件，核心/高级回归的合成夹具由其测试入口清理。保留普通开发输出，无重复预览或安装包。
++
++## 归档
++
++`changes.patch` 保存本轮必要变更，不包含自身；`files.json` 记录基线、文件清单及 SHA-256；补丁反向检查用于验证可恢复性。没有归档真实扫描结果、原始日志或个人路径。
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 59d4d25..69fed0e 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -4,6 +4,7 @@ using System.Drawing;
+ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+ 
+ if (args.Contains("--package-smoke")) return PackageSmoke.Run();
++if (args.Contains("--ntfs-prototype-tests")) return DiskAtlas.NtfsPrototype.NtfsPrototypeTests.Run();
+ if (args.Contains("--app-data-location-tests")) return AppDataLocationTests.Run();
+ 
+ if (args.Contains("--desktop-compatibility")) return DesktopCompatibility.Run();
+diff --git a/tests/Prototypes/Ntfs/NtfsIndexTests.cs b/tests/Prototypes/Ntfs/NtfsIndexTests.cs
+new file mode 100644
+index 0000000..6528e6e
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsIndexTests.cs
+@@ -0,0 +1,84 @@
++namespace DiskAtlas.NtfsPrototype;
++
++internal static class NtfsIndexTests
++{
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool ok, string name)
++        {
++            if (!ok) throw new InvalidOperationException(name);
++            passed++; Console.WriteLine("PASS NTFS index " + name);
++        }
++        NtfsRecord Decode(byte[] bytes, ulong slot) => NtfsRecordDecoder.Decode(bytes, 512, recordNumber: slot).Record
++            ?? throw new InvalidOperationException("synthetic record decoding");
++        ulong rootId = NtfsRecordFixtures.Reference(5, 7);
++        var root = Decode(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name("root", parent: rootId)], sequence: 7, directory: true), 5);
++        var file = Decode(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name("first.bin"),
++            NtfsRecordFixtures.Name("second.bin"), NtfsRecordFixtures.Name("FIRST~1.BIN", 2),
++            NtfsRecordFixtures.Nonresident()], links: 2), 42);
++        NtfsVolumeRecord R(NtfsRecord entry, ulong volume = 1) => new(volume, entry);
++        var result = NtfsPrototypeIndex.Build([R(root), R(file)]);
++        Check(result.Complete && result.FileObjects == 1 && result.KnownLogicalBytes == 12000 && result.KnownAllocatedBytes == 8192,
++            "hard-link entries contribute logical size; allocation counted once");
++        Check(result.DirectoryEntries == 3, "two links and root retained; DOS alias not counted twice");
++        Check(NtfsPrototypeIndex.Build([R(root), R(file), R(file)]).Code == "DuplicateReference", "duplicate records reject the batch");
++        var reused = file with { Reference = NtfsRecordFixtures.Reference(42, 4) };
++        Check(NtfsPrototypeIndex.Build([R(root), R(file), R(reused)]).Code == "SlotReused", "slot reuse across a read invalidates the batch");
++        var replacement = file with { Reference = NtfsRecordFixtures.Reference(43, 3) };
++        Check(NtfsPrototypeIndex.Build([R(root), R(file), R(replacement)]).Code == "EntryCollision", "two objects cannot own the same directory entry");
++        Check(!NtfsPrototypeIndex.Build([]).Complete, "empty input cannot claim a complete snapshot");
++        var twoVolumes = NtfsPrototypeIndex.Build([R(root), R(file), R(root, 2), R(file, 2)]);
++        Check(twoVolumes.Complete && twoVolumes.FileObjects == 2 && twoVolumes.KnownAllocatedBytes == 16384, "file identity includes volume");
++        Check(!NtfsPrototypeIndex.Build([R(file)]).Complete, "missing parent is incomplete");
++        var stale = file with { Names = [new(rootId + (1UL << 48), "stale.bin", 1)] };
++        Check(!NtfsPrototypeIndex.Build([R(root), R(stale)]).Complete, "parent reference sequence is validated");
++        var unknown = file with { LogicalBytes = null, AllocatedBytes = null, LookupReasons = NtfsLookupReason.AttributeList };
++        var partial = NtfsPrototypeIndex.Build([R(root), R(unknown)]);
++        Check(!partial.Complete && partial.UnknownAllocatedObjects == 1 && partial.UnknownLogicalObjects == 1,
++            "unknown sizes remain counted as unknown objects");
++        var extension = file with { Reference = NtfsRecordFixtures.Reference(43, 3), BaseReference = file.Reference,
++            LookupReasons = NtfsLookupReason.ExtensionRecord, Names = [], LogicalBytes = null, AllocatedBytes = null };
++        var pending = NtfsPrototypeIndex.Build([R(root), R(file), R(extension)]);
++        Check(!pending.Complete && pending.FileObjects == 1 && pending.KnownAllocatedBytes == 8192, "extension never becomes another file or a second allocation");
++        var huge = file with { LogicalBytes = long.MaxValue, AllocatedBytes = long.MaxValue };
++        var more = file with { Reference = NtfsRecordFixtures.Reference(44, 3), Names = [new(rootId, "more.bin", 1)] };
++        Check(NtfsPrototypeIndex.Build([R(root), R(huge), R(more)]).Code == "TotalOverflow", "totals cannot silently overflow");
++        var cycle = root with { Reference = NtfsRecordFixtures.Reference(8, 7), Names = [new(NtfsRecordFixtures.Reference(8, 7), "loop", 1)] };
++        Check(NtfsPrototypeIndex.Build([R(cycle)]).Code == "DirectoryCycle", "self parent outside NTFS root is rejected");
++        Check(NtfsPrototypeIndex.Build([R(root), R(file)], limit: 1).Code == "RecordLimit", "record budget is bounded before indexing");
++        var manyNames = Enumerable.Range(0, 256).Select(i => new NtfsName(rootId, "entry" + i, 1)).ToArray();
++        var large = Enumerable.Range(1000, 800).Select(i => R(file with
++        {
++            Reference = NtfsRecordFixtures.Reference((ulong)i, 3), Names = manyNames
++        })).ToArray();
++        Check(NtfsPrototypeIndex.Build(large).Code == "EntryLimit", "entry budget bounds hard-link index expansion");
++        using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
++        bool stopped = false;
++        try { NtfsPrototypeIndex.Build([R(root), R(file)], token: cancelled.Token); }
++        catch (OperationCanceledException) { stopped = true; }
++        Check(stopped, "cancelled build publishes no summary");
++        using var duringBuild = new CancellationTokenSource();
++        bool interrupted = false;
++        try { NtfsPrototypeIndex.Build(new CancelAfterFirst([R(root), R(file)], duringBuild), token: duringBuild.Token); }
++        catch (OperationCanceledException) { interrupted = true; }
++        Check(interrupted, "cancellation after indexing starts discards partial output");
++        return passed;
++    }
++
++    private sealed class CancelAfterFirst(IReadOnlyList<NtfsVolumeRecord> records, CancellationTokenSource source)
++        : IReadOnlyList<NtfsVolumeRecord>
++    {
++        public int Count => records.Count;
++        public NtfsVolumeRecord this[int index] => records[index];
++        public IEnumerator<NtfsVolumeRecord> GetEnumerator()
++        {
++            for (int i = 0; i < records.Count; i++)
++            {
++                if (i == 1) source.Cancel();
++                yield return records[i];
++            }
++        }
++        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsPrototypeIndex.cs b/tests/Prototypes/Ntfs/NtfsPrototypeIndex.cs
+new file mode 100644
+index 0000000..28c320e
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsPrototypeIndex.cs
+@@ -0,0 +1,112 @@
++namespace DiskAtlas.NtfsPrototype;
++
++internal sealed record NtfsVolumeRecord(ulong Volume, NtfsRecord Record);
++internal sealed record NtfsPrototypeSummary(bool Complete, string Code, int FileObjects, int DirectoryObjects,
++    long DirectoryEntries, long KnownLogicalBytes, long KnownAllocatedBytes, int UnknownLogicalObjects,
++    int UnknownAllocatedObjects, int LookupObjects);
++
++// A bounded correctness model, not a production tree/cache or a live-volume snapshot.
++internal static class NtfsPrototypeIndex
++{
++    internal const int MaximumEntries = 200_000;
++    internal const int MaximumNameCharacters = 8_000_000;
++    internal static NtfsPrototypeSummary Build(IReadOnlyList<NtfsVolumeRecord> records, int limit = 100_000,
++        CancellationToken token = default)
++    {
++        token.ThrowIfCancellationRequested();
++        if (limit is < 1 or > 1_000_000 || records.Count > limit) return Failed("RecordLimit");
++        var objects = new Dictionary<(ulong Volume, ulong Reference), NtfsRecord>();
++        var slots = new HashSet<(ulong Volume, ulong Slot)>();
++        int extensions = 0;
++        long discoveredEntries = 0, nameCharacters = 0;
++        foreach (var item in records)
++        {
++            token.ThrowIfCancellationRequested();
++            var record = item.Record;
++            if (record.Names.Count > 256) return Failed("NameLimit");
++            discoveredEntries += record.Names.Count;
++            foreach (var name in record.Names)
++            {
++                if (name.Name.Length is < 1 or > 255) return Failed("NameLimit");
++                nameCharacters += name.Name.Length;
++            }
++            if (discoveredEntries > MaximumEntries || nameCharacters > MaximumNameCharacters) return Failed("EntryLimit");
++            if (!objects.TryAdd((item.Volume, record.Reference), record)) return Failed("DuplicateReference");
++            if (!slots.Add((item.Volume, record.Reference & NtfsRecordDecoder.MaximumRecordNumber))) return Failed("SlotReused");
++            if (record.BaseReference != 0) extensions++;
++        }
++        long logical = 0, allocated = 0, entries = 0;
++        int files = 0, directories = 0, unknownLogical = 0, unknownAllocated = 0, lookups = extensions;
++        bool incomplete = extensions != 0 || records.Count == 0;
++        var parentOf = new Dictionary<(ulong Volume, ulong Reference), (ulong Volume, ulong Reference)>();
++        var entriesByName = new Dictionary<(ulong Volume, ulong Parent, string Name), ulong>();
++        foreach (var item in records)
++        {
++            token.ThrowIfCancellationRequested();
++            var record = item.Record;
++            if (record.BaseReference != 0) continue;
++            if (record.LookupReasons != NtfsLookupReason.None) { lookups++; incomplete = true; }
++            var names = record.Names.Where(n => n.Namespace != 2).DistinctBy(n => (n.ParentReference, n.Name)).ToArray();
++            entries += names.Length;
++            if (names.Length == 0) incomplete = true;
++            foreach (var name in names)
++            {
++                var entry = (item.Volume, name.ParentReference, name.Name);
++                if (entriesByName.TryGetValue(entry, out ulong owner) && owner != record.Reference) return Failed("EntryCollision");
++                entriesByName[entry] = record.Reference;
++                if (!objects.TryGetValue((item.Volume, name.ParentReference), out var parent) || !parent.IsDirectory || parent.BaseReference != 0)
++                    incomplete = true;
++            }
++            if (record.IsDirectory)
++            {
++                directories++;
++                if (names.Length != 1) incomplete = true;
++                else parentOf[(item.Volume, record.Reference)] = (item.Volume, names[0].ParentReference);
++                continue; // Directory indexes and NTFS system overhead are outside this sum.
++            }
++            files++;
++            if (record.LogicalBytes is { } size)
++            {
++                // Match production: each hard-link entry contributes logical bytes;
++                // allocation below is charged once to the unique file object.
++                if (size < 0 || (names.Length > 0 && size > (long.MaxValue - logical) / names.Length)) return Failed("TotalOverflow");
++                logical += size * names.Length;
++            }
++            else unknownLogical++;
++            if (record.AllocatedBytes is { } occupied)
++            {
++                if (occupied < 0 || occupied > long.MaxValue - allocated) return Failed("TotalOverflow");
++                allocated += occupied;
++            }
++            else unknownAllocated++;
++        }
++        // Every directory must reach the actual root (slot 5); self-parents elsewhere
++        // and stale parent sequence references must not become disconnected success.
++        var resolved = new HashSet<(ulong Volume, ulong Reference)>();
++        foreach (var key in parentOf.Keys)
++        {
++            token.ThrowIfCancellationRequested();
++            var current = key;
++            var chain = new HashSet<(ulong Volume, ulong Reference)>();
++            while (!resolved.Contains(current))
++            {
++                token.ThrowIfCancellationRequested();
++                if (!chain.Add(current)) return Failed("DirectoryCycle");
++                if (!parentOf.TryGetValue(current, out var parent)) { incomplete = true; break; }
++                if (parent == current)
++                {
++                    if ((current.Reference & NtfsRecordDecoder.MaximumRecordNumber) != 5) return Failed("DirectoryCycle");
++                    break;
++                }
++                current = parent;
++            }
++            foreach (var ancestor in chain) resolved.Add(ancestor);
++        }
++        token.ThrowIfCancellationRequested();
++        bool complete = !incomplete && unknownLogical == 0 && unknownAllocated == 0;
++        return new(complete, complete ? "CompleteSyntheticIndex" : "NeedsLookup", files, directories, entries,
++            logical, allocated, unknownLogical, unknownAllocated, lookups);
++    }
++
++    private static NtfsPrototypeSummary Failed(string code) => new(false, code, 0, 0, 0, 0, 0, 0, 0, 0);
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsPrototypeTests.cs b/tests/Prototypes/Ntfs/NtfsPrototypeTests.cs
+new file mode 100644
+index 0000000..862fd33
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsPrototypeTests.cs
+@@ -0,0 +1,156 @@
++namespace DiskAtlas.NtfsPrototype;
++
++internal static class NtfsPrototypeTests
++{
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException(name);
++            passed++; Console.WriteLine("PASS NTFS prototype " + name);
++        }
++        NtfsDecodeResult Decode(byte[] record, ulong slot = 42) => NtfsRecordDecoder.Decode(record, 512, recordNumber: slot);
++        NtfsRecord Read(byte[] record)
++        {
++            var result = Decode(record);
++            if (result.Status != NtfsDecodeStatus.Decoded || result.Record is null) throw new InvalidOperationException("valid synthetic record");
++            return result.Record;
++        }
++        void Rejected(byte[] record, string name) => Check(Decode(record).Status is NtfsDecodeStatus.Invalid or NtfsDecodeStatus.Unsupported, name);
++        void Mutation(Action<byte[]> mutate, string name)
++        {
++            var record = NtfsRecordFixtures.File(); mutate(record); Rejected(record, name);
++        }
++        try
++        {
++            var bytes = NtfsRecordFixtures.File(); var unchanged = bytes.ToArray();
++            var resident = Read(bytes);
++            Check(resident.Reference == NtfsRecordFixtures.Reference(42, 3), "full reference uses external slot and sequence");
++            Check(resident.LogicalBytes == 17 && resident.AllocatedBytes == 0, "resident default DATA excludes independent data clusters");
++            Check(bytes.SequenceEqual(unchanged), "fixup does not mutate caller record");
++            Check(resident.Names.Count == 1 && resident.Names[0].Name == "demo.bin" && resident.Names[0].ParentReference == NtfsRecordFixtures.Parent, "name and parent identity decoded");
++            Check(resident.LookupReasons == NtfsLookupReason.None, "simple supported file needs no lookup");
++            var zero = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Data(0)));
++            Check(zero.LogicalBytes == 0 && zero.AllocatedBytes == 0, "empty DATA remains known zero");
++            var nonresident = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Nonresident()));
++            Check(nonresident.LogicalBytes == 6000 && nonresident.AllocatedBytes == 8192, "nonresident size comes from DATA rather than FILE_NAME copies");
++            Rejected(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Nonresident(logical: 1, allocated: 1)), "ordinary allocation must match physical runs and cluster geometry");
++            var largerClusters = NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Nonresident(allocated: 16384));
++            var largerGeometry = NtfsRecordDecoder.Decode(largerClusters, 512, recordNumber: 42, clusterSize: 8192);
++            Check(largerGeometry.Status == NtfsDecodeStatus.Decoded && largerGeometry.Record?.AllocatedBytes == 16384, "explicit larger cluster geometry yields matching allocation");
++            Rejected(largerClusters, "allocation valid for another geometry is rejected with default geometry");
++            Check(NtfsRecordDecoder.Decode(bytes, 512, clusterSize: 4095).Status == NtfsDecodeStatus.Unsupported, "non-power-of-two cluster geometry rejected");
++            var metadataFlags = NtfsRecordFixtures.Name(); NtfsRecordFixtures.U16(metadataFlags, 12, 1);
++            Check(Decode(NtfsRecordFixtures.File(metadataFlags, NtfsRecordFixtures.Data())).Status == NtfsDecodeStatus.Unsupported, "flagged FILE_NAME cannot silently supply trusted metadata");
++            metadataFlags = NtfsRecordFixtures.Resident(0x10, new byte[48], flags: 1);
++            Check(Decode(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name(), NtfsRecordFixtures.Data(), metadataFlags], addStandard: false)).Status == NtfsDecodeStatus.Unsupported, "flagged STANDARD_INFORMATION cannot silently supply trusted metadata");
++            var unicode = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name("演示 🗂.txt"), NtfsRecordFixtures.Data()));
++            Check(unicode.Names[0].Name == "演示 🗂.txt", "Unicode UTF16 name roundtrip");
++            var links = Read(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name("first.bin"), NtfsRecordFixtures.Name("second.bin", 1, NtfsRecordFixtures.Reference(9, 2)), NtfsRecordFixtures.Name("FIRST~1.BIN", 2), NtfsRecordFixtures.Data()], links: 2));
++            Check(links.LinkCount == 2 && links.Names.Count == 3 && links.Names.Count(n => n.Namespace == 2) == 1, "hard-link names and DOS alias preserved separately");
++            var combined = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name("both.txt", 3), NtfsRecordFixtures.Data()));
++            Check(combined.Names[0].Namespace == 3, "combined Win32 DOS namespace supported");
++            var named = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Data(4), NtfsRecordFixtures.Data(9, "meta")));
++            Check(named.LogicalBytes == 4 && named.LookupReasons.HasFlag(NtfsLookupReason.NamedData), "named DATA never overwrites default stream size");
++            var missing = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name()));
++            Check(missing.LogicalBytes is null && missing.AllocatedBytes is null && missing.LookupReasons.HasFlag(NtfsLookupReason.MissingData), "missing DATA is unknown rather than empty");
++            var noStandard = Read(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name(), NtfsRecordFixtures.Data()], addStandard: false));
++            Check(noStandard.LogicalBytes is null && noStandard.AllocatedBytes is null && noStandard.LookupReasons.HasFlag(NtfsLookupReason.MissingStandardInformation), "missing standard metadata does not imply ordinary file semantics");
++            foreach (var pair in new[] { (Flag: (ushort)1, Reason: NtfsLookupReason.Compressed), (Flag: (ushort)0x8000, Reason: NtfsLookupReason.Sparse) })
++            {
++                var item = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Nonresident(flags: pair.Flag)));
++                Check(item.LogicalBytes == 6000 && item.AllocatedBytes is null && item.LookupReasons.HasFlag(pair.Reason), pair.Reason + " allocation requests lookup");
++            }
++            var encrypted = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Nonresident(flags: 0x4000)));
++            Check(encrypted.LookupReasons.HasFlag(NtfsLookupReason.Encrypted), "encrypted DATA explicitly requests lookup");
++            var reparse = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Resident(0xc0, [0, 0, 0, 0]), NtfsRecordFixtures.Data()));
++            Check(reparse.LookupReasons.HasFlag(NtfsLookupReason.ReparsePoint), "reparse data explicitly requests lookup");
++            var list = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Resident(0x20, new byte[32]), NtfsRecordFixtures.Data()));
++            Check(list.LogicalBytes is null && list.AllocatedBytes is null && list.LookupReasons.HasFlag(NtfsLookupReason.AttributeList), "attribute list cannot claim complete stream sizes");
++            var extension = Read(NtfsRecordFixtures.Record([NtfsRecordFixtures.Nonresident()], baseReference: NtfsRecordFixtures.Reference(77, 9)));
++            Check(extension.BaseReference == NtfsRecordFixtures.Reference(77, 9) && extension.LogicalBytes is null && extension.AllocatedBytes is null && extension.LookupReasons.HasFlag(NtfsLookupReason.ExtensionRecord), "extension record cannot become a standalone file total");
++            Check(Decode(NtfsRecordFixtures.Record([], inUse: false)).Status == NtfsDecodeStatus.Free, "unused record excluded");
++            var sequence = NtfsRecordFixtures.File(); NtfsRecordFixtures.U16(sequence, 16, 4);
++            Check(Read(sequence).Reference != resident.Reference, "reused slot has a distinct full reference");
++            Check(NtfsRecordDecoder.Decode(bytes, 512, ntfsMajor: 3, ntfsMinor: 0).Status == NtfsDecodeStatus.Unsupported, "unvalidated NTFS version rejected");
++            Check(NtfsRecordDecoder.Decode(bytes, 4096).Status == NtfsDecodeStatus.Unsupported, "unvalidated fixup stride rejected");
++            Check(NtfsRecordDecoder.Decode(bytes, 512, recordNumber: 1UL << 48).Status == NtfsDecodeStatus.Invalid, "out-of-range record slot rejected");
++            Rejected(bytes[..700], "truncated record rejected");
++            Rejected(new byte[65537], "oversized record rejected before allocation");
++            Mutation(r => r[0] = (byte)'B', "bad record signature rejected");
++            Mutation(r => r[510] ^= 1, "torn first-sector fixup rejected");
++            Mutation(r => r[1022] ^= 1, "torn final-sector fixup rejected");
++            Mutation(r => NtfsRecordFixtures.U16(r, 4, 1022), "out-of-bounds USA rejected");
++            Mutation(r => NtfsRecordFixtures.U16(r, 6, 2), "inconsistent USA count rejected");
++            Mutation(r => NtfsRecordFixtures.U16(r, 20, 48), "attribute overlap with USA rejected");
++            Mutation(r => NtfsRecordFixtures.U32(r, 24, 1025), "used length beyond record rejected");
++            Mutation(r => NtfsRecordFixtures.U32(r, 28, 2048), "allocated record length mismatch rejected");
++            Mutation(r => NtfsRecordFixtures.U32(r, 60, 0), "zero attribute length rejected without looping");
++            Mutation(r => NtfsRecordFixtures.U32(r, 60, uint.MaxValue), "overflowing attribute length rejected");
++            Mutation(r => NtfsRecordFixtures.U16(r, 76, 1023), "resident value offset outside attribute rejected");
++            Mutation(r => NtfsRecordFixtures.U32(r, 72, uint.MaxValue), "resident value length overflow rejected");
++            Mutation(r => r[56 + 24 + 65] = 4, "unknown filename namespace rejected");
++            Mutation(r => NtfsRecordFixtures.U16(r, 56 + 24 + 66, 0xd800), "unpaired filename surrogate rejected");
++            var negative = NtfsRecordFixtures.Nonresident(); NtfsRecordFixtures.U64(negative, 48, ulong.MaxValue);
++            Rejected(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), negative), "negative or overflowing logical size rejected");
++            var allocation = NtfsRecordFixtures.Nonresident(); NtfsRecordFixtures.U64(allocation, 40, ulong.MaxValue);
++            Rejected(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), allocation), "negative or overflowing allocation rejected");
++            var map = NtfsRecordFixtures.Nonresident(); NtfsRecordFixtures.U16(map, 32, (ushort)map.Length);
++            Rejected(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), map), "mapping offset outside attribute rejected");
++            var run = NtfsRecordFixtures.Nonresident(); run[64] = 0x19;
++            Rejected(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), run), "mapping width outside supported integer range rejected");
++            var unknownAttribute = Decode(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Data(), NtfsRecordFixtures.Resident(0x1234, [1, 2, 3])));
++            Check(unknownAttribute.Status == NtfsDecodeStatus.Unsupported, "unknown attribute type cannot silently complete a record");
++            run = NtfsRecordFixtures.Nonresident(); NtfsRecordFixtures.U64(run, 16, 1UL << 63); NtfsRecordFixtures.U64(run, 24, (1UL << 63) + 1);
++            Rejected(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), run), "negative signed starting VCN rejected");
++            run = NtfsRecordFixtures.Nonresident(); NtfsRecordFixtures.U64(run, 24, 1UL << 63);
++            Rejected(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), run), "negative signed ending VCN rejected");
++            run = NtfsRecordFixtures.Nonresident(); NtfsRecordFixtures.U64(run, 16, 1); NtfsRecordFixtures.U64(run, 24, ulong.MaxValue);
++            Rejected(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), run), "empty-stream VCN sentinel cannot hide nonzero starting VCN");
++            var overflowingRun = new byte[80];
++            NtfsRecordFixtures.Nonresident().AsSpan(0, 64).CopyTo(overflowingRun);
++            NtfsRecordFixtures.U32(overflowingRun, 4, (uint)overflowingRun.Length);
++            overflowingRun[64] = 0x81; overflowingRun[65] = 2;
++            NtfsRecordFixtures.U64(overflowingRun, 66, long.MaxValue);
++            Rejected(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), overflowingRun), "physical run ending beyond signed cluster range rejected");
++            run = NtfsRecordFixtures.Nonresident(); run[64] = 0x01; run[65] = 2; run[66] = 0;
++            Rejected(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), run), "unflagged sparse mapping cannot claim ordinary allocation");
++            run = NtfsRecordFixtures.Nonresident(); run[65] = 0;
++            Rejected(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), run), "zero-length mapping run rejected");
++            run = NtfsRecordFixtures.Nonresident(); run[66] = 0xff;
++            Rejected(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), run), "negative first physical cluster rejected");
++            run = NtfsRecordFixtures.Nonresident(); run[67] = 0x11;
++            Rejected(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), run), "mapping without terminator rejected");
++            run = NtfsRecordFixtures.Nonresident(); NtfsRecordFixtures.U64(run, 24, 2);
++            Rejected(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), run), "mapping virtual-cluster extent mismatch rejected");
++            var random = new Random(52733);
++            for (int i = 0; i < 512; i++)
++            {
++                var mutated = bytes.ToArray();
++                for (int j = 0; j < 3; j++) mutated[random.Next(mutated.Length)] ^= (byte)random.Next(1, 256);
++                var before = mutated.ToArray();
++                var result = Decode(mutated);
++                if (!mutated.SequenceEqual(before) || (result.Status == NtfsDecodeStatus.Decoded) != (result.Record is not null))
++                    throw new InvalidOperationException("mutation isolation");
++            }
++            Check(true, "bounded deterministic record mutations never escape or mutate input");
++            bool cancelled = false;
++            using (var source = new CancellationTokenSource())
++            {
++                source.Cancel();
++                try { NtfsRecordDecoder.Decode(bytes, 512, token: source.Token); }
++                catch (OperationCanceledException) { cancelled = true; }
++            }
++            Check(cancelled, "cancelled decode exits without publishing a record");
++            passed += NtfsIndexTests.Run();
++            Console.WriteLine($"PASS NTFS synthetic prototype checks: {passed}; raw volume access: none");
++            return 0;
++        }
++        catch
++        {
++            Console.Error.WriteLine($"FAIL NTFS synthetic prototype after {passed} checks; no private record details emitted");
++            return 1;
++        }
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsRecordDecoder.cs b/tests/Prototypes/Ntfs/NtfsRecordDecoder.cs
+new file mode 100644
+index 0000000..c4f5984
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsRecordDecoder.cs
+@@ -0,0 +1,213 @@
++using System.Buffers.Binary;
++using System.Text;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// Offline prototype only. No handles, disk I/O, UI, or production scanner references.
++internal enum NtfsDecodeStatus { Decoded, Free, Invalid, Unsupported }
++[Flags]
++internal enum NtfsLookupReason
++{
++    None = 0, AttributeList = 1, ExtensionRecord = 2, Compressed = 4, Sparse = 8,
++    ReparsePoint = 16, NamedData = 32, Encrypted = 64, MissingData = 128,
++    LinkNamesIncomplete = 256, MissingStandardInformation = 512
++}
++internal sealed record NtfsName(ulong ParentReference, string Name, byte Namespace);
++internal sealed record NtfsRecord(ulong Reference, ulong BaseReference, bool IsDirectory, ushort LinkCount,
++    IReadOnlyList<NtfsName> Names, long? LogicalBytes, long? AllocatedBytes, NtfsLookupReason LookupReasons);
++internal sealed record NtfsDecodeResult(NtfsDecodeStatus Status, NtfsRecord? Record, string Code);
++
++internal static class NtfsRecordDecoder
++{
++    private static readonly UnicodeEncoding Unicode = new(false, false, true);
++    internal const int MaximumRecordBytes = 65536;
++    internal const ulong MaximumRecordNumber = 0x0000ffffffffffff;
++    private static ushort U16(ReadOnlySpan<byte> s, int p) => BinaryPrimitives.ReadUInt16LittleEndian(s[p..]);
++    private static uint U32(ReadOnlySpan<byte> s, int p) => BinaryPrimitives.ReadUInt32LittleEndian(s[p..]);
++    private static ulong U64(ReadOnlySpan<byte> s, int p) => BinaryPrimitives.ReadUInt64LittleEndian(s[p..]);
++    private static long I64(ReadOnlySpan<byte> s, int p) => BinaryPrimitives.ReadInt64LittleEndian(s[p..]);
++    private static bool Fits(int offset, long count, int length) => offset >= 0 && count >= 0 && offset <= length && count <= length - offset;
++    private static NtfsDecodeResult Invalid(string code) => new(NtfsDecodeStatus.Invalid, null, code);
++    private static NtfsDecodeResult Unsupported(string code) => new(NtfsDecodeStatus.Unsupported, null, code);
++
++    internal static NtfsDecodeResult Decode(ReadOnlySpan<byte> source, int sectorSize, ushort ntfsMajor = 3,
++        ushort ntfsMinor = 1, CancellationToken token = default, ulong recordNumber = 0, int clusterSize = 4096)
++    {
++        token.ThrowIfCancellationRequested();
++        // The argument describes the update-sequence stride, not physical disk sector size.
++        if (ntfsMajor != 3 || ntfsMinor != 1) return Unsupported("NtfsVersion");
++        if (sectorSize != 512) return Unsupported("FixupStride");
++        // 4096 is the synthetic fixture default. Any future reader must pass verified volume geometry.
++        if (clusterSize is < 512 or > 65536 || (clusterSize & (clusterSize - 1)) != 0) return Unsupported("ClusterGeometry");
++        if (recordNumber > MaximumRecordNumber) return Invalid("RecordNumber");
++        if (source.Length < 1024 || source.Length > MaximumRecordBytes || source.Length % sectorSize != 0) return Invalid("RecordLength");
++        if (!source[..4].SequenceEqual("FILE"u8)) return Invalid("Signature");
++        int usa = U16(source, 4), usaCount = U16(source, 6), attributes = U16(source, 20);
++        uint used = U32(source, 24), allocated = U32(source, 28);
++        if (usaCount != source.Length / sectorSize + 1 || usa < 48 || (usa & 1) != 0 ||
++            !Fits(usa, usaCount * 2, Math.Min(sectorSize - 2, source.Length)) ||
++            attributes < usa + usaCount * 2 || (attributes & 7) != 0 ||
++            allocated != source.Length || used > allocated || !Fits(attributes, 4, (int)used)) return Invalid("RecordHeader");
++        byte[] buffer = source.ToArray(); // At most 64 KiB, never mutate caller's bytes.
++        ushort marker = U16(buffer, usa);
++        for (int i = 1; i < usaCount; i++)
++        {
++            token.ThrowIfCancellationRequested();
++            int tail = i * sectorSize - 2;
++            if (U16(buffer, tail) != marker) return Invalid("FixupMismatch");
++            BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(tail), U16(buffer, usa + i * 2));
++        }
++        ReadOnlySpan<byte> record = buffer.AsSpan(0, (int)used);
++        ushort flags = U16(record, 22), sequence = U16(record, 16), links = U16(record, 18);
++        if ((flags & ~3) != 0) return Unsupported("RecordFlags");
++        if ((flags & 1) == 0) return new(NtfsDecodeStatus.Free, null, "FreeRecord");
++        if (sequence == 0) return Invalid("Sequence");
++        bool directory = (flags & 2) != 0;
++        ulong reference = recordNumber | ((ulong)sequence << 48), baseReference = U64(record, 32);
++        var reasons = baseReference != 0 ? NtfsLookupReason.ExtensionRecord : NtfsLookupReason.None;
++        var names = new List<NtfsName>();
++        var ids = new HashSet<ushort>();
++        long? logical = null, allocation = null;
++        bool sawData = false, sawStandard = false, sawEnd = false, geometryMismatch = false;
++        for (int offset = attributes, count = 0; offset < record.Length;)
++        {
++            token.ThrowIfCancellationRequested();
++            if (!Fits(offset, 4, record.Length)) return Invalid("AttributeHeader");
++            uint type = U32(record, offset);
++            if (type == uint.MaxValue) { sawEnd = true; break; }
++            if (++count > 1024) return Unsupported("AttributeLimit");
++            if (!Fits(offset, 24, record.Length)) return Invalid("AttributeHeader");
++            uint size = U32(record, offset + 4);
++            if (size < 24 || size % 8 != 0 || !Fits(offset, size, record.Length)) return Invalid("AttributeLength");
++            ReadOnlySpan<byte> attr = record.Slice(offset, (int)size);
++            byte form = attr[8], nameLength = attr[9];
++            ushort nameOffset = U16(attr, 10), attrFlags = U16(attr, 12);
++            if (!ids.Add(U16(attr, 14))) return Invalid("DuplicateAttributeId");
++            if (form > 1) return Unsupported("AttributeForm");
++            if ((attrFlags & ~0xc001) != 0) return Unsupported("AttributeFlags");
++            if (type is 0x10 or 0x30 && attrFlags != 0) return Unsupported("MetadataFlags");
++            int minimum = form == 0 ? 24 : (attrFlags & 0x8001) != 0 ? 72 : 64;
++            if (attr.Length < minimum || (nameLength != 0 && (nameOffset < minimum || !Fits(nameOffset, nameLength * 2, attr.Length)))) return Invalid("AttributeName");
++            if (nameLength != 0 && !TryText(attr.Slice(nameOffset, nameLength * 2), out _)) return Invalid("AttributeName");
++            ReadOnlySpan<byte> value = default;
++            if (form == 0)
++            {
++                int valueOffset = U16(attr, 20); uint valueLength = U32(attr, 16);
++                if (valueOffset < minimum || !Fits(valueOffset, valueLength, attr.Length) ||
++                    (nameLength > 0 && valueOffset < nameOffset + nameLength * 2)) return Invalid("ResidentBounds");
++                value = attr.Slice(valueOffset, (int)valueLength);
++            }
++            else
++            {
++                int mappings = U16(attr, 32);
++                if (mappings < minimum || mappings >= attr.Length || (nameLength > 0 && mappings < nameOffset + nameLength * 2)) return Invalid("MappingBounds");
++                if (!ValidMappings(attr[mappings..], U64(attr, 16), U64(attr, 24), token, out bool sparseRun, out ulong physicalClusters)) return Invalid("MappingPairs");
++                if (type == 0x80 && sparseRun && (attrFlags & 0x8001) == 0) return Invalid("SparseMappingFlags");
++                if (type == 0x80 && nameLength == 0 && U64(attr, 16) == 0 && (attrFlags & 0xc001) == 0 &&
++                    (physicalClusters > (ulong)(long.MaxValue / clusterSize) ||
++                    I64(attr, 40) != (long)physicalClusters * clusterSize)) geometryMismatch = true;
++            }
++            if (type == 0x10)
++            {
++                if (sawStandard || form != 0 || nameLength != 0 || value.Length < 48) return Invalid("StandardInformation");
++                sawStandard = true; reasons |= FileFlags(U32(value, 32));
++            }
++            else if (type == 0x20) reasons |= NtfsLookupReason.AttributeList;
++            else if (type == 0x30)
++            {
++                if (form != 0 || nameLength != 0 || value.Length < 66 || value[64] == 0 || value[65] > 3 ||
++                    value.Length != 66 + value[64] * 2 || !TryText(value[66..], out var name)) return Invalid("FileName");
++                if (names.Count >= 256) return Unsupported("NameLimit");
++                names.Add(new(U64(value, 0), name!, value[65]));
++                reasons |= FileFlags(U32(value, 56));
++            }
++            else if (type == 0x80)
++            {
++                if (nameLength != 0) reasons |= NtfsLookupReason.NamedData;
++                else
++                {
++                    if (sawData) return Unsupported("MultipleUnnamedData");
++                    sawData = true;
++                    if ((attrFlags & 1) != 0) reasons |= NtfsLookupReason.Compressed;
++                    if ((attrFlags & 0x8000) != 0) reasons |= NtfsLookupReason.Sparse;
++                    if ((attrFlags & 0x4000) != 0) reasons |= NtfsLookupReason.Encrypted;
++                    if (form == 0) { logical = value.Length; allocation = 0; }
++                    else
++                    {
++                        long allocatedBytes = I64(attr, 40), dataBytes = I64(attr, 48), initialized = I64(attr, 56);
++                        if (allocatedBytes < 0 || dataBytes < 0 || initialized < 0 || initialized > dataBytes) return Invalid("DataSize");
++                        if (U64(attr, 16) != 0) reasons |= NtfsLookupReason.AttributeList;
++                        logical = dataBytes; allocation = allocatedBytes;
++                        if ((attrFlags & 0xc001) == 0 && allocatedBytes < dataBytes) return Invalid("DataSize");
++                    }
++                }
++            }
++            else if (type == 0xc0) reasons |= NtfsLookupReason.ReparsePoint;
++            else if (type is not (0x40 or 0x50 or 0x60 or 0x70 or 0x90 or 0xa0 or 0xb0 or 0xd0 or 0xe0 or 0xf0 or 0x100))
++                return Unsupported("AttributeType");
++            // Known unrelated attributes never supply unnamed file-data sizes.
++            offset += (int)size;
++        }
++        if (!sawEnd) return Invalid("MissingEndMarker");
++        if (geometryMismatch && (reasons & (NtfsLookupReason.AttributeList | NtfsLookupReason.ExtensionRecord)) == 0) return Invalid("AllocationGeometry");
++        if (!sawStandard && baseReference == 0) reasons |= NtfsLookupReason.MissingStandardInformation;
++        int entryNames = names.Where(n => n.Namespace != 2).Select(n => (n.ParentReference, n.Name)).Distinct().Count();
++        if (!directory && baseReference == 0 && (links == 0 || entryNames != links)) reasons |= NtfsLookupReason.LinkNamesIncomplete;
++        if (directory) { logical = 0; allocation = 0; }
++        else if (!sawData) reasons |= NtfsLookupReason.MissingData;
++        if ((reasons & (NtfsLookupReason.AttributeList | NtfsLookupReason.ExtensionRecord | NtfsLookupReason.MissingData |
++            NtfsLookupReason.MissingStandardInformation | NtfsLookupReason.ReparsePoint | NtfsLookupReason.Encrypted)) != 0) logical = allocation = null;
++        if ((reasons & (NtfsLookupReason.Compressed | NtfsLookupReason.Sparse)) != 0) allocation = null;
++        token.ThrowIfCancellationRequested();
++        return new(NtfsDecodeStatus.Decoded, new(reference, baseReference, directory, links, names.AsReadOnly(), logical, allocation, reasons), "Decoded");
++    }
++
++    private static NtfsLookupReason FileFlags(uint flags) =>
++        ((flags & 0x400) != 0 ? NtfsLookupReason.ReparsePoint : 0) |
++        ((flags & 0x800) != 0 ? NtfsLookupReason.Compressed : 0) |
++        ((flags & 0x200) != 0 ? NtfsLookupReason.Sparse : 0) |
++        ((flags & 0x4000) != 0 ? NtfsLookupReason.Encrypted : 0);
++
++    private static bool TryText(ReadOnlySpan<byte> bytes, out string? text)
++    {
++        text = null;
++        try { text = Unicode.GetString(bytes); }
++        catch (DecoderFallbackException) { return false; }
++        return text.Length > 0 && text.IndexOfAny(['\0', '\\', '/', ':']) < 0;
++    }
++
++    private static bool ValidMappings(ReadOnlySpan<byte> bytes, ulong first, ulong last, CancellationToken token,
++        out bool sparseRun, out ulong physicalClusters)
++    {
++        sparseRun = false;
++        physicalClusters = 0;
++        bool empty = first == 0 && last == ulong.MaxValue;
++        if (first > long.MaxValue || (!empty && (last > long.MaxValue || last < first || last - first >= long.MaxValue))) return false;
++        ulong clusters = 0; long lcn = 0;
++        for (int p = 0; p < bytes.Length;)
++        {
++            token.ThrowIfCancellationRequested();
++            byte header = bytes[p++];
++            if (header == 0) return empty ? clusters == 0 : clusters == last - first + 1;
++            int lengthBytes = header & 15, offsetBytes = header >> 4;
++            if (lengthBytes is < 1 or > 8 || offsetBytes > 8 || !Fits(p, lengthBytes + offsetBytes, bytes.Length)) return false;
++            ulong length = 0, rawOffset = 0;
++            for (int i = 0; i < lengthBytes; i++) length |= (ulong)bytes[p++] << (i * 8);
++            if (length == 0 || length > ulong.MaxValue - clusters) return false;
++            clusters += length;
++            if (offsetBytes != 0)
++            {
++                for (int i = 0; i < offsetBytes; i++) rawOffset |= (ulong)bytes[p++] << (i * 8);
++                if (offsetBytes < 8 && (rawOffset & (1UL << (offsetBytes * 8 - 1))) != 0) rawOffset |= ulong.MaxValue << (offsetBytes * 8);
++                long relative = unchecked((long)rawOffset);
++                if ((relative > 0 && lcn > long.MaxValue - relative) || (relative < 0 && lcn < long.MinValue - relative)) return false;
++                lcn += relative;
++                if (lcn < 0 || length - 1 > (ulong)(long.MaxValue - lcn)) return false;
++                if (length > ulong.MaxValue - physicalClusters) return false;
++                physicalClusters += length;
++            }
++            else sparseRun = true;
++        }
++        return false;
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsRecordFixtures.cs b/tests/Prototypes/Ntfs/NtfsRecordFixtures.cs
+new file mode 100644
+index 0000000..bff2d8c
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsRecordFixtures.cs
+@@ -0,0 +1,94 @@
++using System.Buffers.Binary;
++using System.Text;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// Deliberately tiny, deterministic test records. Never reads a volume or a file.
++internal static class NtfsRecordFixtures
++{
++    internal const int RecordLength = 1024;
++    internal const int FirstAttribute = 56;
++    internal const ulong Parent = (7UL << 48) | 5;
++    internal static ulong Reference(ulong slot, ushort sequence) => ((ulong)sequence << 48) | slot;
++    internal static int Align(int value) => (value + 7) & ~7;
++
++    internal static byte[] Resident(uint type, byte[] value, string streamName = "", ushort flags = 0)
++    {
++        byte[] name = Encoding.Unicode.GetBytes(streamName);
++        int valueOffset = Align(24 + name.Length);
++        var attribute = new byte[Align(valueOffset + value.Length)];
++        U32(attribute, 0, type); U32(attribute, 4, (uint)attribute.Length);
++        attribute[9] = checked((byte)streamName.Length);
++        U16(attribute, 10, streamName.Length == 0 ? (ushort)0 : (ushort)24);
++        U16(attribute, 12, flags); U32(attribute, 16, (uint)value.Length); U16(attribute, 20, (ushort)valueOffset);
++        name.CopyTo(attribute, 24); value.CopyTo(attribute, valueOffset);
++        return attribute;
++    }
++
++    internal static byte[] Name(string name = "demo.bin", byte nameSpace = 1, ulong parent = Parent)
++    {
++        var value = new byte[66 + name.Length * 2];
++        U64(value, 0, parent);
++        // Deliberately misleading FILE_NAME size copies: DATA must win.
++        U64(value, 40, 987654321); U64(value, 48, 123456789);
++        value[64] = checked((byte)name.Length); value[65] = nameSpace;
++        Encoding.Unicode.GetBytes(name).CopyTo(value, 66);
++        return Resident(0x30, value);
++    }
++
++    internal static byte[] Data(int size = 17, string streamName = "") => Resident(0x80, new byte[size], streamName);
++
++    internal static byte[] Nonresident(long logical = 6000, long allocated = 8192, ushort flags = 0, string streamName = "")
++    {
++        int fixedLength = (flags & 0x8001) != 0 ? 72 : 64;
++        var name = Encoding.Unicode.GetBytes(streamName);
++        int mappings = Align(fixedLength + name.Length);
++        var attribute = new byte[Align(mappings + 4)];
++        U32(attribute, 0, 0x80); U32(attribute, 4, (uint)attribute.Length); attribute[8] = 1;
++        attribute[9] = checked((byte)streamName.Length);
++        U16(attribute, 10, streamName.Length == 0 ? (ushort)0 : (ushort)fixedLength);
++        U16(attribute, 12, flags); U64(attribute, 16, 0); U64(attribute, 24, 1);
++        U16(attribute, 32, (ushort)mappings); U16(attribute, 34, (flags & 1) != 0 ? (ushort)4 : (ushort)0);
++        U64(attribute, 40, unchecked((ulong)allocated)); U64(attribute, 48, unchecked((ulong)logical));
++        U64(attribute, 56, unchecked((ulong)logical));
++        if (fixedLength == 72) U64(attribute, 64, unchecked((ulong)allocated));
++        name.CopyTo(attribute, fixedLength);
++        attribute[mappings] = 0x11; attribute[mappings + 1] = 2; attribute[mappings + 2] = 10;
++        return attribute;
++    }
++
++    internal static byte[] Record(IEnumerable<byte[]> attributes, ushort sequence = 3, ushort links = 1,
++        bool directory = false, bool inUse = true, ulong baseReference = 0, bool addStandard = true)
++    {
++        var record = new byte[RecordLength];
++        Encoding.ASCII.GetBytes("FILE").CopyTo(record, 0);
++        U16(record, 4, 48); U16(record, 6, 3); U16(record, 16, sequence); U16(record, 18, links);
++        U16(record, 20, FirstAttribute); U16(record, 22, (ushort)((inUse ? 1 : 0) | (directory ? 2 : 0)));
++        U32(record, 28, RecordLength); U64(record, 32, baseReference);
++        int offset = FirstAttribute; ushort instance = 0;
++        var items = attributes.ToList();
++        if (addStandard && baseReference == 0)
++            items.Add(Resident(0x10, new byte[48]));
++        foreach (byte[] item in items)
++        {
++            if (offset + item.Length + 4 > record.Length) throw new InvalidOperationException("Synthetic fixture too large.");
++            item.CopyTo(record, offset); U16(record, offset + 14, instance++); offset += item.Length;
++        }
++        U32(record, offset, uint.MaxValue); U32(record, 24, (uint)(offset + 4));
++        Protect(record);
++        return record;
++    }
++
++    internal static byte[] File(params byte[][] attributes) => Record(attributes.Length == 0 ? [Name(), Data()] : attributes);
++
++    internal static void Protect(byte[] record)
++    {
++        U16(record, 48, 0xa55a);
++        U16(record, 50, BinaryPrimitives.ReadUInt16LittleEndian(record.AsSpan(510)));
++        U16(record, 52, BinaryPrimitives.ReadUInt16LittleEndian(record.AsSpan(1022)));
++        U16(record, 510, 0xa55a); U16(record, 1022, 0xa55a);
++    }
++    internal static void U16(byte[] bytes, int offset, ushort value) => BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(offset), value);
++    internal static void U32(byte[] bytes, int offset, uint value) => BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset), value);
++    internal static void U64(byte[] bytes, int offset, ulong value) => BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(offset), value);
++}
+diff --git a/tests/Prototypes/Ntfs/README.md b/tests/Prototypes/Ntfs/README.md
+new file mode 100644
+index 0000000..e3415c2
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/README.md
+@@ -0,0 +1,31 @@
++# NTFS 合成记录原型
++
++本目录仅编入测试程序，不进入软件程序集、扫描策略或 UI。它不打开文件、卷或设备，也不接收用户文件路径。当前只验证调用方提供的合成 NTFS 3.1 原始 FILE 记录，不能作为读取真实卷的工具。
++
++构建测试项目后运行：
++
++```powershell
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-prototype-tests
++```
++
++## 输入与输出
++
++- `NtfsRecordDecoder`：限定 1–64 KiB 记录、512 字节 fixup stride、显式卷格式版本和记录槽号；簇大小合成默认 4096 字节，支持 512–65536 的二次幂。任何未来真实读取器都必须传入经验证的卷几何和外部槽号，不能把默认值当作探测结果。拒绝未知版本、未知属性类型及无法验证的布局。
++- 原始字节经私有副本完成 USA 修复与属性解析，调用方输入不变；输出区分有效、空闲、损坏和不支持，错误码不包含名称或路径。
++- 普通未命名 DATA 的逻辑/分配长度从数据属性读取，并对非驻留数据的 runlist、VCN、LCN 和普通分配簇几何进行核对；不使用 FILE_NAME 中的大小副本。驻留 DATA 的分配值 0 仅表示没有独立数据簇，尚未以真实文件验证它与现有 NativeStorage 口径的一致性，不代表没有 MFT 开销。
++- `NtfsPrototypeIndex`：按卷身份、完整文件引用识别对象，保留多个目录入口并排除 DOS 别名；逻辑大小按入口累加，实际占用按对象去重，对齐现有扫描器的基本口径。它只提供合成输入的内存汇总，不是整卷快照或持久缓存。
++- 索引默认上限 10 万条记录（显式调整上限最多 100 万）、20 万个名称入口、800 万个名称字符；每记录最多 256 个名称，每名称最多 255 个 UTF-16 单元。超限拒绝，不悄悄截断后声称完整。
++
++## 保守处理与未实现内容
++
++属性列表和扩展记录尚未拼接，标为待补查并保持大小未知；压缩/稀疏分配空间保持未知，不把 DATA 的表面长度套作实际占用。重解析/云占位、加密、缺失默认数据或标准信息也要求补查。命名流不并入默认流大小，并保留范围提示。这里的“待补查”只有标记，尚没有实际补查器或自动回退连接。
++
++重复记录、槽位复用、目录入口冲突、过期父引用、目录循环、未知大小和总量溢出不能成为完整成功。未提供跨目录的硬链接占用归属或生产图表；目录索引及 NTFS 系统开销不计入文件数据总量。即使 `CompleteSyntheticIndex` 为真，也只意味着这批合成记录满足原型约束，不能证明活跃卷一致。
++
++未实现真实 MFT 读取、NTFS 3.0、不同 fixup stride、持续写入的日志协调、权限提升助手、真实性能对比与主程序集成。没有驱动、服务、系统日志修改或发布包。真实 NTFS 特性、Windows 10 实测和各类大小语义仍待独立验证。
++
++## 合成夹具与依据
++
++`NtfsRecordFixtures` 在内存创建记录；测试覆盖 fixup、属性边界、UTF-16、空/驻留/非驻留文件、硬链接与 DOS 名称、簇几何、特殊类型的补查标记、取消和索引冲突，另有 512 次固定种子的有限变异检查。合成数据不是磁盘镜像；测试不是完整 NTFS 格式一致性认证。
++
++格式参考 Microsoft Learn 的 [FILE_RECORD_SEGMENT_HEADER](https://learn.microsoft.com/en-us/windows/win32/devnotes/file-record-segment-header)、[MULTI_SECTOR_HEADER](https://learn.microsoft.com/en-us/windows/win32/devnotes/multi-sector-header)、[ATTRIBUTE_RECORD_HEADER](https://learn.microsoft.com/en-us/windows/win32/devnotes/attribute-record-header)、[FILE_NAME](https://learn.microsoft.com/en-us/windows/win32/devnotes/file-name)。部分头部字段在公开结构中被保留，本原型的合成布局尚需未来独立来源和真实记录交叉验证；文件身份采用外部提供的槽号加记录序列，不猜测保留字段。

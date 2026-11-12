@@ -1,0 +1,60 @@
+{
+  "baseline": "cecf3012688984736366f7921cce0c428597f6ec",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "ef8c1e1b69e8353a71b172eda0b60220ffc63e16b89c2f69eb1c812a368d415b"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "ebec1764de8b69edff66584fe330f4ecb97f2a88d08485290e6001649dfd3ef5"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "88f458acded4ef59aae104cdac0334403c93e7d4b7fdc385ee1efcab545c3b63"
+    },
+    {
+      "path": "docs/ntfs-fast-scan-plan.md",
+      "sha256": "d7a673d8058a577451a6dbf532a8d728d99b077bfbc5d279c8fc92165b00abd7"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "e3067f1bff242361966198cd8a7508affbc388f43016b5a2eef2107b4e80d972"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsRecordDecoder.cs",
+      "sha256": "b43bac95aad0f6cd23ee7b4fc0c46b1f371ba8b480431f70ffdbfb8a1d2f63d0"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsPrototypeIndex.cs",
+      "sha256": "c7fe61711effa2424d89f29ca640e593cf3a54c14ba0d9085dd5b526d213728f"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsIndexTests.cs",
+      "sha256": "d70d64d219404165dbcc9f3fe2068dea20b1120f576ae634ee90a29e2623bf0f"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsRecordFixtures.cs",
+      "sha256": "8ca2423d59723cf101870f4bda70084a39f7dbc084030b0cf61608c2f1437a6a"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsPrototypeTests.cs",
+      "sha256": "c34f080f274ff31e08bfc0cddad65ba5b74a5bb4e57e19622c54ca9a203896cf"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/README.md",
+      "sha256": "c3eaf7fabb520b09ba04d81f84dc3c490c140718ec15b1575bda9dc3d024f402"
+    },
+    {
+      "path": "iterations/2026-11-12-02-ntfs-prototype/README.md",
+      "sha256": "e7c1ed223d0f37dd8406c5566606bf96eb48f31c5e17a51b1f49194f307b5682"
+    },
+    {
+      "path": "iterations/2026-11-12-02-ntfs-prototype/changes.patch",
+      "sha256": "7c5bf6ddc6aef4d537474202e21dac9cd007d5baa6d4c4939b679a9f5ee86005"
+    }
+  ],
+  "raw_volume_access": false,
+  "prototype_checks": 79,
+  "performance_measured": false
+}
