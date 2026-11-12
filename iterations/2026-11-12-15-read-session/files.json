@@ -19,7 +19,7 @@
     },
     {
       "path": "docs/ntfs-read-session-plan.md",
-      "sha256": "06c3b1bdd082f2de6d754d7ece38d53cadd8464a69349823f6ef731637151d85"
+      "sha256": "f72a51ea417a7791d68a750a201ed439d0077d9caf510735d3ddd428b43d1a01"
     },
     {
       "path": "docs/project-status.md",
@@ -27,7 +27,7 @@
     },
     {
       "path": "iterations/2026-11-12-15-read-session/README.md",
-      "sha256": "5d58b5e006262faf57419264ccb4887cca508323652fcee1ae9d079f32401aab"
+      "sha256": "b86dd95f9171c1c3b1fe8c0a6aca732aed2a425099dd0bb3e7306b87bfcf151a"
     },
     {
       "path": "iterations/2026-11-12-15-read-session/validation.json",
@@ -55,7 +55,7 @@
     },
     {
       "path": "iterations/2026-11-12-15-read-session/changes.patch",
-      "sha256": "d97a13b0248e3e60e891d1494df92d1e3ea419853dfcc5c22a85ed5d3d6f6c6f"
+      "sha256": "15f48101beb82c09c514cd33ba1c569b97326fbbe1e41ba95ef0ff19c0943fe9"
     }
   ]
 }
