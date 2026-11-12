@@ -1,0 +1,1010 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 6733683..8d1f4a0 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -119,7 +119,7 @@
+ 
+ - 可选 `--policy-benchmark` 用于三策略对比，`--refresh-benchmark` 用于刷新同条件诊断；方法与限制见 README 和相关迭代。先保留已有报告，再运行会覆盖报告的基准。
+ - 高速目录内并行改动另运行 `--parallel-file-tests`；可选 `--response-benchmark` 在真实桌面测量同条件主窗扫描、预览、搜索和取消，报告存在时拒绝覆盖。固定夹具与测量边界见扫描性能方案及本轮归档。
+-- NTFS 合成记录原型位于 `tests/Prototypes/Ntfs/`，测试入口为测试 DLL 的 `--ntfs-prototype-tests`。本轮只获合成记录验证授权，没有真实卷读取器；不得把原型输出当作真实卷快照或性能验收，未来真实读取须先指定受控测试卷并验证格式与几何。
++- NTFS 原型位于 `tests/Prototypes/Ntfs/`，合成测试入口为测试 DLL 的 `--ntfs-prototype-tests`；隔离测试盘守卫检查运行 `pwsh -NoProfile -File tests/NtfsFixtureGuards.Tests.ps1`。2026-11-12 用户另行授权本轮 256 MiB VHD 验收，流程见 `scripts/ntfs-prototype/README.md`，不扩展为个人卷扫描或以后默认提权授权。原型不是生产后端、活跃卷快照或性能验收；实际读取必须验证镜像归属、卷格式、几何及记录身份。
+ - 混合目录调度改动补测 `--mixed-benchmark before/after` 的同夹具对比；用户明确指定实际目录后才使用 `--folder-benchmark`，其报告与隔离诊断仅留本机临时目录，不进入仓库。比较自动与高速必须核对完整扫描、结果一致性和运行顺序，保留异常波动样本。
+ - 本地目录比较出现指纹差异时，可使用 `--folder-benchmark --pair` 做针对性正确性诊断；额外保留的逐项快照影响测量条件，其计时不并入常规性能基准。差异计数和实际耗时仍只在本机核查，不纳入公开归档。工具边界检查使用 `--folder-comparison-tests`。
+ - 合成目录与软件配置隔离测试，不默认扫描用户整盘或覆盖真实背景设置。缺权限/文件系统特性的跳过、程序断言、人工观察和性能实测分别记录。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 51ef51f..2be704d 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,5 +1,7 @@
+ # 后续开发计划
+ 
++2026-11-12：隔离 VHD 的小规模真实记录比对已获明确授权并完成，修正驻留分配与 DOS 引用语义，见[本轮记录](../iterations/2026-11-12-03-ntfs-vhd/README.md)。阶段 A 仅在本机指定 NTFS 3.1 几何和夹具通过；属性扩展、压缩/稀疏的直接分配计算、其他几何、Windows 10 和活跃卷一致性仍待验证。下一步应先完善这些大小/记录边界，再决定阶段 B 批量读取；不能把当前逐目标记录 IOCTL 比对当作高速整盘实现。
++
+ 2026-11-12：NTFS 快速扫描阶段 A 的合成记录原型已实现，用户明确暂不进行真实测试卷比对。实际卷读取、大小语义对照和阶段 B 吞吐尚未验收；后续需受控 NTFS 测试卷再推进，见[原型边界](../tests/Prototypes/Ntfs/README.md)。普通“继续”不自动扫描个人整盘或启用提权助手。
+ 
+ 2026-11-12：用户要求研究接近 WizTree 整卷速度的可选 NTFS 快速路径，PERF-001 进入可行性研究。已形成[研究与原型方案](ntfs-fast-scan-plan.md)，区别 USN 名称枚举与 MFT 大小属性解析。建议先独立只读原型，验证统计契约再测吞吐；本轮仅研究，未实现快速后端、提权助手或整卷读取。原并发优化方案暂不与此路线同时实施，待用户确定后续范围。
+diff --git a/docs/ntfs-fast-scan-plan.md b/docs/ntfs-fast-scan-plan.md
+index 4d8e518..dd83276 100644
+--- a/docs/ntfs-fast-scan-plan.md
++++ b/docs/ntfs-fast-scan-plan.md
+@@ -1,5 +1,7 @@
+ # 可选 NTFS 快速扫描：研究与原型方案
+ 
++2026-11-12 第二次进展：用户随后同意创建隔离 VHD，测试入口已通过本机 Windows 11 指定合成文件的真实记录比对并清理，见[验收记录](../iterations/2026-11-12-03-ntfs-vhd/README.md)。驻留实际占用和 DOS 引用语义据此修正；整卷批量扫描、吞吐、其他几何/系统与属性扩展等仍未验收。
++
+ 2026-11-12 后续进展：用户批准第 1 步，并确认仅做合成记录验证。测试程序内的[离线原型](../tests/Prototypes/Ntfs/README.md)已实现；本文件下方保留原研究范围，阶段 A 的真实卷比对、阶段 B/C 仍待后续授权和验收。原型将属性扩展、压缩/稀疏分配等未支持内容明确标记为待补查，没有实现实际补查器。
+ 
+ 日期：2026-11-12。研究基线：`1d098b4`。本轮授权为可行性研究，不表示原型或产品功能已实现，不触发 UAC、访问原始卷或扫描真实磁盘。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 2240c2f..d21b8df 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-12：用户另行同意 256 MiB 隔离 VHD 验收，已完成本机 Windows 11 / NTFS 3.1 测试盘的指定合成文件记录比对（140 项）及卸载清理。驻留分配大小改为未知待补查，DOS 名称引用数与 Windows 可见硬链接数分开校验。见[真实记录验收](../iterations/2026-11-12-03-ntfs-vhd/README.md)。尚无整卷 MFT 批量读取、性能数据或产品入口；下方保留此前合成阶段的历史范围。
++
+ 2026-11-12：用户确认先仅做合成记录验证，已实现测试程序内的 NTFS 3.1 记录解码与有界索引原型，见[原型说明](../tests/Prototypes/Ntfs/README.md)。支持普通驻留/非驻留 DATA 的合成大小校验、硬链接入口与对象区分、DOS 别名处理；特殊类型和属性扩展保留待补查。没有真实卷读取器或生产入口，阶段 A 的真实 NTFS 比对仍未验收；不得据此宣称已提速。
+ 
+ 2026-11-12：已完成可选 NTFS 快速扫描的代码与官方接口可行性研究，见[研究方案](ntfs-fast-scan-plan.md)。尚未实现 MFT 扫描器或新的权限助手，也未执行原始卷读取；现有自动/高速仍使用原扫描路径。
+diff --git a/iterations/2026-11-12-03-ntfs-vhd/README.md b/iterations/2026-11-12-03-ntfs-vhd/README.md
+new file mode 100644
+index 0000000..3145fc1
+--- /dev/null
++++ b/iterations/2026-11-12-03-ntfs-vhd/README.md
+@@ -0,0 +1,38 @@
++# 隔离 VHD 的真实 NTFS 记录比对
++
++日期：2026-11-12；基线：`7985876`。用户明确同意本轮建立 256 MiB 一次性 VHD，经管理员授权挂载，仅在其内部初始化、格式化、生成合成文件并做只读记录比对，随后卸载清理。不是从宿主磁盘划分或格式化现有分区。
++
++## 实现
++
++- `scripts/ntfs-prototype/Invoke-NtfsFixture.ps1`：通过 Unicode `CreateVirtualDisk` API 新建固定大小 VHD；不接受现有磁盘号、盘符或镜像作为参数。镜像反查出的磁盘必须为 FileBackedVirtual、非启动/系统盘、大小匹配、身份稳定；每次初始化、分区及格式化前重新核对。先无盘符格式化，再给格式化完成的分区分配盘符，避免 RAW 卷触发系统格式化提示。
++- `NtfsLivePrototype.cs`：仅测试程序集入口。核对工作目录、nonce、卷标记、GUID、VHD 物理路径与卷 extents，再通过卷 GUID 路径创建有限合成文件；读取自身文件身份对应的指定 MFT 记录。原始卷句柄仅有读权限，没有整卷枚举。比较前后再次核对文件身份、大小、链接数和时间，发现变化即失败。
++- `NtfsRecordDecoder.cs`：明确区分原始保护记录与内核返回记录。原始入口仍严格校验 USA；内核入口仅接受全体标记或全体已还原保存值的形态，不混用。返回身份/长度先验证，再解码。微软公开接口没有承诺具体 fixup 表示，不能把不匹配一概解释为磁盘损坏。
++- 测试与脚本摘要只保留阶段、检查数、固定错误码与清理结果。子进程未退出时不卸载/删除；未确认镜像卸载时不删工作目录。没有原始记录或个人路径进入归档。
++
++## 发现与修正
++
++1. 第一次 DiskPart 镜像创建失败，未挂载；未定位其确切系统原因，改用直接原生 API 后创建成功，避免脚本路径/编码环节。
++2. 真实驻留文件的句柄分配大小与原型的“独立数据簇为零”口径不一致，触发失败。非空驻留 DATA 的分配量已改成 `ResidentAllocation` 待补查，逻辑大小仍可用；未以猜测公式消除差异。
++3. MFT 名称引用包含独立 DOS 名称属性，不能直接与 Windows 可见硬链接数比较。夹具与校验已改为分别检查原始名称引用和排除 DOS 别名后的可见链接。
++4. 分配盘符过早曾出现 Windows 格式化窗口；脚本格式化本身已完成，但记录比对失败后的卸载也会让该窗口失去设备。流程已改为格式化成功后再分配盘符，最终复验通过。
++
++保留四次白名单结果见 `live-attempts.json`，包括失败尝试；每次均确认已卸载/清理。所有原始临时结果文件、镜像、运行日志和测试文件在归档后清理。
++
++## 验收
++
++| 项目 | 结果 |
++| --- | --- |
++| 应用与测试项目 Release 构建 | 0 警告、0 错误，使用已还原依赖 |
++| 合成原型回归 | 86 项通过，含 kernel-returned 分支与原始入口隔离、有限变异、取消、容量和统计边界 |
++| VHD 安全守卫 | 36 项 mock 检查通过，无实际虚拟盘操作；覆盖系统盘/物理盘/错误容量与身份/分区/重解析点拒绝 |
++| 核心与高级回归 | 38 / 25 项通过 |
++| 非管理员守卫 | 在创建镜像前拒绝，结果文件清理 |
++| 错误 CLI 参数 | 返回 2，不进入普通测试或卷访问 |
++| 本机真实记录比对 | 最终 140 项通过；Windows 11、NTFS 3.1、512 字节扇区、4096 字节簇的隔离 VHD |
++| 清理 | 最终 `detached=true`、`cleanup_completed=true`；镜像工作目录无残留 |
++
++真实夹具涵盖空文件、非空驻留、普通非驻留、硬链接、压缩/稀疏、命名流及目录。对已知大小比较 NativeStorage；驻留/压缩/稀疏分配仍明确待补查，没有接入生产扫描的自动补查器。没有测试整卷批量读取、碎片化 MFT、属性扩展拼接、持续写入协调、其他几何或 Windows 10；没有速度、CPU、内存或物理 I/O 测量，不得宣称已提速或已接近 WizTree。
++
++## 归档与交付边界
++
++关键文件的补丁为 `changes.patch`，基线与 SHA-256 清单见 `files.json`；反向适用检查通过。只提交代码、说明和脱敏摘要，未打包、创建标签或发布 Release。产品扫描策略、设置及已有 v1.5.0 资产均未改动。本轮提权授权不作为以后默认创建虚拟盘或扫描真实卷的授权。
+diff --git a/iterations/2026-11-12-03-ntfs-vhd/live-attempts.json b/iterations/2026-11-12-03-ntfs-vhd/live-attempts.json
+new file mode 100644
+index 0000000..449b359
+--- /dev/null
++++ b/iterations/2026-11-12-03-ntfs-vhd/live-attempts.json
+@@ -0,0 +1,42 @@
++[
++  {
++    "attempt": 1,
++    "status": "failed",
++    "stage": "CreateImage",
++    "code": "IMAGE_CREATION_FAILED",
++    "checks": 0,
++    "failures": 0,
++    "detached": true,
++    "cleanup_completed": true
++  },
++  {
++    "attempt": 2,
++    "status": "failed",
++    "stage": "RunRecordComparison",
++    "code": "AllocationMatchesNative",
++    "checks": 52,
++    "failures": 1,
++    "detached": true,
++    "cleanup_completed": true
++  },
++  {
++    "attempt": 3,
++    "status": "failed",
++    "stage": "RunRecordComparison",
++    "code": "DirectoryAndLinkCount",
++    "checks": 85,
++    "failures": 1,
++    "detached": true,
++    "cleanup_completed": true
++  },
++  {
++    "attempt": 4,
++    "status": "passed",
++    "stage": "ComparisonPassed",
++    "code": "None",
++    "checks": 140,
++    "failures": 0,
++    "detached": true,
++    "cleanup_completed": true
++  }
++]
+\ No newline at end of file
+diff --git a/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 b/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1
+new file mode 100644
+index 0000000..e1b3e92
+--- /dev/null
++++ b/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1
+@@ -0,0 +1,252 @@
++#requires -Version 7.4
++[CmdletBinding()]
++param([Parameter(Mandatory)][string]$ResultPath)
++
++# Destructive commands below are bound only to a newly created disposable image.
++# No disk number, drive letter, existing image, or general command can be supplied.
++$ErrorActionPreference = 'Stop'
++Set-StrictMode -Version Latest
++$repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
++$artifactsRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot 'artifacts'))
++$fixtureNonce = [guid]::NewGuid().ToString('N')
++$workspace = Join-Path $artifactsRoot ('ntfs-live-' + $fixtureNonce)
++$imagePath = Join-Path $workspace 'fixture.vhd'
++$runnerPath = Join-Path $repositoryRoot 'tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll'
++$stage = 'ValidateArguments'
++$mounted = $false; $mountAttempted = $false; $workspaceOwned = $false
++$detached = $false; $cleaned = $false; $runner = $null; $runnerExit = $null
++$checks = 0; $failureCount = 0; $status = 'failed'
++$failureCode = 'None'; $runnerStopped = $true
++$nativeError = 0
++$diskNumber = $null; $diskPath = $null; $imageDevicePath = $null
++
++function Assert-NoReparsePath([string]$Path) {
++    $full = [IO.Path]::GetFullPath($Path)
++    $current = $full
++    while ($current) {
++        if (Test-Path -LiteralPath $current) {
++            $item = Get-Item -LiteralPath $current -Force
++            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'REPARSE_PATH' }
++        }
++        $parent = [IO.Path]::GetDirectoryName($current)
++        if ($parent -eq $current) { break }
++        $current = $parent
++    }
++    return $full
++}
++
++function Assert-OwnedTree {
++    $full = Assert-NoReparsePath $workspace
++    if (-not $workspaceOwned -or [IO.Path]::GetDirectoryName($full) -cne $artifactsRoot -or
++        [IO.Path]::GetFileName($full) -cne ('ntfs-live-' + $fixtureNonce)) { throw 'CLEANUP_OWNERSHIP' }
++    $pending = [Collections.Generic.Stack[string]]::new(); $pending.Push($full)
++    while ($pending.Count) {
++        foreach ($item in Get-ChildItem -LiteralPath $pending.Pop() -Force) {
++            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'CLEANUP_REPARSE' }
++            if ($item.PSIsContainer) { $pending.Push($item.FullName) }
++        }
++    }
++}
++
++function Get-OwnedDisk {
++    if (-not $mountAttempted -or -not $workspaceOwned) { throw 'IMAGE_NOT_OWNED' }
++    [void](Assert-NoReparsePath $imagePath)
++    $images = @(Get-DiskImage -ImagePath $imagePath -ErrorAction Stop)
++    if ($images.Count -ne 1 -or -not $images[0].Attached -or
++        [IO.Path]::GetFullPath($images[0].ImagePath) -cne $imagePath) { throw 'IMAGE_BINDING' }
++    if ($imageDevicePath -and $images[0].DevicePath -cne $imageDevicePath) { throw 'IMAGE_DEVICE_CHANGED' }
++    $disks = @($images[0] | Get-Disk -ErrorAction Stop)
++    if ($disks.Count -ne 1) { throw 'DISK_BINDING' }
++    $disk = $disks[0]
++    if ($disk.IsBoot -or $disk.IsSystem -or $disk.IsReadOnly -or
++        ([string]$disk.BusType).Replace(' ', '') -cne 'FileBackedVirtual' -or
++        $disk.Size -lt 256MB -or $disk.Size -gt 257MB) { throw 'DISK_SAFETY' }
++    if ($null -ne $diskNumber -and ($disk.Number -ne $diskNumber -or $disk.Path -cne $diskPath)) { throw 'DISK_IDENTITY_CHANGED' }
++    return $disk
++}
++
++function Get-OwnedPartition([uint32]$Number) {
++    $disk = Get-OwnedDisk
++    $partitions = @($disk | Get-Partition -ErrorAction Stop | Where-Object { $_.PartitionNumber -eq $Number })
++    if ($partitions.Count -ne 1 -or $partitions[0].DiskNumber -ne $disk.Number -or
++        $partitions[0].Size -lt 240MB -or $partitions[0].Size -gt 256MB) { throw 'PARTITION_BINDING' }
++    return $partitions[0]
++}
++
++function Write-SafeJson($Value, [string]$Path) {
++    [IO.File]::WriteAllText($Path, ($Value | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
++}
++
++# The result is the only retained evidence. It never contains paths, names or raw errors.
++$ResultPath = [IO.Path]::GetFullPath($ResultPath)
++if ([IO.Path]::GetDirectoryName($ResultPath) -cne $artifactsRoot -or
++    [IO.Path]::GetFileName($ResultPath) -cnotmatch '^ntfs-live-result-[0-9a-f]{32}\.json$') { throw 'RESULT_LOCATION' }
++if ($workspace -match '[\r\n"]' -or $repositoryRoot -match '[\r\n"]') { throw 'UNSUPPORTED_TOOL_PATH' }
++[void](Assert-NoReparsePath $artifactsRoot)
++[IO.Directory]::CreateDirectory($artifactsRoot) | Out-Null
++[void](Assert-NoReparsePath $ResultPath)
++$reservation = [IO.File]::Open($ResultPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
++$reservation.Dispose()
++Write-SafeJson ([ordered]@{schema=1;status='running';stage=$stage}) $ResultPath
++
++try {
++    $stage = 'AdministratorCheck'
++    $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
++    if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'ADMINISTRATOR_REQUIRED' }
++    foreach ($command in @('Mount-DiskImage','Get-DiskImage','Get-Disk','Initialize-Disk','New-Partition','Get-Partition','Get-Volume','Format-Volume','Dismount-DiskImage')) {
++        [void](Get-Command $command -ErrorAction Stop)
++    }
++    [void](Assert-NoReparsePath $runnerPath)
++    if (-not (Test-Path -LiteralPath $runnerPath -PathType Leaf)) { throw 'RUNNER_NOT_BUILT' }
++    $dotnetPath = (Get-Command dotnet.exe -CommandType Application -ErrorAction Stop).Source
++    $existingLetters = @(Get-Volume -ErrorAction Stop | Where-Object { $_.DriveLetter } | ForEach-Object { [string]$_.DriveLetter })
++
++    $stage = 'CreateImage'
++    if (Test-Path -LiteralPath $workspace) { throw 'WORKSPACE_EXISTS' }
++    [IO.Directory]::CreateDirectory($workspace) | Out-Null; $workspaceOwned = $true
++    [void](Assert-NoReparsePath $workspace)
++    # Unicode native API avoids shell/script encoding and can only create a new file.
++    Add-Type -TypeDefinition @'
++using System;
++using System.Runtime.InteropServices;
++using Microsoft.Win32.SafeHandles;
++public static class AsukaLensFixtureImage {
++    [StructLayout(LayoutKind.Sequential)] struct StorageType { public uint DeviceId; public Guid Vendor; }
++    [StructLayout(LayoutKind.Explicit, Size=56)] struct Parameters {
++        [FieldOffset(0)] public uint Version;
++        [FieldOffset(8)] public Guid UniqueId;
++        [FieldOffset(24)] public ulong MaximumSize;
++        [FieldOffset(32)] public uint BlockSize;
++        [FieldOffset(36)] public uint SectorSize;
++        [FieldOffset(40)] public IntPtr Parent;
++        [FieldOffset(48)] public IntPtr Source;
++    }
++    [DllImport("virtdisk.dll", CharSet=CharSet.Unicode)]
++    static extern uint CreateVirtualDisk(ref StorageType type, string path, uint access, IntPtr security,
++        uint flags, uint providerFlags, ref Parameters parameters, IntPtr overlapped, out SafeFileHandle handle);
++    public static uint Create(string path) {
++        if (!Environment.Is64BitProcess || System.IO.File.Exists(path)) throw new InvalidOperationException("IMAGE_EXISTS_OR_ARCHITECTURE");
++        var type=new StorageType {DeviceId=2,Vendor=new Guid("ec984aec-a0f9-47e9-901f-71415a66345b")};
++        var parameters=new Parameters {Version=1,MaximumSize=256UL*1024*1024,SectorSize=512};
++        uint error=CreateVirtualDisk(ref type,path,0x100000,IntPtr.Zero,1,0,ref parameters,IntPtr.Zero,out var handle);
++        if (error==0) handle.Dispose();
++        return error;
++    }
++}
++'@
++    $nativeError = [int][AsukaLensFixtureImage]::Create($imagePath)
++    if ($nativeError -ne 0 -or -not (Test-Path -LiteralPath $imagePath -PathType Leaf) -or
++        (Get-Item -LiteralPath $imagePath).Length -lt 256MB -or (Get-Item -LiteralPath $imagePath).Length -gt 257MB) { throw 'IMAGE_CREATION_FAILED' }
++
++    $stage = 'MountImage'
++    $mountAttempted = $true
++    $mount = Mount-DiskImage -ImagePath $imagePath -StorageType VHD -Access ReadWrite -NoDriveLetter -PassThru -ErrorAction Stop
++    $mounted = $true; $imageDevicePath = $mount.DevicePath
++    $disk = Get-OwnedDisk
++    if ([string]$disk.PartitionStyle -cne 'RAW') { throw 'NEW_DISK_NOT_RAW' }
++    $diskNumber = $disk.Number; $diskPath = $disk.Path
++
++    $stage = 'InitializeOwnedDisk'
++    $disk = Get-OwnedDisk
++    if ([string]$disk.PartitionStyle -cne 'RAW') { throw 'DISK_NO_LONGER_RAW' }
++    Initialize-Disk -InputObject $disk -PartitionStyle MBR -Confirm:$false -ErrorAction Stop | Out-Null
++
++    $stage = 'PartitionOwnedDisk'
++    $disk = Get-OwnedDisk
++    if ([string]$disk.PartitionStyle -cne 'MBR') { throw 'PARTITION_STYLE_CHANGED' }
++    if (@(Get-Partition -ErrorAction Stop | Where-Object { $_.DiskNumber -eq $disk.Number }).Count -ne 0) { throw 'UNEXPECTED_PARTITIONS' }
++    $partition = New-Partition -DiskNumber $disk.Number -UseMaximumSize -ErrorAction Stop
++    $partitionNumber = $partition.PartitionNumber
++    $partition = Get-OwnedPartition $partitionNumber
++
++    $stage = 'FormatOwnedPartition'
++    $partition = Get-OwnedPartition $partitionNumber
++    $volume = Format-Volume -Partition $partition -FileSystem NTFS -AllocationUnitSize 4096 -NewFileSystemLabel 'AsukaLensFixture' -Force -Confirm:$false -ErrorAction Stop
++    $stage = 'AssignFormattedVolumeLetter'
++    $partition = Get-OwnedPartition $partitionNumber
++    Add-PartitionAccessPath -InputObject $partition -AssignDriveLetter -ErrorAction Stop
++    $partition = Get-OwnedPartition $partitionNumber
++    $driveLetter = [string]$partition.DriveLetter
++    if ($driveLetter -cnotmatch '^[D-Z]$' -or $driveLetter -cin $existingLetters) { throw 'DRIVE_LETTER_COLLISION' }
++    $volumes = @($partition | Get-Volume -ErrorAction Stop)
++    if ($volumes.Count -ne 1) { throw 'VOLUME_BINDING' }
++    $volume = $volumes[0]
++    $volumeId = [string]$volume.UniqueId
++    $volumePrefix = '\\?\Volume{'
++    $parsedVolumeGuid = [guid]::Empty
++    if (-not $volumeId.StartsWith($volumePrefix, [StringComparison]::OrdinalIgnoreCase) -or
++        -not $volumeId.EndsWith('}\', [StringComparison]::Ordinal) -or
++        $volumeId.Length -ne $volumePrefix.Length + 36 + 2) { throw 'VOLUME_ID_FORMAT' }
++    if (-not [guid]::TryParse($volumeId.Substring($volumePrefix.Length, 36), [ref]$parsedVolumeGuid) -or
++        $volume.FileSystem -cne 'NTFS' -or $volume.AllocationUnitSize -ne 4096 -or
++        [string]$volume.DriveLetter -cne $driveLetter) { throw 'VOLUME_FORMAT_MISMATCH' }
++    $driveRoot = $driveLetter + ':\'
++    $confirmedPartition = Get-OwnedPartition $partitionNumber
++    $confirmedVolume = @($confirmedPartition | Get-Volume -ErrorAction Stop)
++    if ([string]$confirmedPartition.DriveLetter -cne $driveLetter -or $confirmedVolume.Count -ne 1 -or
++        [string]$confirmedVolume[0].UniqueId -cne $volumeId) { throw 'VOLUME_CHANGED_BEFORE_MARKER' }
++    $fixture = [ordered]@{schema=1;image_path=$imagePath;volume_guid=[string]$volume.UniqueId;drive_root=$driveRoot;workspace=$workspace;nonce=$fixtureNonce}
++    $manifestPath = Join-Path $workspace 'fixture.json'
++    Write-SafeJson $fixture $manifestPath
++    Write-SafeJson $fixture (Join-Path $driveRoot '.asukalens-ntfs-fixture.json')
++
++    $stage = 'RunRecordComparison'
++    [void](Get-OwnedPartition $partitionNumber)
++    $runner = Start-Process -FilePath $dotnetPath -WorkingDirectory $repositoryRoot -ArgumentList @(('"' + $runnerPath + '"'), '--ntfs-live-prototype', ('"' + $manifestPath + '"')) -WindowStyle Hidden -PassThru `
++        -RedirectStandardOutput (Join-Path $workspace 'runner.stdout') -RedirectStandardError (Join-Path $workspace 'runner.stderr')
++    $runnerStopped = $false
++    $deadline = [DateTime]::UtcNow.AddMinutes(2)
++    while (-not $runner.WaitForExit(1000)) {
++        $logBytes = @(Get-Item -LiteralPath (Join-Path $workspace 'runner.stdout'),(Join-Path $workspace 'runner.stderr') -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
++        if ([DateTime]::UtcNow -ge $deadline -or $logBytes -gt 1MB) { throw 'RUNNER_LIMIT' }
++    }
++    $runnerExit = $runner.ExitCode
++    $summaryPath = Join-Path $workspace 'live-summary.json'
++    [void](Assert-NoReparsePath $summaryPath)
++    if (-not (Test-Path -LiteralPath $summaryPath -PathType Leaf) -or (Get-Item -LiteralPath $summaryPath).Length -gt 16384) { throw 'SUMMARY_MISSING' }
++    $summary = Get-Content -LiteralPath $summaryPath -Raw -Encoding utf8 | ConvertFrom-Json
++    if ($summary.schema -ne 1 -or $summary.status -cnotin @('passed','failed') -or
++        ($summary.checks -isnot [long] -and $summary.checks -isnot [int]) -or
++        ($summary.failures -isnot [long] -and $summary.failures -isnot [int]) -or
++        $summary.checks -lt 1 -or $summary.checks -gt 10000 -or $summary.failures -lt 0 -or $summary.failures -gt $summary.checks) { throw 'SUMMARY_INVALID' }
++    $checks = [int]$summary.checks; $failureCount = [int]$summary.failures
++    if ($summary.PSObject.Properties['code'] -and [string]$summary.code -cmatch '^[A-Za-z][A-Za-z0-9-]{0,79}$') { $failureCode=[string]$summary.code }
++    if ($runnerExit -ne 0 -or $summary.status -cne 'passed' -or $failureCount -ne 0) { throw 'COMPARISON_FAILED' }
++    $status = 'passed'; $stage = 'ComparisonPassed'
++} catch {
++    # Native messages and logs can include local paths. Never copy them to the result.
++    $status = 'failed'
++    if ($failureCode -ceq 'None') {
++        $failureCode = if ($_.Exception.Message -cmatch '^[A-Z_]{1,80}$') { $_.Exception.Message } else { 'OperationFailed' }
++    }
++} finally {
++    if ($null -ne $runner) {
++        if (-not $runner.HasExited) {
++            try { $runner.Kill($true); [void]$runner.WaitForExit(10000) } catch { $status='failed' }
++        }
++        $runnerStopped = $runner.HasExited
++        $runner.Dispose()
++    }
++    try {
++        if (-not $runnerStopped) { throw 'RUNNER_STILL_ACTIVE' }
++        if ($mountAttempted) {
++            $images = @(Get-DiskImage -ImagePath $imagePath -ErrorAction Stop)
++            if ($images.Count -ne 1) { throw 'IMAGE_CLEANUP_BINDING' }
++            if ($images[0].Attached) { Dismount-DiskImage -ImagePath $imagePath -ErrorAction Stop }
++            $images = @(Get-DiskImage -ImagePath $imagePath -ErrorAction Stop)
++            $detached = $images.Count -eq 1 -and -not $images[0].Attached
++            if (-not $detached) { throw 'IMAGE_STILL_ATTACHED' }
++        } else { $detached = $true }
++        if ($workspaceOwned) { Assert-OwnedTree; Remove-Item -LiteralPath $workspace -Recurse -Force }
++        $cleaned = $true
++    } catch { $status = 'cleanup_failed' }
++    $result = [ordered]@{schema=1;status=$status;stage=$stage;code=$failureCode;native_error=$nativeError;exit_code=$runnerExit;checks=$checks;failures=$failureCount;detached=$detached;cleanup_completed=$cleaned}
++    $resultTemp = $ResultPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
++    try {
++        [void](Assert-NoReparsePath $ResultPath)
++        Write-SafeJson $result $resultTemp
++        [IO.File]::Move($resultTemp, $ResultPath, $true)
++    } finally { if (Test-Path -LiteralPath $resultTemp) { Remove-Item -LiteralPath $resultTemp -Force } }
++}
++Write-Output ('RESULT: ' + $status)
++if ($status -cne 'passed') { exit 1 }
+diff --git a/scripts/ntfs-prototype/README.md b/scripts/ntfs-prototype/README.md
+new file mode 100644
+index 0000000..50b5c41
+--- /dev/null
++++ b/scripts/ntfs-prototype/README.md
+@@ -0,0 +1,34 @@
++# 隔离 VHD 的 NTFS 记录比对
++
++这是开发测试入口，不是 AsukaLens 产品功能。2026-11-12 用户明确授权本轮创建 256 MiB 一次性 VHD、管理员挂载并在其内部格式化 NTFS、生成合成文件、只读比对，结束后卸载清理。以后执行仍需遵循项目的测试范围授权，不默认对个人磁盘操作。
++
++VHD 是 `artifacts/ntfs-live-<nonce>/fixture.vhd` 普通文件，占用所在磁盘的可用空间；不调整宿主分区。脚本通过 Windows `CreateVirtualDisk` 创建固定大小镜像，无源盘、无父盘，不复制个人磁盘。先由镜像反查虚拟磁盘，核对容量、总线、非启动/系统盘和稳定身份，才允许初始化和格式化。没有盘号、盘符或现有镜像参数。
++
++新分区在无盘符状态下格式化为 NTFS，完成后再分配临时盘符，避免未格式化卷的系统弹窗。C# 读取器还用 VHD 的物理设备路径与卷 extents 核对归属，合成文件通过卷 GUID 路径写入，仅读取自身创建文件的指定记录；不扫描宿主卷和整个测试卷。虚拟磁盘在流程中短暂可见，完成后卸载并删除本轮镜像。
++
++## 执行
++
++先构建测试项目。脚本需要 64 位 PowerShell 7.4+、Storage 模块和管理员权限，本身不自动请求 UAC。以管理员 PowerShell 在项目根目录运行：
++
++```powershell
++$result = Join-Path (Resolve-Path artifacts) ('ntfs-live-result-' + [guid]::NewGuid().ToString('N') + '.json')
++pwsh -NoProfile -File scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 -ResultPath $result
++Get-Content -LiteralPath $result
++```
++
++结果文件必须是 `artifacts` 直下的新 `ntfs-live-result-<32hex>.json`，拒绝覆盖。非管理员会在创建镜像前退出。输出只保留阶段、固定错误类别、原生错误码、检查数和清理状态，不保留路径、卷身份或原始记录。
++
++`passed` 还必须同时检查 `detached=true` 与 `cleanup_completed=true`。失败时不伪装成功；若子进程无法退出或虚拟盘无法确认卸载，保留工作目录并报告清理失败，不能直接删除仍在使用的镜像。普通退出时，运行日志和 fixture manifest 随工作目录清理；结果摘要由调用者按本轮需要归档或清理。
++
++## 验证范围
++
++已在 Windows 11 的隔离 NTFS 3.1 VHD 上完成 140 项比对：空文件、非空驻留数据、普通非驻留数据及硬链接、压缩/稀疏文件、命名流、目录，检查原生句柄前后身份与大小稳定性、记录槽号、序列号、默认流逻辑大小，以及已知分配量；非空驻留/压缩/稀疏分配仍明确需要补查。默认合成检查不需要管理员：
++
++```powershell
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-prototype-tests
++pwsh -NoProfile -File tests/NtfsFixtureGuards.Tests.ps1
++```
++
++真实测试读取记录使用 `FSCTL_GET_NTFS_FILE_RECORD`，返回记录可能是更小的在用槽，故必须先校验返回槽号再解析。输出记录数据从 offset 12 开始。微软文档没有承诺 USA fixup 表示，本入口对全体 raw/全体已还原两种形态分别校验，不能用该接口失败证明磁盘损坏。参考 [记录 IOCTL](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_ntfs_file_record)、[输出结构](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-ntfs_file_record_output_buffer)、[卷几何](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-ntfs_volume_data_buffer)、[VHD 创建](https://learn.microsoft.com/en-us/windows/win32/api/virtdisk/nf-virtdisk-createvirtualdisk)。
++
++这不是整卷读取、稳定快照、吞吐或资源占用验收，也不证明已接近 WizTree。尚未覆盖 Windows 10、其他卷格式/几何、碎片化 MFT、属性扩展、持续写入和日志协调。
+diff --git a/tests/NtfsFixtureGuards.Tests.ps1 b/tests/NtfsFixtureGuards.Tests.ps1
+new file mode 100644
+index 0000000..d8d9c2d
+--- /dev/null
++++ b/tests/NtfsFixtureGuards.Tests.ps1
+@@ -0,0 +1,147 @@
++#requires -Version 7.4
++# Offline guard tests. Only named function definitions are extracted; the VHD
++# script's top-level commands are never invoked. All storage queries are mocks.
++$ErrorActionPreference = 'Stop'
++Set-StrictMode -Version Latest
++$script:checks = 0
++function Check([bool]$Condition, [string]$Name) {
++    if (-not $Condition) { throw ('FAIL ' + $Name) }
++    $script:checks++; Write-Output ('PASS NTFS fixture guard ' + $Name)
++}
++function Reject([scriptblock]$Action, [string]$Expected, [string]$Name) {
++    $message = $null
++    try { & $Action | Out-Null } catch { $message = $_.Exception.Message }
++    Check ($message -ceq $Expected) $Name
++}
++
++$source = Join-Path $PSScriptRoot '../scripts/ntfs-prototype/Invoke-NtfsFixture.ps1'
++$tokens = $null; $parseErrors = $null
++$ast = [Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $source).Path, [ref]$tokens, [ref]$parseErrors)
++Check ($parseErrors.Count -eq 0) 'fixture script syntax'
++foreach ($name in @('Assert-NoReparsePath','Assert-OwnedTree','Get-OwnedDisk','Get-OwnedPartition')) {
++    $functions = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq $name }, $false))
++    Check ($functions.Count -eq 1) ('extract only ' + $name)
++    . ([scriptblock]::Create($functions[0].Extent.Text))
++}
++
++# These functions shadow storage cmdlets for this script's entire lifetime.
++function Get-DiskImage {
++    [CmdletBinding()]
++    param([string]$ImagePath)
++    if ($ImagePath -cne $script:imagePath) { throw 'MOCK_UNEXPECTED_IMAGE' }
++    return $script:fakeImages
++}
++function Get-Disk {
++    [CmdletBinding()]
++    param([Parameter(ValueFromPipeline)]$InputObject)
++    process { return $script:fakeDisks }
++}
++function Get-Partition {
++    [CmdletBinding()]
++    param([Parameter(ValueFromPipeline)]$InputObject)
++    process { return $script:fakePartitions }
++}
++
++$parent = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../artifacts'))
++$root = Join-Path $parent ('ntfs-guard-check-' + [guid]::NewGuid().ToString('N'))
++$script:artifactsRoot = Join-Path $root 'artifacts'
++$script:fixtureNonce = [guid]::NewGuid().ToString('N')
++$script:workspace = Join-Path $script:artifactsRoot ('ntfs-live-' + $script:fixtureNonce)
++$script:imagePath = Join-Path $script:workspace 'fixture.vhd'
++$link = Join-Path $script:workspace 'junction'
++function Reset-Mocks {
++    $script:mountAttempted = $true; $script:workspaceOwned = $true
++    $script:diskNumber = 12345; $script:diskPath = 'synthetic-disk-path'
++    $script:imageDevicePath = 'synthetic-image-device'
++    $script:fakeImages = @([pscustomobject]@{Attached=$true; ImagePath=$script:imagePath; DevicePath=$script:imageDevicePath})
++    $script:fakeDisks = @([pscustomobject]@{IsBoot=$false;IsSystem=$false;IsReadOnly=$false;BusType='FileBackedVirtual';Size=256MB;Number=12345;Path=$script:diskPath})
++    $script:fakePartitions = @([pscustomobject]@{PartitionNumber=1;DiskNumber=12345;Size=255MB})
++}
++try {
++    [IO.Directory]::CreateDirectory($script:workspace) | Out-Null
++    [IO.File]::WriteAllText($script:imagePath, 'ordinary synthetic file, not a virtual disk')
++    [IO.Directory]::CreateDirectory((Join-Path $script:workspace 'nested')) | Out-Null
++    [IO.File]::WriteAllText((Join-Path $script:workspace 'nested/fixture.txt'), 'synthetic')
++    Reset-Mocks
++    Check ((Get-OwnedDisk).Number -eq 12345) 'owned synthetic disk accepted'
++    Check ((Get-OwnedPartition 1).DiskNumber -eq 12345) 'owned synthetic partition accepted'
++    Assert-OwnedTree; Check $true 'ordinary owned tree accepted'
++    Reset-Mocks; $script:mountAttempted=$false
++    Reject { Get-OwnedDisk } 'IMAGE_NOT_OWNED' 'no mount attempt rejected'
++    Reset-Mocks; $script:workspaceOwned=$false
++    Reject { Get-OwnedDisk } 'IMAGE_NOT_OWNED' 'unowned image rejected'
++    Reset-Mocks; $script:fakeImages=@()
++    Reject { Get-OwnedDisk } 'IMAGE_BINDING' 'missing image rejected'
++    Reset-Mocks; $script:fakeImages+= $script:fakeImages[0]
++    Reject { Get-OwnedDisk } 'IMAGE_BINDING' 'ambiguous image rejected'
++    Reset-Mocks; $script:fakeImages[0].Attached=$false
++    Reject { Get-OwnedDisk } 'IMAGE_BINDING' 'detached image rejected'
++    Reset-Mocks; $script:fakeImages[0].ImagePath=Join-Path $script:workspace 'other.vhd'
++    Reject { Get-OwnedDisk } 'IMAGE_BINDING' 'wrong image path rejected'
++    Reset-Mocks; $script:fakeImages[0].DevicePath='changed-device'
++    Reject { Get-OwnedDisk } 'IMAGE_DEVICE_CHANGED' 'changed image device rejected'
++    Reset-Mocks; $script:fakeDisks=@()
++    Reject { Get-OwnedDisk } 'DISK_BINDING' 'missing disk rejected'
++    Reset-Mocks; $script:fakeDisks+=$script:fakeDisks[0]
++    Reject { Get-OwnedDisk } 'DISK_BINDING' 'ambiguous disk rejected'
++    foreach ($property in @('IsBoot','IsSystem','IsReadOnly')) {
++        Reset-Mocks; $script:fakeDisks[0].$property=$true
++        Reject { Get-OwnedDisk } 'DISK_SAFETY' ($property + ' rejected')
++    }
++    Reset-Mocks; $script:fakeDisks[0].BusType='SATA'
++    Reject { Get-OwnedDisk } 'DISK_SAFETY' 'physical bus rejected'
++    foreach ($size in @(255MB,258MB)) {
++        Reset-Mocks; $script:fakeDisks[0].Size=$size
++        Reject { Get-OwnedDisk } 'DISK_SAFETY' 'unexpected image size rejected'
++    }
++    Reset-Mocks; $script:fakeDisks[0].Number=12346
++    Reject { Get-OwnedDisk } 'DISK_IDENTITY_CHANGED' 'changed disk number rejected'
++    Reset-Mocks; $script:fakeDisks[0].Path='changed-path'
++    Reject { Get-OwnedDisk } 'DISK_IDENTITY_CHANGED' 'changed disk path rejected'
++    Reset-Mocks; $script:fakePartitions=@()
++    Reject { Get-OwnedPartition 1 } 'PARTITION_BINDING' 'missing partition rejected'
++    Reset-Mocks; $script:fakePartitions+=$script:fakePartitions[0]
++    Reject { Get-OwnedPartition 1 } 'PARTITION_BINDING' 'ambiguous partition rejected'
++    Reset-Mocks; $script:fakePartitions[0].DiskNumber=12346
++    Reject { Get-OwnedPartition 1 } 'PARTITION_BINDING' 'wrong partition disk rejected'
++    foreach ($size in @(239MB,257MB)) {
++        Reset-Mocks; $script:fakePartitions[0].Size=$size
++        Reject { Get-OwnedPartition 1 } 'PARTITION_BINDING' 'unexpected partition size rejected'
++    }
++    Reset-Mocks
++    Reject { Get-OwnedPartition 2 } 'PARTITION_BINDING' 'wrong partition number rejected'
++    Reset-Mocks; $script:workspaceOwned=$false
++    Reject { Assert-OwnedTree } 'CLEANUP_OWNERSHIP' 'unowned cleanup rejected'
++    Reset-Mocks; $script:fixtureNonce=[guid]::NewGuid().ToString('N')
++    Reject { Assert-OwnedTree } 'CLEANUP_OWNERSHIP' 'mismatched cleanup nonce rejected'
++    $script:fixtureNonce=[IO.Path]::GetFileName($script:workspace).Substring(10)
++    Reset-Mocks
++    $target=Join-Path $root 'junction-target'
++    [IO.Directory]::CreateDirectory($target) | Out-Null
++    New-Item -ItemType Junction -Path $link -Target $target | Out-Null
++    try {
++        Reject { Assert-NoReparsePath (Join-Path $link 'child') } 'REPARSE_PATH' 'reparse ancestor rejected'
++        Reject { Assert-OwnedTree } 'CLEANUP_REPARSE' 'reparse child blocks recursive cleanup'
++    } finally { Remove-Item -LiteralPath $link -Force }
++    Assert-OwnedTree; Check $true 'ordinary tree remains valid after junction removal'
++    Write-Output ('PASS NTFS fixture guard checks: ' + $script:checks + '; virtual disk operations: none')
++} finally {
++    # Remove only this test's random ordinary directory; never follow a junction.
++    if (Test-Path -LiteralPath $link) {
++        $entry=Get-Item -LiteralPath $link -Force
++        if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { Remove-Item -LiteralPath $link -Force }
++    }
++    $full=[IO.Path]::GetFullPath($root)
++    if ([IO.Path]::GetDirectoryName($full) -cne $parent -or [IO.Path]::GetFileName($full) -cnotmatch '^ntfs-guard-check-[0-9a-f]{32}$') { throw 'TEST_CLEANUP_BOUNDARY' }
++    if (Test-Path -LiteralPath $full) {
++        [void](Assert-NoReparsePath $full)
++        $pending=[Collections.Generic.Stack[string]]::new(); $pending.Push($full)
++        while ($pending.Count) {
++            foreach ($entry in Get-ChildItem -LiteralPath $pending.Pop() -Force) {
++                if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'TEST_CLEANUP_REPARSE' }
++                if ($entry.PSIsContainer) { $pending.Push($entry.FullName) }
++            }
++        }
++        Remove-Item -LiteralPath $full -Recurse -Force
++    }
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 69fed0e..3ca5563 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -5,6 +5,12 @@ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.F
+ 
+ if (args.Contains("--package-smoke")) return PackageSmoke.Run();
+ if (args.Contains("--ntfs-prototype-tests")) return DiskAtlas.NtfsPrototype.NtfsPrototypeTests.Run();
++if (args.Contains("--ntfs-live-prototype"))
++{
++    if (args.Length == 2 && args[0] == "--ntfs-live-prototype") return DiskAtlas.NtfsPrototype.NtfsLivePrototype.Run(args[1]);
++    Console.Error.WriteLine("NTFS live prototype requires a fixture manifest from the isolated VHD harness.");
++    return 2;
++}
+ if (args.Contains("--app-data-location-tests")) return AppDataLocationTests.Run();
+ 
+ if (args.Contains("--desktop-compatibility")) return DesktopCompatibility.Run();
+diff --git a/tests/Prototypes/Ntfs/NtfsIndexTests.cs b/tests/Prototypes/Ntfs/NtfsIndexTests.cs
+index 6528e6e..5f9cfaa 100644
+--- a/tests/Prototypes/Ntfs/NtfsIndexTests.cs
++++ b/tests/Prototypes/Ntfs/NtfsIndexTests.cs
+@@ -16,7 +16,7 @@ internal static class NtfsIndexTests
+         var root = Decode(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name("root", parent: rootId)], sequence: 7, directory: true), 5);
+         var file = Decode(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name("first.bin"),
+             NtfsRecordFixtures.Name("second.bin"), NtfsRecordFixtures.Name("FIRST~1.BIN", 2),
+-            NtfsRecordFixtures.Nonresident()], links: 2), 42);
++            NtfsRecordFixtures.Nonresident()], links: 3), 42);
+         NtfsVolumeRecord R(NtfsRecord entry, ulong volume = 1) => new(volume, entry);
+         var result = NtfsPrototypeIndex.Build([R(root), R(file)]);
+         Check(result.Complete && result.FileObjects == 1 && result.KnownLogicalBytes == 12000 && result.KnownAllocatedBytes == 8192,
+diff --git a/tests/Prototypes/Ntfs/NtfsLivePrototype.cs b/tests/Prototypes/Ntfs/NtfsLivePrototype.cs
+new file mode 100644
+index 0000000..4b25e2d
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsLivePrototype.cs
+@@ -0,0 +1,209 @@
++using System.Buffers.Binary;
++using System.Runtime.InteropServices;
++using System.Text;
++using System.Text.Json;
++using Microsoft.Win32.SafeHandles;
++using DiskAtlas;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// Test-only: reads records for a finite list of files created by this invocation.
++// Never enumerates a host volume or accepts a disk number/device path from the CLI.
++internal static class NtfsLivePrototype
++{
++    private const uint VolumeData = 0x90064, GetRecord = 0x90068;
++    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
++    private static extern bool GetVolumeNameForVolumeMountPointW(string root, StringBuilder volume, int length);
++    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
++    private static extern bool CreateHardLinkW(string name, string existing, IntPtr reserved);
++    [StructLayout(LayoutKind.Sequential)]
++    private struct StorageType { public uint DeviceId; public Guid Vendor; }
++    [StructLayout(LayoutKind.Sequential)]
++    private struct OpenParameters { public uint Version, Depth; }
++    [DllImport("virtdisk.dll", CharSet = CharSet.Unicode)]
++    private static extern uint OpenVirtualDisk(ref StorageType type, string path, uint access, uint flags,
++        ref OpenParameters parameters, out SafeFileHandle handle);
++    [DllImport("virtdisk.dll", CharSet = CharSet.Unicode)]
++    private static extern uint GetVirtualDiskPhysicalPath(SafeFileHandle handle, ref uint size, StringBuilder path);
++
++    internal static int Run(string manifestPath)
++    {
++        string? summaryPath = null;
++        int checks = 0;
++        string failureCode = "FixtureGuard";
++        void Check(bool condition, string code)
++        {
++            if (!condition) throw new FixtureFailure(code);
++            checks++; Console.WriteLine("PASS NTFS live " + code);
++        }
++        try
++        {
++            var manifestFile = new FileInfo(Path.GetFullPath(manifestPath));
++            string artifacts = Path.GetFullPath("artifacts") + Path.DirectorySeparatorChar;
++            string workspace = manifestFile.DirectoryName ?? throw new FixtureFailure("Workspace");
++            string suffix = Path.GetFileName(workspace);
++            Check(workspace.StartsWith(artifacts, StringComparison.OrdinalIgnoreCase) &&
++                suffix.StartsWith("ntfs-live-", StringComparison.Ordinal) &&
++                Guid.TryParseExact(suffix[10..], "N", out _) && manifestFile.Name == "fixture.json", "OwnedWorkspace");
++            for (var current = new DirectoryInfo(workspace); current != null; current = current.Parent)
++                Check((current.Attributes & FileAttributes.ReparsePoint) == 0, "NoReparseParent");
++            Check(manifestFile.Length is > 0 and < 16384 && (manifestFile.Attributes & FileAttributes.ReparsePoint) == 0, "ManifestBounds");
++            using var document = JsonDocument.Parse(File.ReadAllBytes(manifestFile.FullName));
++            var json = document.RootElement;
++            string Field(string name) => json.GetProperty(name).GetString() ?? throw new FixtureFailure("ManifestField");
++            string nonce = Field("nonce"), root = Field("drive_root"), volumeGuid = Field("volume_guid");
++            string image = Field("image_path");
++            Check(json.GetProperty("schema").GetInt32() == 1 && Guid.TryParseExact(nonce, "N", out _) &&
++                suffix == "ntfs-live-" + nonce &&
++                Path.GetFullPath(Field("workspace")).Equals(workspace, StringComparison.OrdinalIgnoreCase) &&
++                Path.GetFullPath(image).Equals(Path.Combine(workspace, "fixture.vhd"), StringComparison.OrdinalIgnoreCase), "ManifestIdentity");
++            Check(root.Length == 3 && char.IsAsciiLetter(root[0]) && root[1..] == ":\\" &&
++                volumeGuid.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase) && volumeGuid.EndsWith(@"}\", StringComparison.Ordinal), "VolumeSyntax");
++            Check(File.Exists(image) && new FileInfo(image).Length is >= 256 * 1024 * 1024 and <= 257 * 1024 * 1024 &&
++                (File.GetAttributes(image) & FileAttributes.ReparsePoint) == 0, "OwnedImage");
++            string marker = Path.Combine(volumeGuid, ".asukalens-ntfs-fixture.json");
++            var markerFile = new FileInfo(marker);
++            Check(markerFile.Exists && markerFile.Length is > 0 and < 16384 &&
++                (markerFile.Attributes & FileAttributes.ReparsePoint) == 0, "VolumeMarker");
++            using var markerJson = JsonDocument.Parse(File.ReadAllBytes(marker));
++            foreach (string field in new[] { "nonce", "image_path", "volume_guid", "workspace" })
++                Check(markerJson.RootElement.GetProperty(field).GetString() == Field(field), "MarkerBinding");
++            var actualGuid = new StringBuilder(128);
++            Check(GetVolumeNameForVolumeMountPointW(root, actualGuid, actualGuid.Capacity) &&
++                actualGuid.ToString().Equals(volumeGuid, StringComparison.OrdinalIgnoreCase), "MountedVolumeIdentity");
++            Check(new DriveInfo(root).DriveFormat.Equals("NTFS", StringComparison.OrdinalIgnoreCase), "NtfsVolume");
++            string targetSummary = Path.Combine(workspace, "live-summary.json");
++            Check(!File.Exists(targetSummary), "FreshSummary");
++            summaryPath = targetSummary;
++
++            using var volume = NativeStorage.CreateFileW(@"\\.\" + root[..2], 0x80000000, NativeStorage.ShareAll,
++                IntPtr.Zero, 3, 0, IntPtr.Zero);
++            Check(!volume.IsInvalid, "ReadOnlyVolumeOpen");
++            var storageType = new StorageType { DeviceId = 2, Vendor = new Guid("ec984aec-a0f9-47e9-901f-71415a66345b") };
++            var open = new OpenParameters { Version = 1, Depth = 1 };
++            // GET_INFO plus DETACH access for a permanently mounted VHD; no detach API is called here.
++            Check(OpenVirtualDisk(ref storageType, image, 0xc0000, 0, ref open, out var virtualDisk) == 0, "OpenOwnedVirtualDiskInfo");
++            using (virtualDisk)
++            {
++                var physical = new StringBuilder(128); uint physicalBytes = 256;
++                Check(GetVirtualDiskPhysicalPath(virtualDisk, ref physicalBytes, physical) == 0, "OwnedVirtualDiskDevice");
++                const string prefix = @"\\.\PhysicalDrive";
++                string device = physical.ToString();
++                Check(device.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
++                    uint.TryParse(device[prefix.Length..], out _), "VirtualDeviceSyntax");
++                uint number = uint.Parse(device[prefix.Length..]);
++                var extents = new byte[128];
++                Check(NativeStorage.DeviceIoControl(volume, 0x560000, null, 0, extents, extents.Length, out int extentBytes, IntPtr.Zero) &&
++                    extentBytes >= 32 && BinaryPrimitives.ReadUInt32LittleEndian(extents) == 1 &&
++                    BinaryPrimitives.ReadUInt32LittleEndian(extents.AsSpan(8)) == number, "VolumeBackedByOwnedImage");
++                long start = BinaryPrimitives.ReadInt64LittleEndian(extents.AsSpan(16));
++                long length = BinaryPrimitives.ReadInt64LittleEndian(extents.AsSpan(24));
++                Check(start >= 0 && length > 0 && start <= 256L * 1024 * 1024 - length, "VirtualPartitionBounds");
++            }
++            var geometry = new byte[128];
++            Check(NativeStorage.DeviceIoControl(volume, VolumeData, null, 0, geometry, geometry.Length, out int returned, IntPtr.Zero) && returned >= 96,
++                "VolumeGeometry");
++            int sector = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(geometry.AsSpan(40)));
++            int cluster = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(geometry.AsSpan(44)));
++            int recordSize = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(geometry.AsSpan(48)));
++            Check(sector == 512 && cluster == 4096 && recordSize is >= 1024 and <= 65536 &&
++                recordSize % 512 == 0 && returned >= 104 &&
++                BinaryPrimitives.ReadUInt16LittleEndian(geometry.AsSpan(100)) == 3 &&
++                BinaryPrimitives.ReadUInt16LittleEndian(geometry.AsSpan(102)) == 1, "SupportedGeometry");
++            ulong serial = BinaryPrimitives.ReadUInt64LittleEndian(geometry);
++
++            string data = Path.Combine(volumeGuid, "AsukaLensFixture-" + nonce);
++            Check(!Directory.Exists(data), "FreshSyntheticDirectory");
++            Directory.CreateDirectory(data);
++            var files = new List<(string Path, NtfsLookupReason Expected)>();
++            void Make(string name, byte[] bytes, NtfsLookupReason expected = NtfsLookupReason.None)
++            {
++                string path = Path.Combine(data, name);
++                using (var output = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))
++                { output.Write(bytes); output.Flush(true); }
++                files.Add((path, expected));
++            }
++            Make("empty.bin", []);
++            Make("resident.bin", "synthetic resident"u8.ToArray(), NtfsLookupReason.ResidentAllocation);
++            var random = new byte[65536]; new Random(417).NextBytes(random); Make("ordinary.bin", random);
++            string alias = Path.Combine(data, "ordinary-link.bin");
++            Check(CreateHardLinkW(alias, files[^1].Path, IntPtr.Zero), "CreateSyntheticHardLink");
++            files.Add((alias, NtfsLookupReason.None));
++            Make("compressed.bin", new byte[131072], NtfsLookupReason.Compressed);
++            using (var file = File.OpenHandle(files[^1].Path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
++                Check(NativeStorage.DeviceIoControl(file, 0x9c040, [1, 0], 2, [], 0, out _, IntPtr.Zero), "SetSyntheticCompression");
++            Make("sparse.bin", [], NtfsLookupReason.Sparse);
++            using (var file = new FileStream(files[^1].Path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
++            {
++                Check(NativeStorage.DeviceIoControl(file.SafeFileHandle, 0x900c4, null, 0, [], 0, out _, IntPtr.Zero), "SetSyntheticSparse");
++                file.SetLength(2 * 1024 * 1024); file.Flush(true);
++            }
++            Make("with-stream.bin", "default"u8.ToArray(), NtfsLookupReason.NamedData);
++            File.WriteAllText(files[^1].Path + ":meta", "synthetic named stream");
++
++            NtfsRecord ReadRecord(string path, bool directory)
++            {
++                Check(NativeStorage.TryRead(path, directory, File.GetAttributes(path), out var before, out _) && before != null, "NativeStorageBefore");
++                Check(before!.Identity.High == 0 && before.Identity.Volume == serial, "FileVolumeIdentity");
++                ulong slot = before.Identity.Low & NtfsRecordDecoder.MaximumRecordNumber;
++                var input = new byte[8]; BinaryPrimitives.WriteUInt64LittleEndian(input, slot);
++                var output = new byte[recordSize + 16];
++                Check(NativeStorage.DeviceIoControl(volume, GetRecord, input, input.Length, output, output.Length, out int count, IntPtr.Zero) && count >= 12,
++                    "ReadTargetRecord");
++                Check((BinaryPrimitives.ReadUInt64LittleEndian(output) & NtfsRecordDecoder.MaximumRecordNumber) == slot &&
++                    BinaryPrimitives.ReadUInt32LittleEndian(output.AsSpan(8)) == recordSize && count >= recordSize + 12, "ReturnedRecordBoundsAndSlot");
++                var decoded = NtfsRecordDecoder.DecodeKernelReturned(output.AsSpan(12, recordSize), sector, slot, cluster, 3, 1);
++                Check(decoded.Status == NtfsDecodeStatus.Decoded && decoded.Record != null, "DecodeKernelRecord-" + decoded.Code);
++                var result = decoded.Record!;
++                Check(result.Reference == before.Identity.Low && result.BaseReference == 0, "RecordSequenceAndBase");
++                Check(NativeStorage.TryRead(path, directory, File.GetAttributes(path), out var after, out _) && after != null &&
++                    before.Identity == after.Identity && before.LogicalBytes == after.LogicalBytes && before.AllocatedBytes == after.AllocatedBytes &&
++                    before.LinkCount == after.LinkCount && before.Modified == after.Modified, "StableFileIdentityAndSizes");
++                Check(result.IsDirectory == directory, "RecordTypeMatchesNative");
++                Check(result.LinkCount == result.Names.Count, "MftNameReferenceCount");
++                int visibleLinks = result.Names.Where(n => n.Namespace != 2).Select(n => (n.ParentReference, n.Name)).Distinct().Count();
++                Check(visibleLinks == before.LinkCount, "VisibleLinksMatchNative");
++                Check(result.Names.Any(n => n.Namespace != 2 && n.Name == Path.GetFileName(path)), "SelectedNamePresent");
++                if (!directory)
++                {
++                    Check(result.LogicalBytes == before.LogicalBytes, "LogicalSizeMatchesNative");
++                    if (result.AllocatedBytes is { } allocatedBytes) Check(allocatedBytes == before.AllocatedBytes, "AllocationMatchesNative");
++                }
++                return result;
++            }
++
++            var decodedFiles = new Dictionary<ulong, NtfsRecord>();
++            foreach (var item in files)
++            {
++                var decoded = ReadRecord(item.Path, false);
++                if (item.Expected != NtfsLookupReason.None) Check(decoded.LookupReasons.HasFlag(item.Expected), "SpecialTypeRequestsLookup");
++                else Check(decoded.LookupReasons == NtfsLookupReason.None, "OrdinaryTypeHasCompleteMetadata");
++                if (item.Expected is NtfsLookupReason.Compressed or NtfsLookupReason.Sparse or NtfsLookupReason.ResidentAllocation)
++                    Check(decoded.AllocatedBytes == null, "SpecialAllocationRemainsUnknown");
++                decodedFiles.TryAdd(decoded.Reference, decoded);
++            }
++            Check(decodedFiles.Count == files.Count - 1, "HardLinkObjectDeduplication");
++            var dir = ReadRecord(data, true);
++            Check(dir.Names.All(n => n.Namespace == 2 || n.ParentReference != dir.Reference), "SyntheticDirectoryParent");
++            WriteSummary(summaryPath, "passed", checks, 0, "None");
++            Console.WriteLine("PASS NTFS live checks: " + checks + "; known synthetic files only");
++            return 0;
++        }
++        catch (Exception error)
++        {
++            if (error is FixtureFailure specific) failureCode = specific.Code;
++            else failureCode = error switch
++            {
++                UnauthorizedAccessException => "AccessDenied", IOException => "FixtureIO",
++                JsonException => "ManifestJson", _ => "FixtureFailure"
++            };
++            if (summaryPath != null) try { WriteSummary(summaryPath, "failed", checks, 1, failureCode); } catch { }
++            Console.Error.WriteLine("FAIL NTFS live " + failureCode + "; checks=" + checks);
++            return 1;
++        }
++    }
++
++    private static void WriteSummary(string path, string status, int checks, int failures, string code) =>
++        File.WriteAllText(path, JsonSerializer.Serialize(new { schema = 1, status, checks, failures, code }));
++    private sealed class FixtureFailure(string code) : Exception { internal string Code { get; } = code; }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsPrototypeTests.cs b/tests/Prototypes/Ntfs/NtfsPrototypeTests.cs
+index 862fd33..831386e 100644
+--- a/tests/Prototypes/Ntfs/NtfsPrototypeTests.cs
++++ b/tests/Prototypes/Ntfs/NtfsPrototypeTests.cs
+@@ -27,10 +27,27 @@ internal static class NtfsPrototypeTests
+             var bytes = NtfsRecordFixtures.File(); var unchanged = bytes.ToArray();
+             var resident = Read(bytes);
+             Check(resident.Reference == NtfsRecordFixtures.Reference(42, 3), "full reference uses external slot and sequence");
+-            Check(resident.LogicalBytes == 17 && resident.AllocatedBytes == 0, "resident default DATA excludes independent data clusters");
++            Check(resident.LogicalBytes == 17 && resident.AllocatedBytes is null, "resident default DATA allocation needs native-size lookup");
+             Check(bytes.SequenceEqual(unchanged), "fixup does not mutate caller record");
++            var kernelRaw = NtfsRecordDecoder.DecodeKernelReturned(bytes, 512, 42, 4096, 3, 1);
++            Check(kernelRaw.Status == NtfsDecodeStatus.Decoded, "kernel-returned entry also accepts all raw fixup markers");
++            var restored = bytes.ToArray();
++            NtfsRecordFixtures.U16(restored, 510, BitConverter.ToUInt16(restored, 50));
++            NtfsRecordFixtures.U16(restored, 1022, BitConverter.ToUInt16(restored, 52));
++            Check(Decode(restored).Status == NtfsDecodeStatus.Invalid, "raw decoder strictly rejects already-restored sector tails");
++            var restoredBefore = restored.ToArray();
++            var kernelRestored = NtfsRecordDecoder.DecodeKernelReturned(restored, 512, 42, 4096, 3, 1);
++            Check(kernelRestored.Status == NtfsDecodeStatus.Decoded && kernelRestored.Record?.Reference == resident.Reference &&
++                kernelRestored.Record.LogicalBytes == resident.LogicalBytes, "kernel-returned entry accepts uniformly restored tails");
++            Check(restored.SequenceEqual(restoredBefore), "kernel-returned decoding preserves caller bytes");
++            var mixedTails = bytes.ToArray(); NtfsRecordFixtures.U16(mixedTails, 510, BitConverter.ToUInt16(mixedTails, 50));
++            Check(NtfsRecordDecoder.DecodeKernelReturned(mixedTails, 512, 42, 4096, 3, 1).Status == NtfsDecodeStatus.Invalid,
++                "kernel-returned entry rejects mixed raw and restored tails");
++            var badKernelTail = restored.ToArray(); NtfsRecordFixtures.U16(badKernelTail, 510, 0x1234);
++            Check(NtfsRecordDecoder.DecodeKernelReturned(badKernelTail, 512, 42, 4096, 3, 1).Status == NtfsDecodeStatus.Invalid,
++                "kernel-returned entry rejects unmatched tail values");
+             Check(resident.Names.Count == 1 && resident.Names[0].Name == "demo.bin" && resident.Names[0].ParentReference == NtfsRecordFixtures.Parent, "name and parent identity decoded");
+-            Check(resident.LookupReasons == NtfsLookupReason.None, "simple supported file needs no lookup");
++            Check(resident.LookupReasons == NtfsLookupReason.ResidentAllocation, "resident allocation is not misrepresented as known zero");
+             var zero = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Data(0)));
+             Check(zero.LogicalBytes == 0 && zero.AllocatedBytes == 0, "empty DATA remains known zero");
+             var nonresident = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Nonresident()));
+@@ -47,8 +64,8 @@ internal static class NtfsPrototypeTests
+             Check(Decode(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name(), NtfsRecordFixtures.Data(), metadataFlags], addStandard: false)).Status == NtfsDecodeStatus.Unsupported, "flagged STANDARD_INFORMATION cannot silently supply trusted metadata");
+             var unicode = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name("演示 🗂.txt"), NtfsRecordFixtures.Data()));
+             Check(unicode.Names[0].Name == "演示 🗂.txt", "Unicode UTF16 name roundtrip");
+-            var links = Read(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name("first.bin"), NtfsRecordFixtures.Name("second.bin", 1, NtfsRecordFixtures.Reference(9, 2)), NtfsRecordFixtures.Name("FIRST~1.BIN", 2), NtfsRecordFixtures.Data()], links: 2));
+-            Check(links.LinkCount == 2 && links.Names.Count == 3 && links.Names.Count(n => n.Namespace == 2) == 1, "hard-link names and DOS alias preserved separately");
++            var links = Read(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name("first.bin"), NtfsRecordFixtures.Name("second.bin", 1, NtfsRecordFixtures.Reference(9, 2)), NtfsRecordFixtures.Name("FIRST~1.BIN", 2), NtfsRecordFixtures.Data()], links: 3));
++            Check(links.LinkCount == 3 && links.Names.Count == 3 && links.Names.Count(n => n.Namespace == 2) == 1, "hard-link names and DOS alias preserved separately");
+             var combined = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name("both.txt", 3), NtfsRecordFixtures.Data()));
+             Check(combined.Names[0].Namespace == 3, "combined Win32 DOS namespace supported");
+             var named = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Data(4), NtfsRecordFixtures.Data(9, "meta")));
+@@ -141,6 +158,10 @@ internal static class NtfsPrototypeTests
+                 source.Cancel();
+                 try { NtfsRecordDecoder.Decode(bytes, 512, token: source.Token); }
+                 catch (OperationCanceledException) { cancelled = true; }
++                bool kernelCancelled = false;
++                try { NtfsRecordDecoder.DecodeKernelReturned(restored, 512, 42, 4096, 3, 1, source.Token); }
++                catch (OperationCanceledException) { kernelCancelled = true; }
++                Check(kernelCancelled, "cancelled kernel-returned decoding publishes no record");
+             }
+             Check(cancelled, "cancelled decode exits without publishing a record");
+             passed += NtfsIndexTests.Run();
+diff --git a/tests/Prototypes/Ntfs/NtfsRecordDecoder.cs b/tests/Prototypes/Ntfs/NtfsRecordDecoder.cs
+index c4f5984..87859b0 100644
+--- a/tests/Prototypes/Ntfs/NtfsRecordDecoder.cs
++++ b/tests/Prototypes/Ntfs/NtfsRecordDecoder.cs
+@@ -10,7 +10,7 @@ internal enum NtfsLookupReason
+ {
+     None = 0, AttributeList = 1, ExtensionRecord = 2, Compressed = 4, Sparse = 8,
+     ReparsePoint = 16, NamedData = 32, Encrypted = 64, MissingData = 128,
+-    LinkNamesIncomplete = 256, MissingStandardInformation = 512
++    LinkNamesIncomplete = 256, MissingStandardInformation = 512, ResidentAllocation = 1024
+ }
+ internal sealed record NtfsName(ulong ParentReference, string Name, byte Namespace);
+ internal sealed record NtfsRecord(ulong Reference, ulong BaseReference, bool IsDirectory, ushort LinkCount,
+@@ -32,6 +32,17 @@ internal static class NtfsRecordDecoder
+ 
+     internal static NtfsDecodeResult Decode(ReadOnlySpan<byte> source, int sectorSize, ushort ntfsMajor = 3,
+         ushort ntfsMinor = 1, CancellationToken token = default, ulong recordNumber = 0, int clusterSize = 4096)
++        => DecodeCore(source, sectorSize, ntfsMajor, ntfsMinor, token, recordNumber, clusterSize, false);
++
++    // Only for records returned by a successful, identity-checked kernel IOCTL.
++    // The public IOCTL contract does not specify USA representation. Never use
++    // this as a fallback after a raw disk record fails its integrity check.
++    internal static NtfsDecodeResult DecodeKernelReturned(ReadOnlySpan<byte> source, int sectorSize,
++        ulong recordNumber, int clusterSize, ushort ntfsMajor, ushort ntfsMinor, CancellationToken token = default)
++        => DecodeCore(source, sectorSize, ntfsMajor, ntfsMinor, token, recordNumber, clusterSize, true);
++
++    private static NtfsDecodeResult DecodeCore(ReadOnlySpan<byte> source, int sectorSize, ushort ntfsMajor,
++        ushort ntfsMinor, CancellationToken token, ulong recordNumber, int clusterSize, bool kernelReturned)
+     {
+         token.ThrowIfCancellationRequested();
+         // The argument describes the update-sequence stride, not physical disk sector size.
+@@ -50,12 +61,18 @@ internal static class NtfsRecordDecoder
+             allocated != source.Length || used > allocated || !Fits(attributes, 4, (int)used)) return Invalid("RecordHeader");
+         byte[] buffer = source.ToArray(); // At most 64 KiB, never mutate caller's bytes.
+         ushort marker = U16(buffer, usa);
++        bool protectedTails = true, restoredTails = true;
++        for (int i = 1; i < usaCount; i++)
++        {
++            protectedTails &= U16(buffer, i * sectorSize - 2) == marker;
++            restoredTails &= U16(buffer, i * sectorSize - 2) == U16(buffer, usa + i * 2);
++        }
++        if (!protectedTails && (!kernelReturned || !restoredTails)) return Invalid("FixupMismatch");
+         for (int i = 1; i < usaCount; i++)
+         {
+             token.ThrowIfCancellationRequested();
+             int tail = i * sectorSize - 2;
+-            if (U16(buffer, tail) != marker) return Invalid("FixupMismatch");
+-            BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(tail), U16(buffer, usa + i * 2));
++            if (protectedTails) BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(tail), U16(buffer, usa + i * 2));
+         }
+         ReadOnlySpan<byte> record = buffer.AsSpan(0, (int)used);
+         ushort flags = U16(record, 22), sequence = U16(record, 16), links = U16(record, 18);
+@@ -131,7 +148,12 @@ internal static class NtfsRecordDecoder
+                     if ((attrFlags & 1) != 0) reasons |= NtfsLookupReason.Compressed;
+                     if ((attrFlags & 0x8000) != 0) reasons |= NtfsLookupReason.Sparse;
+                     if ((attrFlags & 0x4000) != 0) reasons |= NtfsLookupReason.Encrypted;
+-                    if (form == 0) { logical = value.Length; allocation = 0; }
++                    if (form == 0)
++                    {
++                        logical = value.Length;
++                        allocation = value.Length == 0 ? 0 : null;
++                        if (value.Length != 0) reasons |= NtfsLookupReason.ResidentAllocation;
++                    }
+                     else
+                     {
+                         long allocatedBytes = I64(attr, 40), dataBytes = I64(attr, 48), initialized = I64(attr, 56);
+@@ -151,8 +173,8 @@ internal static class NtfsRecordDecoder
+         if (!sawEnd) return Invalid("MissingEndMarker");
+         if (geometryMismatch && (reasons & (NtfsLookupReason.AttributeList | NtfsLookupReason.ExtensionRecord)) == 0) return Invalid("AllocationGeometry");
+         if (!sawStandard && baseReference == 0) reasons |= NtfsLookupReason.MissingStandardInformation;
+-        int entryNames = names.Where(n => n.Namespace != 2).Select(n => (n.ParentReference, n.Name)).Distinct().Count();
+-        if (!directory && baseReference == 0 && (links == 0 || entryNames != links)) reasons |= NtfsLookupReason.LinkNamesIncomplete;
++        // Raw name-reference counts include separate DOS FILE_NAME attributes.
++        if (!directory && baseReference == 0 && (links == 0 || names.Count != links)) reasons |= NtfsLookupReason.LinkNamesIncomplete;
+         if (directory) { logical = 0; allocation = 0; }
+         else if (!sawData) reasons |= NtfsLookupReason.MissingData;
+         if ((reasons & (NtfsLookupReason.AttributeList | NtfsLookupReason.ExtensionRecord | NtfsLookupReason.MissingData |
+diff --git a/tests/Prototypes/Ntfs/README.md b/tests/Prototypes/Ntfs/README.md
+index e3415c2..e07d2b4 100644
+--- a/tests/Prototypes/Ntfs/README.md
++++ b/tests/Prototypes/Ntfs/README.md
+@@ -1,6 +1,6 @@
+ # NTFS 合成记录原型
+ 
+-本目录仅编入测试程序，不进入软件程序集、扫描策略或 UI。它不打开文件、卷或设备，也不接收用户文件路径。当前只验证调用方提供的合成 NTFS 3.1 原始 FILE 记录，不能作为读取真实卷的工具。
++本目录仅编入测试程序，不进入软件程序集、扫描策略或 UI。默认合成检查不访问磁盘。2026-11-12 新增受控 VHD 比对入口，仅用于管理员运行的隔离测试：它只读取本轮合成文件的对应记录，不枚举个人磁盘或整卷 MFT。使用与边界见[测试盘说明](../../../scripts/ntfs-prototype/README.md)。
+ 
+ 构建测试项目后运行：
+ 
+@@ -10,9 +10,9 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-prototype-te
+ 
+ ## 输入与输出
+ 
+-- `NtfsRecordDecoder`：限定 1–64 KiB 记录、512 字节 fixup stride、显式卷格式版本和记录槽号；簇大小合成默认 4096 字节，支持 512–65536 的二次幂。任何未来真实读取器都必须传入经验证的卷几何和外部槽号，不能把默认值当作探测结果。拒绝未知版本、未知属性类型及无法验证的布局。
++- `NtfsRecordDecoder`：限定 1–64 KiB 记录、512 字节 fixup stride、显式卷格式版本和记录槽号；簇大小合成默认 4096 字节，支持 512–65536 的二次幂。真实测试入口传入经核对的卷几何和外部槽号。拒绝未知版本、未知属性类型及无法验证的布局。
+ - 原始字节经私有副本完成 USA 修复与属性解析，调用方输入不变；输出区分有效、空闲、损坏和不支持，错误码不包含名称或路径。
+-- 普通未命名 DATA 的逻辑/分配长度从数据属性读取，并对非驻留数据的 runlist、VCN、LCN 和普通分配簇几何进行核对；不使用 FILE_NAME 中的大小副本。驻留 DATA 的分配值 0 仅表示没有独立数据簇，尚未以真实文件验证它与现有 NativeStorage 口径的一致性，不代表没有 MFT 开销。
++- 普通未命名 DATA 的逻辑/分配长度从数据属性读取，并对非驻留数据的 runlist、VCN、LCN 和普通分配簇几何进行核对；不使用 FILE_NAME 中的大小副本。真实 VHD 比对发现非空驻留 DATA 的分配大小不能按独立数据簇的 0 值对齐 NativeStorage，已改为 `ResidentAllocation` 待补查；空 DATA 保留经本轮夹具验证的 0 值。
+ - `NtfsPrototypeIndex`：按卷身份、完整文件引用识别对象，保留多个目录入口并排除 DOS 别名；逻辑大小按入口累加，实际占用按对象去重，对齐现有扫描器的基本口径。它只提供合成输入的内存汇总，不是整卷快照或持久缓存。
+ - 索引默认上限 10 万条记录（显式调整上限最多 100 万）、20 万个名称入口、800 万个名称字符；每记录最多 256 个名称，每名称最多 255 个 UTF-16 单元。超限拒绝，不悄悄截断后声称完整。
+ 
+@@ -20,9 +20,13 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-prototype-te
+ 
+ 属性列表和扩展记录尚未拼接，标为待补查并保持大小未知；压缩/稀疏分配空间保持未知，不把 DATA 的表面长度套作实际占用。重解析/云占位、加密、缺失默认数据或标准信息也要求补查。命名流不并入默认流大小，并保留范围提示。这里的“待补查”只有标记，尚没有实际补查器或自动回退连接。
+ 
++原始 MFT 名称引用计数包含独立 DOS 名称属性；它与排除 DOS 别名后的 Windows 可见硬链接数分开校验。本轮真实文件比对据此修正了原合成夹具的头部计数。
++
+ 重复记录、槽位复用、目录入口冲突、过期父引用、目录循环、未知大小和总量溢出不能成为完整成功。未提供跨目录的硬链接占用归属或生产图表；目录索引及 NTFS 系统开销不计入文件数据总量。即使 `CompleteSyntheticIndex` 为真，也只意味着这批合成记录满足原型约束，不能证明活跃卷一致。
+ 
+-未实现真实 MFT 读取、NTFS 3.0、不同 fixup stride、持续写入的日志协调、权限提升助手、真实性能对比与主程序集成。没有驱动、服务、系统日志修改或发布包。真实 NTFS 特性、Windows 10 实测和各类大小语义仍待独立验证。
++未实现整卷 MFT 批量读取、NTFS 3.0、不同 fixup stride、持续写入的日志协调、产品权限提升助手、真实性能对比与主程序集成。没有驱动、服务、系统日志修改或发布包。实际记录验证仅覆盖本轮 Windows 11 主机的 NTFS 3.1 VHD、512 字节扇区/4096 字节簇；Windows 10 及其他几何仍未实测。
++
++`DecodeKernelReturned` 只用于已核对来源和身份的 IOCTL 记录，接受全体尾字为 USA 标记或全体为已还原保存值的形式；微软未公开承诺该接口的 fixup 表示，其他形式保守失败。原始入口仍严格验证保护标记，不允许 raw 校验失败后自动当作已修复记录放行。
+ 
+ ## 合成夹具与依据
+ 

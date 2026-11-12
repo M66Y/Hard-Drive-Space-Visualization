@@ -16,7 +16,7 @@ internal static class NtfsIndexTests
         var root = Decode(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name("root", parent: rootId)], sequence: 7, directory: true), 5);
         var file = Decode(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name("first.bin"),
             NtfsRecordFixtures.Name("second.bin"), NtfsRecordFixtures.Name("FIRST~1.BIN", 2),
-            NtfsRecordFixtures.Nonresident()], links: 2), 42);
+            NtfsRecordFixtures.Nonresident()], links: 3), 42);
         NtfsVolumeRecord R(NtfsRecord entry, ulong volume = 1) => new(volume, entry);
         var result = NtfsPrototypeIndex.Build([R(root), R(file)]);
         Check(result.Complete && result.FileObjects == 1 && result.KnownLogicalBytes == 12000 && result.KnownAllocatedBytes == 8192,

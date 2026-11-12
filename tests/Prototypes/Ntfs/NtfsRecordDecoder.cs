@@ -10,7 +10,7 @@ internal enum NtfsLookupReason
 {
     None = 0, AttributeList = 1, ExtensionRecord = 2, Compressed = 4, Sparse = 8,
     ReparsePoint = 16, NamedData = 32, Encrypted = 64, MissingData = 128,
-    LinkNamesIncomplete = 256, MissingStandardInformation = 512
+    LinkNamesIncomplete = 256, MissingStandardInformation = 512, ResidentAllocation = 1024
 }
 internal sealed record NtfsName(ulong ParentReference, string Name, byte Namespace);
 internal sealed record NtfsRecord(ulong Reference, ulong BaseReference, bool IsDirectory, ushort LinkCount,
@@ -32,6 +32,17 @@ internal static class NtfsRecordDecoder
 
     internal static NtfsDecodeResult Decode(ReadOnlySpan<byte> source, int sectorSize, ushort ntfsMajor = 3,
         ushort ntfsMinor = 1, CancellationToken token = default, ulong recordNumber = 0, int clusterSize = 4096)
+        => DecodeCore(source, sectorSize, ntfsMajor, ntfsMinor, token, recordNumber, clusterSize, false);
+
+    // Only for records returned by a successful, identity-checked kernel IOCTL.
+    // The public IOCTL contract does not specify USA representation. Never use
+    // this as a fallback after a raw disk record fails its integrity check.
+    internal static NtfsDecodeResult DecodeKernelReturned(ReadOnlySpan<byte> source, int sectorSize,
+        ulong recordNumber, int clusterSize, ushort ntfsMajor, ushort ntfsMinor, CancellationToken token = default)
+        => DecodeCore(source, sectorSize, ntfsMajor, ntfsMinor, token, recordNumber, clusterSize, true);
+
+    private static NtfsDecodeResult DecodeCore(ReadOnlySpan<byte> source, int sectorSize, ushort ntfsMajor,
+        ushort ntfsMinor, CancellationToken token, ulong recordNumber, int clusterSize, bool kernelReturned)
     {
         token.ThrowIfCancellationRequested();
         // The argument describes the update-sequence stride, not physical disk sector size.
@@ -50,12 +61,18 @@ internal static class NtfsRecordDecoder
             allocated != source.Length || used > allocated || !Fits(attributes, 4, (int)used)) return Invalid("RecordHeader");
         byte[] buffer = source.ToArray(); // At most 64 KiB, never mutate caller's bytes.
         ushort marker = U16(buffer, usa);
+        bool protectedTails = true, restoredTails = true;
+        for (int i = 1; i < usaCount; i++)
+        {
+            protectedTails &= U16(buffer, i * sectorSize - 2) == marker;
+            restoredTails &= U16(buffer, i * sectorSize - 2) == U16(buffer, usa + i * 2);
+        }
+        if (!protectedTails && (!kernelReturned || !restoredTails)) return Invalid("FixupMismatch");
         for (int i = 1; i < usaCount; i++)
         {
             token.ThrowIfCancellationRequested();
             int tail = i * sectorSize - 2;
-            if (U16(buffer, tail) != marker) return Invalid("FixupMismatch");
-            BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(tail), U16(buffer, usa + i * 2));
+            if (protectedTails) BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(tail), U16(buffer, usa + i * 2));
         }
         ReadOnlySpan<byte> record = buffer.AsSpan(0, (int)used);
         ushort flags = U16(record, 22), sequence = U16(record, 16), links = U16(record, 18);
@@ -131,7 +148,12 @@ internal static class NtfsRecordDecoder
                     if ((attrFlags & 1) != 0) reasons |= NtfsLookupReason.Compressed;
                     if ((attrFlags & 0x8000) != 0) reasons |= NtfsLookupReason.Sparse;
                     if ((attrFlags & 0x4000) != 0) reasons |= NtfsLookupReason.Encrypted;
-                    if (form == 0) { logical = value.Length; allocation = 0; }
+                    if (form == 0)
+                    {
+                        logical = value.Length;
+                        allocation = value.Length == 0 ? 0 : null;
+                        if (value.Length != 0) reasons |= NtfsLookupReason.ResidentAllocation;
+                    }
                     else
                     {
                         long allocatedBytes = I64(attr, 40), dataBytes = I64(attr, 48), initialized = I64(attr, 56);
@@ -151,8 +173,8 @@ internal static class NtfsRecordDecoder
         if (!sawEnd) return Invalid("MissingEndMarker");
         if (geometryMismatch && (reasons & (NtfsLookupReason.AttributeList | NtfsLookupReason.ExtensionRecord)) == 0) return Invalid("AllocationGeometry");
         if (!sawStandard && baseReference == 0) reasons |= NtfsLookupReason.MissingStandardInformation;
-        int entryNames = names.Where(n => n.Namespace != 2).Select(n => (n.ParentReference, n.Name)).Distinct().Count();
-        if (!directory && baseReference == 0 && (links == 0 || entryNames != links)) reasons |= NtfsLookupReason.LinkNamesIncomplete;
+        // Raw name-reference counts include separate DOS FILE_NAME attributes.
+        if (!directory && baseReference == 0 && (links == 0 || names.Count != links)) reasons |= NtfsLookupReason.LinkNamesIncomplete;
         if (directory) { logical = 0; allocation = 0; }
         else if (!sawData) reasons |= NtfsLookupReason.MissingData;
         if ((reasons & (NtfsLookupReason.AttributeList | NtfsLookupReason.ExtensionRecord | NtfsLookupReason.MissingData |

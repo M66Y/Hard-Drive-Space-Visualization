@@ -1,0 +1,77 @@
+{
+  "baseline": "7985876a34c512e83e8a0027d6bb0204582a8977",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "f8a8f3d6e15c7c5c46b3952636d5f735c087e6f876779148a28f239d73604f04"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "30500252a0ec6f28f88229cf827a003492d5e4277a2ffe656651f15d9535ad25"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "4f22f82ba1e07ad94fe0fd22a7aec2882496ca7660b940ec26def57aa518406e"
+    },
+    {
+      "path": "docs/ntfs-fast-scan-plan.md",
+      "sha256": "a78f27dbcb8d20cfb3356f8b7b69504ad2ff57d791767e2f774b5d1b626258bc"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "d074fcfcef6ac464c6af82f1c2afa3f8cd87fb7c1db1d0e3cc1ee9ad0fdc0c7b"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsRecordDecoder.cs",
+      "sha256": "f709ddefff41e6ba62ccb01412604d5e22d4c952237d3795661d1c5311907af8"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsLivePrototype.cs",
+      "sha256": "52017227812d1064b8c17a0a8af5e92d0a4c9badfeb85aa736cc6e623fa8b421"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsIndexTests.cs",
+      "sha256": "174167145c3f1882a9e3c9748273b7fe4a1f5e3c2c7337e8234ac8065636f1d6"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsPrototypeTests.cs",
+      "sha256": "eff84aee4ff1eccdf1cfc4154aeea897e8b147044347aa908a276721a0763dbb"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/README.md",
+      "sha256": "ad1a988e1e32d40d13d3052ac5343029745b8598761719d77487883f7ddbeee2"
+    },
+    {
+      "path": "tests/NtfsFixtureGuards.Tests.ps1",
+      "sha256": "0157a73b3bb0c79fe3b1a5de32fce2191f13c497daca088a1fa627c2553e51be"
+    },
+    {
+      "path": "scripts/ntfs-prototype/Invoke-NtfsFixture.ps1",
+      "sha256": "2193bd90414dbcdaad79cc26b0ed2c980b86f2c7e737586545a9e8652562c125"
+    },
+    {
+      "path": "scripts/ntfs-prototype/README.md",
+      "sha256": "00e4b6ab7e78f33367039e1266856ad46132855e6e3c46a5429465dca3a3a352"
+    },
+    {
+      "path": "iterations/2026-11-12-03-ntfs-vhd/README.md",
+      "sha256": "48eb043dabd2369786bcc02eff251ead281d4711202bc3a4ce818ffa1db51070"
+    },
+    {
+      "path": "iterations/2026-11-12-03-ntfs-vhd/live-attempts.json",
+      "sha256": "e70bb79e2840a998a7d4b4d3f659084147f0506fd776f94d3577005d8d5ea8cd"
+    },
+    {
+      "path": "iterations/2026-11-12-03-ntfs-vhd/changes.patch",
+      "sha256": "eecd574cd256e3010c1fd7698638930269ecd119bdb6d0449e5931af262976de"
+    }
+  ],
+  "synthetic_checks": 86,
+  "guard_checks": 36,
+  "core_checks": 38,
+  "advanced_checks": 25,
+  "live_checks": 140,
+  "fixture_detached": true,
+  "fixture_cleaned": true,
+  "performance_measured": false
+}

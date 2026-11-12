@@ -27,10 +27,27 @@ internal static class NtfsPrototypeTests
             var bytes = NtfsRecordFixtures.File(); var unchanged = bytes.ToArray();
             var resident = Read(bytes);
             Check(resident.Reference == NtfsRecordFixtures.Reference(42, 3), "full reference uses external slot and sequence");
-            Check(resident.LogicalBytes == 17 && resident.AllocatedBytes == 0, "resident default DATA excludes independent data clusters");
+            Check(resident.LogicalBytes == 17 && resident.AllocatedBytes is null, "resident default DATA allocation needs native-size lookup");
             Check(bytes.SequenceEqual(unchanged), "fixup does not mutate caller record");
+            var kernelRaw = NtfsRecordDecoder.DecodeKernelReturned(bytes, 512, 42, 4096, 3, 1);
+            Check(kernelRaw.Status == NtfsDecodeStatus.Decoded, "kernel-returned entry also accepts all raw fixup markers");
+            var restored = bytes.ToArray();
+            NtfsRecordFixtures.U16(restored, 510, BitConverter.ToUInt16(restored, 50));
+            NtfsRecordFixtures.U16(restored, 1022, BitConverter.ToUInt16(restored, 52));
+            Check(Decode(restored).Status == NtfsDecodeStatus.Invalid, "raw decoder strictly rejects already-restored sector tails");
+            var restoredBefore = restored.ToArray();
+            var kernelRestored = NtfsRecordDecoder.DecodeKernelReturned(restored, 512, 42, 4096, 3, 1);
+            Check(kernelRestored.Status == NtfsDecodeStatus.Decoded && kernelRestored.Record?.Reference == resident.Reference &&
+                kernelRestored.Record.LogicalBytes == resident.LogicalBytes, "kernel-returned entry accepts uniformly restored tails");
+            Check(restored.SequenceEqual(restoredBefore), "kernel-returned decoding preserves caller bytes");
+            var mixedTails = bytes.ToArray(); NtfsRecordFixtures.U16(mixedTails, 510, BitConverter.ToUInt16(mixedTails, 50));
+            Check(NtfsRecordDecoder.DecodeKernelReturned(mixedTails, 512, 42, 4096, 3, 1).Status == NtfsDecodeStatus.Invalid,
+                "kernel-returned entry rejects mixed raw and restored tails");
+            var badKernelTail = restored.ToArray(); NtfsRecordFixtures.U16(badKernelTail, 510, 0x1234);
+            Check(NtfsRecordDecoder.DecodeKernelReturned(badKernelTail, 512, 42, 4096, 3, 1).Status == NtfsDecodeStatus.Invalid,
+                "kernel-returned entry rejects unmatched tail values");
             Check(resident.Names.Count == 1 && resident.Names[0].Name == "demo.bin" && resident.Names[0].ParentReference == NtfsRecordFixtures.Parent, "name and parent identity decoded");
-            Check(resident.LookupReasons == NtfsLookupReason.None, "simple supported file needs no lookup");
+            Check(resident.LookupReasons == NtfsLookupReason.ResidentAllocation, "resident allocation is not misrepresented as known zero");
             var zero = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Data(0)));
             Check(zero.LogicalBytes == 0 && zero.AllocatedBytes == 0, "empty DATA remains known zero");
             var nonresident = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Nonresident()));
@@ -47,8 +64,8 @@ internal static class NtfsPrototypeTests
             Check(Decode(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name(), NtfsRecordFixtures.Data(), metadataFlags], addStandard: false)).Status == NtfsDecodeStatus.Unsupported, "flagged STANDARD_INFORMATION cannot silently supply trusted metadata");
             var unicode = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name("演示 🗂.txt"), NtfsRecordFixtures.Data()));
             Check(unicode.Names[0].Name == "演示 🗂.txt", "Unicode UTF16 name roundtrip");
-            var links = Read(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name("first.bin"), NtfsRecordFixtures.Name("second.bin", 1, NtfsRecordFixtures.Reference(9, 2)), NtfsRecordFixtures.Name("FIRST~1.BIN", 2), NtfsRecordFixtures.Data()], links: 2));
-            Check(links.LinkCount == 2 && links.Names.Count == 3 && links.Names.Count(n => n.Namespace == 2) == 1, "hard-link names and DOS alias preserved separately");
+            var links = Read(NtfsRecordFixtures.Record([NtfsRecordFixtures.Name("first.bin"), NtfsRecordFixtures.Name("second.bin", 1, NtfsRecordFixtures.Reference(9, 2)), NtfsRecordFixtures.Name("FIRST~1.BIN", 2), NtfsRecordFixtures.Data()], links: 3));
+            Check(links.LinkCount == 3 && links.Names.Count == 3 && links.Names.Count(n => n.Namespace == 2) == 1, "hard-link names and DOS alias preserved separately");
             var combined = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name("both.txt", 3), NtfsRecordFixtures.Data()));
             Check(combined.Names[0].Namespace == 3, "combined Win32 DOS namespace supported");
             var named = Read(NtfsRecordFixtures.File(NtfsRecordFixtures.Name(), NtfsRecordFixtures.Data(4), NtfsRecordFixtures.Data(9, "meta")));
@@ -141,6 +158,10 @@ internal static class NtfsPrototypeTests
                 source.Cancel();
                 try { NtfsRecordDecoder.Decode(bytes, 512, token: source.Token); }
                 catch (OperationCanceledException) { cancelled = true; }
+                bool kernelCancelled = false;
+                try { NtfsRecordDecoder.DecodeKernelReturned(restored, 512, 42, 4096, 3, 1, source.Token); }
+                catch (OperationCanceledException) { kernelCancelled = true; }
+                Check(kernelCancelled, "cancelled kernel-returned decoding publishes no record");
             }
             Check(cancelled, "cancelled decode exits without publishing a record");
             passed += NtfsIndexTests.Run();

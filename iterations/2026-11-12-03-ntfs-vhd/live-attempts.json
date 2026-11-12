@@ -1,0 +1,42 @@
+[
+  {
+    "attempt": 1,
+    "status": "failed",
+    "stage": "CreateImage",
+    "code": "IMAGE_CREATION_FAILED",
+    "checks": 0,
+    "failures": 0,
+    "detached": true,
+    "cleanup_completed": true
+  },
+  {
+    "attempt": 2,
+    "status": "failed",
+    "stage": "RunRecordComparison",
+    "code": "AllocationMatchesNative",
+    "checks": 52,
+    "failures": 1,
+    "detached": true,
+    "cleanup_completed": true
+  },
+  {
+    "attempt": 3,
+    "status": "failed",
+    "stage": "RunRecordComparison",
+    "code": "DirectoryAndLinkCount",
+    "checks": 85,
+    "failures": 1,
+    "detached": true,
+    "cleanup_completed": true
+  },
+  {
+    "attempt": 4,
+    "status": "passed",
+    "stage": "ComparisonPassed",
+    "code": "None",
+    "checks": 140,
+    "failures": 0,
+    "detached": true,
+    "cleanup_completed": true
+  }
+]

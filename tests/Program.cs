@@ -5,6 +5,12 @@ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.F
 
 if (args.Contains("--package-smoke")) return PackageSmoke.Run();
 if (args.Contains("--ntfs-prototype-tests")) return DiskAtlas.NtfsPrototype.NtfsPrototypeTests.Run();
+if (args.Contains("--ntfs-live-prototype"))
+{
+    if (args.Length == 2 && args[0] == "--ntfs-live-prototype") return DiskAtlas.NtfsPrototype.NtfsLivePrototype.Run(args[1]);
+    Console.Error.WriteLine("NTFS live prototype requires a fixture manifest from the isolated VHD harness.");
+    return 2;
+}
 if (args.Contains("--app-data-location-tests")) return AppDataLocationTests.Run();
 
 if (args.Contains("--desktop-compatibility")) return DesktopCompatibility.Run();
