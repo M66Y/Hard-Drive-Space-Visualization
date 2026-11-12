@@ -1,6 +1,39 @@
 using DiskAtlas;
 using System.Drawing;
 
+if (args.Length > 0 && args[0] == "--ntfs-vss-scale-live")
+{
+    if (args.Length != 3 || !int.TryParse(args[2], out int count) || count is not (10000 or 100000))
+    { Console.Error.WriteLine("FAIL NTFS snapshot scale arguments"); return 1; }
+    return DiskAtlas.NtfsPrototype.NativeVssScaleExperiment.Run(args[1], count);
+}
+if (args.Length > 0 && args[0] == "--ntfs-vss-scale-tests")
+{
+    if (args.Length != 1) { Console.Error.WriteLine("FAIL NTFS snapshot scale arguments"); return 1; }
+    try { int n = DiskAtlas.NtfsPrototype.NativeVssScaleExperimentTests.Run(); Console.WriteLine($"PASS NTFS snapshot scale: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL NTFS snapshot scale; no private details emitted"); return 1; }
+}
+if (args.Length > 0 && args[0] == "--ntfs-volume-preflight")
+{
+    if (args.Length != 2 && !(args.Length == 3 && args[2] == "--read-metadata-handle"))
+    { Console.Error.WriteLine("FAIL NTFS metadata arguments"); return 1; }
+    return DiskAtlas.NtfsPrototype.NtfsVolumePreflight.Run(args[1], readMetadataHandle: args.Length == 3);
+}
+if (args.Length > 0 && args[0] == "--ntfs-volume-preflight-tests")
+{
+    try { int n = DiskAtlas.NtfsPrototype.NtfsVolumePreflightTests.Run(); Console.WriteLine($"PASS NTFS metadata checks: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL NTFS metadata checks; no private details emitted"); return 1; }
+}
+if (args.Length > 0 && args[0] == "--ntfs-snapshot-namespace-tests")
+{
+    try { int n = DiskAtlas.NtfsPrototype.NtfsSnapshotNamespaceTests.Run(); Console.WriteLine($"PASS NTFS snapshot namespace: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL NTFS snapshot namespace; no private details emitted"); return 1; }
+}
+if (args.Length > 0 && args[0] == "--ntfs-snapshot-size-tests")
+{
+    try { int n = DiskAtlas.NtfsPrototype.NtfsSnapshotSizeIndexTests.Run(); Console.WriteLine($"PASS NTFS snapshot sizes: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL NTFS snapshot sizes; no private details emitted"); return 1; }
+}
 if (args.Length > 0 && args[0] == "--ntfs-vss-live")
 {
     if (args.Length != 2) { Console.Error.WriteLine("FAIL NTFS snapshot arguments"); return 1; }
@@ -13,7 +46,9 @@ if (args.Length > 0 && args[0] == "--ntfs-vss-tests")
     {
         int checks = DiskAtlas.NtfsPrototype.NtfsVssFixtureProbeTests.Run();
         int guards = DiskAtlas.NtfsPrototype.NtfsVerifiedFixtureContextTests.RunVss();
-        Console.WriteLine($"PASS NTFS snapshot checks: {checks} probe; {guards} guards; synthetic calls only");
+        int readers = DiskAtlas.NtfsPrototype.NtfsSnapshotVolumeReaderTests.Run();
+        int scaleGuards = DiskAtlas.NtfsPrototype.NtfsVerifiedFixtureContextTests.RunVssScale();
+        Console.WriteLine($"PASS NTFS snapshot checks: {checks} probe; {guards} guards; {readers} reader; {scaleGuards} scale guards; synthetic calls only");
         return 0;
     }
     catch { Console.Error.WriteLine("FAIL NTFS snapshot checks; no private details emitted"); return 1; }

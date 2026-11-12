@@ -1,35 +1,33 @@
 # AsukaLens 开发检查点
 
-2026-11-12；C23基线5209462cb2f2b4aa9118415bd3b1671730f775e8。C23规模/自有VSS实现与真实验收已完成，提交绑定以archive23/Git为准。用户同一请求继续C24；新工作区文件不混入C23补丁。正式版仍v1.5.0，不打包/Release。
+2026-11-12。C23已提交推送d8dbf2fcd44fd47fcc273e906e8f2a3eebbacab1，39文件/manifest38项已从committed blobs验证；C24基线此sha，归档iterations/2026-11-12-24-snapshot-scan。正式版仍v1.5.0，无打包/Release。
 
-## 用户目标与当前授权
+## 最新用户指令与暂停
 
-用户要求规模/实际速度，并尽快个人卷与主窗。C23批准：新1GiB owned VHD10k/100k，262144槽/raw256MiB+64KiB/8192calls；另新owned1GiB VSS小探针，不host配置/个人卷。C23三项最终合并Native全过并清理。
+用户要求十五分钟内推进，14:43:37–14:58:37 UTC，到点未完成部分暂停。当前只收尾，不再开新Native/构建/UI功能。C24测试后端已完成验证，个人卷/主窗/IPC仍未完成，不标整个用户目标完成。截止后等待用户新消息再执行。
 
-用户随后已批准 docs/ntfs-scale-and-product-plan.md 最后一节下一合并块：同snapshot完整namespace、compact sizes、bounded parallel Native，允许本轮新1GiB VHD组合10k/100k VSS对照，同原预算；正确性/收益成立再接普通权限主窗实验入口/短命助手/可靠fallback。另指定个人卷只查FS/能力/MFT长度，**不读其records/names/content、不建个人snapshot、具体结果不入repo**。盘符以最新用户答复为准，不推断其它卷。当前没有指定时长，不沿用旧14:21/两小时窗口。
+授权本轮新1GiB自有VHD，结合10k/100k VSS同源核验与性能对照；单独读取会话≤262144槽/raw256MiB+64KiB/8192calls，每owner一次reader预算不重置。六独立snapshot同静态数据，3×MFT/3×Directory，无warmup；总raw另列。个人卷仅明确指定的metadata预检(128B FSCTL)，不records/names/content或personal snapshot；具体值不入repo，私有结果已删除。后续不能自动沿用为个人原始读取许可。
 
-## C23结果
+## C24实际结果
 
-最终Release测试DLL0warn0error，SHA256 651e52caf631ecc42b8206af33c9861e67fa0506efcfcd210abe49ea5141a929，SDK10.0.403；冻结binary后无再build。Scale146(12prefix/7lease/8collector/90index/29orchestration)，VSS80(60probe/20guard)；旧fast12+43/prefix94/lease108/Guard314+source63。PS Scale102、VSS372、driver84、old/Scale guards各36全过。独审无剩余阻塞。
+Namespace batch19/20：完整IDs/游标/父链/预算，不信cached size。SizeIndex只解selected slots，不保全卷names，8worker/queue128/32768 Native unknown对象一次补，矛盾wholefail，所有worker退出后才cleanup。Owner/Reader真实source受新fixture-vss-scale Guard绑定，COM same-thread，失败cleanupflag保留。
 
-10k/100k最终真实各6次fingerprint一致，10000/100000对象、10010/100010入口、100目录，逻辑8234240/82250240、分配32800000/328000000、unknown0。MFT中位1079.4705/10309.1579ms；八路Directory913.0836/9148.8443ms。没有提速；Directory连续warm样本53.8965/606.2948ms保留，不能只挑慢样本。锁卷影响缓存(官方flush并NTFS视dismount)，未量化各因素；不等未来VSS或WizTree结果。
+最终build0warn0error。pure：preflight64、namespace84、size46、NativeVssScale28；VSS79probe+20legacyguard+73reader+20scaleguard；PS newVssScale1027/driver266/ScaleGuards36通过，独审无阻塞。
 
-VSS最终vss_verified，3files/4strictRawRecords，4raw calls/4096bytes；live改写后snapshot Native/32bytes内容/raw均保持原值；本次snapshot创建删除、同source属性/geometry、读者关闭、卸载清理全true。所有本轮owned VHD dirs0；无Native/UAC/exec仍运行。
+初始两Native在SnapshotCreate失败，均cleaned；主因同进程多session重复CoInitializeSecurity。已改本组件成功后进程复用，外部RPC_E_TOO_LATE仍拒，补4反例。Open不丢fixed typed.Code；wrapper保存安全stage/native_error。修后真实10k/100k各6sessions全部fingerprint一致，legacy小Probe重验过；所有ownedVHD/snapshots清理，active Native/UAC/exec为0。
 
-最初10k runner0但PS硬断言resident0拒摘要，已存initial-transport-failure.json不当通过；已核历史Native logical32=>alloc32。PS改实测有界并补非0case。中途管理员启动not-started，用户未看到提示；未建盘。用户明确retry后一次admin driver三项全过。
+10k fullwall median MFT562.5395ms / Directory1376.3029ms；100k3022.9848 /11072.2267ms（此受控数据约3.663x）。含Create/backend/cleanup；指纹在时钟外，WSS20ms采样非绝对peak，不等个人盘/Win10/WizTree。counts10000/100000objects，10010/100010entries，各100dirs；logical8234240/82250240，Nativeallocated32800000/328000000，unknown0。100k每raw102577664bytes/10000 NativeSupplementCalls，3raw累计另列。
 
-archive iterations/2026-11-12-23-ntfs-scale-and-source 已有README/validation/5JSON，待root恢复patch/manifest/cleanup/统一commit push。native副本仍artifacts中待核hash后删。VSSroutes已恢复，临时ntfs-vss-routes.tmp已删。旧kernel六样本8files9683B仅ignored本机保留不动。
+C23持锁对照未提速(1.079/10.309s vs0.913/9.149s)，锁卷缓存混杂保留全样本，不能拿它当新VSS路线速度。当前新结果仅自有固定普通混合夹具。
 
-## 当前C24分工/未验收文件
+## 当前文件/收尾
 
-Root收尾C23并负责C24共享源码迁移/程序集接入、VHD+VSS规模driver、mainUI/IPC条件组装。暂不build，等C23commit。三agent只新增C24文件，不动C23冻结文件，不实际query/Native。
+C24所有dirty均为本任务，Root负责Program/wrapper/driver/docs/archive/memory；attribute Owner/Reader/Guard/preflight，Source SizeIndex/NativeRunner，PSagent Namespace/PS门/driver tests。各作者已封板不再编辑/构建。旧kernel六样本8files9683B ignored保留不动。C24 7份结果已hash核对归档后删本机副本，private metadata不归档已删，owned目录0，无重复Preview。
 
-- attribute_probe新增 NtfsVolumePreflight.cs/Tests：Run(selectedRoot)只本地盘符根，GetVolumeInformationW无label/serial输出，access0 CreateFile+0x90064最多128B，不ReadFile。fake parser；未实际预检。随后负责提取VssOwner/Reader共享代码，等root边界放行。
-- special_tests_plan新增 NtfsSnapshotNamespace.cs/Tests：GetFileInformationByHandleEx19/20，无BytesReturned；清零64KiB页面用NextEntryOffset/UTF16len闭合，error18结束；BFS root0/entry parent/name/fullID/attrs，handle identity/pin、重复页/name/cycle/预算；不信cached size/不mint真实source；reparse当前whole fallback。
-- special_contract新增 NtfsSnapshotSizeIndex.cs/Tests：消费完整inventory，只retain选中ID sizes；严格全MFT decode不保全卷name；同snapshot单次Native补，8worker/queue128/32768对象，ID/EOF/link/dir校验。mapUnsupported丢整个attempt，不硬跳系统槽。三方正在锁API，无联编验收，仍唯一builder待root通知。
+Root正在作C24统一补丁/SHA/隐私检查与commit/push main；提交结果以Git为准。恢复补丁必须使用versioned baseline bytes及命令级core.autocrlf=false（global true/local false），避免换行转换；C23已用binary-safe patch逐字节恢复37payload。不要为小helper拆轮、不要force、不要新Release。
 
-## 必须保留的正确性/下一步
+## 接续优先项
 
-CompleteWithinObservedRecords不能证明个人scope，任何在用无法解析且不能积极排除的记录都PotentiallyInScope。当前MainForm返回任意ScanResult即覆盖旧完整，Live.Attach只一次。产品快路需要namespace完整入口authority，缺页/unknown/reparse/引用/预算失败则清理后独立session常规fallback，用户取消不自动重扫，cleanup未确认不启动下后端。snapshot结果不复用live journal checkpoint；UI定位原路径须核当前identity。
+个人实际卷规模超过当前全MFT范围假设，具体值不存；需设计选中范围的高slot/位图寻址与预算，再评估个人来源。生产权限助手/受限IPC/普通权限MainForm可选入口尚未实现。当前代码仍tests/Prototypes/Ntfs，不宣称已上线快扫；先把共享代码/通用来源整理并以受控卷验收，实际个人snapshot/records另行明确范围。
 
-当前生产仍普通遍历，个人快扫/主UI/IPC/Win10新路径未实现。不能因VSS小探针过就宣称个人磁盘支持。C24真实preflight结果不放记忆/仓库；个人snapshot未授权。完成当前已批准范围和必要检查后收尾，不为每helper拆轮/审批。
+MainForm正常返回ScanResult会替换oldcomplete、Live.Attach只一次；快路partial/unknown不能正常return，cleanup确认后独立session常规fallback，用户cancel不重扫。snapshot结果不复用live journal checkpoint；当前个人元信息预检不意味着完整扫描支持。暂停时不继续路线图。

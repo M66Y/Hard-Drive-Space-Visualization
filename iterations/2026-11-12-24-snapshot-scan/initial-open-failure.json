@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "mode": "fixture-vss-scale",
+  "status": "failed",
+  "stage": "RunSnapshotScale",
+  "code": "VssScaleSourceFailed",
+  "exit_code": 1,
+  "detached": true,
+  "cleanup_completed": true,
+  "scale_benchmark": null,
+  "snapshot_cleanup_confirmed": true,
+  "vss_scale": null
+}

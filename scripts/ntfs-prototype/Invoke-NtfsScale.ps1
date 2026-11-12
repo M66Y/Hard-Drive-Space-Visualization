@@ -2,12 +2,14 @@
 [CmdletBinding(DefaultParameterSetName='Scale')]
 param([Parameter(Mandatory)][string]$ResultPath,
     [Parameter(Mandatory,ParameterSetName='Scale')][ValidateSet(10000,100000)][int]$FileCount,
-    [Parameter(Mandatory,ParameterSetName='Snapshot')][switch]$Snapshot)
+    [Parameter(Mandatory,ParameterSetName='Snapshot')][switch]$Snapshot,
+    [Parameter(Mandatory,ParameterSetName='SnapshotScale')][ValidateSet(10000,100000)][int]$SnapshotFileCount)
 
 # Isolated scale mode: never accepts an existing image, disk or target directory.
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 if ($PSCmdlet.ParameterSetName -ceq 'Snapshot' -and -not $Snapshot) { throw 'SNAPSHOT_SWITCH_REQUIRED' }
+$usingSnapshots=[bool]($Snapshot -or $SnapshotFileCount)
 $repositoryRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $artifactsRoot=[IO.Path]::GetFullPath((Join-Path $repositoryRoot 'artifacts'))
 $fixtureNonce=[guid]::NewGuid().ToString('N')
@@ -16,13 +18,16 @@ $imagePath=Join-Path $workspace 'fixture.vhd'
 $runnerPath=Join-Path $repositoryRoot 'tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll'
 $stage='ValidateArguments'; $mounted=$false; $mountAttempted=$false; $workspaceOwned=$false
 $detached=$false; $cleaned=$false; $runner=$null; $runnerExit=$null; $runnerStopped=$true
-$status='failed'; $failureCode=$(if($Snapshot){'VssProbeFailed'}else{'ScaleFailed'}); $scaleEvidence=$null
+$status='failed'; $failureCode=$(if($SnapshotFileCount){'VssScaleFailed'}elseif($Snapshot){'VssProbeFailed'}else{'ScaleFailed'}); $scaleEvidence=$null
 $vssEvidence=$null; $snapshotCleanupConfirmed=$false; $snapshotRunnerAttempted=$false
+$vssScaleEvidence=$null
+$snapshotNativeError=0
 $observedCounts=$null
 $diskNumber=$null; $diskPath=$null; $imageDevicePath=$null
 . (Join-Path $PSScriptRoot 'KernelMatrixEvidence.ps1')
 . (Join-Path $PSScriptRoot 'ScaleEvidence.ps1')
 if ($Snapshot) { . (Join-Path $PSScriptRoot 'VssFixtureEvidence.ps1') }
+if ($SnapshotFileCount) { . (Join-Path $PSScriptRoot 'VssScaleEvidence.ps1') }
 function Assert-NoReparsePath([string]$Path) {
     $full = [IO.Path]::GetFullPath($Path)
     $current = $full
@@ -187,17 +192,19 @@ public static class AsukaLensScaleImage {
     $confirmedVolume = @($confirmedPartition | Get-Volume -ErrorAction Stop)
     if ([string]$confirmedPartition.DriveLetter -cne $driveLetter -or $confirmedVolume.Count -ne 1 -or
         [string]$confirmedVolume[0].UniqueId -cne $volumeId) { throw 'VOLUME_CHANGED_BEFORE_MARKER' }
-    $mode = if ($Snapshot) { 'fixture-vss' } else { 'fixture-scale' }
+    $mode = if ($SnapshotFileCount) { 'fixture-vss-scale' } elseif ($Snapshot) { 'fixture-vss' } else { 'fixture-scale' }
     $fixture = [ordered]@{schema=1;image_path=$imagePath;volume_guid=[string]$volume.UniqueId;drive_root=$driveRoot;workspace=$workspace;nonce=$fixtureNonce;mode=$mode}
     $manifestPath = Join-Path $workspace 'fixture.json'
     Write-SafeJson $fixture $manifestPath
     Write-SafeJson $fixture (Join-Path $driveRoot '.asukalens-ntfs-fixture.json')
 
-    $stage = if ($Snapshot) { 'RunSnapshotProbe' } else { 'RunScaleBenchmark' }
+    $stage = if ($SnapshotFileCount) { 'RunSnapshotScale' } elseif ($Snapshot) { 'RunSnapshotProbe' } else { 'RunScaleBenchmark' }
     [void](Get-OwnedPartition $partitionNumber)
-    $runnerArgs = if ($Snapshot) { @(('"' + $runnerPath + '"'),'--ntfs-vss-live',('"' + $manifestPath + '"')) } else {
+    $runnerArgs = if ($SnapshotFileCount) {
+        @(('"' + $runnerPath + '"'),'--ntfs-vss-scale-live',('"' + $manifestPath + '"'),[string]$SnapshotFileCount)
+    } elseif ($Snapshot) { @(('"' + $runnerPath + '"'),'--ntfs-vss-live',('"' + $manifestPath + '"')) } else {
         @(('"' + $runnerPath + '"'),'--ntfs-scale-live',('"' + $manifestPath + '"'),[string]$FileCount) }
-    $snapshotRunnerAttempted=[bool]$Snapshot
+    $snapshotRunnerAttempted=$usingSnapshots
     $runner = Start-Process -FilePath $dotnetPath -WorkingDirectory $repositoryRoot -ArgumentList $runnerArgs -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput (Join-Path $workspace 'runner.stdout') -RedirectStandardError (Join-Path $workspace 'runner.stderr')
     $runnerStopped = $false
@@ -214,7 +221,7 @@ public static class AsukaLensScaleImage {
     $summaryText=Get-Content -LiteralPath $summaryPath -Raw -Encoding utf8
     Assert-UniqueJsonKeys $summaryText
     $summary=$summaryText | ConvertFrom-Json
-    if (-not $Snapshot -and $summary.PSObject.Properties['scale_benchmark'] -and
+    if (-not $usingSnapshots -and $summary.PSObject.Properties['scale_benchmark'] -and
         $null -ne $summary.scale_benchmark -and $summary.scale_benchmark.PSObject.Properties['ResultCounts']) {
         $counts=$summary.scale_benchmark.ResultCounts
         $fields=@('FileObjects','FileEntries','Directories','LogicalBytes','AllocatedBytes','UnknownAllocationFiles')
@@ -231,11 +238,21 @@ public static class AsukaLensScaleImage {
             if ($validCounts) { $observedCounts=$safe }
         }
     }
-    if ($Snapshot) {
+    if ($SnapshotFileCount) {
+        $validated=ConvertTo-NtfsVssScaleEnvelope $summary $SnapshotFileCount
+        $snapshotCleanupConfirmed=$validated.cleanup_confirmed
+        $failureCode=$validated.code
+        $stage='SnapshotScale.'+$validated.stage
+        $snapshotNativeError=$validated.native_error
+        if($runnerExit -ne 0 -or $validated.status -cne 'vss_scale_benchmarked'){throw 'VSS_SCALE_FAILED'}
+        $vssScaleEvidence=$validated.vss_scale
+        $status='vss_scale_benchmarked'; $failureCode='None'; $stage='SnapshotScaleCompared'
+    } elseif ($Snapshot) {
         # Validate the complete envelope before accepting the cleanup statement.
         $validated = ConvertTo-NtfsVssFixtureEnvelope $summary
         $snapshotCleanupConfirmed = $validated.cleanup_confirmed
         $failureCode = $validated.code
+        $snapshotNativeError=$validated.native_error
         if ($runnerExit -ne 0 -or $validated.status -cne 'vss_verified') { throw 'VSS_PROBE_FAILED' }
         $vssEvidence=$validated.vss_evidence
         $status='vss_verified'; $failureCode='None'; $stage='SnapshotProbeCompared'
@@ -251,7 +268,7 @@ public static class AsukaLensScaleImage {
 } catch {
     # Never export exception text, device identifiers, raw records or file lists.
     $status='failed'
-    if (-not $Snapshot -and $_.Exception.Message -cin @('SCALE_EVIDENCE_INVALID','SCALE_SUMMARY_MISSING','RUNNER_LIMIT')) {
+    if (-not $usingSnapshots -and $_.Exception.Message -cin @('SCALE_EVIDENCE_INVALID','SCALE_SUMMARY_MISSING','RUNNER_LIMIT')) {
         $failureCode=switch -CaseSensitive ($_.Exception.Message) {
             'SCALE_EVIDENCE_INVALID' { 'ScaleEvidenceRejected' }
             'SCALE_SUMMARY_MISSING' { 'ScaleSummaryMissing' }
@@ -268,7 +285,7 @@ public static class AsukaLensScaleImage {
     }
     try {
         if (-not $runnerStopped) { throw 'RUNNER_STILL_ACTIVE' }
-        if ($Snapshot -and $snapshotRunnerAttempted -and -not $snapshotCleanupConfirmed) { throw 'SNAPSHOT_CLEANUP_NOT_CONFIRMED' }
+        if ($usingSnapshots -and $snapshotRunnerAttempted -and -not $snapshotCleanupConfirmed) { throw 'SNAPSHOT_CLEANUP_NOT_CONFIRMED' }
         if ($mountAttempted) {
             $images = @(Get-DiskImage -ImagePath $imagePath -ErrorAction Stop)
             if ($images.Count -ne 1) { throw 'IMAGE_CLEANUP_BINDING' }
@@ -280,12 +297,14 @@ public static class AsukaLensScaleImage {
         if ($workspaceOwned) { Assert-OwnedTree; Remove-Item -LiteralPath $workspace -Recurse -Force }
         $cleaned = $true
     } catch { $status = 'cleanup_failed' }
-    $result=[ordered]@{schema=1;mode=$(if($Snapshot){'fixture-vss'}else{'fixture-scale'});status=$status;stage=$stage;code=$failureCode;
+    $result=[ordered]@{schema=1;mode=$(if($SnapshotFileCount){'fixture-vss-scale'}elseif($Snapshot){'fixture-vss'}else{'fixture-scale'});status=$status;stage=$stage;code=$failureCode;
         exit_code=$runnerExit;detached=$detached;cleanup_completed=$cleaned;
         scale_benchmark=$(if($status -ceq 'scale_benchmarked'){$scaleEvidence}else{$null})}
-    if ($Snapshot) {
+    if ($usingSnapshots) {
         $result.snapshot_cleanup_confirmed=$snapshotCleanupConfirmed
-        $result.vss_evidence=if($status -ceq 'vss_verified'){$vssEvidence}else{$null}
+        $result.native_error=$snapshotNativeError
+        if($SnapshotFileCount){$result.vss_scale=if($status -ceq 'vss_scale_benchmarked'){$vssScaleEvidence}else{$null}}
+        else{$result.vss_evidence=if($status -ceq 'vss_verified'){$vssEvidence}else{$null}}
     } elseif ($status -ceq 'failed' -and $null -ne $observedCounts) {
         # Failure-only diagnostic counts are not benchmark success evidence.
         $result.observed_counts=$observedCounts
@@ -298,4 +317,4 @@ public static class AsukaLensScaleImage {
     } finally { if(Test-Path -LiteralPath $resultTemp){Remove-Item -LiteralPath $resultTemp -Force} }
 }
 Write-Output ('RESULT: '+$status)
-if($status -cnotin @('scale_benchmarked','vss_verified')){exit 1}
+if($status -cnotin @('scale_benchmarked','vss_verified','vss_scale_benchmarked')){exit 1}

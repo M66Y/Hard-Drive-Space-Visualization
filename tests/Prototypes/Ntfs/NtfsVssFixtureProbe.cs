@@ -16,37 +16,11 @@ internal sealed record NtfsVssFixtureEvidence(string Revision, string Stage, int
 // volume, snapshot ID/device, Native verifier, or source-proof boolean from CLI.
 internal static class NtfsVssFixtureProbe
 {
-    internal static readonly Guid SystemProvider = new("b5946137-7b9f-4925-af80-51abd60b20d5");
-    internal const int InitializeSlot = 5, ContextSlot = 35, StartSlot = 36, AddSlot = 37,
-        SnapshotSlot = 38, DeleteSlot = 39, PropertiesSlot = 42, SupportedSlot = 44;
-    internal const int ObjectNotFound = unchecked((int)0x80042308), AsyncPending = 0x42309,
-        AsyncFinished = 0x4230a, AsyncCancelled = 0x4230b;
-    [StructLayout(LayoutKind.Sequential)] internal struct SnapshotProperties
-    {
-        internal Guid Snapshot, Set;
-        internal int Count;
-        internal IntPtr Device, Original, OriginatingMachine, ServiceMachine, ExposedName, ExposedPath;
-        internal Guid Provider;
-        internal int Attributes;
-        internal long Created;
-        internal int State;
-    }
-    internal static void Require(bool value, string code, int error = 0)
-    { if (!value) throw new NtfsVssProbeException(code, error); }
-    internal static Guid AdoptGuid(int result, Guid value, string code)
-    { if (result < 0) throw new NtfsVssProbeException(code, result); Require(value != Guid.Empty, code); return value; }
-    internal static bool BindingValid(Guid snapshot, Guid set, Guid returnedSnapshot, Guid returnedSet, int count,
-        Guid provider, int attributes, int state, string original, string expectedOriginal, string device) =>
-        snapshot != Guid.Empty && set != Guid.Empty && snapshot == returnedSnapshot && set == returnedSet && count == 1 &&
-        provider == SystemProvider && (attributes & 0x10) != 0 && (attributes & (1 | 8)) == 0 && state == 12 &&
-        string.Equals(original, expectedOriginal, StringComparison.OrdinalIgnoreCase) &&
-        device != null && System.Text.RegularExpressions.Regex.IsMatch(device,
-            @"^\\\\\?\\GLOBALROOT\\Device\\HarddiskVolumeShadowCopy[0-9]+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
+    internal static void Require(bool value, string code, int error = 0) { if (!value) throw new NtfsVssProbeException(code, error); }
     internal static int Run(string manifest, CancellationToken token = default)
     {
         int checks = 0, nativeError = 0; string code = "None"; bool cleanup = false;
-        string? summary = null; NtfsVssFixtureEvidence? evidence = null; NativeSession? session = null;
+        string? summary = null; NtfsVssFixtureEvidence? evidence = null; NtfsVssFixtureOwner? session = null; bool ownerAttempted = false;
         NtfsVerifiedFixtureContext? context = null;
         void Check(bool condition, string failure) { Require(condition, failure); checks++; }
         try
@@ -71,8 +45,8 @@ internal static class NtfsVssFixtureProbe
                 using var file = new FileStream(Path.Combine(context.DataRoot, names[i]), FileMode.CreateNew, FileAccess.Write, FileShare.None);
                 file.Write(new byte[(i + 1) * 8192]); file.Flush(true);
             }
-            session = new NativeSession(Path.Combine(Path.GetDirectoryName(summary)!, "vss-owner.json"));
-            string snapshotRoot = session.Create(context.OriginVolume, token);
+            ownerAttempted = true; session = NtfsVssFixtureOwner.CreateProbe(context, token);
+            string snapshotRoot = session.SnapshotRoot;
             string rootName = Path.GetFileName(Path.TrimEndingDirectorySeparator(context.DataRoot));
             string snapshotData = snapshotRoot + "\\" + rootName;
             FileStorageInfo SnapshotInfo(string name, bool directory = false)
@@ -111,7 +85,7 @@ internal static class NtfsVssFixtureProbe
             }
             for (int i = 0; i < 3; i++) { Check(SnapshotInfo(names[i]) == before[i], "VssSnapshotNative"); CheckSnapshotContent(names[i]); }
             int rawCalls, rawRecords = 1; long rawBytes;
-            using (var reader = new SnapshotReader(snapshotRoot))
+            using (var reader = session.OpenReader(token))
             {
                 var facts = reader.Facts();
                 Check(facts.Serial == origin.Serial && facts.Geometry is { SectorBytes: 512, ClusterBytes: 4096, RecordBytes: 1024 } &&
@@ -152,13 +126,14 @@ internal static class NtfsVssFixtureProbe
                 true, true, true, true, true, true);
         }
         catch (OperationCanceledException) { code = "VssCancelled"; }
+        catch (NtfsVssFixtureOpenException error) { code = error.Code; nativeError = error.NativeError; cleanup = error.CleanupConfirmed; }
         catch (NtfsVssProbeException error) { code = error.Code; nativeError = error.Error; }
         catch (NtfsFixtureGuardException error) { code = "VssFixtureGuard"; nativeError = error.NativeErrorCode; }
         catch { code = "VssUnexpected"; }
         finally
         {
             if (session != null) { cleanup = session.Cleanup(); session.Dispose(); }
-            else if (context != null) cleanup = true; // No requester was created, or it was already explicitly cleaned.
+            else if (context != null && !ownerAttempted) cleanup = true; // No requester was created, or it was already explicitly cleaned.
             try { context?.Dispose(); } catch { cleanup = false; }
             if (!cleanup) { if (code == "None") code = "VssCleanup"; evidence = null; }
         }
@@ -193,174 +168,5 @@ internal static class NtfsVssFixtureProbe
         return new(identity.Volume, identity.Low, identity.High);
     }
 
-    internal sealed class NativeSession : IDisposable
-    {
-        private IntPtr backup, async;
-        private Guid set, snapshot;
-        private bool com, creating, released, cleanupConfirmed;
-        private int cleanupPolls = 40;
-        private readonly string? ownerPath;
-        private FileStream? owner;
-        internal NativeSession(string? ownerPath = null) { this.ownerPath = ownerPath; }
-        // The synthetic seam owns only inert COM tables supplied by the tests.
-        // It does not initialize COM, create a requester, or mint snapshot access.
-        internal static NativeSession ForTests(IntPtr backup, IntPtr async, Guid snapshot, bool creating = false) =>
-            new() { backup = backup, async = async, snapshot = snapshot, creating = creating, cleanupPolls = 1 };
-        private const int Context = 0x10;
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int OnePointer(IntPtr self, IntPtr value);
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int OneInt(IntPtr self, int value);
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int OutGuid(IntPtr self, out Guid value);
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int AddVolume(IntPtr self, [MarshalAs(UnmanagedType.LPWStr)] string volume, Guid provider, out Guid id);
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int Supported(IntPtr self, Guid provider, [MarshalAs(UnmanagedType.LPWStr)] string volume, out int supported);
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int OutPointer(IntPtr self, out IntPtr value);
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)] internal delegate int Properties(IntPtr self, Guid id, out SnapshotProperties properties);
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)] internal delegate int Delete(IntPtr self, Guid id, int type, int force, out int count, out Guid remaining);
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)] internal delegate int QueryAsync(IntPtr self, out int status, IntPtr reserved);
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)] internal delegate int NoArgs(IntPtr self);
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)] internal delegate uint Release(IntPtr self);
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)] internal delegate int Wait(IntPtr self, int milliseconds);
-        [DllImport("ole32.dll")] private static extern int CoInitializeEx(IntPtr reserved, uint flags);
-        [DllImport("ole32.dll")] private static extern int CoInitializeSecurity(IntPtr descriptor, int count, IntPtr services, IntPtr reserved,
-            uint level, uint impersonation, IntPtr auth, uint capabilities, IntPtr reserved2);
-        [DllImport("ole32.dll")] private static extern void CoUninitialize();
-        [DllImport("vssapi.dll", EntryPoint = "CreateVssBackupComponentsInternal")] private static extern int CreateBackup(out IntPtr value);
-        [DllImport("vssapi.dll", EntryPoint = "VssFreeSnapshotPropertiesInternal")] private static extern void FreeProperties(ref SnapshotProperties properties);
-        private static T Method<T>(IntPtr value, int slot) where T : Delegate => Marshal.GetDelegateForFunctionPointer<T>(Marshal.ReadIntPtr(Marshal.ReadIntPtr(value), slot * IntPtr.Size));
-        private static void Hr(int value, string code) { if (value < 0) throw new NtfsVssProbeException(code, value); }
 
-        internal string Create(string original, CancellationToken token)
-        {
-            Hr(CoInitializeEx(IntPtr.Zero, 0), "VssComInitialize"); com = true;
-            Hr(CoInitializeSecurity(IntPtr.Zero, -1, IntPtr.Zero, IntPtr.Zero, 6, 2, IntPtr.Zero, 0, IntPtr.Zero), "VssComSecurity");
-            Hr(CreateBackup(out IntPtr returnedBackup), "VssCreateBackup"); Require(returnedBackup != IntPtr.Zero, "VssCreateBackup"); backup = returnedBackup;
-            Hr(Method<OnePointer>(backup, InitializeSlot)(backup, IntPtr.Zero), "VssInitializeBackup");
-            Hr(Method<OneInt>(backup, ContextSlot)(backup, Context), "VssContext");
-            Hr(Method<Supported>(backup, SupportedSlot)(backup, SystemProvider, original, out int supported), "VssVolumeUnsupported");
-            Require(supported != 0, "VssVolumeUnsupported"); token.ThrowIfCancellationRequested();
-            int started = Method<OutGuid>(backup, StartSlot)(backup, out Guid returnedSet);
-            set = AdoptGuid(started, returnedSet, "VssStartSet");
-            SaveOwner(original);
-            int added = Method<AddVolume>(backup, AddSlot)(backup, original, SystemProvider, out Guid returnedSnapshot);
-            snapshot = AdoptGuid(added, returnedSnapshot, "VssAddVolume");
-            SaveOwner(original);
-            creating = true; Hr(Method<OutPointer>(backup, SnapshotSlot)(backup, out IntPtr returnedAsync), "VssCreateSnapshot");
-            Require(returnedAsync != IntPtr.Zero, "VssCreateSnapshot"); async = returnedAsync;
-            var watch = Stopwatch.StartNew();
-            while (true)
-            {
-                token.ThrowIfCancellationRequested();
-                Hr(Method<OneInt>(async, 4)(async, 500), "VssAsyncWait");
-                Hr(Method<QueryAsync>(async, 5)(async, out int state, IntPtr.Zero), "VssAsyncStatus");
-                if (state == AsyncFinished) { creating = false; break; }
-                if (state < 0) throw new NtfsVssProbeException("VssCreateSnapshot", state);
-                Require(state == AsyncPending, "VssAsyncStatus", state);
-                Require(watch.Elapsed < TimeSpan.FromMinutes(2), "VssAsyncTimeout");
-            }
-            token.ThrowIfCancellationRequested();
-            Hr(Method<Properties>(backup, PropertiesSlot)(backup, snapshot, out var properties), "VssProperties");
-            try
-            {
-                string device = Marshal.PtrToStringUni(properties.Device) ?? "", source = Marshal.PtrToStringUni(properties.Original) ?? "";
-                Require(BindingValid(snapshot, set, properties.Snapshot, properties.Set, properties.Count, properties.Provider, properties.Attributes,
-                    properties.State, source, original, device), "VssSnapshotBinding"); return device;
-            }
-            finally { FreeProperties(ref properties); }
-        }
-
-        private void SaveOwner(string original)
-        {
-            if (ownerPath == null) return;
-            byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(new { schema = 1, set_id = set, snapshot_id = snapshot, volume = original });
-            Require(bytes.Length <= 1024, "VssFixtureCreate");
-            owner ??= new FileStream(ownerPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
-            owner.Position = 0; owner.SetLength(0); owner.Write(bytes); owner.Flush(true);
-        }
-
-        internal bool Cleanup()
-        {
-            if (released) return cleanupConfirmed;
-            bool gone = snapshot == Guid.Empty && !creating;
-            try
-            {
-                if (creating && async != IntPtr.Zero)
-                {
-                    _ = Method<NoArgs>(async, 3)(async);
-                    var watch = Stopwatch.StartNew();
-                    int attempts = 0;
-                    while (attempts++ < cleanupPolls && watch.Elapsed < TimeSpan.FromSeconds(20))
-                    {
-                        _ = Method<Wait>(async, 4)(async, 500);
-                        int result = Method<QueryAsync>(async, 5)(async, out int state, IntPtr.Zero);
-                        if (result >= 0 && (state is AsyncFinished or AsyncCancelled || state < 0)) { creating = false; break; }
-                    }
-                }
-                if (!creating && snapshot != Guid.Empty && backup != IntPtr.Zero)
-                {
-                    _ = Method<Delete>(backup, DeleteSlot)(backup, snapshot, 3, 0, out _, out _);
-                    int result = Method<Properties>(backup, PropertiesSlot)(backup, snapshot, out var properties);
-                    if (result >= 0) FreeProperties(ref properties);
-                    gone = result == ObjectNotFound;
-                }
-            }
-            catch { gone = false; }
-            finally
-            {
-                try { if (async != IntPtr.Zero) { _ = Method<Release>(async, 2)(async); async = IntPtr.Zero; } } catch { gone = false; }
-                try { if (backup != IntPtr.Zero) { _ = Method<Release>(backup, 2)(backup); backup = IntPtr.Zero; } } catch { gone = false; }
-                try { if (com) { CoUninitialize(); com = false; } } catch { gone = false; }
-                try
-                {
-                    if (owner != null) { owner.Dispose(); owner = null; if (gone && !creating) File.Delete(ownerPath!); }
-                }
-                catch { gone = false; }
-                released = true;
-            }
-            cleanupConfirmed = gone && !creating; return cleanupConfirmed;
-        }
-        public void Dispose() { _ = Cleanup(); }
-    }
-
-    private sealed class SnapshotReader : IDisposable
-    {
-        private readonly SafeFileHandle handle;
-        private IntPtr allocation, buffer;
-        private long volumeBytes;
-        internal int ReadCalls { get; private set; }
-        internal long RequestedBytes { get; private set; }
-        [DllImport("kernel32.dll", SetLastError = true)] private static extern bool SetFilePointerEx(SafeFileHandle file, long distance, out long position, uint origin);
-        [DllImport("kernel32.dll", SetLastError = true)] private static extern bool ReadFile(SafeFileHandle file, IntPtr buffer, int count, out int returned, IntPtr overlapped);
-        internal SnapshotReader(string device)
-        {
-            handle = NativeStorage.CreateFileW(device, 0x80000000, NativeStorage.ShareAll, IntPtr.Zero, 3, 0, IntPtr.Zero);
-            if (handle.IsInvalid) { int error = Marshal.GetLastWin32Error(); handle.Dispose(); throw new NtfsVssProbeException("VssRawOpen", error); }
-        }
-        internal NtfsRawVolumeFacts Facts()
-        {
-            var bytes = new byte[128];
-            Require(NativeStorage.DeviceIoControl(handle, 0x90064, null, 0, bytes, bytes.Length, out int used, IntPtr.Zero), "VssRawGeometry", Marshal.GetLastWin32Error());
-            Require(used is >= 104 and <= 128 && BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(100)) == 3 &&
-                BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(102)) == 1, "VssRawGeometry");
-            long sectors = BinaryPrimitives.ReadInt64LittleEndian(bytes.AsSpan(8)), clusters = BinaryPrimitives.ReadInt64LittleEndian(bytes.AsSpan(16));
-            int sector = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(40)), cluster = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(44)), record = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(48));
-            Require(sector == 512 && cluster == 4096 && record == 1024 && sectors > 0 && sectors <= 1024L * 1024 * 1024 / 512,
-                "VssRawGeometry"); volumeBytes = checked(sectors * 512);
-            var geometry = new NtfsMftGeometry(sector, cluster, record, volumeBytes, clusters,
-                BinaryPrimitives.ReadInt64LittleEndian(bytes.AsSpan(64)), BinaryPrimitives.ReadInt64LittleEndian(bytes.AsSpan(56)));
-            return new(geometry, BinaryPrimitives.ReadUInt64LittleEndian(bytes), 65536);
-        }
-        internal byte[] Read(long offset, int length, CancellationToken token)
-        {
-            token.ThrowIfCancellationRequested(); Require(offset >= 0 && offset % 512 == 0 && length is > 0 and <= 16384 &&
-                length % 512 == 0 && offset <= volumeBytes - length && ReadCalls < 16 && RequestedBytes <= 16384 - length, "VssRawRead");
-            if (allocation == IntPtr.Zero)
-            {
-                allocation = Marshal.AllocHGlobal(131071); buffer = (IntPtr)(((nuint)allocation + 65535) & ~((nuint)65535));
-            }
-            Require(SetFilePointerEx(handle, offset, out long position, 0) && position == offset, "VssRawRead", Marshal.GetLastWin32Error());
-            token.ThrowIfCancellationRequested(); ReadCalls++; RequestedBytes += length;
-            Require(ReadFile(handle, buffer, length, out int returned, IntPtr.Zero) && returned == length, "VssRawRead", Marshal.GetLastWin32Error());
-            token.ThrowIfCancellationRequested(); var bytes = new byte[length]; Marshal.Copy(buffer, bytes, 0, length); token.ThrowIfCancellationRequested(); return bytes;
-        }
-        public void Dispose() { if (allocation != IntPtr.Zero) { Marshal.FreeHGlobal(allocation); allocation = buffer = IntPtr.Zero; } handle.Dispose(); }
-    }
 }

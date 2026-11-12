@@ -382,6 +382,65 @@ internal static class NtfsVerifiedFixtureContextTests
         return passed;
     }
 
+    internal static int RunVssScale()
+    {
+        int passed = 0;
+        void Check(bool value, string name)
+        { if (!value) throw new InvalidOperationException("VSS scale guard " + name); passed++; Console.WriteLine("PASS VSS scale guard " + name); }
+        Fake Fixture()
+        { var fake = new Fake(); fake.MakeScale(); fake.ChangeManifest(value => value["mode"] = "fixture-vss-scale"); fake.Marker = fake.Manifest.ToArray(); return fake; }
+        var valid = Fixture();
+        using (var context = NtfsVerifiedFixtureContext.CreateVssScaleForTests(valid.ManifestPath, valid.Repository, valid))
+        {
+            var scope = context.CaptureSyntheticSnapshotScopeForTests(true);
+            Check(scope.IsSynthetic && scope.Volume == valid.Volume && scope.Workspace == valid.Workspace && scope.DataRoot == valid.Data &&
+                scope.RootStorage.Identity == valid.Storages[valid.Data].Identity && scope.Facts.Geometry.VolumeBytes == 1023L * 1024 * 1024,
+                "private scope binds the exact owned workspace nonce directory root identity and one-GiB volume");
+            Check(context.CaptureVssScaleRoot() == valid.Storages[valid.Data], "new factory has an explicitly scoped root metadata operation");
+            context.ValidateVssScalePath(valid.Data); context.ValidateVssScalePath(Path.Combine(valid.Data, "child"));
+            Check(true, "new factory permits only owned descendant preparation paths");
+            bool rejected = false; try { context.ValidateVssScalePath(@"C:\SyntheticOther\private"); } catch (NtfsFixtureGuardException) { rejected = true; }
+            Check(rejected, "foreign generation path remains outside new scope");
+            foreach (bool scale in new[] { false, true })
+            {
+                int calls = valid.StoragePaths.Count; bool blocked = false;
+                try { using var owner = scale ? NtfsVssFixtureOwner.CreateScale(context) : NtfsVssFixtureOwner.CreateProbe(context); }
+                catch (NtfsVssFixtureOpenException error)
+                { blocked = error.Code == "VssFixtureGuard" && error.CleanupConfirmed && error.Message == error.Code && error.InnerException == null; }
+                Check(blocked && valid.StoragePaths.Count == calls, "synthetic context cannot mint real VSS authority or touch COM");
+            }
+            bool wrongScope = false; try { context.CaptureSyntheticSnapshotScopeForTests(false); } catch (NtfsFixtureGuardException error) { wrongScope = error.Code == "FixtureSnapshotScope"; }
+            Check(wrongScope, "scale context cannot borrow probe scope");
+        }
+        Check(valid.Handles.All(handle => handle.IsClosed), "all guard handles close after scale scope use");
+        foreach (string mode in new[] { "fixture-scale", "fixture-vss", "fixture-source", "mft-range", "bitmap-bootstrap", "fixture-fast-scan", "Fixture-vss-scale" })
+        {
+            var fake = Fixture(); fake.ChangeManifest(value => value["mode"] = mode); fake.Marker = fake.Manifest.ToArray(); bool rejected = false;
+            try { using var context = NtfsVerifiedFixtureContext.CreateVssScaleForTests(fake.ManifestPath, fake.Repository, fake); } catch (NtfsFixtureGuardException) { rejected = true; }
+            Check(rejected && fake.Handles.Count == 0, "other modes cannot acquire scale VSS profile");
+        }
+        var oldProbe = Fixture(); bool probeRejected = false;
+        try { using var context = NtfsVerifiedFixtureContext.CreateVssForTests(oldProbe.ManifestPath, oldProbe.Repository, oldProbe); } catch (NtfsFixtureGuardException) { probeRejected = true; }
+        Check(probeRejected && oldProbe.Handles.Count == 0, "legacy probe factory continues rejecting scale mode");
+        var tiny = Fixture(); tiny.MutateControl(0x560000, bytes => W64(bytes, 24, 255L * 1024 * 1024)); bool tinyRejected = false;
+        try { using var context = NtfsVerifiedFixtureContext.CreateVssScaleForTests(tiny.ManifestPath, tiny.Repository, tiny); }
+        catch (NtfsFixtureGuardException error) { tinyRejected = error.Code == "FixturePartitionBounds"; }
+        Check(tinyRejected && tiny.Handles.All(handle => handle.IsClosed), "one-GiB image cannot hide a tiny old-size partition in scale mode");
+        var preparation = Fixture(); preparation.MissingPaths.Add(preparation.Data);
+        using (var context = NtfsVerifiedFixtureContext.CreateVssScaleForTests(preparation.ManifestPath, preparation.Repository, preparation, preparation: true))
+            Check(preparation.StoragePaths.Count == 0 && context.IsSynthetic, "scale preparation does not inspect files before the exact nonce root exists");
+        bool absentRejected = false;
+        try { using var context = NtfsVerifiedFixtureContext.CreateVssScaleForTests(preparation.ManifestPath, preparation.Repository, preparation); }
+        catch (NtfsFixtureGuardException) { absentRejected = true; }
+        Check(absentRejected && preparation.Handles.All(handle => handle.IsClosed), "source construction still requires the completed fixture directory");
+        using var cancellation = new CancellationTokenSource(); cancellation.Cancel(); bool stopped = false;
+        var cancelled = Fixture();
+        try { using var context = NtfsVerifiedFixtureContext.CreateVssScaleForTests(cancelled.ManifestPath, cancelled.Repository, cancelled, token: cancellation.Token); }
+        catch (OperationCanceledException error) { stopped = error.CancellationToken == cancellation.Token; }
+        Check(stopped && cancelled.Handles.Count == 0, "pre-cancelled new factory opens nothing");
+        return passed;
+    }
+
     private sealed class Fake : NtfsVerifiedFixtureContext.INative, NtfsVerifiedFixtureContext.IWitnessNative
     {
         internal string Repository = @"C:\Synthetic\FixtureProject";

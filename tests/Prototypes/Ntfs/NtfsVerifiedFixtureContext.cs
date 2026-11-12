@@ -17,6 +17,8 @@ internal sealed class NtfsFixtureGuardException : IOException
 }
 internal sealed record NtfsFixtureReleasedWitness(string CaseId, FileStorageInfo Storage);
 internal sealed record NtfsFixtureFastContext(FileStorageInfo DataRootStorage, IReadOnlyList<NtfsFixtureReleasedWitness> Released);
+internal sealed record NtfsFixtureSnapshotScope(string Volume, string Workspace, string DataRoot,
+    FileStorageInfo RootStorage, NtfsRawVolumeFacts Facts, bool IsSynthetic);
 
 // Test-only owner for exactly one newly created fixture. It never accepts a
 // caller-supplied volume, target path, disk number, or a validated boolean.
@@ -44,7 +46,7 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
     }
     private sealed record Manifest(string Nonce, string Workspace, string Image, string DriveRoot, string Volume, string Mode);
     private const long ImageBytes = 256L * 1024 * 1024;
-    private static long ImageBytesFor(string mode) => mode is "fixture-scale" or "fixture-vss" ? 1024L * 1024 * 1024 : ImageBytes;
+    private static long ImageBytesFor(string mode) => mode is "fixture-scale" or "fixture-vss" or "fixture-vss-scale" ? 1024L * 1024 * 1024 : ImageBytes;
     private readonly object gate = new();
     private readonly INative native;
     private readonly Manifest fixture;
@@ -148,6 +150,44 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
     internal static NtfsVerifiedFixtureContext CreateVssForTests(string manifestPath, string repositoryRoot, INative adapter,
         CancellationToken token = default) =>
         CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: false, expectedMode: "fixture-vss", token);
+    internal static NtfsVerifiedFixtureContext CreateForVssScale(string manifestPath, bool preparation = false, CancellationToken token = default) =>
+        CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: !preparation, expectedMode: "fixture-vss-scale", token);
+    internal static NtfsVerifiedFixtureContext CreateVssScaleForTests(string manifestPath, string repositoryRoot, INative adapter,
+        bool preparation = false, CancellationToken token = default) =>
+        CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: !preparation, expectedMode: "fixture-vss-scale", token);
+    internal NtfsFixtureSnapshotScope CaptureSnapshotScope(bool scale, CancellationToken token = default) => CaptureSnapshotScopeCore(scale, false, token);
+    internal NtfsFixtureSnapshotScope CaptureSyntheticSnapshotScopeForTests(bool scale, CancellationToken token = default) => CaptureSnapshotScopeCore(scale, true, token);
+    private NtfsFixtureSnapshotScope CaptureSnapshotScopeCore(bool scale, bool allowSynthetic, CancellationToken token) => Guard(() =>
+    {
+        lock (gate)
+        {
+            Active(); token.ThrowIfCancellationRequested();
+            Require((allowSynthetic || !IsSynthetic) && fixture.Mode == (scale ? "fixture-vss-scale" : "fixture-vss"), "FixtureSnapshotScope");
+            VerifyOrigin(); NoReparse(native, DataRoot); var attributes = native.Stat(DataRoot).Attributes;
+            Require((attributes & FileAttributes.Directory) != 0, "FixtureDataRoot");
+            var root = native.ReadStorage(DataRoot, true, attributes); Require(Storage(root, serial, true), "FixtureSnapshotRoot");
+            var facts = QueryFacts(token: token); token.ThrowIfCancellationRequested();
+            return new NtfsFixtureSnapshotScope(fixture.Volume, Path.GetDirectoryName(manifestPath)!, DataRoot, root, facts, IsSynthetic);
+        }
+    });
+    internal void ValidateVssScalePath(string path, CancellationToken token = default) => Guard(() =>
+    {
+        lock (gate)
+        {
+            Active(); token.ThrowIfCancellationRequested(); Require(fixture.Mode == "fixture-vss-scale", "FixtureSnapshotScope"); VerifyOrigin();
+            string full = Full(path); Require(SamePath(full, DataRoot) || full.StartsWith(DataRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase), "FixtureScalePath");
+            NoReparse(native, full); token.ThrowIfCancellationRequested(); return true;
+        }
+    });
+    internal FileStorageInfo CaptureVssScaleRoot(CancellationToken token = default) => Guard(() =>
+    {
+        lock (gate)
+        {
+            Active(); token.ThrowIfCancellationRequested(); Require(fixture.Mode == "fixture-vss-scale", "FixtureSnapshotScope");
+            VerifyOrigin(); NoReparse(native, DataRoot); var value = native.ReadStorage(DataRoot, true, native.Stat(DataRoot).Attributes);
+            Require(Storage(value, serial, true), "FixtureSnapshotRoot"); token.ThrowIfCancellationRequested(); return value;
+        }
+    });
     internal string OriginVolume { get { lock (gate) { Active(); return fixture.Volume; } } }
 
     internal FileStorageInfo CaptureScaleRoot(CancellationToken token = default) => Guard(() =>
@@ -301,7 +341,7 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
             Require(!openedVolume.IsInvalid && !openedVolume.IsClosed, "FixtureVolumeOpen");
             token.ThrowIfCancellationRequested();
             var extent = Extent(adapter, openedVolume, number,expectedImageBytes);
-            Require(expectedMode != "fixture-scale" || extent.Length >= 1000L * 1024 * 1024, "FixturePartitionBounds");
+            Require(expectedMode is not ("fixture-scale" or "fixture-vss-scale") || extent.Length >= 1000L * 1024 * 1024, "FixturePartitionBounds");
             Partition(adapter, openedVolume, extent.Start, extent.Length);
             // Marker bytes are not touched until the actual opened volume has
             // been proved to be backed by this owned virtual image.

@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "status": "failed",
+  "phase": "SnapshotScale10000",
+  "code": "ControlledValidationFailed"
+}
