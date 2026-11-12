@@ -1,0 +1,29 @@
+{
+  "baseline": "d39ad9ec039598f1b7ce8ad6f1ddc8469b07969e",
+  "files": [
+    {
+      "path": ".agents/skills/asukalens-project-memory/SKILL.md",
+      "sha256": "ca019a06d8f7e57850686c6997769b9d6190338146a2986c608938985856969b"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "ee98a38dec9edc457f56d4f071b27c98d5c8c904b0fcfae8b09022f8cefa3f6d"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "55821ed6be6457c30fae42f0d23edd021ef86df0d5dd6fde02c8d7865d472cb9"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "ea00fcca5b06516d7bca18d5983e2df5805f9b0b2c22f51d9ec13679d0859d6e"
+    },
+    {
+      "path": "iterations/2026-11-12-12-project-memory/README.md",
+      "sha256": "8325fb5eaf5bf82eafbbbd86eb15d0ac100f5e71407e5a6778c5c9e857aa34cf"
+    },
+    {
+      "path": "iterations/2026-11-12-12-project-memory/changes.patch",
+      "sha256": "7342e3f0ff2ff6d2cde16e458c596e7dfc30621fa81f926f256b0045cef90869"
+    }
+  ]
+}

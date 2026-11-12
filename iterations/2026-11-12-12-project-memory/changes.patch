@@ -1,0 +1,108 @@
+diff --git a/.agents/skills/asukalens-project-memory/SKILL.md b/.agents/skills/asukalens-project-memory/SKILL.md
+new file mode 100644
+index 0000000..47f64f6
+--- /dev/null
++++ b/.agents/skills/asukalens-project-memory/SKILL.md
+@@ -0,0 +1,28 @@
++---
++name: asukalens-project-memory
++description: 在 AsukaLens 项目接续开发、交接上下文或更新项目记忆时，核实并维护历史、当前状态、重要决策及理由；不用于其他项目。
++---
++
++# AsukaLens 项目记忆
++
++用于恢复开发上下文及维护精简的项目知识，不替代项目规则或事实证据。项目根目录是本 Skill 所在目录向上三级；正文中的项目路径均相对该根目录。
++
++## 接续工作
++
++先看 references/checkpoint.md，再按本次范围读取 references/decisions.md 和其链接。用 `git status --short --branch`、当前提交、相关代码及迭代验证新鲜度；明确已提交、工作区半成品、测试原型、旧预览和正式发行版。事实冲突以核实后的代码/证据为准，纠正记忆，不把计划写成已实现。
++
++长期规则仅维护在根 AGENTS.md；现状与计划分别由 docs/project-status.md、docs/development-plan.md 维护。记忆是索引和交接摘要，不复制整个规则、历史或原始日志。新需求不能仅因出现在记忆中就视为实施授权。
++
++## 更新触发
++
++- 环境可靠提供上下文使用量时，以 **70%** 为检查点：在当前不可中断操作完成后的最近安全边界更新。仍处同一窗口且没有新增事实时不重复写；后续到 **85%** 或收到即将压缩/交接通知时，有新事实则再检查点。
++- 无法读到可靠百分比时，不估造 token 数或声称已跨过百分比；改为**每 20 次工具调用或连续工作 30 分钟（先到者）**检查一次，并在主要阶段结束、重大用户决定、暂停/交接前及上下文恢复后检查。合并同一安全边界的触发，避免重复写盘。
++- 这是智能体执行规则，不是后台监测器，不修改平台自动压缩设置，也不能保证收到压缩前通知。关键决定和验证结果及时落盘，不能全押在阈值触发。
++
++## 每次保留什么
++
++checkpoint.md 只保留日期、已核对基线、当前目标/进度、未提交文件归属、验证范围、明确未完成项、下一步和本次授权的时效。decisions.md 记录会影响后续取舍的决定：日期、选择、原因、被放弃或延期的方向、边界及证据链接。过时事实标明已被哪一记录替代，长历史回链 iterations/ 与 Git，不无限追加流水账。
++
++每次先同步受影响的正式现状/计划，再压缩更新记忆；SKILL.md 只有工作方式改变时才修改。单个 checkpoint 以约 120 行为上限，超过时删去重复并回链证据，不删除唯一决策理由。无新事实无需制造仅改时间戳的提交。更新完成核对链接、状态与隐私，随对应迭代归档提交，不顺带提交别人的修改。
++
++不记录个人路径/文件名、邮箱、凭据、原始诊断、用户图片、设备标识或原始 NTFS 记录。只保留公开项目标识、受控类别、脱敏计数与仓库相对路径。一次性 VHD、提权、打包或发布许可不得变成长期授权。
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+new file mode 100644
+index 0000000..31f95d1
+--- /dev/null
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -0,0 +1,13 @@
++# 当前交接点
++
++核对日期：2026-11-12。已提交功能基线 `d39ad9e`；接续时重新核对Git，不把此短号视为永远最新。本记忆与AGENTS规则随随后独立提交保存。
++
++- 产品：C# / .NET10 WinForms，内部名DiskAtlas；七项产品能力及长期规则见根AGENTS.md。正式v1.5.0已发布，后续开发源码尚未另发新包。
++- 本小时完成：NativeStorage使用已打开流属性选择分配查询（ba3ed8b），前后28组提示均无差异，属于防御性收紧；限定压缩/稀疏默认流补查原型（36c58cc），不在生产扫描器中。
++- 特殊流证据：句柄159项、批次77项；限定VHD正确性/暖缓存成本1581项通过。复杂记录3次USA严格失败仍未解决，短名子集通过不能覆盖失败形态。见[第09轮](../../../../iterations/2026-11-12-09-special-lookup/README.md)。
++- 用户已批准[最小重现/留样方案](../../../../docs/ntfs-kernel-record-plan.md)。留样与无卷重放基础已实现并推送d39ad9e；构建0警告/0错误、72项通过，无跳过，含真实独立进程成功与失配回放。仅合成正文，未接Live或捕获真实失败。见[第11轮](../../../../iterations/2026-11-12-11-record-evidence/README.md)。
++- 下一步仍未完成：固定单因素矩阵、Live/IOCTL外层头绑定、真实失败留样和VHD对照；崩溃孤儿恢复、并发对抗及活跃卷一致性未实现。解码规则保持严格，没有生产NTFS快速扫描入口或整卷性能证明。
++- 项目记忆Skill已创建并经quick_validate验证；根AGENTS已添加70%/85%及20工具/30分钟回退规则，独立审查通过。百分比不可可靠获取时不得虚报用量，Skill不是后台监听器。
++- 本小时VHD许可仅覆盖当时已审查隔离流程；镜像均已卸载清理。它不延续到以后提权或个人卷扫描。没有新的正式发布授权。
++
++下一步先核对Git与[开发计划](../../../../docs/development-plan.md)，再继续当前已批准诊断工具范围；新的真实VHD执行须核对有效授权。完整事实：[项目现状](../../../../docs/project-status.md)；决定理由：[decisions.md](decisions.md)；历史：[iterations](../../../../iterations/)。不要重做本小时已经通过且没有改动的测试。
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+new file mode 100644
+index 0000000..65cce3e
+--- /dev/null
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -0,0 +1,13 @@
++# 影响后续开发的决定
++
++- 2026-11-07：高速模式无法稳定提速记为 PERF-001，用户要求初版后处理。不能用普通“继续”自动重启同级非阻塞优化；正确性/隐私/阻塞缺陷仍优先。依据 docs/development-plan.md 历史优先级。
++- 2026-11-07：采用 .NET 10 LTS，以便长期开发；框架升级已独立验收，普通功能迭代不顺带更换大版本。技术与验证依据 docs/project-status.md。
++- 2026-11-07：公开非商业分发，署名 AsukaLens — M66Y。代码PolyForm Noncommercial，文档/图片CC BY-NC；以 LICENSE / NOTICE.md 为准。默认图片由维护者使用AI工具生成，不能扩写为第三方角色授权。
++- 2026-11-10：v1.5.0 以明确披露的干净环境例外发布；该例外不自动适用以后版本。Windows10兼容实测与微软框架官方支持范围分开。依据 iterations/2026-11-10-07-publication/README.md。
++- 2026-11-12：为接近WizTree整盘速度，先研究可选NTFS路径，不把增加遍历并发当整盘提速保证。当前仅有限记录解码和逐对象补查，无整卷MFT读取或生产入口。依据 docs/development-plan.md。
++- 2026-11-12：压缩/稀疏默认流只接受单一理由，命名流/属性扩展等组合保留未知；同一只读句柄两组观察也不等于活跃卷快照。依据 iterations/2026-11-12-09-special-lookup/README.md。
++- 2026-11-12：复杂硬链接/较长命名流记录触发USA校验失败后，用户明确选择保持严格校验，先完成限定范围。不能忽略尾字换取通过；短名通过不证明复杂形态已修复。下一步先固定生成条件、限量本机留样和独立重放，原因尚未定位。依据 docs/ntfs-kernel-record-plan.md。
++- 2026-11-12：磁盘活动面板布局经用户确认，首版每秒采样、60秒仅内存、整块物理盘口径；不代表本软件专属I/O。其他系统/设备边界见 docs/disk-activity.md。
++- 2026-11-12：用户要求维护项目记忆Skill。选择70%/85%检查点，为压缩与交接留余量；百分比不可观测时按20次工具调用或30分钟回退，并在阶段/关键决定落盘。不能承诺仅靠Skill精确监听平台token阈值。
++
++本页项目路径均相对仓库根目录；按需打开对应事实文件，不默认加载全部历史。新增决定只记影响取舍的原因与证据，已有长期规则回链AGENTS.md，不复制正文。
+diff --git a/AGENTS.md b/AGENTS.md
+index 3c270a6..135d48f 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -9,6 +9,12 @@
+ - 先执行 `git status --short --branch`，核对当前提交与未提交文件。接续中断任务时区分已提交功能、工作区半成品、旧预览和正式发行包，不能从旧记录推断当前已完成。
+ - 不回滚、覆盖或顺带提交不属于本轮的改动。需要收尾继承改动时，记录其来源与基线，完成对应验收后独立提交。
+ 
++## 项目记忆与上下文交接
++
++- 维护并使用项目 Skill [asukalens-project-memory](.agents/skills/asukalens-project-memory/SKILL.md)，在其 references 中记录精简历史、核实后的当前状态、重要内容、决策理由及证据入口。它是交接索引，不替代本文件、现状、计划、Git 与迭代证据，不复制全部历史或个人信息。
++- 上下文使用量可可靠观测时，以 **70%** 为更新检查点，**85%** 或即将压缩/交接时复查新增事实；在当前不可中断操作后的安全边界更新。没有可靠百分比时，不估造使用量，回退为**每20次工具调用或连续工作30分钟（先到者）**检查，并在关键决定、主要阶段结束、暂停/交接前与上下文恢复后同步。
++- 更新时先核对代码、Git、验证和授权时效，区分完成、半成品、待验收与计划；压缩重复内容、回链较长历史，保留重要决定的理由和未解决问题。仅工作方式变化才修改 SKILL.md，日常事实写入 references；无新增事实不制造时间戳提交。Skill 不具备后台 token 监听能力，不改变平台压缩设置；重要事实及时落盘，不等阈值才记录。
++
+ ## 项目定位与事实来源
+ 
+ - AsukaLens 是 Windows 本地磁盘空间可视化桌面软件，以用户隐私、统计正确性、扫描效率和操作体验为重点。
+diff --git a/iterations/2026-11-12-12-project-memory/README.md b/iterations/2026-11-12-12-project-memory/README.md
+new file mode 100644
+index 0000000..49fb3d9
+--- /dev/null
++++ b/iterations/2026-11-12-12-project-memory/README.md
+@@ -0,0 +1,13 @@
++# 项目知识 Skill 与上下文检查点
++
++2026-11-12，基线 `d39ad9ec039598f1b7ce8ad6f1ddc8469b07969e`。用户在当前开发中新增要求：优化 AGENTS.md，创建记录历史、现状、重要内容及决策理由的 Skill，并由智能体确定上下文更新阈值。本轮只落实该项目工作流，不改变软件运行行为。
++
++项目级 `.agents/skills/asukalens-project-memory/` 包含精简 SKILL.md、checkpoint.md 和 decisions.md；长期规则仍以根 AGENTS.md 为准，现状/计划/Git/迭代为事实来源，Skill只是可更新交接索引。历史回链而非复制全部文档；原型、已提交、发行版与未验收项分开。用户新增的工作流与先前基础模块独立提交。
++
++选择可靠可观测上下文使用量的70%作为检查点，留30%处理当前操作、核对和交接；85%及即将压缩时有新事实再检查。平台未提供可靠百分比时，回退每20次工具调用或30分钟先到者，关键决定/阶段/暂停/恢复另触发。该阈值是项目执行约定，不是OpenAI默认阈值；不声称可后台监听token或修改平台自动压缩。不为了触发更新而制造时间戳提交。
++
++依据官方[本地Skill目录与按需加载](https://learn.chatgpt.com/docs/build-skills)使用项目级目录；[API压缩文档](https://developers.openai.com/api/docs/guides/compaction)说明的是API调用者的context_management设置，不被误写成AGENTS能控制桌面平台。正文只记录必要操作规则，日常事实更新references；超过约120行的checkpoint压缩重复内容并回链，保留唯一理由和未解决事项。
++
++验证：使用skill-creator的quick_validate，UTF-8宿主Python检查通过；独立只读审查确认链接层级、事实、阈值回退和授权表述无阻塞。受影响本地链接与隐私核对通过。无新脚本或产品代码，不重复构建/功能回归。没有个人路径、邮箱、凭据、原始NTFS记录或日志；未建立后台服务或额外采集。
++
++本轮不新增临时数据或二进制。关键文件及SHA-256见files.json，可恢复补丁changes.patch不含自身或历史归档；从实际基线恢复后核对暂存内容。Skill格式有效不等于平台已在当前会话中动态重新注册；根AGENTS提供明确入口供接续使用。
