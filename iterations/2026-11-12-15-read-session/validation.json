@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "mode": "synthetic-session",
+  "status": "passed",
+  "core_checks": 103,
+  "adversarial_checks": 144,
+  "total_checks": 247,
+  "thread_checks": 24,
+  "prior_prototype_checks": 147,
+  "max_accepted_records": 4096,
+  "max_batch_records": 256,
+  "max_restarts": 2,
+  "real_io": false,
+  "vhd": false,
+  "snapshot": false,
+  "production_integration": false
+}

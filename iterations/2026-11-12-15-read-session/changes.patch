@@ -1,0 +1,1306 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index 27f62cb..8a04417 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,11 +1,19 @@
+-# 当前交接点
++# 当前交接点：第15轮纯合成会话
+ 
+-2026-11-12，本轮起点fa21d9e57d225f263f59d4a7f4230e520381097b，起始工作区干净。用户要求连续1.5小时，08:14:03–09:44:03 UTC（本地16:14–17:44），当前已完成原始读取验收，准备独立提交第14轮，随后实施用户已确认的纯合成会话契约。
++2026-11-12，暂停后用户要求继续20分钟，窗口09:33:32–09:53:32 UTC（本地17:33–17:53）。本轮从a4af42662a36928de9d698215b7288a27f1dd144恢复同一已确认范围；暂停前半成品已核对并收尾。源码与证据由本交接点所属第15轮提交保存，提交/推送状态仍需结合实际Git与远程核对，不据记忆猜测。
+ 
+-- 第14轮[原始读取](../../../../iterations/2026-11-12-14-raw-records/README.md)：首次锁前Native不稳定、第二次fresh元信息查询失败均停止并清理；随后修复解锁后重新挂载/元信息句柄生命周期，保持严格校验。3次新VHD（含最终代码）各860项：raw22全decoded/21对象匹配/14特殊分配未知，kernel仍36decoded/27拒绝；解锁、卸载清理均true。单run、22次ReadFile/22528请求字节不等于物理I/O或性能。
+-- map174、注入lease84、raw metadata/type/cancel130、PS raw295/code187/guards36/矩阵摘要150、旧留样115/矩阵114/原合成147通过；旧comparison另新VHD1583项通过，构建0警告0错误。严格Decoder/生产源未改，不接产品、不打包。旧6条kernel样本共9683字节仍仅本机，0遗留VHD工作目录；本轮原始字节只内存。
+-- 第14轮需完成补丁基线恢复、必要文件哈希/隐私检查、删除本轮安全结果副本、提交推送main。已fetch且远程匹配fa21d9e，公开noreply身份合规。全部当前raw/文档改动归本轮；新增会话实现必须独立第15轮，不能误暂存。
+-- 用户确认[纯合成读取会话计划](../../../../docs/ntfs-read-session-plan.md)：只做测试专用状态机，无真实快照/个人卷/产品入口；上限4096模拟记录、2次重启，unknown保留、代际隔离/取消终态、LiveUnproven无论日志安静与否都不得Complete。attribute_probe负责新NtfsReadSession.cs/Tests；special_contract负责独立反例文件NtfsReadSessionAdversarialTests.cs；Root稍后接Program/文档/审查与归档。完成事实需核对agent交付，不从方案推断。
+-- 2026-11-12本轮VHD明确许可仅为新建256MiB自有卷、同句柄锁后有限读取、结束解锁卸载清理；不延续以后。第15轮没有真实I/O授权需求，也不复用本轮许可开展快照/整卷扫描。
++## 已完成的实现与检查
+ 
+-边界：本机实际只覆盖NTFS3.1/512-4096-1024单run静态夹具；真实碎片、Win10/其他几何、真实驱动阻塞/解锁失败、活跃卷、整卷速度及生产入口未验收。正式入口：[现状](../../../../docs/project-status.md)、[计划](../../../../docs/development-plan.md)。
+\ No newline at end of file
++- NtfsReadSession只在测试程序集，受限批次全或无、全会话累计4096接受记录/每批256/2次重启，重启不返还工作预算；未知Total保留null与未知计数，已知求和溢出拒绝。
++- 全部异步入口带generation；旧代/未来代不改变当前状态，Cancel独立终态。来源/映射/增长失效要求在等待重启时继续累加并保留观察高水位；错binding批次直接Reject，不当新proof。外部集合Count/indexer每项后gate，复制期禁嵌套提交/完成/重启，避免取消复活与在途前缀。
++- 最终测试Release构建0警告0错误。Root运行新CLI --ntfs-read-session-tests：103核心+144独立反例，其中24项有限真实线程案例；原--ntfs-prototype-tests为147通过。没有继续跑无关UI或性能基准。摘要与范围见[第15轮](../../../../iterations/2026-11-12-15-read-session/README.md)。108个相关本地链接检查通过；模型/测试未见文件/进程/NativeStorage调用，0遗留VHD工作目录。
++- SourceStamp是模拟重新验证epoch，不是卷ID；ValidatedImmutable只是模型断言，无真实验证器；LiveUnproven即使NoNewUsn也不能Complete。CompletedSyntheticSession是调用方模拟收集结束，不证明全MFT覆盖、建树、硬链接归属、真实VSS/活跃卷可靠。
++- 更新契约、现状、计划、AGENTS测试命令、原型README与迭代证据；必要文件哈希/真实基线恢复补丁按本轮流程保存。只包含本轮继承和新增文件，不改第14轮历史归档。没有新增临时磁盘/镜像/重复预览，保留正常测试构建。
++
++## 保留边界与下一步
++
++没有生产扫描、严格Decoder、UI或发行包变化，没有真实卷/快照/VHD操作，也没有整盘提速结论。第14轮raw受控验证仍独立属于a4af426，旧6条kernel样本仅本机保留；不要重复留样或自动重跑VHD。
++
++下一步先选择/细化真实读取来源的身份、生命周期与失败恢复，再单独确认适配器、分批读取/建树和真实验收。用户本轮只批准纯合成模型，没有实际VSS或个人卷操作许可；旧VHD授权不延续。有限线程案例不代表全面并发/压力验收，构建/提交也不是正式Release。没有自动启动后续开发或后台任务。
++
++正式入口：[现状](../../../../docs/project-status.md)、[计划](../../../../docs/development-plan.md)、[契约](../../../../docs/ntfs-read-session-plan.md)。接续前先检查Git与证据新鲜度；只有工作方式变化才改SKILL.md，日常事实留在references。
+\ No newline at end of file
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index 08aa12b..befc3b6 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -15,3 +15,5 @@
+ - 2026-11-12：固定21对象/63请求已稳定重现27次严格USA失败；保留最终6条原始失败正文仅本机供后续研究。以collected与all_decoded区分收集和解码，重放匹配不等于修复。理由是此前缺少原始字节无法可靠研究；继续严格拒绝，下一步依据可重放证据另提读取策略。依据 iterations/2026-11-12-13-kernel-matrix/README.md。
+ 
+ - 2026-11-12：不放宽复杂USA失败，改为在自有静态VHD内成功锁卷后经同一只读句柄读取严格原始记录。三次22条/21对象对照通过，证明受限替代来源可用，不能解释内核缓存根因或推广到个人活跃卷；旧6条kernel样本不扩容。随后用户确认先做无I/O的读取会话契约，避免在来源一致性未明确时直接扩展整卷吞吐。依据 iterations/2026-11-12-14-raw-records/README.md 与 docs/ntfs-read-session-plan.md。
++
++- 2026-11-12：受控raw之后先落地无I/O读取会话模型，避免在真实来源一致性未知时直接扩大批量扫描。SourceStamp只作模拟验证epoch；错绑定批次直接拒绝、失效高水位不可回退、重启不返还累计预算、unknown总值保持null。有限线程反例验证模型终态，不背书真实VSS/活跃卷或全MFT覆盖；下一步实际来源另行设计。依据 iterations/2026-11-12-15-read-session/README.md 与 docs/ntfs-read-session-plan.md。
+diff --git a/AGENTS.md b/AGENTS.md
+index 43a63d3..4ac02d6 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -134,6 +134,7 @@
+ - NTFS 压缩/稀疏默认流原型运行 `--ntfs-special-lease-tests`（自有临时文件）及 `--ntfs-special-lookup-tests`（纯合成批次）；摘要运行 `tests/NtfsSpecialEvidence.Tests.ps1`、`tests/NtfsSpecialCostEvidence.Tests.ps1`。仅接受单一理由、限定格式，组合与复杂记录不能掩掉标记。内核 USA 表示失败保持严格拒绝，见本轮记录；暖缓存补查成本不等于整卷收益或等稳定性保证对比。
+ - NTFS 记录留样/矩阵修改运行 `--ntfs-record-evidence-tests`、`--ntfs-kernel-matrix-tests` 和 `tests/NtfsKernelMatrixEvidence.Tests.ps1`。隔离脚本 `-KernelDiagnostics` 仅在本轮有效授权内使用，固定21对象/63请求；`collected` 只表示收集完成，另看 `all_decoded`、失败/留样计数及卸载清理。`--ntfs-record-replay` 匹配原失败码不代表解码成功。原始记录及完整身份仅留本机 ignored artifacts，公开归档只保存白名单摘要。
+ - NTFS 受限原始读取修改运行 `--ntfs-mft-map-tests`、`--ntfs-raw-volume-tests`、`--ntfs-raw-comparison-tests`、`tests/NtfsRawComparisonEvidence.Tests.ps1` 与 `tests/NtfsFixtureCodeEvidence.Tests.ps1`。隔离脚本 `-RawRecords` 仅在本轮明确授权内使用，先锁自有新建VHD，固定record0及21对象、同句柄对齐读取，解锁后复核；锁或任何校验失败即停止，不强制卸载。`verified` 必须同时核对解锁、卸载清理及占用未知项；不等于活跃卷快照、生产后端或整盘性能。原始记录只在内存，不能自动沿用为个人卷读取许可，范围见[受控方案](docs/ntfs-raw-record-plan.md)。
++- NTFS 读取会话模型运行 `--ntfs-read-session-tests`，只用合成输入，不访问卷。全会话累计最多4096条、2次重启、每批256条；来源断言不是实际验证器，`CompletedSyntheticSession` 不代表MFT覆盖或真实快照完成。映射/来源失效、已观察高水位、全部异步入口代际、取消/重入、未知值及溢出按[会话契约](docs/ntfs-read-session-plan.md)检查，不据此启用VSS、真实卷读取或产品入口。
+ - 存储属性提示分支改动另运行 `--storage-attribute-tests`，只使用自有临时 NTFS 普通/压缩/稀疏及命名流夹具，能力缺失明确跳过。`--storage-attribute-observe` 只记录差异，退出成功不代表回归通过；对照无差异时不得宣称已复现误算或证明所有文件系统支持。
+ - 混合目录调度改动补测 `--mixed-benchmark before/after` 的同夹具对比；用户明确指定实际目录后才使用 `--folder-benchmark`，其报告与隔离诊断仅留本机临时目录，不进入仓库。比较自动与高速必须核对完整扫描、结果一致性和运行顺序，保留异常波动样本。
+ - 本地目录比较出现指纹差异时，可使用 `--folder-benchmark --pair` 做针对性正确性诊断；额外保留的逐项快照影响测量条件，其计时不并入常规性能基准。差异计数和实际耗时仍只在本机核查，不纳入公开归档。工具边界检查使用 `--folder-comparison-tests`。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index f90a2fd..993c075 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -2,6 +2,8 @@
+ 
+ ## 当前执行计划（2026-11-12）
+ 
++读取会话的[纯合成契约](ntfs-read-session-plan.md)已实现并通过103项核心/144项独立反例，包含有界线程竞争；见[第15轮](../iterations/2026-11-12-15-read-session/README.md)。它只约束模拟批次的接受、失效与终态，未实现真实来源验证器、全MFT覆盖、批量读盘或建树。下一步先选择并细化真实读取来源的身份/生命周期/失败恢复方案，再实施适配器；VSS与活跃卷直接读取均未获本轮实际操作授权，不自动启动。
++
+ 最新进展：用户确认[受控原始读取方案](ntfs-raw-record-plan.md)后，测试原型从严格record0建立有限MFT映射，通过同一持锁句柄读取既有21对象；三次隔离VHD对照（含最终代码）均严格解码22条并匹配Native上下文，14个特殊分配量继续未知。IOCTL的27次严格失败并未修复；替代路径仅证明本机静态自有卷可读，不代表可锁用户卷、活跃卷快照或整盘提速，详见[证据](../iterations/2026-11-12-14-raw-records/README.md)。用户已确认下一步[纯合成读取会话契约](ntfs-read-session-plan.md)，先验证批次隔离与失效，再扩大读取范围；该确认不包含真实快照或个人卷访问，本轮VHD授权不延续为下一轮。
+ 
+ 本节发布后已实施 NTFS-01 的有界驻留补查、单句柄双快照微实验，以及限定压缩/稀疏默认流补查，见[特殊类型记录](../iterations/2026-11-12-09-special-lookup/README.md)。单句柄减少重复打开，未消除逐文件补查，也未证明活跃卷一致性；复杂记录的内核 USA 表示仍会严格失败，需在扩大真实记录范围前单列研究。NTFS-01 尚未全部完成，NTFS-02 尚不可直接产品化。
+diff --git a/docs/ntfs-read-session-plan.md b/docs/ntfs-read-session-plan.md
+index 4c904aa..eddd400 100644
+--- a/docs/ntfs-read-session-plan.md
++++ b/docs/ntfs-read-session-plan.md
+@@ -1,6 +1,6 @@
+ # 下一步建议：无需锁定用户卷的读取会话契约
+ 
+-2026-11-12，基于受控原始读取原型。用户已确认本方案的测试专用纯合成范围，实施由下一轮独立交付；本文不代表状态机已经实现，不改变现有后端、VHD流程或发行版本。
++2026-11-12，基于受控原始读取原型。用户确认测试专用纯合成范围后，第15轮已实现模型并通过103项核心/144项独立反例，见[证据](../iterations/2026-11-12-15-read-session/README.md)。下文保留方案与实施合同；没有真实来源适配器，不改变现有后端、VHD流程或发行版本。
+ 
+ ## 为什么先做这一项
+ 
+@@ -23,9 +23,21 @@
+ 
+ - 将来源区分为受控静态夹具、经过独立验证的不可变来源、活跃且一致性未证明；后者即使两次映射相同、日志无新增，也不能发布“完整一致”。模拟的不可变证据不能作为真实VSS验收。
+ - 小型测试专用会话状态机记录批次代号、映射版本、有效长度与有限重试；发现身份/映射/引用序列或变化证据不连续时，丢弃本代已暂存结果，不混合旧批次。持续变化或修复超预算时拒绝/要求回退，取消为独立终态。
+-- 仅接受受限元信息输入，不实现原始读盘、完整建树或路径输出；最多4096条模拟记录和2次重启。大缓冲/队列留给后续批量读取，不为未实现能力预分配内存。
++- 仅接受受限元信息输入，不实现原始读盘、完整建树或路径输出；全会话累计最多接受4096条模拟记录（重启不返还预算），最多2次重启，每批最多256条。大缓冲/队列留给后续批量读取，不为未实现能力预分配内存。
+ - 合成覆盖映射迁移/增长、记录复用、跨批重命名、持续写句柄、日志断档、来源失效、乱序/旧代结果、取消与重试上限；检查失败不会发布部分完整结果、未知大小不变成零、终态不被迟到结果覆盖。
+ 
+ ## 验收与后续
+ 
+ 交付测试专用实现、对应合成回归、取消/并发代际与边界审查、文档/记忆/迭代归档和提交。通过只证明模型遵守契约，不证明任何真实活跃卷或VSS已可靠。确认来源与生命周期后，再单独实现并验收读取适配器；真实快照、额外权限和磁盘操作需要另行具体方案与授权。
++
++## 实现合同与可解释范围
++
++`NtfsReadSession` 是测试程序内的纯状态模型。批次中的受控名称代号只用于冲突检测，不是NTFS名称解析或完整硬链接索引。引用/父引用可以检查已观察槽位的序列冲突，但不做建树、目录循环、全槽位覆盖或EOF完成证明。`Complete` 是调用方声明模拟批次结束；结果使用 `CompletedSyntheticSession`，不能解释为整卷完整成功。
++
++`SourceStamp` 表示模拟的重新验证epoch，不是卷ID，也不是任何真实不可变来源的验证证明。真实适配器尚不存在，未来必须另行建立卷/快照身份、记录与映射来源的绑定。`ValidatedImmutable` 只是注入的模型条件，不可直接由某个布尔值为真实VSS背书。
++
++来源/记录变化需新的验证epoch；已知映射迁移、MFT增长另要求相应版本/长度推进。等待重启时继续累加后到达的要求，并保留已观察高水位，不能用较旧的映射或长度覆盖新证据。单纯批次顺序错误可在同一模拟绑定上重扫，仍使用新generation隔离旧回调；批次自身携带的绑定与会话不符则直接拒绝，不把不可信批次当成新的验证证据。所有异步入口携带expectedGeneration；取消是明确的全会话动作。
++
++外部只读集合的Count/indexer仍可能执行回调。复制期禁止嵌套提交、完成和重启；每次取项后复查代际和终态，取消或失效后不继续取后续项。完整批次通过校验才整体暂存，任一无效项、名称/引用冲突或大小溢出都不能泄漏已校验前缀。
++
++已知大小求和使用溢出检查；存在未知值时，相应Total保持null并报告已知部分/未知计数。模拟汇总不定义真实目录入口、对象去重、目录元数据或删除释放量；这些仍以生产统计契约和后续真实后端验收为准。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index eec37bc..38fcd7a 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-12：测试程序新增纯合成读取会话模型，验证批次隔离、来源失效、有限重启、取消/重入及未知大小。103项核心、144项独立反例（含24项有限线程案例）通过，原NTFS合成147项仍通过。模型不访问卷，不验证真实VSS、MFT覆盖或活跃卷一致性，不改变现有扫描速度，见[第15轮记录](../iterations/2026-11-12-15-read-session/README.md)。
++
+ 2026-11-12：受控原始记录读取已在三次新建隔离VHD中完成对照（含审查修正后的最终代码）：各22条严格解码、21个对象与Native上下文匹配，14个特殊对象的分配量仍未知；解锁、卸载与清理均完成。原始入口没有放宽USA检查，旧IOCTL矩阵仍36成功/27失败。只读原型限于锁定的自有静态测试卷，不是活跃卷扫描、整卷性能或生产后端，证据见[原始读取记录](../iterations/2026-11-12-14-raw-records/README.md)。
+ 
+ 2026-11-12：复杂记录固定矩阵与 Live 留样已接通。21个对象/63次读取在隔离VHD完成两次，均36次解码、27次严格FixupMismatch；最终6条原始失败记录带IOCTL/Native绑定在卸载后独立重放全部匹配，VHD已清理，原始样本仅本机保留。它们是可重现的失败证据，复杂USA表示仍未修复；生产扫描器与整卷速度未改变。见[矩阵记录](../iterations/2026-11-12-13-kernel-matrix/README.md)。
+diff --git a/iterations/2026-11-12-15-read-session/README.md b/iterations/2026-11-12-15-read-session/README.md
+new file mode 100644
+index 0000000..3d4762e
+--- /dev/null
++++ b/iterations/2026-11-12-15-read-session/README.md
+@@ -0,0 +1,34 @@
++# 纯合成读取会话契约
++
++2026-11-12，基线 `a4af42662a36928de9d698215b7288a27f1dd144`。用户在90分钟开发窗口内确认按[会话方案](../../docs/ntfs-read-session-plan.md)继续：测试专用纯状态机，验证来源失效、代际隔离、有限重试和取消；不创建VSS快照、不访问个人卷、不接入产品。用户随后暂停，本轮未验证半成品留在工作区；恢复后另要求连续20分钟（本地17:33至17:53），已重新核对这些改动的来源，继续同一纯合成范围。上一轮原始读取已独立提交推送，不混合验收。
++
++## 目标与界限
++
++本模型约束“什么情况下可以结束一次模拟收集”，不是MFT读取器、真实来源证明或整卷覆盖证明。ControlledFixture与ValidatedImmutable只是注入的合成断言，当前没有实际VSS验证器；LiveUnproven即使两次映射相同、NoNewUsn=true也不能Complete。
++
++实现分为模型、核心场景和独立反例三份文件。批次全或无；全会话累计4096记录预算不会因重启返还；最多2重启；所有异步入口带expectedGeneration；旧代/未来代不改变当前状态；取消/拒绝/完成终态不被迟到结果覆盖；unknown保留空值和计数；已知总和溢出拒绝，不发布部分结果。
++
++审查补齐三类容易漏掉的组合：等待重启时继续累加后来的映射/增长要求，最终proof中更高的epoch/映射/长度不能回退；错binding批次作为协议错误直接拒绝，不冒充新proof；Count/indexer重入取消或通知后立即停止取项，复制期嵌套Accept/Complete/Restart不能发布在途前缀或复活取消。单纯重复/乱序的同绑定重扫与真正来源变化分别处理。
++
++未知值的已知部分与未知计数分别报告，对应Total保持null；这不是生产统计口径或硬链接归属算法。SourceStamp是模拟重新验证epoch，不是恒定卷ID；模拟条件本身不证明来源真实不可变。
++
++本轮不运行VHD或系统探针，不新增原始记录、日志或模拟路径持久化。没有生产程序集、七项产品功能或发行资产改动。
++
++## 实际验证与审查
++
++| 检查 | 结果 |
++| --- | --- |
++| 测试Release构建（no-restore） | 0警告、0错误 |
++| 会话核心场景 | 103项通过 |
++| 独立反例 | 144项通过，含24项有限线程案例 |
++| 原NTFS合成入口 | 147项通过 |
++
++最终集成摘要见validation.json。线程案例包括同一批次号竞争不得双计数/混入、Complete与Cancel竞争只保留一个合法终态、复制Count/indexer期间另线程取消最终清空并保持终态；用信号与有界Join协调，没有按速度快慢断言。这些是少量正确性案例，不代表全面并发、压力或性能验收。
++
++核心逻辑使用单一gate串行操作，批次先复制/验证私有草稿再整体接受；无文件/目录/进程/NativeStorage调用。暂存、名称与引用表受累计4096预算限制，不创建工作队列/原始读缓冲。模型没有位图、系统句柄或持久缓存；线程测试退出时释放启动信号并执行有界Join，通过结果同时确认线程已退出、同步对象已释放，超时使测试失败。本轮未发现需修改生产取消、缓存或错误报告的行为。
++
++## 后续与恢复
++
++真实来源生命周期、MFT覆盖、分批读取、紧凑建树、实际变化核验与性能仍需独立实现和验收。模拟通过不能声称活跃卷、VSS或整卷扫描已经可靠。
++
++本轮未产生磁盘夹具或重复预览产物，保留正常测试构建供复现；最终归档只留README、脱敏计数摘要、必要文件SHA-256及changes.patch。补丁绑定上述真实基线，正向恢复并逐文件核对暂存字节；不包含自身或旧归档。完成隐私/链接/白字符与恢复核查后提交推送，没有打包、标签或新Release。
+diff --git a/iterations/2026-11-12-15-read-session/validation.json b/iterations/2026-11-12-15-read-session/validation.json
+new file mode 100644
+index 0000000..00ec561
+--- /dev/null
++++ b/iterations/2026-11-12-15-read-session/validation.json
+@@ -0,0 +1,17 @@
++{
++  "schema": 1,
++  "mode": "synthetic-session",
++  "status": "passed",
++  "core_checks": 103,
++  "adversarial_checks": 144,
++  "total_checks": 247,
++  "thread_checks": 24,
++  "prior_prototype_checks": 147,
++  "max_accepted_records": 4096,
++  "max_batch_records": 256,
++  "max_restarts": 2,
++  "real_io": false,
++  "vhd": false,
++  "snapshot": false,
++  "production_integration": false
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 0223620..f10cdd3 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -17,6 +17,17 @@ if (args.Length > 0 && args[0] == "--ntfs-record-replay")
+ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+ if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
+ if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
++if (args.Contains("--ntfs-read-session-tests"))
++{
++    try
++    {
++        int core = DiskAtlas.NtfsPrototype.NtfsReadSessionTests.Run();
++        int adversarial = DiskAtlas.NtfsPrototype.NtfsReadSessionAdversarialTests.Run();
++        Console.WriteLine($"PASS NTFS read session checks: {core} core; {adversarial} adversarial; synthetic model only");
++        return 0;
++    }
++    catch { Console.Error.WriteLine("FAIL NTFS read session checks; no private details emitted"); return 1; }
++}
+ if (args.Contains("--ntfs-raw-comparison-tests"))
+ {
+     try
+diff --git a/tests/Prototypes/Ntfs/NtfsReadSession.cs b/tests/Prototypes/Ntfs/NtfsReadSession.cs
+new file mode 100644
+index 0000000..1e87f17
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsReadSession.cs
+@@ -0,0 +1,301 @@
++namespace DiskAtlas.NtfsPrototype;
++
++internal enum NtfsReadSourceKind { ControlledFixture, ValidatedImmutable, LiveUnproven }
++internal enum NtfsReadSessionState { Ready, Collecting, NeedsRestart, Rejected, Completed, Cancelled }
++internal enum NtfsReadChange { MapMoved, MftGrew, JournalGap, WriterObserved, SourceInvalidated }
++
++// These are simulated assertions, not a verifier for VSS, a live volume, or an
++// actual immutable source. SourceStamp is a monotonically increasing simulated
++// revalidation epoch, NOT a stable volume identifier. Stamps stay in memory.
++internal sealed record NtfsReadProof(NtfsReadSourceKind Source, long SourceStamp, long MapStamp,
++    long ValidBytes, int RecordBytes, bool SourceValid = true, bool HasWriteHandle = false,
++    bool JournalContinuous = true, bool NoNewUsn = false);
++internal sealed record NtfsReadRecord(ulong Reference, ulong ParentReference, string NameToken,
++    long? LogicalBytes, long? AllocatedBytes);
++internal sealed record NtfsReadBatch(int Generation, int BatchId, long SourceStamp, long MapStamp,
++    long ValidBytes, IReadOnlyList<NtfsReadRecord> Records);
++internal sealed record NtfsReadSessionReport(string Status, int Generation, int Restarts, int Records,
++    int AcceptedWork, long KnownLogicalBytes, long KnownAllocatedBytes, int UnknownLogicalRecords,
++    int UnknownAllocatedRecords, long? TotalLogicalBytes, long? TotalAllocatedBytes);
++
++// A bounded pure state model. It performs no file access, reads, tree building,
++// background work or provenance verification. All public operations serialize.
++internal sealed class NtfsReadSession
++{
++    internal const int MaxRecords = 4096, MaxBatchRecords = 256, MaxRestarts = 2;
++    private readonly object gate = new();
++    private NtfsReadProof proof;
++    private NtfsReadSessionState state = NtfsReadSessionState.Ready;
++    private int generation = 1, restarts, acceptedWork, nextBatch = 1;
++    private string lastCode = "ReadySynthetic";
++    private NtfsReadSessionReport? report;
++    private Dictionary<ulong, NtfsReadRecord> records = new();
++    private Dictionary<ulong, ulong> observedSlots = new();
++    private Dictionary<(ulong Parent, string Name), ulong> names = new();
++    private long logical, allocated;
++    private int unknownLogical, unknownAllocated;
++    private bool needsNewSource, needsNewMap, needsGrowth;
++    private long observedSourceStamp, observedMapStamp, observedValidBytes;
++    private bool copyingBatch;
++
++    internal NtfsReadSessionState State { get { lock (gate) return state; } }
++    internal int Generation { get { lock (gate) return generation; } }
++    internal int Restarts { get { lock (gate) return restarts; } }
++    internal int AcceptedWork { get { lock (gate) return acceptedWork; } }
++    internal int StagedCount { get { lock (gate) return records.Count; } }
++    internal string LastCode { get { lock (gate) return lastCode; } }
++    internal NtfsReadSessionReport? Report { get { lock (gate) return report; } }
++
++    internal NtfsReadSession(NtfsReadProof initialProof)
++    {
++        proof = initialProof;
++        if (!ProofShape(initialProof)) Reject("ProofInvalid");
++        else if (!ProofAvailable(initialProof)) Reject("ProofUnavailable");
++        else ResetObservedProof(initialProof);
++    }
++
++    internal string Accept(NtfsReadBatch batch)
++    {
++        lock (gate)
++        {
++            if (Terminal) return "IgnoredTerminal";
++            if (copyingBatch) return "BatchInProgress";
++            if (batch == null) return Reject("BatchInvalid");
++            // An obsolete/foreign callback cannot change this generation, its
++            // current diagnostic, its retry count or its global work budget.
++            if (batch.Generation < generation) return "IgnoredStaleGeneration";
++            if (batch.Generation > generation) return "IgnoredFutureGeneration";
++            if (state == NtfsReadSessionState.NeedsRestart) return "RestartRequired";
++            if (batch.BatchId != nextBatch) return Invalidate("BatchOrderChanged", newSource: false);
++            if (batch.SourceStamp != proof.SourceStamp || batch.MapStamp != proof.MapStamp || batch.ValidBytes != proof.ValidBytes)
++                return Reject("BatchBindingChanged");
++            if (batch.Records == null) return Reject("BatchInvalid");
++            NtfsReadRecord[] incoming;
++            copyingBatch = true;
++            try
++            {
++                int count = batch.Records.Count;
++                string? interrupted = BatchCallbackGate(batch.Generation);
++                if (interrupted != null) return interrupted;
++                if (count is < 1 or > MaxBatchRecords) return Reject("BatchLimit");
++                if (count > MaxRecords - acceptedWork) return Reject("RecordBudgetExceeded");
++                incoming = new NtfsReadRecord[count];
++                for (int i = 0; i < count; i++)
++                {
++                    incoming[i] = batch.Records[i];
++                    interrupted = BatchCallbackGate(batch.Generation);
++                    if (interrupted != null) return interrupted;
++                }
++            }
++            catch (Exception error) when (error is ArgumentException or InvalidOperationException or IndexOutOfRangeException)
++            { return BatchCallbackGate(batch.Generation) ?? Reject("BatchInvalid"); }
++            finally { copyingBatch = false; }
++            string? changed = BatchCallbackGate(batch.Generation);
++            if (changed != null) return changed;
++            // Count/indexers are externally supplied code and Monitor is
++            // reentrant: they may call session APIs, cancel or invalidate it.
++            if (batch.BatchId != nextBatch) return Invalidate("BatchOrderChanged", newSource: false);
++            if (batch.SourceStamp != proof.SourceStamp || batch.MapStamp != proof.MapStamp || batch.ValidBytes != proof.ValidBytes)
++                return Reject("BatchBindingChanged");
++            if (incoming.Length > MaxRecords - acceptedWork) return Reject("RecordBudgetExceeded");
++
++            // Build a private draft. No prefix of an invalid/overflowed batch is
++            // staged, charged to the budget, or visible through a report.
++            var nextRecords = new Dictionary<ulong, NtfsReadRecord>(records);
++            var nextSlots = new Dictionary<ulong, ulong>(observedSlots);
++            var nextNames = new Dictionary<(ulong Parent, string Name), ulong>(names);
++            long nextLogical = logical, nextAllocated = allocated;
++            int nextUnknownLogical = unknownLogical, nextUnknownAllocated = unknownAllocated;
++            foreach (var item in incoming)
++            {
++                if (item == null || !ValidReference(item.Reference) || !ValidReference(item.ParentReference) ||
++                    !NameToken(item.NameToken) || item.LogicalBytes < 0 || item.AllocatedBytes < 0)
++                    return Reject("RecordInvalid");
++                ulong slot = item.Reference & NtfsRecordDecoder.MaximumRecordNumber;
++                if (nextRecords.TryGetValue(slot, out var previous))
++                    return Invalidate(previous.Reference != item.Reference ? "SlotReused" : previous == item ? "DuplicateReference" : "RecordChanged",
++                        newSource: previous.Reference != item.Reference || previous != item);
++                if (!ObserveReference(nextSlots, item.Reference) || !ObserveReference(nextSlots, item.ParentReference))
++                    return Invalidate("ParentSequenceChanged");
++                var entry = (item.ParentReference, item.NameToken);
++                if (nextNames.TryGetValue(entry, out ulong owner) && owner != item.Reference)
++                    return Invalidate("NameCollision");
++                try
++                {
++                    if (item.LogicalBytes.HasValue) nextLogical = checked(nextLogical + item.LogicalBytes.Value);
++                    else nextUnknownLogical++;
++                    if (item.AllocatedBytes.HasValue) nextAllocated = checked(nextAllocated + item.AllocatedBytes.Value);
++                    else nextUnknownAllocated++;
++                }
++                catch (OverflowException) { return Reject("TotalOverflow"); }
++                nextRecords.Add(slot, item with { });
++                nextNames.Add(entry, item.Reference);
++            }
++            records = nextRecords; observedSlots = nextSlots; names = nextNames;
++            logical = nextLogical; allocated = nextAllocated;
++            unknownLogical = nextUnknownLogical; unknownAllocated = nextUnknownAllocated;
++            acceptedWork += incoming.Length;
++            nextBatch++;
++            state = NtfsReadSessionState.Collecting;
++            return lastCode = "Accepted";
++        }
++    }
++
++    internal string Notify(int expectedGeneration, NtfsReadChange change)
++    {
++        lock (gate)
++        {
++            if (Terminal) return "IgnoredTerminal";
++            if (expectedGeneration < generation) return "IgnoredStaleGeneration";
++            if (expectedGeneration > generation) return "IgnoredFutureGeneration";
++            if (!Enum.IsDefined(change)) return Reject("ChangeInvalid");
++            string code = change switch
++            {
++                NtfsReadChange.MapMoved => "MapMoved",
++                NtfsReadChange.MftGrew => "MftGrew",
++                NtfsReadChange.JournalGap => "JournalGap",
++                NtfsReadChange.WriterObserved => "WriterObserved",
++                _ => "SourceInvalidated"
++            };
++            bool mapChanged = change is NtfsReadChange.MapMoved or NtfsReadChange.MftGrew;
++            if (state == NtfsReadSessionState.NeedsRestart)
++            {
++                RememberRestartRequirements(true, mapChanged, change == NtfsReadChange.MftGrew);
++                return "RestartRequired";
++            }
++            return Invalidate(code, newMap: mapChanged, grown: change == NtfsReadChange.MftGrew);
++        }
++    }
++
++    internal string Restart(int expectedGeneration, NtfsReadProof renewedProof)
++    {
++        lock (gate)
++        {
++            if (Terminal) return "IgnoredTerminal";
++            if (expectedGeneration < generation) return "IgnoredStaleGeneration";
++            if (expectedGeneration > generation) return "IgnoredFutureGeneration";
++            if (copyingBatch) return "BatchInProgress";
++            if (state != NtfsReadSessionState.NeedsRestart) return "RestartNotRequested";
++            if (restarts >= MaxRestarts) return Reject("RestartLimit");
++            if (acceptedWork >= MaxRecords) return Reject("RecordBudgetExceeded");
++            if (!ProofShape(renewedProof)) return Reject("ProofInvalid");
++            if (!ProofAvailable(renewedProof)) return Reject("ProofUnavailable");
++            if (renewedProof.SourceStamp < proof.SourceStamp || renewedProof.MapStamp < proof.MapStamp ||
++                renewedProof.SourceStamp < observedSourceStamp || renewedProof.MapStamp < observedMapStamp ||
++                (!SameBinding(proof, renewedProof) && renewedProof.SourceStamp <= proof.SourceStamp) ||
++                (needsNewSource && renewedProof.SourceStamp <= proof.SourceStamp) ||
++                (needsNewMap && renewedProof.MapStamp <= proof.MapStamp) ||
++                (needsGrowth && (renewedProof.ValidBytes <= proof.ValidBytes || renewedProof.ValidBytes < observedValidBytes)))
++                return Reject("RestartProofStale");
++            proof = renewedProof;
++            restarts++; generation++;
++            needsNewSource = needsNewMap = needsGrowth = false;
++            ResetObservedProof(renewedProof);
++            state = NtfsReadSessionState.Ready; nextBatch = 1;
++            return lastCode = "RestartedSynthetic";
++        }
++    }
++
++    // This is a simulated caller declaration that its batches ended. It does not
++    // prove coverage of all MFT slots, a tree, a real snapshot or a live source.
++    internal string Complete(int expectedGeneration, NtfsReadProof finalProof)
++    {
++        lock (gate)
++        {
++            if (Terminal) return "IgnoredTerminal";
++            if (expectedGeneration < generation) return "IgnoredStaleGeneration";
++            if (expectedGeneration > generation) return "IgnoredFutureGeneration";
++            if (copyingBatch) return "BatchInProgress";
++            if (state == NtfsReadSessionState.NeedsRestart)
++            {
++                if (!ProofShape(finalProof) || !ProofAvailable(finalProof) || !SameBinding(proof, finalProof))
++                {
++                    RememberObservedProof(finalProof);
++                    RememberRestartRequirements(true, false, false);
++                }
++                return "RestartRequired";
++            }
++            if (!ProofShape(finalProof) || !ProofAvailable(finalProof))
++            { RememberObservedProof(finalProof); return Invalidate("CompletionProofUnavailable"); }
++            if (!SameBinding(proof, finalProof))
++            { RememberObservedProof(finalProof); return Invalidate("CompletionProofChanged"); }
++            if (proof.Source == NtfsReadSourceKind.LiveUnproven) return Reject("SourceUnproven");
++            if (state != NtfsReadSessionState.Collecting || records.Count == 0) return Reject("EmptySession");
++            report = new("CompletedSyntheticSession", generation, restarts, records.Count, acceptedWork,
++                logical, allocated, unknownLogical, unknownAllocated,
++                unknownLogical == 0 ? logical : null, unknownAllocated == 0 ? allocated : null);
++            state = NtfsReadSessionState.Completed;
++            return lastCode = "CompletedSynthetic";
++        }
++    }
++
++    internal string Cancel()
++    {
++        lock (gate)
++        {
++            if (Terminal) return "IgnoredTerminal";
++            ClearGeneration(); state = NtfsReadSessionState.Cancelled;
++            return lastCode = "CancelledSynthetic";
++        }
++    }
++
++    private bool Terminal => state is NtfsReadSessionState.Rejected or NtfsReadSessionState.Completed or NtfsReadSessionState.Cancelled;
++    private string Reject(string code)
++    {
++        ClearGeneration(); state = NtfsReadSessionState.Rejected;
++        return lastCode = code;
++    }
++    private string Invalidate(string code, bool newSource = true, bool newMap = false, bool grown = false)
++    {
++        RememberRestartRequirements(newSource, newMap, grown);
++        ClearGeneration();
++        state = restarts >= MaxRestarts ? NtfsReadSessionState.Rejected : NtfsReadSessionState.NeedsRestart;
++        return lastCode = restarts >= MaxRestarts ? "RestartLimit" : code;
++    }
++    private void RememberRestartRequirements(bool newSource, bool newMap, bool grown)
++    { needsNewSource |= newSource; needsNewMap |= newMap; needsGrowth |= grown; }
++    private void RememberObservedProof(NtfsReadProof observation)
++    {
++        if (!ProofShape(observation)) return;
++        observedSourceStamp = Math.Max(observedSourceStamp, observation.SourceStamp);
++        observedMapStamp = Math.Max(observedMapStamp, observation.MapStamp);
++        observedValidBytes = Math.Max(observedValidBytes, observation.ValidBytes);
++        RememberRestartRequirements(true, observation.MapStamp != proof.MapStamp, observation.ValidBytes > proof.ValidBytes);
++    }
++    private void ResetObservedProof(NtfsReadProof current)
++    { observedSourceStamp = current.SourceStamp; observedMapStamp = current.MapStamp; observedValidBytes = current.ValidBytes; }
++    private string? BatchCallbackGate(int expectedGeneration)
++    {
++        if (Terminal) return "IgnoredTerminal";
++        if (expectedGeneration < generation) return "IgnoredStaleGeneration";
++        if (expectedGeneration > generation) return "IgnoredFutureGeneration";
++        return state == NtfsReadSessionState.NeedsRestart ? "RestartRequired" : null;
++    }
++    private void ClearGeneration()
++    {
++        records.Clear(); observedSlots.Clear(); names.Clear(); report = null;
++        logical = allocated = 0; unknownLogical = unknownAllocated = 0; nextBatch = 1;
++    }
++    private bool ValidReference(ulong reference)
++    {
++        if (reference >> 48 == 0) return false;
++        ulong slot = reference & NtfsRecordDecoder.MaximumRecordNumber;
++        // Divide first: even an extreme reference must never overflow a product.
++        return slot < (ulong)(proof.ValidBytes / proof.RecordBytes);
++    }
++    private static bool ObserveReference(Dictionary<ulong, ulong> slots, ulong reference)
++    {
++        ulong slot = reference & NtfsRecordDecoder.MaximumRecordNumber;
++        if (slots.TryGetValue(slot, out ulong previous)) return previous == reference;
++        slots.Add(slot, reference); return true;
++    }
++    private static bool ProofShape(NtfsReadProof value) => value != null && Enum.IsDefined(value.Source) &&
++        value.SourceStamp > 0 && value.MapStamp > 0 && value.RecordBytes is >= 1024 and <= 65536 &&
++        value.RecordBytes % 512 == 0 && value.ValidBytes >= value.RecordBytes && value.ValidBytes % value.RecordBytes == 0;
++    private static bool ProofAvailable(NtfsReadProof value) => value.SourceValid && !value.HasWriteHandle && value.JournalContinuous;
++    private static bool SameBinding(NtfsReadProof left, NtfsReadProof right) => left.Source == right.Source &&
++        left.SourceStamp == right.SourceStamp && left.MapStamp == right.MapStamp &&
++        left.ValidBytes == right.ValidBytes && left.RecordBytes == right.RecordBytes;
++    private static bool NameToken(string name) => name != null && name.Length is >= 1 and <= 40 &&
++        char.IsAsciiLetter(name[0]) && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '-');
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsReadSessionAdversarialTests.cs b/tests/Prototypes/Ntfs/NtfsReadSessionAdversarialTests.cs
+new file mode 100644
+index 0000000..fa42738
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsReadSessionAdversarialTests.cs
+@@ -0,0 +1,559 @@
++namespace DiskAtlas.NtfsPrototype;
++
++// Pure simulated callbacks and metadata. No I/O, real snapshot, volume handle,
++// path, name discovery or claim of MFT coverage is involved in these tests.
++internal static class NtfsReadSessionAdversarialTests
++{
++    private sealed class CallbackRecords(NtfsReadRecord[] items) : IReadOnlyList<NtfsReadRecord>
++    {
++        internal Func<int>? OnCount;
++        internal Action<int>? OnIndex;
++        internal bool ThrowFromIndex;
++        public int Count => OnCount?.Invoke() ?? items.Length;
++        public NtfsReadRecord this[int index]
++        {
++            get
++            {
++                OnIndex?.Invoke(index);
++                if (ThrowFromIndex) throw new InvalidOperationException("SyntheticCopyInterrupted");
++                return items[index];
++            }
++        }
++        public IEnumerator<NtfsReadRecord> GetEnumerator() => ((IEnumerable<NtfsReadRecord>)items).GetEnumerator();
++        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
++    }
++
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("NTFS read session adversarial check failed: " + name);
++            passed++; Console.WriteLine("PASS NTFS read session adversarial " + name);
++        }
++        NtfsReadProof Proof(NtfsReadSourceKind kind = NtfsReadSourceKind.ValidatedImmutable) =>
++            new(kind, 11, 21, 4096L * 1024, 1024);
++        ulong Reference(int slot, ushort sequence = 1) => ((ulong)sequence << 48) | (uint)slot;
++        NtfsReadRecord Record(int slot, long? logical = 1, long? allocated = 1, string? name = null,
++            ulong? parent = null, ushort sequence = 1) =>
++            new(Reference(slot, sequence), parent ?? Reference(4095), name ?? "item-" + slot, logical, allocated);
++        NtfsReadBatch Batch(NtfsReadSession session, NtfsReadProof proof, int id, params NtfsReadRecord[] records) =>
++            new(session.Generation, id, proof.SourceStamp, proof.MapStamp, proof.ValidBytes, records);
++        void NoPublication(NtfsReadSession session, string name) => Check(session.Report == null &&
++            session.State != NtfsReadSessionState.Completed, name);
++        (NtfsReadSessionState State, int Generation, int Restarts, int Staged, int Work, object? Report) Snapshot(NtfsReadSession session) =>
++            (session.State, session.Generation, session.Restarts, session.StagedCount, session.AcceptedWork, session.Report);
++
++        // A valid first half cannot leak into the accepted state if the final
++        // entry is invalid. Previously accepted work is not refunded on failure.
++        foreach (bool invalidLogical in new[] { true, false })
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            session.Accept(Batch(session, proof, 2, Record(2), Record(3),
++                invalidLogical ? Record(4, -1, 0) : Record(4, 0, -1)));
++            Check(session.State == NtfsReadSessionState.Rejected && session.StagedCount == 0 && session.AcceptedWork == 1,
++                "late invalid size rejects the entire generation without charging its valid prefix");
++            NoPublication(session, "invalid batch has no published report");
++        }
++        foreach (bool overflowLogical in new[] { true, false })
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1, 0, 0)));
++            session.Accept(Batch(session, proof, 2, Record(2, overflowLogical ? long.MaxValue : 0,
++                overflowLogical ? 0 : long.MaxValue), Record(3, 1, 1)));
++            Check(session.State == NtfsReadSessionState.Rejected && session.StagedCount == 0 && session.AcceptedWork == 1,
++                "late aggregate overflow cannot publish a partially summed batch");
++            NoPublication(session, "overflow retains no successful report");
++        }
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            var caller = new[] { Record(1, 5, 7), Record(2, 11, 13) };
++            session.Accept(new(session.Generation, 1, proof.SourceStamp, proof.MapStamp, proof.ValidBytes, caller));
++            caller[0] = Record(1, long.MaxValue, long.MaxValue, "changed-after-accept");
++            caller[1] = null!;
++            session.Complete(session.Generation, proof);
++            Check(session.State == NtfsReadSessionState.Completed && session.Report is
++                { Records: 2, KnownLogicalBytes: 16, KnownAllocatedBytes: 20, AcceptedWork: 2 },
++                "mutating the caller batch after acceptance cannot mutate committed metadata");
++        }
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1, null, 3), Record(2, 0, null), Record(3, 2, 4)));
++            session.Complete(session.Generation, proof);
++            Check(session.State == NtfsReadSessionState.Completed && session.Report is
++                { Records: 3, KnownLogicalBytes: 2, KnownAllocatedBytes: 7, UnknownLogicalRecords: 1,
++                  UnknownAllocatedRecords: 1, TotalLogicalBytes: null, TotalAllocatedBytes: null },
++                "unknown sizes remain counted unknown with nullable totals after synthetic collection completes");
++        }
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1, 0, 0)));
++            session.Complete(session.Generation, proof);
++            Check(session.Report is { UnknownLogicalRecords: 0, UnknownAllocatedRecords: 0,
++                TotalLogicalBytes: 0, TotalAllocatedBytes: 0 }, "a genuinely known zero remains distinct from an unknown total");
++        }
++
++        foreach (string change in new[] { "Sequence", "Parent", "Name", "EntryCollision" })
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1, name: "stable-entry")));
++            NtfsReadRecord conflicting = change switch
++            {
++                "Sequence" => Record(1, sequence: 2),
++                "Parent" => Record(1, name: "stable-entry", parent: Reference(4)),
++                "Name" => Record(1, name: "renamed-entry"),
++                _ => Record(2, name: "stable-entry")
++            };
++            session.Accept(Batch(session, proof, 2, Record(3), conflicting));
++            Check((session.State is NtfsReadSessionState.NeedsRestart or NtfsReadSessionState.Rejected) &&
++                session.StagedCount == 0 && session.AcceptedWork == 1,
++                "cross-batch identity or namespace conflict discards the whole candidate generation");
++            NoPublication(session, "conflicting old and new records cannot be published together");
++        }
++        foreach (string field in new[] { "Source", "Map", "Length" })
++        foreach (long delta in new long[] { -1024, -1, 1, 1024 })
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            var bound = Batch(session, proof, 2, Record(2));
++            var mismatched = field switch
++            {
++                "Source" => bound with { SourceStamp = proof.SourceStamp + delta },
++                "Map" => bound with { MapStamp = proof.MapStamp + delta },
++                _ => bound with { ValidBytes = proof.ValidBytes + delta }
++            };
++            session.Accept(mismatched);
++            Check(session.State == NtfsReadSessionState.Rejected && session.LastCode == "BatchBindingChanged" &&
++                session.StagedCount == 0 && session.AcceptedWork == 1 && session.Report == null,
++                "a current-generation batch with a different binding cannot be treated as independently verified renewal");
++        }
++
++        // Same stamps across a retry make the generation check essential: an old
++        // callback must never finish or invalidate the new candidate generation.
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            int old = session.Generation;
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            // Batch-order loss is explicitly allowed to re-read the same proof;
++            // identity/mapping/source invalidation requires fresh evidence.
++            session.Accept(Batch(session, proof, 3, Record(9)));
++            session.Restart(old, proof);
++            Check(session.Generation == old + 1 && session.Restarts == 1 && session.StagedCount == 0 && session.AcceptedWork == 1,
++                "restart advances generation without refunding discarded work");
++            session.Accept(Batch(session, proof, 1, Record(2)));
++            var before = Snapshot(session);
++            foreach (int stale in new[] { old, int.MaxValue })
++            {
++                session.Accept(new(stale, -1, -1, -1, -1, null!));
++                session.Notify(stale, NtfsReadChange.SourceInvalidated);
++                session.Restart(stale, proof with { SourceValid = false });
++                session.Complete(stale, proof);
++                Check(Snapshot(session) == before, "old or future callbacks cannot mutate current generation or work budget");
++            }
++            session.Complete(session.Generation, proof);
++            Check(session.Report is { Records: 1, AcceptedWork: 2 } && session.Report.Generation == session.Generation,
++                "only current generation records reach the final report while discarded work remains charged");
++        }
++
++        foreach (var change in Enum.GetValues<NtfsReadChange>())
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            session.Notify(session.Generation, change);
++            Check(session.StagedCount == 0 && session.AcceptedWork == 1, "every modeled source change invalidates all staged records");
++            NoPublication(session, "source change never creates a published report");
++        }
++        foreach (bool growth in new[] { false, true })
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            session.Notify(session.Generation, NtfsReadChange.JournalGap);
++            session.Notify(session.Generation, growth ? NtfsReadChange.MftGrew : NtfsReadChange.MapMoved);
++            // A later weaker observation must not erase the stronger requirement.
++            session.Notify(session.Generation, NtfsReadChange.WriterObserved);
++            var insufficient = proof with { SourceStamp = proof.SourceStamp + 1,
++                MapStamp = growth ? proof.MapStamp + 1 : proof.MapStamp };
++            session.Restart(session.Generation, insufficient);
++            Check(session.State == NtfsReadSessionState.Rejected && session.StagedCount == 0,
++                "stronger mapping or growth invalidation received while waiting cannot be erased by weaker events");
++        }
++        foreach (bool alreadyWaiting in new[] { false, true })
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            if (alreadyWaiting) session.Accept(Batch(session, proof, 3, Record(2)));
++            var changed = proof with { MapStamp = proof.MapStamp + 1, ValidBytes = proof.ValidBytes + 1024 };
++            session.Complete(session.Generation, changed);
++            session.Restart(session.Generation, proof with { SourceStamp = proof.SourceStamp + 1 });
++            Check(session.State == NtfsReadSessionState.Rejected && session.StagedCount == 0,
++                "a final proof revealing mapping growth cannot be followed by renewal of the old mapping");
++        }
++        foreach (bool alreadyWaiting in new[] { false, true })
++        foreach (string field in new[] { "Source", "Map", "Length" })
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            if (alreadyWaiting) session.Accept(Batch(session, proof, 3, Record(2)));
++            var observed = proof with { SourceStamp = 14, MapStamp = 29, ValidBytes = proof.ValidBytes + 2048 };
++            session.Complete(session.Generation, observed);
++            var lower = field switch
++            {
++                "Source" => observed with { SourceStamp = 13 },
++                "Map" => observed with { MapStamp = 28 },
++                _ => observed with { ValidBytes = proof.ValidBytes + 1024 }
++            };
++            session.Restart(session.Generation, lower);
++            Check(session.State == NtfsReadSessionState.Rejected && session.StagedCount == 0,
++                "renewal cannot retreat below source mapping or length high-water marks already observed by a final proof");
++        }
++        foreach (bool alreadyWaiting in new[] { false, true })
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            if (alreadyWaiting) session.Accept(Batch(session, proof, 3, Record(2)));
++            var observed = proof with { SourceStamp = 14, MapStamp = 29, ValidBytes = proof.ValidBytes + 2048 };
++            session.Complete(session.Generation, observed);
++            session.Restart(session.Generation, observed);
++            Check(session.State == NtfsReadSessionState.Ready && session.Generation == 2,
++                "renewal may match the fresh observed binding without an artificial extra stamp increment");
++        }
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            int old = session.Generation;
++            session.Accept(Batch(session, proof, 3, Record(9)));
++            session.Restart(old, proof);
++            session.Accept(Batch(session, proof, 1, Record(2)));
++            session.Accept(Batch(session, proof, 3, Record(9)));
++            // The current generation only lost batch ordering; stale callbacks
++            // must not impose fresh mapping/growth requirements on its retry.
++            session.Notify(old, NtfsReadChange.MftGrew);
++            session.Notify(old, NtfsReadChange.SourceInvalidated);
++            int current = session.Generation;
++            session.Restart(current, proof);
++            Check(session.Generation == current + 1 && session.State == NtfsReadSessionState.Ready && session.Restarts == 2,
++                "old-generation strong events cannot upgrade current retry requirements");
++        }
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            session.Notify(session.Generation, NtfsReadChange.JournalGap);
++            session.Notify(session.Generation, NtfsReadChange.MftGrew);
++            var renewed = proof with { SourceStamp = proof.SourceStamp + 1,
++                MapStamp = proof.MapStamp + 1, ValidBytes = proof.ValidBytes + 1024 };
++            session.Restart(session.Generation, renewed);
++            Check(session.State == NtfsReadSessionState.Ready && session.Generation == 2,
++                "combined source mapping and growth requirements accept sufficiently fresh renewal");
++            session.Accept(Batch(session, renewed, 1, Record(2)));
++            session.Accept(Batch(session, renewed, 3, Record(9)));
++            session.Restart(session.Generation, renewed);
++            Check(session.State == NtfsReadSessionState.Ready && session.Generation == 3,
++                "successful renewal clears old strong requirements before a later ordering-only retry");
++            session.Accept(Batch(session, renewed, 1, Record(3)));
++            session.Complete(session.Generation, renewed);
++            Check(session.Report is { Records: 1, AcceptedWork: 3, Restarts: 2 },
++                "completed metadata comes only from the final generation after requirements reset");
++        }
++        foreach (var changed in new[]
++        {
++            Proof() with { SourceStamp = 12 }, Proof() with { MapStamp = 22 },
++            Proof() with { ValidBytes = 4097L * 1024 }, Proof() with { SourceValid = false },
++            Proof() with { HasWriteHandle = true }, Proof() with { JournalContinuous = false },
++            Proof() with { Source = NtfsReadSourceKind.LiveUnproven }
++        })
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            session.Complete(session.Generation, changed);
++            Check(session.StagedCount == 0, "changed final proof discards staged metadata instead of publishing an old source");
++            NoPublication(session, "invalid or mismatched final proof prevents completion");
++        }
++        foreach (bool noNewUsn in new[] { false, true })
++        {
++            var live = Proof(NtfsReadSourceKind.LiveUnproven) with { NoNewUsn = noNewUsn };
++            var session = new NtfsReadSession(live);
++            session.Accept(Batch(session, live, 1, Record(1)));
++            session.Complete(session.Generation, live);
++            Check(session.State == NtfsReadSessionState.Rejected && session.Report == null,
++                "unchanged stamps and an empty journal cannot promote LiveUnproven to a complete session");
++            session.Restart(session.Generation, Proof());
++            Check(session.State == NtfsReadSessionState.Rejected && session.Report == null,
++                "a late source-kind substitution cannot promote a terminal unproven source");
++        }
++        foreach (var invalidSource in new[] { (NtfsReadSourceKind)(-1), (NtfsReadSourceKind)int.MaxValue })
++        {
++            var proof = Proof() with { Source = invalidSource }; var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            session.Complete(session.Generation, proof);
++            Check(session.State == NtfsReadSessionState.Rejected && session.Report == null,
++                "unknown source enum values cannot act as verified immutable evidence");
++        }
++
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            for (int attempt = 0; attempt < 2; attempt++)
++            {
++                session.Accept(Batch(session, proof, 1, Record(attempt + 1)));
++                int generation = session.Generation;
++                session.Notify(generation, NtfsReadChange.MapMoved);
++                proof = proof with { SourceStamp = proof.SourceStamp + 1, MapStamp = proof.MapStamp + 1 };
++                session.Restart(generation, proof);
++            }
++            Check(session.Generation == 3 && session.Restarts == 2 && session.AcceptedWork == 2,
++                "two recoveries consume exactly the restart budget");
++            session.Accept(Batch(session, proof, 1, Record(3)));
++            session.Notify(session.Generation, NtfsReadChange.MftGrew);
++            Check(session.State == NtfsReadSessionState.Rejected && session.StagedCount == 0 && session.Restarts == 2,
++                "a third change cannot create an unbounded fourth generation");
++        }
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            for (int batch = 1; batch <= 12; batch++)
++                session.Accept(Batch(session, proof, batch,
++                    Enumerable.Range((batch - 1) * 256, 256).Select(slot => Record(slot)).ToArray()));
++            int old = session.Generation;
++            session.Notify(old, NtfsReadChange.MapMoved);
++            proof = proof with { SourceStamp = proof.SourceStamp + 1, MapStamp = proof.MapStamp + 1 };
++            session.Restart(old, proof);
++            for (int batch = 1; batch <= 4; batch++)
++                session.Accept(Batch(session, proof, batch,
++                    Enumerable.Range((batch - 1) * 256, 256).Select(slot => Record(slot)).ToArray()));
++            Check(session.AcceptedWork == 4096 && session.StagedCount == 1024,
++                "discarded generations do not return capacity to the session-wide record budget");
++            var before = Snapshot(session);
++            session.Accept(new(old, 13, proof.SourceStamp, proof.MapStamp, proof.ValidBytes, [Record(2048)]));
++            Check(Snapshot(session) == before, "stale data at the budget endpoint does not consume or invalidate current work");
++            session.Accept(Batch(session, proof, 5, Record(2048)));
++            Check(session.State == NtfsReadSessionState.Rejected && session.AcceptedWork == 4096 && session.StagedCount == 0,
++                "the first record beyond the global limit is rejected atomically across retries");
++        }
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Enumerable.Range(0, 257).Select(slot => Record(slot)).ToArray()));
++            Check(session.State == NtfsReadSessionState.Rejected && session.AcceptedWork == 0 && session.StagedCount == 0,
++                "an oversized first batch cannot commit its first allowed records");
++        }
++
++        foreach (string location in new[] { "Count", "Indexer", "ThrowingIndexer" })
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            var incoming = new CallbackRecords([Record(2)]);
++            if (location == "Count") incoming.OnCount = () => { session.Cancel(); return 0; };
++            else incoming.OnIndex = _ => session.Cancel();
++            incoming.ThrowFromIndex = location == "ThrowingIndexer";
++            session.Accept(new(session.Generation, 2, proof.SourceStamp, proof.MapStamp, proof.ValidBytes, incoming));
++            Check(session.State == NtfsReadSessionState.Cancelled && session.StagedCount == 0 && session.AcceptedWork == 1 && session.Report == null,
++                "reentrant cancellation from external collection access cannot be revived or replaced by validation failure");
++        }
++        foreach (string location in new[] { "Count", "Indexer", "ThrowingIndexer" })
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            var incoming = new CallbackRecords([Record(2)]);
++            void Invalidate() { session.Notify(session.Generation, NtfsReadChange.MftGrew); }
++            if (location == "Count") incoming.OnCount = () => { Invalidate(); return 1; };
++            else incoming.OnIndex = _ => Invalidate();
++            incoming.ThrowFromIndex = location == "ThrowingIndexer";
++            session.Accept(new(session.Generation, 2, proof.SourceStamp, proof.MapStamp, proof.ValidBytes, incoming));
++            Check(session.State == NtfsReadSessionState.NeedsRestart && session.StagedCount == 0 && session.AcceptedWork == 1 && session.Report == null,
++                "reentrant source invalidation survives both successful and throwing collection copies");
++            session.Restart(session.Generation, proof with { SourceStamp = proof.SourceStamp + 1, MapStamp = proof.MapStamp + 1 });
++            Check(session.State == NtfsReadSessionState.Rejected,
++                "reentrant MFT growth retains its growth requirement after the interrupted copy");
++        }
++        foreach (string location in new[] { "Count", "Indexer" })
++        foreach (string operation in new[] { "Accept", "Complete", "Restart" })
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            string? nestedCode = null;
++            var incoming = new CallbackRecords([Record(2, 2, 3)]);
++            void Reenter()
++            {
++                nestedCode = operation switch
++                {
++                    "Accept" => session.Accept(Batch(session, proof, 2, Record(3, 99, 99))),
++                    "Complete" => session.Complete(session.Generation, proof),
++                    _ => session.Restart(session.Generation, proof)
++                };
++                Check(session.Report == null && session.AcceptedWork == 1,
++                    "nested mutation cannot publish or charge work while another batch is being copied");
++            }
++            if (location == "Count") incoming.OnCount = () => { Reenter(); return 1; };
++            else incoming.OnIndex = _ => Reenter();
++            session.Accept(new(session.Generation, 2, proof.SourceStamp, proof.MapStamp, proof.ValidBytes, incoming));
++            Check(nestedCode == "BatchInProgress" && session.State == NtfsReadSessionState.Collecting &&
++                session.StagedCount == 2 && session.AcceptedWork == 2 && session.Report == null,
++                "nested accept complete or restart is fenced without corrupting the outer batch");
++            session.Complete(session.Generation, proof);
++            Check(session.Report is { Records: 2, KnownLogicalBytes: 3, KnownAllocatedBytes: 4 },
++                "only the outer batch becomes visible after a fenced reentrant operation");
++        }
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            string? nested = null;
++            var renewed = proof with { SourceStamp = proof.SourceStamp + 1, MapStamp = proof.MapStamp + 1 };
++            var incoming = new CallbackRecords([Record(2)])
++            {
++                OnIndex = _ =>
++                {
++                    int current = session.Generation;
++                    session.Notify(current, NtfsReadChange.MapMoved);
++                    nested = session.Restart(current, renewed);
++                }
++            };
++            session.Accept(new(session.Generation, 2, proof.SourceStamp, proof.MapStamp, proof.ValidBytes, incoming));
++            Check(nested == "BatchInProgress" && session.Generation == 1 && session.State == NtfsReadSessionState.NeedsRestart &&
++                session.AcceptedWork == 1 && session.StagedCount == 0,
++                "reentrant notification may interrupt copying while restart must wait until the copy unwinds");
++            session.Restart(session.Generation, renewed);
++            Check(session.State == NtfsReadSessionState.Ready && session.Generation == 2,
++                "renewal succeeds outside the interrupted collection callback");
++        }
++
++        // Every terminal outcome is sticky even for malformed late arguments.
++        foreach (string ending in new[] { "Cancelled", "Completed", "Rejected" })
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            if (ending == "Cancelled") session.Cancel();
++            else if (ending == "Completed") session.Complete(session.Generation, proof);
++            else session.Accept(Batch(session, proof, 2, Record(2, -1, 0)));
++            var terminal = Snapshot(session);
++            session.Accept(null!);
++            session.Notify(session.Generation, (NtfsReadChange)int.MaxValue);
++            session.Restart(session.Generation, null!);
++            session.Complete(session.Generation, null!);
++            session.Cancel();
++            Check(Snapshot(session) == terminal, "late callbacks and cancellation cannot overwrite a terminal outcome");
++            if (ending == "Cancelled")
++                Check(session.State == NtfsReadSessionState.Cancelled && session.StagedCount == 0 && session.Report == null,
++                    "cancellation is an independent terminal state with no publishable staging");
++        }
++
++        // A few bounded, real-thread interleavings validate mutual exclusion;
++        // these are correctness examples, not stress or scheduling benchmarks.
++        void Race(Action first, Action second)
++        {
++            using var ready = new CountdownEvent(2);
++            using var go = new ManualResetEventSlim();
++            Exception? firstError = null, secondError = null;
++            void Execute(Action action, Action<Exception> failed)
++            {
++                try
++                {
++                    ready.Signal();
++                    if (!go.Wait(3000)) throw new InvalidOperationException("SyntheticRaceStartLimit");
++                    action();
++                }
++                catch (Exception error) { failed(error); }
++            }
++            var left = new Thread(() => Execute(first, error => firstError = error)) { IsBackground = true };
++            var right = new Thread(() => Execute(second, error => secondError = error)) { IsBackground = true };
++            bool leftStarted = false, rightStarted = false, bothReady = false, leftDone = false, rightDone = false;
++            try
++            {
++                left.Start(); leftStarted = true;
++                right.Start(); rightStarted = true;
++                bothReady = ready.Wait(3000);
++            }
++            finally
++            {
++                go.Set();
++                if (leftStarted) leftDone = left.Join(5000);
++                if (rightStarted) rightDone = right.Join(5000);
++            }
++            Check(bothReady && leftDone && rightDone && firstError == null && secondError == null,
++                "bounded competing callbacks finish without an unhandled worker error");
++        }
++        for (int round = 0; round < 3; round++)
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            var first = Batch(session, proof, 1, Record(1, 7, 9));
++            var second = Batch(session, proof, 1, Record(2, 11, 13));
++            Race(() => session.Accept(first), () => session.Accept(second));
++            Check(session.AcceptedWork == 1 && session.StagedCount == 0 && session.Report == null &&
++                session.State == NtfsReadSessionState.NeedsRestart,
++                "two threads submitting the same batch identifier cannot double-charge or mix accepted records");
++            var candidate = Snapshot(session);
++            session.Complete(session.Generation, proof);
++            Check(Snapshot(session) == candidate,
++                "completion after competing duplicate identifiers cannot publish the discarded generation");
++        }
++        for (int round = 0; round < 3; round++)
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1, 7, 9)));
++            int generation = session.Generation;
++            Race(() => session.Complete(generation, proof), () => session.Cancel());
++            bool completed = session.State == NtfsReadSessionState.Completed && session.Report is
++                { Records: 1, AcceptedWork: 1, KnownLogicalBytes: 7, KnownAllocatedBytes: 9 };
++            bool cancelled = session.State == NtfsReadSessionState.Cancelled && session.Report == null && session.StagedCount == 0;
++            Check((completed || cancelled) && session.AcceptedWork == 1,
++                "completion and cancellation choose one legal terminal outcome without combining their states");
++            var terminal = Snapshot(session);
++            session.Accept(Batch(session, proof, 2, Record(2)));
++            session.Complete(generation, proof);
++            session.Cancel();
++            Check(Snapshot(session) == terminal,
++                "a terminal outcome selected by competing threads remains stable under late callbacks");
++        }
++        foreach (bool stopInCount in new[] { false, true })
++        {
++            var proof = Proof(); var session = new NtfsReadSession(proof);
++            session.Accept(Batch(session, proof, 1, Record(1)));
++            using var copying = new ManualResetEventSlim();
++            using var releaseCopy = new ManualResetEventSlim();
++            using var cancelStarting = new ManualResetEventSlim();
++            Exception? copyError = null, cancelError = null;
++            void PauseCopy()
++            {
++                copying.Set();
++                if (!releaseCopy.Wait(5000)) throw new InvalidOperationException("SyntheticCopyBarrierLimit");
++            }
++            var records = new CallbackRecords([Record(2)]);
++            if (stopInCount) records.OnCount = () => { PauseCopy(); return 1; };
++            else records.OnIndex = _ => PauseCopy();
++            var batch = new NtfsReadBatch(session.Generation, 2, proof.SourceStamp, proof.MapStamp, proof.ValidBytes, records);
++            var reader = new Thread(() => { try { session.Accept(batch); } catch (Exception error) { copyError = error; } }) { IsBackground = true };
++            var cancel = new Thread(() =>
++            {
++                try { cancelStarting.Set(); session.Cancel(); }
++                catch (Exception error) { cancelError = error; }
++            }) { IsBackground = true };
++            bool readerStarted = false, cancelStarted = false, copyEntered = false, cancellationStarted = false;
++            bool readerDone = false, cancelDone = false;
++            try
++            {
++                reader.Start(); readerStarted = true;
++                copyEntered = copying.Wait(3000);
++                if (copyEntered)
++                {
++                    cancel.Start(); cancelStarted = true;
++                    cancellationStarted = cancelStarting.Wait(3000);
++                }
++            }
++            finally
++            {
++                releaseCopy.Set();
++                if (readerStarted) readerDone = reader.Join(5000);
++                if (cancelStarted) cancelDone = cancel.Join(5000);
++            }
++            Check(copyEntered && cancellationStarted && readerDone && cancelDone && copyError == null && cancelError == null,
++                "copying and cancellation threads leave their bounded barriers and finish safely");
++            Check(session.State == NtfsReadSessionState.Cancelled && session.Report == null && session.StagedCount == 0 &&
++                session.AcceptedWork is 1 or 2,
++                "another thread cancelling during collection copying eventually clears every staged record");
++            var terminal = Snapshot(session);
++            session.Accept(batch);
++            session.Complete(session.Generation, proof);
++            session.Notify(session.Generation, NtfsReadChange.MftGrew);
++            Check(Snapshot(session) == terminal,
++                "late collection completion and invalidation cannot revive a concurrently cancelled session");
++        }
++        return passed;
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsReadSessionTests.cs b/tests/Prototypes/Ntfs/NtfsReadSessionTests.cs
+new file mode 100644
+index 0000000..708b89a
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsReadSessionTests.cs
+@@ -0,0 +1,206 @@
++using System.Text.Json;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// Synthetic metadata only. No filesystem, source adapter, volume, or snapshot.
++internal static class NtfsReadSessionTests
++{
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("NTFS read session check failed: " + name);
++            passed++; Console.WriteLine("PASS NTFS read session " + name);
++        }
++        var proof = new NtfsReadProof(NtfsReadSourceKind.ControlledFixture, 11, 21, 16 * 1024 * 1024, 1024);
++        ulong Parent(ushort sequence = 1) => NtfsRecordFixtures.Reference(5, sequence);
++        NtfsReadRecord Record(int slot, long? logical = 1, long? allocated = 2, ushort sequence = 1) =>
++            new(NtfsRecordFixtures.Reference((ulong)slot, sequence), Parent(), "Entry" + slot, logical, allocated);
++        NtfsReadBatch Batch(int generation, int id, NtfsReadProof binding, params NtfsReadRecord[] records) =>
++            new(generation, id, binding.SourceStamp, binding.MapStamp, binding.ValidBytes, records);
++        void Clean(NtfsReadSession session, NtfsReadSessionState state, string name) =>
++            Check(session.State == state && session.StagedCount == 0 && session.Report == null, name);
++
++        var session = new NtfsReadSession(proof);
++        Check(session.State == NtfsReadSessionState.Ready && session.Generation == 1 && session.Restarts == 0 &&
++            session.AcceptedWork == 0 && session.Report == null, "fresh valid synthetic session is ready without a published result");
++        Check(session.Restart(1, proof) == "RestartNotRequested" && session.State == NtfsReadSessionState.Ready,
++            "restart cannot silently erase an active generation");
++        var caller = new[] { Record(16, 10, 20), Record(17, 30, 40) };
++        Check(session.Accept(Batch(1, 1, proof, caller)) == "Accepted" && session.State == NtfsReadSessionState.Collecting &&
++            session.StagedCount == 2 && session.AcceptedWork == 2 && session.Report == null, "valid first batch stages atomically without publishing");
++        caller[0] = Record(18, 999, 999);
++        Check(session.Accept(Batch(1, 2, proof, Record(18, 50, 60))) == "Accepted", "next contiguous batch is accepted");
++        Check(session.Complete(1, proof) == "CompletedSynthetic" && session.State == NtfsReadSessionState.Completed,
++            "explicit current-generation end declaration completes only a synthetic collection");
++        var report = session.Report!;
++        Check(report.Status == "CompletedSyntheticSession" && report.Generation == 1 && report.Restarts == 0 &&
++            report.Records == 3 && report.AcceptedWork == 3 && report.TotalLogicalBytes == 90 && report.TotalAllocatedBytes == 120,
++            "final report uses copied records and exact known sums");
++        Check(report.UnknownLogicalRecords == 0 && report.UnknownAllocatedRecords == 0 &&
++            report.KnownLogicalBytes == report.TotalLogicalBytes && report.KnownAllocatedBytes == report.TotalAllocatedBytes,
++            "fully known totals remain distinct from unknown counters");
++        string json = JsonSerializer.Serialize(report);
++        Check(!json.Contains("Reference", StringComparison.Ordinal) && !json.Contains("Stamp", StringComparison.Ordinal) &&
++            !json.Contains("Entry", StringComparison.Ordinal) && !json.Contains("Path", StringComparison.Ordinal),
++            "published synthetic report has no input identities names paths or stamps");
++        foreach (string outcome in new[] {
++            session.Accept(null!), session.Notify(1, NtfsReadChange.SourceInvalidated), session.Restart(1, proof),
++            session.Complete(1, proof), session.Cancel() })
++            Check(outcome == "IgnoredTerminal" && session.State == NtfsReadSessionState.Completed && ReferenceEquals(session.Report, report),
++                "completed terminal result cannot be replaced by late callbacks or cancellation");
++
++        var unknown = new NtfsReadSession(proof);
++        Check(unknown.Accept(Batch(1, 1, proof, Record(16, null, 0), Record(17, 0, null), Record(18, null, null))) == "Accepted",
++            "unknown size metadata is retained without inventing zeros");
++        Check(unknown.Complete(1, proof) == "CompletedSynthetic", "unknown metadata may finish synthetic collection");
++        Check(unknown.Report is { Records: 3, KnownLogicalBytes: 0, KnownAllocatedBytes: 0,
++            UnknownLogicalRecords: 2, UnknownAllocatedRecords: 2, TotalLogicalBytes: null, TotalAllocatedBytes: null },
++            "unknown totals stay null while genuine known zeros and unknown counts remain visible");
++        var maximum = new NtfsReadSession(proof);
++        maximum.Accept(Batch(1, 1, proof, Record(16, long.MaxValue, long.MaxValue)));
++        maximum.Complete(1, proof);
++        Check(maximum.Report is { TotalLogicalBytes: long.MaxValue, TotalAllocatedBytes: long.MaxValue },
++            "single int64 maximum size remains exact without floating conversion");
++        foreach (bool logicalOverflow in new[] { true, false })
++        {
++            var overflow = new NtfsReadSession(proof);
++            var first = Record(16, logicalOverflow ? long.MaxValue : 0, logicalOverflow ? 0 : long.MaxValue);
++            var second = Record(17, logicalOverflow ? 1 : 0, logicalOverflow ? 0 : 1);
++            Check(overflow.Accept(Batch(1, 1, proof, first, second)) == "TotalOverflow" && overflow.AcceptedWork == 0,
++                "overflow rejects the entire batch before any budget or prefix is accepted");
++            Clean(overflow, NtfsReadSessionState.Rejected, "overflow never publishes a partial total");
++        }
++
++        foreach (var source in new[] { NtfsReadSourceKind.ControlledFixture, NtfsReadSourceKind.ValidatedImmutable })
++        {
++            var sourceProof = proof with { Source = source };
++            var sourceSession = new NtfsReadSession(sourceProof);
++            sourceSession.Accept(Batch(1, 1, sourceProof, Record(16)));
++            Check(sourceSession.Complete(1, sourceProof) == "CompletedSynthetic" && sourceSession.Report != null,
++                "supported source assertion completes only the pure synthetic model");
++        }
++        var liveProof = proof with { Source = NtfsReadSourceKind.LiveUnproven, NoNewUsn = true };
++        var live = new NtfsReadSession(liveProof);
++        live.Accept(Batch(1, 1, liveProof, Record(16)));
++        Check(live.Complete(1, liveProof) == "SourceUnproven", "same mapping and no new USN cannot certify a live source");
++        Clean(live, NtfsReadSessionState.Rejected, "unproven live source discards staged data and has no completed report");
++
++        foreach (var badProof in new[] {
++            proof with { Source = (NtfsReadSourceKind)999 }, proof with { SourceStamp = 0 }, proof with { MapStamp = -1 },
++            proof with { ValidBytes = 0 }, proof with { ValidBytes = proof.ValidBytes + 1 },
++            proof with { RecordBytes = 0 }, proof with { RecordBytes = 1025 }, proof with { RecordBytes = 66048 },
++            proof with { SourceValid = false }, proof with { HasWriteHandle = true }, proof with { JournalContinuous = false } })
++            Clean(new NtfsReadSession(badProof), NtfsReadSessionState.Rejected, "invalid or unavailable initial proof cannot start collection");
++        Clean(new NtfsReadSession(null!), NtfsReadSessionState.Rejected, "null initial proof is a controlled rejection");
++        var empty = new NtfsReadSession(proof);
++        Check(empty.Complete(1, proof) == "EmptySession", "an empty end declaration does not create a completed report");
++        foreach (var badRecord in new[] {
++            Record(16) with { Reference = 16 }, Record(16) with { ParentReference = 5 },
++            Record(16) with { Reference = ulong.MaxValue }, Record(16) with { ParentReference = ulong.MaxValue },
++            Record(16) with { LogicalBytes = -1 }, Record(16) with { AllocatedBytes = -1 },
++            Record(16) with { NameToken = "" }, Record(16) with { NameToken = "bad/name" },
++            Record(16) with { NameToken = "bad:name" }, Record(16) with { NameToken = "bad\nname" },
++            Record(16) with { NameToken = new string('x', 41) }, Record(16) with { NameToken = null! } })
++        {
++            var invalid = new NtfsReadSession(proof);
++            Check(invalid.Accept(Batch(1, 1, proof, Record(17), badRecord)) == "RecordInvalid" && invalid.AcceptedWork == 0,
++                "malformed metadata rejects an entire draft including a valid prefix");
++            Clean(invalid, NtfsReadSessionState.Rejected, "invalid batch publishes no complete or staged prefix");
++        }
++        foreach (var changedBinding in new[] {
++            proof with { SourceStamp = proof.SourceStamp + 1 }, proof with { MapStamp = proof.MapStamp + 1 },
++            proof with { ValidBytes = proof.ValidBytes + 1024 } })
++        {
++            var mismatch = new NtfsReadSession(proof);
++            Check(mismatch.Accept(Batch(1, 1, changedBinding, Record(16))) == "BatchBindingChanged",
++                "untrusted batch binding mismatch is a protocol rejection rather than new proof");
++            Clean(mismatch, NtfsReadSessionState.Rejected, "binding mismatch cannot later be hidden by a fresh epoch");
++        }
++
++        var generation = new NtfsReadSession(proof);
++        generation.Accept(Batch(1, 1, proof, Record(16, 100, 200)));
++        Check(generation.Accept(Batch(1, 3, proof, Record(17))) == "BatchOrderChanged", "out-of-order batch invalidates its whole generation");
++        Clean(generation, NtfsReadSessionState.NeedsRestart, "out-of-order prefix is discarded before a retry");
++        Check(generation.Restart(1, proof) == "RestartedSynthetic" && generation.Generation == 2 && generation.Restarts == 1 &&
++            generation.AcceptedWork == 1, "a protocol-only retry may reuse the binding but not refund accepted work");
++        generation.Accept(Batch(2, 1, proof, Record(18, 7, 9)));
++        string last = generation.LastCode;
++        foreach (string outcome in new[] {
++            generation.Accept(new(1, 99, -1, -1, -1, null!)), generation.Notify(1, NtfsReadChange.MftGrew),
++            generation.Complete(1, proof), generation.Restart(1, proof) })
++            Check(outcome == "IgnoredStaleGeneration" && generation.State == NtfsReadSessionState.Collecting &&
++                generation.StagedCount == 1 && generation.AcceptedWork == 2 && generation.LastCode == last,
++                "obsolete callbacks do not mutate the current generation or its work and diagnostics");
++        Check(generation.Complete(2, proof) == "CompletedSynthetic" && generation.Report is { Records: 1, AcceptedWork: 2,
++            TotalLogicalBytes: 7, TotalAllocatedBytes: 9, Restarts: 1 }, "final report contains only current-generation records");
++
++        foreach (var change in Enum.GetValues<NtfsReadChange>())
++        {
++            var changed = new NtfsReadSession(proof);
++            changed.Accept(Batch(1, 1, proof, Record(16)));
++            changed.Notify(1, change);
++            Clean(changed, NtfsReadSessionState.NeedsRestart, "source and mapping events discard the active prefix");
++            Check(changed.Restart(1, proof) == "RestartProofStale", "known changes cannot be erased by reusing the old proof");
++            Clean(changed, NtfsReadSessionState.Rejected, "stale retry proof cannot become a successful new generation");
++        }
++        var grown = new NtfsReadSession(proof);
++        grown.Notify(1, NtfsReadChange.MftGrew);
++        var grownProof = proof with { SourceStamp = 12, MapStamp = 22, ValidBytes = proof.ValidBytes + 1024 };
++        Check(grown.Restart(1, grownProof) == "RestartedSynthetic", "growth retry requires a new validation epoch mapping and effective length");
++        grown.Accept(Batch(2, 1, grownProof, Record(16)));
++        Check(grown.Complete(2, grownProof) == "CompletedSynthetic", "renewed controlled source can collect a fresh generation");
++        var observed = new NtfsReadSession(proof);
++        observed.Accept(Batch(1, 1, proof, Record(16)));
++        var observedProof = proof with { SourceStamp = 13, MapStamp = 23, ValidBytes = proof.ValidBytes + 2048 };
++        Check(observed.Complete(1, observedProof) == "CompletionProofChanged", "changed final proof requires recollection");
++        Check(observed.Restart(1, grownProof) == "RestartProofStale", "retry cannot roll below an observed epoch mapping or length high-water mark");
++        var limit = new NtfsReadSession(proof);
++        for (int i = 1; i <= 2; i++)
++        {
++            limit.Accept(Batch(i, 2, proof, Record(16)));
++            Check(limit.Restart(i, proof) == "RestartedSynthetic", "protocol-only retry stays within the explicit restart budget");
++        }
++        limit.Accept(Batch(3, 2, proof, Record(16)));
++        Clean(limit, NtfsReadSessionState.Rejected, "third invalidation rejects rather than permitting unbounded retries");
++        var cancelled = new NtfsReadSession(proof);
++        cancelled.Accept(Batch(1, 1, proof, Record(16)));
++        Check(cancelled.Cancel() == "CancelledSynthetic" && cancelled.AcceptedWork == 1, "cancellation keeps spent work but discards pending data");
++        Clean(cancelled, NtfsReadSessionState.Cancelled, "cancel has an independent terminal state");
++        Check(cancelled.Accept(Batch(1, 2, proof, Record(17))) == "IgnoredTerminal" && cancelled.Complete(1, proof) == "IgnoredTerminal" &&
++            cancelled.State == NtfsReadSessionState.Cancelled, "late batch and completion cannot revive cancellation");
++        foreach (bool cancel in new[] { true, false })
++        {
++            var interrupted = new NtfsReadSession(proof);
++            var external = new InterruptingRecords(Record(16), Record(17), () =>
++            {
++                if (cancel) interrupted.Cancel();
++                else interrupted.Notify(1, NtfsReadChange.SourceInvalidated);
++            });
++            interrupted.Accept(new(1, 1, proof.SourceStamp, proof.MapStamp, proof.ValidBytes, external));
++            Check(external.Reads == 1 && interrupted.AcceptedWork == 0 && interrupted.Report == null && interrupted.StagedCount == 0 &&
++                interrupted.State == (cancel ? NtfsReadSessionState.Cancelled : NtfsReadSessionState.NeedsRestart),
++                "indexer cancellation or invalidation stops before touching the next external item");
++        }
++        return passed;
++    }
++
++    private sealed class InterruptingRecords(NtfsReadRecord first, NtfsReadRecord second, Action interrupt) : IReadOnlyList<NtfsReadRecord>
++    {
++        private readonly NtfsReadRecord[] items = [first, second];
++        internal int Reads { get; private set; }
++        public int Count => items.Length;
++        public NtfsReadRecord this[int index]
++        {
++            get
++            {
++                Reads++;
++                if (index == 0) interrupt();
++                return items[index];
++            }
++        }
++        public IEnumerator<NtfsReadRecord> GetEnumerator() => ((IEnumerable<NtfsReadRecord>)items).GetEnumerator();
++        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/README.md b/tests/Prototypes/Ntfs/README.md
+index 95048d5..4b7b6b8 100644
+--- a/tests/Prototypes/Ntfs/README.md
++++ b/tests/Prototypes/Ntfs/README.md
+@@ -20,6 +20,16 @@ pwsh -NoProfile -File tests/NtfsFixtureCodeEvidence.Tests.ps1
+ 
+ 前三项只用合成记录或注入的Native替身，不打开原始卷。真实入口另需本轮授权，见[方案及实际证据](../../../docs/ntfs-raw-record-plan.md)。当前不支持任意卷输入、整卷扫描或生产接入，IOCTL的复杂USA失败仍保留。
+ 
++## 纯合成读取会话
++
++`NtfsReadSession` 约束批次代际、失效、有限重启、终态和未知值，执行不含I/O。全会话最多接受4096条模拟记录、每批256条、最多2次重启；重启清空暂存且不返还累计工作预算。来源/映射/长度不再可信时丢弃本代结果，旧代通知和完成回调不改变新代。纯模型的不可变来源断言没有实际验证器，LiveUnproven不会完成；结果`CompletedSyntheticSession`只表示调用方的模拟收集结束，不证明全MFT覆盖、真实VSS或活跃卷可靠性。
++
++```powershell
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-read-session-tests
++```
++
++该入口运行核心与独立反例检查，不创建文件、快照或VHD。具体合同、重入边界及后续真实来源要求见[会话计划](../../../docs/ntfs-read-session-plan.md)，不替换已有解码器/统计/生产扫描路径。
++
+ 构建测试项目后运行：
+ 
+ ```powershell

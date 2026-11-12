@@ -20,6 +20,16 @@ pwsh -NoProfile -File tests/NtfsFixtureCodeEvidence.Tests.ps1
 
 前三项只用合成记录或注入的Native替身，不打开原始卷。真实入口另需本轮授权，见[方案及实际证据](../../../docs/ntfs-raw-record-plan.md)。当前不支持任意卷输入、整卷扫描或生产接入，IOCTL的复杂USA失败仍保留。
 
+## 纯合成读取会话
+
+`NtfsReadSession` 约束批次代际、失效、有限重启、终态和未知值，执行不含I/O。全会话最多接受4096条模拟记录、每批256条、最多2次重启；重启清空暂存且不返还累计工作预算。来源/映射/长度不再可信时丢弃本代结果，旧代通知和完成回调不改变新代。纯模型的不可变来源断言没有实际验证器，LiveUnproven不会完成；结果`CompletedSyntheticSession`只表示调用方的模拟收集结束，不证明全MFT覆盖、真实VSS或活跃卷可靠性。
+
+```powershell
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-read-session-tests
+```
+
+该入口运行核心与独立反例检查，不创建文件、快照或VHD。具体合同、重入边界及后续真实来源要求见[会话计划](../../../docs/ntfs-read-session-plan.md)，不替换已有解码器/统计/生产扫描路径。
+
 构建测试项目后运行：
 
 ```powershell

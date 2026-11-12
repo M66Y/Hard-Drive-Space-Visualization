@@ -1,0 +1,61 @@
+{
+  "baseline": "a4af42662a36928de9d698215b7288a27f1dd144",
+  "files": [
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "0565dac6488ea2213709bd195d7b2e6eb5e18d6376d27129a44d712ab70934a0"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "e996980c816a8c570c694e25019aeeb275cebbd65024a595ef738d0b7bce9cad"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "fd6c779b1ce710d3f2f275e63fc64028b20f19f05265309b6d2ccfe1350cf48a"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "b3e7c9aab7708b23b126e1e21a41a1dc99a582ac3e807022035df43a621bc43e"
+    },
+    {
+      "path": "docs/ntfs-read-session-plan.md",
+      "sha256": "06c3b1bdd082f2de6d754d7ece38d53cadd8464a69349823f6ef731637151d85"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "2d313e92513604f5c66e6da0dccfcc2a4680843a50fa25d7272097f6fc8a0c1d"
+    },
+    {
+      "path": "iterations/2026-11-12-15-read-session/README.md",
+      "sha256": "5d58b5e006262faf57419264ccb4887cca508323652fcee1ae9d079f32401aab"
+    },
+    {
+      "path": "iterations/2026-11-12-15-read-session/validation.json",
+      "sha256": "99f46280429e11278f6ef006fa60bacb07714e9e9766b8329318890e6509d0f4"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "9290090961c0807dc356b192e11ea31c12f16186845603d470793e19c1f9608d"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsReadSession.cs",
+      "sha256": "2d6914cd71bad4ac5d4f194c567d1c0d77f9fc365ef6505eb1242d55aa7c2ae3"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsReadSessionAdversarialTests.cs",
+      "sha256": "652fb65fdb7c32fba9945b4eaa0184e9f0a83af8759360e5eb492d4df5691358"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsReadSessionTests.cs",
+      "sha256": "742cd32107532c8f634330c78f7188c902e72274192b36ff384c118bcfd74f57"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/README.md",
+      "sha256": "94ceca1303efc4ede92fbb0f62bdbec481378df0b73957a2369c538f23b82af1"
+    },
+    {
+      "path": "iterations/2026-11-12-15-read-session/changes.patch",
+      "sha256": "d97a13b0248e3e60e891d1494df92d1e3ea419853dfcc5c22a85ed5d3d6f6c6f"
+    }
+  ]
+}

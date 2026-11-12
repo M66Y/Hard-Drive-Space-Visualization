@@ -17,6 +17,17 @@ if (args.Length > 0 && args[0] == "--ntfs-record-replay")
 Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
 if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
 if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
+if (args.Contains("--ntfs-read-session-tests"))
+{
+    try
+    {
+        int core = DiskAtlas.NtfsPrototype.NtfsReadSessionTests.Run();
+        int adversarial = DiskAtlas.NtfsPrototype.NtfsReadSessionAdversarialTests.Run();
+        Console.WriteLine($"PASS NTFS read session checks: {core} core; {adversarial} adversarial; synthetic model only");
+        return 0;
+    }
+    catch { Console.Error.WriteLine("FAIL NTFS read session checks; no private details emitted"); return 1; }
+}
 if (args.Contains("--ntfs-raw-comparison-tests"))
 {
     try

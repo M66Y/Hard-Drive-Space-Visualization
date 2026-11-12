@@ -15,3 +15,5 @@
 - 2026-11-12：固定21对象/63请求已稳定重现27次严格USA失败；保留最终6条原始失败正文仅本机供后续研究。以collected与all_decoded区分收集和解码，重放匹配不等于修复。理由是此前缺少原始字节无法可靠研究；继续严格拒绝，下一步依据可重放证据另提读取策略。依据 iterations/2026-11-12-13-kernel-matrix/README.md。
 
 - 2026-11-12：不放宽复杂USA失败，改为在自有静态VHD内成功锁卷后经同一只读句柄读取严格原始记录。三次22条/21对象对照通过，证明受限替代来源可用，不能解释内核缓存根因或推广到个人活跃卷；旧6条kernel样本不扩容。随后用户确认先做无I/O的读取会话契约，避免在来源一致性未明确时直接扩展整卷吞吐。依据 iterations/2026-11-12-14-raw-records/README.md 与 docs/ntfs-read-session-plan.md。
+
+- 2026-11-12：受控raw之后先落地无I/O读取会话模型，避免在真实来源一致性未知时直接扩大批量扫描。SourceStamp只作模拟验证epoch；错绑定批次直接拒绝、失效高水位不可回退、重启不返还累计预算、unknown总值保持null。有限线程反例验证模型终态，不背书真实VSS/活跃卷或全MFT覆盖；下一步实际来源另行设计。依据 iterations/2026-11-12-15-read-session/README.md 与 docs/ntfs-read-session-plan.md。
