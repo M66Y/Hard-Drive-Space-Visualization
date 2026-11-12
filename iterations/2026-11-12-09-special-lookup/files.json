@@ -1,0 +1,109 @@
+{
+  "baseline": "ba3ed8b455a82ec1d06f77e845ba7d8ae9e191c4",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "800ef558aa0b6a865d954593a7787349a5a7b88a127c86d9db8fc9c78a770e33"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "c649c48202b875d35b732a271469b99de1b0d87db5e3e9d453a7ebe58525124a"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "57b75455248c086cc92238ed99e5b90eeb4230337f3a69719de47001eaa2d3fb"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "97d5e8a740fee364a8b5cfddde853b63a12e1b84cac061657cd6a58d39adbc62"
+    },
+    {
+      "path": "iterations/2026-11-12-09-special-lookup/README.md",
+      "sha256": "431f664cf55cfa9df50d331640eaf17450f9b1a66712756681f839c14a8f5906"
+    },
+    {
+      "path": "iterations/2026-11-12-09-special-lookup/attempt-01.json",
+      "sha256": "b0b70036c9bd5e8aa2dcf45252f68aa5f480d91995fa58ca0893c5487859328d"
+    },
+    {
+      "path": "iterations/2026-11-12-09-special-lookup/attempt-02.json",
+      "sha256": "7c3f96ac5a16a4e84aea6a2c353cdfb984d7b642a963dc0f85eeaea16f33916e"
+    },
+    {
+      "path": "iterations/2026-11-12-09-special-lookup/attempt-03.json",
+      "sha256": "83930c4ee3812ddd0851ebb0f61d6ca1248be5057c2e1c049209cf0b968a47ac"
+    },
+    {
+      "path": "iterations/2026-11-12-09-special-lookup/attempt-04.json",
+      "sha256": "2ea0f9bc7c83d03fdccdd403a21e3c0a57dd5c62b9fe6d06dcdc4374c269da39"
+    },
+    {
+      "path": "iterations/2026-11-12-09-special-lookup/attempt-05.json",
+      "sha256": "f5aaa4a36aadddb12ad146c5a34298e97110c6139aae68a25f8beabdb8c2f832"
+    },
+    {
+      "path": "scripts/ntfs-prototype/Invoke-NtfsFixture.ps1",
+      "sha256": "16604a7e69c50253670932674326f218d1a57f1164979552ac0acc968f3c421b"
+    },
+    {
+      "path": "scripts/ntfs-prototype/README.md",
+      "sha256": "a97fb45cd2a09618e12f0e1a05b8ff01286a9e6bb6262ae7a774b5bdcdbb7e71"
+    },
+    {
+      "path": "scripts/ntfs-prototype/SpecialCostEvidence.ps1",
+      "sha256": "0966a5ade208e3cf93a22d84da378f2144f7d891c6217d3cef8171b5fd7dfae3"
+    },
+    {
+      "path": "scripts/ntfs-prototype/SpecialEvidence.ps1",
+      "sha256": "c8510198393d70075dee3ef8ae5d20979602a14b1741402e4eab94b5a233697f"
+    },
+    {
+      "path": "tests/NtfsSpecialCostEvidence.Tests.ps1",
+      "sha256": "667cd38b586fdfaf57fe5cda1e90e01f0ce9690dcb811db58dd900d2d268fdf5"
+    },
+    {
+      "path": "tests/NtfsSpecialEvidence.Tests.ps1",
+      "sha256": "67eb3deffbe30ed09096460283bec2b59288f28510262b27a5032644680901fe"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "d2eb14fcab7b107661efa9709a62789bf3922024ed00a2339dcc6b781e089332"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsLivePrototype.cs",
+      "sha256": "cc23f39c3c0174371f6e0934f684195582ce83dbfb99f60acb2079a48bdef660"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsSizeLookup.cs",
+      "sha256": "76bc1b97d84aa9dde6393453c2d38ec4944036be90852fcb51493d6ef30c605b"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsSpecialCostExperiment.cs",
+      "sha256": "5fd0d687ebcce7642aa24ff4057a97f919bc216689a147e50ad73e5ff6b420b7"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsSpecialEvidence.cs",
+      "sha256": "7dc43ba9ab3f7b2faaf250a43c775ecbaaff119c2dce17ae894eaaa60c76c9f6"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsSpecialLease.cs",
+      "sha256": "cc427d331a36fb3583ea013dd442f3d49084812d14aed141999ac1316f153001"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsSpecialLeaseTests.cs",
+      "sha256": "6e816e938ed2f96453f8b545b6c1c2d5f72f4c8a2efb6c9ba29fcb9138ab060e"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsSpecialLookupTests.cs",
+      "sha256": "d4d71e9d59664ac4c06f6953ae97562966c31d92bfe728f44c6020cbcc43ec8a"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/README.md",
+      "sha256": "8e51396dabdf12e2b103edc20d5b5261a6c726e2e5ea64217a67597a9fb4ba27"
+    },
+    {
+      "path": "iterations/2026-11-12-09-special-lookup/changes.patch",
+      "sha256": "4e9d41a5a3bf16a7b5ceb1af450d26d05a963b6e6448ae4625e4514fa6910a52"
+    }
+  ]
+}

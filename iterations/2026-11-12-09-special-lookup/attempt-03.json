@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "status": "failed",
+  "stage": "RunRecordComparison",
+  "code": "DecodeKernelRecord-FixupMismatch-Case11-P0-R1-S2",
+  "native_error": 0,
+  "exit_code": 1,
+  "checks": 215,
+  "failures": 1,
+  "detached": true,
+  "cleanup_completed": true,
+  "lookup_experiment": null,
+  "lease_experiment": null,
+  "special_lookup": null
+}

@@ -23,9 +23,13 @@ internal static class NtfsSizeLookup
         Func<NtfsLookupItem, CancellationToken, NtfsLeaseResult> reader, CancellationToken token = default, int limit = MaximumObjects)
         => ResolveCore(items, null, reader, token, limit);
 
+    internal static NtfsLookupBatch ResolveSpecialWithLease(IReadOnlyList<NtfsLookupItem> items,
+        Func<NtfsLookupItem, CancellationToken, NtfsLeaseResult> reader, CancellationToken token = default, int limit = MaximumObjects)
+        => ResolveCore(items, null, reader, token, limit, special: true);
+
     private static NtfsLookupBatch ResolveCore(IReadOnlyList<NtfsLookupItem> items,
         Func<string, CancellationToken, FileStorageInfo?>? reader,
-        Func<NtfsLookupItem, CancellationToken, NtfsLeaseResult>? leaseReader, CancellationToken token, int limit)
+        Func<NtfsLookupItem, CancellationToken, NtfsLeaseResult>? leaseReader, CancellationToken token, int limit, bool special = false)
     {
         token.ThrowIfCancellationRequested();
         var clock = Stopwatch.StartNew();
@@ -74,7 +78,10 @@ internal static class NtfsSizeLookup
             {
                 output.Add(Result(allocation, NtfsSizeSource.Record, "RecordSizes")); continue;
             }
-            if (record.LookupReasons != NtfsLookupReason.ResidentAllocation || !logical.HasValue || allocation.HasValue)
+            bool eligibleReason = special ? record.LookupReasons is NtfsLookupReason.Compressed or NtfsLookupReason.Sparse
+                : record.LookupReasons == NtfsLookupReason.ResidentAllocation;
+            if (!eligibleReason || !logical.HasValue || allocation.HasValue ||
+                (special && NtfsSpecialLease.Preflight(record, item.Path) != null))
             {
                 unsupported++; output.Add(Result(null, NtfsSizeSource.Unknown, "UnsupportedLookupReason")); continue;
             }
@@ -122,7 +129,7 @@ internal static class NtfsSizeLookup
             }
             else
             {
-                resolved++; output.Add(Result(first!.AllocatedBytes, NtfsSizeSource.HandleLookup, "ResidentLookup"));
+                resolved++; output.Add(Result(first!.AllocatedBytes, NtfsSizeSource.HandleLookup, special ? "SpecialLookup" : "ResidentLookup"));
             }
         }
         token.ThrowIfCancellationRequested();

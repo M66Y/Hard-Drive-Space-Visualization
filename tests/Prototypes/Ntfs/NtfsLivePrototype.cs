@@ -116,6 +116,7 @@ internal static class NtfsLivePrototype
             Check(!Directory.Exists(data), "FreshSyntheticDirectory");
             Directory.CreateDirectory(data);
             var files = new List<(string Path, NtfsLookupReason? Expected)>();
+            int aliasCount = 2; // Existing resident and ordinary aliases below.
             void Make(string name, byte[] bytes, NtfsLookupReason? expected = NtfsLookupReason.None)
             {
                 string path = Path.Combine(data, name);
@@ -135,19 +136,68 @@ internal static class NtfsLivePrototype
             Make("compressed.bin", new byte[131072], NtfsLookupReason.Compressed);
             using (var file = File.OpenHandle(files[^1].Path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
                 Check(NativeStorage.DeviceIoControl(file, 0x9c040, [1, 0], 2, [], 0, out _, IntPtr.Zero), "SetSyntheticCompression");
+            string compressedZero = files[^1].Path;
+            var randomCompressedBytes = new byte[131072]; new Random(913).NextBytes(randomCompressedBytes);
+            Make("compressed-random.bin", randomCompressedBytes, NtfsLookupReason.Compressed);
+            string compressedRandom = files[^1].Path;
+            using (var file = File.OpenHandle(compressedRandom, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
+                Check(NativeStorage.DeviceIoControl(file, 0x9c040, [2, 0], 2, [], 0, out _, IntPtr.Zero), "SetRandomSyntheticCompression");
             Make("sparse.bin", [], NtfsLookupReason.Sparse);
             using (var file = new FileStream(files[^1].Path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
             {
                 Check(NativeStorage.DeviceIoControl(file.SafeFileHandle, 0x900c4, null, 0, [], 0, out _, IntPtr.Zero), "SetSyntheticSparse");
                 file.SetLength(2 * 1024 * 1024); file.Flush(true);
             }
+            string sparseHole = files[^1].Path;
+            Make("sparse-written.bin", [], NtfsLookupReason.Sparse);
+            string sparseWritten = files[^1].Path;
+            using (var file = new FileStream(sparseWritten, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
+            {
+                Check(NativeStorage.DeviceIoControl(file.SafeFileHandle, 0x900c4, null, 0, [], 0, out _, IntPtr.Zero), "SetWrittenSyntheticSparse");
+                file.SetLength(2 * 1024 * 1024);
+                file.Write(random.AsSpan(0, 4096)); file.Position = file.Length - 4096; file.Write(random.AsSpan(4096, 4096));
+                file.Flush(true);
+            }
             Make("with-stream.bin", "default"u8.ToArray(), NtfsLookupReason.NamedData);
             File.WriteAllText(files[^1].Path + ":meta", "synthetic named stream");
+            string ordinaryNamed = files[^1].Path;
+            // Short fixture names isolate the reason-combination policy from the
+            // separately retained kernel USA representation failures on larger records.
+            Make("c.a", new byte[131072], NtfsLookupReason.Compressed | NtfsLookupReason.NamedData);
+            string compressedNamed = files[^1].Path;
+            using (var file = File.OpenHandle(compressedNamed, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
+                Check(NativeStorage.DeviceIoControl(file, 0x9c040, [2, 0], 2, [], 0, out _, IntPtr.Zero), "SetNamedSyntheticCompression");
+            File.WriteAllText(compressedNamed + ":meta", "synthetic named stream");
+            Make("s.a", [], NtfsLookupReason.Sparse | NtfsLookupReason.NamedData);
+            string sparseNamed = files[^1].Path;
+            using (var file = new FileStream(sparseNamed, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
+            {
+                Check(NativeStorage.DeviceIoControl(file.SafeFileHandle, 0x900c4, null, 0, [], 0, out _, IntPtr.Zero), "SetNamedSyntheticSparse");
+                file.SetLength(2 * 1024 * 1024); file.Flush(true);
+            }
+            File.WriteAllText(sparseNamed + ":meta", "synthetic named stream");
             foreach (int length in new[] { 1, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 255, 256, 400, 512, 768, 1024, 4096 })
                 Make("size-" + length + ".bin", new byte[length], expected: null);
 
+            // Fixture preparation: settle our own link/stream/compression metadata
+            // before read-only record comparison. No writable volume is opened.
+            foreach (string named in new[] { ordinaryNamed, compressedNamed, sparseNamed })
+            {
+                using var stream = new FileStream(named + ":meta", FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
+                stream.Flush(flushToDisk: true);
+                Check(true, "FlushSyntheticNamedStream");
+            }
+            foreach (var item in files)
+            {
+                using var prepared = new FileStream(item.Path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
+                prepared.Flush(flushToDisk: true);
+                Check(true, "FlushSyntheticFileMetadata");
+            }
+
+            int recordOrdinal = 0;
             NtfsRecord ReadRecord(string path, bool directory)
             {
+                recordOrdinal++;
                 Check(NativeStorage.TryRead(path, directory, File.GetAttributes(path), out var before, out _) && before != null, "NativeStorageBefore");
                 Check(before!.Identity.High == 0 && before.Identity.Volume == serial, "FileVolumeIdentity");
                 ulong slot = before.Identity.Low & NtfsRecordDecoder.MaximumRecordNumber;
@@ -158,7 +208,23 @@ internal static class NtfsLivePrototype
                 Check((BinaryPrimitives.ReadUInt64LittleEndian(output) & NtfsRecordDecoder.MaximumRecordNumber) == slot &&
                     BinaryPrimitives.ReadUInt32LittleEndian(output.AsSpan(8)) == recordSize && count >= recordSize + 12, "ReturnedRecordBoundsAndSlot");
                 var decoded = NtfsRecordDecoder.DecodeKernelReturned(output.AsSpan(12, recordSize), sector, slot, cluster, 3, 1);
-                Check(decoded.Status == NtfsDecodeStatus.Decoded && decoded.Record != null, "DecodeKernelRecord-" + decoded.Code);
+                string decodeCode = "DecodeKernelRecord-" + decoded.Code;
+                if (decoded.Code == "FixupMismatch")
+                {
+                    var bytes = output.AsSpan(12, recordSize);
+                    int usa = BinaryPrimitives.ReadUInt16LittleEndian(bytes[4..]);
+                    int tailCount = recordSize / sector, protectedCount = 0, restoredCount = 0;
+                    ushort mark = BinaryPrimitives.ReadUInt16LittleEndian(bytes[usa..]);
+                    for (int i = 1; i <= tailCount; i++)
+                    {
+                        ushort tail = BinaryPrimitives.ReadUInt16LittleEndian(bytes[(i * sector - 2)..]);
+                        if (tail == mark) protectedCount++;
+                        if (tail == BinaryPrimitives.ReadUInt16LittleEndian(bytes[(usa + i * 2)..])) restoredCount++;
+                    }
+                    uint usedBytes = BinaryPrimitives.ReadUInt32LittleEndian(bytes[24..]);
+                    decodeCode += $"-Case{recordOrdinal}-P{protectedCount}-R{restoredCount}-S{tailCount}-U{usedBytes}";
+                }
+                Check(decoded.Status == NtfsDecodeStatus.Decoded && decoded.Record != null, decodeCode);
                 var result = decoded.Record!;
                 Check(result.Reference == before.Identity.Low && result.BaseReference == 0, "RecordSequenceAndBase");
                 Check(NativeStorage.TryRead(path, directory, File.GetAttributes(path), out var after, out _) && after != null &&
@@ -193,13 +259,19 @@ internal static class NtfsLivePrototype
                 decodedFiles.TryAdd(decoded.Reference, decoded);
                 objectPaths.TryAdd(decoded.Reference, item.Path);
             }
-            Check(decodedFiles.Count == files.Count - 2, "HardLinkObjectDeduplication");
+            Check(decodedFiles.Count == files.Count - aliasCount, "HardLinkObjectDeduplication");
             var dir = ReadRecord(data, true);
             Check(dir.Names.All(n => n.Namespace == 2 || n.ParentReference != dir.Reference), "SyntheticDirectoryParent");
             var lookupItems = decodedFiles.Values.Select(item => new NtfsLookupItem(serial, item, objectPaths[item.Reference])).ToArray();
             var experiment = NtfsLookupExperiment.Run(lookupItems, Check);
             var leaseExperiment = NtfsLeaseExperiment.Run(lookupItems, Check);
-            WriteSummary(summaryPath, "passed", checks, 0, "None", experiment, leaseExperiment);
+            NtfsLookupItem ItemAt(string path) => lookupItems.Single(item => item.Path == path);
+            var special = NtfsSpecialEvidence.Run([
+                ("CompressedZero", ItemAt(compressedZero)), ("CompressedRandom", ItemAt(compressedRandom)),
+                ("SparseHole", ItemAt(sparseHole)), ("SparseWritten", ItemAt(sparseWritten))],
+                [ItemAt(ordinaryNamed), ItemAt(compressedNamed), ItemAt(sparseNamed)], Check);
+            var specialCost = NtfsSpecialCostExperiment.Run(lookupItems, Check);
+            WriteSummary(summaryPath, "passed", checks, 0, "None", experiment, leaseExperiment, special, specialCost);
             Console.WriteLine("PASS NTFS live checks: " + checks + "; known synthetic files only");
             return 0;
         }
@@ -218,8 +290,9 @@ internal static class NtfsLivePrototype
     }
 
     private static void WriteSummary(string path, string status, int checks, int failures, string code,
-        NtfsLookupExperimentReport? experiment = null, NtfsLeaseExperimentReport? leaseExperiment = null) =>
+        NtfsLookupExperimentReport? experiment = null, NtfsLeaseExperimentReport? leaseExperiment = null,
+        NtfsSpecialLookupReport? special = null, NtfsSpecialCostReport? specialCost = null) =>
         File.WriteAllText(path, JsonSerializer.Serialize(new { schema = 1, status, checks, failures, code, lookup_experiment = experiment,
-            lease_experiment = leaseExperiment }));
+            lease_experiment = leaseExperiment, special_lookup = special, special_cost = specialCost }));
     private sealed class FixtureFailure(string code) : Exception { internal string Code { get; } = code; }
 }

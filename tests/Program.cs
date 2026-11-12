@@ -6,6 +6,26 @@ if (args.Contains("--disk-activity-scan-child")) return DiskActivityScanProbe.Ch
 Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
 if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
 if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
+if (args.Contains("--ntfs-special-lease-tests"))
+{
+    try
+    {
+        int checks = DiskAtlas.NtfsPrototype.NtfsSpecialLeaseTests.Run();
+        Console.WriteLine($"PASS NTFS special lease checks: {checks}; only owned temporary files opened");
+        return 0;
+    }
+    catch { Console.Error.WriteLine("FAIL NTFS special lease checks; no private details emitted"); return 1; }
+}
+if (args.Contains("--ntfs-special-lookup-tests"))
+{
+    try
+    {
+        int checks = DiskAtlas.NtfsPrototype.NtfsSpecialLookupTests.Run();
+        Console.WriteLine($"PASS NTFS special lookup checks: {checks}; callbacks are synthetic");
+        return 0;
+    }
+    catch { Console.Error.WriteLine("FAIL NTFS special lookup checks; no private details emitted"); return 1; }
+}
 
 if (args.Contains("--package-smoke")) return PackageSmoke.Run();
 if (args.Contains("--disk-activity-tests"))

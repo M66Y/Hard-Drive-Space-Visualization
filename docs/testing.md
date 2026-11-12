@@ -13,6 +13,12 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll
 
 `--readme-preview docs/images/overview.png` 在 96 DPI 虚拟化进程中用生产 MainForm 和内存合成数据绘制界面，仅写入指定文档图片，不扫描真实目录或读取个人设置，已有图片拒绝覆盖。`--result-info-preview` 为手动状态观察入口。主程序源码未变时，不为修改文档重新运行整套功能回归。
 
+## NTFS 特殊流原型
+
+原型只编入测试程序，不进入软件扫描后端。`--ntfs-special-lease-tests` 使用自有临时 NTFS 文件和合成观察，检查压缩/稀疏默认流、身份/属性/格式、已有写者/删除者拒绝及释放；`--ntfs-special-lookup-tests` 检查批次边界、未知与合法零、来源和取消。摘要白名单运行 `pwsh -NoProfile -File tests/NtfsSpecialEvidence.Tests.ps1` 与 `pwsh -NoProfile -File tests/NtfsSpecialCostEvidence.Tests.ps1`，均无磁盘操作。
+
+仍需运行共享路径的 `--ntfs-prototype-tests`、`--ntfs-resident-lease-tests` 及夹具守卫。VHD 操作另需本轮范围授权，入口及失败清理见[隔离盘说明](../scripts/ntfs-prototype/README.md)。本轮严格解码拒绝的复杂记录不能因短名子集通过而视为已修复；实际摘要、覆盖与成本边界见[迭代证据](../iterations/2026-11-12-09-special-lookup/README.md)。成本只观察四个预热对象，参考的单快照与补查的双快照保证不同；不包含整卷读取、建树、UI 或资源峰值。
+
 ## 既有检查与边界
 
 

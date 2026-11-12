@@ -20,7 +20,11 @@ $failureCode = 'None'; $runnerStopped = $true
 $nativeError = 0
 $lookupEvidence = $null
 $leaseEvidence = $null
+$specialEvidence = $null
+$specialCostEvidence = $null
 . (Join-Path $PSScriptRoot 'LeaseEvidence.ps1')
+. (Join-Path $PSScriptRoot 'SpecialEvidence.ps1')
+. (Join-Path $PSScriptRoot 'SpecialCostEvidence.ps1')
 $diskNumber = $null; $diskPath = $null; $imageDevicePath = $null
 
 function Assert-NoReparsePath([string]$Path) {
@@ -271,6 +275,10 @@ public static class AsukaLensFixtureImage {
     $lookupEvidence = ConvertTo-LookupEvidence $summary.lookup_experiment
     if (-not $summary.PSObject.Properties['lease_experiment']) { throw 'LEASE_EVIDENCE_MISSING' }
     $leaseEvidence = ConvertTo-LeaseEvidence $summary.lease_experiment
+    if (-not $summary.PSObject.Properties['special_lookup']) { throw 'SPECIAL_EVIDENCE_MISSING' }
+    $specialEvidence = ConvertTo-SpecialEvidence $summary.special_lookup
+    if (-not $summary.PSObject.Properties['special_cost']) { throw 'SPECIAL_COST_EVIDENCE_MISSING' }
+    $specialCostEvidence = ConvertTo-SpecialCostEvidence $summary.special_cost
     $status = 'passed'; $stage = 'ComparisonPassed'
 } catch {
     # Native messages and logs can include local paths. Never copy them to the result.
@@ -302,6 +310,8 @@ public static class AsukaLensFixtureImage {
     $result = [ordered]@{schema=1;status=$status;stage=$stage;code=$failureCode;native_error=$nativeError;exit_code=$runnerExit;checks=$checks;failures=$failureCount;detached=$detached;cleanup_completed=$cleaned}
     $result.lookup_experiment = if ($status -ceq 'passed') { $lookupEvidence } else { $null }
     $result.lease_experiment = if ($status -ceq 'passed') { $leaseEvidence } else { $null }
+    $result.special_lookup = if ($status -ceq 'passed') { $specialEvidence } else { $null }
+    $result.special_cost = if ($status -ceq 'passed') { $specialCostEvidence } else { $null }
     $resultTemp = $ResultPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
     try {
         [void](Assert-NoReparsePath $ResultPath)

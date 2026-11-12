@@ -18,7 +18,7 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-prototype-te
 
 ## 保守处理与未实现内容
 
-属性列表和扩展记录尚未拼接，标为待补查并保持大小未知；压缩/稀疏分配空间保持未知，不把 DATA 的表面长度套作实际占用。重解析/云占位、加密、缺失默认数据或标准信息也要求补查。命名流不并入默认流大小，并保留范围提示。上述类型仍只有待补查标记，尚未实现对应补查器或自动回退连接；普通驻留分配的新补查见下一段。
+属性列表和扩展记录尚未拼接，标为待补查并保持大小未知；解码器不把压缩/稀疏 DATA 的表面长度套作实际占用。重解析/云占位、加密、缺失默认数据或标准信息也要求补查。命名流不并入默认流大小，并保留范围提示。除下文限定的普通驻留、压缩和稀疏补查外，其他类型仍只有待补查标记，尚未连接产品回退。
 
 2026-11-12 NTFS-01 第 1 轮新增 `NtfsSizeLookup`，仅对普通文件的 **单一 `ResidentAllocation` 原因**实施句柄补查。上述其他原因仍不处理。输出同时记录逻辑/分配值的来源（记录、句柄补查、未知），不修改原始解析记录。补查连续读取两次，核对卷与完整文件引用、逻辑大小、可见链接数、分配大小、修改时间及打开写句柄状态；失败保留分配未知，不缓存旧结果。
 
@@ -46,6 +46,25 @@ pwsh -NoProfile -File tests/NtfsLeaseEvidence.Tests.ps1
 未实现整卷 MFT 批量读取、NTFS 3.0、不同 fixup stride、持续写入的日志协调、产品权限提升助手、真实性能对比与主程序集成。没有驱动、服务、系统日志修改或发布包。实际记录验证仅覆盖本轮 Windows 11 主机的 NTFS 3.1 VHD、512 字节扇区/4096 字节簇；Windows 10 及其他几何仍未实测。
 
 `DecodeKernelReturned` 只用于已核对来源和身份的 IOCTL 记录，接受全体尾字为 USA 标记或全体为已还原保存值的形式；微软未公开承诺该接口的 fixup 表示，其他形式保守失败。原始入口仍严格验证保护标记，不允许 raw 校验失败后自动当作已修复记录放行。
+
+## 压缩与稀疏默认流补查
+
+`NtfsSpecialLease` / `ResolveSpecialWithLease` 仅接受 **单一 Compressed 或单一 Sparse 原因**、基记录、已知 EOF/未知分配的候选。叠加驻留、命名流、属性列表、扩展、加密或重解析等仍拒绝，不能通过掩去理由扩大范围。普通驻留原入口不变；共有批次守卫仍限制 4096 个对象、重复/槽复用/路径冲突、取消及来源标记。
+
+每对象打开一个默认流只读句柄，仅分享读取；每组依次读取 Basic/Identity/Standard/Compression/Basic，两组对照完整身份、EOF、可见链接数、非删除/目录、属性、修改/变化时间及分配量。压缩只接受 LZNT1，稀疏只接受未压缩格式；不以移位字段推导分配，也不要求分配一定小于逻辑长度。组内前后 Basic 需一致，组间观察也需一致。失败保留未知；成功分配来自 `HandleLookup`，原解析记录不变。
+
+两组观察并非原子快照。已有数据写入/删除句柄导致打开失败，但只改属性的操作、两组之外的变化及读取记录到打开句柄之间的同 EOF 改写仍不能排除。未证明驻留性、父目录归属或活跃卷新鲜度，也未模拟原生调用内部的精确竞争时点；取消只在系统调用前后生效。句柄在全部返回、异常和取消路径释放。
+
+`special_lookup` 对照可压缩零文件、随机压缩文件、全孔稀疏、两端已写入稀疏四类，另外三个命名流组合必须保持未知。`special_cost` 在这四个支持对象上预读/预热后交替六轮，比较一次 NativeStorage 回调与整个严格补查批次；外部逐项结果验证不计时，批次内部必要校验计时。两条路径的稳定性保障不同，不据此计算加速倍数。每批回调/成功句柄/快照组数不代表 Win32 调用数或物理 I/O；不包含 MFT、建树、UI、冷缓存或资源测量。
+
+```powershell
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-special-lease-tests
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-special-lookup-tests
+pwsh -NoProfile -File tests/NtfsSpecialEvidence.Tests.ps1
+pwsh -NoProfile -File tests/NtfsSpecialCostEvidence.Tests.ps1
+```
+
+首项会创建并清理自有随机临时 NTFS 文件，能力缺失明确跳过；第二项及摘要白名单测试只用合成输入。真实 VHD 中新增特殊硬链接、较长命名流名称时曾出现 `FixupMismatch`，刷新夹具未消除；受限短名形态通过不覆盖失败形态。严格解码未放宽，根因和更一般的内核表示支持仍待研究，见[失败与成功证据](../../../iterations/2026-11-12-09-special-lookup/README.md)。
 
 ## 合成夹具与依据
 
