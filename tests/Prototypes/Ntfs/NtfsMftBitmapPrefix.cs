@@ -20,12 +20,14 @@ internal sealed class NtfsMftBitmapPrefixResult
     internal IReadOnlyList<NtfsRawSlice> ReadPlan { get; }
     internal byte[] CopyPrefix() => prefix.ToArray();
     internal NtfsMftBitmapPrefixResult(string status, string code, string form, int slots, int needed,
-        long logical = 0, long initialized = 0, long? allocated = null, byte[]? bytes = null, NtfsRawSlice? slice = null)
+        long logical = 0, long initialized = 0, long? allocated = null, byte[]? bytes = null, NtfsRawSlice? slice = null,
+        IReadOnlyList<NtfsRawSlice>? slices = null)
     {
         Status = status; Code = code; Form = form; ExpectedSlots = slots; LogicalPrefixBytes = needed;
         LogicalBytes = logical; InitializedBytes = initialized; AllocatedBytes = allocated; prefix = bytes ?? [];
-        ReadBytes = slice?.Length ?? 0;
-        ReadPlan = Array.AsReadOnly(slice == null ? Array.Empty<NtfsRawSlice>() : new NtfsRawSlice[] { slice });
+        var copy = slices?.ToArray() ?? (slice == null ? Array.Empty<NtfsRawSlice>() : new NtfsRawSlice[] { slice });
+        ReadBytes = copy.Sum(item => item.Length);
+        ReadPlan = Array.AsReadOnly(copy);
     }
 }
 
@@ -39,10 +41,17 @@ internal static class NtfsMftBitmapPrefix
     private static bool Fits(int p, long n, int end) => p >= 0 && n >= 0 && p <= end && n <= end - p;
 
     internal static NtfsMftBitmapPrefixResult Parse(ReadOnlySpan<byte> rawRecord0, NtfsMftGeometry geometry,
-        int expectedSlots, CancellationToken token = default)
+        int expectedSlots, CancellationToken token = default) => ParseCore(rawRecord0, geometry, expectedSlots, false, token);
+
+    internal static NtfsMftBitmapPrefixResult ParseScale(ReadOnlySpan<byte> rawRecord0, NtfsMftGeometry geometry,
+        int expectedSlots, CancellationToken token = default) => ParseCore(rawRecord0, geometry, expectedSlots, true, token);
+
+    private static NtfsMftBitmapPrefixResult ParseCore(ReadOnlySpan<byte> rawRecord0, NtfsMftGeometry geometry,
+        int expectedSlots, bool scale, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        int needed = expectedSlots is >= 1 and <= 4096 ? (expectedSlots + 7) / 8 : 0;
+        int maximumSlots = scale ? 262144 : 4096;
+        int needed = expectedSlots >= 1 && expectedSlots <= maximumSlots ? (expectedSlots + 7) / 8 : 0;
         NtfsMftBitmapPrefixResult Fail(string status, string code, string form = "Unknown")
         { token.ThrowIfCancellationRequested(); return new(status, code, form, expectedSlots, needed); }
         if (rawRecord0.Length != 1024) return Fail("Invalid", "BitmapPrefixInput");
@@ -138,12 +147,26 @@ internal static class NtfsMftBitmapPrefix
             }
             if (!terminated || runs.Count == 0 || vcn != (long)high + 1 || checked(vcn * 4096) != allocated)
                 return Fail("Invalid", "BitmapPrefixRunCoverage", "Nonresident");
-            long physical = checked(runs[0].FirstLcn * 4096);
-            if (physical < 0 || physical > geometry.VolumeBytes - 512 || physical % 512 != 0)
-                return Fail("Invalid", "BitmapPrefixPhysicalBounds", "Nonresident");
+            int readLength = checked((needed + 511) / 512 * 512);
+            long cursor = 0;
+            var slices = new List<NtfsRawSlice>();
+            foreach (var run in runs)
+            {
+                token.ThrowIfCancellationRequested();
+                long runStart = checked(run.FirstVcn * 4096), runEnd = checked((run.FirstVcn + run.ClusterCount) * 4096);
+                if (cursor < runStart || cursor >= runEnd) continue;
+                int count = checked((int)Math.Min(readLength - cursor, runEnd - cursor));
+                long physical = checked(run.FirstLcn * 4096 + cursor - runStart);
+                if (count <= 0 || physical < 0 || physical > geometry.VolumeBytes - count || physical % 512 != 0 || count % 512 != 0)
+                    return Fail("Invalid", "BitmapPrefixPhysicalBounds", "Nonresident");
+                slices.Add(new(physical, count, checked((int)cursor))); cursor = checked(cursor + count);
+                if (cursor == readLength) break;
+            }
+            if (cursor != readLength || slices.Count == 0 || slices.Count > MaximumRuns)
+                return Fail("Invalid", "BitmapPrefixRunCoverage", "Nonresident");
             token.ThrowIfCancellationRequested();
             return new("Planned", "BitmapPrefixPlanned", "Nonresident", expectedSlots, needed, logical, initialized, allocated,
-                slice: new(physical, 512, 0));
+                slices: slices);
         }
         catch (OverflowException) { return Fail("Invalid", "BitmapPrefixArithmeticOverflow"); }
     }

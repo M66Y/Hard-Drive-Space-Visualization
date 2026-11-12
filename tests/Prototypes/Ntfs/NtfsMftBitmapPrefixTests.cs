@@ -173,4 +173,58 @@ internal static class NtfsMftBitmapPrefixTests
         for (int i = 1; i < 3; i++) NtfsRecordFixtures.U16(result, i * 512 - 2, BinaryPrimitives.ReadUInt16LittleEndian(result.AsSpan(usa + i * 2)));
         return result;
     }
+
+    internal static int RunScale()
+    {
+        int passed = 0;
+        void Check(bool value, string name)
+        { if (!value) throw new InvalidOperationException("Scale prefix check failed: " + name); passed++; Console.WriteLine("PASS scale prefix " + name); }
+        NtfsMftGeometry Facts(int slots) => new(512, 4096, 1024, 1024L * 1024 * 1024, 262144, 10, slots * 1024L);
+        byte[] SeedScale(int slots, byte[] bitmap)
+        {
+            int clusters = (slots + 3) / 4;
+            return NtfsRecordFixtures.Record([NtfsRecordFixtures.Name("$MFT"),
+                Attribute(0x80, Run(clusters, 10, 8, 3).Append((byte)0).ToArray(), (ulong)(clusters - 1), clusters * 4096L, slots * 1024L, slots * 1024L), bitmap]);
+        }
+        byte[] Runs(params (long Count, long Delta)[] values) => values.SelectMany(value => Run(value.Count, value.Delta, 8, 2)).Append((byte)0).ToArray();
+        byte[] raw = SeedScale(262144, Bitmap(Runs((1, 100000), (2, 10), (5, -110)), 7, 32768, 32768, 32768));
+        byte[] before = raw.ToArray();
+        var maximum = NtfsMftBitmapPrefix.ParseScale(raw, Facts(262144), 262144);
+        Check(maximum is { Status: "Planned", LogicalPrefixBytes: 32768, ReadBytes: 32768, Form: "Nonresident" } &&
+            maximum.ReadPlan.SequenceEqual(new[] { new NtfsRawSlice(409600000, 4096, 0), new(409640960, 8192, 4096), new(409190400, 20480, 12288) }),
+            "maximum bitmap prefix spans fragmented and backwards runs with exact logical destination coverage");
+        Check(raw.SequenceEqual(before) && maximum.EvidenceKind == "Synthetic" && JsonSerializer.Serialize(maximum) == "{}",
+            "scale address plans remain private synthetic data and leave source bytes untouched");
+        bool immutable = false;
+        try { ((IList<NtfsRawSlice>)maximum.ReadPlan).Clear(); } catch (NotSupportedException) { immutable = true; }
+        Check(immutable, "multiple scale slices are immutable after complete mapping validation");
+        var roundedRaw = SeedScale(100000, Bitmap(Runs((1, 100000), (2, 10), (5, -110)), 7, 32768, 12500, 12500));
+        var rounded = NtfsMftBitmapPrefix.ParseScale(roundedRaw, Facts(100000), 100000);
+        Check(rounded is { Status: "Planned", LogicalPrefixBytes: 12500, ReadBytes: 12800 } && rounded.ReadPlan.Count == 3 &&
+            rounded.ReadPlan[^1] == new NtfsRawSlice(409190400, 512, 12288) && rounded.ReadPlan.Sum(item => item.Length) == 12800,
+            "one hundred thousand slots read only sector-rounded prefix bytes and retain the smaller interpreted length");
+        Check(NtfsMftBitmapPrefix.Parse(raw, Facts(262144), 262144) is { Status: "Invalid", Code: "BitmapPrefixSlotBudget" },
+            "legacy prefix parser cannot consume the scale profile authorization");
+        Check(NtfsMftBitmapPrefix.ParseScale(raw, Facts(262144), 262145) is { Status: "Invalid", Code: "BitmapPrefixSlotBudget", ReadBytes: 0 },
+            "scale slot cap does not accept an extra slot or a truncated valid range");
+        var resident = NtfsMftBitmapPrefix.ParseScale(SeedScale(262144, NtfsRecordFixtures.Resident(0xb0, new byte[512])), Facts(262144), 262144);
+        Check(resident is { Status: "Deferred", Code: "BitmapPrefixCoverage", ReadBytes: 0 } && resident.CopyPrefix().Length == 0,
+            "a small resident bitmap cannot imply zero allocation for the rest of a large stream");
+        var shortInit = NtfsMftBitmapPrefix.ParseScale(SeedScale(100000, Bitmap(Runs((8, 100000)), 7, 32768, 12500, 12499)), Facts(100000), 100000);
+        Check(shortInit.Status == "Invalid" && shortInit.ReadPlan.Count == 0, "initialization must cover every interpreted scale prefix byte");
+        var badTail = NtfsMftBitmapPrefix.ParseScale(SeedScale(262144,
+            Bitmap(Runs((8, 100000), (248, 200000)), 255, 1048576, 1048576, 1048576)), Facts(262144), 262144);
+        Check(badTail is { Status: "Invalid", Code: "BitmapPrefixPhysicalBounds", ReadBytes: 0 },
+            "a bad unrequested tail run still rejects the entire scale mapping");
+        var overlap = NtfsMftBitmapPrefix.ParseScale(SeedScale(262144, Bitmap(Runs((8, 65000)), 7, 32768, 32768, 32768)), Facts(262144), 262144);
+        Check(overlap is { Status: "Invalid", Code: "BitmapPrefixMftOverlap", ReadBytes: 0 },
+            "expanded MFT data mapping remains excluded from bitmap physical extents");
+        var small = NtfsMftBitmapPrefix.ParseScale(SeedScale(64, Bitmap(Runs((1, 100000)), 0, 4096, 8, 8)), Facts(64), 64);
+        Check(small is { Status: "Planned", ReadBytes: 512, LogicalPrefixBytes: 8 } && small.ReadPlan.Count == 1,
+            "scale profile retains exact small-prefix behavior instead of always reading its maximum");
+        using var cancellation = new CancellationTokenSource(); cancellation.Cancel(); bool canceled = false;
+        try { NtfsMftBitmapPrefix.ParseScale(raw, Facts(262144), 262144, cancellation.Token); } catch (OperationCanceledException) { canceled = true; }
+        Check(canceled && raw.SequenceEqual(before), "scale cancellation yields no partial physical plan or input mutation");
+        return passed;
+    }
 }

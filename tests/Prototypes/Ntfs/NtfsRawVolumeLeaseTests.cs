@@ -390,4 +390,51 @@ internal static class NtfsRawVolumeLeaseTests
         }
         return passed;
     }
+
+    internal static int RunScale()
+    {
+        int passed = 0;
+        void Check(bool value, string name)
+        { if (!value) throw new InvalidOperationException("Raw scale lease check failed: " + name); passed++; Console.WriteLine("PASS raw scale lease " + name); }
+        Exception? Catch(Action action) { try { action(); return null; } catch (Exception error) { return error; } }
+        SafeFileHandle Handle() => new(new IntPtr(12345), false);
+        using (var handle = Handle())
+        {
+            var native = new FakeNative(); var page = new byte[65536];
+            using var lease = NtfsRawVolumeLease.AcquireScaleForTests(handle, 1024L * 1024 * 1024, 512, 4096, native);
+            for (int i = 0; i < 4097; i++) _ = lease.ReadInto(0, page);
+            Check(lease.RequestedBytes == 268500992 && lease.ReadCalls == 4097 && native.Allocations == 1 && native.Frees == 0,
+                "scale byte ceiling includes exactly two-hundred-fifty-six MiB plus sixty-four KiB with one reusable buffer");
+            Check(Catch(() => lease.ReadInto(0, page.AsMemory(0, 512))) is InvalidDataException && native.Reads == 4097 &&
+                native.Frees == 1 && native.Unlocks == 1, "one extra sector fails closed before another scale native read");
+        }
+        using (var handle = Handle())
+        {
+            var native = new FakeNative(); var page = new byte[512];
+            using var lease = NtfsRawVolumeLease.AcquireScaleForTests(handle, 1024L * 1024 * 1024, 512, 4096, native);
+            for (int i = 0; i < 8192; i++) _ = lease.ReadInto(0, page);
+            Check(Catch(() => lease.ReadInto(0, page)) is InvalidDataException && lease.ReadCalls == 8192 && native.Reads == 8192 &&
+                native.Allocations == 1 && native.Frees == 1 && native.Unlocks == 1, "scale call ceiling is independent from total requested bytes");
+        }
+        using (var handle = Handle())
+        {
+            var native = new FakeNative(); using var lease = NtfsRawVolumeLease.AcquireScaleForTests(handle, 1024L * 1024 * 1024, 512, 4096, native);
+            Check(Catch(() => lease.Read(0, 512)) is InvalidDataException && native.Reads == 0 && native.Unlocks == 1,
+                "scale factory cannot bypass its profile through the legacy array read API");
+        }
+        foreach (string fault in new[] { "Read", "Short", "Cancel" })
+        {
+            using var handle = Handle(); using var cancellation = new CancellationTokenSource(); var native = new FakeNative();
+            var page = Enumerable.Repeat((byte)0xcc, 512).ToArray();
+            using var lease = NtfsRawVolumeLease.AcquireScaleForTests(handle, 1024L * 1024 * 1024, 512, 4096, native);
+            if (fault == "Read") native.ReadResult = new(false, 0, 5);
+            if (fault == "Short") native.ReadResult = new(true, 256, 0);
+            if (fault == "Cancel") native.OnRead = cancellation.Cancel;
+            var error = Catch(() => lease.ReadInto(0, page, cancellation.Token));
+            Check((fault == "Cancel" ? error is OperationCanceledException : error is NtfsRawVolumeException) && native.Frees == 1 &&
+                native.Unlocks == 1 && lease.ReadCalls == 1 && lease.RequestedBytes == 512 && page.All(value => value == 0xcc),
+                "scale failure short read and cancellation preserve accounting and discard partial bytes");
+        }
+        return passed;
+    }
 }

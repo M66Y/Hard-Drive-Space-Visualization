@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "mode": "fixture-vss",
+  "status": "vss_verified",
+  "stage": "SnapshotProbeCompared",
+  "code": "None",
+  "exit_code": 0,
+  "detached": true,
+  "cleanup_completed": true,
+  "scale_benchmark": null,
+  "snapshot_cleanup_confirmed": true,
+  "vss_evidence": {
+    "Revision": "fixture-vss-v1",
+    "Stage": "SnapshotReadVerified",
+    "CreatedSnapshots": 1,
+    "DeletedSnapshots": 1,
+    "FilesCompared": 3,
+    "RawRecordsCompared": 4,
+    "RawReadCalls": 4,
+    "RawRequestedBytes": 4096,
+    "PropertiesBound": true,
+    "SnapshotFilesStable": true,
+    "LiveChangesObserved": true,
+    "GeometryVerified": true,
+    "RawRecordsMatched": true,
+    "CleanupConfirmed": true
+  }
+}

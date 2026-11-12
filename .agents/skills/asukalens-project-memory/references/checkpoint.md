@@ -1,35 +1,35 @@
 # AsukaLens 开发检查点
 
-2026-11-12；合并迭代C22基线 `99fb9980d64fc5e83580b99aaeba3b7e18514af4`。实现、必要回归、独立审查、三次真实VHD观察/端到端与清理已完成；恢复/提交绑定以archive22及Git为准。工作区全部为同一用户任务，不拆多个小轮，不打包/标签/Release。正式版仍v1.5.0。
+2026-11-12；C23基线5209462cb2f2b4aa9118415bd3b1671730f775e8。C23规模/自有VSS实现与真实验收已完成，提交绑定以archive23/Git为准。用户同一请求继续C24；新工作区文件不混入C23补丁。正式版仍v1.5.0，不打包/Release。
 
-## 用户目标和授权
+## 用户目标与当前授权
 
-先30–60分钟真实BITMAP观察（12:08:48UTC开始），用户随后要求加快并确认接下来两小时集中NTFS尽量连通流程；新窗口12:21:51–14:21:51 UTC。用户明确批准 docs/ntfs-fixture-fast-scan-plan.md：本时段按需新建256MiB隔离VHD，仍走归属/格式化守卫；位图额外对齐读取最多512字节，总raw<=4195840字节/256次，MFT<=4096槽；在自有盘内CREATE_NEW/Delete最多2文件核验释放槽。测后卸载清理，不个人盘/VSS/新原始留样/生产或发布，许可不延续。
+用户要求规模/实际速度，并尽快个人卷与主窗。C23批准：新1GiB owned VHD10k/100k，262144槽/raw256MiB+64KiB/8192calls；另新owned1GiB VSS小探针，不host配置/个人卷。C23三项最终合并Native全过并清理。
 
-## 本轮完成与证据
+用户随后已批准 docs/ntfs-scale-and-product-plan.md 最后一节下一合并块：同snapshot完整namespace、compact sizes、bounded parallel Native，允许本轮新1GiB VHD组合10k/100k VSS对照，同原预算；正确性/收益成立再接普通权限主窗实验入口/短命助手/可靠fallback。另指定个人卷只查FS/能力/MFT长度，**不读其records/names/content、不建个人snapshot、具体结果不入repo**。盘符以最新用户答复为准，不推断其它卷。当前没有指定时长，不沿用旧14:21/两小时窗口。
 
-- 独立形态模式OpenBitmapObservation/RunBitmapObservation只复用同owner bootstrap；旧RangeOnly不执行locator，旧v2/预算不改。首次Native473闭环通过但generic BitmapPayloadBudget不足判断形态，记录initial-observation.json，不当最终功能通过。
-- locator内部Form保留旧code/revision及不序列化，Source只公开两固定预算码。修后Native473确认非驻留超512，5reads/263168，21对象及关闭/清理通过，observed-shape.json。中途一次UAC启动取消未建VHD，用户明确重试后成功。
-- 端到端OpenFastScan/RunFastScan真实473通过，fast-scan-native.json：21目录/21对象/27入口逐项身份/逻辑/分配均和原DiskScanner一致；逻辑21233664、分配917504字节。7对象分配来自记录、14经前后验证Native补值，DOS忽略33。prefix非驻留32有效字节/512对齐请求，21在用+2已释放严格Free槽通过；总6raw读取尝试/263680请求，关闭/后验/卸载清理true。
-- 新固定Lease profile4195840/256，旧2MiB和4MiB+1024保留；Prefix最多1MiB元数据/128runs，完整验证signed LCN/覆盖/EOF/init/物理边界/自重叠/MFT DATA交叉，最终只出单512slice。地址不出报告，原始正文不落盘。
-- Witness固定nonce目录CREATE_NEW，两文件同时存在、同句柄读取完整Native身份和删除；目录pin/文件句柄锁前全部释放。旧seq1..65534，free期望同slot+seq+1，官方FILE_RECORD_SEGMENT_HEADER说明free时递增；不猜wrap、不用旧ID等值。真实两槽通过。
-- Collector单页/4096records/16384names/1048576 UTF-16字符，旧enum仍只保21。索引只FixedFixtureDataRoot，父链/slot/硬链接/DOS/未知与Native来源分开；逐alias不固定AllocatedSize归账，分配以对象去重和root总量对照。
-- 最终唯一build0warn/0error；C#：collector12、fast source43、prefix94、index96、lease108、oldbounded68、shape113、guard309+oldsource63，全过无跳过。PS：fast312、shape319、外层/语义420、oldv2 477、隔离guard36过。独立Source/witness及PS/模式只读审查无阻塞，最后文档只读核查收尾。
+## C23结果
 
-## 文件归属与清理
+最终Release测试DLL0warn0error，SHA256 651e52caf631ecc42b8206af33c9861e67fa0506efcfcd210abe49ea5141a929，SDK10.0.403；冻结binary后无再build。Scale146(12prefix/7lease/8collector/90index/29orchestration)，VSS80(60probe/20guard)；旧fast12+43/prefix94/lease108/Guard314+source63。PS Scale102、VSS372、driver84、old/Scale guards各36全过。独审无剩余阻塞。
 
-attribute_probe：prefix/lease四文件与小locator Form/Tests；special_contract：Source/Tests、Guard/Tests、collector/Tests；special_tests_plan：Index/Tests、BitmapBootstrapEvidence/Tests；Root：Program/Live/wrapper/代码白名单及Tests、FastEvidence/Tests、docs/AGENTS/记忆与archive。全部已封板，当前无编译/Native/UAC/exec运行。
+10k/100k最终真实各6次fingerprint一致，10000/100000对象、10010/100010入口、100目录，逻辑8234240/82250240、分配32800000/328000000、unknown0。MFT中位1079.4705/10309.1579ms；八路Directory913.0836/9148.8443ms。没有提速；Directory连续warm样本53.8965/606.2948ms保留，不能只挑慢样本。锁卷影响缓存(官方flush并NTFS视dismount)，未量化各因素；不等未来VSS或WizTree结果。
 
-归档 iterations/2026-11-12-22-ntfs-fast-scan，基线99fb998。3个VHD均卸载且目录清理，全部本轮结果副本均SHA核对归档后删除；旧kernel六样本会话8文件/9683B未动不上传。正常测试构建保留，无新预览目录/发行产物。下一步仅必要恢复patch/SHA/隐私/远端核对与统一commit/push main，不force。
+VSS最终vss_verified，3files/4strictRawRecords，4raw calls/4096bytes；live改写后snapshot Native/32bytes内容/raw均保持原值；本次snapshot创建删除、同source属性/geometry、读者关闭、卸载清理全true。所有本轮owned VHD dirs0；无Native/UAC/exec仍运行。
 
-## 报告和交付含义
+最初10k runner0但PS硬断言resident0拒摘要，已存initial-transport-failure.json不当通过；已核历史Native logical32=>alloc32。PS改实测有界并补非0case。中途管理员启动not-started，用户未看到提示；未建盘。用户明确retry后一次admin driver三项全过。
 
-fixture-fast-scan-v1 / ControlledFixtureCompared七根：Range旧v2扣prefix、Bitmap9字段21pos+2free、Index15字段、Comparison11字段、Resources3字段totals=range+bitmap且Closed。Native标签由真实factory建立，pure/fake仍Synthetic，PS只运输校验不认证物理来源。旧各mode成功不互相别名，失败/取消/清理失败清空成功证据。不直接序列化index entries/tree/ref/token/LCN/run/payload或任意异常消息。
+archive iterations/2026-11-12-23-ntfs-scale-and-source 已有README/validation/5JSON，待root恢复patch/manifest/cleanup/统一commit push。native副本仍artifacts中待核hash后删。VSSroutes已恢复，临时ntfs-vss-routes.tmp已删。旧kernel六样本8files9683B仅ignored本机保留不动。
 
-可运行开发入口：pwsh管理员 scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 -ResultPath <fresh artifacts result> -FastScan，仅当前轮明确VHD许可；纯CLI --ntfs-fixture-fast-scan-tests/--ntfs-bitmap-prefix-tests/--ntfs-fixture-index-tests。见scripts/prototype README。不把这当普通用户个人盘扫描入口。
+## 当前C24分工/未验收文件
 
-## 未完成和接续
+Root收尾C23并负责C24共享源码迁移/程序集接入、VHD+VSS规模driver、mainUI/IPC条件组装。暂不build，等C23commit。三agent只新增C24文件，不动C23冻结文件，不实际query/Native。
 
-仅静态自有固定夹具对照完整；取消/资源故障主要fake，真实只正常闭环。21正例+2释放槽不证明所有槽/182全零分配均独立验证；其余invalid/unsupported不忽略，不汇总全卷。14 Native补值不是纯MFT收益；raw次数不是物理I/O。没有吞吐、阶段耗时、CPU/峰值内存基准，不能宣称比原Scanner或WizTree更快。
+- attribute_probe新增 NtfsVolumePreflight.cs/Tests：Run(selectedRoot)只本地盘符根，GetVolumeInformationW无label/serial输出，access0 CreateFile+0x90064最多128B，不ReadFile。fake parser；未实际预检。随后负责提取VssOwner/Reader共享代码，等root边界放行。
+- special_tests_plan新增 NtfsSnapshotNamespace.cs/Tests：GetFileInformationByHandleEx19/20，无BytesReturned；清零64KiB页面用NextEntryOffset/UTF16len闭合，error18结束；BFS root0/entry parent/name/fullID/attrs，handle identity/pin、重复页/name/cycle/预算；不信cached size/不mint真实source；reparse当前whole fallback。
+- special_contract新增 NtfsSnapshotSizeIndex.cs/Tests：消费完整inventory，只retain选中ID sizes；严格全MFT decode不保全卷name；同snapshot单次Native补，8worker/queue128/32768对象，ID/EOF/link/dir校验。mapUnsupported丢整个attempt，不硬跳系统槽。三方正在锁API，无联编验收，仍唯一builder待root通知。
 
-更大受控数据/紧凑索引与端到端资源基准、其它格式/几何/Windows10新路径、活跃卷/VSS一致性、正式权限助手/可靠回退/主窗接入仍未完成。下一块合并安排，不再把内部helper单独建轮；权限/数据/预算变化才询问，已有授权不重复问。当前范围达到验收后收尾，不为凑时间继续加旁支。Skill正文不改，日常事实写references。
+## 必须保留的正确性/下一步
+
+CompleteWithinObservedRecords不能证明个人scope，任何在用无法解析且不能积极排除的记录都PotentiallyInScope。当前MainForm返回任意ScanResult即覆盖旧完整，Live.Attach只一次。产品快路需要namespace完整入口authority，缺页/unknown/reparse/引用/预算失败则清理后独立session常规fallback，用户取消不自动重扫，cleanup未确认不启动下后端。snapshot结果不复用live journal checkpoint；UI定位原路径须核当前identity。
+
+当前生产仍普通遍历，个人快扫/主UI/IPC/Win10新路径未实现。不能因VSS小探针过就宣称个人磁盘支持。C24真实preflight结果不放记忆/仓库；个人snapshot未授权。完成当前已批准范围和必要检查后收尾，不为每helper拆轮/审批。

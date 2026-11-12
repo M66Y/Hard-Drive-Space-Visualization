@@ -44,6 +44,7 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
     }
     private sealed record Manifest(string Nonce, string Workspace, string Image, string DriveRoot, string Volume, string Mode);
     private const long ImageBytes = 256L * 1024 * 1024;
+    private static long ImageBytesFor(string mode) => mode is "fixture-scale" or "fixture-vss" ? 1024L * 1024 * 1024 : ImageBytes;
     private readonly object gate = new();
     private readonly INative native;
     private readonly Manifest fixture;
@@ -136,6 +137,37 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
     {
         using var context = CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: false, expectedMode: "fixture-fast-scan", token);
     }
+    internal static NtfsVerifiedFixtureContext CreateForScale(string manifestPath, bool preparation = false, CancellationToken token = default) =>
+        CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: !preparation, expectedMode: "fixture-scale", token);
+    internal static NtfsVerifiedFixtureContext CreateScaleForTests(string manifestPath, string repositoryRoot, INative adapter,
+        bool preparation = false, CancellationToken token = default) =>
+        CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: !preparation, expectedMode: "fixture-scale", token);
+
+    internal static NtfsVerifiedFixtureContext CreateForVss(string manifestPath, CancellationToken token = default) =>
+        CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: false, expectedMode: "fixture-vss", token);
+    internal static NtfsVerifiedFixtureContext CreateVssForTests(string manifestPath, string repositoryRoot, INative adapter,
+        CancellationToken token = default) =>
+        CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: false, expectedMode: "fixture-vss", token);
+    internal string OriginVolume { get { lock (gate) { Active(); return fixture.Volume; } } }
+
+    internal FileStorageInfo CaptureScaleRoot(CancellationToken token = default) => Guard(() =>
+    {
+        lock(gate)
+        {
+            Active();token.ThrowIfCancellationRequested();Require(fixture.Mode=="fixture-scale","FixtureScaleScope");VerifyOrigin();NoReparse(native,DataRoot);
+            var storage=native.ReadStorage(DataRoot,true,native.Stat(DataRoot).Attributes);
+            Require(Storage(storage,serial,true),"FixtureScaleRoot");token.ThrowIfCancellationRequested();return storage;
+        }
+    });
+    internal void ValidateScalePath(string path,CancellationToken token=default) => Guard(() =>
+    {
+        lock(gate)
+        {
+            Active();token.ThrowIfCancellationRequested();Require(fixture.Mode=="fixture-scale","FixtureScaleScope");
+            string full=Full(path);Require(SamePath(full,DataRoot)||full.StartsWith(DataRoot+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase),"FixtureScalePath");
+            NoReparse(native,full);token.ThrowIfCancellationRequested();return true;
+        }
+    });
 
     internal NtfsFixtureFastContext PrepareFastContext(CancellationToken token = default) => Guard(() =>
     {
@@ -249,7 +281,8 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
             "FixtureManifestIdentity");
         Require(binding.DriveRoot.Length == 3 && binding.DriveRoot[0] is >= 'D' and <= 'Z' && binding.DriveRoot[1..] == ":\\" &&
             VolumeSyntax(binding.Volume), "FixtureVolumeSyntax");
-        NoReparse(adapter, binding.Image); RequireFile(adapter.Stat(binding.Image), ImageBytes, ImageBytes + 1024 * 1024, "FixtureImageBounds");
+        long expectedImageBytes=ImageBytesFor(expectedMode);
+        NoReparse(adapter, binding.Image); RequireFile(adapter.Stat(binding.Image), expectedImageBytes, expectedImageBytes + 1024 * 1024, "FixtureImageBounds");
         SafeFileHandle? openedImage = null, openedVolume = null;
         try
         {
@@ -259,7 +292,7 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
             token.ThrowIfCancellationRequested();
             var info = adapter.ImageInfo(openedImage);
             uint number = PhysicalNumber(info.Device);
-            Require(info.VirtualBytes == ImageBytes, "FixtureImageSize");
+            Require(info.VirtualBytes == expectedImageBytes, "FixtureImageSize");
             Require(info.ProviderSubtype == 2, "FixtureImageFixedType");
             Require(adapter.ResolveVolume(binding.DriveRoot).Equals(binding.Volume, StringComparison.OrdinalIgnoreCase) &&
                 adapter.DriveFormat(binding.DriveRoot).Equals("NTFS", StringComparison.OrdinalIgnoreCase), "FixtureMountedVolume");
@@ -267,7 +300,8 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
             openedVolume = adapter.OpenVolume(binding.Volume.TrimEnd('\\'));
             Require(!openedVolume.IsInvalid && !openedVolume.IsClosed, "FixtureVolumeOpen");
             token.ThrowIfCancellationRequested();
-            var extent = Extent(adapter, openedVolume, number);
+            var extent = Extent(adapter, openedVolume, number,expectedImageBytes);
+            Require(expectedMode != "fixture-scale" || extent.Length >= 1000L * 1024 * 1024, "FixturePartitionBounds");
             Partition(adapter, openedVolume, extent.Start, extent.Length);
             // Marker bytes are not touched until the actual opened volume has
             // been proved to be backed by this owned virtual image.
@@ -294,7 +328,7 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
             using var fresh = reopen ? native.OpenVolume(fixture.Volume.TrimEnd('\\')) : null;
             var target = fresh ?? volume;
             Require(!target.IsInvalid && !target.IsClosed, "FixtureVolumeOpen");
-            var extent = Extent(native, target, diskNumber);
+            var extent = Extent(native, target, diskNumber,ImageBytesFor(fixture.Mode));
             Require(extent.Start == partitionStart && extent.Length == partitionBytes, "FixturePartitionChanged");
             Partition(native, target, extent.Start, extent.Length);
             var result = Facts(native, target, partitionBytes, serial);
@@ -375,9 +409,10 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
     {
         NoReparse(native, manifestPath); NoReparse(native, fixture.Image);
         Require(Parse(Read(native, manifestPath, 16383)) == fixture, "FixtureManifestChanged");
-        RequireFile(native.Stat(fixture.Image), ImageBytes, ImageBytes + 1024 * 1024, "FixtureImageBounds");
+        long expectedImageBytes=ImageBytesFor(fixture.Mode);
+        RequireFile(native.Stat(fixture.Image), expectedImageBytes, expectedImageBytes + 1024 * 1024, "FixtureImageBounds");
         var current = native.ImageInfo(image);
-        Require(current.VirtualBytes == ImageBytes && current.ProviderSubtype == 2 && PhysicalNumber(current.Device) == diskNumber,
+        Require(current.VirtualBytes == expectedImageBytes && current.ProviderSubtype == 2 && PhysicalNumber(current.Device) == diskNumber,
             "FixtureImageChanged");
         Require(native.ResolveVolume(fixture.DriveRoot).Equals(fixture.Volume, StringComparison.OrdinalIgnoreCase) &&
             native.DriveFormat(fixture.DriveRoot).Equals("NTFS", StringComparison.OrdinalIgnoreCase), "FixtureMountedVolume");
@@ -389,12 +424,12 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
     private static bool Storage(FileStorageInfo? value, ulong volumeSerial, bool directory = false) => value != null && value.Identity.Volume == volumeSerial &&
         value.Identity.High == 0 && value.Identity.Low >> 48 != 0 && (directory ? value.LogicalBytes == -1 : value.LogicalBytes >= 0) && value.AllocatedBytes >= 0 &&
         value.LinkCount > 0 && !value.WritableHandleOpen && value.Modified.HasValue;
-    private static (long Start, long Length) Extent(INative adapter, SafeFileHandle target, uint number)
+    private static (long Start, long Length) Extent(INative adapter, SafeFileHandle target, uint number,long expectedImageBytes=ImageBytes)
     {
         byte[] bytes = adapter.Control(target, 0x560000, null, 128);
         Require(bytes.Length is >= 32 and <= 128 && U32(bytes, 0) == 1 && U32(bytes, 8) == number, "FixtureVolumeExtents");
         long start = I64(bytes, 16), length = I64(bytes, 24);
-        Require(start >= 0 && start % 512 == 0 && length > 0 && length % 512 == 0 && start <= ImageBytes - length,
+        Require(start >= 0 && start % 512 == 0 && length > 0 && length % 512 == 0 && start <= expectedImageBytes - length,
             "FixturePartitionBounds");
         return (start, length);
     }

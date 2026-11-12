@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "mode": "fixture-scale",
+  "status": "failed",
+  "stage": "RunScaleBenchmark",
+  "code": "ScaleFailed",
+  "exit_code": 0,
+  "detached": true,
+  "cleanup_completed": true,
+  "scale_benchmark": null
+}

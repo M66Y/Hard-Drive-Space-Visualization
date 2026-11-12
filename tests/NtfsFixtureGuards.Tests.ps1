@@ -1,4 +1,5 @@
 #requires -Version 7.4
+param([switch]$Scale)
 # Offline guard tests. Only named function definitions are extracted; the VHD
 # script's top-level commands are never invoked. All storage queries are mocks.
 $ErrorActionPreference = 'Stop'
@@ -14,7 +15,9 @@ function Reject([scriptblock]$Action, [string]$Expected, [string]$Name) {
     Check ($message -ceq $Expected) $Name
 }
 
-$source = Join-Path $PSScriptRoot '../scripts/ntfs-prototype/Invoke-NtfsFixture.ps1'
+$source = Join-Path $PSScriptRoot $(if ($Scale) { '../scripts/ntfs-prototype/Invoke-NtfsScale.ps1' } else { '../scripts/ntfs-prototype/Invoke-NtfsFixture.ps1' })
+$imageBytes = if ($Scale) { 1024MB } else { 256MB }
+$partitionBytes = if ($Scale) { 1023MB } else { 255MB }
 $tokens = $null; $parseErrors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $source).Path, [ref]$tokens, [ref]$parseErrors)
 Check ($parseErrors.Count -eq 0) 'fixture script syntax'
@@ -54,8 +57,8 @@ function Reset-Mocks {
     $script:diskNumber = 12345; $script:diskPath = 'synthetic-disk-path'
     $script:imageDevicePath = 'synthetic-image-device'
     $script:fakeImages = @([pscustomobject]@{Attached=$true; ImagePath=$script:imagePath; DevicePath=$script:imageDevicePath})
-    $script:fakeDisks = @([pscustomobject]@{IsBoot=$false;IsSystem=$false;IsReadOnly=$false;BusType='FileBackedVirtual';Size=256MB;Number=12345;Path=$script:diskPath})
-    $script:fakePartitions = @([pscustomobject]@{PartitionNumber=1;DiskNumber=12345;Size=255MB})
+    $script:fakeDisks = @([pscustomobject]@{IsBoot=$false;IsSystem=$false;IsReadOnly=$false;BusType='FileBackedVirtual';Size=$imageBytes;Number=12345;Path=$script:diskPath})
+    $script:fakePartitions = @([pscustomobject]@{PartitionNumber=1;DiskNumber=12345;Size=$partitionBytes})
 }
 try {
     [IO.Directory]::CreateDirectory($script:workspace) | Out-Null
@@ -90,7 +93,7 @@ try {
     }
     Reset-Mocks; $script:fakeDisks[0].BusType='SATA'
     Reject { Get-OwnedDisk } 'DISK_SAFETY' 'physical bus rejected'
-    foreach ($size in @(255MB,258MB)) {
+    foreach ($size in @($(if ($Scale) { 256MB } else { 255MB }), ($imageBytes + 2MB))) {
         Reset-Mocks; $script:fakeDisks[0].Size=$size
         Reject { Get-OwnedDisk } 'DISK_SAFETY' 'unexpected image size rejected'
     }
@@ -104,7 +107,7 @@ try {
     Reject { Get-OwnedPartition 1 } 'PARTITION_BINDING' 'ambiguous partition rejected'
     Reset-Mocks; $script:fakePartitions[0].DiskNumber=12346
     Reject { Get-OwnedPartition 1 } 'PARTITION_BINDING' 'wrong partition disk rejected'
-    foreach ($size in @(239MB,257MB)) {
+    foreach ($size in @($(if ($Scale) { 256MB } else { 239MB }), ($imageBytes + 1MB))) {
         Reset-Mocks; $script:fakePartitions[0].Size=$size
         Reject { Get-OwnedPartition 1 } 'PARTITION_BINDING' 'unexpected partition size rejected'
     }

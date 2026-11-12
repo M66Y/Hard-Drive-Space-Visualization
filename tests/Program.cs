@@ -1,6 +1,44 @@
 using DiskAtlas;
 using System.Drawing;
 
+if (args.Length > 0 && args[0] == "--ntfs-vss-live")
+{
+    if (args.Length != 2) { Console.Error.WriteLine("FAIL NTFS snapshot arguments"); return 1; }
+    return DiskAtlas.NtfsPrototype.NtfsVssFixtureProbe.Run(args[1]);
+}
+if (args.Length > 0 && args[0] == "--ntfs-vss-tests")
+{
+    if (args.Length != 1) { Console.Error.WriteLine("FAIL NTFS snapshot arguments"); return 1; }
+    try
+    {
+        int checks = DiskAtlas.NtfsPrototype.NtfsVssFixtureProbeTests.Run();
+        int guards = DiskAtlas.NtfsPrototype.NtfsVerifiedFixtureContextTests.RunVss();
+        Console.WriteLine($"PASS NTFS snapshot checks: {checks} probe; {guards} guards; synthetic calls only");
+        return 0;
+    }
+    catch { Console.Error.WriteLine("FAIL NTFS snapshot checks; no private details emitted"); return 1; }
+}
+if (args.Length > 0 && args[0] == "--ntfs-scale-live")
+{
+    if (args.Length != 3 || !int.TryParse(args[2], out int count) || count is not (10000 or 100000))
+    { Console.Error.WriteLine("FAIL NTFS scale arguments"); return 1; }
+    return DiskAtlas.NtfsPrototype.NtfsScaleExperiment.Run(args[1], count);
+}
+if (args.Length > 0 && args[0] == "--ntfs-scale-tests")
+{
+    if (args.Length != 1) { Console.Error.WriteLine("FAIL NTFS scale arguments"); return 1; }
+    try
+    {
+        int prefix = DiskAtlas.NtfsPrototype.NtfsMftBitmapPrefixTests.RunScale();
+        int lease = DiskAtlas.NtfsPrototype.NtfsRawVolumeLeaseTests.RunScale();
+        int collector = DiskAtlas.NtfsPrototype.NtfsMftIndexCollectorTests.RunScale();
+        int index = DiskAtlas.NtfsPrototype.NtfsScaleDirectoryIndexTests.Run();
+        int experiment = DiskAtlas.NtfsPrototype.NtfsScaleExperimentTests.Run();
+        Console.WriteLine($"PASS NTFS scale checks: {prefix} prefix; {lease} lease; {collector} collector; {index} index; {experiment} orchestration; synthetic inputs only");
+        return 0;
+    }
+    catch { Console.Error.WriteLine("FAIL NTFS scale checks; no private details emitted"); return 1; }
+}
 if (args.Contains("--disk-activity-resource-child")) return DiskActivityResourceProbe.Child(args.Last());
 if (args.Contains("--disk-activity-scan-child")) return DiskActivityScanProbe.Child(args.Last());
 if (args.Length > 0 && args[0] == "--ntfs-record-replay")

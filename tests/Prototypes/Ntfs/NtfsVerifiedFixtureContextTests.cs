@@ -303,6 +303,82 @@ internal static class NtfsVerifiedFixtureContextTests
                 cleanup.WitnessHandles.All(handle=>handle.IsClosed) && (cancelCleanup?cleanup.CreatedPaths.All(cleanup.MissingPaths.Contains):true),
                 "cleanup cancellation or delete failure closes every owned handle and prevents witness success");
         }
+        var scale=new Fake();scale.MakeScale();
+        using(var context=NtfsVerifiedFixtureContext.CreateScaleForTests(scale.ManifestPath,scale.Repository,scale))
+        {
+            Check(context.IsSynthetic&&context.QueryFacts().Geometry.VolumeBytes==1023L*1024*1024&&context.CaptureScaleRoot().LogicalBytes==-1,
+                "scale factory pins its independent one-GiB image and native root without changing older geometry");
+            bool escaped=false;int reads=scale.StoragePaths.Count;
+            try{context.ValidateScalePath(@"C:\SyntheticOther\private");}catch(NtfsFixtureGuardException error){escaped=error.Code=="FixtureScalePath";}
+            Check(escaped&&scale.StoragePaths.Count==reads,"scale scope rejects an outside path before native metadata access");
+        }
+        foreach(bool largeImage in new[]{false,true})
+        {
+            var mismatch=new Fake();if(largeImage)mismatch.VirtualBytes=1024L*1024*1024;else{mismatch.ChangeManifest(value=>value["mode"]="fixture-scale");mismatch.Marker=mismatch.Manifest.ToArray();}
+            bool rejected=false;try{using var context=largeImage?mismatch.Open():NtfsVerifiedFixtureContext.CreateScaleForTests(mismatch.ManifestPath,mismatch.Repository,mismatch);}
+            catch(NtfsFixtureGuardException){rejected=true;}
+            Check(rejected&&mismatch.Handles.Count==0,"old and scale image permissions cannot exchange 256-MiB and one-GiB profiles");
+        }
+        var scalePreparation=new Fake();scalePreparation.MakeScale();scalePreparation.MissingPaths.Add(scalePreparation.Data);
+        using(var context=NtfsVerifiedFixtureContext.CreateScaleForTests(scalePreparation.ManifestPath,scalePreparation.Repository,scalePreparation,preparation:true))
+            Check(context.IsSynthetic&&scalePreparation.StoragePaths.Count==0,"scale preparation permits only the missing derived root and does not inspect absent files");
+        return passed;
+    }
+
+    internal static int RunVss()
+    {
+        int passed = 0;
+        void Check(bool value, string name)
+        { if (!value) throw new InvalidOperationException("VSS guard " + name); passed++; Console.WriteLine("PASS VSS guard " + name); }
+        Fake Fixture()
+        {
+            var fake = new Fake(); fake.MakeScale(); fake.ChangeManifest(value => value["mode"] = "fixture-vss"); fake.Marker = fake.Manifest.ToArray();
+            fake.MissingPaths.Add(fake.Data); return fake;
+        }
+        var valid = Fixture();
+        using (var context = NtfsVerifiedFixtureContext.CreateVssForTests(valid.ManifestPath, valid.Repository, valid))
+        {
+            Check(context.IsSynthetic && context.OriginVolume == valid.Volume && context.DataRoot == valid.Data && valid.StoragePaths.Count == 0,
+                "dedicated mode derives volume and missing data root without reading fixture files");
+            Check(context.QueryFacts().Geometry.VolumeBytes == 1023L * 1024 * 1024, "one-GiB VSS profile retains fixed verified geometry");
+            bool rejected = false; try { context.CaptureScaleRoot(); } catch (NtfsFixtureGuardException error) { rejected = error.Code == "FixtureScaleScope"; }
+            Check(rejected && valid.StoragePaths.Count == 0, "VSS mode cannot use scale native target authority");
+            context.Dispose(); rejected = false; try { _ = context.OriginVolume; } catch (NtfsFixtureGuardException error) { rejected = error.Code == "FixtureContextClosed"; }
+            Check(rejected && valid.Handles.All(handle => handle.IsClosed), "closed VSS context releases image and volume and cannot expose its binding again");
+        }
+        foreach (string mode in new[] { "fixture-source", "mft-range", "bitmap-bootstrap", "fixture-fast-scan", "fixture-scale", "Fixture-vss" })
+        {
+            var fake = Fixture(); fake.ChangeManifest(value => value["mode"] = mode); fake.Marker = fake.Manifest.ToArray();
+            bool rejected = false; try { using var ignored = NtfsVerifiedFixtureContext.CreateVssForTests(fake.ManifestPath, fake.Repository, fake); }
+            catch (NtfsFixtureGuardException) { rejected = true; }
+            Check(rejected && fake.Handles.Count == 0, "other mode cannot borrow VSS one-GiB permission");
+        }
+        foreach (long size in new[] { 256L * 1024 * 1024, 1024L * 1024 * 1024 - 1, 1024L * 1024 * 1024 + 1 })
+        {
+            var fake = Fixture(); fake.VirtualBytes = size; bool rejected = false;
+            try { using var ignored = NtfsVerifiedFixtureContext.CreateVssForTests(fake.ManifestPath, fake.Repository, fake); } catch (NtfsFixtureGuardException) { rejected = true; }
+            Check(rejected && fake.Handles.All(handle => handle.IsClosed), "VSS requires exactly the newly owned one-GiB fixed image");
+        }
+        foreach (uint subtype in new uint[] { 0, 3, 4, uint.MaxValue })
+        {
+            var fake = Fixture(); fake.ProviderSubtype = subtype; bool rejected = false;
+            try { using var ignored = NtfsVerifiedFixtureContext.CreateVssForTests(fake.ManifestPath, fake.Repository, fake); }
+            catch (NtfsFixtureGuardException error) { rejected = error.Code == "FixtureImageFixedType"; }
+            Check(rejected && fake.Handles.Count == 1 && fake.Handles.All(handle => handle.IsClosed) && fake.StoragePaths.Count == 0,
+                "unproven image type fails before opening the source volume or inspecting target files");
+        }
+        var wrongExtent = Fixture(); wrongExtent.MutateControl(0x560000, bytes => W32(bytes, 8, 9));
+        bool extentRejected = false; try { using var ignored = NtfsVerifiedFixtureContext.CreateVssForTests(wrongExtent.ManifestPath, wrongExtent.Repository, wrongExtent); }
+        catch (NtfsFixtureGuardException) { extentRejected = true; }
+        Check(extentRejected && wrongExtent.Handles.All(handle => handle.IsClosed), "VSS image cannot bind a foreign physical extent");
+        var wrongMarker = Fixture(); wrongMarker.Marker = "{}"u8.ToArray(); bool markerRejected = false;
+        try { using var ignored = NtfsVerifiedFixtureContext.CreateVssForTests(wrongMarker.ManifestPath, wrongMarker.Repository, wrongMarker); }
+        catch (NtfsFixtureGuardException) { markerRejected = true; }
+        Check(markerRejected && wrongMarker.Handles.All(handle => handle.IsClosed), "VSS source still verifies the owned nonce marker");
+        var cancelled = Fixture(); using var cancellation = new CancellationTokenSource(); cancellation.Cancel(); bool stopped = false;
+        try { using var ignored = NtfsVerifiedFixtureContext.CreateVssForTests(cancelled.ManifestPath, cancelled.Repository, cancelled, cancellation.Token); }
+        catch (OperationCanceledException error) { stopped = error.CancellationToken == cancellation.Token; }
+        Check(stopped && cancelled.Handles.Count == 0, "cancelled VSS guard opens no native handle");
         return passed;
     }
 
@@ -371,6 +447,12 @@ internal static class NtfsVerifiedFixtureContextTests
         internal void Prepare(CancellationToken token = default) => NtfsVerifiedFixtureContext.VerifyPreparationForTests(ManifestPath, Repository, this, token);
         internal void ChangeManifest(Action<JsonObject> edit) { var value = JsonNode.Parse(Manifest)!.AsObject(); edit(value); Manifest = Encoding.UTF8.GetBytes(value.ToJsonString()); }
         internal void MutateControl(uint code, Action<byte[]> mutate) => mutate(ControlData[code]);
+        internal void MakeScale()
+        {
+            ChangeManifest(value=>value["mode"]="fixture-scale");Marker=Manifest.ToArray();VirtualBytes=1024L*1024*1024;
+            W64(ControlData[0x560000],24,1023L*1024*1024);W64(ControlData[0x70048],16,1023L*1024*1024);
+            W64(ControlData[0x90064],8,1023L*1024*1024/512);W64(ControlData[0x90064],16,1023L*1024*1024/4096);
+        }
         public NtfsVerifiedFixtureContext.PathInfo Stat(string path)
         {
             OnStat?.Invoke(path);
@@ -378,7 +460,7 @@ internal static class NtfsVerifiedFixtureContextTests
             if (StatOverrides.TryGetValue(path, out var changed)) return changed;
             if (path == ManifestPath) return new(FileAttributes.Archive, Manifest.Length);
             if (path == MarkerPath) return new(FileAttributes.Archive, Marker.Length);
-            if (path == Image) return new(FileAttributes.Archive, 256L * 1024 * 1024 + 512);
+            if (path == Image) return new(FileAttributes.Archive, VirtualBytes + 512);
             if (attributes.TryGetValue(path, out var flags)) return new(flags, 0);
             return new(FileAttributes.Directory, 0);
         }

@@ -30,3 +30,7 @@
 
 - 2026-11-12：用户明确要求提速、减少小轮，当前观察任务扩大并合并为自有VHD端到端NTFS流程，一个C22归档与提交。新增授权只含MFT4096槽/4195840字节/256次、位图512字节前缀及2自建释放文件，不含个人/活跃卷或发行。原位图文件超过512也只映射并读取必要前缀，不能扩大为整文件读取。理由是以可运行链路和统一验收交付，减少重复收尾，同时保留权限/数据边界。
 - 2026-11-12：按微软记录头文档，sequence在segment释放时递增，witness限定旧seq1..65534并核同slot+1/bitmap0/strictFree，拒绝猜测wrap。实际21正例+2释放槽及目录两大小对照通过；14对象用Native补值，不把请求数或正确性当性能收益。依据 iterations/2026-11-12-22-ntfs-fast-scan/README.md、docs/ntfs-fixture-fast-scan-plan.md。
+
+- 2026-11-12：C23合并扩容、端到端速度与自有VSS验证，旧profile不扩；10k/100k统计一致但MFT中位1.079/10.309s、目录0.913/9.149s，保留缓存波动，不为名义快扫直接产品化。驻留分配按Native实测，修正transport错误零假设；锁卷缓存混杂未独立量化，后续改同snapshot对照。依据archive23及docs/ntfs-scale-and-product-plan.md。
+- 2026-11-12：真实VSS小探针已证同source Native/内容/raw可读，选择不带writer、自动释放单snapshot；仅按成功返回并绑定的owned GUID清理，未知async不确认，失败保留私有恢复标识/镜像，不枚举删除他人。此证明不覆盖个人namespace完整性。依据archive23/vss-native.json、NtfsVssFixtureProbe与PS完整envelope门。
+- 2026-11-12：用户确定后续合并snapshot namespace/compact sizes/parallel Native及条件式主窗；完整目录入口作为scope authority，以避免strictDecoded缺失导致漏算，不按系统slot编号跳过。用户另允许指定个人卷metadata-only预检，具体值仅本机；没有个人snapshot/原始记录许可。理由是先保证完整范围和真实收益，再开放可选产品入口，不将测试完整性标签直接移给用户目录。

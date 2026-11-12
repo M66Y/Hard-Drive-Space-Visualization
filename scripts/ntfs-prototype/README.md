@@ -8,6 +8,27 @@ VHD 是 `artifacts/ntfs-live-<nonce>/fixture.vhd` 普通文件，占用所在磁
 
 ## 执行
 
+### 独立规模及快照验证
+
+`Invoke-NtfsScale.ps1` 是新 1 GiB 模式，与旧 256 MiB 脚本分开。`-FileCount 10000|100000` 用于受控规模计时，`-Snapshot` 用于 3 个固定自建文件的 VSS 同源读取；两个参数集互斥。原始读取预算固定，不接收现有盘/镜像参数。自有 VSS 清理未确认、超时或摘要缺失时保留本次镜像与私有 owner 恢复文件，不强制卸载。
+
+`Invoke-NtfsValidation.ps1` 在一次已获授权的管理员启动内，用三个独立子进程依次执行 10k、100k、VSS；每项结果和卸载清理通过后才继续。需要四个全新结果路径（均直接位于 `artifacts`）：
+
+```powershell
+$a = (Resolve-Path artifacts).Path
+$state = Join-Path $a ('ntfs-validation-result-' + [guid]::NewGuid().ToString('N') + '.json')
+$small = Join-Path $a ('ntfs-live-result-' + [guid]::NewGuid().ToString('N') + '.json')
+$large = Join-Path $a ('ntfs-live-result-' + [guid]::NewGuid().ToString('N') + '.json')
+$snapshot = Join-Path $a ('ntfs-live-result-' + [guid]::NewGuid().ToString('N') + '.json')
+pwsh -NoProfile -File scripts/ntfs-prototype/Invoke-NtfsValidation.ps1 -StatePath $state -SmallResult $small -LargeResult $large -SnapshotResult $snapshot
+```
+
+最终本机验证结果见[第23轮](../../iterations/2026-11-12-23-ntfs-scale-and-source/README.md)：统计一致，当前持锁 MFT 路径未比八路目录扫描更快；快照读 Native/内容/raw 通过不代表个人卷完整扫描。驻留占用按 Native 实测，不能推定为零。各项实际结果须同时核对 `code=None`、对应成功状态、`detached`、`cleanup_completed`；VSS 另需 `snapshot_cleanup_confirmed=true` 与深报告。命令和旧轮次许可不会自动授权以后操作。
+
+纯回归：测试 DLL 的 `--ntfs-scale-tests`、`--ntfs-vss-tests`，以及 `tests/NtfsScaleEvidence.Tests.ps1`、`tests/NtfsVssFixtureEvidence.Tests.ps1`、`tests/NtfsValidationDriver.Tests.ps1`、`tests/NtfsFixtureGuards.Tests.ps1 -Scale`。它们不触发 VHD/UAC，不能代替真实源验收。下一块同快照规模后端仍在开发，上述 `-Snapshot` 当前只有固定小探针。
+
+### 旧 256 MiB 模式
+
 先构建测试项目。脚本需要 64 位 PowerShell 7.4+、Storage 模块和管理员权限，本身不自动请求 UAC。以管理员 PowerShell 在项目根目录运行：
 
 ```powershell

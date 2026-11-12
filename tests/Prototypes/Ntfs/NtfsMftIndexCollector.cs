@@ -14,18 +14,27 @@ internal sealed record NtfsMftIndexCollection(NtfsMftEnumerationResult Range,
 internal static class NtfsMftIndexCollector
 {
     internal const int MaximumNames = 16384, MaximumCharacters = 1024 * 1024;
+    internal const int ScaleMaximumRecords = 262144, ScaleMaximumNames = 1048576, ScaleMaximumCharacters = 32 * 1024 * 1024;
     private static void Require([DoesNotReturnIf(false)] bool condition, string code)
     { if (!condition) throw new NtfsMftEnumerationException(code); }
 
     internal static NtfsMftIndexCollection Collect(NtfsMftMap map, IReadOnlyList<ulong> targetReferences,
-        NtfsMftReadInto read, CancellationToken token = default)
+        NtfsMftReadInto read, CancellationToken token = default) => CollectCore(map, targetReferences, read, false, token);
+
+    internal static NtfsMftIndexCollection CollectScale(NtfsMftMap map, IReadOnlyList<ulong> targetReferences,
+        NtfsMftReadInto read, CancellationToken token = default) => CollectCore(map, targetReferences, read, true, token);
+
+    private static NtfsMftIndexCollection CollectCore(NtfsMftMap map, IReadOnlyList<ulong> targetReferences,
+        NtfsMftReadInto read, bool scale, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         Require(map != null && read != null && targetReferences != null, "MftCollectionInput");
         var geometry = map.Geometry;
+        int maximumRecords = scale ? ScaleMaximumRecords : NtfsMftEnumerator.MaximumSlots;
+        int maximumNames = scale ? ScaleMaximumNames : MaximumNames, maximumCharacters = scale ? ScaleMaximumCharacters : MaximumCharacters;
         long valid = geometry.MftValidDataLength;
         Require(geometry is { SectorBytes: 512, ClusterBytes: 4096, RecordBytes: 1024 } && valid >= 1024 && valid % 1024 == 0 &&
-            valid / 1024 <= NtfsMftEnumerator.MaximumSlots && valid <= map.DataBytes && valid <= map.InitializedBytes && valid <= map.AllocatedBytes,
+            valid / 1024 <= maximumRecords && valid <= map.DataBytes && valid <= map.InitializedBytes && valid <= map.AllocatedBytes,
             "MftCollectionGeometry");
         int expected = checked((int)(valid / 1024));
         Require(targetReferences.Count is >= 0 and <= 21, "MftCollectionTargets");
@@ -69,11 +78,11 @@ internal static class NtfsMftIndexCollector
                 {
                     case NtfsDecodeStatus.Decoded:
                         Require(result.Record != null, "MftCollectionRecord"); var record = result.Record;
-                        Require(record.Names.Count <= MaximumNames - names && records.Count < 4096, "MftCollectionNameBudget");
+                        Require(record.Names.Count <= maximumNames - names && records.Count < maximumRecords, "MftCollectionNameBudget");
                         names += record.Names.Count;
                         foreach (var name in record.Names)
                         {
-                            token.ThrowIfCancellationRequested(); Require(name.Name.Length <= MaximumCharacters - characters, "MftCollectionNameBudget");
+                            token.ThrowIfCancellationRequested(); Require(name.Name.Length <= maximumCharacters - characters, "MftCollectionNameBudget");
                             characters += name.Name.Length;
                         }
                         Require(records.TryAdd(record.Reference, record), "MftCollectionRecord"); decoded++; headerReference = record.Reference;
