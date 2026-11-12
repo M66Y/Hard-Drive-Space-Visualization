@@ -59,28 +59,45 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
     }
 
     internal static NtfsVerifiedFixtureContext Create(string manifestPath, CancellationToken token = default) =>
-        CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: true, token);
+        CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: true, expectedMode: "fixture-source", token);
 
     // Preparation proves ownership before the legacy matrix can create data or
     // open any old control path. It never returns a source/context authority.
     internal static void VerifyPreparation(string manifestPath, CancellationToken token = default)
     {
-        using var context = CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: false, token);
+        using var context = CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: false, expectedMode: "fixture-source", token);
     }
 
     // Explicit synthetic seam: it does not invoke the real native adapter, and
     // its result cannot be passed into the real source factory.
     internal static NtfsVerifiedFixtureContext CreateForTests(string manifestPath, string repositoryRoot,
-        INative adapter, CancellationToken token = default) => CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: true, token);
+        INative adapter, CancellationToken token = default) => CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: true, expectedMode: "fixture-source", token);
 
     internal static void VerifyPreparationForTests(string manifestPath, string repositoryRoot,
         INative adapter, CancellationToken token = default)
     {
-        using var context = CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: false, token);
+        using var context = CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: false, expectedMode: "fixture-source", token);
+    }
+
+    // A distinct factory pins the bounded-range permission to its own mode.
+    // Existing fixture-source callers cannot silently select the larger scope.
+    internal static NtfsVerifiedFixtureContext CreateForBoundedMft(string manifestPath, CancellationToken token = default) =>
+        CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: true, expectedMode: "mft-range", token);
+    internal static void VerifyPreparationForBoundedMft(string manifestPath, CancellationToken token = default)
+    {
+        using var context = CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: false, expectedMode: "mft-range", token);
+    }
+    internal static NtfsVerifiedFixtureContext CreateBoundedMftForTests(string manifestPath, string repositoryRoot,
+        INative adapter, CancellationToken token = default) =>
+        CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: true, expectedMode: "mft-range", token);
+    internal static void VerifyPreparationBoundedMftForTests(string manifestPath, string repositoryRoot,
+        INative adapter, CancellationToken token = default)
+    {
+        using var context = CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: false, expectedMode: "mft-range", token);
     }
 
     private static NtfsVerifiedFixtureContext CreateCore(string manifestPath, string repositoryRoot,
-        INative adapter, bool synthetic, bool requireDataRoot, CancellationToken token) => Guard(() =>
+        INative adapter, bool synthetic, bool requireDataRoot, string expectedMode, CancellationToken token) => Guard(() =>
     {
         token.ThrowIfCancellationRequested();
         Require(adapter != null, "FixtureAdapter");
@@ -93,7 +110,7 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
             Nonce(leaf[10..]), "FixtureWorkspace");
         NoReparse(adapter, manifest); RequireFile(adapter.Stat(manifest), 1, 16383, "FixtureManifestBounds");
         var binding = Parse(Read(adapter, manifest, 16383));
-        Require(binding.Mode == "fixture-source" && binding.Nonce == leaf[10..] &&
+        Require(binding.Mode == expectedMode && binding.Nonce == leaf[10..] &&
             SamePath(Full(binding.Workspace), workspace) && SamePath(Full(binding.Image), Path.Combine(workspace, "fixture.vhd")),
             "FixtureManifestIdentity");
         Require(binding.DriveRoot.Length == 3 && binding.DriveRoot[0] is >= 'D' and <= 'Z' && binding.DriveRoot[1..] == ":\\" &&

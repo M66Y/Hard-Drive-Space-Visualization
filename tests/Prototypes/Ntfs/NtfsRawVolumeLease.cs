@@ -29,20 +29,26 @@ internal sealed class NtfsRawVolumeLease : IDisposable
 
     internal const int MaximumReadLength = 65536, MaximumReadCalls = 128;
     internal const long MaximumRequestedBytes = 2 * 1024 * 1024;
+    internal const int BoundedMftMaximumReadCalls = 256;
+    internal const long BoundedMftMaximumRequestedBytes = 4 * 1024 * 1024 + 1024;
     private readonly object gate = new();
     private readonly SafeFileHandle volume;
     private readonly long volumeBytes;
     private readonly int logicalSector, physicalSector;
     private readonly INative native;
+    private readonly bool boundedMft;
     private bool referenceAdded, locked, disposed;
     private int readCalls;
     private long requestedBytes;
     private string unlockCode = "NotLocked";
     private int unlockNativeErrorCode;
+    private IntPtr reusableAllocation, reusableBuffer;
+    private bool bufferReleaseSucceeded = true;
 
-    private NtfsRawVolumeLease(SafeFileHandle borrowedVolume, long bytes, int logical, int physical, INative adapter)
+    private NtfsRawVolumeLease(SafeFileHandle borrowedVolume, long bytes, int logical, int physical, INative adapter, bool boundedMft)
     {
         volume = borrowedVolume; volumeBytes = bytes; logicalSector = logical; physicalSector = physical; native = adapter;
+        this.boundedMft = boundedMft;
     }
 
     internal bool UnlockSucceeded { get { lock (gate) return unlockCode == "Unlocked"; } }
@@ -50,6 +56,7 @@ internal sealed class NtfsRawVolumeLease : IDisposable
     internal int UnlockNativeErrorCode { get { lock (gate) return unlockNativeErrorCode; } }
     internal int ReadCalls { get { lock (gate) return readCalls; } }
     internal long RequestedBytes { get { lock (gate) return requestedBytes; } }
+    internal bool BufferReleaseSucceeded { get { lock (gate) return bufferReleaseSucceeded; } }
 
     internal static NtfsRawVolumeLease Acquire(SafeFileHandle borrowedVolume, long volumeBytes,
         int logicalSector, int physicalSector, CancellationToken token = default) =>
@@ -58,7 +65,19 @@ internal sealed class NtfsRawVolumeLease : IDisposable
     // The same orchestration is exercised with synthetic operations and an inert
     // non-owning handle. Tests do not invoke Lock/Read on any real volume.
     internal static NtfsRawVolumeLease AcquireForTests(SafeFileHandle borrowedVolume, long volumeBytes,
-        int logicalSector, int physicalSector, INative adapter, CancellationToken token = default)
+        int logicalSector, int physicalSector, INative adapter, CancellationToken token = default) =>
+        AcquireCore(borrowedVolume, volumeBytes, logicalSector, physicalSector, adapter, false, token);
+
+    internal static NtfsRawVolumeLease AcquireBoundedMft(SafeFileHandle borrowedVolume, long volumeBytes,
+        int logicalSector, int physicalSector, CancellationToken token = default) =>
+        AcquireCore(borrowedVolume, volumeBytes, logicalSector, physicalSector, Native.Instance, true, token);
+
+    internal static NtfsRawVolumeLease AcquireBoundedMftForTests(SafeFileHandle borrowedVolume, long volumeBytes,
+        int logicalSector, int physicalSector, INative adapter, CancellationToken token = default) =>
+        AcquireCore(borrowedVolume, volumeBytes, logicalSector, physicalSector, adapter, true, token);
+
+    private static NtfsRawVolumeLease AcquireCore(SafeFileHandle borrowedVolume, long volumeBytes,
+        int logicalSector, int physicalSector, INative adapter, bool boundedMft, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(borrowedVolume);
         ArgumentNullException.ThrowIfNull(adapter);
@@ -67,7 +86,7 @@ internal sealed class NtfsRawVolumeLease : IDisposable
             (physicalSector & (physicalSector - 1)) != 0 || physicalSector < logicalSector ||
             volumeBytes < logicalSector || volumeBytes % logicalSector != 0) throw new InvalidDataException("RawVolumeGeometry");
         token.ThrowIfCancellationRequested();
-        var lease = new NtfsRawVolumeLease(borrowedVolume, volumeBytes, logicalSector, physicalSector, adapter);
+        var lease = new NtfsRawVolumeLease(borrowedVolume, volumeBytes, logicalSector, physicalSector, adapter, boundedMft);
         try
         {
             borrowedVolume.DangerousAddRef(ref lease.referenceAdded);
@@ -94,6 +113,7 @@ internal sealed class NtfsRawVolumeLease : IDisposable
             try
             {
                 token.ThrowIfCancellationRequested();
+                if (boundedMft) throw new InvalidDataException("RawReadProfile");
                 if (!locked) throw new InvalidDataException("RawVolumeNotLocked");
                 if (volumeOffset < 0 || volumeOffset % logicalSector != 0 || length is < 1 or > MaximumReadLength ||
                     length % logicalSector != 0 || volumeOffset > volumeBytes - length)
@@ -109,6 +129,50 @@ internal sealed class NtfsRawVolumeLease : IDisposable
                 Finish();
                 throw;
             }
+        }
+    }
+
+    internal int ReadInto(long volumeOffset, Memory<byte> destination, CancellationToken token = default)
+    {
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            try
+            {
+                token.ThrowIfCancellationRequested();
+                if (!boundedMft) throw new InvalidDataException("RawReadProfile");
+                int length = destination.Length;
+                if (!locked || volumeOffset < 0 || volumeOffset % logicalSector != 0 || length is < 1 or > MaximumReadLength ||
+                    length % logicalSector != 0 || volumeOffset > volumeBytes - length)
+                    throw new InvalidDataException("RawReadBounds");
+                if (readCalls >= BoundedMftMaximumReadCalls || length > BoundedMftMaximumRequestedBytes - requestedBytes)
+                    throw new InvalidDataException("RawReadBudget");
+                if (!MemoryMarshal.TryGetArray((ReadOnlyMemory<byte>)destination, out var target) || target.Array == null)
+                    throw new InvalidDataException("RawReadTarget");
+                if (reusableAllocation == IntPtr.Zero)
+                {
+                    token.ThrowIfCancellationRequested();
+                    reusableAllocation = native.Allocate(checked(MaximumReadLength + physicalSector - 1));
+                    if (reusableAllocation == IntPtr.Zero) throw new NtfsRawVolumeException("AllocationFailed");
+                    token.ThrowIfCancellationRequested();
+                    nuint address = checked((nuint)reusableAllocation + (nuint)(physicalSector - 1));
+                    reusableBuffer = (IntPtr)(address & ~((nuint)physicalSector - 1));
+                }
+                token.ThrowIfCancellationRequested();
+                var seek = native.Seek(volume, volumeOffset);
+                token.ThrowIfCancellationRequested();
+                if (!seek.Success) throw NativeFailure("SeekFailed", seek.Error);
+                token.ThrowIfCancellationRequested();
+                readCalls++; requestedBytes = checked(requestedBytes + length);
+                var read = native.Read(volume, reusableBuffer, length);
+                token.ThrowIfCancellationRequested();
+                if (!read.Success) throw NativeFailure("ReadFailed", read.Error);
+                if (read.BytesRead != length) throw new NtfsRawVolumeException("ShortRead");
+                Marshal.Copy(reusableBuffer, target.Array, target.Offset, length);
+                token.ThrowIfCancellationRequested();
+                return length;
+            }
+            catch { Finish(); throw; }
         }
     }
 
@@ -164,6 +228,13 @@ internal sealed class NtfsRawVolumeLease : IDisposable
         disposed = true;
         try
         {
+            if (reusableAllocation != IntPtr.Zero)
+            {
+                IntPtr allocation = reusableAllocation;
+                reusableAllocation = reusableBuffer = IntPtr.Zero;
+                try { native.Free(allocation); }
+                catch { bufferReleaseSucceeded = false; }
+            }
             if (locked)
             {
                 try

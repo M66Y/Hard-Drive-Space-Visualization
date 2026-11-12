@@ -19,7 +19,7 @@ function RejectSuccess($Code, $Status) {
     try { ConvertTo-FixtureCodeEvidence $Code $Status | Out-Null } catch { $message = $_.Exception.Message }
     Check ($message -ceq 'FIXTURE_CODE_EVIDENCE_INVALID') 'success rejects a missing or non-None result code'
 }
-foreach ($status in @('passed','collected','verified','source_verified')) {
+foreach ($status in @('passed','collected','verified','source_verified','range_classified')) {
     Check ((ConvertTo-FixtureCodeEvidence 'None' $status) -ceq 'None') 'successful fixture mode has exactly None code'
     foreach ($bad in @($null,'','none','OperationFailed','RawUnlockSucceeded','PrivateMarker123',$true,1,@('None'))) { RejectSuccess $bad $status }
 }
@@ -92,7 +92,7 @@ $gate = @($main[0].Body.Statements | Where-Object {$_ -is [Management.Automation
 Check ($codeStatements.Count -eq 2 -and $gate.Count -eq 1) 'actual summary code conversion precedes mode and exit gating'
 $codeBlock = [scriptblock]::Create(($codeStatements.Extent.Text -join "`n"))
 $gateBlock = [scriptblock]::Create($gate[0].Extent.Text)
-$nativeStatements = @($main[0].Body.Statements | Where-Object {$_ -is [Management.Automation.Language.IfStatementAst] -and ($_.Extent.Text.StartsWith('if ($SourceAdapter -and $summary.PSObject.Properties[''native_error''])') -or $_.Extent.Text.StartsWith('if ($SourceAdapter -and $summary.PSObject.Properties[''native_operation''])'))})
+$nativeStatements = @($main[0].Body.Statements | Where-Object {$_ -is [Management.Automation.Language.IfStatementAst] -and ($_.Extent.Text.Contains('$summary.PSObject.Properties[''native_error'']') -or $_.Extent.Text.Contains('$summary.PSObject.Properties[''native_operation'']'))})
 Check ($nativeStatements.Count -eq 2) 'native failure fields use only actual bounded source-mode gates'
 $nativeBlock = [scriptblock]::Create(($nativeStatements.Extent.Text -join "`n"))
 
@@ -106,6 +106,7 @@ function SummaryResult($Code, [string]$SummaryStatus, [string]$Expected, [int]$E
     $status = 'failed'; $failureCode = 'None'; $runnerExit = $ExitCode; $failureCount = 0; $expectedStatus = $Expected
     $RawRecords = $Expected -ceq 'verified'; $KernelDiagnostics = $Expected -ceq 'collected'
     $SourceAdapter = $Expected -ceq 'source_verified'; $sourceEvidence='synthetic-source'
+    $MftRange = $Expected -ceq 'range_classified'; $rangeEvidence='synthetic-range'
     $nativeError=0; $nativeOperation='None'
     if ($null -ne $InputNativeError) {$summary | Add-Member -NotePropertyName native_error -NotePropertyValue $InputNativeError}
     if ($null -ne $InputNativeOperation) {$summary | Add-Member -NotePropertyName native_operation -NotePropertyValue $InputNativeOperation}
@@ -118,7 +119,7 @@ function SummaryResult($Code, [string]$SummaryStatus, [string]$Expected, [int]$E
     . $exportBlock
     return $result
 }
-foreach ($mode in @('passed','collected','verified','source_verified')) {
+foreach ($mode in @('passed','collected','verified','source_verified','range_classified')) {
     $result = SummaryResult 'None' $mode $mode 0
     Check ($result.status -ceq $mode -and $result.code -ceq 'None') 'valid result keeps its own success mode'
     $result = SummaryResult 'PrivateMarker123' $mode $mode 0
@@ -151,13 +152,13 @@ foreach ($foreign in @('passed','collected','verified')) {
 $conflict = @($wrapperAst.EndBlock.Statements | Where-Object {$_ -is [Management.Automation.Language.IfStatementAst] -and $_.Extent.Text.Contains('CONFLICTING_FIXTURE_MODES')})
 Check ($conflict.Count -eq 1) 'identify pure fixture mode conflict guard'
 $conflictBlock = [scriptblock]::Create($conflict[0].Extent.Text)
-foreach ($kernel in @($false,$true)) { foreach ($raw in @($false,$true)) { foreach ($source in @($false,$true)) {
-    $KernelDiagnostics=$kernel; $RawRecords=$raw; $SourceAdapter=$source
+foreach ($kernel in @($false,$true)) { foreach ($raw in @($false,$true)) { foreach ($source in @($false,$true)) { foreach ($range in @($false,$true)) {
+    $KernelDiagnostics=$kernel; $RawRecords=$raw; $SourceAdapter=$source; $MftRange=$range
     $message=$null
     try { . $conflictBlock } catch { $message=$_.Exception.Message }
-    $expectedConflict=([int]$kernel+[int]$raw+[int]$source) -gt 1
+    $expectedConflict=([int]$kernel+[int]$raw+[int]$source+[int]$range) -gt 1
     Check (($expectedConflict -and $message -ceq 'CONFLICTING_FIXTURE_MODES') -or (-not $expectedConflict -and $null -eq $message)) 'only one real fixture mode may be selected'
-} } }
+} } } }
 foreach ($code in @('SourceNativeFailed','SourceTokenMismatch','SourceNotActive','SourceUnlockFailed','SourceFactsChanged','FixtureImageFixedType','FixtureImageSubtype','FixturePartitionIdentity')) {
     Check ((ConvertTo-FixtureCodeEvidence $code 'failed') -ceq $code) 'source and guard error categories are semantic fixed codes'
 }
@@ -178,4 +179,18 @@ $result = SummaryResult 'None' 'source_verified' 'source_verified' 0 -InputNativ
 Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID') 'source success cannot carry a nonzero native error'
 $result = SummaryResult 'None' 'source_verified' 'source_verified' 0 -InputNativeOperation 'ReadFailed'
 Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID') 'source success cannot carry a native failure operation'
+$result = SummaryResult 'None' 'range_classified' 'range_classified' 0
+Check ($result.mode -ceq 'mft-range' -and $result.range_classified -and $null -ne $result.mft_range -and -not $result.source_verified -and -not $result.raw_verified) 'range classification success is independent of earlier source/raw success'
+$result = SummaryResult 'None' 'range_classified' 'range_classified' 0 -CleanupFailure $true
+Check (-not $result.range_classified -and $null -eq $result.mft_range) 'range cleanup failure clears classification evidence'
+foreach ($foreign in @('passed','collected','verified','source_verified')) {
+    $result = SummaryResult 'None' $foreign 'range_classified' 0
+    Check ($result.status -ceq 'failed' -and -not $result.range_classified -and $null -eq $result.mft_range) 'foreign success cannot satisfy range mode'
+    $result = SummaryResult 'None' 'range_classified' $foreign 0
+    Check ($result.status -ceq 'failed' -and -not $result.range_classified -and $null -eq $result.mft_range) 'range success cannot satisfy earlier modes'
+}
+foreach ($bad in @(5,-1,$true,'0')) {
+    $result = SummaryResult 'None' 'range_classified' 'range_classified' 0 -InputNativeError $bad
+    Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID') 'range native diagnostics cannot contradict success or contain invalid types'
+}
 Write-Output ('PASS NTFS fixture code evidence checks: ' + $checks)

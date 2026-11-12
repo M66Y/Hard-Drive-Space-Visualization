@@ -17,6 +17,16 @@ if (args.Length > 0 && args[0] == "--ntfs-record-replay")
 Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
 if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
 if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
+if (args.Contains("--ntfs-mft-enumerator-tests"))
+{
+    try { int checks = DiskAtlas.NtfsPrototype.NtfsMftEnumeratorTests.Run(); Console.WriteLine($"PASS NTFS MFT enumeration checks: {checks}; synthetic pages only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL NTFS MFT enumeration; no private details emitted"); return 1; }
+}
+if (args.Contains("--ntfs-bounded-mft-tests"))
+{
+    try { int checks = DiskAtlas.NtfsPrototype.NtfsBoundedMftSourceTests.Run(); Console.WriteLine($"PASS NTFS bounded MFT source checks: {checks}; simulated source only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL NTFS bounded MFT source; no private details emitted"); return 1; }
+}
 if (args.Contains("--ntfs-fixture-source-tests"))
 {
     try

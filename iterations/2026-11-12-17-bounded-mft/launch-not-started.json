@@ -1,0 +1,8 @@
+{
+  "status": "not-started",
+  "stage": "HostSelection",
+  "code": "POWERSHELL_HOST_NOT_FOUND",
+  "fixture_created": false,
+  "native_checks_run": false,
+  "resolved": "UsedDiscoveredAvailableHost"
+}

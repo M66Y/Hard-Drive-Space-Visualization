@@ -1,30 +1,26 @@
-# 当前交接点：第16轮已验收，准备提交；第17轮已获单独确认
+# AsukaLens 开发检查点
 
-2026-11-12，用户要求连续2小时，10:09:17–12:09:17 UTC（本地18:09–20:09）。起点/当前HEAD fdc5aa040c308ae660dd07604f250e39c55ce2d3，main。当前约10:54UTC，仍有约75分钟，不能提前结束。第16轮完整改动未提交；本轮开始工作区干净，所有新改动归此轮。
+2026-11-12；最近核对基线 `73c184e6b581a2232529b0480ec784960809b366`（第16轮已提交/推送）。第17轮属于本窗口独立改动，开发验收和清理已完成；恢复核验与上传结果以本轮files.json、归档及Git历史为准。事实入口：docs/project-status.md、docs/development-plan.md、iterations/2026-11-12-17-bounded-mft/README.md。
 
-## 第16轮授权与完成事实
+## 本次目标与授权
 
-用户明确批准 docs/ntfs-fixture-source-plan.md，允许本2小时按需重复256MiB新建自有VHD，只record0+固定21对象；不个人卷/VSS/新留样/全MFT/发布，许可不延续以后。
+用户要求连续开发2小时，窗口10:09:17–12:09:17 UTC。先批准第16轮256MiB新建自有VHD、仅22目标；随后明确另批第17轮有界MFT范围（系统/空闲槽、最多4096槽/4MiB+1024字节/256次读取尝试）。只限此窗口，自有新镜像测试后卸载清理，不个人盘/VSS/新增原始留样/生产接入/发布。不要重复询问已批准范围，不将许可延续到以后。
 
-- 新 NtfsVerifiedFixtureContext(.cs/Tests)：独立manifest/nonce/严格JSON/固定VHD subtype2+NO_PARENTS/actual extents+MBR分区/geometry/marker守卫，自持新volume/image句柄；固定Case路径由数据根派生。Create严格要求数据根；VerifyPreparation允许尚不存在，仍先核真实归属并关闭自己句柄。最后Stat后取消检查已加，最终pure guard189。
-- 新 NtfsFixtureSource(.cs/Tests)：Open(manifest)无caller bool/targets/handle注入，私有owner/map/token；ReadKnown返回绑定envelope，Value/ValidateResult跨source/关闭后拒；不可变副本无法撤回但不作当前证明。RunFixedComparison control固定63/21/3stage，CloseAndVerify固定Native后验、fresh facts、cleanup；Dispose触发cancel后再次检查，主验证错误仍优先。Fake只SyntheticFixture/GuardOwnedfalse，最终source63。
-- Root集成Program --ntfs-fixture-source-tests；Live新mode fixture-source，准备阶段先VerifyPreparation（在旧marker/volume访问之前）、旧OpenVirtualDisk仅新mode NO_PARENTS，matrix(retainFailures:false)后关闭旧volume再Open新source。catch只取Guard/Source固定Code，新source失败只输出有界native_error/enum native_operation。
-- wrapper新-SourceAdapter互斥三switch，status source_verified、独立source_adapter/source_verified；失败/cleanup失败清摘要，旧raw状态不混用。SourceAdapterEvidence8字段+Comparison复用raw深白名单，Synthetic拒。FixtureCodeEvidence有固定Source/Guard码与新成功None，Native字段边界/错误操作枚举拒任意文本。
+## 已完成与证据
 
-## 实际验证（不需无故重跑）
+- 第16轮commit73c184e已推送main，来源适配器/准备期真实归属与无父链、私有token/map、后验和关闭通过；旧22目标模式保持独立。immutable归档 iterations/2026-11-12-16-fixture-source。
+- 第17轮已实现 NtfsMftMap.PlanRange、NtfsMftEnumerator、NtfsBoundedMftSource、新固定RawLease profile、独立guard mode factory、Live/wrapper及深白名单。只保留21目标；一个managed页与一个原生64KiB+padding分配复用，decoder有每记录副本，不称全进程内存上限。
+- C#构建0warn/error；map199、enum46、rawlease101、bounded65、guard206+旧source63、原NTFS147及rawcomparison回归通过。PS新摘要372、外层模式284，旧guard/source/raw摘要回归通过。独立只读审查无阻塞。
+- 真实mft-range473检查通过：256槽/4页/262144有效字节；67 decoded、0 free、6 unsupported、183 invalid；lookup24、unknownAllocated17；21目标全匹配、14目标分配未知。ReadCalls5/RequestedBytes263168（含bootstrap）。来源关闭、解锁、后验、卸载和清理均true。不是格式全支持、全占用、物理I/O或吞吐结论；183项尚未细分原因，不称磁盘损坏/空闲/零占用。
+- 旧fixture-source473、raw-records860实际兼容通过，仍22条/21目标/14未知、22次22528请求字节，均清理。一次选定PowerShell宿主不存在导致启动前失败，无VHD创建，已改用发现的可用宿主；不是Native失败。
+- 三份Native白名单摘要已按SHA一致复制到第17轮archive。当前无VHD或ntfs-test目录。旧6条kernel样本会话8文件/9683字节保持不变，不上传。三份本轮结果副本已在归档SHA核对后删除。
 
-测试Release最终0warn/error；C#189 guard+63 source；PS source evidence137、code/实际wrapper流程248、fixture guards36。原合成147、map174、raw lease84、raw comparison130通过；无无关UI/性能基准。
+## 代码归属与当前状态
 
-4次已启动VHD全部卸载清理：source-native.json首次472checks（22strict/21matches/14unknown/22ReadFile/22528bytes）；comparison.json旧1583；raw-compatibility.json旧860(raw true/source false)；source-final.json最终473checks、source_verified，closed/后验/父脚本detach+cleanup全true。一回StartProcess管理员启动被取消未创建VHD，用户后确认后重启成功，单列launch-not-started.json，不算Native失败。当前无运行中exec或挂载VHD。
+全部C17改动属于本轮，无其他用户改动。attribute_probe负责Map/Enumerator四文件，special_contract负责RawLease/BoundedSource四文件；均封板并已统一构建。special_tests_plan负责MftEnumerationEvidence/Tests并只读审查共享入口。Root负责guard、Live、Program、wrapper、FixtureCodeEvidence、docs/AGENTS及archive。当前无运行中Native进程、exec或UAC请求。
 
-归档 iterations/2026-11-12-16-fixture-source/ 已有README、validation、4安全结果+launch摘要。4原结果副本已哈希核对后删除；0遗留VHD工作目录，旧6条kernel样本仍1 ignored session。无新原始字节落盘。
+## 收尾与下一步
 
-## 待收尾与下一授权
+第17轮链接/隐私/变化范围已检查；恢复补丁与files.json在收尾验证，按授权显式暂存、fetch核对、提交推送main（不force、不tag/Release）。基线73c184e；补丁不要递归包含自己、manifest或旧archives。仅日常事实写references，不改Skill正文。
 
-Root已更新AGENTS、现状、计划、原型README、脚本README。仍需本轮隐私/链接/白字符、必要文件清单/SHA及基线fdc正向恢复changes.patch、公开Git身份/远程检查后提交推送。不要忘新docs/ntfs-vss-source-research.md（只读官方研究，不实际VSS）及本轮批准方案；不改旧归档。
-
-已准备 docs/ntfs-bounded-mft-plan.md 并发异步问题：是否剩余窗口实施有界MFT遍历并允许同样新VHD从0到VDL最多4096槽（系统/空闲槽，4MiB+bootstrap）。此前只22目标不能自动扩大；用户已回复“按方案实施，允许本轮有界VHD遍历”，第17轮已开始独立分工；读取范围最多4096槽/4MiB+bootstrap仅此窗口自有新VHD。当前先固定第16轮提交，不误暂存第17轮半成品。
-
-第17轮建议若获准：独立新mode/状态/摘要，游标全覆盖，visited=decoded+free+unsupported+invalid，decoded unknown/lookup另计，不汇全占用；只保留21目标对照。新专属256调用/4MiB+1024预算，旧模式2MiB/128不改；ReadInto配一个aligned native缓冲+一个64KiB managed页，decoder另有每记录副本，不预取/不留全MFT。生产/VSS/活跃卷与速度仍未验。各Agent已完成第16轮，下一轮需followup_task重新分工（send_message不触发idle agent）。
-
-恢复先查时间、Git、用户最新回复与文件事实。第15轮/14轮证据仍独立，模型不证明真实来源/覆盖。窗口结束、暂停或交接前同步这里，不用重复测试凑时，不自动发布。
+下一建议先解释严格分类的未解析原因，增加固定受控错误类别计数与合成矩阵，不放松decoder、不上传原始字节。方案已写docs/ntfs-classification-diagnostics-plan.md，用户已同意在本窗口剩余时间实施；待本轮独立提交后开始第18轮，仍沿用本窗口有界VHD许可；VSS实际来源、4096真实槽、其他几何/系统、碎片化/属性扩展、建树/补查融合及资源基准仍未完成。未接生产，软件高速速度未改变。

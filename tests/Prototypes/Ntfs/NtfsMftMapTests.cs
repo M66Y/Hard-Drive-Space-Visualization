@@ -68,6 +68,8 @@ internal static class NtfsMftMapTests
             Check(farMap.PlanRecord(0).SequenceEqual(new[] { new NtfsRawSlice(startLcn * 4096, 1024, 0) }) &&
                 farMap.PlanRecord(3).SequenceEqual(new[] { new NtfsRawSlice(startLcn * 4096 + 3072, 1024, 0) }),
                 "far physical offset and intra-extent displacement retain all 64-bit address bits");
+            Check(farMap.PlanRange(1024, 2048).SequenceEqual(new[] { new NtfsRawSlice(startLcn * 4096 + 1024, 2048, 0) }),
+                "range planning also preserves physical offsets above both 32-bit boundaries");
             Check(farSource.SequenceEqual(before), "far addressing preserves the caller protected bytes");
             Rejected(() => farMap.PlanRecord(4), "far physical address does not bypass native valid-length bounds");
         }
@@ -90,6 +92,9 @@ internal static class NtfsMftMapTests
             Check(signedMap.PlanRecord(8).SequenceEqual(new[] { new NtfsRawSlice(vector.End * 4096, 1024, 0) }) &&
                 signedMap.PlanRecord(15).SequenceEqual(new[] { new NtfsRawSlice(vector.End * 4096 + 7168, 1024, 0) }),
                 "backward extent addresses and final record preserve exact 64-bit offsets");
+            Check(signedMap.PlanRange(7168, 2048).SequenceEqual(new[] {
+                new NtfsRawSlice(vector.Start * 4096 + 7168, 1024, 0), new NtfsRawSlice(vector.End * 4096, 1024, 1024) }),
+                "range planning preserves every signed-width backward transition");
             Check(signedSource.SequenceEqual(before), "signed fragmented planning leaves caller bytes unchanged");
             Rejected(() => signedMap.PlanRecord(16), "signed fragmented address does not bypass initialized-length bounds");
         }
@@ -104,6 +109,38 @@ internal static class NtfsMftMapTests
             "split reads preserve logical order and exact destination offsets");
         Check(splitPlan.Sum(x => x.Length) == splitGeometry.RecordBytes && splitPlan.All(x => x.Length > 0 && x.Length % 512 == 0),
             "split plan fills exactly one sector-aligned record");
+        Check(split.PlanRange(1024, 2048).SequenceEqual(new[] {
+            new NtfsRawSlice(6144, 512, 0), new NtfsRawSlice(2048, 1536, 512) }),
+            "a range preserves destination continuity through a backwards physical run");
+        Check(map.PlanRange(0, 4096).SequenceEqual(new[] { new NtfsRawSlice(40960, 4096, 0) }),
+            "a complete small valid range has exact coverage");
+        Check(map.PlanRange(3072, 1024).SequenceEqual(map.PlanRecord(3)), "EOF range and final record share exact addresses");
+        foreach (var range in new (long Offset, int Length)[] {
+            (-1024, 1024), (1, 1024), (0, 0), (0, -1024), (0, 512), (0, 66560),
+            (4096, 1024), (3072, 2048), (long.MaxValue - 1023, 1024) })
+            Rejected(() => map.PlanRange(range.Offset, range.Length), "invalid range never returns a truncated prefix plan");
+        const int pageVdl = 65536 + 2048;
+        var pageGeometry = geometry with { MftValidDataLength = pageVdl };
+        byte[] pageSource = Record0([0x11, 16, 10, 0x11, 16, 32, 0], 31, 131072, pageVdl, pageVdl);
+        byte[] pageBefore = (byte[])pageSource.Clone();
+        var pageMap = Mapped(pageSource, pageGeometry, "page map covers an exact final short page");
+        Check(pageMap.PlanRange(0, 65536).SequenceEqual(new[] { new NtfsRawSlice(40960, 65536, 0) }),
+            "exact 64 KiB range endpoint remains bounded");
+        Check(pageMap.PlanRange(65536, 2048).SequenceEqual(new[] { new NtfsRawSlice(172032, 2048, 0) }),
+            "final short page ends exactly at native valid data length");
+        Check(pageMap.PlanRange(1024, 65536).SequenceEqual(new[] {
+            new NtfsRawSlice(41984, 64512, 0), new NtfsRawSlice(172032, 1024, 64512) }),
+            "one page may span runs without gaps overlaps or reordered destination bytes");
+        var backwardsPage = Mapped(Record0([0x11, 16, 40, 0x11, 16, 224, 0], 31, 131072, pageVdl, pageVdl),
+            pageGeometry with { MftStartLcn = 40 }, "range map permits a negative run delta");
+        Check(backwardsPage.PlanRange(64512, 3072).SequenceEqual(new[] {
+            new NtfsRawSlice(228352, 1024, 0), new NtfsRawSlice(32768, 2048, 1024) }),
+            "range physical addresses retain a valid negative LCN transition");
+        Check(pageSource.SequenceEqual(pageBefore), "range planning does not modify protected caller bytes");
+        bool rangeImmutable = false;
+        try { ((IList<NtfsRawSlice>)pageMap.PlanRange(0, 1024))[0] = new(0, 1024, 0); }
+        catch (NotSupportedException) { rangeImmutable = true; }
+        Check(rangeImmutable, "range slices cannot be edited by a consumer");
         Failed(Record0([0x11, 1, 10, 0x11, 7, 10, 0], 7, 4096), splitGeometry,
             "fragmentation inside bootstrap record zero is explicitly unsupported", "Unsupported");
         Failed(Record0([0x11, 2, 10, 0x11, 2, 255, 0], 3), geometry,
@@ -201,14 +238,15 @@ internal static class NtfsMftMapTests
         Failed(mechanical, geometry, "mechanical replacement is still not a protected raw source", "Invalid");
         Check(logical.SequenceEqual(logicalBefore), "examining a replacement copy never alters the original strict failure");
         using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
-        bool parseCanceled = false, planCanceled = false;
+        bool parseCanceled = false, planCanceled = false, rangeCanceled = false;
         try { NtfsMftMap.Parse(original, geometry, cancellation.Token); } catch (OperationCanceledException) { parseCanceled = true; }
         try { map.PlanRecord(0, cancellation.Token); } catch (OperationCanceledException) { planCanceled = true; }
-        Check(parseCanceled && planCanceled && original.SequenceEqual(Record0()), "cancellation throws without publishing partial state or changing source");
+        try { map.PlanRange(0, 1024, cancellation.Token); } catch (OperationCanceledException) { rangeCanceled = true; }
+        Check(parseCanceled && planCanceled && rangeCanceled && original.SequenceEqual(Record0()), "cancellation throws without publishing partial state or changing source");
         return passed;
     }
 
-    private static byte[] Record0(byte[]? runs = null, ulong highVcn = 3, long allocated = 16384,
+    internal static byte[] Record0(byte[]? runs = null, ulong highVcn = 3, long allocated = 16384,
         long size = 4096, long initialized = 4096, string name = "$MFT", byte nameSpace = 1,
         byte[]? extra = null, ulong baseReference = 0, ushort flags = 0, ulong lowVcn = 0, bool crossingInstance = false)
     {

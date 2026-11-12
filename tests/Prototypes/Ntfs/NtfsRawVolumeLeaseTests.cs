@@ -256,6 +256,97 @@ internal static class NtfsRawVolumeLeaseTests
             }
             finally { release.Set(); _ = first.Wait(5000); if (second != null) _ = second.Wait(5000); }
         }
+        using (var handle = Handle())
+        {
+            var native = new FakeNative(); var page = Enumerable.Repeat((byte)0xcc, 65568).ToArray();
+            var lease = NtfsRawVolumeLease.AcquireBoundedMftForTests(handle, 16 * 1024 * 1024, 512, 4096, native);
+            Check(lease.ReadInto(0, page.AsMemory(16, 1024)) == 1024 && lease.ReadInto(4096, page.AsMemory(16, 65536)) == 65536,
+                "bounded profile fills caller-owned page slices without returning another page");
+            Check(native.Allocations == 1 && native.Frees == 0 && native.Aligned && page.Take(16).All(value => value == 0xcc) &&
+                page.Skip(65552).All(value => value == 0xcc), "bounded reads reuse one aligned native allocation and preserve target margins");
+            Check(page.AsSpan(16, 65536).SequenceEqual(Enumerable.Range(0, 65536).Select(index => (byte)((4096 + index) % 251)).ToArray()),
+                "ReadInto copies exactly the native bytes into the requested managed slice");
+            lease.Dispose(); lease.Dispose();
+            Check(native.Frees == 1 && native.Unlocks == 1 && lease.BufferReleaseSucceeded && lease.UnlockSucceeded,
+                "bounded profile frees its reusable buffer exactly once before final unlock");
+        }
+        using (var handle = Handle())
+        {
+            var native = new FakeNative(); using var lease = Acquire(native, handle);
+            Check(Catch(() => lease.ReadInto(0, new byte[512])) is InvalidDataException && native.Reads == 0,
+                "legacy profile cannot accidentally use the expanded bulk path");
+        }
+        using (var handle = Handle())
+        {
+            var native = new FakeNative(); using var lease = NtfsRawVolumeLease.AcquireBoundedMftForTests(handle, 16 * 1024 * 1024, 512, 4096, native);
+            Check(Catch(() => lease.Read(0, 512)) is InvalidDataException && native.Reads == 0,
+                "bounded profile cannot fall back to allocating arrays through legacy Read");
+        }
+        using (var handle = Handle())
+        {
+            var native = new FakeNative(); var page = new byte[65536];
+            using var lease = NtfsRawVolumeLease.AcquireBoundedMftForTests(handle, 16 * 1024 * 1024, 512, 4096, native);
+            _ = lease.ReadInto(0, page.AsMemory(0, 1024));
+            for (int i = 0; i < 64; i++) _ = lease.ReadInto(0, page);
+            Check(Catch(() => lease.ReadInto(0, page.AsMemory(0, 512))) is InvalidDataException &&
+                lease.RequestedBytes == 4 * 1024 * 1024 + 1024 && lease.ReadCalls == 65 && native.Allocations == 1 && native.Frees == 1,
+                "bounded aggregate budget includes bootstrap and rejects any byte beyond four MiB plus one record");
+        }
+        using (var handle = Handle())
+        {
+            var native = new FakeNative(); var page = new byte[512];
+            using var lease = NtfsRawVolumeLease.AcquireBoundedMftForTests(handle, 16 * 1024 * 1024, 512, 4096, native);
+            for (int i = 0; i < 256; i++) _ = lease.ReadInto(0, page);
+            Check(Catch(() => lease.ReadInto(0, page)) is InvalidDataException && lease.ReadCalls == 256 && native.Reads == 256 && native.Frees == 1,
+                "bounded profile has a fixed call ceiling independent from its byte budget");
+        }
+        foreach (string fault in new[] { "Seek", "Read", "Short", "CancelAllocate", "CancelRead" })
+        {
+            using var handle = Handle(); using var cts = new CancellationTokenSource();
+            var native = new FakeNative(); var page = Enumerable.Repeat((byte)0xcc, 1024).ToArray();
+            using var lease = NtfsRawVolumeLease.AcquireBoundedMftForTests(handle, 16 * 1024 * 1024, 512, 4096, native);
+            if (fault == "Seek") native.SeekResult = new(false, 87);
+            if (fault == "Read") native.ReadResult = new(false, 0, 5);
+            if (fault == "Short") native.ReadResult = new(true, 512, 0);
+            if (fault == "CancelAllocate") native.OnAllocate = cts.Cancel;
+            if (fault == "CancelRead") native.OnRead = cts.Cancel;
+            var error = Catch(() => lease.ReadInto(0, page, cts.Token));
+            Check((fault.StartsWith("Cancel", StringComparison.Ordinal) ? error is OperationCanceledException : error is NtfsRawVolumeException) &&
+                native.Frees == 1 && native.Unlocks == 1 && !native.FreeWhileReading && page.All(value => value == 0xcc),
+                "bounded failure or cancellation releases the reusable buffer without publishing a partial managed page");
+        }
+        using (var handle = Handle())
+        {
+            var native = new FakeNative { OnFree = () => throw new IOException("SyntheticFree") };
+            var lease = NtfsRawVolumeLease.AcquireBoundedMftForTests(handle, 16 * 1024 * 1024, 512, 4096, native);
+            _ = lease.ReadInto(0, new byte[512]); lease.Dispose(); lease.Dispose();
+            Check(!lease.BufferReleaseSucceeded && lease.UnlockSucceeded && native.Frees == 1 && native.Unlocks == 1,
+                "native buffer release failure is visible separately from successful unlock");
+        }
+        using (var handle = Handle())
+        using (var entered = new ManualResetEventSlim())
+        using (var release = new ManualResetEventSlim())
+        using (var disposing = new ManualResetEventSlim())
+        {
+            var native = new FakeNative { OnRead = () => { entered.Set(); if (!release.Wait(5000)) throw new IOException("SyntheticWait"); } };
+            var lease = NtfsRawVolumeLease.AcquireBoundedMftForTests(handle, 16 * 1024 * 1024, 512, 4096, native);
+            var page = new byte[1024];
+            var reading = Task.Run(() => lease.ReadInto(0, page));
+            Task? disposal = null;
+            try
+            {
+                Check(entered.Wait(2000), "bounded concurrent disposal reaches its synchronous reusable-buffer read");
+                disposal = Task.Run(() => { disposing.Set(); lease.Dispose(); });
+                Check(disposing.Wait(2000) && native.Frees == 0 && native.Unlocks == 0,
+                    "bounded disposal cannot release the reusable native buffer while a read owns it");
+                release.Set();
+                Check(Task.WaitAll([reading, disposal], 5000) && reading.Result == 1024 && native.Allocations == 1 && native.Frees == 1 &&
+                    native.Unlocks == 1 && !native.FreeWhileReading && native.Events.IndexOf("ReadEnd") < native.Events.IndexOf("Free") &&
+                    native.Events.IndexOf("Free") < native.Events.IndexOf("Unlock"),
+                    "bounded read finishes before its sole buffer release and unlock");
+            }
+            finally { release.Set(); _ = reading.Wait(5000); if (disposal != null) _ = disposal.Wait(5000); lease.Dispose(); }
+        }
         return passed;
     }
 }

@@ -53,15 +53,16 @@ internal static class NtfsLivePrototype
             string Field(string name) => json.GetProperty(name).GetString() ?? throw new FixtureFailure("ManifestField");
             string nonce = Field("nonce"), root = Field("drive_root"), volumeGuid = Field("volume_guid");
             string mode = Field("mode");
-            Check(mode is "comparison" or "kernel-diagnostics" or "raw-records" or "fixture-source", "KnownFixtureMode");
-            if (mode == "fixture-source")
+            Check(mode is "comparison" or "kernel-diagnostics" or "raw-records" or "fixture-source" or "mft-range", "KnownFixtureMode");
+            if (mode is "fixture-source" or "mft-range")
             {
                 // Reject wrong backing volumes or parent chains before the
                 // legacy preparation path touches any marker or volume data.
                 string preparationSummary = Path.Combine(workspace, "live-summary.json");
                 Check(!File.Exists(preparationSummary), "FreshSummary");
                 summaryPath = preparationSummary;
-                NtfsVerifiedFixtureContext.VerifyPreparation(manifestFile.FullName);
+                if (mode == "mft-range") NtfsVerifiedFixtureContext.VerifyPreparationForBoundedMft(manifestFile.FullName);
+                else NtfsVerifiedFixtureContext.VerifyPreparation(manifestFile.FullName);
             }
             string image = Field("image_path");
             Check(json.GetProperty("schema").GetInt32() == 1 && Guid.TryParseExact(nonce, "N", out _) &&
@@ -93,7 +94,7 @@ internal static class NtfsLivePrototype
             var storageType = new StorageType { DeviceId = 2, Vendor = new Guid("ec984aec-a0f9-47e9-901f-71415a66345b") };
             var open = new OpenParameters { Version = 1, Depth = 1 };
             // GET_INFO plus DETACH access for a permanently mounted VHD; no detach API is called here.
-            Check(OpenVirtualDisk(ref storageType, image, 0xc0000, mode == "fixture-source" ? 1u : 0u, ref open, out var virtualDisk) == 0, "OpenOwnedVirtualDiskInfo");
+            Check(OpenVirtualDisk(ref storageType, image, 0xc0000, mode is "fixture-source" or "mft-range" ? 1u : 0u, ref open, out var virtualDisk) == 0, "OpenOwnedVirtualDiskInfo");
             long ownedPartitionBytes = 0;
             uint ownedPhysicalNumber = 0;
             using (virtualDisk)
@@ -129,7 +130,7 @@ internal static class NtfsLivePrototype
 
             string data = Path.Combine(volumeGuid, "AsukaLensFixture-" + nonce);
             Check(!Directory.Exists(data), "FreshSyntheticDirectory");
-            if (mode is "kernel-diagnostics" or "raw-records" or "fixture-source")
+            if (mode is "kernel-diagnostics" or "raw-records" or "fixture-source" or "mft-range")
             {
                 var rawTargets = new Dictionary<string, NtfsRawTarget>(StringComparer.Ordinal);
                 NtfsKernelRead ReadKernel(string path)
@@ -173,6 +174,22 @@ internal static class NtfsLivePrototype
                         rawTargets[caseId] = new(caseId, path, parentPath, after!, parent!, File.GetAttributes(path));
                     }
                     return new(output, count, before, after!, sector, cluster, 3, 1);
+                }
+                if (mode == "mft-range")
+                {
+                    _ = NtfsKernelMatrix.Run(data, ReadKernel, null, Check, retainFailures: false);
+                    volume.Dispose();
+                    using var rangeSource = NtfsBoundedMftSource.Open(manifestFile.FullName);
+                    var rangeReport = rangeSource.RunEnumeration();
+                    Check(rangeReport.EvidenceKind == "NativeOwnedFixture" && rangeReport.GuardOwned &&
+                        rangeReport.TokenBound && rangeReport.MapBound && rangeReport.Closed,
+                        "RangeOwnedClosureVerified");
+                    Check(rangeReport.Enumeration.MatchedObjects == 21 && rangeReport.Enumeration.UnknownAllocationObjects == 14,
+                        "RangeFixedTargetsVerified");
+                    File.WriteAllText(summaryPath, JsonSerializer.Serialize(new { schema = 1, status = "range_classified", checks,
+                        failures = 0, code = "None", mft_range = rangeReport }));
+                    Console.WriteLine("CLASSIFIED bounded MFT range; usage completeness is not asserted");
+                    return 0;
                 }
                 if (mode == "fixture-source")
                 {

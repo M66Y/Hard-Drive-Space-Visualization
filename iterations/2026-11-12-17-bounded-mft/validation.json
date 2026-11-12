@@ -1,0 +1,32 @@
+{
+  "baseline": "73c184e6b581a2232529b0480ec784960809b366",
+  "scope": "TestOnlyBoundedOwnedFixtureMftRange",
+  "build": { "configuration": "Release", "warnings": 0, "errors": 0 },
+  "synthetic": {
+    "mft_map": 199,
+    "mft_enumerator": 46,
+    "raw_volume_lease": 101,
+    "bounded_mft_source": 65,
+    "fixture_context_guard": 206,
+    "legacy_fixture_source": 63,
+    "ntfs_prototype": 147,
+    "raw_comparison": "passed"
+  },
+  "powershell": {
+    "mft_enumeration_evidence": 372,
+    "fixture_code_and_wrapper_modes": 284,
+    "fixture_guards": "passed",
+    "legacy_source_evidence": "passed",
+    "legacy_raw_comparison_evidence": "passed"
+  },
+  "native": {
+    "bounded_mft": { "checks": 473, "status": "range_classified", "cleaned": true },
+    "source_compatibility": { "checks": 473, "status": "source_verified", "cleaned": true },
+    "raw_compatibility": { "checks": 860, "status": "verified", "cleaned": true }
+  },
+  "independent_review": "NoBlockingFinding",
+  "performance_claim": false,
+  "production_integration": false,
+  "raw_capture_added": false,
+  "packaging_or_release": false
+}

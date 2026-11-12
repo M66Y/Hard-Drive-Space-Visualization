@@ -13,6 +13,7 @@ internal sealed record NtfsMftMapResult(string Status, string Code, NtfsMftMap? 
 internal sealed class NtfsMftMap
 {
     internal const int MaxRuns = 128;
+    internal const int MaximumRangeBytes = 65536;
     internal NtfsMftGeometry Geometry { get; }
     internal IReadOnlyList<NtfsMftRun> Runs { get; }
     internal long DataBytes { get; }
@@ -182,6 +183,46 @@ internal sealed class NtfsMftMap
             }
             if (cursor != end || destination != Geometry.RecordBytes || slices.Count == 0 || slices.Count > MaxRuns)
                 throw new InvalidDataException("MftRecordCoverage");
+            return Array.AsReadOnly(slices.ToArray());
+        }
+        catch (OverflowException) { throw new InvalidDataException("MftArithmeticOverflow"); }
+    }
+
+    // Addresses a bounded record-aligned window of the MFT stream. This is a
+    // pure plan; only the private source owner can turn it into volume reads.
+    // RecordOffset is the destination offset within this window, not a slot.
+    internal IReadOnlyList<NtfsRawSlice> PlanRange(long dataOffset, int length, CancellationToken token = default)
+    {
+        token.ThrowIfCancellationRequested();
+        if (dataOffset < 0 || dataOffset % Geometry.RecordBytes != 0 || length <= 0 ||
+            length > MaximumRangeBytes || length % Geometry.RecordBytes != 0)
+            throw new InvalidDataException("MftRangeBounds");
+        try
+        {
+            long end = checked(dataOffset + length);
+            if (end > Geometry.MftValidDataLength || end > InitializedBytes || end > DataBytes || end > AllocatedBytes)
+                throw new InvalidDataException("MftRangeBounds");
+            var slices = new List<NtfsRawSlice>();
+            long cursor = dataOffset;
+            int destination = 0;
+            foreach (var run in Runs)
+            {
+                token.ThrowIfCancellationRequested();
+                long runStart = checked(run.FirstVcn * Geometry.ClusterBytes);
+                long runEnd = checked((run.FirstVcn + run.ClusterCount) * Geometry.ClusterBytes);
+                if (cursor < runStart || cursor >= runEnd) continue;
+                int count = checked((int)Math.Min(end - cursor, runEnd - cursor));
+                long volumeOffset = checked(run.FirstLcn * Geometry.ClusterBytes + cursor - runStart);
+                if (count <= 0 || volumeOffset < 0 || volumeOffset > Geometry.VolumeBytes - count ||
+                    volumeOffset % Geometry.SectorBytes != 0 || count % Geometry.SectorBytes != 0)
+                    throw new InvalidDataException("MftSliceBounds");
+                slices.Add(new(volumeOffset, count, destination));
+                cursor = checked(cursor + count); destination = checked(destination + count);
+                if (cursor == end) break;
+            }
+            if (cursor != end || destination != length || slices.Count == 0 || slices.Count > MaxRuns)
+                throw new InvalidDataException("MftRangeCoverage");
+            token.ThrowIfCancellationRequested();
             return Array.AsReadOnly(slices.ToArray());
         }
         catch (OverflowException) { throw new InvalidDataException("MftArithmeticOverflow"); }

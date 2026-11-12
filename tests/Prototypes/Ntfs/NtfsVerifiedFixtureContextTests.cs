@@ -173,6 +173,29 @@ internal static class NtfsVerifiedFixtureContextTests
             Check(cancelled && cancelFinal.Handles.Count == 2 && cancelFinal.Handles.All(x => x.IsClosed),
                 "cancellation at the final data-root check cannot publish context or successful preparation");
         }
+        foreach (string mode in new[] { "fixture-source", "mft-range", "comparison", "raw-records" })
+        foreach (bool bounded in new[] { false, true })
+        {
+            var scope = new Fake(); scope.ChangeManifest(value => value["mode"] = mode);
+            scope.Marker = (byte[])scope.Manifest.Clone();
+            bool accepted = false;
+            try
+            {
+                using var context = bounded
+                    ? NtfsVerifiedFixtureContext.CreateBoundedMftForTests(scope.ManifestPath, scope.Repository, scope)
+                    : scope.Open();
+                accepted = context.IsSynthetic;
+            }
+            catch (NtfsFixtureGuardException) { }
+            Check(accepted == (mode == (bounded ? "mft-range" : "fixture-source")),
+                "fixed and bounded factories cannot silently exchange their manifest permissions");
+            Check(scope.Handles.All(handle => handle.IsClosed), "mode-isolated factory releases every opened synthetic handle");
+        }
+        var rangePreparation = new Fake(); rangePreparation.ChangeManifest(value => value["mode"] = "mft-range");
+        rangePreparation.Marker = (byte[])rangePreparation.Manifest.Clone(); rangePreparation.MissingPaths.Add(rangePreparation.Data);
+        NtfsVerifiedFixtureContext.VerifyPreparationBoundedMftForTests(rangePreparation.ManifestPath, rangePreparation.Repository, rangePreparation);
+        Check(rangePreparation.Handles.All(handle => handle.IsClosed) && rangePreparation.StoragePaths.Count == 0,
+            "bounded preparation validates ownership without publishing authority or reading absent targets");
         return passed;
     }
 

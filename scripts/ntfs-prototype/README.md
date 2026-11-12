@@ -87,6 +87,19 @@ pwsh -NoProfile -File scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 `
 
 原始记录仅在内存，raw模式不创建留样会话；旧6条kernel样本仍仅本机保留。公开结果经过深层字段及语义代码白名单，不转发任意异常或标识。真实成功、失败尝试和未验收项见[本轮记录](../../iterations/2026-11-12-14-raw-records/README.md)。授权不延续到以后，不锁个人卷，不提供生产入口或打包。
 
+## 有界MFT范围模式
+
+仅本轮另获有界范围许可时，入口加 `-MftRange`，与其他三种开关互斥。它仍只创建和操作新的256MiB隔离VHD，不接受现有磁盘/镜像输入。准备期先验证真实归属和无父链，新factory再次绑定独立owner，锁成功才读取。
+
+```powershell
+$result = Join-Path (Resolve-Path artifacts) ('ntfs-live-result-' + [guid]::NewGuid().ToString('N') + '.json')
+pwsh -NoProfile -File scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 -ResultPath $result -MftRange
+```
+
+模式 `mft-range`，结果 `range_classified`，必须同时核对 `range_classified=true`、`detached=true`、`cleanup_completed=true` 和深白名单 `mft_range`。状态只说明受限MFT有效范围已分类、21目标对照及关闭验证通过，不是格式全支持、占用完整或性能通过。失败/清理失败不保留成功摘要；旧raw/source成功标志保持false。
+
+最多4096槽/4MiB有效范围，加1024字节bootstrap；最多256次ReadFile尝试，每页64KiB，超限前置拒绝，不截断。一个managed页与一个aligned native缓冲复用，不保存原始记录。四类和必须等于visited，特殊分配未知仍保留。实际256槽分类与未验边界见[第17轮](../../iterations/2026-11-12-17-bounded-mft/README.md)。计数不是物理I/O，未测整卷吞吐。不延续本轮授权到以后、个人卷或VSS。
+
 ## 自有来源适配器模式
 
 在本轮已明确获准重复隔离VHD时，使用既有新结果路径入口加 `-SourceAdapter`（与 `-RawRecords` / `-KernelDiagnostics` 互斥）：

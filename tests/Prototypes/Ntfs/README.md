@@ -1,6 +1,20 @@
 # NTFS 合成记录原型
 
-本目录仅编入测试程序，不进入软件程序集、扫描策略或 UI。默认合成检查不访问磁盘。2026-11-12 新增受控 VHD 比对入口，仅用于管理员运行的隔离测试：IOCTL对照只读取本轮合成文件的对应记录，原始模式另读该自有卷record0以建立映射；不枚举个人磁盘或整卷 MFT。使用与边界见[测试盘说明](../../../scripts/ntfs-prototype/README.md)。
+本目录仅编入测试程序，不进入软件程序集、扫描策略或 UI。默认合成检查不访问磁盘。受控 VHD 比对入口仅用于管理员运行的隔离测试：IOCTL对照只读取本轮合成文件的对应记录，原始模式另读该自有卷record0以建立映射；独立的有界模式可读取新建测试卷的MFT有效范围，最多4096槽。不枚举个人磁盘，不提供产品整卷扫描。使用与边界见[测试盘说明](../../../scripts/ntfs-prototype/README.md)。
+
+## 有界MFT范围原型
+
+`NtfsMftMap.PlanRange` 按严格run映射产生最多64KiB的记录对齐窗口，检查有效长度、初始化范围及物理边界；`NtfsMftEnumerator` 串行复用一个64KiB managed页，最多4096槽，只保留21目标的解析对象。四类计数必须等于visited；未知逻辑/分配量与补查理由另计，不计算全卷占用。
+
+`NtfsBoundedMftSource` 仅由真实归属factory建立，私有token/map绑定同一持锁句柄。独立读取profile最多256次ReadFile尝试、4MiB+1024请求字节，`ReadInto`复用一个64KiB加对齐填充的原生分配；旧Acquire/Read仍2MiB/128次。解码另有每记录副本，以上并非整个进程的内存上限。同步I/O中的取消不能即时打断调用；复制后才取消时私有页可能已改变，但不会发布结果。
+
+```powershell
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-mft-enumerator-tests
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-bounded-mft-tests
+pwsh -NoProfile -File tests/NtfsMftEnumerationEvidence.Tests.ps1
+```
+
+本机新建VHD已覆盖256槽，21对象匹配及关闭/卸载清理通过；仍有6 unsupported、183 invalid，不能把这些槽当空闲、零占用或磁盘损坏。真实4096槽、碎片化/属性扩展、活跃卷、建树和资源收益未验。详见[方案](../../../docs/ntfs-bounded-mft-plan.md)与[第17轮](../../../iterations/2026-11-12-17-bounded-mft/README.md)。
 
 ## 有限原始读取原型
 

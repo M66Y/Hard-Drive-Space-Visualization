@@ -1,7 +1,7 @@
 #requires -Version 7.4
 # Semantic result-code whitelist. Unknown text is never forwarded to retained results.
 function ConvertTo-FixtureCodeEvidence($Value, $Status) {
-    if ($Status -isnot [string] -or $Status -cnotin @('passed','collected','verified','source_verified','failed')) {
+    if ($Status -isnot [string] -or $Status -cnotin @('passed','collected','verified','source_verified','range_classified','failed')) {
         throw 'FIXTURE_CODE_EVIDENCE_INVALID'
     }
     if ($Status -cne 'failed') {
@@ -23,6 +23,8 @@ function ConvertTo-FixtureCodeEvidence($Value, $Status) {
         'RUNNER_LIMIT','RUNNER_NOT_BUILT','RUNNER_STILL_ACTIVE','SUMMARY_INVALID','SUMMARY_MISSING',
         'RAW_EVIDENCE_MISSING','RAW_COMPARISON_EVIDENCE_INVALID','MATRIX_JSON_INVALID',
         'SOURCE_EVIDENCE_MISSING','SOURCE_ADAPTER_EVIDENCE_INVALID',
+        'MFT_RANGE_EVIDENCE_MISSING','MFT_ENUMERATION_EVIDENCE_INVALID',
+        'SourceRangeBudget','SourceEnumerationFailed','SourceBufferReleaseFailed','RangeOwnedClosureVerified','RangeFixedTargetsVerified',
         'FixtureAbsolutePath','FixtureAdapter','FixtureAliasBinding','FixtureAlignmentBounds',
         'FixtureBaselineBudget','FixtureBaselineCase','FixtureBaselinePath','FixtureCaseBudget',
         'FixtureContextClosed','FixtureControlBounds','FixtureControlFailed','FixtureDataRoot',
