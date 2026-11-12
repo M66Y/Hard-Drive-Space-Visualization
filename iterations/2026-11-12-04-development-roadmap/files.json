@@ -1,0 +1,24 @@
+{
+  "baseline": "2eb4bd97424476cbbafb22cdc6e5d771ce0cd6db",
+  "files": [
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "97b1e932e0cd928f683fdc83bfa14db4f32e7ad2262d844e8d085870727c0ebe"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "b4d933b79c539ca23cb944d4e887f418453a22354efce5fb57c883cf7bfd5647"
+    },
+    {
+      "path": "iterations/2026-11-12-04-development-roadmap/README.md",
+      "sha256": "fcb7d3c00cbdfa881dafcb4a2dae8fb8084f3d061ad47f5633c4010ca68d0d7c"
+    },
+    {
+      "path": "iterations/2026-11-12-04-development-roadmap/changes.patch",
+      "sha256": "3176513ad28387e5c5011c1da4dc8837e89885a13636ed6e443daba63b6fbf43"
+    }
+  ],
+  "documentation_only": true,
+  "software_tests_run": false,
+  "new_feature_implementation": false
+}
