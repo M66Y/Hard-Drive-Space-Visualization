@@ -68,7 +68,9 @@ pwsh -NoProfile -File tests/NtfsSpecialCostEvidence.Tests.ps1
 
 ## 合成夹具与依据
 
-`NtfsRecordEvidence` 提供本机有界正文留样与严格无卷重放；最多六条、每条 64 KiB，清单 64 KiB、会话总计 512 KiB。拒绝字段注入、重复/大小写变体字段、路径越界、哈希变化、重解析及未知文件；清理只针对当前实例明确拥有的平坦会话。重放匹配原错误码也计 Matching，不能将其当作解码通过。基础不接 Live，不保存 IOCTL 外层头，固定矩阵/真实留样、崩溃孤儿恢复及并发对抗尚未验收，见[基础记录](../../../iterations/2026-11-12-11-record-evidence/README.md)。
+`NtfsRecordEvidence` 提供本机有界正文留样与严格无卷重放；最多六条、每条64KiB，清单64KiB、会话总计512KiB。拒绝字段注入、重复/大小写变体字段、路径越界、哈希变化、重解析及未知文件。schema2新增CaptureKernel，绑定IOCTL外层引用/长度/返回量与经过核对的Native上下文；正文原样保存，严格兼容schema1，离线不证明历史稳定性。清理仅针对实例自有平坦会话；重放匹配原错误码不代表解码通过。
+
+`NtfsKernelMatrix` 已接入受控Live诊断模式，固定A9/B6/C6共21对象，三时点63请求；基础设施错误中止，严格解码失败继续计数并限量留样。schema/摘要和实际VHD结果见[矩阵记录](../../../iterations/2026-11-12-13-kernel-matrix/README.md)。生产未接入；崩溃孤儿恢复、并发对抗和活跃卷一致性仍未实现。
 
 `NtfsRecordFixtures` 在内存创建记录；测试覆盖 fixup、属性边界、UTF-16、空/驻留/非驻留文件、硬链接与 DOS 名称、簇几何、特殊类型的补查标记、取消和索引冲突，另有 512 次固定种子的有限变异检查。合成数据不是磁盘镜像；测试不是完整 NTFS 格式一致性认证。
 

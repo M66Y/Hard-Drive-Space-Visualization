@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -7,7 +8,8 @@ namespace DiskAtlas.NtfsPrototype;
 internal sealed record NtfsReplayReport(int Records, int Matching, int Mismatching);
 
 // Local-only, bounded reproduction evidence. Payloads are FILE record bodies,
-// never the IOCTL output header. This store is not connected to the live reader.
+// never the IOCTL output header. Schema 2 binds the checked header/native context
+// separately. Offline replay proves self-consistency, not past live stability.
 internal sealed class NtfsRecordEvidence
 {
     private const int MaximumBytes = 512 * 1024, MaximumManifest = 64 * 1024;
@@ -15,9 +17,12 @@ internal sealed class NtfsRecordEvidence
     private readonly string nonce;
     private readonly object gate = new();
     internal string Root { get; }
+    private sealed record KernelBinding(ulong ReturnedReference, int ReturnedLength, int ReturnedBytes,
+        long LogicalBytes, long AllocatedBytes, uint LinkCount, long ModifiedFileTimeUtc, ulong IdentityHigh,
+        bool WritableHandleOpen);
     private sealed record Entry(string CaseId, string Payload, int Length, string Sha256,
         ulong Volume, ulong Reference, int SectorSize, int ClusterSize, ushort Major, ushort Minor,
-        string ExpectedCode, string ExpectedStatus);
+        string ExpectedCode, string ExpectedStatus, string Source, KernelBinding? Kernel);
     private sealed record Manifest(int Schema, string Nonce, IReadOnlyList<Entry> Records);
 
     private NtfsRecordEvidence(string root, string value) { Root = root; nonce = value; }
@@ -74,7 +79,7 @@ internal sealed class NtfsRecordEvidence
             NoReparse(root);
             string marker = Path.Combine(root, "marker.json"), manifest = Path.Combine(root, "manifest.json");
             WriteNew(marker, JsonSerializer.SerializeToUtf8Bytes(new { Schema = 1, Nonce = nonce }), () => created.Add(marker));
-            WriteNew(manifest, JsonSerializer.SerializeToUtf8Bytes(new Manifest(1, nonce, [])), () => created.Add(manifest));
+            WriteNew(manifest, JsonSerializer.SerializeToUtf8Bytes(new Manifest(2, nonce, [])), () => created.Add(manifest));
             complete = true;
             return new NtfsRecordEvidence(root, nonce);
         }
@@ -94,7 +99,34 @@ internal sealed class NtfsRecordEvidence
     });
 
     internal string Capture(string caseId, byte[] payload, ulong volume, ulong reference, int sectorSize,
-        int clusterSize, ushort major, ushort minor, string expectedCode) => Guard(() =>
+        int clusterSize, ushort major, ushort minor, string expectedCode) =>
+        CaptureCore(caseId, payload, volume, reference, sectorSize, clusterSize, major, minor, expectedCode, null);
+
+    internal string CaptureKernel(string caseId, byte[] ioctlOutput, int returnedBytes, FileStorageInfo before,
+        FileStorageInfo after, int sectorSize, int clusterSize, ushort major, ushort minor, string expectedCode) => Guard(() =>
+    {
+        if (ioctlOutput == null || returnedBytes < 12 || returnedBytes > ioctlOutput.Length || returnedBytes > 65536 + 12 ||
+            before == null || after == null || before.Identity != after.Identity || before.Identity.High != 0 ||
+            before.LogicalBytes < 0 || before.AllocatedBytes < 0 || before.LinkCount == 0 ||
+            before.LogicalBytes != after.LogicalBytes || before.AllocatedBytes != after.AllocatedBytes ||
+            before.LinkCount != after.LinkCount || before.WritableHandleOpen || after.WritableHandleOpen ||
+            !before.Modified.HasValue || !after.Modified.HasValue ||
+            before.Modified.Value.ToFileTimeUtc() != after.Modified.Value.ToFileTimeUtc()) throw Invalid();
+        // Copy exactly the declared body after validating the entire returned boundary.
+        byte[] observed = ioctlOutput.AsSpan(0, returnedBytes).ToArray();
+        ulong returnedReference = BinaryPrimitives.ReadUInt64LittleEndian(observed);
+        uint length = BinaryPrimitives.ReadUInt32LittleEndian(observed.AsSpan(8));
+        if (length is < 1024 or > 65536 || length % 512 != 0 || returnedBytes < 12 + length ||
+            (returnedReference & NtfsRecordDecoder.MaximumRecordNumber) !=
+            (before.Identity.Low & NtfsRecordDecoder.MaximumRecordNumber)) throw Invalid();
+        var kernel = new KernelBinding(returnedReference, (int)length, returnedBytes, before.LogicalBytes,
+            before.AllocatedBytes, before.LinkCount, before.Modified.Value.ToFileTimeUtc(), before.Identity.High, false);
+        return CaptureCore(caseId, observed.AsSpan(12, (int)length).ToArray(), before.Identity.Volume,
+            before.Identity.Low, sectorSize, clusterSize, major, minor, expectedCode, kernel);
+    });
+
+    private string CaptureCore(string caseId, byte[] payload, ulong volume, ulong reference, int sectorSize,
+        int clusterSize, ushort major, ushort minor, string expectedCode, KernelBinding? kernel) => Guard(() =>
     {
         lock (gate)
         {
@@ -110,9 +142,10 @@ internal sealed class NtfsRecordEvidence
                 reference & NtfsRecordDecoder.MaximumRecordNumber, clusterSize, major, minor);
             string name = "record-" + (entries.Count + 1).ToString("D3", System.Globalization.CultureInfo.InvariantCulture) + ".bin";
             var added = new Entry(caseId, name, owned.Length, Convert.ToHexString(SHA256.HashData(owned)), volume,
-                reference, sectorSize, clusterSize, major, minor, expectedCode, decoded.Status.ToString());
+                reference, sectorSize, clusterSize, major, minor, expectedCode, decoded.Status.ToString(),
+                kernel == null ? "SyntheticPayload" : "KernelIoctl", kernel);
             var next = entries.Append(added).ToArray();
-            byte[] json = JsonSerializer.SerializeToUtf8Bytes(new Manifest(1, nonce, next));
+            byte[] json = JsonSerializer.SerializeToUtf8Bytes(new Manifest(2, nonce, next));
             if (json.Length > MaximumManifest || owned.Length + json.Length + entries.Sum(item => item.Length) + 1024 > MaximumBytes)
                 return "LimitReached";
             string pending = Path.Combine(root, "manifest.pending"), body = Path.Combine(root, name);
@@ -210,14 +243,16 @@ internal sealed class NtfsRecordEvidence
         using var document = JsonDocument.Parse(ReadBounded(Path.Combine(root, "manifest.json"), MaximumManifest));
         var manifest = document.RootElement;
         Fields(manifest, "Schema", "Nonce", "Records");
-        if (Integer(manifest, "Schema") != 1 || Text(manifest, "Nonce") != nonce) throw Invalid();
+        int schema = Integer(manifest, "Schema");
+        if (schema is not (1 or 2) || Text(manifest, "Nonce") != nonce) throw Invalid();
         var records = manifest.GetProperty("Records");
         if (records.ValueKind != JsonValueKind.Array || records.GetArrayLength() > 6) throw Invalid();
         var entries = new List<Entry>(6);
         var cases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var value in records.EnumerateArray())
         {
-            Fields(value, "CaseId", "Payload", "Length", "Sha256", "Volume", "Reference", "SectorSize", "ClusterSize", "Major", "Minor", "ExpectedCode", "ExpectedStatus");
+            string[] common = ["CaseId", "Payload", "Length", "Sha256", "Volume", "Reference", "SectorSize", "ClusterSize", "Major", "Minor", "ExpectedCode", "ExpectedStatus"];
+            Fields(value, schema == 1 ? common : [.. common, "Source", "Kernel"]);
             string caseId = Text(value, "CaseId"), payload = Text(value, "Payload"), hash = Text(value, "Sha256"), code = Text(value, "ExpectedCode"), status = Text(value, "ExpectedStatus");
             int length = Integer(value, "Length"), sector = Integer(value, "SectorSize"), cluster = Integer(value, "ClusterSize"), major = Integer(value, "Major"), minor = Integer(value, "Minor");
             string expectedName = "record-" + (entries.Count + 1).ToString("D3", System.Globalization.CultureInfo.InvariantCulture) + ".bin";
@@ -225,8 +260,39 @@ internal sealed class NtfsRecordEvidence
                 !Regex.IsMatch(hash, @"\A[0-9A-F]{64}\z", RegexOptions.CultureInvariant) || length is < 1024 or > 65536 || length % 512 != 0 ||
                 !Geometry(sector) || !Geometry(cluster) || major is < 0 or > ushort.MaxValue || minor is < 0 or > ushort.MaxValue ||
                 status is not ("Decoded" or "Free" or "Invalid" or "Unsupported")) throw Invalid();
+            string source = schema == 1 ? "SyntheticPayload" : Text(value, "Source");
+            KernelBinding? kernel = null;
+            if (schema == 2)
+            {
+                var binding = value.GetProperty("Kernel");
+                if (source == "SyntheticPayload")
+                {
+                    if (binding.ValueKind != JsonValueKind.Null) throw Invalid();
+                }
+                else if (source == "KernelIoctl")
+                {
+                    Fields(binding, "ReturnedReference", "ReturnedLength", "ReturnedBytes", "LogicalBytes", "AllocatedBytes", "LinkCount", "ModifiedFileTimeUtc", "IdentityHigh", "WritableHandleOpen");
+                    ulong links = Unsigned(binding, "LinkCount");
+                    long Logical(string name)
+                    {
+                        if (!binding.GetProperty(name).TryGetInt64(out long number) || number < 0) throw Invalid();
+                        return number;
+                    }
+                    var writable = binding.GetProperty("WritableHandleOpen");
+                    long modified = Logical("ModifiedFileTimeUtc");
+                    if (links is < 1 or > uint.MaxValue || writable.ValueKind != JsonValueKind.False ||
+                        Unsigned(binding, "IdentityHigh") != 0) throw Invalid();
+                    _ = DateTime.FromFileTimeUtc(modified);
+                    kernel = new(Unsigned(binding, "ReturnedReference"), Integer(binding, "ReturnedLength"), Integer(binding, "ReturnedBytes"),
+                        Logical("LogicalBytes"), Logical("AllocatedBytes"), (uint)links, modified, 0, false);
+                    if (kernel.ReturnedLength != length || kernel.ReturnedBytes < 12 + length || kernel.ReturnedBytes > 65536 + 12 ||
+                        (kernel.ReturnedReference & NtfsRecordDecoder.MaximumRecordNumber) !=
+                        (Unsigned(value, "Reference") & NtfsRecordDecoder.MaximumRecordNumber)) throw Invalid();
+                }
+                else throw Invalid();
+            }
             entries.Add(new(caseId, payload, length, hash, Unsigned(value, "Volume"), Unsigned(value, "Reference"), sector, cluster,
-                (ushort)major, (ushort)minor, code, status));
+                (ushort)major, (ushort)minor, code, status, source, kernel));
         }
         var allowed = new HashSet<string>(entries.Select(item => item.Payload), StringComparer.Ordinal) { "marker.json", "manifest.json" };
         var files = Directory.EnumerateFileSystemEntries(root).Take(9).ToArray();

@@ -1,0 +1,101 @@
+{
+  "baseline": "0d5378ac12f111ee3331a7016fcb2bc6bf225909",
+  "files": [
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "2896d2a5210f8a5844b7a5ea3e8b2f505afad33f90942b8dd57e205cdabb22a4"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "243aff6f2ffbfc359cb689b06b251c847f059b364b911961c233968c731c396f"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "2cca7657c776543f05346eb9b9055401d10d154507943fd3ee261abdf49224f2"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "f8e829adcd4c0180e5cabbcd25ce5dde3dbe422d60c40c88663c302a8cff3681"
+    },
+    {
+      "path": "docs/ntfs-kernel-record-plan.md",
+      "sha256": "758a23adf6600a627f932756d5b6c289903c5ade58913472d96f715ba3ce1b9c"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "21665ec06c93399760cc999d84bfba7e76941b5061814aedd811ff9cea60c39d"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "8514ef03cdafee22cfb2daaa08dc50fae710c09d35f89257de55c54cbb599c81"
+    },
+    {
+      "path": "iterations/2026-11-12-13-kernel-matrix/README.md",
+      "sha256": "4b3074ab5583f8bc9618e819a24aecd2046c8a6e2d8147102b412878de87c7e8"
+    },
+    {
+      "path": "iterations/2026-11-12-13-kernel-matrix/comparison.json",
+      "sha256": "bf3b97c37e32cf2c70a8b4d5e4f8af3fdde7af1f005a9dc2ec1cd307246319b9"
+    },
+    {
+      "path": "iterations/2026-11-12-13-kernel-matrix/diagnostic-final.json",
+      "sha256": "ea4b071460b1e97a036cdfa86f1c33d4ba6cef6482bd52164607c510d0b24bbb"
+    },
+    {
+      "path": "iterations/2026-11-12-13-kernel-matrix/diagnostic-first.json",
+      "sha256": "7d4d60e8643a1b0ce907cb85ec1a5f4e688e7a4945922a5488417b9cb9846b32"
+    },
+    {
+      "path": "iterations/2026-11-12-13-kernel-matrix/replay-summary.json",
+      "sha256": "38587c81fe39c5d30a15653df6287643e7f1bce83b933c841d805dd3c79fc797"
+    },
+    {
+      "path": "scripts/ntfs-prototype/Invoke-NtfsFixture.ps1",
+      "sha256": "29b8417d6fe8ed132ec190d10e7f64f1ec1aebb4aa985b8505691947aab92621"
+    },
+    {
+      "path": "scripts/ntfs-prototype/KernelMatrixEvidence.ps1",
+      "sha256": "1e5cdcd5ffeedff8032b198d3e37929ba6e173f11e15735107be457efed8dfd1"
+    },
+    {
+      "path": "scripts/ntfs-prototype/README.md",
+      "sha256": "5038cce0b65ba6bb5fd07d667597058b45bf9eec85f63111a9340e4bff76b984"
+    },
+    {
+      "path": "tests/NtfsKernelMatrixEvidence.Tests.ps1",
+      "sha256": "4e52470a2569f99e9658bf04dfd1d05684703e6e80991cfac51f73ce255d3b41"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "377747329eddf4c23f03693757af1e001bacb2dac6c77b092658f2eafe668929"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsKernelMatrix.cs",
+      "sha256": "bf13a90b358ca75ec86cd7d537a46ce90b3f803ea973232286424a67c7d6dd7c"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsKernelMatrixTests.cs",
+      "sha256": "3dcdca37450656e7150bbb2e80a760c827ffaf3a53eb5fb272d3fd976511626e"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsLivePrototype.cs",
+      "sha256": "b2d0eb1f33bfed4bb0ee1684c58ac35db3998eaec48dc8a9ce469b9087feb5c6"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsRecordEvidence.cs",
+      "sha256": "de42564f8b8487d62847121d2e8ce7d2375c9e76f97e5557729a94b9557b7848"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsRecordEvidenceTests.cs",
+      "sha256": "4893c7db45417034afd2f46833dbd3fc75a7ca16877f7ed14f6366c7545b13b3"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/README.md",
+      "sha256": "d855fc975e755272226d45cbb5bafaa7fc2bca37295678fb85405330a1e77bc6"
+    },
+    {
+      "path": "iterations/2026-11-12-13-kernel-matrix/changes.patch",
+      "sha256": "657d6d88cec60005fd1e0a9904bc8afb8698019f74b54c5d32fd40a02cefd03a"
+    }
+  ]
+}

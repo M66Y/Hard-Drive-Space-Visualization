@@ -1,0 +1,3227 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index 31f95d1..bf5fd70 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,13 +1,13 @@
+ # 当前交接点
+ 
+-核对日期：2026-11-12。已提交功能基线 `d39ad9e`；接续时重新核对Git，不把此短号视为永远最新。本记忆与AGENTS规则随随后独立提交保存。
++2026-11-12，本轮基线0d5378a；用户要求20分钟，07:37:42–07:57:42 UTC（本地15:37–15:57）。本轮实现与验收已完成，收尾提交后先核对实际Git，不用本文短号替代HEAD。
+ 
+-- 产品：C# / .NET10 WinForms，内部名DiskAtlas；七项产品能力及长期规则见根AGENTS.md。正式v1.5.0已发布，后续开发源码尚未另发新包。
+-- 本小时完成：NativeStorage使用已打开流属性选择分配查询（ba3ed8b），前后28组提示均无差异，属于防御性收紧；限定压缩/稀疏默认流补查原型（36c58cc），不在生产扫描器中。
+-- 特殊流证据：句柄159项、批次77项；限定VHD正确性/暖缓存成本1581项通过。复杂记录3次USA严格失败仍未解决，短名子集通过不能覆盖失败形态。见[第09轮](../../../../iterations/2026-11-12-09-special-lookup/README.md)。
+-- 用户已批准[最小重现/留样方案](../../../../docs/ntfs-kernel-record-plan.md)。留样与无卷重放基础已实现并推送d39ad9e；构建0警告/0错误、72项通过，无跳过，含真实独立进程成功与失配回放。仅合成正文，未接Live或捕获真实失败。见[第11轮](../../../../iterations/2026-11-12-11-record-evidence/README.md)。
+-- 下一步仍未完成：固定单因素矩阵、Live/IOCTL外层头绑定、真实失败留样和VHD对照；崩溃孤儿恢复、并发对抗及活跃卷一致性未实现。解码规则保持严格，没有生产NTFS快速扫描入口或整卷性能证明。
+-- 项目记忆Skill已创建并经quick_validate验证；根AGENTS已添加70%/85%及20工具/30分钟回退规则，独立审查通过。百分比不可可靠获取时不得虚报用量，Skill不是后台监听器。
+-- 本小时VHD许可仅覆盖当时已审查隔离流程；镜像均已卸载清理。它不延续到以后提权或个人卷扫描。没有新的正式发布授权。
++- 已完成固定复杂记录矩阵、Live模式接入与schema2 IOCTL/Native绑定留样。21对象×三时点=63请求；两次隔离VHD均470基础检查，36Decoded/27FixupMismatch，6留样/0留样失败/21受限。解码器未放宽，生产未接入。
++- 最终6条真实失败正文带KernelIoctl绑定，在卸载VHD后独立进程6匹配/0失配；Matching重现的是严格失败，不是解码成功。原始样本约9.5KiB仅留本机ignored artifacts，需用于下一步研究，未上传。首批重放后按归属清理才保留最终6条，未同时超6条。
++- 所有64字符名称组失败，短/中组成功；使用长度相关性不是缓存/跨扇区根因证明。三时点刷新未消除失败。下一步研究读取表示与可靠策略，较大解码/读取改变仍先给方案。
++- 最终构建0警告0错误；留样115项、矩阵114项、原合成147项、摘要150项、隔离守卫36项通过。普通comparison另在新VHD1583项通过。三次VHD均卸载、镜像清理完成；只有必要的6条本机研究样本保留。
++- 证据与范围见[第13轮](../../../../iterations/2026-11-12-13-kernel-matrix/README.md)。本轮变更均为root与明确委派的原型/测试/文档/记忆，不含其他用户改动。收尾需核对提交/推送与干净状态。
++- 用户明确允许本轮按需隔离VHD及6条/512KiB本机留样；该许可不变成以后的默认提权或个人卷扫描授权，没有正式发布授权。
++- 尚未完成：复杂USA可靠解释/修复、替代读取路线、崩溃孤儿恢复、真实并发对抗、Windows10/其他几何、整卷MFT与生产快速入口/性能验收。
+ 
+-下一步先核对Git与[开发计划](../../../../docs/development-plan.md)，再继续当前已批准诊断工具范围；新的真实VHD执行须核对有效授权。完整事实：[项目现状](../../../../docs/project-status.md)；决定理由：[decisions.md](decisions.md)；历史：[iterations](../../../../iterations/)。不要重做本小时已经通过且没有改动的测试。
++完整事实：[现状](../../../../docs/project-status.md)、[计划](../../../../docs/development-plan.md)、[内核方案](../../../../docs/ntfs-kernel-record-plan.md)；决定：[decisions.md](decisions.md)。既有v1.5.0发行包没有更新，本轮普通测试构建不是新版本。没有新改动/失败/疑点时不重复已通过的检查。
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index 65cce3e..f8ec1c9 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -11,3 +11,5 @@
+ - 2026-11-12：用户要求维护项目记忆Skill。选择70%/85%检查点，为压缩与交接留余量；百分比不可观测时按20次工具调用或30分钟回退，并在阶段/关键决定落盘。不能承诺仅靠Skill精确监听平台token阈值。
+ 
+ 本页项目路径均相对仓库根目录；按需打开对应事实文件，不默认加载全部历史。新增决定只记影响取舍的原因与证据，已有长期规则回链AGENTS.md，不复制正文。
++
++- 2026-11-12：固定21对象/63请求已稳定重现27次严格USA失败；保留最终6条原始失败正文仅本机供后续研究。以collected与all_decoded区分收集和解码，重放匹配不等于修复。理由是此前缺少原始字节无法可靠研究；继续严格拒绝，下一步依据可重放证据另提读取策略。依据 iterations/2026-11-12-13-kernel-matrix/README.md。
+diff --git a/AGENTS.md b/AGENTS.md
+index 135d48f..eca060a 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -132,6 +132,7 @@
+ - NTFS 驻留补查的摘要白名单改动另运行 `pwsh -NoProfile -File tests/NtfsLookupEvidence.Tests.ps1`。原型中的 `NativeCalls` 指完整 reader/NativeStorage 回调，不是物理 I/O 或单个 Win32 调用；暖缓存补查微实验不得当作完整扫描基准。
+ - NTFS 单句柄补查运行 `--ntfs-resident-lease-tests`（仅创建并打开本轮随机临时文件，不读取原始卷）；摘要改动另运行 `pwsh -NoProfile -File tests/NtfsLeaseEvidence.Tests.ps1`。`LeaseHandles` 与 `LeaseSnapshots` 分别指每批成功打开的文件句柄和元信息快照组数；单句柄的两组观察仍不代表驻留性或活跃卷一致性证明。
+ - NTFS 压缩/稀疏默认流原型运行 `--ntfs-special-lease-tests`（自有临时文件）及 `--ntfs-special-lookup-tests`（纯合成批次）；摘要运行 `tests/NtfsSpecialEvidence.Tests.ps1`、`tests/NtfsSpecialCostEvidence.Tests.ps1`。仅接受单一理由、限定格式，组合与复杂记录不能掩掉标记。内核 USA 表示失败保持严格拒绝，见本轮记录；暖缓存补查成本不等于整卷收益或等稳定性保证对比。
++- NTFS 记录留样/矩阵修改运行 `--ntfs-record-evidence-tests`、`--ntfs-kernel-matrix-tests` 和 `tests/NtfsKernelMatrixEvidence.Tests.ps1`。隔离脚本 `-KernelDiagnostics` 仅在本轮有效授权内使用，固定21对象/63请求；`collected` 只表示收集完成，另看 `all_decoded`、失败/留样计数及卸载清理。`--ntfs-record-replay` 匹配原失败码不代表解码成功。原始记录及完整身份仅留本机 ignored artifacts，公开归档只保存白名单摘要。
+ - 存储属性提示分支改动另运行 `--storage-attribute-tests`，只使用自有临时 NTFS 普通/压缩/稀疏及命名流夹具，能力缺失明确跳过。`--storage-attribute-observe` 只记录差异，退出成功不代表回归通过；对照无差异时不得宣称已复现误算或证明所有文件系统支持。
+ - 混合目录调度改动补测 `--mixed-benchmark before/after` 的同夹具对比；用户明确指定实际目录后才使用 `--folder-benchmark`，其报告与隔离诊断仅留本机临时目录，不进入仓库。比较自动与高速必须核对完整扫描、结果一致性和运行顺序，保留异常波动样本。
+ - 本地目录比较出现指纹差异时，可使用 `--folder-benchmark --pair` 做针对性正确性诊断；额外保留的逐项快照影响测量条件，其计时不并入常规性能基准。差异计数和实际耗时仍只在本机核查，不纳入公开归档。工具边界检查使用 `--folder-comparison-tests`。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 88f60de..9f56c66 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -44,7 +44,7 @@ NTFS-01 第 1 轮的小范围为**驻留文件分配语义、可验证的大小
+ 
+ 下一轮先研究 **NTFS-01-KERNEL-USA**：额外硬链接或较长命名流夹具中，IOCTL 返回的两个扇区尾字仅一个匹配 USA 保存值，当前严格入口拒绝。刷新本轮文件及命名流未消除失败，根因尚未证明；不能据此称磁盘损坏，也不能将未校验尾字直接放行。用户已选择本轮保持严格校验，先完成受限形态。后续需给出可核验的读取表示与恢复策略、独立依据及损坏输入回归后，再扩大支持；命名流/属性扩展补查、活跃卷协调及 NTFS-02 继续未完成。失败与成功样本分别归档，不合并为全范围通过。
+ 
+-用户已确认按[内核记录验证方案](ntfs-kernel-record-plan.md)推进：先做独立最小重现与有界本机留样，保留原始样本供无卷重放；不修改解码规则。留样与重放基础已实现，见[基础记录](../iterations/2026-11-12-11-record-evidence/README.md)；固定矩阵、Live 接入与真实 VHD 留样尚未验收，不提前宣称本方向全部完成。本小时的 VHD 授权不延续到以后。
++用户已确认按[内核记录验证方案](ntfs-kernel-record-plan.md)推进：留样基础后，固定21对象/63请求矩阵、Live/IOCTL绑定与真实VHD留样均已完成本轮验收，见[矩阵记录](../iterations/2026-11-12-13-kernel-matrix/README.md)。两次矩阵均36解码/27严格失败，6条最终原始失败记录独立重放匹配；下一步应基于这些证据研究内核表示与读取策略，另给修改解码/替代读取方案。不将“收集完成”当作“失败已修复”，其他系统、实际并发及整卷MFT仍未验收。本轮VHD授权不延续到以后。
+ 
+ ### MON-01：主界面磁盘活动面板
+ 
+diff --git a/docs/ntfs-kernel-record-plan.md b/docs/ntfs-kernel-record-plan.md
+index 77bf020..f9f721b 100644
+--- a/docs/ntfs-kernel-record-plan.md
++++ b/docs/ntfs-kernel-record-plan.md
+@@ -4,6 +4,8 @@
+ 
+ 目标是留下可重放的失败证据，确定内核返回记录的表示边界，再决定读取路径；保持原始记录和现有内核入口的严格 USA 校验。不能为了通过夹具而忽略尾字或改写原始样本。
+ 
++执行状态（2026-11-12）：固定矩阵、Live绑定及真实失败留样已完成本轮验收，见[第13轮证据](../iterations/2026-11-12-13-kernel-matrix/README.md)。27次严格失败可稳定重现，最终6条本机样本在卸载后独立重放匹配；复杂表示仍未修复。下文保留当时方案与判定标准，不将其建议口吻当作当前未实施状态。
++
+ ## 已知事实与推测
+ 
+ - 本机有三次严格失败、两次限定夹具通过；早期原始字节和完整变体源码没有保存，现有 Case 序号不足以完整重放。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 2bbd320..20b3753 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-12：复杂记录固定矩阵与 Live 留样已接通。21个对象/63次读取在隔离VHD完成两次，均36次解码、27次严格FixupMismatch；最终6条原始失败记录带IOCTL/Native绑定在卸载后独立重放全部匹配，VHD已清理，原始样本仅本机保留。它们是可重现的失败证据，复杂USA表示仍未修复；生产扫描器与整卷速度未改变。见[矩阵记录](../iterations/2026-11-12-13-kernel-matrix/README.md)。
++
+ 2026-11-12：用户确认下一轮诊断方案后，新增测试程序内的有界本机记录留样与无卷重放基础。原始正文/哈希绑定、严格清单、数量/体积上限、重解析与未知文件拒绝已实现；尚未接入 Live 读取、固定矩阵或真实失败记录捕获，不代表复杂 USA 问题已解决。见[基础记录](../iterations/2026-11-12-11-record-evidence/README.md)。
+ 
+ 2026-11-12：测试程序新增压缩/稀疏默认流的严格单句柄补查，限定单一类型理由；四类合成文件与 NativeStorage 对照通过，叠加命名流的三个对象继续未知。限定 VHD 的正确性/成本共 1,581 项检查通过并已卸载清理；成本为四对象暖缓存微实验。较复杂的硬链接/命名流记录触发内核返回数据的 USA 表示校验失败，已保留失败证据，按用户选择保持严格解码；短名称限定夹具的通过不覆盖这些失败形态。补查原型未接入生产扫描，整卷读取与活跃卷一致性仍未完成，见[本轮记录](../iterations/2026-11-12-09-special-lookup/README.md)。
+diff --git a/docs/testing.md b/docs/testing.md
+index bdf70e5..4f04703 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -15,7 +15,9 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll
+ 
+ ## NTFS 特殊流原型
+ 
+-留样基础使用 `--ntfs-record-evidence-tests`，仅处理自建临时合成记录；`--ntfs-record-replay <session-directory>` 严格校验自有会话结构、大小和哈希后重放，不打开原始卷。CLI 只输出记录/匹配/失配计数；结果码匹配意味着重现原结果，原结果可能本来就是严格失败，不能视为解码成功。没有真实失败矩阵或 Live 捕获验收，基础边界见[本轮记录](../iterations/2026-11-12-11-record-evidence/README.md)。
++留样检查使用 `--ntfs-record-evidence-tests`；固定矩阵合成检查使用 `--ntfs-kernel-matrix-tests`，JSON与摘要白名单使用 `pwsh -NoProfile -File tests/NtfsKernelMatrixEvidence.Tests.ps1`。`--ntfs-record-replay <session-directory>` 严格校验自有会话结构、大小和哈希后重放，不打开原始卷；CLI只输出计数。匹配原失败码意味着重现失败，不能视为解码成功。schema2绑定IOCTL外层返回引用/长度和当时已核对的Native上下文，严格兼容schema1；离线只能核对保存内容自洽，不能重证过去的活跃卷稳定性。
++
++真实矩阵使用已授权隔离脚本的 `-KernelDiagnostics`，固定21对象×Initial/Reopened/Flushed三个时点。`status=collected` 只表示正常完成收集，`all_decoded=false`仍表示存在严格失败。摘要与重复JSON字段检查在转换前执行；运行/停止/卸载/清理失败不保留成功矩阵。首次矩阵和最终矩阵、实际失败重放见[本轮记录](../iterations/2026-11-12-13-kernel-matrix/README.md)。不测试个人磁盘，原始记录不进入仓库。
+ 
+ 原型只编入测试程序，不进入软件扫描后端。`--ntfs-special-lease-tests` 使用自有临时 NTFS 文件和合成观察，检查压缩/稀疏默认流、身份/属性/格式、已有写者/删除者拒绝及释放；`--ntfs-special-lookup-tests` 检查批次边界、未知与合法零、来源和取消。摘要白名单运行 `pwsh -NoProfile -File tests/NtfsSpecialEvidence.Tests.ps1` 与 `pwsh -NoProfile -File tests/NtfsSpecialCostEvidence.Tests.ps1`，均无磁盘操作。
+ 
+diff --git a/iterations/2026-11-12-13-kernel-matrix/README.md b/iterations/2026-11-12-13-kernel-matrix/README.md
+new file mode 100644
+index 0000000..8640d76
+--- /dev/null
++++ b/iterations/2026-11-12-13-kernel-matrix/README.md
+@@ -0,0 +1,42 @@
++# 固定矩阵、Live 绑定与真实失败留样
++
++2026-11-12，基线 `0d5378a`（完整值见 files.json）。用户要求继续20分钟，补齐固定复杂记录矩阵、Live接入及真实失败留样；另已确认本轮可重复使用已审查256MiB隔离VHD，最多6条/512KiB原始记录仅保留本机，不上传。起始工作区干净，解码规则不放宽，不接生产后端或发布。
++
++## 固定范围与实现
++
++`NtfsKernelMatrix` 固定21个对象、每对象Initial/Reopened/Flushed三个时点，共63次请求，低于24对象/96次预算。A为三类型×8/24/64字符名称（9对象）；B为同类型短/长名分别增加固定8字符别名（6）；C为同类型短/长名增加固定meta命名流（6）。类型为普通、LZNT1压缩、稀疏；同类型默认流内容/EOF固定，目录与创建次序明确，B/C不叠加，特性设置失败不伪通过。默认EOF、实际类型、可见硬链接数以及前后Native上下文逐次核对。不修改主机8.3策略；只有解码成功才报告名称数。
++
++脚本新增 `-KernelDiagnostics`，模式在fixture与卷marker绑定。父入口仍先检查随机workspace/nonce、镜像文件、虚拟设备extents、分区范围、NTFS3.1与512/4096几何。每次读取校验外层返回槽/长度、正文序列及Native前后完整身份、大小、链接数、时间与无写者证据，再交给原严格解码器；基础设施错误中止，严格解码失败则继续收集。
++
++`CaptureKernel` 将IOCTL外层引用/长度/返回量和已核对的Native上下文存入严格schema2清单，正文原样保存、SHA-256绑定，旧schema1仍严格兼容。离线只能证明保存内容自洽与重现结果，不能再次证明过去的卷稳定性。数量、体积、JSON字段/重复字段、路径和重解析守卫保留。
++
++## 真实结果
++
++两次诊断分别见 diagnostic-first.json / diagnostic-final.json。第一次之后补充空会话清理失败不覆盖已完成摘要的受控状态及纯测试，最终代码重新运行后得到相同结果：
++
++| 项目 | 两次各自结果 |
++| --- | ---: |
++| 收集基础检查 | 470项 |
++| 对象 / 请求 | 21 / 63 |
++| 严格解码成功 | 36 |
++| 严格FixupMismatch | 27 |
++| 原始留样 / 留样失败 / 受上限限制 | 6 / 0 / 21 |
++| VHD卸载 / 镜像清理 | 均完成 |
++
++两次27条失败都来自64字符名称组的9个对象（三类型，含A/B/C）及三个时点；8/24字符组没有失败。通过组记录使用长度最大504，失败组最小576，失败尾字均P0/R1/S2。名称/使用长度与失败相关，但不能据此证明跨扇区、缓存或其他原因；关闭、重开及刷新没有消除这些失败，也不能称为磁盘损坏。
++
++每次按固定顺序保留前6个失败观察（普通长名和压缩长名的三个时点）；矩阵摘要覆盖全部63次，原始样本不是全部失败类型的逐条副本。首批在卸载后独立进程6条全部匹配，按清单/nonce/哈希核验后清理，再运行最终矩阵，避免同时超过总6条上限。最终6条均Source=KernelIoctl，在卸载后独立重放6匹配/0失配，受控证明见 replay-summary.json。重现的原结果是FixupMismatch，**Matching不等于解码通过**。
++
++最终约9.5KiB的6条原始正文/绑定清单作为下一步研究样本仅保留本机ignored artifacts，不归档原始内容、完整身份、路径或哈希；三次VHD镜像均已卸载删除。研究所需样本保留至下一阶段使用完毕后按归属清理，不删除未知文件。没有个人卷扫描、系统日志设置变化或持久后台采集。
++
++## 验证与恢复
++
++- 测试Release构建0警告0错误；留样115项、矩阵114项、原合成记录/驻留批次147项通过。
++- JSON重复/大小写键及深层摘要白名单150项，隔离盘守卫36项通过。
++- 最终普通comparison路径另在新VHD通过1583项（comparison.json），未增加原始留样；旧路径与新诊断模式独立。
++- 独立审查发现并补齐空会话清理异常隔离、Observe非负大小/非零链接/非空时间守卫。空会话清理失败受控报告，不抹解码失败；实际VHD保留样本分支和纯合成清理失败分支分开验收。
++- `collected`仅表示收集基础流程完成，`all_decoded=false`如实保留；停止/卸载/清理失败会清空成功矩阵。JSON在ConvertFrom-Json之前检查重复键，随后严格验证固定用例、字段、类型和计数关系，公开摘要无私有数据。
++
++尚未完成复杂USA表示的可靠解释或替代读取策略、解码修复、崩溃孤儿自动恢复、实际并发对抗、Windows10/其他几何、整卷MFT、生产快速入口和性能验收。下一步依据已保留的可重放样本提出独立方案；不再靠改名或忽略尾字制造通过。
++
++本轮更新现状、计划、测试入口、脚本说明、AGENTS与项目记忆。files.json列出必要文件与SHA-256；changes.patch绑定真实基线，不包含自身或历史归档。实际基线恢复并核对暂存字节后提交；普通构建不是新Release。
+diff --git a/iterations/2026-11-12-13-kernel-matrix/comparison.json b/iterations/2026-11-12-13-kernel-matrix/comparison.json
+new file mode 100644
+index 0000000..8fcfcc2
+--- /dev/null
++++ b/iterations/2026-11-12-13-kernel-matrix/comparison.json
+@@ -0,0 +1,298 @@
++{
++  "schema": 1,
++  "status": "passed",
++  "stage": "ComparisonPassed",
++  "code": "None",
++  "native_error": 0,
++  "exit_code": 0,
++  "checks": 1583,
++  "failures": 0,
++  "detached": true,
++  "cleanup_completed": true,
++  "lookup_experiment": {
++    "Objects": 25,
++    "ResidentObjects": 20,
++    "DirectObjects": 5,
++    "UnsupportedExcluded": 7,
++    "SelectiveNativeCalls": 40,
++    "AllHandleNativeCalls": 50,
++    "Samples": [
++      {
++        "Round": 1,
++        "Order": "selective-first",
++        "SelectiveMilliseconds": 2.571,
++        "AllHandleMilliseconds": 1.4024,
++        "SelectiveNativeMilliseconds": 2.4137,
++        "AllHandleNativeMilliseconds": 1.3074
++      },
++      {
++        "Round": 2,
++        "Order": "handle-first",
++        "SelectiveMilliseconds": 2.424,
++        "AllHandleMilliseconds": 3.2222,
++        "SelectiveNativeMilliseconds": 2.27,
++        "AllHandleNativeMilliseconds": 3.0384
++      },
++      {
++        "Round": 3,
++        "Order": "selective-first",
++        "SelectiveMilliseconds": 2.6282,
++        "AllHandleMilliseconds": 3.0743,
++        "SelectiveNativeMilliseconds": 2.4587,
++        "AllHandleNativeMilliseconds": 2.9288
++      },
++      {
++        "Round": 4,
++        "Order": "handle-first",
++        "SelectiveMilliseconds": 2.4412,
++        "AllHandleMilliseconds": 3.3458,
++        "SelectiveNativeMilliseconds": 2.304,
++        "AllHandleNativeMilliseconds": 3.1547
++      },
++      {
++        "Round": 5,
++        "Order": "selective-first",
++        "SelectiveMilliseconds": 1.1293,
++        "AllHandleMilliseconds": 1.2417,
++        "SelectiveNativeMilliseconds": 1.0284,
++        "AllHandleNativeMilliseconds": 1.1689
++      },
++      {
++        "Round": 6,
++        "Order": "handle-first",
++        "SelectiveMilliseconds": 2.5404,
++        "AllHandleMilliseconds": 3.5941,
++        "SelectiveNativeMilliseconds": 2.3916,
++        "AllHandleNativeMilliseconds": 3.3943
++      }
++    ],
++    "ResidentExamples": [
++      {
++        "LogicalBytes": 18,
++        "LookupAllocatedBytes": 24
++      },
++      {
++        "LogicalBytes": 1,
++        "LookupAllocatedBytes": 8
++      },
++      {
++        "LogicalBytes": 7,
++        "LookupAllocatedBytes": 8
++      },
++      {
++        "LogicalBytes": 8,
++        "LookupAllocatedBytes": 8
++      },
++      {
++        "LogicalBytes": 9,
++        "LookupAllocatedBytes": 16
++      },
++      {
++        "LogicalBytes": 15,
++        "LookupAllocatedBytes": 16
++      },
++      {
++        "LogicalBytes": 16,
++        "LookupAllocatedBytes": 16
++      },
++      {
++        "LogicalBytes": 17,
++        "LookupAllocatedBytes": 24
++      },
++      {
++        "LogicalBytes": 31,
++        "LookupAllocatedBytes": 32
++      },
++      {
++        "LogicalBytes": 32,
++        "LookupAllocatedBytes": 32
++      },
++      {
++        "LogicalBytes": 33,
++        "LookupAllocatedBytes": 40
++      },
++      {
++        "LogicalBytes": 63,
++        "LookupAllocatedBytes": 64
++      },
++      {
++        "LogicalBytes": 64,
++        "LookupAllocatedBytes": 64
++      },
++      {
++        "LogicalBytes": 65,
++        "LookupAllocatedBytes": 72
++      },
++      {
++        "LogicalBytes": 127,
++        "LookupAllocatedBytes": 128
++      },
++      {
++        "LogicalBytes": 128,
++        "LookupAllocatedBytes": 128
++      },
++      {
++        "LogicalBytes": 255,
++        "LookupAllocatedBytes": 256
++      },
++      {
++        "LogicalBytes": 256,
++        "LookupAllocatedBytes": 256
++      },
++      {
++        "LogicalBytes": 400,
++        "LookupAllocatedBytes": 400
++      },
++      {
++        "LogicalBytes": 512,
++        "LookupAllocatedBytes": 512
++      }
++    ]
++  },
++  "lease_experiment": {
++    "Objects": 25,
++    "ResidentObjects": 20,
++    "DirectObjects": 5,
++    "UnsupportedExcluded": 7,
++    "DoubleReadCalls": 40,
++    "LeaseCalls": 20,
++    "LeaseHandles": 20,
++    "LeaseSnapshots": 40,
++    "Samples": [
++      {
++        "Round": 1,
++        "Order": "double-first",
++        "DoubleMilliseconds": 2.7259,
++        "LeaseMilliseconds": 0.8065,
++        "DoubleNativeMilliseconds": 2.5498,
++        "LeaseNativeMilliseconds": 0.718
++      },
++      {
++        "Round": 2,
++        "Order": "lease-first",
++        "DoubleMilliseconds": 2.3495,
++        "LeaseMilliseconds": 1.4778,
++        "DoubleNativeMilliseconds": 2.2095,
++        "LeaseNativeMilliseconds": 1.3421
++      },
++      {
++        "Round": 3,
++        "Order": "double-first",
++        "DoubleMilliseconds": 2.4519,
++        "LeaseMilliseconds": 1.2205,
++        "DoubleNativeMilliseconds": 2.3031,
++        "LeaseNativeMilliseconds": 1.102
++      },
++      {
++        "Round": 4,
++        "Order": "lease-first",
++        "DoubleMilliseconds": 0.973,
++        "LeaseMilliseconds": 0.6309,
++        "DoubleNativeMilliseconds": 0.9212,
++        "LeaseNativeMilliseconds": 0.5831
++      },
++      {
++        "Round": 5,
++        "Order": "double-first",
++        "DoubleMilliseconds": 2.5142,
++        "LeaseMilliseconds": 1.4129,
++        "DoubleNativeMilliseconds": 2.3554,
++        "LeaseNativeMilliseconds": 1.2787
++      },
++      {
++        "Round": 6,
++        "Order": "lease-first",
++        "DoubleMilliseconds": 2.4561,
++        "LeaseMilliseconds": 1.4899,
++        "DoubleNativeMilliseconds": 2.3008,
++        "LeaseNativeMilliseconds": 1.3516
++      }
++    ]
++  },
++  "special_lookup": {
++    "Objects": 7,
++    "CompressedObjects": 2,
++    "SparseObjects": 2,
++    "UnsupportedObjects": 3,
++    "ResolvedObjects": 4,
++    "FailedObjects": 0,
++    "LeaseCalls": 4,
++    "HandlesOpened": 4,
++    "SnapshotReads": 8,
++    "Cases": [
++      {
++        "Kind": "CompressedZero",
++        "LogicalBytes": 131072,
++        "AllocatedBytes": 0,
++        "Source": "HandleLookup"
++      },
++      {
++        "Kind": "CompressedRandom",
++        "LogicalBytes": 131072,
++        "AllocatedBytes": 131072,
++        "Source": "HandleLookup"
++      },
++      {
++        "Kind": "SparseHole",
++        "LogicalBytes": 2097152,
++        "AllocatedBytes": 0,
++        "Source": "HandleLookup"
++      },
++      {
++        "Kind": "SparseWritten",
++        "LogicalBytes": 2097152,
++        "AllocatedBytes": 131072,
++        "Source": "HandleLookup"
++      }
++    ]
++  },
++  "special_cost": {
++    "Objects": 4,
++    "ReferenceCalls": 4,
++    "LeaseCalls": 4,
++    "HandlesOpened": 4,
++    "SnapshotReads": 8,
++    "Samples": [
++      {
++        "Round": 1,
++        "Order": "reference-first",
++        "ReferenceMilliseconds": 0.3433,
++        "LeaseMilliseconds": 0.4645
++      },
++      {
++        "Round": 2,
++        "Order": "lease-first",
++        "ReferenceMilliseconds": 0.2636,
++        "LeaseMilliseconds": 0.5073
++      },
++      {
++        "Round": 3,
++        "Order": "reference-first",
++        "ReferenceMilliseconds": 0.3944,
++        "LeaseMilliseconds": 0.4841
++      },
++      {
++        "Round": 4,
++        "Order": "lease-first",
++        "ReferenceMilliseconds": 0.2262,
++        "LeaseMilliseconds": 0.4776
++      },
++      {
++        "Round": 5,
++        "Order": "reference-first",
++        "ReferenceMilliseconds": 0.2697,
++        "LeaseMilliseconds": 0.4576
++      },
++      {
++        "Round": 6,
++        "Order": "lease-first",
++        "ReferenceMilliseconds": 0.0864,
++        "LeaseMilliseconds": 0.2294
++      }
++    ]
++  },
++  "mode": "comparison",
++  "kernel_matrix": null,
++  "all_decoded": null,
++  "capture_cleanup_status": null
++}
+\ No newline at end of file
+diff --git a/iterations/2026-11-12-13-kernel-matrix/diagnostic-final.json b/iterations/2026-11-12-13-kernel-matrix/diagnostic-final.json
+new file mode 100644
+index 0000000..629cd96
+--- /dev/null
++++ b/iterations/2026-11-12-13-kernel-matrix/diagnostic-final.json
+@@ -0,0 +1,850 @@
++{
++  "schema": 1,
++  "status": "collected",
++  "stage": "CollectionCompleted",
++  "code": "None",
++  "native_error": 0,
++  "exit_code": 0,
++  "checks": 470,
++  "failures": 0,
++  "detached": true,
++  "cleanup_completed": true,
++  "lookup_experiment": null,
++  "lease_experiment": null,
++  "special_lookup": null,
++  "special_cost": null,
++  "mode": "kernel-diagnostics",
++  "kernel_matrix": {
++    "Revision": "kernel-matrix-v1",
++    "Objects": 21,
++    "Requests": 63,
++    "Decoded": 36,
++    "DecodeFailures": 27,
++    "Captured": 6,
++    "CaptureFailures": 0,
++    "CaptureLimited": 21,
++    "Rows": [
++      {
++        "CaseId": "A-Ordinary-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 344,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Ordinary-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 344,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Ordinary-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 344,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Ordinary-24-Initial",
++        "Stage": "Initial",
++        "Kind": "Ordinary",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 496,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Ordinary-24-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Ordinary",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 496,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Ordinary-24-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Ordinary",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 496,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Ordinary-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 576,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Ordinary-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 576,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Ordinary-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 576,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Compressed-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 352,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Compressed-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 352,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Compressed-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 352,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Compressed-24-Initial",
++        "Stage": "Initial",
++        "Kind": "Compressed",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 504,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Compressed-24-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Compressed",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 504,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Compressed-24-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Compressed",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 504,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Compressed-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 584,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Compressed-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 584,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Compressed-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 584,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Sparse-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 352,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Sparse-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 352,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Sparse-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 352,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Sparse-24-Initial",
++        "Stage": "Initial",
++        "Kind": "Sparse",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 504,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Sparse-24-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Sparse",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 504,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Sparse-24-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Sparse",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 504,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Sparse-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 584,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Sparse-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 584,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Sparse-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 584,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Ordinary-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 456,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Ordinary-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 456,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Ordinary-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 456,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Ordinary-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 688,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Ordinary-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 688,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Ordinary-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 688,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Compressed-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 464,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Compressed-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 464,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Compressed-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 464,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Compressed-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 696,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Compressed-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 696,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Compressed-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 696,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Sparse-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 464,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Sparse-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 464,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Sparse-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 464,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Sparse-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 696,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Sparse-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 696,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Sparse-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 696,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Ordinary-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 400,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Ordinary-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 400,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Ordinary-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 400,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Ordinary-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 632,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Ordinary-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 632,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Ordinary-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 632,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Compressed-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 408,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Compressed-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 408,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Compressed-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 408,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Compressed-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 640,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Compressed-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 640,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Compressed-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 640,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Sparse-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 408,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Sparse-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 408,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Sparse-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 408,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Sparse-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 640,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Sparse-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 640,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Sparse-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 640,
++        "VisibleNames": -1
++      }
++    ]
++  },
++  "all_decoded": false,
++  "capture_cleanup_status": "Retained"
++}
+\ No newline at end of file
+diff --git a/iterations/2026-11-12-13-kernel-matrix/diagnostic-first.json b/iterations/2026-11-12-13-kernel-matrix/diagnostic-first.json
+new file mode 100644
+index 0000000..a622d26
+--- /dev/null
++++ b/iterations/2026-11-12-13-kernel-matrix/diagnostic-first.json
+@@ -0,0 +1,849 @@
++{
++  "schema": 1,
++  "status": "collected",
++  "stage": "CollectionCompleted",
++  "code": "None",
++  "native_error": 0,
++  "exit_code": 0,
++  "checks": 470,
++  "failures": 0,
++  "detached": true,
++  "cleanup_completed": true,
++  "lookup_experiment": null,
++  "lease_experiment": null,
++  "special_lookup": null,
++  "special_cost": null,
++  "mode": "kernel-diagnostics",
++  "kernel_matrix": {
++    "Revision": "kernel-matrix-v1",
++    "Objects": 21,
++    "Requests": 63,
++    "Decoded": 36,
++    "DecodeFailures": 27,
++    "Captured": 6,
++    "CaptureFailures": 0,
++    "CaptureLimited": 21,
++    "Rows": [
++      {
++        "CaseId": "A-Ordinary-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 344,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Ordinary-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 344,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Ordinary-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 344,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Ordinary-24-Initial",
++        "Stage": "Initial",
++        "Kind": "Ordinary",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 496,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Ordinary-24-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Ordinary",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 496,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Ordinary-24-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Ordinary",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 496,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Ordinary-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 576,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Ordinary-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 576,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Ordinary-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 576,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Compressed-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 352,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Compressed-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 352,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Compressed-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 352,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Compressed-24-Initial",
++        "Stage": "Initial",
++        "Kind": "Compressed",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 504,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Compressed-24-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Compressed",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 504,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Compressed-24-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Compressed",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 504,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Compressed-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 584,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Compressed-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 584,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Compressed-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 584,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Sparse-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 352,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Sparse-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 352,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Sparse-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 352,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Sparse-24-Initial",
++        "Stage": "Initial",
++        "Kind": "Sparse",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 504,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Sparse-24-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Sparse",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 504,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Sparse-24-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Sparse",
++        "NameLength": 24,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 504,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "A-Sparse-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 584,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Sparse-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 584,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "A-Sparse-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 584,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Ordinary-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 456,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Ordinary-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 456,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Ordinary-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 456,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Ordinary-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 688,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Ordinary-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 688,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Ordinary-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 688,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Compressed-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 464,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Compressed-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 464,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Compressed-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 464,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Compressed-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 696,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Compressed-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 696,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Compressed-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 696,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Sparse-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 464,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Sparse-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 464,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Sparse-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 464,
++        "VisibleNames": 2
++      },
++      {
++        "CaseId": "B-Sparse-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 696,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Sparse-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 696,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "B-Sparse-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 696,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Ordinary-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 400,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Ordinary-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 400,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Ordinary-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Ordinary",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 400,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Ordinary-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 632,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Ordinary-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 632,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Ordinary-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Ordinary",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 632,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Compressed-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 408,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Compressed-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 408,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Compressed-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Compressed",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 408,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Compressed-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 640,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Compressed-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 640,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Compressed-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Compressed",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 640,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Sparse-8-Initial",
++        "Stage": "Initial",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 408,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Sparse-8-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 408,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Sparse-8-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Sparse",
++        "NameLength": 8,
++        "Status": "Decoded",
++        "Code": "Decoded",
++        "ProtectedTails": 0,
++        "RestoredTails": 2,
++        "Sectors": 2,
++        "UsedBytes": 408,
++        "VisibleNames": 1
++      },
++      {
++        "CaseId": "C-Sparse-64-Initial",
++        "Stage": "Initial",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 640,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Sparse-64-Reopened",
++        "Stage": "Reopened",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 640,
++        "VisibleNames": -1
++      },
++      {
++        "CaseId": "C-Sparse-64-Flushed",
++        "Stage": "Flushed",
++        "Kind": "Sparse",
++        "NameLength": 64,
++        "Status": "Invalid",
++        "Code": "FixupMismatch",
++        "ProtectedTails": 0,
++        "RestoredTails": 1,
++        "Sectors": 2,
++        "UsedBytes": 640,
++        "VisibleNames": -1
++      }
++    ]
++  },
++  "all_decoded": false
++}
+\ No newline at end of file
+diff --git a/iterations/2026-11-12-13-kernel-matrix/replay-summary.json b/iterations/2026-11-12-13-kernel-matrix/replay-summary.json
+new file mode 100644
+index 0000000..63d42f4
+--- /dev/null
++++ b/iterations/2026-11-12-13-kernel-matrix/replay-summary.json
+@@ -0,0 +1,10 @@
++{
++  "schema": 1,
++  "records": 6,
++  "matching": 6,
++  "mismatching": 0,
++  "source": "KernelIoctl",
++  "expected_code": "FixupMismatch",
++  "vhd_detached": true,
++  "local_only": true
++}
+diff --git a/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 b/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1
+index 793700d..fea3f23 100644
+--- a/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1
++++ b/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1
+@@ -1,6 +1,6 @@
+ #requires -Version 7.4
+ [CmdletBinding()]
+-param([Parameter(Mandatory)][string]$ResultPath)
++param([Parameter(Mandatory)][string]$ResultPath, [switch]$KernelDiagnostics)
+ 
+ # Destructive commands below are bound only to a newly created disposable image.
+ # No disk number, drive letter, existing image, or general command can be supplied.
+@@ -22,9 +22,12 @@ $lookupEvidence = $null
+ $leaseEvidence = $null
+ $specialEvidence = $null
+ $specialCostEvidence = $null
++$matrixEvidence = $null
++$captureCleanup = $null
+ . (Join-Path $PSScriptRoot 'LeaseEvidence.ps1')
+ . (Join-Path $PSScriptRoot 'SpecialEvidence.ps1')
+ . (Join-Path $PSScriptRoot 'SpecialCostEvidence.ps1')
++. (Join-Path $PSScriptRoot 'KernelMatrixEvidence.ps1')
+ $diskNumber = $null; $diskPath = $null; $imageDevicePath = $null
+ 
+ function Assert-NoReparsePath([string]$Path) {
+@@ -244,7 +247,8 @@ public static class AsukaLensFixtureImage {
+     $confirmedVolume = @($confirmedPartition | Get-Volume -ErrorAction Stop)
+     if ([string]$confirmedPartition.DriveLetter -cne $driveLetter -or $confirmedVolume.Count -ne 1 -or
+         [string]$confirmedVolume[0].UniqueId -cne $volumeId) { throw 'VOLUME_CHANGED_BEFORE_MARKER' }
+-    $fixture = [ordered]@{schema=1;image_path=$imagePath;volume_guid=[string]$volume.UniqueId;drive_root=$driveRoot;workspace=$workspace;nonce=$fixtureNonce}
++    $mode = if ($KernelDiagnostics) { 'kernel-diagnostics' } else { 'comparison' }
++    $fixture = [ordered]@{schema=1;image_path=$imagePath;volume_guid=[string]$volume.UniqueId;drive_root=$driveRoot;workspace=$workspace;nonce=$fixtureNonce;mode=$mode}
+     $manifestPath = Join-Path $workspace 'fixture.json'
+     Write-SafeJson $fixture $manifestPath
+     Write-SafeJson $fixture (Join-Path $driveRoot '.asukalens-ntfs-fixture.json')
+@@ -262,15 +266,27 @@ public static class AsukaLensFixtureImage {
+     $runnerExit = $runner.ExitCode
+     $summaryPath = Join-Path $workspace 'live-summary.json'
+     [void](Assert-NoReparsePath $summaryPath)
+-    if (-not (Test-Path -LiteralPath $summaryPath -PathType Leaf) -or (Get-Item -LiteralPath $summaryPath).Length -gt 16384) { throw 'SUMMARY_MISSING' }
+-    $summary = Get-Content -LiteralPath $summaryPath -Raw -Encoding utf8 | ConvertFrom-Json
+-    if ($summary.schema -ne 1 -or $summary.status -cnotin @('passed','failed') -or
++    $summaryLimit = if ($KernelDiagnostics) { 65536 } else { 16384 }
++    if (-not (Test-Path -LiteralPath $summaryPath -PathType Leaf) -or (Get-Item -LiteralPath $summaryPath).Length -gt $summaryLimit) { throw 'SUMMARY_MISSING' }
++    $summaryText = Get-Content -LiteralPath $summaryPath -Raw -Encoding utf8
++    Assert-UniqueJsonKeys $summaryText
++    $summary = $summaryText | ConvertFrom-Json
++    if ($summary.schema -ne 1 -or $summary.status -cnotin @('passed','failed','collected') -or
+         ($summary.checks -isnot [long] -and $summary.checks -isnot [int]) -or
+         ($summary.failures -isnot [long] -and $summary.failures -isnot [int]) -or
+         $summary.checks -lt 1 -or $summary.checks -gt 10000 -or $summary.failures -lt 0 -or $summary.failures -gt $summary.checks) { throw 'SUMMARY_INVALID' }
+     $checks = [int]$summary.checks; $failureCount = [int]$summary.failures
+     if ($summary.PSObject.Properties['code'] -and [string]$summary.code -cmatch '^[A-Za-z][A-Za-z0-9-]{0,79}$') { $failureCode=[string]$summary.code }
+-    if ($runnerExit -ne 0 -or $summary.status -cne 'passed' -or $failureCount -ne 0) { throw 'COMPARISON_FAILED' }
++    $expectedStatus = if ($KernelDiagnostics) { 'collected' } else { 'passed' }
++    if ($runnerExit -ne 0 -or $summary.status -cne $expectedStatus -or $failureCount -ne 0) { throw 'COMPARISON_FAILED' }
++    if ($KernelDiagnostics) {
++        if (-not $summary.PSObject.Properties['kernel_matrix']) { throw 'MATRIX_EVIDENCE_MISSING' }
++        $matrixEvidence = ConvertTo-KernelMatrixEvidence $summary.kernel_matrix
++        if (-not $summary.PSObject.Properties['capture_cleanup_status'] -or
++            $summary.capture_cleanup_status -cnotin @('Retained','EmptyRemoved','CleanupFailed')) { throw 'CAPTURE_CLEANUP_INVALID' }
++        $captureCleanup = [string]$summary.capture_cleanup_status
++        $status = 'collected'; $stage = 'CollectionCompleted'
++    } else {
+     if (-not $summary.PSObject.Properties['lookup_experiment']) { throw 'LOOKUP_EVIDENCE_MISSING' }
+     $lookupEvidence = ConvertTo-LookupEvidence $summary.lookup_experiment
+     if (-not $summary.PSObject.Properties['lease_experiment']) { throw 'LEASE_EVIDENCE_MISSING' }
+@@ -280,6 +296,7 @@ public static class AsukaLensFixtureImage {
+     if (-not $summary.PSObject.Properties['special_cost']) { throw 'SPECIAL_COST_EVIDENCE_MISSING' }
+     $specialCostEvidence = ConvertTo-SpecialCostEvidence $summary.special_cost
+     $status = 'passed'; $stage = 'ComparisonPassed'
++    }
+ } catch {
+     # Native messages and logs can include local paths. Never copy them to the result.
+     $status = 'failed'
+@@ -312,6 +329,10 @@ public static class AsukaLensFixtureImage {
+     $result.lease_experiment = if ($status -ceq 'passed') { $leaseEvidence } else { $null }
+     $result.special_lookup = if ($status -ceq 'passed') { $specialEvidence } else { $null }
+     $result.special_cost = if ($status -ceq 'passed') { $specialCostEvidence } else { $null }
++    $result.mode = if ($KernelDiagnostics) { 'kernel-diagnostics' } else { 'comparison' }
++    $result.kernel_matrix = if ($status -ceq 'collected') { $matrixEvidence } else { $null }
++    $result.all_decoded = if ($status -ceq 'collected') { $matrixEvidence.DecodeFailures -eq 0 } else { $null }
++    $result.capture_cleanup_status = if ($status -ceq 'collected') { $captureCleanup } else { $null }
+     $resultTemp = $ResultPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
+     try {
+         [void](Assert-NoReparsePath $ResultPath)
+@@ -320,4 +341,4 @@ public static class AsukaLensFixtureImage {
+     } finally { if (Test-Path -LiteralPath $resultTemp) { Remove-Item -LiteralPath $resultTemp -Force } }
+ }
+ Write-Output ('RESULT: ' + $status)
+-if ($status -cne 'passed') { exit 1 }
++if ($status -cnotin @('passed','collected')) { exit 1 }
+diff --git a/scripts/ntfs-prototype/KernelMatrixEvidence.ps1 b/scripts/ntfs-prototype/KernelMatrixEvidence.ps1
+new file mode 100644
+index 0000000..da36a45
+--- /dev/null
++++ b/scripts/ntfs-prototype/KernelMatrixEvidence.ps1
+@@ -0,0 +1,101 @@
++#requires -Version 7.4
++# Pure whitelist conversion. Dot-sourcing only defines these functions.
++function Assert-UniqueJsonKeys([string]$Json) {
++    $document = $null
++    try {
++        if ([string]::IsNullOrEmpty($Json) -or [Text.Encoding]::UTF8.GetByteCount($Json) -gt 65536) { throw 'MATRIX_JSON_INVALID' }
++        $options = [Text.Json.JsonDocumentOptions]::new()
++        $options.MaxDepth = 16
++        $document = [Text.Json.JsonDocument]::Parse($Json, $options)
++        function Assert-MatrixJsonElement([Text.Json.JsonElement]$Element) {
++            if ($Element.ValueKind -eq [Text.Json.JsonValueKind]::Object) {
++                $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
++                foreach ($property in $Element.EnumerateObject()) {
++                    if (-not $names.Add($property.Name)) { throw 'MATRIX_JSON_INVALID' }
++                    Assert-MatrixJsonElement $property.Value
++                }
++            }
++            elseif ($Element.ValueKind -eq [Text.Json.JsonValueKind]::Array) {
++                foreach ($item in $Element.EnumerateArray()) { Assert-MatrixJsonElement $item }
++            }
++        }
++        Assert-MatrixJsonElement $document.RootElement
++    }
++    catch { throw 'MATRIX_JSON_INVALID' }
++    finally { if ($null -ne $document) { $document.Dispose() } }
++}
++
++function ConvertTo-KernelMatrixEvidence($Value) {
++    try {
++        function Assert-KernelMatrixFields($Object, [string[]]$Expected) {
++            if ($null -eq $Object -or $Object -isnot [pscustomobject]) { throw 'KERNEL_MATRIX_EVIDENCE_INVALID' }
++            $properties = @($Object.PSObject.Properties)
++            $actual = @($properties.Name)
++            if ($actual.Count -ne $Expected.Count -or (Compare-Object $Expected $actual -CaseSensitive) -or
++                @($properties | Where-Object MemberType -ne NoteProperty).Count -ne 0) { throw 'KERNEL_MATRIX_EVIDENCE_INVALID' }
++        }
++        function Assert-KernelMatrixInteger($Number, [long]$Minimum, [long]$Maximum) {
++            if (($Number -isnot [int] -and $Number -isnot [long]) -or $Number -lt $Minimum -or $Number -gt $Maximum) { throw 'KERNEL_MATRIX_EVIDENCE_INVALID' }
++        }
++        Assert-KernelMatrixFields $Value @('Revision','Objects','Requests','Decoded','DecodeFailures','Captured','CaptureFailures','CaptureLimited','Rows')
++        if ($Value.Revision -isnot [string] -or $Value.Revision -cne 'kernel-matrix-v1') { throw 'KERNEL_MATRIX_EVIDENCE_INVALID' }
++        Assert-KernelMatrixInteger $Value.Objects 21 21
++        Assert-KernelMatrixInteger $Value.Requests 63 63
++        foreach ($field in @('Decoded','DecodeFailures','CaptureFailures','CaptureLimited')) { Assert-KernelMatrixInteger $Value.$field 0 63 }
++        Assert-KernelMatrixInteger $Value.Captured 0 6
++        if ($Value.Decoded + $Value.DecodeFailures -ne $Value.Requests -or
++            $Value.Captured + $Value.CaptureFailures + $Value.CaptureLimited -ne $Value.DecodeFailures -or
++            $Value.Rows -isnot [array] -or $Value.Rows.Count -ne 63) { throw 'KERNEL_MATRIX_EVIDENCE_INVALID' }
++
++        # This literal table mirrors the fixed decoder result codes, never arbitrary text.
++        $invalid = @('RecordNumber','RecordLength','Signature','RecordHeader','FixupMismatch','Sequence','AttributeHeader',
++            'AttributeLength','DuplicateAttributeId','AttributeName','ResidentBounds','MappingBounds','MappingPairs',
++            'SparseMappingFlags','StandardInformation','FileName','DataSize','MissingEndMarker','AllocationGeometry')
++        $unsupported = @('NtfsVersion','FixupStride','ClusterGeometry','RecordFlags','AttributeLimit','AttributeForm',
++            'AttributeFlags','MetadataFlags','NameLimit','MultipleUnnamedData','AttributeType')
++        $expected = [Collections.Generic.Dictionary[string,object]]::new([StringComparer]::Ordinal)
++        foreach ($phase in @('A','B','C')) {
++            $lengths = if ($phase -ceq 'A') { @(8,24,64) } else { @(8,64) }
++            foreach ($kind in @('Ordinary','Compressed','Sparse')) {
++                foreach ($length in $lengths) {
++                    foreach ($stage in @('Initial','Reopened','Flushed')) {
++                        $expected.Add("$phase-$kind-$length-$stage", @($stage,$kind,$length))
++                    }
++                }
++            }
++        }
++        $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
++        $rows = [Collections.Generic.List[object]]::new()
++        $decoded = 0
++        foreach ($row in $Value.Rows) {
++            Assert-KernelMatrixFields $row @('CaseId','Stage','Kind','NameLength','Status','Code','ProtectedTails','RestoredTails','Sectors','UsedBytes','VisibleNames')
++            if ($row.CaseId -isnot [string] -or $row.CaseId.Length -gt 40 -or -not $expected.ContainsKey($row.CaseId) -or -not $seen.Add($row.CaseId)) { throw 'KERNEL_MATRIX_EVIDENCE_INVALID' }
++            $case = $expected[$row.CaseId]
++            if ($row.Stage -isnot [string] -or $row.Stage -cne $case[0] -or $row.Kind -isnot [string] -or $row.Kind -cne $case[1]) { throw 'KERNEL_MATRIX_EVIDENCE_INVALID' }
++            Assert-KernelMatrixInteger $row.NameLength ([long]$case[2]) ([long]$case[2])
++            if ($row.Status -isnot [string] -or $row.Code -isnot [string]) { throw 'KERNEL_MATRIX_EVIDENCE_INVALID' }
++            $validCode = switch -CaseSensitive ($row.Status) {
++                'Decoded' { $row.Code -ceq 'Decoded' }
++                'Free' { $row.Code -ceq 'FreeRecord' }
++                'Invalid' { $row.Code -cin $invalid }
++                'Unsupported' { $row.Code -cin $unsupported }
++                default { $false }
++            }
++            if (-not $validCode) { throw 'KERNEL_MATRIX_EVIDENCE_INVALID' }
++            Assert-KernelMatrixInteger $row.Sectors 2 128
++            Assert-KernelMatrixInteger $row.ProtectedTails 0 $row.Sectors
++            Assert-KernelMatrixInteger $row.RestoredTails 0 $row.Sectors
++            Assert-KernelMatrixInteger $row.UsedBytes -1 65536
++            if ($row.UsedBytes -gt $row.Sectors * 512) { throw 'KERNEL_MATRIX_EVIDENCE_INVALID' }
++            if ($row.Status -ceq 'Decoded') { Assert-KernelMatrixInteger $row.VisibleNames 0 256; $decoded++ }
++            else { Assert-KernelMatrixInteger $row.VisibleNames -1 -1 }
++            $rows.Add([ordered]@{CaseId=[string]$row.CaseId;Stage=[string]$row.Stage;Kind=[string]$row.Kind;NameLength=[int]$row.NameLength;
++                Status=[string]$row.Status;Code=[string]$row.Code;ProtectedTails=[int]$row.ProtectedTails;RestoredTails=[int]$row.RestoredTails;
++                Sectors=[int]$row.Sectors;UsedBytes=[int]$row.UsedBytes;VisibleNames=[int]$row.VisibleNames})
++        }
++        if ($decoded -ne $Value.Decoded) { throw 'KERNEL_MATRIX_EVIDENCE_INVALID' }
++        return [ordered]@{Revision='kernel-matrix-v1';Objects=21;Requests=63;Decoded=[int]$Value.Decoded;DecodeFailures=[int]$Value.DecodeFailures;
++            Captured=[int]$Value.Captured;CaptureFailures=[int]$Value.CaptureFailures;CaptureLimited=[int]$Value.CaptureLimited;Rows=$rows.ToArray()}
++    }
++    catch { throw 'KERNEL_MATRIX_EVIDENCE_INVALID' }
++}
+diff --git a/scripts/ntfs-prototype/README.md b/scripts/ntfs-prototype/README.md
+index d203b85..17f6add 100644
+--- a/scripts/ntfs-prototype/README.md
++++ b/scripts/ntfs-prototype/README.md
+@@ -18,6 +18,10 @@ Get-Content -LiteralPath $result
+ 
+ 结果文件必须是 `artifacts` 直下的新 `ntfs-live-result-<32hex>.json`，拒绝覆盖。非管理员会在创建镜像前退出。输出只保留阶段、固定错误类别、原生错误码、检查数和清理状态，不保留路径、卷身份或原始记录。
+ 
++复杂记录诊断使用同一入口加 `-KernelDiagnostics`，仍需本轮有效VHD授权。固定21个合成对象、63次请求，分别比较三类文件的名称长度、额外硬链接、命名流以及关闭/重开/刷新时点；不修改主机8.3策略。报告 `collected` 与 `all_decoded` 分开：失败记录仍严格失败，收集完成不是解码通过。普通不带此开关的comparison路径保持独立。
++
++最多6条原始正文与schema2绑定清单仅保留在本机 `artifacts/ntfs-record-evidence-<nonce>`，总上限512KiB；最终样本约9.5KiB，已在VHD卸载后经独立进程重放。它们为下一步研究保留，不上传、归档原始内容或自动扫描其他目录；可分享结果仅取白名单矩阵摘要。空会话清理失败有独立状态，不抹掉已收集的严格失败；中途基础设施异常时可能保留部分会话，需核对归属后处理，不能删除未知文件。具体结果与限制见[矩阵记录](../../iterations/2026-11-12-13-kernel-matrix/README.md)。
++
+ `passed` 还必须同时检查 `detached=true` 与 `cleanup_completed=true`。失败时不伪装成功；若子进程无法退出或虚拟盘无法确认卸载，保留工作目录并报告清理失败，不能直接删除仍在使用的镜像。普通退出时，运行日志和 fixture manifest 随工作目录清理；结果摘要由调用者按本轮需要归档或清理。
+ 
+ ## 验证范围
+diff --git a/tests/NtfsKernelMatrixEvidence.Tests.ps1 b/tests/NtfsKernelMatrixEvidence.Tests.ps1
+new file mode 100644
+index 0000000..31fd7aa
+--- /dev/null
++++ b/tests/NtfsKernelMatrixEvidence.Tests.ps1
+@@ -0,0 +1,118 @@
++#requires -Version 7.4
++# Pure-memory conversion checks: no disk fixture, volume, or native calls.
++$ErrorActionPreference = 'Stop'
++Set-StrictMode -Version Latest
++$checks = 0
++function Check([bool]$Condition, [string]$Name) {
++    if (-not $Condition) { throw ('FAIL ' + $Name) }
++    $script:checks++; Write-Output ('PASS NTFS kernel matrix evidence ' + $Name)
++}
++$source = Join-Path $PSScriptRoot '../scripts/ntfs-prototype/KernelMatrixEvidence.ps1'
++$tokens = $null; $errors = $null
++$ast = [Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $source).Path, [ref]$tokens, [ref]$errors)
++Check ($errors.Count -eq 0) 'converter script syntax'
++$functions = @($ast.EndBlock.Statements | Where-Object { $_ -is [Management.Automation.Language.FunctionDefinitionAst] })
++Check ($functions.Count -eq 2 -and $ast.EndBlock.Statements.Count -eq 2) 'dot source defines only pure evidence functions'
++. ([scriptblock]::Create(($functions.Extent.Text -join "`n")))
++Assert-UniqueJsonKeys '{"Objects":21,"Rows":[{"CaseId":"A"}]}'
++Check $true 'raw JSON unique keys accepted'
++foreach($json in @('{"Objects":21,"Objects":22}', '{"Objects":21,"objects":21}', '{"Rows":[{"CaseId":"A","CaseId":"B"}]}',
++    '{"Rows":[{"CaseId":"A","caseid":"B"}]}','{"Rows":[{"Nested":{"X":1,"x":2}}]}','{','',(' ' * 65537))) {
++    $message=$null;try { Assert-UniqueJsonKeys $json } catch { $message=$_.Exception.Message }
++    Check ($message -ceq 'MATRIX_JSON_INVALID') 'raw duplicate malformed or oversized JSON rejected'
++}
++function Fixture {
++    $rows = @(
++        foreach ($phase in @('A','B','C')) {
++            $lengths = if ($phase -ceq 'A') { @(8,24,64) } else { @(8,64) }
++            foreach ($kind in @('Ordinary','Compressed','Sparse')) {
++                foreach ($length in $lengths) {
++                    foreach ($stage in @('Initial','Reopened','Flushed')) {
++                        [pscustomobject]@{CaseId="$phase-$kind-$length-$stage";Stage=$stage;Kind=$kind;NameLength=$length;
++                            Status='Decoded';Code='Decoded';ProtectedTails=2;RestoredTails=0;Sectors=2;UsedBytes=512;VisibleNames=1}
++                    }
++                }
++            }
++        }
++    )
++    [pscustomobject]@{Revision='kernel-matrix-v1';Objects=21;Requests=63;Decoded=63;DecodeFailures=0;Captured=0;CaptureFailures=0;CaptureLimited=0;Rows=$rows}
++}
++function Reject([scriptblock]$Mutation, [string]$Name) {
++    $value=Fixture; & $Mutation $value
++    $message=$null
++    try { ConvertTo-KernelMatrixEvidence $value | Out-Null } catch { $message=$_.Exception.Message }
++    Check ($message -ceq 'KERNEL_MATRIX_EVIDENCE_INVALID') $Name
++}
++$value=Fixture; $safe=ConvertTo-KernelMatrixEvidence $value
++Check ($safe.Rows.Count -eq 63 -and $safe.Decoded -eq 63) 'complete fixed matrix preserved'
++Check (($safe.Keys -join ',') -ceq 'Revision,Objects,Requests,Decoded,DecodeFailures,Captured,CaptureFailures,CaptureLimited,Rows') 'canonical root shape'
++Check (($safe.Rows[0].Keys -join ',') -ceq 'CaseId,Stage,Kind,NameLength,Status,Code,ProtectedTails,RestoredTails,Sectors,UsedBytes,VisibleNames') 'canonical row shape'
++$value.Rows[0].CaseId='private-marker';$value.Decoded=0
++Check ($safe.Rows[0].CaseId -ceq 'A-Ordinary-8-Initial' -and $safe.Decoded -eq 63) 'independent deep whitelist copy'
++Check ((ConvertTo-KernelMatrixEvidence (($safe|ConvertTo-Json -Depth 5)|ConvertFrom-Json)).Rows.Count -eq 63) 'JSON roundtrip'
++$failure=Fixture
++for($i=0;$i -lt 8;$i++){$failure.Rows[$i].Status='Invalid';$failure.Rows[$i].Code='FixupMismatch';$failure.Rows[$i].VisibleNames=-1}
++$failure.Decoded=55;$failure.DecodeFailures=8;$failure.Captured=6;$failure.CaptureFailures=1;$failure.CaptureLimited=1
++Check ((ConvertTo-KernelMatrixEvidence $failure).DecodeFailures -eq 8) 'decode failures remain valid collection evidence'
++$unsupported=Fixture;$unsupported.Rows[0].Status='Unsupported';$unsupported.Rows[0].Code='AttributeList';$unsupported.Rows[0].VisibleNames=-1
++$unsupported.Decoded=62;$unsupported.DecodeFailures=1;$unsupported.CaptureLimited=1
++$unsupported.Rows[0].Code='AttributeType'
++Check ((ConvertTo-KernelMatrixEvidence $unsupported).Rows[0].Status -ceq 'Unsupported') 'controlled unsupported outcome preserved'
++$free=Fixture;$free.Rows[0].Status='Free';$free.Rows[0].Code='FreeRecord';$free.Rows[0].VisibleNames=-1
++$free.Decoded=62;$free.DecodeFailures=1;$free.CaptureFailures=1
++Check ((ConvertTo-KernelMatrixEvidence $free).Rows[0].Status -ceq 'Free') 'free outcome is a decode failure partition'
++$bounds=Fixture;$bounds.Rows[0].Sectors=128;$bounds.Rows[0].UsedBytes=65536;$bounds.Rows[0].ProtectedTails=128;$bounds.Rows[0].RestoredTails=128;$bounds.Rows[0].VisibleNames=256
++Check ((ConvertTo-KernelMatrixEvidence $bounds).Rows[0].UsedBytes -eq 65536) 'maximum diagnostics retained'
++$bounds.Rows[0].UsedBytes=-1;$bounds.Rows[0].VisibleNames=0
++Check ((ConvertTo-KernelMatrixEvidence $bounds).Rows[0].VisibleNames -eq 0) 'unknown used bytes and decoded missing names retained'
++foreach($field in @('Path','Identity','Exception','Skipped')) { Reject {param($v) $v|Add-Member -NotePropertyName $field -NotePropertyValue 'private-marker'} ('root injection '+$field) }
++foreach($field in @('Path','Identity','Exception','Name','Reference')) { Reject {param($v) $v.Rows[0]|Add-Member -NotePropertyName $field -NotePropertyValue 'private-marker'} ('row injection '+$field) }
++foreach($field in @('Revision','Objects','Requests','Decoded','DecodeFailures','Captured','CaptureFailures','CaptureLimited','Rows')) {
++    Reject {param($v) $v.PSObject.Properties.Remove($field)} ('missing root '+$field)
++}
++foreach($field in @('CaseId','Stage','Kind','NameLength','Status','Code','ProtectedTails','RestoredTails','Sectors','UsedBytes','VisibleNames')) {
++    Reject {param($v) $v.Rows[0].PSObject.Properties.Remove($field)} ('missing row '+$field)
++}
++Reject {param($v) $v.PSObject.Properties.Remove('Objects');$v|Add-Member -NotePropertyName objects -NotePropertyValue 21} 'exact root casing'
++Reject {param($v) $v.Rows[0].PSObject.Properties.Remove('CaseId');$v.Rows[0]|Add-Member -NotePropertyName caseId -NotePropertyValue 'A-Ordinary-8-Initial'} 'exact row casing'
++Reject {param($v) $v.Revision='kernel-matrix-v2'} 'unknown revision'
++Reject {param($v) $v.Revision=$true} 'revision type'
++Reject {param($v) $v.Objects=20} 'object count fixed'
++Reject {param($v) $v.Requests=62} 'request count fixed'
++Reject {param($v) $v.Decoded=62} 'decoded partition relationship'
++Reject {param($v) $v.CaptureFailures=1} 'capture partition relationship'
++Reject {param($v) $v.Captured=7} 'capture upper bound'
++foreach($field in @('Objects','Requests','Decoded','DecodeFailures','Captured','CaptureFailures','CaptureLimited')) {
++    foreach($bad in @(-1,[long]::MaxValue,'1',$true,[double]1,[decimal]1)) {
++        Reject {param($v) $v.$field=$bad} ('numeric root boundary '+$field+' '+$bad.GetType().Name)
++    }
++}
++Reject {param($v) $v.Rows=$null} 'null rows'
++Reject {param($v) $v.Rows=$v.Rows[0]} 'scalar rows'
++Reject {param($v) $v.Rows=$v.Rows[0..61]} 'lost row'
++Reject {param($v) $v.Rows=@($v.Rows)+@($v.Rows[0])} 'extra row'
++Reject {param($v) $v.Rows[0]=$null} 'null row'
++Reject {param($v) $v.Rows[0]=@{CaseId='A-Ordinary-8-Initial'}} 'hashtable row'
++Reject {param($v) $v.Rows[1].CaseId=$v.Rows[0].CaseId} 'duplicate case id'
++Reject {param($v) $v.Rows[0].CaseId='A-Ordinary-8-initial'} 'case id exact casing'
++Reject {param($v) $v.Rows[0].CaseId='A-Ordinary-24-Reopened'} 'case identity metadata disagreement'
++Reject {param($v) $v.Rows[0].CaseId='B-Ordinary-24-Initial'} 'unknown fixed object'
++Reject {param($v) $v.Rows[0].CaseId='../private-marker'} 'injected case id'
++Reject {param($v) $v.Rows[0].Stage='Reopened'} 'stage must match case'
++Reject {param($v) $v.Rows[0].Kind='Sparse'} 'kind must match case'
++Reject {param($v) $v.Rows[0].NameLength=64} 'length must match case'
++Reject {param($v) $v.Rows[0].Status='decoded'} 'status exact casing'
++Reject {param($v) $v.Rows[0].Code='Signature'} 'code must match status'
++Reject {param($v) $v.Rows[0].Code='Decoded\nprivate-marker'} 'unknown code text'
++Reject {param($v) $v.Rows[0].ProtectedTails=3} 'protected tails bounded by sector count'
++Reject {param($v) $v.Rows[0].RestoredTails=3} 'restored tails bounded by sector count'
++Reject {param($v) $v.Rows[0].Sectors=1} 'sector minimum'
++Reject {param($v) $v.Rows[0].Sectors=129} 'sector maximum'
++Reject {param($v) $v.Rows[0].UsedBytes=-2} 'used bytes sentinel bound'
++Reject {param($v) $v.Rows[0].UsedBytes=1025} 'used bytes bounded by record bytes'
++Reject {param($v) $v.Rows[0].VisibleNames=-1} 'decoded visible names nonnegative'
++Reject {param($v) $v.Rows[0].VisibleNames=257} 'visible names maximum'
++foreach($field in @('NameLength','ProtectedTails','RestoredTails','Sectors','UsedBytes','VisibleNames')) {
++    foreach($bad in @('2',$true,[double]2,[decimal]2)) { Reject {param($v) $v.Rows[0].$field=$bad} ('numeric row type '+$field+' '+$bad.GetType().Name) }
++}
++Write-Output ('PASS NTFS kernel matrix evidence checks: '+$checks)
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 3def329..e72e6f1 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -17,6 +17,16 @@ if (args.Length > 0 && args[0] == "--ntfs-record-replay")
+ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+ if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
+ if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
++if (args.Contains("--ntfs-kernel-matrix-tests"))
++{
++    try
++    {
++        int checks = DiskAtlas.NtfsPrototype.NtfsKernelMatrixTests.Run();
++        Console.WriteLine($"PASS NTFS kernel matrix checks: {checks}; synthetic observations only");
++        return 0;
++    }
++    catch { Console.Error.WriteLine("FAIL NTFS kernel matrix checks; no private details emitted"); return 1; }
++}
+ if (args.Contains("--ntfs-record-evidence-tests"))
+ {
+     try
+diff --git a/tests/Prototypes/Ntfs/NtfsKernelMatrix.cs b/tests/Prototypes/Ntfs/NtfsKernelMatrix.cs
+new file mode 100644
+index 0000000..959a3d4
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsKernelMatrix.cs
+@@ -0,0 +1,213 @@
++using System.Buffers.Binary;
++using System.Runtime.InteropServices;
++using DiskAtlas;
++
++namespace DiskAtlas.NtfsPrototype;
++
++internal sealed record NtfsKernelRead(byte[] Output, int ReturnedBytes, FileStorageInfo Before,
++    FileStorageInfo After, int Sector, int Cluster, ushort Major, ushort Minor);
++internal sealed record NtfsKernelMatrixCase(string CaseId, string Stage, string Kind, int NameLength,
++    bool HardLink, bool NamedStream, long LogicalBytes);
++internal sealed record NtfsKernelMatrixRow(string CaseId, string Stage, string Kind, int NameLength,
++    string Status, string Code, int ProtectedTails, int RestoredTails, int Sectors, int UsedBytes, int VisibleNames);
++internal sealed record NtfsKernelMatrixReport(string Revision, int Objects, int Requests, int Decoded,
++    int DecodeFailures, int Captured, int CaptureFailures, int CaptureLimited, IReadOnlyList<NtfsKernelMatrixRow> Rows);
++
++// This finite generator is called only after the live entry point has bound a fresh
++// VHD to its nonce and geometry. It never enumerates a volume or accepts a device.
++internal static class NtfsKernelMatrix
++{
++    internal const string Revision = "kernel-matrix-v1";
++    internal const int MaximumObjects = 24, MaximumRequests = 96;
++    internal static IReadOnlyList<string> ReadStages { get; } = Array.AsReadOnly(new[] { "Initial", "Reopened", "Flushed" });
++    internal static IReadOnlyList<NtfsKernelMatrixCase> Cases { get; } = BuildCases();
++
++    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
++    private static extern bool CreateHardLinkW(string name, string existing, IntPtr reserved);
++
++    private static IReadOnlyList<NtfsKernelMatrixCase> BuildCases()
++    {
++        var result = new List<NtfsKernelMatrixCase>(21);
++        foreach (string phase in new[] { "A", "B", "C" })
++            foreach (string kind in new[] { "Ordinary", "Compressed", "Sparse" })
++                foreach (int length in phase == "A" ? new[] { 8, 24, 64 } : new[] { 8, 64 })
++                    result.Add(new(phase + "-" + kind + "-" + length, phase, kind, length,
++                        phase == "B", phase == "C", kind == "Sparse" ? 2 * 1024 * 1024 : 131072));
++        return result.AsReadOnly();
++    }
++
++    internal static string FileName(int length)
++    {
++        if (length is not (8 or 24 or 64)) throw new InvalidDataException("MatrixNameLength");
++        return "f" + new string('x', length - 5) + ".bin";
++    }
++
++    internal static string CleanupCapture(int captured, Action cleanup)
++    {
++        if (captured is < 0 or > 6) throw new InvalidDataException("MatrixCaptureCount");
++        if (captured > 0) return "Retained";
++        try { cleanup(); return "EmptyRemoved"; }
++        catch (IOException) { return "CleanupFailed"; }
++        catch (UnauthorizedAccessException) { return "CleanupFailed"; }
++    }
++
++    internal static NtfsKernelMatrixReport Run(string dataDirectory, Func<string, NtfsKernelRead> read,
++        NtfsRecordEvidence evidence, Action<bool, string> check)
++    {
++        string root = Path.GetFullPath(dataDirectory);
++        if (!Path.IsPathFullyQualified(dataDirectory) || Directory.Exists(root) || File.Exists(root))
++            throw new InvalidDataException("MatrixFreshDirectory");
++        string parent = Path.GetDirectoryName(root) ?? throw new InvalidDataException("MatrixDirectory");
++        NoReparse(parent);
++        Directory.CreateDirectory(root);
++        NoReparse(root);
++        var rows = new List<NtfsKernelMatrixRow>(63);
++        int decoded = 0, failures = 0, captured = 0, captureFailures = 0, limited = 0;
++        check(Cases.Count == 21 && Cases.Count <= MaximumObjects && Cases.Count * ReadStages.Count <= MaximumRequests,
++            "MatrixFixedBudget");
++        foreach (var item in Cases)
++        {
++            string directory = Path.Combine(root, item.CaseId);
++            if (Directory.Exists(directory) || File.Exists(directory)) throw new InvalidDataException("MatrixCaseFresh");
++            Directory.CreateDirectory(directory); NoReparse(directory);
++            string path = Path.Combine(directory, FileName(item.NameLength));
++            Prepare(item, path, check);
++            foreach (string stage in ReadStages)
++            {
++                if (rows.Count >= MaximumRequests) throw new InvalidDataException("MatrixRequestBudget");
++                if (stage == "Reopened")
++                {
++                    using var reopened = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
++                    check(reopened.Length == item.LogicalBytes, "MatrixReopenedLength");
++                }
++                if (stage == "Flushed")
++                {
++                    using (var stream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read)) stream.Flush(true);
++                    if (item.NamedStream)
++                    {
++                        using var stream = new FileStream(path + ":meta", FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
++                        stream.Flush(true);
++                    }
++                }
++                // Any I/O/identity/geometry failure is infrastructure failure and propagates.
++                NtfsKernelRead observation = read(path);
++                Require(observation.Before.LogicalBytes == item.LogicalBytes &&
++                    observation.Before.LinkCount == (item.HardLink ? 2u : 1u), "MatrixPreparedNativeShape", check);
++                var row = Observe(item, stage, observation);
++                rows.Add(row);
++                if (row.Status == "Decoded") { decoded++; continue; }
++                failures++;
++                if (captured >= 6) { limited++; continue; }
++                try
++                {
++                    string outcome = evidence.CaptureKernel(row.CaseId, observation.Output, observation.ReturnedBytes,
++                        observation.Before, observation.After, observation.Sector, observation.Cluster,
++                        observation.Major, observation.Minor, row.Code);
++                    if (outcome == "Saved") captured++;
++                    else if (outcome == "LimitReached") limited++;
++                    else captureFailures++;
++                }
++                catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException)
++                { captureFailures++; }
++            }
++        }
++        return new(Revision, Cases.Count, rows.Count, decoded, failures, captured, captureFailures, limited, rows.AsReadOnly());
++    }
++
++    internal static NtfsKernelMatrixRow Observe(NtfsKernelMatrixCase item, string stage, NtfsKernelRead observation)
++    {
++        if (!Cases.Contains(item) || !ReadStages.Contains(stage)) throw new InvalidDataException("MatrixCase");
++        byte[] output = observation.Output;
++        if (output == null || observation.ReturnedBytes < 12 || observation.ReturnedBytes > output.Length ||
++            observation.Sector != 512 || observation.Cluster != 4096 || observation.Major != 3 || observation.Minor != 1)
++            throw new InvalidDataException("MatrixReadBounds");
++        uint declared = BinaryPrimitives.ReadUInt32LittleEndian(output.AsSpan(8));
++        if (declared is < 1024 or > 65536 || declared % 512 != 0 || declared > observation.ReturnedBytes - 12)
++            throw new InvalidDataException("MatrixRecordBounds");
++        ulong reference = observation.Before.Identity.Low;
++        if (observation.Before.Identity != observation.After.Identity || observation.Before.Identity.High != 0 ||
++            reference >> 48 == 0 || observation.Before.WritableHandleOpen || observation.After.WritableHandleOpen ||
++            observation.Before.LogicalBytes < 0 || observation.After.LogicalBytes < 0 ||
++            observation.Before.AllocatedBytes < 0 || observation.After.AllocatedBytes < 0 ||
++            observation.Before.LinkCount == 0 || observation.After.LinkCount == 0 ||
++            observation.Before.Modified == null || observation.After.Modified == null ||
++            observation.Before.LogicalBytes != observation.After.LogicalBytes ||
++            observation.Before.AllocatedBytes != observation.After.AllocatedBytes ||
++            observation.Before.LinkCount != observation.After.LinkCount || observation.Before.Modified != observation.After.Modified ||
++            (BinaryPrimitives.ReadUInt64LittleEndian(output) & NtfsRecordDecoder.MaximumRecordNumber) !=
++            (reference & NtfsRecordDecoder.MaximumRecordNumber)) throw new InvalidDataException("MatrixReadIdentity");
++        ReadOnlySpan<byte> payload = output.AsSpan(12, (int)declared);
++        var result = NtfsRecordDecoder.DecodeKernelReturned(payload, observation.Sector,
++            reference & NtfsRecordDecoder.MaximumRecordNumber, observation.Cluster, observation.Major, observation.Minor);
++        if (result.Record != null && result.Record.Reference != reference) throw new InvalidDataException("MatrixDecodedIdentity");
++        int sectors = payload.Length / 512, protectedTails = 0, restoredTails = 0;
++        int usa = BinaryPrimitives.ReadUInt16LittleEndian(payload[4..]);
++        int count = BinaryPrimitives.ReadUInt16LittleEndian(payload[6..]);
++        if (usa >= 48 && (usa & 1) == 0 && count == sectors + 1 && usa + count * 2 <= 510)
++        {
++            ushort marker = BinaryPrimitives.ReadUInt16LittleEndian(payload[usa..]);
++            for (int i = 1; i < count; i++)
++            {
++                ushort tail = BinaryPrimitives.ReadUInt16LittleEndian(payload[(i * 512 - 2)..]);
++                if (tail == marker) protectedTails++;
++                if (tail == BinaryPrimitives.ReadUInt16LittleEndian(payload[(usa + i * 2)..])) restoredTails++;
++            }
++        }
++        uint used = BinaryPrimitives.ReadUInt32LittleEndian(payload[24..]);
++        return new(item.CaseId + "-" + stage, stage, item.Kind, item.NameLength, result.Status.ToString(), result.Code,
++            protectedTails, restoredTails, sectors, used <= payload.Length ? (int)used : -1,
++            result.Status == NtfsDecodeStatus.Decoded && result.Record != null ? result.Record.Names.Count(name => name.Namespace != 2) : -1);
++    }
++
++    private static void Prepare(NtfsKernelMatrixCase item, string path, Action<bool, string> check)
++    {
++        using (var file = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
++        {
++            if (item.Kind == "Compressed")
++                Require(NativeStorage.DeviceIoControl(file.SafeFileHandle, 0x9c040, [2, 0], 2, [], 0, out _, IntPtr.Zero), "MatrixCompressionCapability", check);
++            if (item.Kind == "Sparse")
++            {
++                Require(NativeStorage.DeviceIoControl(file.SafeFileHandle, 0x900c4, null, 0, [], 0, out _, IntPtr.Zero), "MatrixSparseCapability", check);
++                file.SetLength(item.LogicalBytes);
++            }
++            else
++            {
++                var content = new byte[131072];
++                if (item.Kind == "Ordinary") new Random(417).NextBytes(content);
++                file.Write(content);
++            }
++        }
++        if (item.HardLink)
++            Require(CreateHardLinkW(Path.Combine(Path.GetDirectoryName(path)!, "link.bin"), path, IntPtr.Zero), "MatrixHardLinkCapability", check);
++        if (item.NamedStream)
++        {
++            using var stream = new FileStream(path + ":meta", FileMode.CreateNew, FileAccess.Write, FileShare.None);
++            stream.Write("synthetic named stream"u8);
++        }
++        FileAttributes actual = File.GetAttributes(path) & (FileAttributes.Compressed | FileAttributes.SparseFile);
++        FileAttributes expected = item.Kind switch
++        {
++            "Compressed" => FileAttributes.Compressed,
++            "Sparse" => FileAttributes.SparseFile,
++            _ => 0
++        };
++        Require(actual == expected, "MatrixPreparedAttributes", check);
++    }
++
++    private static void Require(bool condition, string code, Action<bool, string> check)
++    {
++        check(condition, code);
++        if (!condition) throw new IOException(code);
++    }
++
++    private static void NoReparse(string directory)
++    {
++        string? current = directory;
++        while (current != null)
++        {
++            if (!Directory.Exists(current) || (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
++                throw new InvalidDataException("MatrixDirectoryBoundary");
++            current = Path.GetDirectoryName(current);
++        }
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsKernelMatrixTests.cs b/tests/Prototypes/Ntfs/NtfsKernelMatrixTests.cs
+new file mode 100644
+index 0000000..5339063
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsKernelMatrixTests.cs
+@@ -0,0 +1,123 @@
++using System.Buffers.Binary;
++using System.Text.Json;
++using System.Text.RegularExpressions;
++using DiskAtlas;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// Pure table/decoder observations only: no filesystem writes, handles or VHD access.
++internal static class NtfsKernelMatrixTests
++{
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("NTFS kernel matrix check failed: " + name);
++            passed++; Console.WriteLine("PASS NTFS kernel matrix " + name);
++        }
++        void Rejected(Action action, string name)
++        {
++            bool rejected = false;
++            try { action(); } catch (InvalidDataException) { rejected = true; }
++            Check(rejected, name);
++        }
++        var cases = NtfsKernelMatrix.Cases;
++        Check(NtfsKernelMatrix.Revision == "kernel-matrix-v1", "fixture revision is explicit");
++        Check(cases.Count == 21 && cases.Select(x => x.CaseId).Distinct(StringComparer.Ordinal).Count() == 21, "twenty-one unique cases are fixed");
++        Check(cases.Count <= NtfsKernelMatrix.MaximumObjects && cases.Count * NtfsKernelMatrix.ReadStages.Count <= NtfsKernelMatrix.MaximumRequests,
++            "fixed cases stay below object and request budgets");
++        Check(NtfsKernelMatrix.ReadStages.SequenceEqual(new[] { "Initial", "Reopened", "Flushed" }), "three observation histories have fixed names and order");
++        Check(cases.Count(x => x.Stage == "A") == 9 && cases.Count(x => x.Stage == "B") == 6 && cases.Count(x => x.Stage == "C") == 6,
++            "name, hard-link and named-stream factors have separate case groups");
++        foreach (string kind in new[] { "Ordinary", "Compressed", "Sparse" })
++        {
++            var typed = cases.Where(x => x.Kind == kind).ToArray();
++            Check(typed.Length == 7 && typed.Select(x => x.LogicalBytes).Distinct().Count() == 1, "same-kind cases keep default EOF fixed");
++            Check(typed.Where(x => x.Stage == "A").Select(x => x.NameLength).SequenceEqual(new[] { 8, 24, 64 }), "name experiment includes all three controlled lengths");
++            foreach (string phase in new[] { "B", "C" })
++                Check(typed.Where(x => x.Stage == phase).Select(x => x.NameLength).SequenceEqual(new[] { 8, 64 }), "additional-factor experiments use matching short and long controls");
++        }
++        foreach (var item in cases)
++        {
++            Check(Regex.IsMatch(item.CaseId, @"\A[ABC]-(Ordinary|Compressed|Sparse)-(8|24|64)\z"), "case identity is public controlled text");
++            Check(item.HardLink == (item.Stage == "B") && item.NamedStream == (item.Stage == "C") && !(item.HardLink && item.NamedStream),
++                "each case adds at most one independent factor");
++            string name = NtfsKernelMatrix.FileName(item.NameLength);
++            Check(name.Length == item.NameLength && name.All(char.IsAscii) && name.IndexOfAny(['/', '\\', ':']) < 0,
++                "generated basename has exact ASCII length without path syntax");
++        }
++        Rejected(() => NtfsKernelMatrix.FileName(255), "unplanned lengths are rejected");
++        bool cleaned = false;
++        Check(NtfsKernelMatrix.CleanupCapture(0, () => cleaned = true) == "EmptyRemoved" && cleaned,
++            "empty owned capture is removed with an explicit successful status");
++        foreach (int count in new[] { 1, 6 })
++        {
++            cleaned = false;
++            Check(NtfsKernelMatrix.CleanupCapture(count, () => cleaned = true) == "Retained" && !cleaned,
++                "retained samples are never passed to cleanup");
++        }
++        Check(NtfsKernelMatrix.CleanupCapture(0, () => throw new IOException("SyntheticIO")) == "CleanupFailed",
++            "cleanup IO failure remains a status without replacing collection evidence");
++        Check(NtfsKernelMatrix.CleanupCapture(0, () => throw new UnauthorizedAccessException("SyntheticAccess")) == "CleanupFailed",
++            "cleanup access failure remains a status without replacing collection evidence");
++        foreach (int count in new[] { -1, 7 })
++        {
++            cleaned = false;
++            Rejected(() => NtfsKernelMatrix.CleanupCapture(count, () => cleaned = true), "invalid capture count is rejected");
++            Check(!cleaned, "invalid capture count performs no cleanup");
++        }
++        var item0 = cases[0];
++        ulong reference = NtfsRecordFixtures.Reference(52, 3);
++        var storage = new FileStorageInfo(new(41, reference, 0), 4096, 1, false, 17, new DateTime(2020, 1, 1));
++        NtfsKernelRead Wrap(byte[] payload)
++        {
++            var output = new byte[payload.Length + 12];
++            BinaryPrimitives.WriteUInt64LittleEndian(output, reference);
++            BinaryPrimitives.WriteUInt32LittleEndian(output.AsSpan(8), (uint)payload.Length);
++            payload.CopyTo(output, 12);
++            return new(output, output.Length, storage, storage, 512, 4096, 3, 1);
++        }
++        byte[] raw = NtfsRecordFixtures.File();
++        var observed = Wrap(raw);
++        var row = NtfsKernelMatrix.Observe(item0, "Initial", observed);
++        Check(row.Status == "Decoded" && row.Code == "Decoded" && row.VisibleNames == 1, "valid record has controlled successful name count");
++        Check(row.ProtectedTails == 2 && row.RestoredTails == 0 && row.Sectors == 2 && row.UsedBytes is > 0 and <= 1024,
++            "protected-tail diagnostics are bounded direct observations");
++        Check(row.CaseId == "A-Ordinary-8-Initial" && row.Stage == "Initial", "row identity binds phase, kind, length and read history");
++        Check(raw.SequenceEqual(NtfsRecordFixtures.File()), "observation does not mutate source bytes");
++        var restored = (byte[])raw.Clone(); Array.Copy(restored, 50, restored, 510, 2); Array.Copy(restored, 52, restored, 1022, 2);
++        var restoredRow = NtfsKernelMatrix.Observe(item0, "Reopened", Wrap(restored));
++        Check(restoredRow.Status == "Decoded" && restoredRow.ProtectedTails == 0 && restoredRow.RestoredTails == 2, "fully restored control keeps strict successful semantics");
++        var mismatch = (byte[])raw.Clone(); NtfsRecordFixtures.U16(mismatch, 510, 0x1234);
++        var failed = NtfsKernelMatrix.Observe(item0, "Flushed", Wrap(mismatch));
++        Check(failed.Status == "Invalid" && failed.Code == "FixupMismatch" && failed.VisibleNames == -1,
++            "strict failure does not publish unvalidated names");
++        Check(failed.ProtectedTails == 1 && failed.RestoredTails == 0, "partial protection is observed without accepting mixed tails");
++        var usedOverflow = (byte[])raw.Clone(); NtfsRecordFixtures.U32(usedOverflow, 24, uint.MaxValue);
++        Check(NtfsKernelMatrix.Observe(item0, "Initial", Wrap(usedOverflow)).UsedBytes == -1, "untrusted oversized used length maps to an explicit unknown sentinel");
++        var badUsa = (byte[])raw.Clone(); NtfsRecordFixtures.U16(badUsa, 4, ushort.MaxValue);
++        var usaRow = NtfsKernelMatrix.Observe(item0, "Initial", Wrap(badUsa));
++        Check(usaRow.Status == "Invalid" && usaRow.ProtectedTails == 0 && usaRow.RestoredTails == 0, "bad USA bounds are never traversed for diagnostics");
++        Rejected(() => NtfsKernelMatrix.Observe(item0, "Other", observed), "unplanned observation stages are rejected");
++        Rejected(() => NtfsKernelMatrix.Observe(item0 with { CaseId = "Injected" }, "Initial", observed), "unplanned cases are rejected");
++        Rejected(() => NtfsKernelMatrix.Observe(item0, "Initial", observed with { ReturnedBytes = 11 }), "short IOCTL header is infrastructure failure");
++        Rejected(() => NtfsKernelMatrix.Observe(item0, "Initial", observed with { ReturnedBytes = observed.Output.Length + 1 }), "reported bytes cannot exceed the returned buffer");
++        Rejected(() => NtfsKernelMatrix.Observe(item0, "Initial", observed with { Sector = 4096 }), "unverified geometry is infrastructure failure");
++        Rejected(() => NtfsKernelMatrix.Observe(item0, "Initial", observed with { After = storage with { LogicalBytes = 18 } }), "changing native EOF is infrastructure failure");
++        Rejected(() => NtfsKernelMatrix.Observe(item0, "Initial", observed with { After = storage with { Identity = new(41, reference + 1, 0) } }), "changing native identity is infrastructure failure");
++        Rejected(() => NtfsKernelMatrix.Observe(item0, "Initial", observed with { After = storage with { WritableHandleOpen = true } }), "writer evidence cannot become a decoder observation");
++        foreach (var invalid in new[] { storage with { LogicalBytes = -1 }, storage with { AllocatedBytes = -1 },
++            storage with { LinkCount = 0 }, storage with { Modified = null } })
++            Rejected(() => NtfsKernelMatrix.Observe(item0, "Initial", observed with { Before = invalid, After = invalid }),
++                "stable but incomplete native context is infrastructure failure");
++        var wrongSequence = (byte[])raw.Clone(); NtfsRecordFixtures.U16(wrongSequence, 16, 4);
++        Rejected(() => NtfsKernelMatrix.Observe(item0, "Initial", Wrap(wrongSequence)), "decoded reused sequence is infrastructure failure");
++        using var json = JsonDocument.Parse(JsonSerializer.Serialize(new NtfsKernelMatrixReport(NtfsKernelMatrix.Revision, 1, 1, 0, 1, 1, 0, 0, [failed])));
++        Check(json.RootElement.EnumerateObject().Select(x => x.Name).SequenceEqual(new[] { "Revision", "Objects", "Requests", "Decoded", "DecodeFailures", "Captured", "CaptureFailures", "CaptureLimited", "Rows" }),
++            "report exposes exactly the controlled aggregate fields");
++        Check(json.RootElement.GetProperty("Rows")[0].EnumerateObject().Select(x => x.Name).SequenceEqual(new[] { "CaseId", "Stage", "Kind", "NameLength", "Status", "Code", "ProtectedTails", "RestoredTails", "Sectors", "UsedBytes", "VisibleNames" }),
++            "row schema contains no paths, raw names or identities");
++        return passed;
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsLivePrototype.cs b/tests/Prototypes/Ntfs/NtfsLivePrototype.cs
+index bd21c49..c7075aa 100644
+--- a/tests/Prototypes/Ntfs/NtfsLivePrototype.cs
++++ b/tests/Prototypes/Ntfs/NtfsLivePrototype.cs
+@@ -52,6 +52,8 @@ internal static class NtfsLivePrototype
+             var json = document.RootElement;
+             string Field(string name) => json.GetProperty(name).GetString() ?? throw new FixtureFailure("ManifestField");
+             string nonce = Field("nonce"), root = Field("drive_root"), volumeGuid = Field("volume_guid");
++            string mode = Field("mode");
++            Check(mode is "comparison" or "kernel-diagnostics", "KnownFixtureMode");
+             string image = Field("image_path");
+             Check(json.GetProperty("schema").GetInt32() == 1 && Guid.TryParseExact(nonce, "N", out _) &&
+                 suffix == "ntfs-live-" + nonce &&
+@@ -66,7 +68,7 @@ internal static class NtfsLivePrototype
+             Check(markerFile.Exists && markerFile.Length is > 0 and < 16384 &&
+                 (markerFile.Attributes & FileAttributes.ReparsePoint) == 0, "VolumeMarker");
+             using var markerJson = JsonDocument.Parse(File.ReadAllBytes(marker));
+-            foreach (string field in new[] { "nonce", "image_path", "volume_guid", "workspace" })
++            foreach (string field in new[] { "nonce", "image_path", "volume_guid", "workspace", "mode" })
+                 Check(markerJson.RootElement.GetProperty(field).GetString() == Field(field), "MarkerBinding");
+             var actualGuid = new StringBuilder(128);
+             Check(GetVolumeNameForVolumeMountPointW(root, actualGuid, actualGuid.Capacity) &&
+@@ -114,6 +116,38 @@ internal static class NtfsLivePrototype
+ 
+             string data = Path.Combine(volumeGuid, "AsukaLensFixture-" + nonce);
+             Check(!Directory.Exists(data), "FreshSyntheticDirectory");
++            if (mode == "kernel-diagnostics")
++            {
++                NtfsKernelRead ReadKernel(string path)
++                {
++                    Check(NativeStorage.TryRead(path, false, File.GetAttributes(path), out var before, out _) && before != null,
++                        "MatrixNativeBefore");
++                    Check(before!.Identity.High == 0 && before.Identity.Volume == serial && (before.Identity.Low >> 48) != 0 &&
++                        !before.WritableHandleOpen, "MatrixOwnedFileIdentity");
++                    ulong slot = before.Identity.Low & NtfsRecordDecoder.MaximumRecordNumber;
++                    var input = new byte[8]; BinaryPrimitives.WriteUInt64LittleEndian(input, slot);
++                    var output = new byte[recordSize + 32];
++                    Check(NativeStorage.DeviceIoControl(volume, GetRecord, input, input.Length, output, output.Length,
++                        out int count, IntPtr.Zero), "MatrixReadKernelRecord");
++                    Check(count >= recordSize + 12 && count <= output.Length &&
++                        (BinaryPrimitives.ReadUInt64LittleEndian(output) & NtfsRecordDecoder.MaximumRecordNumber) == slot &&
++                        BinaryPrimitives.ReadUInt32LittleEndian(output.AsSpan(8)) == recordSize &&
++                        BinaryPrimitives.ReadUInt16LittleEndian(output.AsSpan(28)) == (ushort)(before.Identity.Low >> 48),
++                        "MatrixReturnedRecordBinding");
++                    Check(NativeStorage.TryRead(path, false, File.GetAttributes(path), out var after, out _) && after != null &&
++                        after.Identity == before.Identity && after.LogicalBytes == before.LogicalBytes &&
++                        after.AllocatedBytes == before.AllocatedBytes && after.LinkCount == before.LinkCount &&
++                        after.Modified == before.Modified && !after.WritableHandleOpen, "MatrixNativeAfterStable");
++                    return new(output, count, before, after!, sector, cluster, 3, 1);
++                }
++                var evidence = NtfsRecordEvidence.Create(artifacts.TrimEnd(Path.DirectorySeparatorChar));
++                var matrix = NtfsKernelMatrix.Run(data, ReadKernel, evidence, Check);
++                string captureCleanup = NtfsKernelMatrix.CleanupCapture(matrix.Captured, evidence.DeleteOwned);
++                File.WriteAllText(summaryPath, JsonSerializer.Serialize(new { schema = 1, status = "collected", checks,
++                    failures = 0, code = "None", kernel_matrix = matrix, capture_cleanup_status = captureCleanup }));
++                Console.WriteLine($"COLLECTED NTFS matrix: requests={matrix.Requests}; decode_failures={matrix.DecodeFailures}; captured={matrix.Captured}");
++                return 0;
++            }
+             Directory.CreateDirectory(data);
+             var files = new List<(string Path, NtfsLookupReason? Expected)>();
+             int aliasCount = 2; // Existing resident and ordinary aliases below.
+diff --git a/tests/Prototypes/Ntfs/NtfsRecordEvidence.cs b/tests/Prototypes/Ntfs/NtfsRecordEvidence.cs
+index 7c9e0f7..9951f28 100644
+--- a/tests/Prototypes/Ntfs/NtfsRecordEvidence.cs
++++ b/tests/Prototypes/Ntfs/NtfsRecordEvidence.cs
+@@ -1,3 +1,4 @@
++using System.Buffers.Binary;
+ using System.Security.Cryptography;
+ using System.Text.Json;
+ using System.Text.RegularExpressions;
+@@ -7,7 +8,8 @@ namespace DiskAtlas.NtfsPrototype;
+ internal sealed record NtfsReplayReport(int Records, int Matching, int Mismatching);
+ 
+ // Local-only, bounded reproduction evidence. Payloads are FILE record bodies,
+-// never the IOCTL output header. This store is not connected to the live reader.
++// never the IOCTL output header. Schema 2 binds the checked header/native context
++// separately. Offline replay proves self-consistency, not past live stability.
+ internal sealed class NtfsRecordEvidence
+ {
+     private const int MaximumBytes = 512 * 1024, MaximumManifest = 64 * 1024;
+@@ -15,9 +17,12 @@ internal sealed class NtfsRecordEvidence
+     private readonly string nonce;
+     private readonly object gate = new();
+     internal string Root { get; }
++    private sealed record KernelBinding(ulong ReturnedReference, int ReturnedLength, int ReturnedBytes,
++        long LogicalBytes, long AllocatedBytes, uint LinkCount, long ModifiedFileTimeUtc, ulong IdentityHigh,
++        bool WritableHandleOpen);
+     private sealed record Entry(string CaseId, string Payload, int Length, string Sha256,
+         ulong Volume, ulong Reference, int SectorSize, int ClusterSize, ushort Major, ushort Minor,
+-        string ExpectedCode, string ExpectedStatus);
++        string ExpectedCode, string ExpectedStatus, string Source, KernelBinding? Kernel);
+     private sealed record Manifest(int Schema, string Nonce, IReadOnlyList<Entry> Records);
+ 
+     private NtfsRecordEvidence(string root, string value) { Root = root; nonce = value; }
+@@ -74,7 +79,7 @@ internal sealed class NtfsRecordEvidence
+             NoReparse(root);
+             string marker = Path.Combine(root, "marker.json"), manifest = Path.Combine(root, "manifest.json");
+             WriteNew(marker, JsonSerializer.SerializeToUtf8Bytes(new { Schema = 1, Nonce = nonce }), () => created.Add(marker));
+-            WriteNew(manifest, JsonSerializer.SerializeToUtf8Bytes(new Manifest(1, nonce, [])), () => created.Add(manifest));
++            WriteNew(manifest, JsonSerializer.SerializeToUtf8Bytes(new Manifest(2, nonce, [])), () => created.Add(manifest));
+             complete = true;
+             return new NtfsRecordEvidence(root, nonce);
+         }
+@@ -94,7 +99,34 @@ internal sealed class NtfsRecordEvidence
+     });
+ 
+     internal string Capture(string caseId, byte[] payload, ulong volume, ulong reference, int sectorSize,
+-        int clusterSize, ushort major, ushort minor, string expectedCode) => Guard(() =>
++        int clusterSize, ushort major, ushort minor, string expectedCode) =>
++        CaptureCore(caseId, payload, volume, reference, sectorSize, clusterSize, major, minor, expectedCode, null);
++
++    internal string CaptureKernel(string caseId, byte[] ioctlOutput, int returnedBytes, FileStorageInfo before,
++        FileStorageInfo after, int sectorSize, int clusterSize, ushort major, ushort minor, string expectedCode) => Guard(() =>
++    {
++        if (ioctlOutput == null || returnedBytes < 12 || returnedBytes > ioctlOutput.Length || returnedBytes > 65536 + 12 ||
++            before == null || after == null || before.Identity != after.Identity || before.Identity.High != 0 ||
++            before.LogicalBytes < 0 || before.AllocatedBytes < 0 || before.LinkCount == 0 ||
++            before.LogicalBytes != after.LogicalBytes || before.AllocatedBytes != after.AllocatedBytes ||
++            before.LinkCount != after.LinkCount || before.WritableHandleOpen || after.WritableHandleOpen ||
++            !before.Modified.HasValue || !after.Modified.HasValue ||
++            before.Modified.Value.ToFileTimeUtc() != after.Modified.Value.ToFileTimeUtc()) throw Invalid();
++        // Copy exactly the declared body after validating the entire returned boundary.
++        byte[] observed = ioctlOutput.AsSpan(0, returnedBytes).ToArray();
++        ulong returnedReference = BinaryPrimitives.ReadUInt64LittleEndian(observed);
++        uint length = BinaryPrimitives.ReadUInt32LittleEndian(observed.AsSpan(8));
++        if (length is < 1024 or > 65536 || length % 512 != 0 || returnedBytes < 12 + length ||
++            (returnedReference & NtfsRecordDecoder.MaximumRecordNumber) !=
++            (before.Identity.Low & NtfsRecordDecoder.MaximumRecordNumber)) throw Invalid();
++        var kernel = new KernelBinding(returnedReference, (int)length, returnedBytes, before.LogicalBytes,
++            before.AllocatedBytes, before.LinkCount, before.Modified.Value.ToFileTimeUtc(), before.Identity.High, false);
++        return CaptureCore(caseId, observed.AsSpan(12, (int)length).ToArray(), before.Identity.Volume,
++            before.Identity.Low, sectorSize, clusterSize, major, minor, expectedCode, kernel);
++    });
++
++    private string CaptureCore(string caseId, byte[] payload, ulong volume, ulong reference, int sectorSize,
++        int clusterSize, ushort major, ushort minor, string expectedCode, KernelBinding? kernel) => Guard(() =>
+     {
+         lock (gate)
+         {
+@@ -110,9 +142,10 @@ internal sealed class NtfsRecordEvidence
+                 reference & NtfsRecordDecoder.MaximumRecordNumber, clusterSize, major, minor);
+             string name = "record-" + (entries.Count + 1).ToString("D3", System.Globalization.CultureInfo.InvariantCulture) + ".bin";
+             var added = new Entry(caseId, name, owned.Length, Convert.ToHexString(SHA256.HashData(owned)), volume,
+-                reference, sectorSize, clusterSize, major, minor, expectedCode, decoded.Status.ToString());
++                reference, sectorSize, clusterSize, major, minor, expectedCode, decoded.Status.ToString(),
++                kernel == null ? "SyntheticPayload" : "KernelIoctl", kernel);
+             var next = entries.Append(added).ToArray();
+-            byte[] json = JsonSerializer.SerializeToUtf8Bytes(new Manifest(1, nonce, next));
++            byte[] json = JsonSerializer.SerializeToUtf8Bytes(new Manifest(2, nonce, next));
+             if (json.Length > MaximumManifest || owned.Length + json.Length + entries.Sum(item => item.Length) + 1024 > MaximumBytes)
+                 return "LimitReached";
+             string pending = Path.Combine(root, "manifest.pending"), body = Path.Combine(root, name);
+@@ -210,14 +243,16 @@ internal sealed class NtfsRecordEvidence
+         using var document = JsonDocument.Parse(ReadBounded(Path.Combine(root, "manifest.json"), MaximumManifest));
+         var manifest = document.RootElement;
+         Fields(manifest, "Schema", "Nonce", "Records");
+-        if (Integer(manifest, "Schema") != 1 || Text(manifest, "Nonce") != nonce) throw Invalid();
++        int schema = Integer(manifest, "Schema");
++        if (schema is not (1 or 2) || Text(manifest, "Nonce") != nonce) throw Invalid();
+         var records = manifest.GetProperty("Records");
+         if (records.ValueKind != JsonValueKind.Array || records.GetArrayLength() > 6) throw Invalid();
+         var entries = new List<Entry>(6);
+         var cases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+         foreach (var value in records.EnumerateArray())
+         {
+-            Fields(value, "CaseId", "Payload", "Length", "Sha256", "Volume", "Reference", "SectorSize", "ClusterSize", "Major", "Minor", "ExpectedCode", "ExpectedStatus");
++            string[] common = ["CaseId", "Payload", "Length", "Sha256", "Volume", "Reference", "SectorSize", "ClusterSize", "Major", "Minor", "ExpectedCode", "ExpectedStatus"];
++            Fields(value, schema == 1 ? common : [.. common, "Source", "Kernel"]);
+             string caseId = Text(value, "CaseId"), payload = Text(value, "Payload"), hash = Text(value, "Sha256"), code = Text(value, "ExpectedCode"), status = Text(value, "ExpectedStatus");
+             int length = Integer(value, "Length"), sector = Integer(value, "SectorSize"), cluster = Integer(value, "ClusterSize"), major = Integer(value, "Major"), minor = Integer(value, "Minor");
+             string expectedName = "record-" + (entries.Count + 1).ToString("D3", System.Globalization.CultureInfo.InvariantCulture) + ".bin";
+@@ -225,8 +260,39 @@ internal sealed class NtfsRecordEvidence
+                 !Regex.IsMatch(hash, @"\A[0-9A-F]{64}\z", RegexOptions.CultureInvariant) || length is < 1024 or > 65536 || length % 512 != 0 ||
+                 !Geometry(sector) || !Geometry(cluster) || major is < 0 or > ushort.MaxValue || minor is < 0 or > ushort.MaxValue ||
+                 status is not ("Decoded" or "Free" or "Invalid" or "Unsupported")) throw Invalid();
++            string source = schema == 1 ? "SyntheticPayload" : Text(value, "Source");
++            KernelBinding? kernel = null;
++            if (schema == 2)
++            {
++                var binding = value.GetProperty("Kernel");
++                if (source == "SyntheticPayload")
++                {
++                    if (binding.ValueKind != JsonValueKind.Null) throw Invalid();
++                }
++                else if (source == "KernelIoctl")
++                {
++                    Fields(binding, "ReturnedReference", "ReturnedLength", "ReturnedBytes", "LogicalBytes", "AllocatedBytes", "LinkCount", "ModifiedFileTimeUtc", "IdentityHigh", "WritableHandleOpen");
++                    ulong links = Unsigned(binding, "LinkCount");
++                    long Logical(string name)
++                    {
++                        if (!binding.GetProperty(name).TryGetInt64(out long number) || number < 0) throw Invalid();
++                        return number;
++                    }
++                    var writable = binding.GetProperty("WritableHandleOpen");
++                    long modified = Logical("ModifiedFileTimeUtc");
++                    if (links is < 1 or > uint.MaxValue || writable.ValueKind != JsonValueKind.False ||
++                        Unsigned(binding, "IdentityHigh") != 0) throw Invalid();
++                    _ = DateTime.FromFileTimeUtc(modified);
++                    kernel = new(Unsigned(binding, "ReturnedReference"), Integer(binding, "ReturnedLength"), Integer(binding, "ReturnedBytes"),
++                        Logical("LogicalBytes"), Logical("AllocatedBytes"), (uint)links, modified, 0, false);
++                    if (kernel.ReturnedLength != length || kernel.ReturnedBytes < 12 + length || kernel.ReturnedBytes > 65536 + 12 ||
++                        (kernel.ReturnedReference & NtfsRecordDecoder.MaximumRecordNumber) !=
++                        (Unsigned(value, "Reference") & NtfsRecordDecoder.MaximumRecordNumber)) throw Invalid();
++                }
++                else throw Invalid();
++            }
+             entries.Add(new(caseId, payload, length, hash, Unsigned(value, "Volume"), Unsigned(value, "Reference"), sector, cluster,
+-                (ushort)major, (ushort)minor, code, status));
++                (ushort)major, (ushort)minor, code, status, source, kernel));
+         }
+         var allowed = new HashSet<string>(entries.Select(item => item.Payload), StringComparer.Ordinal) { "marker.json", "manifest.json" };
+         var files = Directory.EnumerateFileSystemEntries(root).Take(9).ToArray();
+diff --git a/tests/Prototypes/Ntfs/NtfsRecordEvidenceTests.cs b/tests/Prototypes/Ntfs/NtfsRecordEvidenceTests.cs
+index bc3126c..82c86df 100644
+--- a/tests/Prototypes/Ntfs/NtfsRecordEvidenceTests.cs
++++ b/tests/Prototypes/Ntfs/NtfsRecordEvidenceTests.cs
+@@ -1,3 +1,4 @@
++using System.Buffers.Binary;
+ using System.Diagnostics;
+ using System.Security.Cryptography;
+ using System.Text.Json.Nodes;
+@@ -221,6 +222,99 @@ internal static class NtfsRecordEvidenceTests
+             Check(Directory.EnumerateFiles(root, "*.bin").Count() == 6, "limit refusal creates no extra binary sample");
+             evidence.DeleteOwned();
+             Check(!Directory.Exists(root) && Directory.Exists(artifacts), "owned cleanup removes its session and preserves the artifacts parent");
++
++            // Legacy schema remains strict: only its original fields are accepted.
++            var legacy = NtfsRecordEvidence.Create(artifacts);
++            Check(Capture(legacy, "Legacy", protectedRecord) == "Saved", "legacy compatibility fixture is captured");
++            string legacyPath = Path.Combine(legacy.Root, "manifest.json");
++            var legacyJson = JsonNode.Parse(File.ReadAllText(legacyPath))!.AsObject();
++            legacyJson["Schema"] = 1;
++            foreach (var item in legacyJson["Records"]!.AsArray())
++            {
++                item!.AsObject().Remove("Source"); item.AsObject().Remove("Kernel");
++            }
++            File.WriteAllText(legacyPath, legacyJson.ToJsonString());
++            Check(NtfsRecordEvidence.Replay(legacy.Root) is { Records: 1, Matching: 1, Mismatching: 0 }, "strict schema one remains replayable");
++            ChildReplay(legacy.Root, 0, "NTFS record replay: records=1; matching=1; mismatching=0");
++            legacyJson["Records"]![0]!["Kernel"] = null;
++            File.WriteAllText(legacyPath, legacyJson.ToJsonString());
++            Rejected(() => NtfsRecordEvidence.Replay(legacy.Root), "schema one does not accept schema two fields");
++            legacyJson["Records"]![0]!.AsObject().Remove("Kernel");
++            File.WriteAllText(legacyPath, legacyJson.ToJsonString());
++            legacy.DeleteOwned();
++
++            var kernelEvidence = NtfsRecordEvidence.Create(artifacts);
++            var stable = new FileStorageInfo(new(volume, reference, 0), 4096, 1, false, 1024,
++                DateTime.FromFileTimeUtc(10_000_000));
++            byte[] Output(byte[] body, ulong? returnedReference = null)
++            {
++                var output = new byte[12 + body.Length];
++                BinaryPrimitives.WriteUInt64LittleEndian(output, returnedReference ?? slot);
++                BinaryPrimitives.WriteUInt32LittleEndian(output.AsSpan(8), (uint)body.Length);
++                body.CopyTo(output, 12);
++                return output;
++            }
++            string Kernel(string id, byte[] output, int? returned = null, FileStorageInfo? before = null, FileStorageInfo? after = null,
++                string? code = null) => kernelEvidence.CaptureKernel(id, output, returned ?? output.Length,
++                    before ?? stable, after ?? stable, 512, 4096, 3, 1, code ?? "Decoded");
++            byte[] kernelOutput = Output(protectedRecord), kernelOriginal = (byte[])kernelOutput.Clone();
++            Check(Kernel("KernelProtected", kernelOutput) == "Saved", "kernel capture binds a stable external identity and header");
++            Check(kernelOutput.SequenceEqual(kernelOriginal), "kernel capture does not mutate header or body");
++            Check(File.ReadAllBytes(Path.Combine(kernelEvidence.Root, "record-001.bin")).SequenceEqual(protectedRecord),
++                "kernel payload contains exactly the original body without the outer header");
++            Check(Kernel("KernelStrictFailure", Output(mismatchedRecord), code: "FixupMismatch") == "Saved",
++                "kernel strict failure is retained without relaxing decoding");
++            Check(NtfsRecordEvidence.Replay(kernelEvidence.Root) is { Records: 2, Matching: 2, Mismatching: 0 },
++                "kernel-bound protected and failure bodies reproduce their exact expected results");
++            ChildReplay(kernelEvidence.Root, 0, "NTFS record replay: records=2; matching=2; mismatching=0");
++            Rejected(() => Kernel("WrongSlot", Output(protectedRecord, slot + 1)), "kernel capture rejects another returned slot");
++            Rejected(() => Kernel("NegativeCount", kernelOutput, -1), "kernel capture rejects a negative returned count");
++            Rejected(() => Kernel("ShortHeader", kernelOutput, 11), "kernel capture rejects a truncated outer header");
++            Rejected(() => Kernel("ShortBody", kernelOutput, kernelOutput.Length - 1), "kernel capture rejects a truncated declared body");
++            Rejected(() => Kernel("LargeCount", kernelOutput, kernelOutput.Length + 1), "kernel capture rejects a returned count beyond its buffer");
++            Rejected(() => Kernel("ChangedIdentity", kernelOutput, after: stable with { Identity = new(volume, reference + 1, 0) }), "kernel capture rejects identity changes");
++            Rejected(() => Kernel("WideIdentity", kernelOutput, before: stable with { Identity = new(volume, reference, 1) },
++                after: stable with { Identity = new(volume, reference, 1) }), "kernel capture rejects an unsupported high identity component");
++            Rejected(() => Kernel("ChangedLogical", kernelOutput, after: stable with { LogicalBytes = 1025 }), "kernel capture rejects changing logical size");
++            Rejected(() => Kernel("ChangedAllocation", kernelOutput, after: stable with { AllocatedBytes = 8192 }), "kernel capture rejects changing allocation");
++            Rejected(() => Kernel("ChangedLinks", kernelOutput, after: stable with { LinkCount = 2 }), "kernel capture rejects changing link counts");
++            Rejected(() => Kernel("NoLinks", kernelOutput, before: stable with { LinkCount = 0 }, after: stable with { LinkCount = 0 }), "kernel capture rejects zero link counts");
++            Rejected(() => Kernel("ChangedTime", kernelOutput, after: stable with { Modified = DateTime.FromFileTimeUtc(20_000_000) }), "kernel capture rejects changing native timestamps");
++            Rejected(() => Kernel("MissingTime", kernelOutput, before: stable with { Modified = null }), "kernel capture requires a native timestamp");
++            Rejected(() => Kernel("Writer", kernelOutput, after: stable with { WritableHandleOpen = true }), "kernel capture rejects a writable observation");
++            foreach (uint length in new uint[] { 0, 1023, 1025, 65537 })
++            {
++                byte[] invalid = (byte[])kernelOutput.Clone();
++                BinaryPrimitives.WriteUInt32LittleEndian(invalid.AsSpan(8), length);
++                Rejected(() => Kernel("InvalidHeaderLength", invalid), "kernel capture rejects invalid declared record lengths");
++            }
++            string kernelManifest = Path.Combine(kernelEvidence.Root, "manifest.json");
++            byte[] kernelManifestBytes = File.ReadAllBytes(kernelManifest);
++            var kernelDocument = JsonNode.Parse(kernelManifestBytes)!.AsObject();
++            Check(kernelDocument["Schema"]!.GetValue<int>() == 2 &&
++                kernelDocument["Records"]![0]!["Source"]!.GetValue<string>() == "KernelIoctl", "kernel metadata uses explicit schema two provenance");
++            void RejectKernelManifest(Action<JsonObject> change, string name)
++            {
++                try
++                {
++                    var changed = JsonNode.Parse(kernelManifestBytes)!.AsObject();
++                    change(changed);
++                    File.WriteAllText(kernelManifest, changed.ToJsonString());
++                    Rejected(() => NtfsRecordEvidence.Replay(kernelEvidence.Root), name);
++                }
++                finally { File.WriteAllBytes(kernelManifest, kernelManifestBytes); }
++            }
++            RejectKernelManifest(x => x["Records"]![0]!["Source"] = "Other", "replay rejects unknown capture provenance");
++            RejectKernelManifest(x => x["Records"]![0]!["Kernel"] = null, "kernel provenance requires its bound metadata");
++            RejectKernelManifest(x => x["Records"]![0]!["Kernel"]!["Injected"] = 1, "kernel binding is a strict field whitelist");
++            RejectKernelManifest(x => x["Records"]![0]!["Kernel"]!["ReturnedReference"] = slot + 1, "replay rejects a header slot unrelated to the external identity");
++            RejectKernelManifest(x => x["Records"]![0]!["Kernel"]!["ReturnedLength"] = 2048, "replay rejects a header length unrelated to saved bytes");
++            RejectKernelManifest(x => x["Records"]![0]!["Kernel"]!["ReturnedBytes"] = 11, "replay rejects truncated returned boundaries");
++            RejectKernelManifest(x => x["Records"]![0]!["Kernel"]!["LinkCount"] = 0, "replay rejects an invalid stable native link count");
++            RejectKernelManifest(x => x["Records"]![0]!["Kernel"]!["WritableHandleOpen"] = true, "replay rejects a writable saved context");
++            Check(Directory.EnumerateFiles(kernelEvidence.Root, "*.bin").Count() == 2, "rejected kernel captures create no additional samples");
++            kernelEvidence.DeleteOwned();
++            Check(!Directory.Exists(kernelEvidence.Root), "kernel-bound sessions retain the same owned cleanup boundary");
+             return passed;
+         }
+         finally
+diff --git a/tests/Prototypes/Ntfs/README.md b/tests/Prototypes/Ntfs/README.md
+index b867112..76133b9 100644
+--- a/tests/Prototypes/Ntfs/README.md
++++ b/tests/Prototypes/Ntfs/README.md
+@@ -68,7 +68,9 @@ pwsh -NoProfile -File tests/NtfsSpecialCostEvidence.Tests.ps1
+ 
+ ## 合成夹具与依据
+ 
+-`NtfsRecordEvidence` 提供本机有界正文留样与严格无卷重放；最多六条、每条 64 KiB，清单 64 KiB、会话总计 512 KiB。拒绝字段注入、重复/大小写变体字段、路径越界、哈希变化、重解析及未知文件；清理只针对当前实例明确拥有的平坦会话。重放匹配原错误码也计 Matching，不能将其当作解码通过。基础不接 Live，不保存 IOCTL 外层头，固定矩阵/真实留样、崩溃孤儿恢复及并发对抗尚未验收，见[基础记录](../../../iterations/2026-11-12-11-record-evidence/README.md)。
++`NtfsRecordEvidence` 提供本机有界正文留样与严格无卷重放；最多六条、每条64KiB，清单64KiB、会话总计512KiB。拒绝字段注入、重复/大小写变体字段、路径越界、哈希变化、重解析及未知文件。schema2新增CaptureKernel，绑定IOCTL外层引用/长度/返回量与经过核对的Native上下文；正文原样保存，严格兼容schema1，离线不证明历史稳定性。清理仅针对实例自有平坦会话；重放匹配原错误码不代表解码通过。
++
++`NtfsKernelMatrix` 已接入受控Live诊断模式，固定A9/B6/C6共21对象，三时点63请求；基础设施错误中止，严格解码失败继续计数并限量留样。schema/摘要和实际VHD结果见[矩阵记录](../../../iterations/2026-11-12-13-kernel-matrix/README.md)。生产未接入；崩溃孤儿恢复、并发对抗和活跃卷一致性仍未实现。
+ 
+ `NtfsRecordFixtures` 在内存创建记录；测试覆盖 fixup、属性边界、UTF-16、空/驻留/非驻留文件、硬链接与 DOS 名称、簇几何、特殊类型的补查标记、取消和索引冲突，另有 512 次固定种子的有限变异检查。合成数据不是磁盘镜像；测试不是完整 NTFS 格式一致性认证。
+ 

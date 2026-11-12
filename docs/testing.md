@@ -15,7 +15,9 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll
 
 ## NTFS 特殊流原型
 
-留样基础使用 `--ntfs-record-evidence-tests`，仅处理自建临时合成记录；`--ntfs-record-replay <session-directory>` 严格校验自有会话结构、大小和哈希后重放，不打开原始卷。CLI 只输出记录/匹配/失配计数；结果码匹配意味着重现原结果，原结果可能本来就是严格失败，不能视为解码成功。没有真实失败矩阵或 Live 捕获验收，基础边界见[本轮记录](../iterations/2026-11-12-11-record-evidence/README.md)。
+留样检查使用 `--ntfs-record-evidence-tests`；固定矩阵合成检查使用 `--ntfs-kernel-matrix-tests`，JSON与摘要白名单使用 `pwsh -NoProfile -File tests/NtfsKernelMatrixEvidence.Tests.ps1`。`--ntfs-record-replay <session-directory>` 严格校验自有会话结构、大小和哈希后重放，不打开原始卷；CLI只输出计数。匹配原失败码意味着重现失败，不能视为解码成功。schema2绑定IOCTL外层返回引用/长度和当时已核对的Native上下文，严格兼容schema1；离线只能核对保存内容自洽，不能重证过去的活跃卷稳定性。
+
+真实矩阵使用已授权隔离脚本的 `-KernelDiagnostics`，固定21对象×Initial/Reopened/Flushed三个时点。`status=collected` 只表示正常完成收集，`all_decoded=false`仍表示存在严格失败。摘要与重复JSON字段检查在转换前执行；运行/停止/卸载/清理失败不保留成功矩阵。首次矩阵和最终矩阵、实际失败重放见[本轮记录](../iterations/2026-11-12-13-kernel-matrix/README.md)。不测试个人磁盘，原始记录不进入仓库。
 
 原型只编入测试程序，不进入软件扫描后端。`--ntfs-special-lease-tests` 使用自有临时 NTFS 文件和合成观察，检查压缩/稀疏默认流、身份/属性/格式、已有写者/删除者拒绝及释放；`--ntfs-special-lookup-tests` 检查批次边界、未知与合法零、来源和取消。摘要白名单运行 `pwsh -NoProfile -File tests/NtfsSpecialEvidence.Tests.ps1` 与 `pwsh -NoProfile -File tests/NtfsSpecialCostEvidence.Tests.ps1`，均无磁盘操作。
 

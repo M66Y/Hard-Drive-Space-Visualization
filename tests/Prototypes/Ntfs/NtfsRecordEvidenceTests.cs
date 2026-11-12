@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
@@ -221,6 +222,99 @@ internal static class NtfsRecordEvidenceTests
             Check(Directory.EnumerateFiles(root, "*.bin").Count() == 6, "limit refusal creates no extra binary sample");
             evidence.DeleteOwned();
             Check(!Directory.Exists(root) && Directory.Exists(artifacts), "owned cleanup removes its session and preserves the artifacts parent");
+
+            // Legacy schema remains strict: only its original fields are accepted.
+            var legacy = NtfsRecordEvidence.Create(artifacts);
+            Check(Capture(legacy, "Legacy", protectedRecord) == "Saved", "legacy compatibility fixture is captured");
+            string legacyPath = Path.Combine(legacy.Root, "manifest.json");
+            var legacyJson = JsonNode.Parse(File.ReadAllText(legacyPath))!.AsObject();
+            legacyJson["Schema"] = 1;
+            foreach (var item in legacyJson["Records"]!.AsArray())
+            {
+                item!.AsObject().Remove("Source"); item.AsObject().Remove("Kernel");
+            }
+            File.WriteAllText(legacyPath, legacyJson.ToJsonString());
+            Check(NtfsRecordEvidence.Replay(legacy.Root) is { Records: 1, Matching: 1, Mismatching: 0 }, "strict schema one remains replayable");
+            ChildReplay(legacy.Root, 0, "NTFS record replay: records=1; matching=1; mismatching=0");
+            legacyJson["Records"]![0]!["Kernel"] = null;
+            File.WriteAllText(legacyPath, legacyJson.ToJsonString());
+            Rejected(() => NtfsRecordEvidence.Replay(legacy.Root), "schema one does not accept schema two fields");
+            legacyJson["Records"]![0]!.AsObject().Remove("Kernel");
+            File.WriteAllText(legacyPath, legacyJson.ToJsonString());
+            legacy.DeleteOwned();
+
+            var kernelEvidence = NtfsRecordEvidence.Create(artifacts);
+            var stable = new FileStorageInfo(new(volume, reference, 0), 4096, 1, false, 1024,
+                DateTime.FromFileTimeUtc(10_000_000));
+            byte[] Output(byte[] body, ulong? returnedReference = null)
+            {
+                var output = new byte[12 + body.Length];
+                BinaryPrimitives.WriteUInt64LittleEndian(output, returnedReference ?? slot);
+                BinaryPrimitives.WriteUInt32LittleEndian(output.AsSpan(8), (uint)body.Length);
+                body.CopyTo(output, 12);
+                return output;
+            }
+            string Kernel(string id, byte[] output, int? returned = null, FileStorageInfo? before = null, FileStorageInfo? after = null,
+                string? code = null) => kernelEvidence.CaptureKernel(id, output, returned ?? output.Length,
+                    before ?? stable, after ?? stable, 512, 4096, 3, 1, code ?? "Decoded");
+            byte[] kernelOutput = Output(protectedRecord), kernelOriginal = (byte[])kernelOutput.Clone();
+            Check(Kernel("KernelProtected", kernelOutput) == "Saved", "kernel capture binds a stable external identity and header");
+            Check(kernelOutput.SequenceEqual(kernelOriginal), "kernel capture does not mutate header or body");
+            Check(File.ReadAllBytes(Path.Combine(kernelEvidence.Root, "record-001.bin")).SequenceEqual(protectedRecord),
+                "kernel payload contains exactly the original body without the outer header");
+            Check(Kernel("KernelStrictFailure", Output(mismatchedRecord), code: "FixupMismatch") == "Saved",
+                "kernel strict failure is retained without relaxing decoding");
+            Check(NtfsRecordEvidence.Replay(kernelEvidence.Root) is { Records: 2, Matching: 2, Mismatching: 0 },
+                "kernel-bound protected and failure bodies reproduce their exact expected results");
+            ChildReplay(kernelEvidence.Root, 0, "NTFS record replay: records=2; matching=2; mismatching=0");
+            Rejected(() => Kernel("WrongSlot", Output(protectedRecord, slot + 1)), "kernel capture rejects another returned slot");
+            Rejected(() => Kernel("NegativeCount", kernelOutput, -1), "kernel capture rejects a negative returned count");
+            Rejected(() => Kernel("ShortHeader", kernelOutput, 11), "kernel capture rejects a truncated outer header");
+            Rejected(() => Kernel("ShortBody", kernelOutput, kernelOutput.Length - 1), "kernel capture rejects a truncated declared body");
+            Rejected(() => Kernel("LargeCount", kernelOutput, kernelOutput.Length + 1), "kernel capture rejects a returned count beyond its buffer");
+            Rejected(() => Kernel("ChangedIdentity", kernelOutput, after: stable with { Identity = new(volume, reference + 1, 0) }), "kernel capture rejects identity changes");
+            Rejected(() => Kernel("WideIdentity", kernelOutput, before: stable with { Identity = new(volume, reference, 1) },
+                after: stable with { Identity = new(volume, reference, 1) }), "kernel capture rejects an unsupported high identity component");
+            Rejected(() => Kernel("ChangedLogical", kernelOutput, after: stable with { LogicalBytes = 1025 }), "kernel capture rejects changing logical size");
+            Rejected(() => Kernel("ChangedAllocation", kernelOutput, after: stable with { AllocatedBytes = 8192 }), "kernel capture rejects changing allocation");
+            Rejected(() => Kernel("ChangedLinks", kernelOutput, after: stable with { LinkCount = 2 }), "kernel capture rejects changing link counts");
+            Rejected(() => Kernel("NoLinks", kernelOutput, before: stable with { LinkCount = 0 }, after: stable with { LinkCount = 0 }), "kernel capture rejects zero link counts");
+            Rejected(() => Kernel("ChangedTime", kernelOutput, after: stable with { Modified = DateTime.FromFileTimeUtc(20_000_000) }), "kernel capture rejects changing native timestamps");
+            Rejected(() => Kernel("MissingTime", kernelOutput, before: stable with { Modified = null }), "kernel capture requires a native timestamp");
+            Rejected(() => Kernel("Writer", kernelOutput, after: stable with { WritableHandleOpen = true }), "kernel capture rejects a writable observation");
+            foreach (uint length in new uint[] { 0, 1023, 1025, 65537 })
+            {
+                byte[] invalid = (byte[])kernelOutput.Clone();
+                BinaryPrimitives.WriteUInt32LittleEndian(invalid.AsSpan(8), length);
+                Rejected(() => Kernel("InvalidHeaderLength", invalid), "kernel capture rejects invalid declared record lengths");
+            }
+            string kernelManifest = Path.Combine(kernelEvidence.Root, "manifest.json");
+            byte[] kernelManifestBytes = File.ReadAllBytes(kernelManifest);
+            var kernelDocument = JsonNode.Parse(kernelManifestBytes)!.AsObject();
+            Check(kernelDocument["Schema"]!.GetValue<int>() == 2 &&
+                kernelDocument["Records"]![0]!["Source"]!.GetValue<string>() == "KernelIoctl", "kernel metadata uses explicit schema two provenance");
+            void RejectKernelManifest(Action<JsonObject> change, string name)
+            {
+                try
+                {
+                    var changed = JsonNode.Parse(kernelManifestBytes)!.AsObject();
+                    change(changed);
+                    File.WriteAllText(kernelManifest, changed.ToJsonString());
+                    Rejected(() => NtfsRecordEvidence.Replay(kernelEvidence.Root), name);
+                }
+                finally { File.WriteAllBytes(kernelManifest, kernelManifestBytes); }
+            }
+            RejectKernelManifest(x => x["Records"]![0]!["Source"] = "Other", "replay rejects unknown capture provenance");
+            RejectKernelManifest(x => x["Records"]![0]!["Kernel"] = null, "kernel provenance requires its bound metadata");
+            RejectKernelManifest(x => x["Records"]![0]!["Kernel"]!["Injected"] = 1, "kernel binding is a strict field whitelist");
+            RejectKernelManifest(x => x["Records"]![0]!["Kernel"]!["ReturnedReference"] = slot + 1, "replay rejects a header slot unrelated to the external identity");
+            RejectKernelManifest(x => x["Records"]![0]!["Kernel"]!["ReturnedLength"] = 2048, "replay rejects a header length unrelated to saved bytes");
+            RejectKernelManifest(x => x["Records"]![0]!["Kernel"]!["ReturnedBytes"] = 11, "replay rejects truncated returned boundaries");
+            RejectKernelManifest(x => x["Records"]![0]!["Kernel"]!["LinkCount"] = 0, "replay rejects an invalid stable native link count");
+            RejectKernelManifest(x => x["Records"]![0]!["Kernel"]!["WritableHandleOpen"] = true, "replay rejects a writable saved context");
+            Check(Directory.EnumerateFiles(kernelEvidence.Root, "*.bin").Count() == 2, "rejected kernel captures create no additional samples");
+            kernelEvidence.DeleteOwned();
+            Check(!Directory.Exists(kernelEvidence.Root), "kernel-bound sessions retain the same owned cleanup boundary");
             return passed;
         }
         finally

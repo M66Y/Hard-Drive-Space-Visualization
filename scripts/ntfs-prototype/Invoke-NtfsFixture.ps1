@@ -1,6 +1,6 @@
 #requires -Version 7.4
 [CmdletBinding()]
-param([Parameter(Mandatory)][string]$ResultPath)
+param([Parameter(Mandatory)][string]$ResultPath, [switch]$KernelDiagnostics)
 
 # Destructive commands below are bound only to a newly created disposable image.
 # No disk number, drive letter, existing image, or general command can be supplied.
@@ -22,9 +22,12 @@ $lookupEvidence = $null
 $leaseEvidence = $null
 $specialEvidence = $null
 $specialCostEvidence = $null
+$matrixEvidence = $null
+$captureCleanup = $null
 . (Join-Path $PSScriptRoot 'LeaseEvidence.ps1')
 . (Join-Path $PSScriptRoot 'SpecialEvidence.ps1')
 . (Join-Path $PSScriptRoot 'SpecialCostEvidence.ps1')
+. (Join-Path $PSScriptRoot 'KernelMatrixEvidence.ps1')
 $diskNumber = $null; $diskPath = $null; $imageDevicePath = $null
 
 function Assert-NoReparsePath([string]$Path) {
@@ -244,7 +247,8 @@ public static class AsukaLensFixtureImage {
     $confirmedVolume = @($confirmedPartition | Get-Volume -ErrorAction Stop)
     if ([string]$confirmedPartition.DriveLetter -cne $driveLetter -or $confirmedVolume.Count -ne 1 -or
         [string]$confirmedVolume[0].UniqueId -cne $volumeId) { throw 'VOLUME_CHANGED_BEFORE_MARKER' }
-    $fixture = [ordered]@{schema=1;image_path=$imagePath;volume_guid=[string]$volume.UniqueId;drive_root=$driveRoot;workspace=$workspace;nonce=$fixtureNonce}
+    $mode = if ($KernelDiagnostics) { 'kernel-diagnostics' } else { 'comparison' }
+    $fixture = [ordered]@{schema=1;image_path=$imagePath;volume_guid=[string]$volume.UniqueId;drive_root=$driveRoot;workspace=$workspace;nonce=$fixtureNonce;mode=$mode}
     $manifestPath = Join-Path $workspace 'fixture.json'
     Write-SafeJson $fixture $manifestPath
     Write-SafeJson $fixture (Join-Path $driveRoot '.asukalens-ntfs-fixture.json')
@@ -262,15 +266,27 @@ public static class AsukaLensFixtureImage {
     $runnerExit = $runner.ExitCode
     $summaryPath = Join-Path $workspace 'live-summary.json'
     [void](Assert-NoReparsePath $summaryPath)
-    if (-not (Test-Path -LiteralPath $summaryPath -PathType Leaf) -or (Get-Item -LiteralPath $summaryPath).Length -gt 16384) { throw 'SUMMARY_MISSING' }
-    $summary = Get-Content -LiteralPath $summaryPath -Raw -Encoding utf8 | ConvertFrom-Json
-    if ($summary.schema -ne 1 -or $summary.status -cnotin @('passed','failed') -or
+    $summaryLimit = if ($KernelDiagnostics) { 65536 } else { 16384 }
+    if (-not (Test-Path -LiteralPath $summaryPath -PathType Leaf) -or (Get-Item -LiteralPath $summaryPath).Length -gt $summaryLimit) { throw 'SUMMARY_MISSING' }
+    $summaryText = Get-Content -LiteralPath $summaryPath -Raw -Encoding utf8
+    Assert-UniqueJsonKeys $summaryText
+    $summary = $summaryText | ConvertFrom-Json
+    if ($summary.schema -ne 1 -or $summary.status -cnotin @('passed','failed','collected') -or
         ($summary.checks -isnot [long] -and $summary.checks -isnot [int]) -or
         ($summary.failures -isnot [long] -and $summary.failures -isnot [int]) -or
         $summary.checks -lt 1 -or $summary.checks -gt 10000 -or $summary.failures -lt 0 -or $summary.failures -gt $summary.checks) { throw 'SUMMARY_INVALID' }
     $checks = [int]$summary.checks; $failureCount = [int]$summary.failures
     if ($summary.PSObject.Properties['code'] -and [string]$summary.code -cmatch '^[A-Za-z][A-Za-z0-9-]{0,79}$') { $failureCode=[string]$summary.code }
-    if ($runnerExit -ne 0 -or $summary.status -cne 'passed' -or $failureCount -ne 0) { throw 'COMPARISON_FAILED' }
+    $expectedStatus = if ($KernelDiagnostics) { 'collected' } else { 'passed' }
+    if ($runnerExit -ne 0 -or $summary.status -cne $expectedStatus -or $failureCount -ne 0) { throw 'COMPARISON_FAILED' }
+    if ($KernelDiagnostics) {
+        if (-not $summary.PSObject.Properties['kernel_matrix']) { throw 'MATRIX_EVIDENCE_MISSING' }
+        $matrixEvidence = ConvertTo-KernelMatrixEvidence $summary.kernel_matrix
+        if (-not $summary.PSObject.Properties['capture_cleanup_status'] -or
+            $summary.capture_cleanup_status -cnotin @('Retained','EmptyRemoved','CleanupFailed')) { throw 'CAPTURE_CLEANUP_INVALID' }
+        $captureCleanup = [string]$summary.capture_cleanup_status
+        $status = 'collected'; $stage = 'CollectionCompleted'
+    } else {
     if (-not $summary.PSObject.Properties['lookup_experiment']) { throw 'LOOKUP_EVIDENCE_MISSING' }
     $lookupEvidence = ConvertTo-LookupEvidence $summary.lookup_experiment
     if (-not $summary.PSObject.Properties['lease_experiment']) { throw 'LEASE_EVIDENCE_MISSING' }
@@ -280,6 +296,7 @@ public static class AsukaLensFixtureImage {
     if (-not $summary.PSObject.Properties['special_cost']) { throw 'SPECIAL_COST_EVIDENCE_MISSING' }
     $specialCostEvidence = ConvertTo-SpecialCostEvidence $summary.special_cost
     $status = 'passed'; $stage = 'ComparisonPassed'
+    }
 } catch {
     # Native messages and logs can include local paths. Never copy them to the result.
     $status = 'failed'
@@ -312,6 +329,10 @@ public static class AsukaLensFixtureImage {
     $result.lease_experiment = if ($status -ceq 'passed') { $leaseEvidence } else { $null }
     $result.special_lookup = if ($status -ceq 'passed') { $specialEvidence } else { $null }
     $result.special_cost = if ($status -ceq 'passed') { $specialCostEvidence } else { $null }
+    $result.mode = if ($KernelDiagnostics) { 'kernel-diagnostics' } else { 'comparison' }
+    $result.kernel_matrix = if ($status -ceq 'collected') { $matrixEvidence } else { $null }
+    $result.all_decoded = if ($status -ceq 'collected') { $matrixEvidence.DecodeFailures -eq 0 } else { $null }
+    $result.capture_cleanup_status = if ($status -ceq 'collected') { $captureCleanup } else { $null }
     $resultTemp = $ResultPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
     try {
         [void](Assert-NoReparsePath $ResultPath)
@@ -320,4 +341,4 @@ public static class AsukaLensFixtureImage {
     } finally { if (Test-Path -LiteralPath $resultTemp) { Remove-Item -LiteralPath $resultTemp -Force } }
 }
 Write-Output ('RESULT: ' + $status)
-if ($status -cne 'passed') { exit 1 }
+if ($status -cnotin @('passed','collected')) { exit 1 }

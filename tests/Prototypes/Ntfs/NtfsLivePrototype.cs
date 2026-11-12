@@ -52,6 +52,8 @@ internal static class NtfsLivePrototype
             var json = document.RootElement;
             string Field(string name) => json.GetProperty(name).GetString() ?? throw new FixtureFailure("ManifestField");
             string nonce = Field("nonce"), root = Field("drive_root"), volumeGuid = Field("volume_guid");
+            string mode = Field("mode");
+            Check(mode is "comparison" or "kernel-diagnostics", "KnownFixtureMode");
             string image = Field("image_path");
             Check(json.GetProperty("schema").GetInt32() == 1 && Guid.TryParseExact(nonce, "N", out _) &&
                 suffix == "ntfs-live-" + nonce &&
@@ -66,7 +68,7 @@ internal static class NtfsLivePrototype
             Check(markerFile.Exists && markerFile.Length is > 0 and < 16384 &&
                 (markerFile.Attributes & FileAttributes.ReparsePoint) == 0, "VolumeMarker");
             using var markerJson = JsonDocument.Parse(File.ReadAllBytes(marker));
-            foreach (string field in new[] { "nonce", "image_path", "volume_guid", "workspace" })
+            foreach (string field in new[] { "nonce", "image_path", "volume_guid", "workspace", "mode" })
                 Check(markerJson.RootElement.GetProperty(field).GetString() == Field(field), "MarkerBinding");
             var actualGuid = new StringBuilder(128);
             Check(GetVolumeNameForVolumeMountPointW(root, actualGuid, actualGuid.Capacity) &&
@@ -114,6 +116,38 @@ internal static class NtfsLivePrototype
 
             string data = Path.Combine(volumeGuid, "AsukaLensFixture-" + nonce);
             Check(!Directory.Exists(data), "FreshSyntheticDirectory");
+            if (mode == "kernel-diagnostics")
+            {
+                NtfsKernelRead ReadKernel(string path)
+                {
+                    Check(NativeStorage.TryRead(path, false, File.GetAttributes(path), out var before, out _) && before != null,
+                        "MatrixNativeBefore");
+                    Check(before!.Identity.High == 0 && before.Identity.Volume == serial && (before.Identity.Low >> 48) != 0 &&
+                        !before.WritableHandleOpen, "MatrixOwnedFileIdentity");
+                    ulong slot = before.Identity.Low & NtfsRecordDecoder.MaximumRecordNumber;
+                    var input = new byte[8]; BinaryPrimitives.WriteUInt64LittleEndian(input, slot);
+                    var output = new byte[recordSize + 32];
+                    Check(NativeStorage.DeviceIoControl(volume, GetRecord, input, input.Length, output, output.Length,
+                        out int count, IntPtr.Zero), "MatrixReadKernelRecord");
+                    Check(count >= recordSize + 12 && count <= output.Length &&
+                        (BinaryPrimitives.ReadUInt64LittleEndian(output) & NtfsRecordDecoder.MaximumRecordNumber) == slot &&
+                        BinaryPrimitives.ReadUInt32LittleEndian(output.AsSpan(8)) == recordSize &&
+                        BinaryPrimitives.ReadUInt16LittleEndian(output.AsSpan(28)) == (ushort)(before.Identity.Low >> 48),
+                        "MatrixReturnedRecordBinding");
+                    Check(NativeStorage.TryRead(path, false, File.GetAttributes(path), out var after, out _) && after != null &&
+                        after.Identity == before.Identity && after.LogicalBytes == before.LogicalBytes &&
+                        after.AllocatedBytes == before.AllocatedBytes && after.LinkCount == before.LinkCount &&
+                        after.Modified == before.Modified && !after.WritableHandleOpen, "MatrixNativeAfterStable");
+                    return new(output, count, before, after!, sector, cluster, 3, 1);
+                }
+                var evidence = NtfsRecordEvidence.Create(artifacts.TrimEnd(Path.DirectorySeparatorChar));
+                var matrix = NtfsKernelMatrix.Run(data, ReadKernel, evidence, Check);
+                string captureCleanup = NtfsKernelMatrix.CleanupCapture(matrix.Captured, evidence.DeleteOwned);
+                File.WriteAllText(summaryPath, JsonSerializer.Serialize(new { schema = 1, status = "collected", checks,
+                    failures = 0, code = "None", kernel_matrix = matrix, capture_cleanup_status = captureCleanup }));
+                Console.WriteLine($"COLLECTED NTFS matrix: requests={matrix.Requests}; decode_failures={matrix.DecodeFailures}; captured={matrix.Captured}");
+                return 0;
+            }
             Directory.CreateDirectory(data);
             var files = new List<(string Path, NtfsLookupReason? Expected)>();
             int aliasCount = 2; // Existing resident and ordinary aliases below.

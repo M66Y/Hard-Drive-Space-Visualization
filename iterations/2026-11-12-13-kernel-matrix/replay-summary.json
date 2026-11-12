@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "records": 6,
+  "matching": 6,
+  "mismatching": 0,
+  "source": "KernelIoctl",
+  "expected_code": "FixupMismatch",
+  "vhd_detached": true,
+  "local_only": true
+}
