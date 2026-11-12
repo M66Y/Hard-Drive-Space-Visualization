@@ -1,0 +1,212 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "stage": "ComparisonPassed",
+  "code": "None",
+  "native_error": 0,
+  "exit_code": 0,
+  "checks": 1327,
+  "failures": 0,
+  "detached": true,
+  "cleanup_completed": true,
+  "lookup_experiment": {
+    "Objects": 25,
+    "ResidentObjects": 20,
+    "DirectObjects": 5,
+    "UnsupportedExcluded": 3,
+    "SelectiveNativeCalls": 40,
+    "AllHandleNativeCalls": 50,
+    "Samples": [
+      {
+        "Round": 1,
+        "Order": "selective-first",
+        "SelectiveMilliseconds": 1.1128,
+        "AllHandleMilliseconds": 1.3469,
+        "SelectiveNativeMilliseconds": 1.0355,
+        "AllHandleNativeMilliseconds": 1.2785
+      },
+      {
+        "Round": 2,
+        "Order": "handle-first",
+        "SelectiveMilliseconds": 2.5656,
+        "AllHandleMilliseconds": 2.3085,
+        "SelectiveNativeMilliseconds": 2.4195,
+        "AllHandleNativeMilliseconds": 2.1303
+      },
+      {
+        "Round": 3,
+        "Order": "selective-first",
+        "SelectiveMilliseconds": 2.5011,
+        "AllHandleMilliseconds": 1.1803,
+        "SelectiveNativeMilliseconds": 2.3283,
+        "AllHandleNativeMilliseconds": 1.1216
+      },
+      {
+        "Round": 4,
+        "Order": "handle-first",
+        "SelectiveMilliseconds": 1.3199,
+        "AllHandleMilliseconds": 1.5761,
+        "SelectiveNativeMilliseconds": 1.2321,
+        "AllHandleNativeMilliseconds": 1.4653
+      },
+      {
+        "Round": 5,
+        "Order": "selective-first",
+        "SelectiveMilliseconds": 2.3539,
+        "AllHandleMilliseconds": 1.2419,
+        "SelectiveNativeMilliseconds": 2.2102,
+        "AllHandleNativeMilliseconds": 1.185
+      },
+      {
+        "Round": 6,
+        "Order": "handle-first",
+        "SelectiveMilliseconds": 2.7274,
+        "AllHandleMilliseconds": 3.3504,
+        "SelectiveNativeMilliseconds": 2.5827,
+        "AllHandleNativeMilliseconds": 3.147
+      }
+    ],
+    "ResidentExamples": [
+      {
+        "LogicalBytes": 18,
+        "LookupAllocatedBytes": 24
+      },
+      {
+        "LogicalBytes": 1,
+        "LookupAllocatedBytes": 8
+      },
+      {
+        "LogicalBytes": 7,
+        "LookupAllocatedBytes": 8
+      },
+      {
+        "LogicalBytes": 8,
+        "LookupAllocatedBytes": 8
+      },
+      {
+        "LogicalBytes": 9,
+        "LookupAllocatedBytes": 16
+      },
+      {
+        "LogicalBytes": 15,
+        "LookupAllocatedBytes": 16
+      },
+      {
+        "LogicalBytes": 16,
+        "LookupAllocatedBytes": 16
+      },
+      {
+        "LogicalBytes": 17,
+        "LookupAllocatedBytes": 24
+      },
+      {
+        "LogicalBytes": 31,
+        "LookupAllocatedBytes": 32
+      },
+      {
+        "LogicalBytes": 32,
+        "LookupAllocatedBytes": 32
+      },
+      {
+        "LogicalBytes": 33,
+        "LookupAllocatedBytes": 40
+      },
+      {
+        "LogicalBytes": 63,
+        "LookupAllocatedBytes": 64
+      },
+      {
+        "LogicalBytes": 64,
+        "LookupAllocatedBytes": 64
+      },
+      {
+        "LogicalBytes": 65,
+        "LookupAllocatedBytes": 72
+      },
+      {
+        "LogicalBytes": 127,
+        "LookupAllocatedBytes": 128
+      },
+      {
+        "LogicalBytes": 128,
+        "LookupAllocatedBytes": 128
+      },
+      {
+        "LogicalBytes": 255,
+        "LookupAllocatedBytes": 256
+      },
+      {
+        "LogicalBytes": 256,
+        "LookupAllocatedBytes": 256
+      },
+      {
+        "LogicalBytes": 400,
+        "LookupAllocatedBytes": 400
+      },
+      {
+        "LogicalBytes": 512,
+        "LookupAllocatedBytes": 512
+      }
+    ]
+  },
+  "lease_experiment": {
+    "Objects": 25,
+    "ResidentObjects": 20,
+    "DirectObjects": 5,
+    "UnsupportedExcluded": 3,
+    "DoubleReadCalls": 40,
+    "LeaseCalls": 20,
+    "LeaseHandles": 20,
+    "LeaseSnapshots": 40,
+    "Samples": [
+      {
+        "Round": 1,
+        "Order": "double-first",
+        "DoubleMilliseconds": 2.8218,
+        "LeaseMilliseconds": 0.5542,
+        "DoubleNativeMilliseconds": 2.6288,
+        "LeaseNativeMilliseconds": 0.5105
+      },
+      {
+        "Round": 2,
+        "Order": "lease-first",
+        "DoubleMilliseconds": 0.956,
+        "LeaseMilliseconds": 0.709,
+        "DoubleNativeMilliseconds": 0.9086,
+        "LeaseNativeMilliseconds": 0.6375
+      },
+      {
+        "Round": 3,
+        "Order": "double-first",
+        "DoubleMilliseconds": 1.1302,
+        "LeaseMilliseconds": 0.5617,
+        "DoubleNativeMilliseconds": 1.045,
+        "LeaseNativeMilliseconds": 0.5228
+      },
+      {
+        "Round": 4,
+        "Order": "lease-first",
+        "DoubleMilliseconds": 2.4241,
+        "LeaseMilliseconds": 1.5833,
+        "DoubleNativeMilliseconds": 2.3009,
+        "LeaseNativeMilliseconds": 1.4207
+      },
+      {
+        "Round": 5,
+        "Order": "double-first",
+        "DoubleMilliseconds": 3.5209,
+        "LeaseMilliseconds": 1.3898,
+        "DoubleNativeMilliseconds": 3.2783,
+        "LeaseNativeMilliseconds": 1.2482
+      },
+      {
+        "Round": 6,
+        "Order": "lease-first",
+        "DoubleMilliseconds": 2.1863,
+        "LeaseMilliseconds": 1.615,
+        "DoubleNativeMilliseconds": 2.0641,
+        "LeaseNativeMilliseconds": 1.4441
+      }
+    ]
+  }
+}

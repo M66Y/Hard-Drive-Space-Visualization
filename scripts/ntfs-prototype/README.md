@@ -46,3 +46,9 @@ pwsh -NoProfile -File tests/NtfsFixtureGuards.Tests.ps1
 ```powershell
 pwsh -NoProfile -File tests/NtfsLookupEvidence.Tests.ps1
 ```
+
+## 单句柄对照（NTFS-01 后续）
+
+新增 `lease_experiment`，对同一普通候选比较原双打开与单句柄内两组快照；6 轮交替，逐项结果与工作量检查在计时之外。每批分别记录回调、成功打开句柄和快照组数；不将这些计数当作 Win32 调用数或物理 I/O。白名单入口：`pwsh -NoProfile -File tests/NtfsLeaseEvidence.Tests.ps1`。
+
+2026-11-12 本小时另获用户允许按需重复使用已审查隔离流程，本次通过 1,327 项，20 个驻留候选的 lease 每批成功打开 20 个句柄、读取 40 组快照，镜像已卸载清理。该授权不扩展为以后默认许可。真实生产扫描、活跃卷一致性、其他特殊类型及不同系统仍未因此验收。

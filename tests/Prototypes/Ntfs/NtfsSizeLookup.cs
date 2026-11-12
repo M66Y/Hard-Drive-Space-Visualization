@@ -17,6 +17,15 @@ internal static class NtfsSizeLookup
     internal const int MaximumObjects = 4096;
     internal static NtfsLookupBatch Resolve(IReadOnlyList<NtfsLookupItem> items,
         Func<string, CancellationToken, FileStorageInfo?> reader, CancellationToken token = default, int limit = MaximumObjects)
+        => ResolveCore(items, reader, null, token, limit);
+
+    internal static NtfsLookupBatch ResolveWithLease(IReadOnlyList<NtfsLookupItem> items,
+        Func<NtfsLookupItem, CancellationToken, NtfsLeaseResult> reader, CancellationToken token = default, int limit = MaximumObjects)
+        => ResolveCore(items, null, reader, token, limit);
+
+    private static NtfsLookupBatch ResolveCore(IReadOnlyList<NtfsLookupItem> items,
+        Func<string, CancellationToken, FileStorageInfo?>? reader,
+        Func<NtfsLookupItem, CancellationToken, NtfsLeaseResult>? leaseReader, CancellationToken token, int limit)
     {
         token.ThrowIfCancellationRequested();
         var clock = Stopwatch.StartNew();
@@ -43,7 +52,7 @@ internal static class NtfsSizeLookup
             token.ThrowIfCancellationRequested();
             calls++;
             long started = Stopwatch.GetTimestamp();
-            try { return reader(path, token); }
+            try { return reader!(path, token); }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return null; }
             finally { nativeTicks += Stopwatch.GetTimestamp() - started; }
         }
@@ -70,8 +79,6 @@ internal static class NtfsSizeLookup
                 unsupported++; output.Add(Result(null, NtfsSizeSource.Unknown, "UnsupportedLookupReason")); continue;
             }
             eligible++;
-            var first = Read(item.Path);
-            token.ThrowIfCancellationRequested();
             string? Problem(FileStorageInfo? sample)
             {
                 if (sample == null) return "ReadFailed";
@@ -81,13 +88,33 @@ internal static class NtfsSizeLookup
                 if (sample.AllocatedBytes < 0 || sample.Modified == null || sample.LinkCount != visibleNames) return "InvalidSnapshot";
                 return null;
             }
-            string? problem = Problem(first);
-            if (problem == null)
+            FileStorageInfo? first = null;
+            string? problem;
+            if (leaseReader != null)
             {
-                var second = Read(item.Path);
+                calls++;
+                long started = Stopwatch.GetTimestamp();
+                NtfsLeaseResult? lease = null;
+                try { lease = leaseReader(item, token); }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+                finally { nativeTicks += Stopwatch.GetTimestamp() - started; }
                 token.ThrowIfCancellationRequested();
-                problem = Problem(second);
-                if (problem == null && (first!.AllocatedBytes != second!.AllocatedBytes || first.Modified != second.Modified)) problem = "SnapshotChanged";
+                first = lease?.Storage;
+                problem = lease is not { Success: true, HandlesOpened: 1, SnapshotReads: 2 }
+                    ? "LeaseReadFailed" : Problem(first);
+            }
+            else
+            {
+                first = Read(item.Path);
+                token.ThrowIfCancellationRequested();
+                problem = Problem(first);
+                if (problem == null)
+                {
+                    var second = Read(item.Path);
+                    token.ThrowIfCancellationRequested();
+                    problem = Problem(second);
+                    if (problem == null && (first!.AllocatedBytes != second!.AllocatedBytes || first.Modified != second.Modified)) problem = "SnapshotChanged";
+                }
             }
             if (problem != null)
             {

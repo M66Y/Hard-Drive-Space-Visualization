@@ -1,0 +1,73 @@
+{
+  "baseline": "c9799890463e10da5b6976518c4f610854ea224d",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "727305cc70f457a2f3acb163b064124bda7f18d086813e33940eebf6cbfb75b3"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "1deefca4b89c7e51300bc0db51694c4cae16fc0763b2bbf337477c5f23beafa0"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "a3c90738ebb19650820086d5f94c0871e698aa87b4d039cff5382ce99d140cc2"
+    },
+    {
+      "path": "iterations/2026-11-12-06-resident-lease/README.md",
+      "sha256": "5feac7c5245b20218b0dd3c1066e2fd40806cbbc157857f8ec865b42f3f5e671"
+    },
+    {
+      "path": "iterations/2026-11-12-06-resident-lease/live-result.json",
+      "sha256": "61ad2c6ce45340d616af3ff413c7b488e263c4daf2641ecaca3439aa515c0c69"
+    },
+    {
+      "path": "scripts/ntfs-prototype/Invoke-NtfsFixture.ps1",
+      "sha256": "4be85a27ee1cc6ce84fe6e178d6079eb38078cf0d7fda64fda80f5e01e1338d7"
+    },
+    {
+      "path": "scripts/ntfs-prototype/LeaseEvidence.ps1",
+      "sha256": "1c3e4624c42d971a9c3a51bdb1b042031091f7a6f24087076cbcfdeb7d50d3d6"
+    },
+    {
+      "path": "scripts/ntfs-prototype/README.md",
+      "sha256": "dfedd33d56a45d8cfe785b2088c853316d1fc3aaf0b9db9958b4a24e977ddddf"
+    },
+    {
+      "path": "tests/NtfsLeaseEvidence.Tests.ps1",
+      "sha256": "33c31beb2a2bc6bd1a2b1b080ed58ef9b2450238b76a9cc98f2c1b61e9aded69"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "e8e61372e182556b70c57ab49ccd4863d8813d3edf443b2f3d33b100885ebeb9"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsLeaseExperiment.cs",
+      "sha256": "72699dbfe088ac5312d37b6f52feaf8a476bf5536004d555121320d0eee2efc1"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsLivePrototype.cs",
+      "sha256": "82768cdfba2015315484a200bd4bf5d01accee894cdc814c4e3769809b214548"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsResidentLease.cs",
+      "sha256": "87ec8c7d951b24d7398daf9b79ad9eb07c3d462c82f0559abd57bf889a945348"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsResidentLeaseTests.cs",
+      "sha256": "2409e6ba9cc7dc3afc074fdbf00e53768cc1970f16f51d1b4c2d987ea1e36131"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsSizeLookup.cs",
+      "sha256": "93e50c7365c9ea6bf8b3e22a87121ae325ee54737796e09a73a542fcc674137e"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/README.md",
+      "sha256": "226f1b7f3a0300528ec8c272fd35aa8688dc3ae006e2dd0893de8fc87021293f"
+    },
+    {
+      "path": "iterations/2026-11-12-06-resident-lease/changes.patch",
+      "sha256": "088ba1ef0fe1e8b6e1a3f731d12f18be19677221a84c194c31056bc4f9d2c18c"
+    }
+  ]
+}

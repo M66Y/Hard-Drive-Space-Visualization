@@ -198,7 +198,8 @@ internal static class NtfsLivePrototype
             Check(dir.Names.All(n => n.Namespace == 2 || n.ParentReference != dir.Reference), "SyntheticDirectoryParent");
             var lookupItems = decodedFiles.Values.Select(item => new NtfsLookupItem(serial, item, objectPaths[item.Reference])).ToArray();
             var experiment = NtfsLookupExperiment.Run(lookupItems, Check);
-            WriteSummary(summaryPath, "passed", checks, 0, "None", experiment);
+            var leaseExperiment = NtfsLeaseExperiment.Run(lookupItems, Check);
+            WriteSummary(summaryPath, "passed", checks, 0, "None", experiment, leaseExperiment);
             Console.WriteLine("PASS NTFS live checks: " + checks + "; known synthetic files only");
             return 0;
         }
@@ -217,7 +218,8 @@ internal static class NtfsLivePrototype
     }
 
     private static void WriteSummary(string path, string status, int checks, int failures, string code,
-        NtfsLookupExperimentReport? experiment = null) =>
-        File.WriteAllText(path, JsonSerializer.Serialize(new { schema = 1, status, checks, failures, code, lookup_experiment = experiment }));
+        NtfsLookupExperimentReport? experiment = null, NtfsLeaseExperimentReport? leaseExperiment = null) =>
+        File.WriteAllText(path, JsonSerializer.Serialize(new { schema = 1, status, checks, failures, code, lookup_experiment = experiment,
+            lease_experiment = leaseExperiment }));
     private sealed class FixtureFailure(string code) : Exception { internal string Code { get; } = code; }
 }

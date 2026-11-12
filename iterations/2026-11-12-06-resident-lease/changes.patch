@@ -1,0 +1,1191 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 3ee5cd1..eb0c12b 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -121,6 +121,7 @@
+ - 高速目录内并行改动另运行 `--parallel-file-tests`；可选 `--response-benchmark` 在真实桌面测量同条件主窗扫描、预览、搜索和取消，报告存在时拒绝覆盖。固定夹具与测量边界见扫描性能方案及本轮归档。
+ - NTFS 原型位于 `tests/Prototypes/Ntfs/`，合成测试入口为测试 DLL 的 `--ntfs-prototype-tests`；隔离测试盘守卫检查运行 `pwsh -NoProfile -File tests/NtfsFixtureGuards.Tests.ps1`。2026-11-12 用户另行授权本轮 256 MiB VHD 验收，流程见 `scripts/ntfs-prototype/README.md`，不扩展为个人卷扫描或以后默认提权授权。原型不是生产后端、活跃卷快照或性能验收；实际读取必须验证镜像归属、卷格式、几何及记录身份。
+ - NTFS 驻留补查的摘要白名单改动另运行 `pwsh -NoProfile -File tests/NtfsLookupEvidence.Tests.ps1`。原型中的 `NativeCalls` 指完整 reader/NativeStorage 回调，不是物理 I/O 或单个 Win32 调用；暖缓存补查微实验不得当作完整扫描基准。
++- NTFS 单句柄补查运行 `--ntfs-resident-lease-tests`（仅创建并打开本轮随机临时文件，不读取原始卷）；摘要改动另运行 `pwsh -NoProfile -File tests/NtfsLeaseEvidence.Tests.ps1`。`LeaseHandles` 与 `LeaseSnapshots` 分别指每批成功打开的文件句柄和元信息快照组数；单句柄的两组观察仍不代表驻留性或活跃卷一致性证明。
+ - 混合目录调度改动补测 `--mixed-benchmark before/after` 的同夹具对比；用户明确指定实际目录后才使用 `--folder-benchmark`，其报告与隔离诊断仅留本机临时目录，不进入仓库。比较自动与高速必须核对完整扫描、结果一致性和运行顺序，保留异常波动样本。
+ - 本地目录比较出现指纹差异时，可使用 `--folder-benchmark --pair` 做针对性正确性诊断；额外保留的逐项快照影响测量条件，其计时不并入常规性能基准。差异计数和实际耗时仍只在本机核查，不纳入公开归档。工具边界检查使用 `--folder-comparison-tests`。
+ - 合成目录与软件配置隔离测试，不默认扫描用户整盘或覆盖真实背景设置。缺权限/文件系统特性的跳过、程序断言、人工观察和性能实测分别记录。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 533aa2a..e0ee225 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -2,7 +2,7 @@
+ 
+ ## 当前执行计划（2026-11-12）
+ 
+-本节发布后已实施 NTFS-01 第 1 轮：普通驻留分配的有界补查和暖缓存微实验已验证，见[开发记录](../iterations/2026-11-12-05-resident-lookup/README.md)。下一轮应评估如何减少逐文件双读成本，并逐项确定其他特殊类型的支持范围；本轮不意味着 NTFS-01 全部完成或 NTFS-02 已可直接产品化。
++本节发布后已实施 NTFS-01 第 1 轮有界驻留补查，以及后续的单句柄双快照微实验，见[单句柄记录](../iterations/2026-11-12-06-resident-lease/README.md)。单句柄减少重复打开，未消除逐文件补查，也未证明活跃卷一致性；其他特殊类型仍需分别确定支持范围。NTFS-01 尚未全部完成，NTFS-02 尚不可直接产品化。
+ 
+ 本节整合 NTFS 快速扫描、磁盘活动面板和软件占用分析三条方向，作为后续开发的当前排序入口。以下历史记录中的“当前阶段”“下一步”只对应原记录日期，不覆盖本节。制定计划不等于启动全部任务，也不自动授权提权、创建虚拟盘、扫描个人磁盘、删除文件或发布新版本。
+ 
+@@ -20,8 +20,8 @@ P1 表示本阶段核心产品路线，P2 表示辅助体验与功能扩展，P3
+ 
+ | 顺序 / 编号 | 优先级 | 开发目标 | 状态与前置条件 |
+ | --- | --- | --- | --- |
+-| 1 / NTFS-01 | P1 | 明确大小语义，测清特殊类型补查成本 | 第 1 轮驻留补查已验证；其他类型与低成本可靠取值仍待推进 |
+-| 2 / MON-01 | P2 | 主窗轻量磁盘活动面板 | 用户新需求；布局与首版范围待确认；可独立于 NTFS 后端实施 |
++| 1 / NTFS-01 | P1 | 明确大小语义，测清特殊类型补查成本 | 驻留补查和单句柄原型已验证；其他类型与活跃卷一致性仍待推进 |
++| 2 / MON-01 | P2 | 主窗轻量磁盘活动面板 | 用户已确认实际窗口布局及每秒采样范围，正在实施；可独立于 NTFS 后端实施 |
+ | 3 / NTFS-02 | P1 | 整卷 MFT 批量读取、建树及资源基准 | 依赖 NTFS-01 的统计契约和读取可行性；面板不是其必要依赖 |
+ | 4 / NTFS-03 | P1 | 可选快速扫描入口与可靠回退 | 仅在 NTFS-02 有可重复收益后实施 |
+ | 5 / APP-01 | P2 | 从软件入口查看占用结构，只读分析 | 后续独立功能，先限定支持范围和归属证据 |
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 550b39f..aa1570f 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-12：NTFS-01 后续单句柄补查已在隔离 VHD 通过 1,327 项检查，卸载和清理完成；另有 84 项自有临时文件/集成检查。20 个驻留候选由每批 40 次完整读取回调改为 20 次 lease 回调、20 个成功句柄及 40 组快照。仅是暖缓存原型实验，生产扫描器未接入，不能作为整盘提速结论。见[单句柄记录](../iterations/2026-11-12-06-resident-lease/README.md)。
++
+ 2026-11-12：NTFS-01 第 1 轮完成普通驻留分配的选择性句柄补查、来源标记和有界批处理，并在本轮另行授权的 VHD 上通过 862 项检查。25 个普通候选中 20 个需要补查，每轮 40 次 NativeStorage 回调，全部对象双读对照为 50 次；不能当作与生产扫描器的提速对比。见[本轮记录](../iterations/2026-11-12-05-resident-lookup/README.md)。其他特殊类型补查、批量读取和产品接入仍未实现。
+ 
+ 2026-11-12：已将 NTFS 正确性补齐、磁盘活动面板、批量读取/资源基准、产品接入、软件占用分析及清理建议整合为[当前开发计划](development-plan.md#当前执行计划2026-11-12)。这是规划更新；磁盘活动面板、软件占用分析、清理及整卷快速扫描均未实现，本轮没有启动新功能开发。
+diff --git a/iterations/2026-11-12-06-resident-lease/README.md b/iterations/2026-11-12-06-resident-lease/README.md
+new file mode 100644
+index 0000000..f1ed6c5
+--- /dev/null
++++ b/iterations/2026-11-12-06-resident-lease/README.md
+@@ -0,0 +1,34 @@
++# NTFS-01：单句柄驻留补查
++
++日期：2026-11-12。基线：`c9799890463e10da5b6976518c4f610854ea224d`。用户要求按计划连续开发一小时，并允许该小时内按需重复已审查的 256 MiB 隔离 VHD 流程。本轮只降低普通驻留补查的重复打开成本，不更改生产扫描器、不接入整卷扫描或发布。
++
++## 改动与边界
++
++`NtfsResidentLease` 使用同一个只读句柄、仅允许读取分享，取得两组完整文件身份、标准信息和修改时间。身份、EOF、可见硬链接数和属性须符合候选，两组分配量、时间和属性也须一致；冲突和失败不以宽松分享重试。`ResolveWithLease` 共用原批次预检查、容量上限、未知值及取消隔离，并再次检查成功标志、一个句柄和两组快照。
++
++句柄由 `using` 独占所有权，失败、异常及取消均释放。仅改属性/扩展属性的访问不完全受分享模式约束；两组相同观察不证明驻留性、父目录归属或活跃卷快照。记录新鲜度仍由调用者保证；取消不能打断已进入的同步系统调用。命名流、压缩、稀疏、加密、重解析及属性扩展继续排除。
++
++`NtfsLeaseExperiment` 对同一候选预读参考值，各预热一次，再交替 6 轮对比原双回调与单句柄。结果比较不在计时中。`lease_experiment` 采用单独的严格字段白名单，重建安全摘要；失败、额外字段和清理失败不输出成功证据。
++
++## 验证证据
++
++- 应用与测试 Release 构建成功，0 警告、0 错误。
++- 原合成原型 147 项、核心 38 项、高级 25 项通过。
++- 新文件句柄/集成检查 84 项通过，无跳过；只使用自身随机临时目录，覆盖写入/删除分享拒绝、完整身份、同大小替换、硬链接变化、实际目录/稀疏属性拒绝、失败与成功释放、批中取消和预算。
++- 原夹具守卫 36 项、原摘要 45 项、新 lease 摘要 55 项通过；均为 mock/内存检查。
++- 本机 Windows 11 / NTFS 3.1 的 256 MiB 隔离 VHD 通过 1,327 项；`detached=true`、`cleanup_completed=true`。精选摘要见 `live-result.json`，无名称、路径、卷身份或原始记录。
++
++25 个普通候选包含 20 个驻留和 5 个直接取值，另有 3 个特殊对象排除。每批原双读 40 次完整 reader 回调；新路径 20 次 lease 回调、20 个实际成功打开的文件句柄、40 组元信息快照。回调与快照各自包含多项系统查询，不等于单次 Win32 调用或物理 I/O。
++
++| 暖缓存小样本总耗时 | 原双读 | 单句柄 |
++| --- | ---: | ---: |
++| 6 轮中位数（ms） | 2.3052 | 1.0494 |
++| 范围（ms） | 0.9560–3.5209 | 0.5542–1.6150 |
++
++所有原始样本保留，波动明显。这不是生产扫描器对照，不包括 MFT 获取、目录遍历、建树、UI、冷缓存、CPU、峰值内存或物理 I/O，不能换算成整盘加速比例。
++
++独立代码审查未发现阻塞本轮隔离原型的缺陷；真正 after-open 的原生调用中途取消与写入竞争尚无强制注入测试，现有检查不作该声称。目录批量元信息来源已作只读研究：硬链接的目录条目可能陈旧，不能直接替代正式句柄核验，后续需独立方案与验证。
++
++## 清理与恢复
++
++本轮 VHD、合成文件、原始摘要及日志已由守卫流程卸载后清理；本机结果副本在精选归档完成后移除。保留必要源码和构建，不产生发行包。`changes.patch` 以以上基线生成，不包含自身，反向适用检查验证恢复；相关文件 SHA-256 见 `files.json`。本小时的磁盘活动面板作为后续独立迭代记录。
+diff --git a/iterations/2026-11-12-06-resident-lease/live-result.json b/iterations/2026-11-12-06-resident-lease/live-result.json
+new file mode 100644
+index 0000000..b1fc3aa
+--- /dev/null
++++ b/iterations/2026-11-12-06-resident-lease/live-result.json
+@@ -0,0 +1,212 @@
++{
++  "schema": 1,
++  "status": "passed",
++  "stage": "ComparisonPassed",
++  "code": "None",
++  "native_error": 0,
++  "exit_code": 0,
++  "checks": 1327,
++  "failures": 0,
++  "detached": true,
++  "cleanup_completed": true,
++  "lookup_experiment": {
++    "Objects": 25,
++    "ResidentObjects": 20,
++    "DirectObjects": 5,
++    "UnsupportedExcluded": 3,
++    "SelectiveNativeCalls": 40,
++    "AllHandleNativeCalls": 50,
++    "Samples": [
++      {
++        "Round": 1,
++        "Order": "selective-first",
++        "SelectiveMilliseconds": 1.1128,
++        "AllHandleMilliseconds": 1.3469,
++        "SelectiveNativeMilliseconds": 1.0355,
++        "AllHandleNativeMilliseconds": 1.2785
++      },
++      {
++        "Round": 2,
++        "Order": "handle-first",
++        "SelectiveMilliseconds": 2.5656,
++        "AllHandleMilliseconds": 2.3085,
++        "SelectiveNativeMilliseconds": 2.4195,
++        "AllHandleNativeMilliseconds": 2.1303
++      },
++      {
++        "Round": 3,
++        "Order": "selective-first",
++        "SelectiveMilliseconds": 2.5011,
++        "AllHandleMilliseconds": 1.1803,
++        "SelectiveNativeMilliseconds": 2.3283,
++        "AllHandleNativeMilliseconds": 1.1216
++      },
++      {
++        "Round": 4,
++        "Order": "handle-first",
++        "SelectiveMilliseconds": 1.3199,
++        "AllHandleMilliseconds": 1.5761,
++        "SelectiveNativeMilliseconds": 1.2321,
++        "AllHandleNativeMilliseconds": 1.4653
++      },
++      {
++        "Round": 5,
++        "Order": "selective-first",
++        "SelectiveMilliseconds": 2.3539,
++        "AllHandleMilliseconds": 1.2419,
++        "SelectiveNativeMilliseconds": 2.2102,
++        "AllHandleNativeMilliseconds": 1.185
++      },
++      {
++        "Round": 6,
++        "Order": "handle-first",
++        "SelectiveMilliseconds": 2.7274,
++        "AllHandleMilliseconds": 3.3504,
++        "SelectiveNativeMilliseconds": 2.5827,
++        "AllHandleNativeMilliseconds": 3.147
++      }
++    ],
++    "ResidentExamples": [
++      {
++        "LogicalBytes": 18,
++        "LookupAllocatedBytes": 24
++      },
++      {
++        "LogicalBytes": 1,
++        "LookupAllocatedBytes": 8
++      },
++      {
++        "LogicalBytes": 7,
++        "LookupAllocatedBytes": 8
++      },
++      {
++        "LogicalBytes": 8,
++        "LookupAllocatedBytes": 8
++      },
++      {
++        "LogicalBytes": 9,
++        "LookupAllocatedBytes": 16
++      },
++      {
++        "LogicalBytes": 15,
++        "LookupAllocatedBytes": 16
++      },
++      {
++        "LogicalBytes": 16,
++        "LookupAllocatedBytes": 16
++      },
++      {
++        "LogicalBytes": 17,
++        "LookupAllocatedBytes": 24
++      },
++      {
++        "LogicalBytes": 31,
++        "LookupAllocatedBytes": 32
++      },
++      {
++        "LogicalBytes": 32,
++        "LookupAllocatedBytes": 32
++      },
++      {
++        "LogicalBytes": 33,
++        "LookupAllocatedBytes": 40
++      },
++      {
++        "LogicalBytes": 63,
++        "LookupAllocatedBytes": 64
++      },
++      {
++        "LogicalBytes": 64,
++        "LookupAllocatedBytes": 64
++      },
++      {
++        "LogicalBytes": 65,
++        "LookupAllocatedBytes": 72
++      },
++      {
++        "LogicalBytes": 127,
++        "LookupAllocatedBytes": 128
++      },
++      {
++        "LogicalBytes": 128,
++        "LookupAllocatedBytes": 128
++      },
++      {
++        "LogicalBytes": 255,
++        "LookupAllocatedBytes": 256
++      },
++      {
++        "LogicalBytes": 256,
++        "LookupAllocatedBytes": 256
++      },
++      {
++        "LogicalBytes": 400,
++        "LookupAllocatedBytes": 400
++      },
++      {
++        "LogicalBytes": 512,
++        "LookupAllocatedBytes": 512
++      }
++    ]
++  },
++  "lease_experiment": {
++    "Objects": 25,
++    "ResidentObjects": 20,
++    "DirectObjects": 5,
++    "UnsupportedExcluded": 3,
++    "DoubleReadCalls": 40,
++    "LeaseCalls": 20,
++    "LeaseHandles": 20,
++    "LeaseSnapshots": 40,
++    "Samples": [
++      {
++        "Round": 1,
++        "Order": "double-first",
++        "DoubleMilliseconds": 2.8218,
++        "LeaseMilliseconds": 0.5542,
++        "DoubleNativeMilliseconds": 2.6288,
++        "LeaseNativeMilliseconds": 0.5105
++      },
++      {
++        "Round": 2,
++        "Order": "lease-first",
++        "DoubleMilliseconds": 0.956,
++        "LeaseMilliseconds": 0.709,
++        "DoubleNativeMilliseconds": 0.9086,
++        "LeaseNativeMilliseconds": 0.6375
++      },
++      {
++        "Round": 3,
++        "Order": "double-first",
++        "DoubleMilliseconds": 1.1302,
++        "LeaseMilliseconds": 0.5617,
++        "DoubleNativeMilliseconds": 1.045,
++        "LeaseNativeMilliseconds": 0.5228
++      },
++      {
++        "Round": 4,
++        "Order": "lease-first",
++        "DoubleMilliseconds": 2.4241,
++        "LeaseMilliseconds": 1.5833,
++        "DoubleNativeMilliseconds": 2.3009,
++        "LeaseNativeMilliseconds": 1.4207
++      },
++      {
++        "Round": 5,
++        "Order": "double-first",
++        "DoubleMilliseconds": 3.5209,
++        "LeaseMilliseconds": 1.3898,
++        "DoubleNativeMilliseconds": 3.2783,
++        "LeaseNativeMilliseconds": 1.2482
++      },
++      {
++        "Round": 6,
++        "Order": "lease-first",
++        "DoubleMilliseconds": 2.1863,
++        "LeaseMilliseconds": 1.615,
++        "DoubleNativeMilliseconds": 2.0641,
++        "LeaseNativeMilliseconds": 1.4441
++      }
++    ]
++  }
++}
+\ No newline at end of file
+diff --git a/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 b/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1
+index 7923ea7..4515a0b 100644
+--- a/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1
++++ b/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1
+@@ -19,6 +19,8 @@ $checks = 0; $failureCount = 0; $status = 'failed'
+ $failureCode = 'None'; $runnerStopped = $true
+ $nativeError = 0
+ $lookupEvidence = $null
++$leaseEvidence = $null
++. (Join-Path $PSScriptRoot 'LeaseEvidence.ps1')
+ $diskNumber = $null; $diskPath = $null; $imageDevicePath = $null
+ 
+ function Assert-NoReparsePath([string]$Path) {
+@@ -267,6 +269,8 @@ public static class AsukaLensFixtureImage {
+     if ($runnerExit -ne 0 -or $summary.status -cne 'passed' -or $failureCount -ne 0) { throw 'COMPARISON_FAILED' }
+     if (-not $summary.PSObject.Properties['lookup_experiment']) { throw 'LOOKUP_EVIDENCE_MISSING' }
+     $lookupEvidence = ConvertTo-LookupEvidence $summary.lookup_experiment
++    if (-not $summary.PSObject.Properties['lease_experiment']) { throw 'LEASE_EVIDENCE_MISSING' }
++    $leaseEvidence = ConvertTo-LeaseEvidence $summary.lease_experiment
+     $status = 'passed'; $stage = 'ComparisonPassed'
+ } catch {
+     # Native messages and logs can include local paths. Never copy them to the result.
+@@ -297,6 +301,7 @@ public static class AsukaLensFixtureImage {
+     } catch { $status = 'cleanup_failed' }
+     $result = [ordered]@{schema=1;status=$status;stage=$stage;code=$failureCode;native_error=$nativeError;exit_code=$runnerExit;checks=$checks;failures=$failureCount;detached=$detached;cleanup_completed=$cleaned}
+     $result.lookup_experiment = if ($status -ceq 'passed') { $lookupEvidence } else { $null }
++    $result.lease_experiment = if ($status -ceq 'passed') { $leaseEvidence } else { $null }
+     $resultTemp = $ResultPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
+     try {
+         [void](Assert-NoReparsePath $ResultPath)
+diff --git a/scripts/ntfs-prototype/LeaseEvidence.ps1 b/scripts/ntfs-prototype/LeaseEvidence.ps1
+new file mode 100644
+index 0000000..f129f81
+--- /dev/null
++++ b/scripts/ntfs-prototype/LeaseEvidence.ps1
+@@ -0,0 +1,47 @@
++#requires -Version 7.4
++# Pure whitelist conversion only. Dot-sourcing this file performs no disk operation.
++function ConvertTo-LeaseEvidence($Value) {
++    function Assert-LeaseFields($Object, [string[]]$Expected) {
++        if ($null -eq $Object -or $Object -isnot [pscustomobject]) { throw 'LEASE_EVIDENCE_INVALID' }
++        $actual = @($Object.PSObject.Properties.Name)
++        if ($actual.Count -ne $Expected.Count -or (Compare-Object $Expected $actual -CaseSensitive)) { throw 'LEASE_EVIDENCE_INVALID' }
++    }
++    function Assert-LeaseInteger($Number, [long]$Minimum, [long]$Maximum) {
++        if (($Number -isnot [int] -and $Number -isnot [long]) -or $Number -lt $Minimum -or $Number -gt $Maximum) { throw 'LEASE_EVIDENCE_INVALID' }
++    }
++    function Assert-LeaseTime($Number) {
++        if (($Number -isnot [int] -and $Number -isnot [long] -and $Number -isnot [double]) -or
++            -not [double]::IsFinite([double]$Number) -or $Number -lt 0) { throw 'LEASE_EVIDENCE_INVALID' }
++    }
++    Assert-LeaseFields $Value @('Objects','ResidentObjects','DirectObjects','UnsupportedExcluded','DoubleReadCalls','LeaseCalls','LeaseHandles','LeaseSnapshots','Samples')
++    Assert-LeaseInteger $Value.Objects 1 4096
++    Assert-LeaseInteger $Value.ResidentObjects 0 $Value.Objects
++    Assert-LeaseInteger $Value.DirectObjects 0 $Value.Objects
++    Assert-LeaseInteger $Value.UnsupportedExcluded 0 4096
++    Assert-LeaseInteger $Value.DoubleReadCalls 0 8192
++    Assert-LeaseInteger $Value.LeaseCalls 0 4096
++    Assert-LeaseInteger $Value.LeaseHandles 0 4096
++    Assert-LeaseInteger $Value.LeaseSnapshots 0 8192
++    if ($Value.Objects -ne $Value.ResidentObjects + $Value.DirectObjects -or
++        $Value.Objects + $Value.UnsupportedExcluded -gt 4096 -or
++        $Value.DoubleReadCalls -ne 2 * $Value.ResidentObjects -or $Value.LeaseCalls -ne $Value.ResidentObjects -or
++        $Value.LeaseHandles -ne $Value.LeaseCalls -or $Value.LeaseSnapshots -ne 2 * $Value.LeaseCalls) { throw 'LEASE_EVIDENCE_INVALID' }
++    if ($Value.Samples -isnot [array] -or $Value.Samples.Count -ne 6) { throw 'LEASE_EVIDENCE_INVALID' }
++    $samples = [Collections.Generic.List[object]]::new()
++    for ($i = 0; $i -lt 6; $i++) {
++        $sample = $Value.Samples[$i]
++        Assert-LeaseFields $sample @('Round','Order','DoubleMilliseconds','LeaseMilliseconds','DoubleNativeMilliseconds','LeaseNativeMilliseconds')
++        Assert-LeaseInteger $sample.Round 1 6
++        $expectedOrder = if ($i % 2 -eq 0) { 'double-first' } else { 'lease-first' }
++        if ($sample.Round -ne $i + 1 -or $sample.Order -isnot [string] -or $sample.Order -cne $expectedOrder) { throw 'LEASE_EVIDENCE_INVALID' }
++        foreach ($field in @('DoubleMilliseconds','LeaseMilliseconds','DoubleNativeMilliseconds','LeaseNativeMilliseconds')) { Assert-LeaseTime $sample.$field }
++        if ($sample.DoubleNativeMilliseconds -gt $sample.DoubleMilliseconds -or
++            $sample.LeaseNativeMilliseconds -gt $sample.LeaseMilliseconds) { throw 'LEASE_EVIDENCE_INVALID' }
++        $samples.Add([ordered]@{Round=[int]$sample.Round;Order=$expectedOrder;
++            DoubleMilliseconds=[double]$sample.DoubleMilliseconds;LeaseMilliseconds=[double]$sample.LeaseMilliseconds;
++            DoubleNativeMilliseconds=[double]$sample.DoubleNativeMilliseconds;LeaseNativeMilliseconds=[double]$sample.LeaseNativeMilliseconds})
++    }
++    return [ordered]@{Objects=[int]$Value.Objects;ResidentObjects=[int]$Value.ResidentObjects;DirectObjects=[int]$Value.DirectObjects;
++        UnsupportedExcluded=[int]$Value.UnsupportedExcluded;DoubleReadCalls=[int]$Value.DoubleReadCalls;
++        LeaseCalls=[int]$Value.LeaseCalls;LeaseHandles=[int]$Value.LeaseHandles;LeaseSnapshots=[int]$Value.LeaseSnapshots;Samples=$samples.ToArray()}
++}
+diff --git a/scripts/ntfs-prototype/README.md b/scripts/ntfs-prototype/README.md
+index a3c7601..0f556c1 100644
+--- a/scripts/ntfs-prototype/README.md
++++ b/scripts/ntfs-prototype/README.md
+@@ -46,3 +46,9 @@ pwsh -NoProfile -File tests/NtfsFixtureGuards.Tests.ps1
+ ```powershell
+ pwsh -NoProfile -File tests/NtfsLookupEvidence.Tests.ps1
+ ```
++
++## 单句柄对照（NTFS-01 后续）
++
++新增 `lease_experiment`，对同一普通候选比较原双打开与单句柄内两组快照；6 轮交替，逐项结果与工作量检查在计时之外。每批分别记录回调、成功打开句柄和快照组数；不将这些计数当作 Win32 调用数或物理 I/O。白名单入口：`pwsh -NoProfile -File tests/NtfsLeaseEvidence.Tests.ps1`。
++
++2026-11-12 本小时另获用户允许按需重复使用已审查隔离流程，本次通过 1,327 项，20 个驻留候选的 lease 每批成功打开 20 个句柄、读取 40 组快照，镜像已卸载清理。该授权不扩展为以后默认许可。真实生产扫描、活跃卷一致性、其他特殊类型及不同系统仍未因此验收。
+diff --git a/tests/NtfsLeaseEvidence.Tests.ps1 b/tests/NtfsLeaseEvidence.Tests.ps1
+new file mode 100644
+index 0000000..884755f
+--- /dev/null
++++ b/tests/NtfsLeaseEvidence.Tests.ps1
+@@ -0,0 +1,98 @@
++#requires -Version 7.4
++# Pure-memory evidence validation. Never mount, format, or query a disk.
++$ErrorActionPreference = 'Stop'
++Set-StrictMode -Version Latest
++$checks = 0
++function Check([bool]$Condition, [string]$Name) {
++    if (-not $Condition) { throw ('FAIL ' + $Name) }
++    $script:checks++; Write-Output ('PASS NTFS lease evidence ' + $Name)
++}
++$source = Join-Path $PSScriptRoot '../scripts/ntfs-prototype/LeaseEvidence.ps1'
++$tokens = $null; $errors = $null
++$ast = [Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $source).Path, [ref]$tokens, [ref]$errors)
++Check ($errors.Count -eq 0) 'converter script syntax'
++$functions = @($ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'ConvertTo-LeaseEvidence'}, $false))
++Check ($functions.Count -eq 1) 'extract only evidence converter'
++. ([scriptblock]::Create($functions[0].Extent.Text))
++
++function Fixture {
++    [pscustomobject]@{
++        Objects=3;ResidentObjects=1;DirectObjects=2;UnsupportedExcluded=2;DoubleReadCalls=2;LeaseCalls=1;LeaseHandles=1;LeaseSnapshots=2
++        Samples=@(1..6 | ForEach-Object {
++            [pscustomobject]@{Round=$_;Order=$(if ($_ % 2 -eq 1) {'double-first'} else {'lease-first'});
++                DoubleMilliseconds=2.5;LeaseMilliseconds=1.25;DoubleNativeMilliseconds=1.5;LeaseNativeMilliseconds=0.5}
++        })
++    }
++}
++function Reject([scriptblock]$Mutation, [string]$Name) {
++    $value=Fixture; & $Mutation $value
++    $message=$null
++    try { ConvertTo-LeaseEvidence $value | Out-Null } catch { $message=$_.Exception.Message }
++    Check ($message -ceq 'LEASE_EVIDENCE_INVALID') $Name
++}
++$valid=Fixture
++$safe=ConvertTo-LeaseEvidence $valid
++Check ($safe.Objects -eq 3 -and $safe.Samples.Count -eq 6) 'valid evidence preserved'
++Check (($safe.Keys -join ',') -ceq 'Objects,ResidentObjects,DirectObjects,UnsupportedExcluded,DoubleReadCalls,LeaseCalls,LeaseHandles,LeaseSnapshots,Samples') 'canonical root field order'
++Check (($safe.Samples[0].Keys -join ',') -ceq 'Round,Order,DoubleMilliseconds,LeaseMilliseconds,DoubleNativeMilliseconds,LeaseNativeMilliseconds') 'canonical sample field order'
++$valid.Objects=99; $valid.Samples[0].DoubleMilliseconds=99
++Check ($safe.Objects -eq 3 -and $safe.Samples[0].DoubleMilliseconds -eq 2.5) 'output is a new deep whitelist copy'
++$json=$safe | ConvertTo-Json -Depth 5
++$roundTrip=ConvertTo-LeaseEvidence ($json | ConvertFrom-Json)
++Check ($roundTrip.DoubleReadCalls -eq 2 -and $roundTrip.LeaseSnapshots -eq 2) 'JSON integer and double roundtrip'
++
++Reject {param($v) $v.Objects=4} 'object partition relationship'
++Reject {param($v) $v.DoubleReadCalls=1} 'double reader count relationship'
++Reject {param($v) $v.LeaseCalls=2} 'lease reader count relationship'
++Reject {param($v) $v.LeaseHandles=2} 'lease handle count relationship'
++Reject {param($v) $v.LeaseSnapshots=1} 'lease snapshot count relationship'
++Reject {param($v) $v.Objects=4097} 'object upper limit'
++Reject {param($v) $v.Objects=0} 'empty experiment rejected'
++Reject {param($v) $v.ResidentObjects=-1} 'negative resident count'
++Reject {param($v) $v.DirectObjects=4} 'direct count cannot exceed objects'
++Reject {param($v) $v.UnsupportedExcluded=4097} 'excluded count upper limit'
++Reject {param($v) $v.UnsupportedExcluded=4094} 'input object limit includes excluded objects'
++Reject {param($v) $v.DoubleReadCalls=8193} 'double reader count upper limit'
++Reject {param($v) $v.LeaseCalls=4097} 'lease count upper limit'
++Reject {param($v) $v.LeaseHandles=-1} 'negative handle count'
++Reject {param($v) $v.LeaseSnapshots=8193} 'snapshot count upper limit'
++Reject {param($v) $v.Objects='3'} 'numeric strings rejected'
++Reject {param($v) $v.Objects=[double]3} 'floating count type rejected'
++Reject {param($v) $v.Objects=$true} 'boolean count rejected'
++Reject {param($v) $v.Samples=$v.Samples[0..4]} 'missing timed round rejected'
++Reject {param($v) $v.Samples=@($v.Samples)+@($v.Samples[0])} 'extra timed round rejected'
++Reject {param($v) $v.Samples[0].Round=0} 'round lower bound'
++Reject {param($v) $v.Samples[5].Round=7} 'round upper bound'
++Reject {param($v) $v.Samples[0].Round=2} 'out of sequence round rejected'
++Reject {param($v) $v.Samples[1].Round=1} 'duplicate round rejected'
++Reject {param($v) $v.Samples[0].Order='lease-first'} 'run order starts double first'
++Reject {param($v) $v.Samples[1].Order='double-first'} 'run order must alternate'
++Reject {param($v) $v.Samples[0].Order='DOUBLE-FIRST'} 'run order has exact spelling'
++Reject {param($v) $v.Samples[0].Order=$true} 'run order requires string'
++Reject {param($v) $v.Samples[0].DoubleMilliseconds=[double]::NaN} 'NaN rejected'
++Reject {param($v) $v.Samples[0].LeaseMilliseconds=[double]::PositiveInfinity} 'positive infinity rejected'
++Reject {param($v) $v.Samples[0].LeaseNativeMilliseconds=[double]::NegativeInfinity} 'negative infinity rejected'
++Reject {param($v) $v.Samples[0].DoubleNativeMilliseconds=-0.1} 'negative callback duration rejected'
++Reject {param($v) $v.Samples[0].DoubleMilliseconds='2.5'} 'duration strings rejected'
++Reject {param($v) $v.Samples[0].DoubleMilliseconds=$false} 'duration booleans rejected'
++Reject {param($v) $v.Samples[0].DoubleNativeMilliseconds=3} 'double callback duration cannot exceed batch'
++Reject {param($v) $v.Samples[0].LeaseNativeMilliseconds=2} 'lease callback duration cannot exceed batch'
++Reject {param($v) $v | Add-Member -NotePropertyName Path -NotePropertyValue 'synthetic-private-marker'} 'unexpected private root field rejected'
++Reject {param($v) $v.Samples[0] | Add-Member -NotePropertyName Path -NotePropertyValue 'synthetic-private-marker'} 'unexpected private sample field rejected'
++Reject {param($v) $v.PSObject.Properties.Remove('Objects')} 'missing root field rejected'
++Reject {param($v) $v.Samples[0].PSObject.Properties.Remove('Round')} 'missing sample field rejected'
++Reject {param($v) $v.Samples=$null} 'null sample array rejected'
++Reject {param($v) $v.Samples='synthetic-private-marker'} 'sample string rejected'
++Reject {param($v) $v.Samples[0]=$null} 'null sample rejected'
++Reject {param($v) $v.Samples[0]=@{Round=1}} 'hashtable sample rejected'
++Reject {param($v) $v.Samples[0].PSObject.Properties.Remove('Order'); $v.Samples[0] | Add-Member -NotePropertyName order -NotePropertyValue 'double-first'} 'field spelling is case sensitive'
++
++$none=Fixture; $none.ResidentObjects=0; $none.DirectObjects=3; $none.DoubleReadCalls=0; $none.LeaseCalls=0; $none.LeaseHandles=0; $none.LeaseSnapshots=0
++Check ((ConvertTo-LeaseEvidence $none).LeaseCalls -eq 0) 'zero resident workload supported'
++$large=Fixture; $large.Objects=4096; $large.ResidentObjects=4096; $large.DirectObjects=0; $large.UnsupportedExcluded=0
++$large.DoubleReadCalls=8192; $large.LeaseCalls=4096; $large.LeaseHandles=4096; $large.LeaseSnapshots=8192
++Check ((ConvertTo-LeaseEvidence $large).Objects -eq 4096) 'maximum bounded workload accepted'
++$zero=Fixture
++foreach ($sample in $zero.Samples) { $sample.DoubleMilliseconds=0; $sample.LeaseMilliseconds=0; $sample.DoubleNativeMilliseconds=0; $sample.LeaseNativeMilliseconds=0 }
++Check ((ConvertTo-LeaseEvidence $zero).Samples[0].DoubleMilliseconds -eq 0) 'zero durations accepted'
++Write-Output ('PASS NTFS lease evidence checks: '+$checks+'; virtual disk operations: none')
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 3ca5563..15d8035 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -5,6 +5,20 @@ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.F
+ 
+ if (args.Contains("--package-smoke")) return PackageSmoke.Run();
+ if (args.Contains("--ntfs-prototype-tests")) return DiskAtlas.NtfsPrototype.NtfsPrototypeTests.Run();
++if (args.Contains("--ntfs-resident-lease-tests"))
++{
++    try
++    {
++        int checks = DiskAtlas.NtfsPrototype.NtfsResidentLeaseTests.Run();
++        Console.WriteLine($"PASS NTFS resident lease checks: {checks}; only owned temporary files opened");
++        return 0;
++    }
++    catch
++    {
++        Console.Error.WriteLine("FAIL NTFS resident lease checks; no private details emitted");
++        return 1;
++    }
++}
+ if (args.Contains("--ntfs-live-prototype"))
+ {
+     if (args.Length == 2 && args[0] == "--ntfs-live-prototype") return DiskAtlas.NtfsPrototype.NtfsLivePrototype.Run(args[1]);
+diff --git a/tests/Prototypes/Ntfs/NtfsLeaseExperiment.cs b/tests/Prototypes/Ntfs/NtfsLeaseExperiment.cs
+new file mode 100644
+index 0000000..99074d4
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsLeaseExperiment.cs
+@@ -0,0 +1,104 @@
++namespace DiskAtlas.NtfsPrototype;
++
++internal sealed record NtfsLeaseTiming(int Round, string Order, double DoubleMilliseconds, double LeaseMilliseconds,
++    double DoubleNativeMilliseconds, double LeaseNativeMilliseconds);
++internal sealed record NtfsLeaseExperimentReport(int Objects, int ResidentObjects, int DirectObjects, int UnsupportedExcluded,
++    int DoubleReadCalls, int LeaseCalls, int LeaseHandles, int LeaseSnapshots, IReadOnlyList<NtfsLeaseTiming> Samples);
++
++// Warm-cache micro-experiment over already decoded synthetic objects. This does
++// not time MFT enumeration, a complete scanner, or physical I/O. Counts describe
++// one verified batch; reference reads and warm-up runs are excluded.
++internal static class NtfsLeaseExperiment
++{
++    private sealed record LeaseRun(NtfsLookupBatch Batch, int Calls, int Handles, int Snapshots, bool AllSuccessful);
++
++    internal static NtfsLeaseExperimentReport Run(IReadOnlyList<NtfsLookupItem> all, Action<bool, string> check)
++    {
++        void Require(bool condition, string code)
++        {
++            check(condition, code);
++            if (!condition) throw new InvalidOperationException(code);
++        }
++        Require(all.Count <= NtfsSizeLookup.MaximumObjects, "LeaseExperimentInputBound");
++        var candidates = all.Where(item => item.Record.LookupReasons is NtfsLookupReason.None or NtfsLookupReason.ResidentAllocation).ToArray();
++        Require(candidates.Length is > 0 and <= NtfsSizeLookup.MaximumObjects, "LeaseExperimentBound");
++        int resident = candidates.Count(item => item.Record.LookupReasons == NtfsLookupReason.ResidentAllocation);
++        FileStorageInfo? Read(string path, CancellationToken token)
++        {
++            token.ThrowIfCancellationRequested();
++            return NativeStorage.TryRead(path, false, File.GetAttributes(path), out var storage, out _) ? storage : null;
++        }
++        var reference = new Dictionary<(ulong, ulong), (long Logical, long Allocated)>();
++        foreach (var item in candidates)
++        {
++            var storage = Read(item.Path, default);
++            Require(storage != null && storage.Identity == new FileIdentity(item.Volume, item.Record.Reference, 0) &&
++                storage.LogicalBytes >= 0 && storage.AllocatedBytes >= 0 && !storage.WritableHandleOpen,
++                "LeaseReferenceIdentity");
++            Require(reference.TryAdd((item.Volume, item.Record.Reference), (storage!.LogicalBytes, storage.AllocatedBytes)),
++                "LeaseReferenceUnique");
++        }
++        LeaseRun RunLease()
++        {
++            int calls = 0, handles = 0, snapshots = 0;
++            bool successful = true;
++            var batch = NtfsSizeLookup.ResolveWithLease(candidates, (item, token) =>
++            {
++                calls++;
++                var result = NtfsResidentLease.Read(item.Volume, item.Record, item.Path, token);
++                handles += result.HandlesOpened;
++                snapshots += result.SnapshotReads;
++                successful &= result.Success && result.HandlesOpened == 1 && result.SnapshotReads == 2;
++                return result;
++            });
++            return new(batch, calls, handles, snapshots, successful);
++        }
++        void Validate(NtfsLookupBatch batch, bool lease)
++        {
++            Require(batch.Complete && batch.Items.Count == candidates.Length && batch.Metrics.Objects == candidates.Length,
++                "LeaseBatchComplete");
++            foreach (var item in batch.Items)
++            {
++                Require(reference.TryGetValue((item.Volume, item.Reference), out var expected) &&
++                    item.LogicalBytes == expected.Logical && item.AllocatedBytes == expected.Allocated,
++                    "LeaseSizesMatchReference");
++            }
++            Require(batch.Metrics.EligibleObjects == resident && batch.Metrics.ResolvedObjects == resident &&
++                batch.Metrics.FailedObjects == 0 && batch.Metrics.UnsupportedObjects == 0, "LeaseNoHiddenFailures");
++            Require(batch.Metrics.NativeCalls == resident * (lease ? 1 : 2), "LeaseCallBudget");
++            Require(double.IsFinite(batch.Metrics.ElapsedMilliseconds) && batch.Metrics.ElapsedMilliseconds >= 0 &&
++                double.IsFinite(batch.Metrics.NativeMilliseconds) && batch.Metrics.NativeMilliseconds >= 0 &&
++                batch.Metrics.NativeMilliseconds <= batch.Metrics.ElapsedMilliseconds, "LeaseTimingValid");
++        }
++        void ValidateLease(LeaseRun run)
++        {
++            Validate(run.Batch, true);
++            Require(run.AllSuccessful && run.Calls == resident && run.Handles == resident && run.Snapshots == resident * 2 &&
++                run.Batch.Metrics.NativeCalls == run.Calls, "LeaseObservedWorkBudget");
++        }
++        // Each path is warmed once. All correctness checks happen after Resolve's timer stops.
++        Validate(NtfsSizeLookup.Resolve(candidates, Read), false);
++        ValidateLease(RunLease());
++        var samples = new List<NtfsLeaseTiming>(6);
++        NtfsLookupBatch? lastDouble = null;
++        LeaseRun? lastLease = null;
++        for (int round = 0; round < 6; round++)
++        {
++            NtfsLookupBatch doubleRead;
++            LeaseRun lease;
++            if (round % 2 == 0)
++            { doubleRead = NtfsSizeLookup.Resolve(candidates, Read); lease = RunLease(); }
++            else
++            { lease = RunLease(); doubleRead = NtfsSizeLookup.Resolve(candidates, Read); }
++            Validate(doubleRead, false);
++            ValidateLease(lease);
++            samples.Add(new(round + 1, round % 2 == 0 ? "double-first" : "lease-first",
++                doubleRead.Metrics.ElapsedMilliseconds, lease.Batch.Metrics.ElapsedMilliseconds,
++                doubleRead.Metrics.NativeMilliseconds, lease.Batch.Metrics.NativeMilliseconds));
++            lastDouble = doubleRead;
++            lastLease = lease;
++        }
++        return new(candidates.Length, resident, candidates.Length - resident, all.Count - candidates.Length,
++            lastDouble!.Metrics.NativeCalls, lastLease!.Calls, lastLease.Handles, lastLease.Snapshots, samples.AsReadOnly());
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsLivePrototype.cs b/tests/Prototypes/Ntfs/NtfsLivePrototype.cs
+index 656cffa..94d6f02 100644
+--- a/tests/Prototypes/Ntfs/NtfsLivePrototype.cs
++++ b/tests/Prototypes/Ntfs/NtfsLivePrototype.cs
+@@ -198,7 +198,8 @@ internal static class NtfsLivePrototype
+             Check(dir.Names.All(n => n.Namespace == 2 || n.ParentReference != dir.Reference), "SyntheticDirectoryParent");
+             var lookupItems = decodedFiles.Values.Select(item => new NtfsLookupItem(serial, item, objectPaths[item.Reference])).ToArray();
+             var experiment = NtfsLookupExperiment.Run(lookupItems, Check);
+-            WriteSummary(summaryPath, "passed", checks, 0, "None", experiment);
++            var leaseExperiment = NtfsLeaseExperiment.Run(lookupItems, Check);
++            WriteSummary(summaryPath, "passed", checks, 0, "None", experiment, leaseExperiment);
+             Console.WriteLine("PASS NTFS live checks: " + checks + "; known synthetic files only");
+             return 0;
+         }
+@@ -217,7 +218,8 @@ internal static class NtfsLivePrototype
+     }
+ 
+     private static void WriteSummary(string path, string status, int checks, int failures, string code,
+-        NtfsLookupExperimentReport? experiment = null) =>
+-        File.WriteAllText(path, JsonSerializer.Serialize(new { schema = 1, status, checks, failures, code, lookup_experiment = experiment }));
++        NtfsLookupExperimentReport? experiment = null, NtfsLeaseExperimentReport? leaseExperiment = null) =>
++        File.WriteAllText(path, JsonSerializer.Serialize(new { schema = 1, status, checks, failures, code, lookup_experiment = experiment,
++            lease_experiment = leaseExperiment }));
+     private sealed class FixtureFailure(string code) : Exception { internal string Code { get; } = code; }
+ }
+diff --git a/tests/Prototypes/Ntfs/NtfsResidentLease.cs b/tests/Prototypes/Ntfs/NtfsResidentLease.cs
+new file mode 100644
+index 0000000..e2f86ba
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsResidentLease.cs
+@@ -0,0 +1,97 @@
++using System.Runtime.InteropServices;
++using Microsoft.Win32.SafeHandles;
++
++namespace DiskAtlas.NtfsPrototype;
++
++internal sealed record NtfsLeaseResult(bool Success, FileStorageInfo? Storage, string Code, int HandlesOpened, int SnapshotReads);
++
++// Prototype-only size lookup. A single read handle denies data-write/delete sharing
++// while two snapshots are read. This is not a volume snapshot or residency detector.
++internal static class NtfsResidentLease
++{
++    private const uint ReadAttributesAndData = 0x81, ShareRead = 1;
++    private const uint BackupAndOpenReparse = 0x02000000 | 0x00200000;
++    private const uint UnsupportedAttributes = 0x10 | 0x200 | 0x400 | 0x800 | 0x1000 | 0x4000 | 0x40000 | 0x400000;
++
++    [StructLayout(LayoutKind.Sequential)]
++    private struct IdInfo { public ulong Volume, Low, High; }
++    [StructLayout(LayoutKind.Sequential)]
++    private struct StandardInfo
++    {
++        public long Allocation, EndOfFile;
++        public uint Links;
++        public byte DeletePending, Directory;
++    }
++    [StructLayout(LayoutKind.Sequential)]
++    private struct LegacyInfo
++    {
++        public uint Attributes;
++        public System.Runtime.InteropServices.ComTypes.FILETIME Creation, Access, Write;
++        public uint Volume, SizeHigh, SizeLow, Links, IndexHigh, IndexLow;
++    }
++    private sealed record Observation(FileStorageInfo Storage, uint Attributes);
++
++    [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)]
++    private static extern bool Identity(SafeFileHandle handle, int infoClass, out IdInfo value, uint size);
++    [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)]
++    private static extern bool Standard(SafeFileHandle handle, int infoClass, out StandardInfo value, uint size);
++    [DllImport("kernel32.dll", SetLastError = true)]
++    private static extern bool GetFileInformationByHandle(SafeFileHandle handle, out LegacyInfo value);
++
++    internal static NtfsLeaseResult Read(ulong volume, NtfsRecord record, string path, CancellationToken token = default)
++    {
++        token.ThrowIfCancellationRequested();
++        int opened = 0, reads = 0;
++        NtfsLeaseResult Fail(string code) => new(false, null, code, opened, reads);
++        if (record.IsDirectory || record.BaseReference != 0 || (record.Reference >> 48) == 0 ||
++            record.LookupReasons != NtfsLookupReason.ResidentAllocation || record.LogicalBytes is not >= 0 || record.AllocatedBytes != null ||
++            record.Names.Count is < 1 or > 256 || record.LinkCount != record.Names.Count ||
++            record.Names.Any(name => name.Namespace > 3 || (name.ParentReference >> 48) == 0 ||
++                name.Name is not { Length: > 0 and <= 255 } || name.Name.IndexOfAny(['\0', '\\', '/', ':']) >= 0))
++            return Fail("UnsupportedObject");
++        int visibleNames = record.Names.Where(name => name.Namespace != 2).Select(name => (name.ParentReference, name.Name)).Distinct().Count();
++        if (visibleNames == 0) return Fail("MissingVisibleNames");
++        if (string.IsNullOrWhiteSpace(path) || path.Contains('\0') || !Path.IsPathFullyQualified(path)) return Fail("InvalidPath");
++        if (!record.Names.Any(name => name.Namespace != 2 && name.Name == Path.GetFileName(path))) return Fail("NameMismatch");
++        if (!OperatingSystem.IsWindows()) return Fail("UnsupportedPlatform");
++
++        using var handle = NativeStorage.CreateFileW(NativeStorage.LongPath(path), ReadAttributesAndData, ShareRead,
++            IntPtr.Zero, 3, BackupAndOpenReparse, IntPtr.Zero);
++        if (handle.IsInvalid) return Fail("OpenError-" + Marshal.GetLastWin32Error());
++        opened = 1;
++        token.ThrowIfCancellationRequested();
++
++        Observation? Capture(out string error)
++        {
++            token.ThrowIfCancellationRequested();
++            reads++;
++            error = "NativeReadFailed";
++            if (!Identity(handle, 18, out var id, (uint)Marshal.SizeOf<IdInfo>()) ||
++                !Standard(handle, 1, out var standard, (uint)Marshal.SizeOf<StandardInfo>()) ||
++                !GetFileInformationByHandle(handle, out var legacy)) return null;
++            if ((legacy.Attributes & UnsupportedAttributes) != 0 || standard.Directory != 0 || standard.DeletePending != 0)
++            { error = "UnsupportedAttributes"; return null; }
++            if (new FileIdentity(id.Volume, id.Low, id.High) != new FileIdentity(volume, record.Reference, 0))
++            { error = "IdentityChanged"; return null; }
++            if (standard.EndOfFile != record.LogicalBytes) { error = "LogicalChanged"; return null; }
++            if (standard.Allocation < 0 || standard.Links != visibleNames || legacy.Links != standard.Links ||
++                (((ulong)legacy.SizeHigh << 32) | legacy.SizeLow) != (ulong)standard.EndOfFile)
++            { error = "InvalidSnapshot"; return null; }
++            long write = ((long)legacy.Write.dwHighDateTime << 32) | (uint)legacy.Write.dwLowDateTime;
++            DateTime modified;
++            try { modified = DateTime.FromFileTimeUtc(write).ToLocalTime(); }
++            catch (ArgumentOutOfRangeException) { error = "InvalidTimestamp"; return null; }
++            token.ThrowIfCancellationRequested();
++            error = "None";
++            return new(new(new(id.Volume, id.Low, id.High), standard.Allocation, standard.Links, false, standard.EndOfFile, modified), legacy.Attributes);
++        }
++
++        var first = Capture(out string code);
++        if (first == null) return Fail(code);
++        var second = Capture(out code);
++        if (second == null) return Fail(code);
++        if (first.Storage != second.Storage || first.Attributes != second.Attributes) return Fail("SnapshotChanged");
++        token.ThrowIfCancellationRequested();
++        return new(true, first.Storage, "ResidentLease", opened, reads);
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsResidentLeaseTests.cs b/tests/Prototypes/Ntfs/NtfsResidentLeaseTests.cs
+new file mode 100644
+index 0000000..4ca6da9
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsResidentLeaseTests.cs
+@@ -0,0 +1,313 @@
++using System.Runtime.InteropServices;
++using DiskAtlas;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// Only newly created files below this run's random temporary directory are opened.
++// These tests do not open a volume or claim to establish MFT residency.
++internal static class NtfsResidentLeaseTests
++{
++    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
++    private static extern bool CreateHardLinkW(string name, string existing, IntPtr security);
++
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("NTFS resident lease check failed: " + name);
++            passed++; Console.WriteLine("PASS NTFS resident lease " + name);
++        }
++        var parent = NtfsRecordFixtures.Reference(5, 1);
++        var synthetic = new NtfsRecord(NtfsRecordFixtures.Reference(42, 3), 0, false, 1,
++            [new(parent, "lease.bin", 1)], 17, null, NtfsLookupReason.ResidentAllocation);
++        string tempRoot = Path.GetFullPath(Path.GetTempPath());
++        string root = Path.GetFullPath(Path.Combine(tempRoot, "AsukaLens-resident-lease-" + Guid.NewGuid().ToString("N")));
++        string file = Path.Combine(root, "lease.bin");
++
++        void RejectedBeforeOpen(NtfsRecord record, string name, string? suppliedPath = null)
++        {
++            var result = NtfsResidentLease.Read(1, record, suppliedPath ?? file);
++            Check(!result.Success && result.Storage == null && result.HandlesOpened == 0 && result.SnapshotReads == 0,
++                name);
++        }
++        foreach (var reason in Enum.GetValues<NtfsLookupReason>().Where(reason => reason != NtfsLookupReason.ResidentAllocation))
++            RejectedBeforeOpen(synthetic with { LookupReasons = reason }, "unsupported reason skips native work: " + reason);
++        RejectedBeforeOpen(synthetic with { LookupReasons = NtfsLookupReason.ResidentAllocation | NtfsLookupReason.NamedData },
++            "combined lookup reasons skip native work");
++        RejectedBeforeOpen(synthetic with { IsDirectory = true }, "directory record skips native work");
++        RejectedBeforeOpen(synthetic with { BaseReference = 1 }, "extension record skips native work");
++        RejectedBeforeOpen(synthetic with { Reference = 42 }, "missing sequence skips native work");
++        RejectedBeforeOpen(synthetic with { LogicalBytes = -1 }, "negative logical length skips native work");
++        RejectedBeforeOpen(synthetic with { LogicalBytes = null }, "unknown logical length skips native work");
++        RejectedBeforeOpen(synthetic with { AllocatedBytes = 0 }, "already known allocation skips native work");
++        RejectedBeforeOpen(synthetic with { LinkCount = 2 }, "incomplete raw names skip native work");
++        RejectedBeforeOpen(synthetic with { Names = [] }, "missing names skip native work");
++        RejectedBeforeOpen(synthetic with { Names = [new(parent, "DOSNAM~1.BIN", 2)] }, "DOS-only names skip native work");
++        foreach (string name in new[] { "", "bad/name", "bad\\name", "bad:name", "bad\0name", new string('x', 256) })
++            RejectedBeforeOpen(synthetic with { Names = [new(parent, name, 1)] }, "invalid name skips native work");
++        RejectedBeforeOpen(synthetic with { Names = [new(5, "lease.bin", 1)] }, "unbound parent name skips native work");
++        RejectedBeforeOpen(synthetic with { Names = [new(parent, "lease.bin", 4)] }, "unknown namespace skips native work");
++        RejectedBeforeOpen(synthetic, "relative path skips native work", "lease.bin");
++        RejectedBeforeOpen(synthetic, "empty path skips native work", " ");
++        RejectedBeforeOpen(synthetic, "nul path skips native work", file + '\0');
++        RejectedBeforeOpen(synthetic, "unrelated basename skips native work", Path.Combine(root, "other.bin"));
++        using (var cancelled = new CancellationTokenSource())
++        {
++            cancelled.Cancel(); bool stopped = false;
++            try { NtfsResidentLease.Read(1, synthetic, file, cancelled.Token); }
++            catch (OperationCanceledException) { stopped = true; }
++            Check(stopped && !Directory.Exists(root), "pre-cancellation performs no file work");
++        }
++        passed += RunIntegrationChecks();
++
++        if (!OperatingSystem.IsWindows())
++        {
++            Console.WriteLine("SKIP NTFS resident lease native checks: Windows required");
++            return passed;
++        }
++        if (!string.Equals(new DriveInfo(Path.GetPathRoot(root)!).DriveFormat, "NTFS", StringComparison.OrdinalIgnoreCase))
++        {
++            Console.WriteLine("SKIP NTFS resident lease native checks: temporary directory is not on NTFS");
++            return passed;
++        }
++        Directory.CreateDirectory(root);
++        try
++        {
++            File.WriteAllBytes(file, new byte[17]);
++            if (!NativeStorage.TryRead(file, false, File.GetAttributes(file), out var native, out _) ||
++                native == null || native.Identity.High != 0 || (native.Identity.Low >> 48) == 0)
++            {
++                Console.WriteLine("SKIP NTFS resident lease native checks: required full NTFS identity unavailable");
++                return passed;
++            }
++            var record = synthetic with { Reference = native.Identity.Low, LogicalBytes = native.LogicalBytes };
++            ulong volume = native.Identity.Volume;
++
++            NtfsLeaseResult Read(NtfsRecord? candidate = null, ulong? candidateVolume = null) =>
++                NtfsResidentLease.Read(candidateVolume ?? volume, candidate ?? record, file);
++            void Successful(NtfsLeaseResult result, FileStorageInfo expected, string name) =>
++                Check(result.Success && result.Storage == expected && result.Code == "ResidentLease" &&
++                    result.HandlesOpened == 1 && result.SnapshotReads == 2, name);
++            void FailedAfterOpen(NtfsLeaseResult result, string code, string name) =>
++                Check(!result.Success && result.Storage == null && result.Code == code &&
++                    result.HandlesOpened == 1 && result.SnapshotReads == 1, name);
++            void ExclusiveReopen(string name)
++            {
++                using var reopened = new FileStream(file, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
++                Check(reopened.Length == record.LogicalBytes, name);
++            }
++
++            Successful(Read(), native, "one handle and two snapshots match ordinary small-file NativeStorage values");
++            ExclusiveReopen("success releases its handle for an exclusive writer");
++            FailedAfterOpen(Read(candidateVolume: volume ^ 1), "IdentityChanged", "wrong volume stays unknown");
++            ushort sequence = (ushort)(record.Reference >> 48);
++            ulong nextReference = (record.Reference & NtfsRecordDecoder.MaximumRecordNumber) |
++                ((ulong)(sequence == ushort.MaxValue ? 1 : sequence + 1) << 48);
++            FailedAfterOpen(Read(record with { Reference = nextReference }), "IdentityChanged", "reused sequence stays unknown");
++            FailedAfterOpen(Read(record with { Reference = record.Reference ^ 1 }), "IdentityChanged", "wrong file slot stays unknown");
++            FailedAfterOpen(Read(record with { LogicalBytes = native.LogicalBytes + 1 }), "LogicalChanged", "wrong decoded EOF stays unknown");
++            ExclusiveReopen("failure after opening releases its handle");
++
++            var dosAlias = record with { LinkCount = 2, Names = [record.Names[0], new(parent, "LEASE~1.BIN", 2)] };
++            Successful(Read(dosAlias), native, "raw DOS name does not inflate visible native links");
++            var extraLink = record with { LinkCount = 2, Names = [record.Names[0], new(parent, "missing-link.bin", 1)] };
++            FailedAfterOpen(Read(extraLink), "InvalidSnapshot", "unmatched visible link count stays unknown");
++            using (var reader = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read))
++                Successful(Read(), native, "ordinary shared reader is allowed");
++            using (var writer = new FileStream(file, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete))
++            {
++                var blocked = Read();
++                Check(!blocked.Success && blocked.Storage == null && blocked.Code == "OpenError-32" &&
++                    blocked.HandlesOpened == 0 && blocked.SnapshotReads == 0,
++                    "existing writer is rejected without a permissive retry");
++            }
++            using (var deleteHandle = NativeStorage.CreateFileW(NativeStorage.LongPath(file), 0x10000, NativeStorage.ShareAll,
++                IntPtr.Zero, 3, 0x02000000 | 0x00200000, IntPtr.Zero))
++            {
++                Check(!deleteHandle.IsInvalid, "owned fixture supports an existing delete-access handle");
++                var blocked = Read();
++                Check(!blocked.Success && blocked.Storage == null && blocked.Code == "OpenError-32" &&
++                    blocked.HandlesOpened == 0 && blocked.SnapshotReads == 0,
++                    "existing delete access is rejected without share-delete retry");
++            }
++            Successful(Read(), native, "writer and delete-handle refusal does not retain a handle");
++
++            string hardLink = Path.Combine(root, "hardlink.bin");
++            if (CreateHardLinkW(hardLink, file, IntPtr.Zero))
++            {
++                try
++                {
++                    FailedAfterOpen(Read(), "InvalidSnapshot", "new visible hard link invalidates the old record");
++                    Check(NativeStorage.TryRead(file, false, File.GetAttributes(file), out var linked, out _) && linked?.LinkCount == 2,
++                        "hard-link fixture has two native links");
++                    var linkedRecord = record with { LinkCount = 2, Names = [record.Names[0], new(parent, "hardlink.bin", 1)] };
++                    Successful(Read(linkedRecord), linked!, "complete visible hard links retain native allocation values");
++                }
++                finally { File.Delete(hardLink); }
++            }
++            else Console.WriteLine("SKIP NTFS resident lease hard-link fixture: native error " + Marshal.GetLastWin32Error());
++
++            using (var stream = new FileStream(file, FileMode.Open, FileAccess.Write, FileShare.None)) stream.SetLength(65536);
++            FailedAfterOpen(Read(), "LogicalChanged", "file growth cannot reuse the old resident-length evidence");
++            Check(NativeStorage.TryRead(file, false, File.GetAttributes(file), out var grown, out _) && grown != null,
++                "grown ordinary fixture has readable native storage");
++            Successful(Read(record with { LogicalBytes = grown!.LogicalBytes }), grown,
++                "helper reports allocation and does not assert residency from candidate flags");
++
++            string replacement = Path.Combine(root, "replacement.bin");
++            File.WriteAllBytes(replacement, new byte[65536]);
++            File.Move(replacement, file, true);
++            FailedAfterOpen(Read(record with { LogicalBytes = grown.LogicalBytes }), "IdentityChanged",
++                "same-size replacement cannot pass full identity binding");
++            File.Delete(file);
++            Check(!File.Exists(file), "all paths release handles so the owned file can be deleted");
++
++            Check(NativeStorage.TryRead(root, true, File.GetAttributes(root), out var directory, out _) && directory != null,
++                "owned directory has readable native identity");
++            var directoryCandidate = record with
++            {
++                Reference = directory!.Identity.Low, LogicalBytes = 0,
++                Names = [new(parent, Path.GetFileName(root), 1)]
++            };
++            FailedAfterOpen(NtfsResidentLease.Read(directory.Identity.Volume, directoryCandidate, root),
++                "UnsupportedAttributes", "actual directory is rejected even when a candidate claims ordinary file");
++
++            string sparsePath = Path.Combine(root, "sparse.bin");
++            File.WriteAllBytes(sparsePath, new byte[65536]);
++            bool sparse;
++            using (var stream = new FileStream(sparsePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
++                sparse = NativeStorage.DeviceIoControl(stream.SafeFileHandle, 0x000900c4, null, 0, [], 0, out _, IntPtr.Zero);
++            if (sparse)
++            {
++                Check(NativeStorage.TryRead(sparsePath, false, File.GetAttributes(sparsePath), out var sparseInfo, out _) && sparseInfo != null,
++                    "owned sparse fixture has readable native storage");
++                var sparseCandidate = record with
++                {
++                    Reference = sparseInfo!.Identity.Low, LogicalBytes = sparseInfo.LogicalBytes,
++                    Names = [new(parent, "sparse.bin", 1)]
++                };
++                FailedAfterOpen(NtfsResidentLease.Read(sparseInfo.Identity.Volume, sparseCandidate, sparsePath),
++                    "UnsupportedAttributes", "actual sparse attribute cannot be hidden by an ordinary candidate flag");
++            }
++            else Console.WriteLine("SKIP NTFS resident lease sparse fixture: native feature unavailable");
++        }
++        finally
++        {
++            // Only this exact run-owned directory may be recursively removed.
++            string resolved = Path.GetFullPath(root);
++            string expectedParent = Path.TrimEndingDirectorySeparator(tempRoot);
++            if (!string.Equals(Path.GetDirectoryName(resolved), expectedParent, StringComparison.OrdinalIgnoreCase) ||
++                !Path.GetFileName(resolved).StartsWith("AsukaLens-resident-lease-", StringComparison.Ordinal) ||
++                (File.GetAttributes(resolved) & FileAttributes.ReparsePoint) != 0 ||
++                Directory.EnumerateFileSystemEntries(resolved, "*", SearchOption.TopDirectoryOnly)
++                    .Any(path => (File.GetAttributes(path) & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != 0))
++                throw new InvalidOperationException("Refused unexpected resident lease fixture cleanup target");
++            Directory.Delete(resolved, true);
++        }
++        Console.WriteLine("PASS NTFS resident lease checks: " + passed + "; native files: owned temporary fixtures only");
++        return passed;
++    }
++
++    private static int RunIntegrationChecks()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("NTFS lease integration check failed: " + name);
++            passed++; Console.WriteLine("PASS NTFS lease integration " + name);
++        }
++        const ulong volume = 31;
++        ulong parent = NtfsRecordFixtures.Reference(5, 1), reference = NtfsRecordFixtures.Reference(42, 3);
++        var record = new NtfsRecord(reference, 0, false, 1, [new(parent, "lease.bin", 1)],
++            17, null, NtfsLookupReason.ResidentAllocation);
++        var item = new NtfsLookupItem(volume, record, "lease.bin");
++        var storage = new FileStorageInfo(new(volume, reference, 0), 24, 1, false, 17,
++            new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Local));
++        var success = new NtfsLeaseResult(true, storage, "ResidentLease", 1, 2);
++        int calls = 0;
++        NtfsLookupBatch Resolve(NtfsLeaseResult result) => NtfsSizeLookup.ResolveWithLease([item], (_, _) => { calls++; return result; });
++        var direct = NtfsSizeLookup.ResolveWithLease([item with
++        {
++            Record = record with { LookupReasons = NtfsLookupReason.None, AllocatedBytes = 4096 }
++        }], (_, _) => throw new InvalidOperationException("must not read direct sizes"));
++        Check(direct.Complete && direct.Metrics.NativeCalls == 0 &&
++            direct.Items.Single().AllocatedSource == NtfsSizeSource.Record && direct.Items.Single().AllocatedBytes == 4096,
++            "known direct record sizes avoid lease callbacks");
++        var resolved = Resolve(success);
++        Check(resolved.Complete && calls == 1 && resolved.Metrics.NativeCalls == 1 && resolved.Metrics.ResolvedObjects == 1 &&
++            resolved.Items.Single().AllocatedBytes == 24 && resolved.Items.Single().AllocatedSource == NtfsSizeSource.HandleLookup,
++            "one resident lease callback resolves a validated allocation");
++
++        void Failed(NtfsLeaseResult result, string name)
++        {
++            calls = 0;
++            var batch = Resolve(result);
++            Check(!batch.Complete && calls == 1 && batch.Metrics.NativeCalls == 1 && batch.Metrics.FailedObjects == 1 &&
++                batch.Items.Single().AllocatedBytes == null && batch.Items.Single().AllocatedSource == NtfsSizeSource.Unknown, name);
++        }
++        Failed(success with { Success = false }, "failure flag cannot publish accompanying storage");
++        Failed(success with { Storage = null }, "missing storage remains unknown");
++        Failed(success with { HandlesOpened = 0 }, "zero-handle claim cannot count as a lease");
++        Failed(success with { HandlesOpened = 2 }, "two-handle claim cannot count as a lease");
++        Failed(success with { SnapshotReads = 1 }, "one-snapshot claim cannot count as a lease");
++        Failed(success with { SnapshotReads = 3 }, "unexpected snapshot count cannot count as a lease");
++        Failed(success with { Storage = storage with { Identity = storage.Identity with { Volume = volume + 1 } } },
++            "callback success cannot bypass volume binding");
++        Failed(success with { Storage = storage with { Identity = storage.Identity with { Low = reference + 1 } } },
++            "callback success cannot bypass record binding");
++        Failed(success with { Storage = storage with { Identity = storage.Identity with { High = 1 } } },
++            "callback success cannot bypass full identity binding");
++        Failed(success with { Storage = storage with { LogicalBytes = 18 } }, "callback success cannot bypass EOF binding");
++        Failed(success with { Storage = storage with { AllocatedBytes = -1 } }, "negative allocation remains unknown");
++        Failed(success with { Storage = storage with { Modified = null } }, "missing write timestamp remains unknown");
++        Failed(success with { Storage = storage with { LinkCount = 2 } }, "unexpected native link count remains unknown");
++        Failed(success with { Storage = storage with { WritableHandleOpen = true } }, "writer flag cannot publish allocation");
++
++        foreach (var error in new Exception[] { new IOException("private fixture error"), new UnauthorizedAccessException("private fixture error") })
++        {
++            var batch = NtfsSizeLookup.ResolveWithLease([item], (_, _) => throw error);
++            Check(!batch.Complete && batch.Items.Single().AllocatedBytes == null && batch.Items.Single().Code == "LeaseReadFailed",
++                "expected callback failure has a fixed path-free result");
++        }
++        bool unexpected = false;
++        try { NtfsSizeLookup.ResolveWithLease([item], (_, _) => throw new InvalidOperationException("synthetic")); }
++        catch (InvalidOperationException) { unexpected = true; }
++        Check(unexpected, "unexpected callback exception propagates");
++        bool cancelledCallback = false;
++        try { NtfsSizeLookup.ResolveWithLease([item], (_, _) => throw new OperationCanceledException()); }
++        catch (OperationCanceledException) { cancelledCallback = true; }
++        Check(cancelledCallback, "callback cancellation propagates");
++        using (var cancelled = new CancellationTokenSource())
++        {
++            cancelled.Cancel(); calls = 0; bool stopped = false;
++            try { NtfsSizeLookup.ResolveWithLease([item], (_, _) => { calls++; return success; }, cancelled.Token); }
++            catch (OperationCanceledException) { stopped = true; }
++            Check(stopped && calls == 0, "pre-cancelled batch never invokes lease reader");
++        }
++        var secondItem = item with { Record = record with { Reference = NtfsRecordFixtures.Reference(43, 3) }, Path = "second.bin" };
++        using (var cancelled = new CancellationTokenSource())
++        {
++            calls = 0; bool stopped = false;
++            try
++            {
++                NtfsSizeLookup.ResolveWithLease([item, secondItem], (input, _) =>
++                {
++                    calls++;
++                    if (calls == 2) cancelled.Cancel();
++                    return success with { Storage = storage with { Identity = storage.Identity with { Low = input.Record.Reference } } };
++                }, cancelled.Token);
++            }
++            catch (OperationCanceledException) { stopped = true; }
++            Check(stopped && calls == 2, "mid-batch cancellation publishes no partial batch");
++        }
++        calls = 0;
++        var budget = NtfsSizeLookup.ResolveWithLease([item, secondItem], (_, _) => { calls++; return success; }, limit: 1);
++        Check(!budget.Complete && budget.Code == "RecordLimit" && budget.Items.Count == 0 && calls == 0,
++            "budget rejects the whole batch before native work");
++        var duplicates = NtfsSizeLookup.ResolveWithLease([item, item], (_, _) => throw new InvalidOperationException("must not read duplicates"));
++        Check(!duplicates.Complete && duplicates.Code == "DuplicateObject" && duplicates.Items.Count == 0,
++            "duplicate identities reject the batch before native work");
++        return passed;
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsSizeLookup.cs b/tests/Prototypes/Ntfs/NtfsSizeLookup.cs
+index 217040e..e8e3a2e 100644
+--- a/tests/Prototypes/Ntfs/NtfsSizeLookup.cs
++++ b/tests/Prototypes/Ntfs/NtfsSizeLookup.cs
+@@ -17,6 +17,15 @@ internal static class NtfsSizeLookup
+     internal const int MaximumObjects = 4096;
+     internal static NtfsLookupBatch Resolve(IReadOnlyList<NtfsLookupItem> items,
+         Func<string, CancellationToken, FileStorageInfo?> reader, CancellationToken token = default, int limit = MaximumObjects)
++        => ResolveCore(items, reader, null, token, limit);
++
++    internal static NtfsLookupBatch ResolveWithLease(IReadOnlyList<NtfsLookupItem> items,
++        Func<NtfsLookupItem, CancellationToken, NtfsLeaseResult> reader, CancellationToken token = default, int limit = MaximumObjects)
++        => ResolveCore(items, null, reader, token, limit);
++
++    private static NtfsLookupBatch ResolveCore(IReadOnlyList<NtfsLookupItem> items,
++        Func<string, CancellationToken, FileStorageInfo?>? reader,
++        Func<NtfsLookupItem, CancellationToken, NtfsLeaseResult>? leaseReader, CancellationToken token, int limit)
+     {
+         token.ThrowIfCancellationRequested();
+         var clock = Stopwatch.StartNew();
+@@ -43,7 +52,7 @@ internal static class NtfsSizeLookup
+             token.ThrowIfCancellationRequested();
+             calls++;
+             long started = Stopwatch.GetTimestamp();
+-            try { return reader(path, token); }
++            try { return reader!(path, token); }
+             catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return null; }
+             finally { nativeTicks += Stopwatch.GetTimestamp() - started; }
+         }
+@@ -70,8 +79,6 @@ internal static class NtfsSizeLookup
+                 unsupported++; output.Add(Result(null, NtfsSizeSource.Unknown, "UnsupportedLookupReason")); continue;
+             }
+             eligible++;
+-            var first = Read(item.Path);
+-            token.ThrowIfCancellationRequested();
+             string? Problem(FileStorageInfo? sample)
+             {
+                 if (sample == null) return "ReadFailed";
+@@ -81,13 +88,33 @@ internal static class NtfsSizeLookup
+                 if (sample.AllocatedBytes < 0 || sample.Modified == null || sample.LinkCount != visibleNames) return "InvalidSnapshot";
+                 return null;
+             }
+-            string? problem = Problem(first);
+-            if (problem == null)
++            FileStorageInfo? first = null;
++            string? problem;
++            if (leaseReader != null)
++            {
++                calls++;
++                long started = Stopwatch.GetTimestamp();
++                NtfsLeaseResult? lease = null;
++                try { lease = leaseReader(item, token); }
++                catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
++                finally { nativeTicks += Stopwatch.GetTimestamp() - started; }
++                token.ThrowIfCancellationRequested();
++                first = lease?.Storage;
++                problem = lease is not { Success: true, HandlesOpened: 1, SnapshotReads: 2 }
++                    ? "LeaseReadFailed" : Problem(first);
++            }
++            else
+             {
+-                var second = Read(item.Path);
++                first = Read(item.Path);
+                 token.ThrowIfCancellationRequested();
+-                problem = Problem(second);
+-                if (problem == null && (first!.AllocatedBytes != second!.AllocatedBytes || first.Modified != second.Modified)) problem = "SnapshotChanged";
++                problem = Problem(first);
++                if (problem == null)
++                {
++                    var second = Read(item.Path);
++                    token.ThrowIfCancellationRequested();
++                    problem = Problem(second);
++                    if (problem == null && (first!.AllocatedBytes != second!.AllocatedBytes || first.Modified != second.Modified)) problem = "SnapshotChanged";
++                }
+             }
+             if (problem != null)
+             {
+diff --git a/tests/Prototypes/Ntfs/README.md b/tests/Prototypes/Ntfs/README.md
+index a7c3601..883892b 100644
+--- a/tests/Prototypes/Ntfs/README.md
++++ b/tests/Prototypes/Ntfs/README.md
+@@ -26,6 +26,19 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-prototype-te
+ 
+ `NtfsLookupExperiment` 在隔离 VHD 内比较选择性补查与“每对象两次句柄读取”的稳定性检查对照：6 轮交替顺序，预读/预热与结果比较不计入耗时。报告字段中的 `NativeCalls`/`NativeMilliseconds` 表示整个 reader/NativeStorage 回调的次数与耗时，一次包含多项系统查询，不能视作物理 I/O 次数。它不包括 MFT 读取、文件创建、建树或 UI，也不是现有扫描器的性能对照；对象比例仅代表人工夹具。
+ 
++2026-11-12 后续新增 `NtfsResidentLease` 和 `ResolveWithLease`：同一只读句柄仅分享读取权限，句柄存活期间读取两组身份、标准信息和修改时间；不在分享冲突或权限失败后改用宽松分享。只有两组一致且与普通驻留候选的完整身份、EOF 和可见链接数相符，才发布分配量。每个成功候选打开一个句柄、读取两组快照；这两个计数不代表单个 Win32 调用或物理 I/O。
++
++`NtfsLeaseExperiment` 保留原双回调路径作对照，6 轮交替比较单句柄与双打开，预热和结果验证不在计时内。`lease_experiment` 通过独立字段白名单后才进入夹具摘要；失败或清理失败不保留成功实验摘要。
++
++单句柄限制数据写入和删除分享，但不能排除仅改属性的操作或记录读取前后的变化；它不证明文件仍驻留、父目录归属或整卷新鲜度。调用者仍须提供已核验且足够新鲜的记录。两组相同观察不是活跃卷快照，取消也不能打断已进入的同步系统调用。仅测试原型采用这条路径，生产扫描器不受影响。
++
++文件句柄与集成边界测试使用自己的随机临时目录，与纯内存合成入口分开：
++
++```powershell
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-resident-lease-tests
++pwsh -NoProfile -File tests/NtfsLeaseEvidence.Tests.ps1
++```
++
+ 原始 MFT 名称引用计数包含独立 DOS 名称属性；它与排除 DOS 别名后的 Windows 可见硬链接数分开校验。本轮真实文件比对据此修正了原合成夹具的头部计数。
+ 
+ 重复记录、槽位复用、目录入口冲突、过期父引用、目录循环、未知大小和总量溢出不能成为完整成功。未提供跨目录的硬链接占用归属或生产图表；目录索引及 NTFS 系统开销不计入文件数据总量。即使 `CompleteSyntheticIndex` 为真，也只意味着这批合成记录满足原型约束，不能证明活跃卷一致。

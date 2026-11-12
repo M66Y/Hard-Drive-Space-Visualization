@@ -19,6 +19,8 @@ $checks = 0; $failureCount = 0; $status = 'failed'
 $failureCode = 'None'; $runnerStopped = $true
 $nativeError = 0
 $lookupEvidence = $null
+$leaseEvidence = $null
+. (Join-Path $PSScriptRoot 'LeaseEvidence.ps1')
 $diskNumber = $null; $diskPath = $null; $imageDevicePath = $null
 
 function Assert-NoReparsePath([string]$Path) {
@@ -267,6 +269,8 @@ public static class AsukaLensFixtureImage {
     if ($runnerExit -ne 0 -or $summary.status -cne 'passed' -or $failureCount -ne 0) { throw 'COMPARISON_FAILED' }
     if (-not $summary.PSObject.Properties['lookup_experiment']) { throw 'LOOKUP_EVIDENCE_MISSING' }
     $lookupEvidence = ConvertTo-LookupEvidence $summary.lookup_experiment
+    if (-not $summary.PSObject.Properties['lease_experiment']) { throw 'LEASE_EVIDENCE_MISSING' }
+    $leaseEvidence = ConvertTo-LeaseEvidence $summary.lease_experiment
     $status = 'passed'; $stage = 'ComparisonPassed'
 } catch {
     # Native messages and logs can include local paths. Never copy them to the result.
@@ -297,6 +301,7 @@ public static class AsukaLensFixtureImage {
     } catch { $status = 'cleanup_failed' }
     $result = [ordered]@{schema=1;status=$status;stage=$stage;code=$failureCode;native_error=$nativeError;exit_code=$runnerExit;checks=$checks;failures=$failureCount;detached=$detached;cleanup_completed=$cleaned}
     $result.lookup_experiment = if ($status -ceq 'passed') { $lookupEvidence } else { $null }
+    $result.lease_experiment = if ($status -ceq 'passed') { $leaseEvidence } else { $null }
     $resultTemp = $ResultPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
     try {
         [void](Assert-NoReparsePath $ResultPath)

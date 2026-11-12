@@ -26,6 +26,19 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-prototype-te
 
 `NtfsLookupExperiment` 在隔离 VHD 内比较选择性补查与“每对象两次句柄读取”的稳定性检查对照：6 轮交替顺序，预读/预热与结果比较不计入耗时。报告字段中的 `NativeCalls`/`NativeMilliseconds` 表示整个 reader/NativeStorage 回调的次数与耗时，一次包含多项系统查询，不能视作物理 I/O 次数。它不包括 MFT 读取、文件创建、建树或 UI，也不是现有扫描器的性能对照；对象比例仅代表人工夹具。
 
+2026-11-12 后续新增 `NtfsResidentLease` 和 `ResolveWithLease`：同一只读句柄仅分享读取权限，句柄存活期间读取两组身份、标准信息和修改时间；不在分享冲突或权限失败后改用宽松分享。只有两组一致且与普通驻留候选的完整身份、EOF 和可见链接数相符，才发布分配量。每个成功候选打开一个句柄、读取两组快照；这两个计数不代表单个 Win32 调用或物理 I/O。
+
+`NtfsLeaseExperiment` 保留原双回调路径作对照，6 轮交替比较单句柄与双打开，预热和结果验证不在计时内。`lease_experiment` 通过独立字段白名单后才进入夹具摘要；失败或清理失败不保留成功实验摘要。
+
+单句柄限制数据写入和删除分享，但不能排除仅改属性的操作或记录读取前后的变化；它不证明文件仍驻留、父目录归属或整卷新鲜度。调用者仍须提供已核验且足够新鲜的记录。两组相同观察不是活跃卷快照，取消也不能打断已进入的同步系统调用。仅测试原型采用这条路径，生产扫描器不受影响。
+
+文件句柄与集成边界测试使用自己的随机临时目录，与纯内存合成入口分开：
+
+```powershell
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-resident-lease-tests
+pwsh -NoProfile -File tests/NtfsLeaseEvidence.Tests.ps1
+```
+
 原始 MFT 名称引用计数包含独立 DOS 名称属性；它与排除 DOS 别名后的 Windows 可见硬链接数分开校验。本轮真实文件比对据此修正了原合成夹具的头部计数。
 
 重复记录、槽位复用、目录入口冲突、过期父引用、目录循环、未知大小和总量溢出不能成为完整成功。未提供跨目录的硬链接占用归属或生产图表；目录索引及 NTFS 系统开销不计入文件数据总量。即使 `CompleteSyntheticIndex` 为真，也只意味着这批合成记录满足原型约束，不能证明活跃卷一致。

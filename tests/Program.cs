@@ -5,6 +5,20 @@ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.F
 
 if (args.Contains("--package-smoke")) return PackageSmoke.Run();
 if (args.Contains("--ntfs-prototype-tests")) return DiskAtlas.NtfsPrototype.NtfsPrototypeTests.Run();
+if (args.Contains("--ntfs-resident-lease-tests"))
+{
+    try
+    {
+        int checks = DiskAtlas.NtfsPrototype.NtfsResidentLeaseTests.Run();
+        Console.WriteLine($"PASS NTFS resident lease checks: {checks}; only owned temporary files opened");
+        return 0;
+    }
+    catch
+    {
+        Console.Error.WriteLine("FAIL NTFS resident lease checks; no private details emitted");
+        return 1;
+    }
+}
 if (args.Contains("--ntfs-live-prototype"))
 {
     if (args.Length == 2 && args[0] == "--ntfs-live-prototype") return DiskAtlas.NtfsPrototype.NtfsLivePrototype.Run(args[1]);
