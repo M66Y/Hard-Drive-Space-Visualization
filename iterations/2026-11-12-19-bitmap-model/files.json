@@ -1,0 +1,65 @@
+{
+  "baseline": "643c11ed7c31de8ad4246cfbf72e5d0537fccdf4",
+  "files": [
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "897a6be8edaeda3c69f0f167bdeb081e1a9e8189e78f27bec4b0c47af1ba8e6e"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "5fb17b905ee95a1ab784de15ace377f04da5c2e5777c7de6272d37e168e3cf11"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "5b92be9b774c540ded2ea6935bd0ba9877175775b97945eac975f4ad973b8e82"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "46ef7cf057b0568c41ae4cab99bada1c1c4347c05787c3d51f25007147d8e6fa"
+    },
+    {
+      "path": "docs/ntfs-bitmap-attribute-plan.md",
+      "sha256": "d94f66945c9aa356d82d5e2ed2a4f36295b3912dd935c504703f27b48ec01221"
+    },
+    {
+      "path": "docs/ntfs-bitmap-model-plan.md",
+      "sha256": "11bea8a8df8b7cbae4443262539620378a36350cd5e42edecc578b4cb94a5bb2"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "b58a14d2cb1c1c9b7f93c12d0ea16fbb47f7c0e98806be33045d78c8773bfb97"
+    },
+    {
+      "path": "iterations/2026-11-12-19-bitmap-model/README.md",
+      "sha256": "6413dc0acf825c0712b0506f63476eb9c2fc09c0d1dfd10221a76f17be7c2596"
+    },
+    {
+      "path": "iterations/2026-11-12-19-bitmap-model/validation.json",
+      "sha256": "691fc833d98e8127b92e27c3fbe66eca2105148996a7eced848c65293ae54b46"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "361c7d92cd4d65b10f9ea1623d85b4f62d1ce79ec90846c503508bda0723b5c9"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsSyntheticBitmapAdversarialTests.cs",
+      "sha256": "f8b4217d3b33190daa3a1eea26441318706a57d86197fa9797fcc1b2488a3ab2"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsSyntheticBitmapModel.cs",
+      "sha256": "9805aba717f20fec044ec183725b804d13dc287d2222aa1b6903a0c06a42ffdc"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsSyntheticBitmapModelTests.cs",
+      "sha256": "5d8676a8358bf5dd120c564e9c81ee10afe75efff5b14f3219a9db55cd0b1e45"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/README.md",
+      "sha256": "bca333b7029c32ee5abf27c61505bae3be6d12072898a5ad1ab78c9c279b90fd"
+    },
+    {
+      "path": "iterations/2026-11-12-19-bitmap-model/changes.patch",
+      "sha256": "794b6687f09c0bb1d6e4131ba75c0e6f64c377b7010b71f598678acd111ec5f0"
+    }
+  ]
+}

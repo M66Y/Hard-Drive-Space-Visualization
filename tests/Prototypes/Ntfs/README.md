@@ -18,6 +18,16 @@ pwsh -NoProfile -File tests/NtfsMftEnumerationEvidence.Tests.ps1
 
 后续v2新增有界 `CodeCounts`（32种固定Status/Code配对）和 `AllZeroInvalid`，保持四类及全部读取限制。原因小计必须与四类吻合；全零仅是严格Invalid中原始字节全零的观察，不自动判为空闲。安全摘要只在来源关闭核验后发布，不输出原始记录。新helper拒绝v1混用，历史归档保持原revision，见[分类诊断方案](../../../docs/ntfs-classification-diagnostics-plan.md)。
 
+## 纯合成记录位图模型
+
+`NtfsSyntheticBitmapModel` 不提取位图、不访问卷或文件；只分析最多4096槽/512字节的模拟输入。Allocated/Unallocated/Unknown是输入位图声明，保留四类解码和固定12格交叉计数；缺失或显式部分覆盖之外保持Unknown，Provided截断/超量拒绝。全零不自动成为Free，记录头观察不一致只计数，不推断损坏或大小。
+
+```powershell
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-bitmap-model-tests
+```
+
+48核心/58独立反例通过，全部输出Synthetic。模型LSB-first和模拟对象绑定不证明真实NTFS位序或来源；未接入现有v2报告、Native/产品统计。外部集合/Memory异常均在访问边界净化，取消以传入token为准。实际182槽的分配状态仍未知，细节见[方案](../../../docs/ntfs-bitmap-model-plan.md)与[第19轮](../../../iterations/2026-11-12-19-bitmap-model/README.md)。
+
 ## 有限原始读取原型
 
 `NtfsMftMap` 从严格校验的原始record0建立不可变映射，限定一个未命名普通非驻留DATA、最多128区段；验证VCN、带符号LCN增量、大小及物理范围，不支持属性扩展或稀疏MFT。`PlanRecord` 生成有界连续目标切片，不假定MFT在磁盘上连续。

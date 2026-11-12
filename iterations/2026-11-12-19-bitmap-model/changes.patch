@@ -1,0 +1,790 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index f3a52c0..697a07a 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,28 +1,28 @@
+ # AsukaLens 开发检查点
+ 
+-2026-11-12；第18轮基线 `e01f672ec005c967f51a8afe1d5457777886d533`（第17轮已提交并推送main）。当前第18轮开发/验收和清理完成，恢复补丁/提交绑定以本轮archive和Git为准。事实入口docs/project-status.md、docs/development-plan.md。
++2026-11-12；第19轮基线 `643c11ed7c31de8ad4246cfbf72e5d0537fccdf4`（第18轮已独立提交并推送main）。C19开发/相称检查/审查完成，归档恢复与提交绑定见本轮files.json及Git。事实入口docs/project-status.md、docs/development-plan.md。
+ 
+-## 本次目标及授权时效
++## 用户目标及授权
+ 
+-用户要求连续开发2小时，10:09:17–12:09:17 UTC。已确认第16轮自有256MiB VHD的22目标；另行明确扩大到第17轮有界MFT有效范围（系统/空闲槽、最多4096槽/4MiB+1024请求字节/256次读取尝试），并允许第18轮固定分类原因诊断沿用本窗口VHD流程。仅自有新镜像，测试后卸载清理；不个人盘/VSS/新增原始留样/生产接入/发布。不反复询问已授权范围，不延续许可到以后。
++连续开发2小时窗口10:09:17–12:09:17 UTC。C16新建256MiB自有VHD22目标已批；C17另批有界MFT有效范围（系统/空闲槽，最多4096槽/4MiB+1024/256次尝试），C18固定分类诊断沿用窗口VHD许可；C19另批纯合成位图模型，不新增真实操作。仅自有新镜像测后卸载清理，不个人盘/VSS/新原始留样/产品或发布。许可不延续到以后；C19不需要VHD。
+ 
+-## 已核实阶段
++## 本窗口已完成
+ 
+-- C16 `73c184e` 已独立提交推送，固定来源适配器与准备期真实归属/无父链、私有token/map、后验/关闭通过；只限record0+21目标。immutable archive16。
+-- C17 `e01f672` 已独立提交推送，32文件正向恢复、33条committed SHA已核对。NtfsMftMap.PlanRange、Enum、BoundedSource、新固定Lease profile与guard factory/Live/wrapper完成。真实256槽/4页、21匹配14目标unknown，67decoded/0free/183invalid/6unsupported，5reads263168请求字节；关闭/解锁/后验/卸载清理通过。旧source473/raw860模式兼容仍22条，不用5对22宣称等工作量加速。immutable archive17。
+-- C18本轮v2已完成：新增AllZeroInvalid/CodeCounts，32种固定Status+Code配对，最多128项，四类小计/visited守恒、排序唯一，未知/注入拒绝。严格decoder/四类/预算不变，关闭后才发布安全聚合。
+-- C18 build0warn/error；enum91、bounded68、旧guard206+source63通过，PS477及outer284通过。独立只读审查无阻塞。
+-- C18实际新VHD473通过：256槽=67Decoded+182Invalid/Signature（全零）+1Invalid/SparseMappingFlags+6Unsupported/RecordFlags，Free0，AllZeroInvalid182；21匹配、14目标分配未知，5reads263168，closed/unlock/post/detach/cleanup全部通过。原始记录不保存。只解释拒绝分支，不证明182槽未分配或其他7槽损坏，更不证明格式支持/占用完整/速度。
+-- 原C17单页managed与64KiB+padding native缓冲复用仍保留，decoder有每记录副本，不称进程内存上限。同步I/O不能瞬时取消；取消/失败不发布部分成功。
++- C16 `73c184e` 已推main，固定来源owner/归属/无父链/准备守卫及22目标闭环，archive16不改。
++- C17 `e01f672` 已推main，32文件正向恢复与33条committed SHA通过；有界分页/新固定lease profile/私有token-map/独立mode完成。真实256槽/4页、21匹配14目标unknown，5reads263168请求字节，67decoded/0free/183invalid/6unsupported；关闭/后验/解锁/卸载清理通过。旧source473/raw860兼容仍22条，不用不同工作量5对22宣称加速。archive17不改。
++- C18 `643c11e` 已推main，19文件正向恢复与20条committed SHA通过。v2 CodeCounts/AllZeroInvalid32固定配对诊断完成。真实473检查，256槽=67Decoded+182全零Invalid/Signature+1Invalid/SparseMappingFlags+6Unsupported/RecordFlags。21匹配14目标unknown、5reads263168、闭环清理通过。不是182槽未分配/其他7槽损坏/格式全支持/完整占用或性能证明。archive18不改。
++- C19新增 NtfsSyntheticBitmapModel/核心Tests/独立AdversarialTests及Program入口 --ntfs-bitmap-model-tests；最多4096槽/512B，模拟SourceToken/MapEpoch只比对象引用，全部报告Synthetic。三态位图声明与四类解码12交叉格独立；缺失/未覆盖Unknown，Provided截断/超量拒绝、padding忽略，完整唯一观察不可遗漏。
++- C19构建0warn/error；48core+58独立反例过；旧enum91/bounded68过。AllZero仅Invalid且header=null；Decoded/Free提供header时须自洽，其他header只是模拟观察，冲突只计数不修复/不判断损坏。模型LSB-first不证明真实NTFS位序。
++- C19审查修复外部Count/Memory/indexer抛伪造OCE/ModelException绕过净化。ReadExternal捕任何外部异常，先传入token取消，否则新固定BitmapModelInput，无原Message/Code/Inner；12注入组合过，最终独立只读复核无阻塞。无模型文件/卷I/O，不接v2/Native/生产统计。
+ 
+-## 工作区归属与清理
++## 当前工作与清理
+ 
+-C18作者封板：special_contract仅Enum/BoundedSource及两Tests；special_tests_plan仅MftEnumerationEvidence/Tests；Root负责docs/AGENTS/记忆及archive18。当前无运行中exec/UAC/Native，无VHD/ntfs-test目录；C18结果已SHA核对归档range-native.json并删除副本。旧6条kernel本机样本会话8文件/9683字节未变，不上传。
++C19作者封板：attribute_probe新增Model+coreTests，special_contract独立反例，special_tests_plan只读复核；Root负责Program/docs/AGENTS/记忆与archive19。当前无运行中exec/UAC/Native，无VHD或ntfs-test目录，无本轮临时目录。C18结果已SHA归档后删除副本，旧kernel六条样本会话8文件/9683字节不变、不上传。
+ 
+-C18归档 iterations/2026-11-12-18-mft-classification，基线e01f672；恢复补丁只含本轮必要文件，不递归旧archives或自身。显式暂存、fetch核对再提交main，不force/tag/Release。原生产自动/高速路径未改，v1.5.0仍最后正式发行。
++C19归档 iterations/2026-11-12-19-bitmap-model，基线643c11e；显式stage本轮必要文件，patch不递归旧archives/自身，fetch检查后commit/push main，不force/tag/Release。原自动/高速扫描未改变，v1.5.0仍最后正式发行。
+ 
+-## 下一建议与未完成
++## 下一步边界
+ 
+-Root已写 docs/ntfs-bitmap-model-plan.md 并询问用户是否在剩余窗口做纯合成MFT分配位图模型：最多4096槽/512字节、明确部分覆盖与缺失Unknown、三态声明与四类交叉计数、模拟来源/map绑定；无I/O/VHD/真实BITMAP提取/产品接入。用户已确认实施，Root先完成C18独立提交；C19仅新增模型和测试，不增加真实操作。官方MFT文档区分MFT记录位图与卷簇位图，不能用FSCTL_GET_VOLUME_BITMAP替代记录分配证据。
++真实MFT记录BITMAP提取/位序/驻留和非驻留映射、同持锁来源绑定/后验、182槽实际分配、RecordFlags/SparseMappingFlags支持、4096真实槽/其他几何系统、VSS/活跃卷、完整建树和资源收益仍未实现。MFT记录位图与卷簇位图不能混用。
+ 
+-真实位图提取/格式及绑定、182槽实际分配状态、RecordFlags/SparseMappingFlags支持、4096真实槽、其他系统/几何、碎片化/属性扩展、VSS/活跃卷、完整建树/补查融合及资源收益仍未完成。一次性VHD许可仍在12:09:17UTC终止，Skill正文不改，事实写references。
++Root在评估“受限BITMAP属性定位/提取纯原型”的下一轮最小范围，用户已确认docs/ntfs-bitmap-attribute-plan.md纯内存范围，C19独立提交后实施第20轮；不把普通继续/过去VHD许可扩展为真实位图读取，不为时限放宽解析。用户窗口12:09:17UTC结束；新的真实操作需有效范围授权。Skill正文不改，事实写references。
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index 570ff2c..0f81f69 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -23,3 +23,5 @@
+ - 2026-11-12：用户另行批准本窗口内读取新建测试VHD的MFT有效范围；独立mft-range与固定4096槽/4MiB+bootstrap/256次预算，不扩大旧22目标模式。第17轮256真实槽读完而183 invalid、6 unsupported仍如实保留，范围完成不等于格式支持或完整占用；原因是先建立可核验的批量覆盖与失败语义，避免把未知数据当零来制造速度。下一步先做受控分类原因诊断，再决定格式/建树/性能范围，不放松严格decoder。依据 iterations/2026-11-12-17-bounded-mft/README.md 与 docs/ntfs-bounded-mft-plan.md。
+ 
+ - 2026-11-12：第18轮只加固定聚合原因诊断，保持严格decoder/分类/预算。真实183 Invalid分解为182全零Signature与1 SparseMappingFlags，6 Unsupported为RecordFlags；不凭全零改成Free，也不凭错误码宣布损坏。理由是字节形态与记录分配是两种证据，下一步先设计纯合成位图模型，真实来源后续单独验证。依据 iterations/2026-11-12-18-mft-classification/README.md 与 docs/ntfs-classification-diagnostics-plan.md。
++
++- 2026-11-12：第19轮先实现无I/O位图模型，位图三态声明与四类decode交叉统计，不将全零推断成Free。模拟对象绑定只比引用，所有结果Synthetic，不自动提升为真实位图验证。Count/Memory/indexer视作不可信输入边界，即便外部伪装受控异常也统一净化；理由是异常类型不能证明来源。真实BITMAP解析/同来源读取/后验仍需另行方案。依据 iterations/2026-11-12-19-bitmap-model/README.md 与 docs/ntfs-bitmap-model-plan.md。
+diff --git a/AGENTS.md b/AGENTS.md
+index cc6300a..2302eee 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -137,6 +137,7 @@
+ - NTFS 读取会话模型运行 `--ntfs-read-session-tests`，只用合成输入，不访问卷。全会话累计最多4096条、2次重启、每批256条；来源断言不是实际验证器，`CompletedSyntheticSession` 不代表MFT覆盖或真实快照完成。映射/来源失效、已观察高水位、全部异步入口代际、取消/重入、未知值及溢出按[会话契约](docs/ntfs-read-session-plan.md)检查，不据此启用VSS、真实卷读取或产品入口。
+ - NTFS 有界MFT范围运行 `--ntfs-mft-enumerator-tests`、`--ntfs-bounded-mft-tests`，共享改动另跑map/raw-volume/fixture-source检查及 `tests/NtfsMftEnumerationEvidence.Tests.ps1`、`tests/NtfsFixtureCodeEvidence.Tests.ps1`。`-MftRange` 独立于旧22目标模式，仅本轮另获范围授权后操作新建VHD，最多4096槽/4MiB+bootstrap/256次读取尝试。`range_classified` 只表示严格四类覆盖与21对象/关闭核验，不代表全格式、完整占用或速度；invalid/unsupported不得当空闲、零占用或磁盘损坏。见[有界方案](docs/ntfs-bounded-mft-plan.md)，当前许可不延续到以后、个人卷或VSS。
+ - 有界MFT分类诊断当前使用v2摘要；`CodeCounts`只接收32种固定Status/Code配对，`AllZeroInvalid`只是严格Invalid中的全零观察，不改变Free或证明未分配。更改诊断合同需同步上述C#/PS检查、版本及深白名单，保留历史revision，不输出原始记录或任意异常文本；来源关闭/失败隔离仍适用，见[分类方案](docs/ntfs-classification-diagnostics-plan.md)。
++- NTFS 位图模型运行 `--ntfs-bitmap-model-tests`，仅合成输入，最多4096槽/512字节；结果固定Synthetic，三态位图声明与四类解码独立，缺失或未覆盖保持Unknown，不凭全零改成Free。真实MFT记录位图与卷簇位图不得混用，模拟绑定不是真实来源验证器；不由此新增Native读取或产品入口。外部集合/Memory访问的异常不可信，统一净化并用传入token检查取消，不能因异常类型看似受控而透传任意文本。见[模型方案](docs/ntfs-bitmap-model-plan.md)。
+ - NTFS 自有来源适配器运行 `--ntfs-fixture-source-tests`、`tests/NtfsSourceEvidence.Tests.ps1`、`tests/NtfsFixtureCodeEvidence.Tests.ps1` 及原隔离守卫。真实脚本 `-SourceAdapter` 只在本轮明确VHD许可内运行，固定record0+21对象；新模式为 `fixture-source`、成功为 `source_verified`，不与旧raw成功混用。准备期先验证fixed/no-parent、实际VHD/卷/marker归属再调用旧准备路径；实际来源factory另开自持句柄、私有token/map及固定Native后验，不能由caller bool、任意路径/句柄或模拟来源伪造。结果envelope关闭失效，旧immutable副本不能当当前证明。仅当前受控静态来源，不是全MFT/VSS/活跃卷验证，详见[来源方案](docs/ntfs-fixture-source-plan.md)。
+ - 存储属性提示分支改动另运行 `--storage-attribute-tests`，只使用自有临时 NTFS 普通/压缩/稀疏及命名流夹具，能力缺失明确跳过。`--storage-attribute-observe` 只记录差异，退出成功不代表回归通过；对照无差异时不得宣称已复现误算或证明所有文件系统支持。
+ - 混合目录调度改动补测 `--mixed-benchmark before/after` 的同夹具对比；用户明确指定实际目录后才使用 `--folder-benchmark`，其报告与隔离诊断仅留本机临时目录，不进入仓库。比较自动与高速必须核对完整扫描、结果一致性和运行顺序，保留异常波动样本。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 45394c9..a69d337 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -2,7 +2,9 @@
+ 
+ ## 当前执行计划（2026-11-12）
+ 
+-第18轮[分类诊断](ntfs-classification-diagnostics-plan.md)已完成：实际183 Invalid中182为全零Signature、1为SparseMappingFlags，6 Unsupported为RecordFlags，21对象与关闭/清理仍通过，见[归档](../iterations/2026-11-12-18-mft-classification/README.md)。只是解释严格拒绝分支，不改变其有效性或证明空闲。下一步建议先设计纯合成的有界分配位图校验模型，明确占用位与记录解码结果的关系，再分别安排真实位图来源、格式支持、完整建树和资源基准。计划不等于实施授权，不凭全零跳过或放松decoder。
++第19轮[纯合成位图模型](ntfs-bitmap-model-plan.md)已完成48核心/58独立反例，旧枚举91/来源68回归通过；三态声明与四类计数独立，缺失/未覆盖Unknown，不凭全零推断空闲，见[归档](../iterations/2026-11-12-19-bitmap-model/README.md)。下一步需要独立设计真实MFT记录位图的受限提取、与同一持锁来源绑定和后置核验；模型没有验证真实位序或182槽状态，不直接提升为Native证据。格式支持、完整建树和资源基准仍分别安排，不把本模型接入产品或扩大读盘授权。
++
++第18轮[分类诊断](ntfs-classification-diagnostics-plan.md)已完成：实际183 Invalid中182为全零Signature、1为SparseMappingFlags，6 Unsupported为RecordFlags，21对象与关闭/清理仍通过，见[归档](../iterations/2026-11-12-18-mft-classification/README.md)。只是解释严格拒绝分支，不改变其有效性或证明空闲；后续纯模型以上方第19轮为准。计划不等于真实来源实施授权，不凭全零跳过或放松decoder。
+ 
+ 第17轮[有界MFT分批遍历](ntfs-bounded-mft-plan.md)已获单独确认并完成本机隔离VHD验证：256槽/4页、21目标匹配、严格分类67 decoded/0 free/6 unsupported/183 invalid，来源关闭及卸载清理通过，见[归档](../iterations/2026-11-12-17-bounded-mft/README.md)。4096槽上限仅合成验证；范围覆盖不等于格式支持、占用完整或整卷速度已验收。后续原因细分见上方第18轮，实际操作需按届时明确的方案与授权执行。
+ 
+diff --git a/docs/ntfs-bitmap-attribute-plan.md b/docs/ntfs-bitmap-attribute-plan.md
+new file mode 100644
+index 0000000..3fed88f
+--- /dev/null
++++ b/docs/ntfs-bitmap-attribute-plan.md
+@@ -0,0 +1,19 @@
++# 建议下一步：受限BITMAP属性定位原型
++
++2026-11-12，第19轮模型已完成，尚无真实位图提取。本文件是待确认的纯内存方案，不启动读取卷或文件，也不获得以后VHD授权。
++
++## 建议范围
++
++先复制有界合成record0，再用既有 `NtfsMftMap.Parse` 核验严格USA、record0/名称及MFT数据映射；定位器只在自己的副本恢复USA并遍历已验证属性，不修改decoder/Map行为。最多1024字节输入记录、4096预期槽、512字节位图payload。
++
++仅接受唯一、未命名、无特殊标记且无属性扩展的驻留 `$BITMAP`。可返回供测试内部使用的私有payload副本与明确覆盖/不足状态；缺失或不足不当全零，不能直接宣称已完成分配核验。
++
++非驻留只返回Deferred和有界长度元数据，不给可读地址或执行run读取；属性扩展、命名、多重、压缩/稀疏/加密等形式也保持Deferred。格式畸形固定拒绝，不把未实现形态当损坏。整个结果固定为合成/未验证来源，不接入第19轮模型、v2报告或产品统计，不序列化位图正文或原始记录。
++
++## 验收与边界
++
++新增定位器与核心测试，独立反例检查payload边界、跨USA扇区尾字、缺失/多重/命名/属性扩展、非驻留Deferred、畸形偏移/长度、取消和输入不变；构建后跑新入口及受影响旧Map/枚举回归，文档与独立恢复归档后提交。不新增Native、VHD、文件/卷I/O或发行。
++
++真实位序/来源、非驻留run完整验证与只读读取、同持锁owner绑定/前后核验、182槽实际状态仍未完成。若窗口不足，不为赶时间扩大支持或放松校验，先记录明确状态。
++
++格式依据：[属性记录头与驻留/非驻留](https://learn.microsoft.com/en-us/windows/win32/devnotes/attribute-record-header)、[属性列表与扩展记录](https://learn.microsoft.com/en-us/windows/win32/devnotes/attribute-list-entry)、[MFT记录位图](https://learn.microsoft.com/en-us/windows/win32/devnotes/master-file-table)。
+diff --git a/docs/ntfs-bitmap-model-plan.md b/docs/ntfs-bitmap-model-plan.md
+index 0821f75..d915f1f 100644
+--- a/docs/ntfs-bitmap-model-plan.md
++++ b/docs/ntfs-bitmap-model-plan.md
+@@ -1,6 +1,6 @@
+-# 建议下一轮：纯合成MFT分配位图校验模型
++# 纯合成MFT分配位图校验模型方案
+ 
+-2026-11-12，第18轮识别出182个全零Invalid槽；当前没有MFT记录分配位图证据，不能据此改成Free。本文件是待确认方案，不表示已实施。
++2026-11-12，第18轮识别出182个全零Invalid槽；当前没有MFT记录分配位图证据，不能据此改成Free。用户确认本方案后，已完成纯合成模型及相称验收，结果见[第19轮](../iterations/2026-11-12-19-bitmap-model/README.md)。
+ 
+ 微软区分 `$Mft` 的未命名 `$BITMAP`（哪些MFT记录在用）与卷级 `$Bitmap`（哪些簇在用）；`FSCTL_GET_VOLUME_BITMAP`取的是后者，不能拿来替代记录分配证据。来源：[MFT说明](https://learn.microsoft.com/en-us/windows/win32/devnotes/master-file-table)、[卷位图接口](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_volume_bitmap)。
+ 
+@@ -17,3 +17,11 @@
+ 合成测试覆盖全零但声明已分配、非零但声明未分配、有效Free、缺失/部分覆盖、声明截断、7/8和4095边界、末字节填充、来源/映射不符、重复/遗漏槽、取消及输入不变。所有错误为固定代码，不输出原始位图/逐槽身份、路径或任意消息；模型不接入现有v2/产品统计。
+ 
+ 完成独立归档、文档与提交；本轮无VHD操作或发布。真实位图提取、驻留/非驻留与属性扩展、绑定同一持锁来源、前后核验和182槽的真实分配状态，仍需后续另给方案与验证。
++
++## 已实现合同与验收
++
++模型使用两个模拟对象的引用身份及槽数作绑定，不调用其值相等逻辑。所有报告固定为 `Synthetic`；不输出token、位图正文或逐槽观察。HeaderInUse可空，提供的Decoded/Free标志须与分类自洽；Invalid/Unsupported的标志只是输入观察。AllZero=true限定Invalid且无有效header，仍不推断空闲。
++
++Provided严格覆盖长度内按LSB-first读取，末字节高padding位忽略，不加入计数，也不缩减未覆盖槽的Unknown。最多4096槽/512字节在复制前检查，完整唯一观察列表保证没有遗漏；固定12交叉格保留零值。
++
++构建0警告/0错误，48核心与58独立反例通过；旧枚举91、来源68回归通过。审查中修复了外部访问器可伪造取消/模型异常绕过净化的问题：Count、Memory复制、indexer三个边界统一捕获外部异常，先检查传入token，再抛固定输入错误。12项注入/取消组合确认不透传任意消息或伪造Code，不返回部分报告。没有访问卷或文件，也不证明实际182槽的分配状态。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 5c51290..7ca29dc 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-12：测试程序新增纯合成MFT记录分配位图模型，保留三态声明与四类解码的12格交叉计数，缺失/未覆盖保持Unknown，全零不推断空闲。48核心/58独立反例及旧枚举91/来源68通过；修复了外部访问器伪造异常绕过净化的边界。结果全部标为Synthetic，没有读取真实位图或验证182槽的分配状态，不接产品统计，见[第19轮](../iterations/2026-11-12-19-bitmap-model/README.md)。
++
+ 2026-11-12：有界MFT摘要升级v2，新增固定原因码计数及全零Invalid观察。本机隔离VHD仍256槽/21对象匹配，183 Invalid细分为182全零Signature与1 SparseMappingFlags，6 Unsupported为RecordFlags；来源关闭、后验、卸载清理通过。严格decoder/四类/预算未改，不能将全零当已证明空闲或将拒绝当磁盘损坏。枚举91、来源68、PS477及外层284项通过，详见[第18轮](../iterations/2026-11-12-18-mft-classification/README.md)。无产品扫描提速或新发行包。
+ 
+ 2026-11-12：测试程序新增自有VHD的有界MFT分批遍历，实际连续覆盖256槽/4页，21固定对象全部匹配；严格分类为67已解码、0空闲、6不支持、183无法解析，未知大小未当零。5次读取请求263168字节（含bootstrap），来源关闭、后置核验、卸载及清理通过。它不汇总全卷占用、不接生产扫描，也不证明183项是磁盘损坏或已接近WizTree速度；4096槽只完成合成边界验证。见[第17轮](../iterations/2026-11-12-17-bounded-mft/README.md)。
+diff --git a/iterations/2026-11-12-19-bitmap-model/README.md b/iterations/2026-11-12-19-bitmap-model/README.md
+new file mode 100644
+index 0000000..e2747d0
+--- /dev/null
++++ b/iterations/2026-11-12-19-bitmap-model/README.md
+@@ -0,0 +1,23 @@
++# 纯合成MFT分配位图校验模型
++
++2026-11-12，基线 `643c11ed7c31de8ad4246cfbf72e5d0537fccdf4`（第18轮已独立提交并推送）。用户确认[本轮方案](../../docs/ntfs-bitmap-model-plan.md)，只实现模型和测试，不新增读取器/Native/VHD，不接现有v2摘要、生产扫描或发布。
++
++模型及相称验收已完成。输入仅为合成声明，任何模拟来源/map对象都不具备真实NTFS来源证明。
++
++## 预定合同
++
++最多4096槽、512字节位图；Provided必须与声明CoveredSlots精确匹配，Missing必须空输入，有意部分覆盖之外保持Unknown。完整且唯一的无名称观察保留四类解码结果，位图的Allocated/Unallocated/Unknown声明三态单独统计，12格交叉计数守恒，不改写原解码分类或计算大小。
++
++HeaderInUse是可空合成观察，比较不同只计证据不一致，不断言损坏或自动修复。AllZero只是调用方的合成观察，不能推断空闲；模型限定AllZero=true时必须Invalid且没有有效HeaderInUse，避免自相矛盾输入。LSB-first是模型协议，真实NTFS格式/来源仍未验。
++
++## 验证与收尾
++
++Release测试构建0警告、0错误；新入口 `--ntfs-bitmap-model-tests` 48核心+58独立反例通过，旧枚举91、来源68回归通过。合成检查覆盖12格交叉、缺失/部分覆盖、7/8/4095边界、最大4096槽、末字节padding忽略、错绑定/截断/超量/重复/遗漏/自相矛盾输入、输入不变、取消及仅聚合输出。细节见[validation.json](validation.json)。
++
++审查发现并修复外部输入可抛伪造取消/模型异常绕过净化的问题。三个访问点（Count、Memory复制、indexer）现在捕获任何外部异常，先检查传入token取消，再抛固定BitmapModelInput；不相信外部异常类型/Code/Message。12项边界×异常×取消组合覆盖，既不透传私密文本，也不返回部分报告。模型自身的固定校验与传入token取消保持正常行为。
++
++方法先检查4096槽/512字节预算及形状，再私有复制；观察列表完整唯一，三态/四类/12格总数守恒。Provided的覆盖尾部padding不进入计数；未覆盖Unknown不因padding减少。读者可空header只是合成观察，冲突不自动修复。输入并发变化不构成真实来源稳定性证明，模拟token仅比较对象引用。
++
++本轮没有Native/VHD/原始记录或逐槽信息留存，不改变v2、生产扫描或速度。不生成包、标签或Release。无本轮临时目录需清理，正常开发测试构建保留；此前本机6条kernel样本未变，不上传。
++
++真实MFT记录分配位图提取、位序/格式、同持锁来源绑定/后验、182槽的实际分配状态、RecordFlags/SparseMappingFlags支持、完整建树与资源收益仍未完成。`changes.patch`从本轮基线正向恢复并逐文件核对，`files.json`记录必要文件SHA-256，不递归自身和旧归档；提交/推送结果以Git历史为准。
+diff --git a/iterations/2026-11-12-19-bitmap-model/validation.json b/iterations/2026-11-12-19-bitmap-model/validation.json
+new file mode 100644
+index 0000000..02c57a3
+--- /dev/null
++++ b/iterations/2026-11-12-19-bitmap-model/validation.json
+@@ -0,0 +1,15 @@
++{
++  "baseline": "643c11ed7c31de8ad4246cfbf72e5d0537fccdf4",
++  "scope": "PureSyntheticMftBitmapModel",
++  "build": { "configuration": "Release", "warnings": 0, "errors": 0 },
++  "synthetic": { "core": 48, "independent_adversarial": 58 },
++  "regression": { "mft_enumerator": 91, "bounded_source": 68 },
++  "accessor_injection_matrix": { "boundaries": 3, "forged_exception_types": 2, "cancellation_states": 2, "cases": 12, "passed": true },
++  "all_reports_synthetic": true,
++  "volume_or_file_io_by_model": false,
++  "vhd_operations": false,
++  "native_or_production_integration": false,
++  "raw_capture_added": false,
++  "performance_claim": false,
++  "packaging_or_release": false
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 990cddc..6f80f70 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -17,6 +17,17 @@ if (args.Length > 0 && args[0] == "--ntfs-record-replay")
+ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+ if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
+ if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
++if (args.Contains("--ntfs-bitmap-model-tests"))
++{
++    try
++    {
++        int core = DiskAtlas.NtfsPrototype.NtfsSyntheticBitmapModelTests.Run();
++        int adversarial = DiskAtlas.NtfsPrototype.NtfsSyntheticBitmapAdversarialTests.Run();
++        Console.WriteLine($"PASS NTFS bitmap model checks: {core} core; {adversarial} adversarial; synthetic inputs only");
++        return 0;
++    }
++    catch { Console.Error.WriteLine("FAIL NTFS bitmap model; no private details emitted"); return 1; }
++}
+ if (args.Contains("--ntfs-mft-enumerator-tests"))
+ {
+     try { int checks = DiskAtlas.NtfsPrototype.NtfsMftEnumeratorTests.Run(); Console.WriteLine($"PASS NTFS MFT enumeration checks: {checks}; synthetic pages only"); return 0; }
+diff --git a/tests/Prototypes/Ntfs/NtfsSyntheticBitmapAdversarialTests.cs b/tests/Prototypes/Ntfs/NtfsSyntheticBitmapAdversarialTests.cs
+new file mode 100644
+index 0000000..9302272
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsSyntheticBitmapAdversarialTests.cs
+@@ -0,0 +1,223 @@
++using System.Buffers;
++using System.Collections;
++using System.Text.Json;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// Independent model counterexamples. Every token, bitmap and observation is
++// synthetic; no filesystem, device, raw record, path or native call is used.
++internal static class NtfsSyntheticBitmapAdversarialTests
++{
++    private sealed class EqualToken
++    {
++        public override bool Equals(object? other) => other is EqualToken;
++        public override int GetHashCode() => 1;
++    }
++
++    private sealed class CallbackList(IReadOnlyList<NtfsSyntheticSlotObservation> values) : IReadOnlyList<NtfsSyntheticSlotObservation>
++    {
++        internal Action? OnCount;
++        internal Action<int>? OnIndex;
++        internal bool ThrowCount, ThrowIndex;
++        internal Exception? CountError, IndexError;
++        public int Count
++        {
++            get
++            {
++                OnCount?.Invoke();
++                if (CountError != null) throw CountError;
++                if (ThrowCount) throw new InvalidOperationException("SyntheticPrivateCount");
++                return values.Count;
++            }
++        }
++        public NtfsSyntheticSlotObservation this[int index]
++        {
++            get
++            {
++                OnIndex?.Invoke(index);
++                if (IndexError != null) throw IndexError;
++                if (ThrowIndex) throw new InvalidOperationException("SyntheticPrivateIndex");
++                return values[index];
++            }
++        }
++        public IEnumerator<NtfsSyntheticSlotObservation> GetEnumerator()
++        { for (int index = 0; index < Count; index++) yield return this[index]; }
++        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
++    }
++
++    private sealed class CallbackMemory(Exception error, Action? onAccess) : MemoryManager<byte>
++    {
++        internal ReadOnlyMemory<byte> View => CreateMemory(1);
++        public override Span<byte> GetSpan() { onAccess?.Invoke(); throw error; }
++        public override MemoryHandle Pin(int elementIndex = 0) => throw new NotSupportedException("SyntheticPin");
++        public override void Unpin() { }
++        protected override void Dispose(bool disposing) { }
++    }
++
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("Synthetic bitmap adversarial check failed: " + name);
++            passed++; Console.WriteLine("PASS synthetic bitmap adversarial " + name);
++        }
++        Exception? Catch(Action action) { try { action(); return null; } catch (Exception error) { return error; } }
++        void Rejected(Action action, string code, string name) =>
++            Check(Catch(action) is NtfsSyntheticBitmapException error && error.Code == code && error.Message == code && error.InnerException == null, name);
++        NtfsSyntheticBitmapBinding Binding(int slots) => new(new object(), new object(), slots);
++        NtfsSyntheticSlotObservation[] Observations(int count) => Enumerable.Range(0, count).Select(slot =>
++        {
++            var status = (NtfsDecodeStatus)(slot % 4);
++            bool? inUse = status == NtfsDecodeStatus.Decoded ? true : status == NtfsDecodeStatus.Free ? false : null;
++            return new NtfsSyntheticSlotObservation(slot, status, inUse, status == NtfsDecodeStatus.Invalid);
++        }).ToArray();
++
++        var binding = Binding(12); var observations = Observations(12); byte[] bits = [0x0f];
++        var bitmap = new NtfsSyntheticBitmapInput(binding, NtfsSyntheticBitmapPresence.Provided, 8, bits);
++        var report = NtfsSyntheticBitmapModel.Evaluate(binding, binding, observations, bitmap);
++        Check(report is { Revision: "synthetic-mft-bitmap-v1", EvidenceKind: "Synthetic", Slots: 12, CoveredSlots: 8,
++            BitmapCoverageComplete: false, Allocated: 4, Unallocated: 4, Unknown: 4, Decoded: 3, Free: 3, Invalid: 3, Unsupported: 3 },
++            "deliberately partial evidence retains three allocation states and all four strict categories");
++        Check(report.CrossCounts.Count == 12 && report.CrossCounts.All(row => row.Count == 1) && report.CrossCounts.Sum(row => row.Count) == 12,
++            "the complete three-by-four matrix conserves observations without losing zero or unknown categories");
++        Check(report is { AllZeroInvalid: 3, AllZeroAllocated: 1, AllZeroUnallocated: 1, AllZeroUnknown: 1, HeaderCompared: 4, HeaderDisagreements: 2 },
++            "zero-byte observations do not imply allocation and header disagreements remain observations");
++        Check(report.CrossCounts.Select(row => row.Allocation + "/" + row.Status).SequenceEqual(new[] {
++            "Allocated/Decoded", "Allocated/Free", "Allocated/Invalid", "Allocated/Unsupported",
++            "Unallocated/Decoded", "Unallocated/Free", "Unallocated/Invalid", "Unallocated/Unsupported",
++            "Unknown/Decoded", "Unknown/Free", "Unknown/Invalid", "Unknown/Unsupported" }),
++            "cross counts use a deterministic complete state and status order");
++        var beforeBits = bits.ToArray(); var beforeObservations = observations.ToArray();
++        var shuffled = NtfsSyntheticBitmapModel.Evaluate(binding, binding, observations.Reverse().ToArray(), bitmap);
++        Check(JsonSerializer.Serialize(report) == JsonSerializer.Serialize(shuffled) && bits.SequenceEqual(beforeBits) && observations.SequenceEqual(beforeObservations),
++            "observation order does not change the aggregate or mutate bitmap and observation inputs");
++        bool immutable = false;
++        try { ((IList<NtfsSyntheticBitmapCrossCount>)report.CrossCounts).Clear(); } catch (NotSupportedException) { immutable = true; }
++        Check(immutable, "the result matrix cannot be edited after successful evaluation");
++
++        var missing = NtfsSyntheticBitmapModel.Evaluate(binding, binding, observations,
++            new(binding, NtfsSyntheticBitmapPresence.Missing, 0, ReadOnlyMemory<byte>.Empty));
++        Check(missing is { Allocated: 0, Unallocated: 0, Unknown: 12, CoveredSlots: 0, BitmapCoverageComplete: false,
++            AllZeroInvalid: 3, AllZeroUnknown: 3, HeaderCompared: 0, HeaderDisagreements: 0 } && missing.CrossCounts.Count == 12,
++            "missing bitmap evidence never becomes implicit unallocated or known-zero records");
++        byte[] allAllocated = [0xff, 0xff];
++        var allocated = NtfsSyntheticBitmapModel.Evaluate(binding, binding, observations, new(binding, NtfsSyntheticBitmapPresence.Provided, 12, allAllocated));
++        Check(allocated is { Allocated: 12, Unallocated: 0, Unknown: 0, AllZeroAllocated: 3, Invalid: 3, Free: 3, BitmapCoverageComplete: true },
++            "zero invalid records can be declared allocated while strict Free counts remain unchanged");
++        var one = Binding(1);
++        var nonzeroInvalid = NtfsSyntheticBitmapModel.Evaluate(one, one,
++            [new(0, NtfsDecodeStatus.Invalid, false)], new(one, NtfsSyntheticBitmapPresence.Provided, 1, new byte[] { 0 }));
++        Check(nonzeroInvalid is { Unallocated: 1, Invalid: 1, Free: 0, AllZeroInvalid: 0, HeaderCompared: 1, HeaderDisagreements: 0 },
++            "nonzero invalid declared unallocated remains invalid rather than changing the raw classification");
++
++        var maximum = Binding(4096); var maximumObservations = Observations(4096); var edgeBits = new byte[512];
++        edgeBits[0] = 0x80; edgeBits[1] = 0x01; edgeBits[511] = 0x80;
++        var edges = NtfsSyntheticBitmapModel.Evaluate(maximum, maximum, maximumObservations,
++            new(maximum, NtfsSyntheticBitmapPresence.Provided, 4096, edgeBits));
++        Check(edges is { Slots: 4096, CoveredSlots: 4096, Allocated: 3, Unallocated: 4093, Unknown: 0, BitmapCoverageComplete: true } &&
++            edges.CrossCounts.Sum(row => row.Count) == 4096,
++            "LSB-first bits seven eight and 4095 stay distinct at byte and maximum boundaries");
++        var nine = Binding(12); var twelveObservations = Observations(12);
++        var padded = NtfsSyntheticBitmapModel.Evaluate(nine, nine, twelveObservations,
++            new(nine, NtfsSyntheticBitmapPresence.Provided, 9, new byte[] { 0x80, 0xff }));
++        var cleanPadding = NtfsSyntheticBitmapModel.Evaluate(nine, nine, twelveObservations,
++            new(nine, NtfsSyntheticBitmapPresence.Provided, 9, new byte[] { 0x80, 0x01 }));
++        Check(padded is { CoveredSlots: 9, Allocated: 2, Unallocated: 7, Unknown: 3, BitmapCoverageComplete: false } &&
++            JsonSerializer.Serialize(padded) == JsonSerializer.Serialize(cleanPadding),
++            "padding bits beyond explicit coverage cannot allocate unknown slots");
++
++        foreach (bool replaceSource in new[] { true, false })
++        {
++            var equal = new NtfsSyntheticBitmapBinding(new EqualToken(), new EqualToken(), 12);
++            var foreign = equal with { SourceToken = replaceSource ? new EqualToken() : equal.SourceToken, MapEpoch = replaceSource ? equal.MapEpoch : new EqualToken() };
++            Rejected(() => NtfsSyntheticBitmapModel.Evaluate(equal, foreign, observations,
++                new(equal, NtfsSyntheticBitmapPresence.Missing, 0, ReadOnlyMemory<byte>.Empty)), "BitmapModelBinding",
++                "equal-valued tokens cannot impersonate another source or mapping epoch");
++            Rejected(() => NtfsSyntheticBitmapModel.Evaluate(equal, equal, observations,
++                new(foreign, NtfsSyntheticBitmapPresence.Provided, 8, bits)), "BitmapModelBinding",
++                "bitmap binding mismatch cannot be hidden by otherwise valid observation binding");
++        }
++        var wrongSlots = binding with { Slots = 11 };
++        Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, wrongSlots, observations, bitmap), "BitmapModelBinding",
++            "matching tokens with another expected slot count still fail binding");
++        foreach (int slots in new[] { 0, -1, 4097, int.MaxValue })
++        {
++            var bad = Binding(slots);
++            Rejected(() => NtfsSyntheticBitmapModel.Evaluate(bad, bad, observations,
++                new(bad, NtfsSyntheticBitmapPresence.Missing, 0, ReadOnlyMemory<byte>.Empty)), "BitmapModelSlotBudget",
++                "invalid or oversized slot declarations fail before model iteration");
++        }
++        foreach (var badObservations in new[] { observations[..11], observations.Concat([observations[0]]).ToArray() })
++            Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, badObservations, bitmap), "BitmapModelObservationBudget",
++                "missing and excess observations cannot pretend to cover the declared model");
++        foreach (int badSlot in new[] { -1, 12, int.MaxValue, 0 })
++        {
++            var bad = observations.ToArray(); bad[11] = bad[11] with { Slot = badSlot };
++            Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, bad, bitmap), "BitmapModelObservationSlot",
++                "negative out-of-range and duplicate slots cannot hide an omitted observation");
++        }
++        foreach (int covered in new[] { 0, -1, 13, int.MaxValue })
++            Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, observations,
++                new(binding, NtfsSyntheticBitmapPresence.Provided, covered, bits)), "BitmapModelCoverage",
++                "provided bitmap coverage must be a positive bounded declaration");
++        foreach (byte[] bytes in new[] { Array.Empty<byte>(), new byte[2], new byte[513] })
++            Check(Catch(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, observations,
++                new(binding, NtfsSyntheticBitmapPresence.Provided, 8, bytes))) is NtfsSyntheticBitmapException error &&
++                error.Code is "BitmapModelCoverage" or "BitmapModelByteBudget", "truncation extra bytes and oversize are rejected rather than treated as intentional partial coverage");
++        var badStatus = observations.ToArray(); badStatus[0] = badStatus[0] with { Status = (NtfsDecodeStatus)99 };
++        Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, badStatus, bitmap), "BitmapModelDecodeStatus", "undefined strict status cannot create another model category");
++        foreach (var badObservation in new[] { new NtfsSyntheticSlotObservation(0, NtfsDecodeStatus.Decoded, false),
++            new(0, NtfsDecodeStatus.Free, true), new(0, NtfsDecodeStatus.Decoded, true, true), new(0, NtfsDecodeStatus.Invalid, false, true) })
++        {
++            var bad = observations.ToArray(); bad[0] = badObservation;
++            Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, bad, bitmap), "BitmapModelObservationShape",
++                "contradictory header or zero-byte observations cannot claim valid synthetic shape");
++        }
++        foreach (string stage in new[] { "Before", "Count", "Index", "ThrowCount", "ThrowIndex" })
++        {
++            using var cancellation = new CancellationTokenSource(); var callbacks = new CallbackList(observations);
++            if (stage == "Before") cancellation.Cancel();
++            if (stage == "Count") callbacks.OnCount = cancellation.Cancel;
++            if (stage == "Index") callbacks.OnIndex = _ => cancellation.Cancel();
++            if (stage == "ThrowCount") { callbacks.OnCount = cancellation.Cancel; callbacks.ThrowCount = true; }
++            if (stage == "ThrowIndex") { callbacks.OnIndex = _ => cancellation.Cancel(); callbacks.ThrowIndex = true; }
++            NtfsSyntheticBitmapReport? partial = null;
++            var error = Catch(() => partial = NtfsSyntheticBitmapModel.Evaluate(binding, binding, callbacks, bitmap, cancellation.Token));
++            Check(error is OperationCanceledException && partial == null && bits.SequenceEqual(beforeBits),
++                "cancellation at input callback boundaries publishes no partial aggregate or mutated bitmap");
++        }
++        foreach (bool atCount in new[] { false, true })
++        {
++            var callbacks = new CallbackList(observations) { ThrowCount = atCount, ThrowIndex = !atCount };
++            Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, callbacks, bitmap), "BitmapModelInput",
++                "input accessor exceptions become fixed model codes without private callback messages");
++        }
++        foreach (string boundary in new[] { "Count", "Index", "Memory" })
++        foreach (bool forgeModelError in new[] { false, true })
++        foreach (bool cancelAtBoundary in new[] { false, true })
++        {
++            using var cancellation = new CancellationTokenSource();
++            const string marker = "SyntheticPrivateAccessor";
++            Exception forged = forgeModelError ? new NtfsSyntheticBitmapException(marker) : new OperationCanceledException(marker);
++            Action? cancel = cancelAtBoundary ? cancellation.Cancel : null;
++            using var memory = new CallbackMemory(forged, cancel);
++            var callbacks = new CallbackList(observations);
++            var input = bitmap;
++            if (boundary == "Count") { callbacks.CountError = forged; callbacks.OnCount = cancel; }
++            if (boundary == "Index") { callbacks.IndexError = forged; callbacks.OnIndex = _ => cancel?.Invoke(); }
++            if (boundary == "Memory") input = new(binding, NtfsSyntheticBitmapPresence.Provided, 8, memory.View);
++            NtfsSyntheticBitmapReport? partial = null;
++            var error = Catch(() => partial = NtfsSyntheticBitmapModel.Evaluate(binding, binding, callbacks, input, cancellation.Token));
++            bool safe = cancelAtBoundary ? error is OperationCanceledException canceled && canceled.CancellationToken == cancellation.Token &&
++                !canceled.Message.Contains(marker, StringComparison.Ordinal) :
++                error is NtfsSyntheticBitmapException model && model.Code == "BitmapModelInput" && model.Message == "BitmapModelInput" && model.InnerException == null;
++            Check(safe && partial == null, "forged accessor cancellation or model codes cannot bypass fixed input errors or caller cancellation priority");
++        }
++        string json = JsonSerializer.Serialize(report);
++        Check(!json.Contains("SourceToken", StringComparison.Ordinal) && !json.Contains("MapEpoch", StringComparison.Ordinal) &&
++            !json.Contains("HeaderInUse", StringComparison.Ordinal) && !json.Contains("Bytes", StringComparison.Ordinal),
++            "synthetic result exposes aggregate claims without tokens raw bitmap or per-slot observations");
++        return passed;
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsSyntheticBitmapModel.cs b/tests/Prototypes/Ntfs/NtfsSyntheticBitmapModel.cs
+new file mode 100644
+index 0000000..8ce3c96
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsSyntheticBitmapModel.cs
+@@ -0,0 +1,145 @@
++using System.Diagnostics.CodeAnalysis;
++
++namespace DiskAtlas.NtfsPrototype;
++
++internal enum NtfsSyntheticBitmapPresence { Missing, Provided }
++internal enum NtfsSyntheticAllocationState { Allocated, Unallocated, Unknown }
++internal sealed record NtfsSyntheticBitmapBinding(object SourceToken, object MapEpoch, int Slots);
++internal sealed record NtfsSyntheticBitmapInput(NtfsSyntheticBitmapBinding Binding,
++    NtfsSyntheticBitmapPresence Presence, int CoveredSlots, ReadOnlyMemory<byte> Bytes);
++internal sealed record NtfsSyntheticSlotObservation(int Slot, NtfsDecodeStatus Status, bool? HeaderInUse, bool AllZero = false);
++internal sealed record NtfsSyntheticBitmapCrossCount(string Allocation, string Status, int Count);
++internal sealed record NtfsSyntheticBitmapReport(string Revision, string EvidenceKind, int Slots, int CoveredSlots,
++    bool BitmapCoverageComplete, int Allocated, int Unallocated, int Unknown, int Decoded, int Free, int Invalid, int Unsupported,
++    int HeaderCompared, int HeaderDisagreements, int AllZeroInvalid, int AllZeroAllocated, int AllZeroUnallocated,
++    int AllZeroUnknown, IReadOnlyList<NtfsSyntheticBitmapCrossCount> CrossCounts);
++internal sealed class NtfsSyntheticBitmapException(string code) : IOException(code)
++{
++    internal string Code { get; } = code;
++}
++
++// Pure synthetic protocol only. The tokens are in-memory simulation identities,
++// not a validated volume, snapshot, bitmap attribute or reading lease. LSB-first
++// is this model's byte encoding and does not certify any real NTFS extraction.
++internal static class NtfsSyntheticBitmapModel
++{
++    internal const int MaximumSlots = 4096;
++    internal const int MaximumBitmapBytes = 512;
++
++    private static void Require([DoesNotReturnIf(false)] bool condition, string code)
++    { if (!condition) throw new NtfsSyntheticBitmapException(code); }
++
++    private static T ReadExternal<T>(Func<T> access, CancellationToken token)
++    {
++        T value;
++        try { value = access(); }
++        catch (Exception)
++        {
++            // External accessors can impersonate either of our exception types.
++            // Only the supplied cancellation token and our own fixed codes count.
++            token.ThrowIfCancellationRequested();
++            throw new NtfsSyntheticBitmapException("BitmapModelInput");
++        }
++        token.ThrowIfCancellationRequested();
++        return value;
++    }
++
++    internal static NtfsSyntheticBitmapReport Evaluate(NtfsSyntheticBitmapBinding expectedBinding,
++        NtfsSyntheticBitmapBinding observationBinding, IReadOnlyList<NtfsSyntheticSlotObservation> observations,
++        NtfsSyntheticBitmapInput bitmap, CancellationToken token = default)
++    {
++        try { return EvaluateCore(expectedBinding, observationBinding, observations, bitmap, token); }
++        catch (OperationCanceledException) { throw; }
++        catch (NtfsSyntheticBitmapException) { throw; }
++        catch (Exception)
++        {
++            // A failing external memory/list accessor must not publish private
++            // messages. A cancellation triggered by that accessor takes priority.
++            token.ThrowIfCancellationRequested();
++            throw new NtfsSyntheticBitmapException("BitmapModelInput");
++        }
++    }
++
++    private static NtfsSyntheticBitmapReport EvaluateCore(NtfsSyntheticBitmapBinding expectedBinding,
++        NtfsSyntheticBitmapBinding observationBinding, IReadOnlyList<NtfsSyntheticSlotObservation> observations,
++        NtfsSyntheticBitmapInput bitmap, CancellationToken token)
++    {
++        token.ThrowIfCancellationRequested();
++        Require(expectedBinding != null && observationBinding != null && observations != null && bitmap != null,
++            "BitmapModelInput");
++        Require(expectedBinding.Slots is >= 1 and <= MaximumSlots, "BitmapModelSlotBudget");
++        Require(expectedBinding.SourceToken != null && expectedBinding.MapEpoch != null, "BitmapModelBinding");
++        bool SameBinding(NtfsSyntheticBitmapBinding? candidate) => candidate != null &&
++            ReferenceEquals(expectedBinding.SourceToken, candidate.SourceToken) &&
++            ReferenceEquals(expectedBinding.MapEpoch, candidate.MapEpoch) && candidate.Slots == expectedBinding.Slots;
++        Require(SameBinding(observationBinding) && SameBinding(bitmap.Binding), "BitmapModelBinding");
++        int slots = expectedBinding.Slots;
++        int byteLength = bitmap.Bytes.Length;
++        Require(byteLength is >= 0 and <= MaximumBitmapBytes, "BitmapModelByteBudget");
++        Require(bitmap.Presence is NtfsSyntheticBitmapPresence.Missing or NtfsSyntheticBitmapPresence.Provided, "BitmapModelPresence");
++        if (bitmap.Presence == NtfsSyntheticBitmapPresence.Missing)
++            Require(bitmap.CoveredSlots == 0 && byteLength == 0, "BitmapModelCoverage");
++        else
++            Require(bitmap.CoveredSlots >= 1 && bitmap.CoveredSlots <= slots &&
++                byteLength == (bitmap.CoveredSlots + 7) / 8, "BitmapModelCoverage");
++        int observationCount = ReadExternal(() => observations.Count, token);
++        Require(observationCount == slots && observationCount is >= 1 and <= MaximumSlots, "BitmapModelObservationBudget");
++
++        // All declared budgets and shapes are checked before either copy. An
++        // explicit partial coverage is distinct from a truncated Provided input.
++        byte[] privateBits = ReadExternal(() => bitmap.Bytes.ToArray(), token);
++        var privateObservations = new NtfsSyntheticSlotObservation[slots];
++        var seen = new bool[slots];
++        for (int i = 0; i < slots; i++)
++        {
++            token.ThrowIfCancellationRequested();
++            var observation = ReadExternal(() => observations[i], token);
++            Require(observation != null, "BitmapModelObservationShape");
++            Require(observation.Slot >= 0 && observation.Slot < slots && !seen[observation.Slot], "BitmapModelObservationSlot");
++            Require(observation.Status is NtfsDecodeStatus.Decoded or NtfsDecodeStatus.Free or NtfsDecodeStatus.Invalid or NtfsDecodeStatus.Unsupported,
++                "BitmapModelDecodeStatus");
++            // These are only caller-supplied synthetic observations. Full zero
++            // bytes have no verified header, and cannot claim a Free decoder result.
++            Require(!observation.AllZero || observation.Status == NtfsDecodeStatus.Invalid && !observation.HeaderInUse.HasValue,
++                "BitmapModelObservationShape");
++            Require(!observation.HeaderInUse.HasValue ||
++                observation.Status != NtfsDecodeStatus.Decoded && observation.Status != NtfsDecodeStatus.Free ||
++                observation.Status == NtfsDecodeStatus.Decoded && observation.HeaderInUse == true ||
++                observation.Status == NtfsDecodeStatus.Free && observation.HeaderInUse == false,
++                "BitmapModelObservationShape");
++            seen[observation.Slot] = true;
++            privateObservations[i] = observation;
++        }
++
++        int[] allocations = new int[3], statuses = new int[4], cross = new int[12], zero = new int[3];
++        int headerCompared = 0, headerDisagreements = 0, allZeroInvalid = 0;
++        foreach (var observation in privateObservations)
++        {
++            token.ThrowIfCancellationRequested();
++            var allocation = NtfsSyntheticAllocationState.Unknown;
++            if (bitmap.Presence == NtfsSyntheticBitmapPresence.Provided && observation.Slot < bitmap.CoveredSlots)
++                allocation = (privateBits[observation.Slot / 8] & (1 << (observation.Slot % 8))) != 0
++                    ? NtfsSyntheticAllocationState.Allocated : NtfsSyntheticAllocationState.Unallocated;
++            int a = (int)allocation, s = (int)observation.Status;
++            allocations[a]++; statuses[s]++; cross[a * 4 + s]++;
++            if (allocation != NtfsSyntheticAllocationState.Unknown && observation.HeaderInUse.HasValue)
++            {
++                headerCompared++;
++                if ((allocation == NtfsSyntheticAllocationState.Allocated) != observation.HeaderInUse.Value) headerDisagreements++;
++            }
++            if (observation.AllZero) { allZeroInvalid++; zero[a]++; }
++        }
++        Require(allocations.Sum() == slots && statuses.Sum() == slots && cross.Sum() == slots &&
++            zero.Sum() == allZeroInvalid && allZeroInvalid <= statuses[(int)NtfsDecodeStatus.Invalid] &&
++            headerDisagreements <= headerCompared, "BitmapModelAggregation");
++        var rows = new List<NtfsSyntheticBitmapCrossCount>(12);
++        foreach (var allocation in Enum.GetValues<NtfsSyntheticAllocationState>())
++            foreach (var status in Enum.GetValues<NtfsDecodeStatus>())
++                rows.Add(new(allocation.ToString(), status.ToString(), cross[(int)allocation * 4 + (int)status]));
++        token.ThrowIfCancellationRequested();
++        return new("synthetic-mft-bitmap-v1", "Synthetic", slots, bitmap.CoveredSlots,
++            bitmap.Presence == NtfsSyntheticBitmapPresence.Provided && bitmap.CoveredSlots == slots,
++            allocations[0], allocations[1], allocations[2], statuses[0], statuses[1], statuses[2], statuses[3],
++            headerCompared, headerDisagreements, allZeroInvalid, zero[0], zero[1], zero[2], rows.AsReadOnly());
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsSyntheticBitmapModelTests.cs b/tests/Prototypes/Ntfs/NtfsSyntheticBitmapModelTests.cs
+new file mode 100644
+index 0000000..81d522f
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsSyntheticBitmapModelTests.cs
+@@ -0,0 +1,163 @@
++namespace DiskAtlas.NtfsPrototype;
++
++// Pure aggregate-model tests. No record bytes, paths, Native calls or real
++// source tokens are constructed; bit encoding below belongs to this model only.
++internal static class NtfsSyntheticBitmapModelTests
++{
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("Synthetic bitmap check failed: " + name);
++            passed++; Console.WriteLine("PASS synthetic bitmap " + name);
++        }
++        void Rejected(Action action, string code, string name)
++        {
++            bool rejected = false;
++            try { action(); }
++            catch (NtfsSyntheticBitmapException error) { rejected = error.Code == code && error.Message == code && error.InnerException == null; }
++            Check(rejected, name);
++        }
++        var binding = Binding(12);
++        var observations = Observations(12);
++        byte[] bits = [0x0f];
++        var input = new NtfsSyntheticBitmapInput(binding, NtfsSyntheticBitmapPresence.Provided, 8, bits);
++        var result = NtfsSyntheticBitmapModel.Evaluate(binding, binding, observations, input);
++        Check(result is { Revision: "synthetic-mft-bitmap-v1", EvidenceKind: "Synthetic", Slots: 12, CoveredSlots: 8,
++            BitmapCoverageComplete: false, Allocated: 4, Unallocated: 4, Unknown: 4 },
++            "explicit partial coverage preserves three separate allocation declarations");
++        Check(result is { Decoded: 3, Free: 3, Invalid: 3, Unsupported: 3, HeaderCompared: 4, HeaderDisagreements: 2 },
++            "header disagreements are aggregate observations without rewriting any strict category");
++        Check(result.CrossCounts.Count == 12 && result.CrossCounts.All(row => row.Count == 1) &&
++            result.CrossCounts.Sum(row => row.Count) == result.Slots,
++            "all twelve allocation and decode combinations are independently conserved");
++        Check(result.CrossCounts.Select(row => row.Allocation).Distinct().SequenceEqual(new[] { "Allocated", "Unallocated", "Unknown" }) &&
++            result.CrossCounts.Take(4).Select(row => row.Status).SequenceEqual(new[] { "Decoded", "Free", "Invalid", "Unsupported" }),
++            "cross counts have fixed allocation and decoder enum order including zero buckets");
++        var missing = NtfsSyntheticBitmapModel.Evaluate(binding, binding, observations,
++            new(binding, NtfsSyntheticBitmapPresence.Missing, 0, ReadOnlyMemory<byte>.Empty));
++        Check(missing is { Allocated: 0, Unallocated: 0, Unknown: 12, HeaderCompared: 0, HeaderDisagreements: 0,
++            BitmapCoverageComplete: false } && missing.Decoded == result.Decoded && missing.Free == result.Free &&
++            missing.Invalid == result.Invalid && missing.Unsupported == result.Unsupported,
++            "missing bitmap never converts unknown declarations into unallocated or changes decode results");
++        var zeroBinding = Binding(3);
++        NtfsSyntheticSlotObservation[] zeroObservations = [
++            new(0, NtfsDecodeStatus.Invalid, null, true), new(1, NtfsDecodeStatus.Invalid, null, true),
++            new(2, NtfsDecodeStatus.Invalid, null, true)];
++        var zeros = NtfsSyntheticBitmapModel.Evaluate(zeroBinding, zeroBinding, zeroObservations,
++            new(zeroBinding, NtfsSyntheticBitmapPresence.Provided, 2, new byte[] { 1 }));
++        Check(zeros is { Invalid: 3, Free: 0, AllZeroInvalid: 3, AllZeroAllocated: 1, AllZeroUnallocated: 1, AllZeroUnknown: 1,
++            Allocated: 1, Unallocated: 1, Unknown: 1, HeaderCompared: 0 },
++            "all-zero declarations can be allocated unallocated or unknown while remaining strictly invalid");
++        var fullBinding = Binding(9);
++        var fullObservations = Observations(9);
++        var full = NtfsSyntheticBitmapModel.Evaluate(fullBinding, fullBinding, fullObservations,
++            new(fullBinding, NtfsSyntheticBitmapPresence.Provided, 9, new byte[] { 0x80, 0x01 }));
++        Check(full is { BitmapCoverageComplete: true, Allocated: 2, Unallocated: 7, Unknown: 0 },
++            "LSB-first model encoding crosses the seven and eight slot boundary");
++        var padding = NtfsSyntheticBitmapModel.Evaluate(fullBinding, fullBinding, fullObservations,
++            new(fullBinding, NtfsSyntheticBitmapPresence.Provided, 9, new byte[] { 0x80, 0xff }));
++        Check(SameAggregates(full, padding), "unused high padding bits never create extra known slots or counts");
++        var partialPadding = NtfsSyntheticBitmapModel.Evaluate(fullBinding, fullBinding, fullObservations,
++            new(fullBinding, NtfsSyntheticBitmapPresence.Provided, 7, new byte[] { 0x80 }));
++        Check(partialPadding is { Allocated: 0, Unallocated: 7, Unknown: 2 },
++            "padding set bits beyond declared coverage do not remove unknown state");
++        var maximumBinding = Binding(4096);
++        var maximumObservations = Observations(4096);
++        byte[] maximumBits = new byte[512]; maximumBits[^1] = 0x80;
++        var maximum = NtfsSyntheticBitmapModel.Evaluate(maximumBinding, maximumBinding, maximumObservations,
++            new(maximumBinding, NtfsSyntheticBitmapPresence.Provided, 4096, maximumBits));
++        Check(maximum is { Slots: 4096, Allocated: 1, Unallocated: 4095, Unknown: 0, BitmapCoverageComplete: true } &&
++            maximum.CrossCounts.Sum(row => row.Count) == 4096,
++            "the exact slot and byte budgets retain the final four-thousand-ninety-fifth bit");
++        var one = Binding(1);
++        var single = NtfsSyntheticBitmapModel.Evaluate(one, one, Observations(1),
++            new(one, NtfsSyntheticBitmapPresence.Provided, 1, new byte[] { 0 }));
++        Check(single is { Slots: 1, Decoded: 1, Unallocated: 1, HeaderDisagreements: 1 } &&
++            single.CrossCounts.Count == 12 && single.CrossCounts.Count(row => row.Count == 0) == 11,
++            "the smallest valid range still publishes all twelve aggregate buckets");
++        var shuffled = NtfsSyntheticBitmapModel.Evaluate(binding, binding, observations.Reverse().ToArray(), input);
++        Check(SameAggregates(result, shuffled), "complete unique observations may arrive in any order");
++        var sameIdentity = new NtfsSyntheticBitmapBinding(binding.SourceToken, binding.MapEpoch, binding.Slots);
++        Check(SameAggregates(result, NtfsSyntheticBitmapModel.Evaluate(binding, sameIdentity, observations,
++            input with { Binding = sameIdentity })), "a new binding container preserves the same exact simulated source and epoch objects");
++        byte[] originalBits = bits.ToArray(); var originalObservations = observations.ToArray();
++        NtfsSyntheticBitmapModel.Evaluate(binding, binding, observations, input);
++        Check(bits.SequenceEqual(originalBits) && observations.SequenceEqual(originalObservations),
++            "evaluation never changes caller bitmap or observation arrays");
++        bits[0] = 0xff; observations[0] = new(0, NtfsDecodeStatus.Invalid, null);
++        Check(result.Allocated == 4 && result.Decoded == 3 && result.CrossCounts.All(row => row.Count == 1),
++            "later caller input changes cannot alter a published aggregate result");
++        bool immutable = false;
++        try { ((IList<NtfsSyntheticBitmapCrossCount>)result.CrossCounts).Clear(); } catch (NotSupportedException) { immutable = true; }
++        Check(immutable, "published cross counts are immutable and retain neither input arrays nor tokens");
++        string[] fields = typeof(NtfsSyntheticBitmapReport).GetProperties(System.Reflection.BindingFlags.Instance |
++            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic).Select(property => property.Name).ToArray();
++        Check(fields.All(field => field is not "Binding" and not "SourceToken" and not "MapEpoch" and not "Bytes" and not "Observations" and not "Slot"),
++            "result schema has no bitmap tokens source identities or per-slot observations");
++
++        foreach (int badSlots in new[] { -1, 0, 4097, int.MaxValue })
++        {
++            var bad = Binding(badSlots);
++            Rejected(() => NtfsSyntheticBitmapModel.Evaluate(bad, bad, [], new(bad, NtfsSyntheticBitmapPresence.Missing, 0, default)),
++                "BitmapModelSlotBudget", "invalid slot budgets are rejected before input copies");
++        }
++        foreach (var badInput in new[] {
++            new NtfsSyntheticBitmapInput(binding, NtfsSyntheticBitmapPresence.Provided, 8, ReadOnlyMemory<byte>.Empty),
++            new NtfsSyntheticBitmapInput(binding, NtfsSyntheticBitmapPresence.Provided, 8, new byte[2]),
++            new NtfsSyntheticBitmapInput(binding, NtfsSyntheticBitmapPresence.Provided, 13, new byte[2]),
++            new NtfsSyntheticBitmapInput(binding, NtfsSyntheticBitmapPresence.Provided, 0, ReadOnlyMemory<byte>.Empty),
++            new NtfsSyntheticBitmapInput(binding, NtfsSyntheticBitmapPresence.Missing, 1, ReadOnlyMemory<byte>.Empty),
++            new NtfsSyntheticBitmapInput(binding, NtfsSyntheticBitmapPresence.Missing, 0, new byte[1]) })
++            Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, Observations(12), badInput),
++                "BitmapModelCoverage", "truncated excess or contradictory coverage is not intentional partial coverage");
++        Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, Observations(12), input with { Bytes = new byte[513] }),
++            "BitmapModelByteBudget", "oversized bitmap input cannot expand the declared model budget");
++        Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, Observations(12), input with { Presence = (NtfsSyntheticBitmapPresence)99 }),
++            "BitmapModelPresence", "unknown bitmap presence enum values are rejected");
++        var foreignSource = binding with { SourceToken = new object() };
++        var foreignMap = binding with { MapEpoch = new object() };
++        foreach (var foreign in new[] { foreignSource, foreignMap, binding with { Slots = 11 } })
++        {
++            Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, foreign, Observations(12), input),
++                "BitmapModelBinding", "observation source map or range mismatch is rejected");
++            Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, Observations(12), input with { Binding = foreign }),
++                "BitmapModelBinding", "bitmap source map or range mismatch is rejected");
++        }
++        Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, Observations(11), input),
++            "BitmapModelObservationBudget", "missing observations cannot be silently filled with unknown or free");
++        Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, Observations(13), input),
++            "BitmapModelObservationBudget", "excess observations cannot expand a declared range");
++        foreach (var badObservation in new NtfsSyntheticSlotObservation?[] {
++            null, new(0, NtfsDecodeStatus.Free, false, true), new(0, NtfsDecodeStatus.Invalid, false, true),
++            new(0, NtfsDecodeStatus.Decoded, false), new(0, NtfsDecodeStatus.Free, true) })
++        {
++            var altered = Observations(12); altered[0] = badObservation!;
++            Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, altered, input),
++                "BitmapModelObservationShape", "self-contradictory zero or header observations are rejected without inference");
++        }
++        foreach (int slot in new[] { -1, 1, 12, int.MaxValue })
++        {
++            var altered = Observations(12); altered[0] = altered[0] with { Slot = slot };
++            Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, altered, input),
++                "BitmapModelObservationSlot", "negative duplicate missing or overflowing slot identities are rejected");
++        }
++        var badStatus = Observations(12); badStatus[0] = badStatus[0] with { Status = (NtfsDecodeStatus)99 };
++        Rejected(() => NtfsSyntheticBitmapModel.Evaluate(binding, binding, badStatus, input), "BitmapModelDecodeStatus",
++            "unknown strict classification enum values cannot enter cross counts");
++        using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
++        bool canceled = false;
++        try { NtfsSyntheticBitmapModel.Evaluate(binding, binding, Observations(12), input, cancellation.Token); }
++        catch (OperationCanceledException) { canceled = true; }
++        Check(canceled, "pre-cancellation publishes no aggregate result");
++        return passed;
++    }
++
++    private static NtfsSyntheticBitmapBinding Binding(int slots) => new(new object(), new object(), slots);
++    private static NtfsSyntheticSlotObservation[] Observations(int slots) => Enumerable.Range(0, slots)
++        .Select(slot => new NtfsSyntheticSlotObservation(slot, (NtfsDecodeStatus)(slot % 4), (slot % 4) switch { 0 => true, 1 => false, _ => (bool?)null }))
++        .ToArray();
++    private static bool SameAggregates(NtfsSyntheticBitmapReport first, NtfsSyntheticBitmapReport second) =>
++        (first with { CrossCounts = second.CrossCounts }) == second && first.CrossCounts.SequenceEqual(second.CrossCounts);
++}
+diff --git a/tests/Prototypes/Ntfs/README.md b/tests/Prototypes/Ntfs/README.md
+index 13f2664..be38d33 100644
+--- a/tests/Prototypes/Ntfs/README.md
++++ b/tests/Prototypes/Ntfs/README.md
+@@ -18,6 +18,16 @@ pwsh -NoProfile -File tests/NtfsMftEnumerationEvidence.Tests.ps1
+ 
+ 后续v2新增有界 `CodeCounts`（32种固定Status/Code配对）和 `AllZeroInvalid`，保持四类及全部读取限制。原因小计必须与四类吻合；全零仅是严格Invalid中原始字节全零的观察，不自动判为空闲。安全摘要只在来源关闭核验后发布，不输出原始记录。新helper拒绝v1混用，历史归档保持原revision，见[分类诊断方案](../../../docs/ntfs-classification-diagnostics-plan.md)。
+ 
++## 纯合成记录位图模型
++
++`NtfsSyntheticBitmapModel` 不提取位图、不访问卷或文件；只分析最多4096槽/512字节的模拟输入。Allocated/Unallocated/Unknown是输入位图声明，保留四类解码和固定12格交叉计数；缺失或显式部分覆盖之外保持Unknown，Provided截断/超量拒绝。全零不自动成为Free，记录头观察不一致只计数，不推断损坏或大小。
++
++```powershell
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-bitmap-model-tests
++```
++
++48核心/58独立反例通过，全部输出Synthetic。模型LSB-first和模拟对象绑定不证明真实NTFS位序或来源；未接入现有v2报告、Native/产品统计。外部集合/Memory异常均在访问边界净化，取消以传入token为准。实际182槽的分配状态仍未知，细节见[方案](../../../docs/ntfs-bitmap-model-plan.md)与[第19轮](../../../iterations/2026-11-12-19-bitmap-model/README.md)。
++
+ ## 有限原始读取原型
+ 
+ `NtfsMftMap` 从严格校验的原始record0建立不可变映射，限定一个未命名普通非驻留DATA、最多128区段；验证VCN、带符号LCN增量、大小及物理范围，不支持属性扩展或稀疏MFT。`PlanRecord` 生成有界连续目标切片，不假定MFT在磁盘上连续。

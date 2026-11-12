@@ -2,7 +2,9 @@
 
 ## 当前执行计划（2026-11-12）
 
-第18轮[分类诊断](ntfs-classification-diagnostics-plan.md)已完成：实际183 Invalid中182为全零Signature、1为SparseMappingFlags，6 Unsupported为RecordFlags，21对象与关闭/清理仍通过，见[归档](../iterations/2026-11-12-18-mft-classification/README.md)。只是解释严格拒绝分支，不改变其有效性或证明空闲。下一步建议先设计纯合成的有界分配位图校验模型，明确占用位与记录解码结果的关系，再分别安排真实位图来源、格式支持、完整建树和资源基准。计划不等于实施授权，不凭全零跳过或放松decoder。
+第19轮[纯合成位图模型](ntfs-bitmap-model-plan.md)已完成48核心/58独立反例，旧枚举91/来源68回归通过；三态声明与四类计数独立，缺失/未覆盖Unknown，不凭全零推断空闲，见[归档](../iterations/2026-11-12-19-bitmap-model/README.md)。下一步需要独立设计真实MFT记录位图的受限提取、与同一持锁来源绑定和后置核验；模型没有验证真实位序或182槽状态，不直接提升为Native证据。格式支持、完整建树和资源基准仍分别安排，不把本模型接入产品或扩大读盘授权。
+
+第18轮[分类诊断](ntfs-classification-diagnostics-plan.md)已完成：实际183 Invalid中182为全零Signature、1为SparseMappingFlags，6 Unsupported为RecordFlags，21对象与关闭/清理仍通过，见[归档](../iterations/2026-11-12-18-mft-classification/README.md)。只是解释严格拒绝分支，不改变其有效性或证明空闲；后续纯模型以上方第19轮为准。计划不等于真实来源实施授权，不凭全零跳过或放松decoder。
 
 第17轮[有界MFT分批遍历](ntfs-bounded-mft-plan.md)已获单独确认并完成本机隔离VHD验证：256槽/4页、21目标匹配、严格分类67 decoded/0 free/6 unsupported/183 invalid，来源关闭及卸载清理通过，见[归档](../iterations/2026-11-12-17-bounded-mft/README.md)。4096槽上限仅合成验证；范围覆盖不等于格式支持、占用完整或整卷速度已验收。后续原因细分见上方第18轮，实际操作需按届时明确的方案与授权执行。
 

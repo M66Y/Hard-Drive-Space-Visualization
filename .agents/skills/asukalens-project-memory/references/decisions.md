@@ -23,3 +23,5 @@
 - 2026-11-12：用户另行批准本窗口内读取新建测试VHD的MFT有效范围；独立mft-range与固定4096槽/4MiB+bootstrap/256次预算，不扩大旧22目标模式。第17轮256真实槽读完而183 invalid、6 unsupported仍如实保留，范围完成不等于格式支持或完整占用；原因是先建立可核验的批量覆盖与失败语义，避免把未知数据当零来制造速度。下一步先做受控分类原因诊断，再决定格式/建树/性能范围，不放松严格decoder。依据 iterations/2026-11-12-17-bounded-mft/README.md 与 docs/ntfs-bounded-mft-plan.md。
 
 - 2026-11-12：第18轮只加固定聚合原因诊断，保持严格decoder/分类/预算。真实183 Invalid分解为182全零Signature与1 SparseMappingFlags，6 Unsupported为RecordFlags；不凭全零改成Free，也不凭错误码宣布损坏。理由是字节形态与记录分配是两种证据，下一步先设计纯合成位图模型，真实来源后续单独验证。依据 iterations/2026-11-12-18-mft-classification/README.md 与 docs/ntfs-classification-diagnostics-plan.md。
+
+- 2026-11-12：第19轮先实现无I/O位图模型，位图三态声明与四类decode交叉统计，不将全零推断成Free。模拟对象绑定只比引用，所有结果Synthetic，不自动提升为真实位图验证。Count/Memory/indexer视作不可信输入边界，即便外部伪装受控异常也统一净化；理由是异常类型不能证明来源。真实BITMAP解析/同来源读取/后验仍需另行方案。依据 iterations/2026-11-12-19-bitmap-model/README.md 与 docs/ntfs-bitmap-model-plan.md。

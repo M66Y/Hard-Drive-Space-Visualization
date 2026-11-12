@@ -1,0 +1,15 @@
+{
+  "baseline": "643c11ed7c31de8ad4246cfbf72e5d0537fccdf4",
+  "scope": "PureSyntheticMftBitmapModel",
+  "build": { "configuration": "Release", "warnings": 0, "errors": 0 },
+  "synthetic": { "core": 48, "independent_adversarial": 58 },
+  "regression": { "mft_enumerator": 91, "bounded_source": 68 },
+  "accessor_injection_matrix": { "boundaries": 3, "forged_exception_types": 2, "cancellation_states": 2, "cases": 12, "passed": true },
+  "all_reports_synthetic": true,
+  "volume_or_file_io_by_model": false,
+  "vhd_operations": false,
+  "native_or_production_integration": false,
+  "raw_capture_added": false,
+  "performance_claim": false,
+  "packaging_or_release": false
+}
