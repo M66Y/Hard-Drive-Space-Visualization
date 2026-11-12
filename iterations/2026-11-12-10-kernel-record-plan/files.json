@@ -1,0 +1,21 @@
+{
+  "baseline": "36c58cc6d8d832fdd6c51e37e6bd9236fb47243b",
+  "files": [
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "6928dcdb98e95d9e4ebbe92bd176d8cc47e3db3cc0a5b5dd4e8ef8576014a5b5"
+    },
+    {
+      "path": "docs/ntfs-kernel-record-plan.md",
+      "sha256": "bf4108dffe26b8ea4724d6043e0fec2dd71a7edaff868976cb1779256ef53bb0"
+    },
+    {
+      "path": "iterations/2026-11-12-10-kernel-record-plan/README.md",
+      "sha256": "05b8f2a6a9bc3431e1cf45c67fbfac9f6f00ec4062d01feba946ea55cea9c703"
+    },
+    {
+      "path": "iterations/2026-11-12-10-kernel-record-plan/changes.patch",
+      "sha256": "6f4ec0e133e36e54ea55a3d5b110bb084bd8ef0e343ef65d84a74640b1ec3ef3"
+    }
+  ]
+}
