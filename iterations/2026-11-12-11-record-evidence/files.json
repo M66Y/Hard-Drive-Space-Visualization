@@ -1,0 +1,41 @@
+{
+  "baseline": "5e5e70dcfc0e3d3ce5aa3b31503d9de33f747adc",
+  "files": [
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "a40a961754729383e2ae7e54e7d4c542d62de7cffdee2c7986e49b97d88e0726"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "03a0f947fa952a145d4d5a4025ce3458ec98a772a43272e714c6213f4625612e"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "3fc490804b69869fd007ee4b785e92fb26f596769d4fc0ba46648fad6610afdf"
+    },
+    {
+      "path": "iterations/2026-11-12-11-record-evidence/README.md",
+      "sha256": "5625eb6471d7921f2519b3a11615c1714893c8ebacde9c75cbbf8f281a74e3f7"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "cbb5314159d3b140737dab7fd7d6bb691753e613b346aa6e6c16122eb63dd553"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsRecordEvidence.cs",
+      "sha256": "3501479360dc5da74f639e5f7dfbdbee9d9ea50d56466c124f0d9faead8ad231"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsRecordEvidenceTests.cs",
+      "sha256": "5d632820d07b5ce5e8fe52dcd87330f34c5ad8ec0e6b239f96373fa69c493c39"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/README.md",
+      "sha256": "01cdfd96681bcfc12f34481542880f0734124ee46a83700b3bc186a2ba97e2bd"
+    },
+    {
+      "path": "iterations/2026-11-12-11-record-evidence/changes.patch",
+      "sha256": "6d6e17c80f478f60ccdec0e7aa1ad0d9fbea4887494c3cc5b3f05d37af052b8b"
+    }
+  ]
+}

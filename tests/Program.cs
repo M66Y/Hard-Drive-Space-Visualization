@@ -3,9 +3,30 @@ using System.Drawing;
 
 if (args.Contains("--disk-activity-resource-child")) return DiskActivityResourceProbe.Child(args.Last());
 if (args.Contains("--disk-activity-scan-child")) return DiskActivityScanProbe.Child(args.Last());
+if (args.Length > 0 && args[0] == "--ntfs-record-replay")
+{
+    if (args.Length != 2) { Console.Error.WriteLine("FAIL NTFS record replay arguments"); return 1; }
+    try
+    {
+        var result = DiskAtlas.NtfsPrototype.NtfsRecordEvidence.Replay(args[1]);
+        Console.WriteLine($"NTFS record replay: records={result.Records}; matching={result.Matching}; mismatching={result.Mismatching}");
+        return result.Mismatching == 0 ? 0 : 1;
+    }
+    catch { Console.Error.WriteLine("FAIL NTFS record replay; no private details emitted"); return 1; }
+}
 Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
 if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
 if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
+if (args.Contains("--ntfs-record-evidence-tests"))
+{
+    try
+    {
+        int checks = DiskAtlas.NtfsPrototype.NtfsRecordEvidenceTests.Run();
+        Console.WriteLine($"PASS NTFS record evidence checks: {checks}; owned synthetic files only");
+        return 0;
+    }
+    catch { Console.Error.WriteLine("FAIL NTFS record evidence checks; no private details emitted"); return 1; }
+}
 if (args.Contains("--ntfs-special-lease-tests"))
 {
     try

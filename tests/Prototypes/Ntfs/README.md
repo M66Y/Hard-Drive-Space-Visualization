@@ -68,6 +68,8 @@ pwsh -NoProfile -File tests/NtfsSpecialCostEvidence.Tests.ps1
 
 ## 合成夹具与依据
 
+`NtfsRecordEvidence` 提供本机有界正文留样与严格无卷重放；最多六条、每条 64 KiB，清单 64 KiB、会话总计 512 KiB。拒绝字段注入、重复/大小写变体字段、路径越界、哈希变化、重解析及未知文件；清理只针对当前实例明确拥有的平坦会话。重放匹配原错误码也计 Matching，不能将其当作解码通过。基础不接 Live，不保存 IOCTL 外层头，固定矩阵/真实留样、崩溃孤儿恢复及并发对抗尚未验收，见[基础记录](../../../iterations/2026-11-12-11-record-evidence/README.md)。
+
 `NtfsRecordFixtures` 在内存创建记录；测试覆盖 fixup、属性边界、UTF-16、空/驻留/非驻留文件、硬链接与 DOS 名称、簇几何、特殊类型的补查标记、取消和索引冲突，另有 512 次固定种子的有限变异检查。合成数据不是磁盘镜像；测试不是完整 NTFS 格式一致性认证。
 
 格式参考 Microsoft Learn 的 [FILE_RECORD_SEGMENT_HEADER](https://learn.microsoft.com/en-us/windows/win32/devnotes/file-record-segment-header)、[MULTI_SECTOR_HEADER](https://learn.microsoft.com/en-us/windows/win32/devnotes/multi-sector-header)、[ATTRIBUTE_RECORD_HEADER](https://learn.microsoft.com/en-us/windows/win32/devnotes/attribute-record-header)、[FILE_NAME](https://learn.microsoft.com/en-us/windows/win32/devnotes/file-name)。部分头部字段在公开结构中被保留，本原型的合成布局尚需未来独立来源和真实记录交叉验证；文件身份采用外部提供的槽号加记录序列，不猜测保留字段。

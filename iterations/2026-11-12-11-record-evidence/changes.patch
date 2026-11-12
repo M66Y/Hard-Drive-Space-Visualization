@@ -1,0 +1,653 @@
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 65ee86f..88f60de 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -44,7 +44,7 @@ NTFS-01 第 1 轮的小范围为**驻留文件分配语义、可验证的大小
+ 
+ 下一轮先研究 **NTFS-01-KERNEL-USA**：额外硬链接或较长命名流夹具中，IOCTL 返回的两个扇区尾字仅一个匹配 USA 保存值，当前严格入口拒绝。刷新本轮文件及命名流未消除失败，根因尚未证明；不能据此称磁盘损坏，也不能将未校验尾字直接放行。用户已选择本轮保持严格校验，先完成受限形态。后续需给出可核验的读取表示与恢复策略、独立依据及损坏输入回归后，再扩大支持；命名流/属性扩展补查、活跃卷协调及 NTFS-02 继续未完成。失败与成功样本分别归档，不合并为全范围通过。
+ 
+-用户已确认按[内核记录验证方案](ntfs-kernel-record-plan.md)推进：先做独立最小重现与有界本机留样，保留原始样本供无卷重放；不修改解码规则。当前先实施基础模块，矩阵与真实 VHD 验收按后续证据记录，不提前宣称完成。本小时的 VHD 授权不延续到以后。
++用户已确认按[内核记录验证方案](ntfs-kernel-record-plan.md)推进：先做独立最小重现与有界本机留样，保留原始样本供无卷重放；不修改解码规则。留样与重放基础已实现，见[基础记录](../iterations/2026-11-12-11-record-evidence/README.md)；固定矩阵、Live 接入与真实 VHD 留样尚未验收，不提前宣称本方向全部完成。本小时的 VHD 授权不延续到以后。
+ 
+ ### MON-01：主界面磁盘活动面板
+ 
+diff --git a/docs/project-status.md b/docs/project-status.md
+index c8bbace..2bbd320 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-12：用户确认下一轮诊断方案后，新增测试程序内的有界本机记录留样与无卷重放基础。原始正文/哈希绑定、严格清单、数量/体积上限、重解析与未知文件拒绝已实现；尚未接入 Live 读取、固定矩阵或真实失败记录捕获，不代表复杂 USA 问题已解决。见[基础记录](../iterations/2026-11-12-11-record-evidence/README.md)。
++
+ 2026-11-12：测试程序新增压缩/稀疏默认流的严格单句柄补查，限定单一类型理由；四类合成文件与 NativeStorage 对照通过，叠加命名流的三个对象继续未知。限定 VHD 的正确性/成本共 1,581 项检查通过并已卸载清理；成本为四对象暖缓存微实验。较复杂的硬链接/命名流记录触发内核返回数据的 USA 表示校验失败，已保留失败证据，按用户选择保持严格解码；短名称限定夹具的通过不覆盖这些失败形态。补查原型未接入生产扫描，整卷读取与活跃卷一致性仍未完成，见[本轮记录](../iterations/2026-11-12-09-special-lookup/README.md)。
+ 
+ 2026-11-12：存储分配查询改用已打开流的句柄属性选择 CompressionInfo 分支，保留原调用参数以兼容调用者。7 类自有 NTFS 临时文件、28 种提示对照在变更前后均无差异；本机未复现误算，这是减少外部提示依赖的防御性改进。核心 38 / 高级 25 项通过，见[本轮记录](../iterations/2026-11-12-08-storage-attributes/README.md)。没有改变大小口径、缓存策略或发布包。
+diff --git a/docs/testing.md b/docs/testing.md
+index 02ff605..bdf70e5 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -15,6 +15,8 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll
+ 
+ ## NTFS 特殊流原型
+ 
++留样基础使用 `--ntfs-record-evidence-tests`，仅处理自建临时合成记录；`--ntfs-record-replay <session-directory>` 严格校验自有会话结构、大小和哈希后重放，不打开原始卷。CLI 只输出记录/匹配/失配计数；结果码匹配意味着重现原结果，原结果可能本来就是严格失败，不能视为解码成功。没有真实失败矩阵或 Live 捕获验收，基础边界见[本轮记录](../iterations/2026-11-12-11-record-evidence/README.md)。
++
+ 原型只编入测试程序，不进入软件扫描后端。`--ntfs-special-lease-tests` 使用自有临时 NTFS 文件和合成观察，检查压缩/稀疏默认流、身份/属性/格式、已有写者/删除者拒绝及释放；`--ntfs-special-lookup-tests` 检查批次边界、未知与合法零、来源和取消。摘要白名单运行 `pwsh -NoProfile -File tests/NtfsSpecialEvidence.Tests.ps1` 与 `pwsh -NoProfile -File tests/NtfsSpecialCostEvidence.Tests.ps1`，均无磁盘操作。
+ 
+ 仍需运行共享路径的 `--ntfs-prototype-tests`、`--ntfs-resident-lease-tests` 及夹具守卫。VHD 操作另需本轮范围授权，入口及失败清理见[隔离盘说明](../scripts/ntfs-prototype/README.md)。本轮严格解码拒绝的复杂记录不能因短名子集通过而视为已修复；实际摘要、覆盖与成本边界见[迭代证据](../iterations/2026-11-12-09-special-lookup/README.md)。成本只观察四个预热对象，参考的单快照与补查的双快照保证不同；不包含整卷读取、建树、UI 或资源峰值。
+diff --git a/iterations/2026-11-12-11-record-evidence/README.md b/iterations/2026-11-12-11-record-evidence/README.md
+new file mode 100644
+index 0000000..be367af
+--- /dev/null
++++ b/iterations/2026-11-12-11-record-evidence/README.md
+@@ -0,0 +1,13 @@
++# 有界记录留样与无卷重放基础
++
++2026-11-12，基线为方案提交 `5e5e70d`（完整值见 files.json）。用户确认按最小重现/本机留样方案推进；本小时剩余时间先实现基础，固定矩阵和真实 VHD 留样继续待验收，不将阶段完成写成方向全部完成。
++
++测试程序新增 NtfsRecordEvidence、配套边界测试及 CLI。Create 只建立 artifacts 内随机专有平坦会话，清单严格白名单与 nonce 绑定；最多6条原始正文，每条1024–65536字节且512对齐，清单64KiB、会话总计512KiB。原样保存与SHA-256绑定，新文件拒覆盖、清单同目录原子替换；失败不覆盖旧清单，仅清理本次新增文件。
++
++Replay 在有界读取、路径/字段/长度/哈希核对后使用原严格解码器；已解码结果另核对完整引用。Matching 表示重现原结果码，原结果可能是 FixupMismatch，不能解释为解码成功。CLI输出计数或固定失败文案，不输出路径/身份/原始异常。DeleteOwned校验本实例归属并先拒绝未知项/重解析点，仅删除已知文件，不递归清理任意目录。
++
++测试 Release 构建0警告0错误，72项通过、无跳过；包含真正独立子进程的成功回放和合法预期码失配（分别exit0/exit1），CLI仅保留固定计数。首次新增子进程检查发现通用RUNTIME行影响输出契约，已将回放入口前移并重新验证。独立审查未发现基础范围阻塞，补齐测试清理根的重解析点守卫。原始正文只有本次生成的内存夹具，不含真实卷记录；所有临时会话/外部链接目标由所属测试清理。没有新增VHD操作、扫描个人卷、默认产品采集、打包或发布。
++
++未完成：固定单因素矩阵、Live/IOCTL外层头绑定、真实复杂记录捕获/回放、崩溃中断后孤儿恢复，以及并发修改对抗和活跃卷一致性。当前遇到未知项明确拒绝，不宣称已自动恢复半写会话。生产后端与解码器未改动。
++
++files.json记录基线及SHA-256，changes.patch不包含自身或旧归档；实际基线恢复校验后归档。项目记忆Skill与AGENTS规则是用户随后新增任务，单独提交归档。
+diff --git a/tests/Program.cs b/tests/Program.cs
+index dff13c6..3def329 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -3,9 +3,30 @@ using System.Drawing;
+ 
+ if (args.Contains("--disk-activity-resource-child")) return DiskActivityResourceProbe.Child(args.Last());
+ if (args.Contains("--disk-activity-scan-child")) return DiskActivityScanProbe.Child(args.Last());
++if (args.Length > 0 && args[0] == "--ntfs-record-replay")
++{
++    if (args.Length != 2) { Console.Error.WriteLine("FAIL NTFS record replay arguments"); return 1; }
++    try
++    {
++        var result = DiskAtlas.NtfsPrototype.NtfsRecordEvidence.Replay(args[1]);
++        Console.WriteLine($"NTFS record replay: records={result.Records}; matching={result.Matching}; mismatching={result.Mismatching}");
++        return result.Mismatching == 0 ? 0 : 1;
++    }
++    catch { Console.Error.WriteLine("FAIL NTFS record replay; no private details emitted"); return 1; }
++}
+ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+ if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
+ if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
++if (args.Contains("--ntfs-record-evidence-tests"))
++{
++    try
++    {
++        int checks = DiskAtlas.NtfsPrototype.NtfsRecordEvidenceTests.Run();
++        Console.WriteLine($"PASS NTFS record evidence checks: {checks}; owned synthetic files only");
++        return 0;
++    }
++    catch { Console.Error.WriteLine("FAIL NTFS record evidence checks; no private details emitted"); return 1; }
++}
+ if (args.Contains("--ntfs-special-lease-tests"))
+ {
+     try
+diff --git a/tests/Prototypes/Ntfs/NtfsRecordEvidence.cs b/tests/Prototypes/Ntfs/NtfsRecordEvidence.cs
+new file mode 100644
+index 0000000..7c9e0f7
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsRecordEvidence.cs
+@@ -0,0 +1,274 @@
++using System.Security.Cryptography;
++using System.Text.Json;
++using System.Text.RegularExpressions;
++
++namespace DiskAtlas.NtfsPrototype;
++
++internal sealed record NtfsReplayReport(int Records, int Matching, int Mismatching);
++
++// Local-only, bounded reproduction evidence. Payloads are FILE record bodies,
++// never the IOCTL output header. This store is not connected to the live reader.
++internal sealed class NtfsRecordEvidence
++{
++    private const int MaximumBytes = 512 * 1024, MaximumManifest = 64 * 1024;
++    private const string Prefix = "ntfs-record-evidence-";
++    private readonly string nonce;
++    private readonly object gate = new();
++    internal string Root { get; }
++    private sealed record Entry(string CaseId, string Payload, int Length, string Sha256,
++        ulong Volume, ulong Reference, int SectorSize, int ClusterSize, ushort Major, ushort Minor,
++        string ExpectedCode, string ExpectedStatus);
++    private sealed record Manifest(int Schema, string Nonce, IReadOnlyList<Entry> Records);
++
++    private NtfsRecordEvidence(string root, string value) { Root = root; nonce = value; }
++    private static InvalidDataException Invalid() => new("EvidenceInvalid");
++    private static T Guard<T>(Func<T> action)
++    {
++        try { return action(); }
++        catch (InvalidDataException) { throw Invalid(); }
++        catch (JsonException) { throw Invalid(); }
++        catch (InvalidOperationException) { throw Invalid(); }
++        catch (ArgumentException) { throw Invalid(); }
++        catch (NotSupportedException) { throw Invalid(); }
++        catch (UnauthorizedAccessException) { throw new IOException("EvidenceIO"); }
++        catch (IOException) { throw new IOException("EvidenceIO"); }
++    }
++    private static bool ShortId(string value, int limit) => value != null &&
++        Regex.IsMatch(value, @"\A[A-Za-z][A-Za-z0-9-]{0," + (limit - 1) + @"}\z", RegexOptions.CultureInvariant);
++    private static string Full(string path)
++    {
++        if (string.IsNullOrEmpty(path) || !Path.IsPathFullyQualified(path)) throw Invalid();
++        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
++    }
++    private static void NoReparse(string path)
++    {
++        string? current = path;
++        while (current != null)
++        {
++            if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) throw Invalid();
++            current = Path.GetDirectoryName(current);
++        }
++    }
++    private static string Session(string directory)
++    {
++        string root = Full(directory), leaf = Path.GetFileName(root);
++        if (!Regex.IsMatch(leaf, @"\Antfs-record-evidence-[0-9a-f]{32}\z", RegexOptions.CultureInvariant) ||
++            !string.Equals(Path.GetFileName(Path.GetDirectoryName(root)), "artifacts", StringComparison.OrdinalIgnoreCase) ||
++            !Directory.Exists(root)) throw Invalid();
++        NoReparse(root);
++        return root;
++    }
++    internal static NtfsRecordEvidence Create(string artifactsRoot) => Guard(() =>
++    {
++        string parent = Full(artifactsRoot);
++        if (!string.Equals(Path.GetFileName(parent), "artifacts", StringComparison.OrdinalIgnoreCase) ||
++            !Directory.Exists(parent)) throw Invalid();
++        NoReparse(parent);
++        string nonce = Guid.NewGuid().ToString("N"), root = Path.Combine(parent, Prefix + nonce);
++        if (Directory.Exists(root) || File.Exists(root)) throw Invalid();
++        Directory.CreateDirectory(root);
++        bool complete = false;
++        var created = new HashSet<string>(StringComparer.Ordinal);
++        try
++        {
++            NoReparse(root);
++            string marker = Path.Combine(root, "marker.json"), manifest = Path.Combine(root, "manifest.json");
++            WriteNew(marker, JsonSerializer.SerializeToUtf8Bytes(new { Schema = 1, Nonce = nonce }), () => created.Add(marker));
++            WriteNew(manifest, JsonSerializer.SerializeToUtf8Bytes(new Manifest(1, nonce, [])), () => created.Add(manifest));
++            complete = true;
++            return new NtfsRecordEvidence(root, nonce);
++        }
++        finally
++        {
++            if (!complete)
++            {
++                NoReparse(root);
++                var actual = Directory.EnumerateFileSystemEntries(root).Take(3).ToArray();
++                if (actual.All(created.Contains))
++                {
++                    foreach (string path in actual) RemoveNew(root, path);
++                    Directory.Delete(root, false);
++                }
++            }
++        }
++    });
++
++    internal string Capture(string caseId, byte[] payload, ulong volume, ulong reference, int sectorSize,
++        int clusterSize, ushort major, ushort minor, string expectedCode) => Guard(() =>
++    {
++        lock (gate)
++        {
++            string root = Session(Root);
++            var entries = ReadManifest(root, nonce);
++            if (payload == null || payload.Length is < 1024 or > 65536 || payload.Length % 512 != 0 ||
++                !ShortId(caseId, 40) || !ShortId(expectedCode, 80) || !Geometry(sectorSize) || !Geometry(clusterSize)) throw Invalid();
++            if (entries.Count >= 6) return "LimitReached";
++            if (entries.Any(item => string.Equals(item.CaseId, caseId, StringComparison.OrdinalIgnoreCase))) throw Invalid();
++            // Own an immutable copy even if the caller reuses its input buffer.
++            byte[] owned = (byte[])payload.Clone();
++            var decoded = NtfsRecordDecoder.DecodeKernelReturned(owned, sectorSize,
++                reference & NtfsRecordDecoder.MaximumRecordNumber, clusterSize, major, minor);
++            string name = "record-" + (entries.Count + 1).ToString("D3", System.Globalization.CultureInfo.InvariantCulture) + ".bin";
++            var added = new Entry(caseId, name, owned.Length, Convert.ToHexString(SHA256.HashData(owned)), volume,
++                reference, sectorSize, clusterSize, major, minor, expectedCode, decoded.Status.ToString());
++            var next = entries.Append(added).ToArray();
++            byte[] json = JsonSerializer.SerializeToUtf8Bytes(new Manifest(1, nonce, next));
++            if (json.Length > MaximumManifest || owned.Length + json.Length + entries.Sum(item => item.Length) + 1024 > MaximumBytes)
++                return "LimitReached";
++            string pending = Path.Combine(root, "manifest.pending"), body = Path.Combine(root, name);
++            bool bodyCreated = false, pendingCreated = false, committed = false;
++            try
++            {
++                // Verify ownership again before creating any file. CreateNew never overwrites.
++                _ = ReadManifest(root, nonce);
++                WriteNew(body, owned, () => bodyCreated = true);
++                WriteNew(pending, json, () => pendingCreated = true);
++                NoReparse(root); NoReparse(body); NoReparse(pending); NoReparse(Path.Combine(root, "manifest.json"));
++                File.Move(pending, Path.Combine(root, "manifest.json"), true);
++                pendingCreated = false; committed = true;
++                return "Saved";
++            }
++            finally
++            {
++                if (!committed)
++                {
++                    // Only this attempt's exact new files are eligible for cleanup.
++                    try { if (pendingCreated) RemoveNew(root, pending); }
++                    finally { if (bodyCreated) RemoveNew(root, body); }
++                }
++            }
++        }
++    });
++
++    internal static NtfsReplayReport Replay(string sessionDirectory) => Guard(() =>
++    {
++        string root = Session(sessionDirectory);
++        var entries = ReadManifest(root, Path.GetFileName(root)[Prefix.Length..]);
++        int matching = 0;
++        foreach (var entry in entries)
++        {
++            byte[] bytes = ReadBounded(Path.Combine(root, entry.Payload), 65536);
++            if (bytes.Length != entry.Length || !string.Equals(Convert.ToHexString(SHA256.HashData(bytes)), entry.Sha256, StringComparison.Ordinal)) throw Invalid();
++            var decoded = NtfsRecordDecoder.DecodeKernelReturned(bytes, entry.SectorSize,
++                entry.Reference & NtfsRecordDecoder.MaximumRecordNumber, entry.ClusterSize, entry.Major, entry.Minor);
++            bool identity = decoded.Record == null || decoded.Record.Reference == entry.Reference;
++            if (decoded.Code == entry.ExpectedCode && decoded.Status.ToString() == entry.ExpectedStatus && identity) matching++;
++        }
++        return new NtfsReplayReport(entries.Count, matching, entries.Count - matching);
++    });
++
++    internal void DeleteOwned() => Guard(() =>
++    {
++        lock (gate)
++        {
++            string root = Session(Root);
++            var entries = ReadManifest(root, nonce);
++            // Never recurse: an unknown file, directory or reparse point prevents deletion.
++            foreach (var entry in entries) RemoveNew(root, Path.Combine(root, entry.Payload));
++            RemoveNew(root, Path.Combine(root, "manifest.json"));
++            RemoveNew(root, Path.Combine(root, "marker.json"));
++            NoReparse(root);
++            Directory.Delete(root, false);
++            return true;
++        }
++    });
++
++    private static bool Geometry(int value) => value is >= 512 and <= 65536 && (value & (value - 1)) == 0;
++    private static void Fields(JsonElement value, params string[] names)
++    {
++        if (value.ValueKind != JsonValueKind.Object) throw Invalid();
++        var seen = new HashSet<string>(StringComparer.Ordinal);
++        foreach (var field in value.EnumerateObject())
++            if (!names.Contains(field.Name, StringComparer.Ordinal) || !seen.Add(field.Name)) throw Invalid();
++        if (seen.Count != names.Length) throw Invalid();
++    }
++    private static string Text(JsonElement value, string name)
++    {
++        var item = value.GetProperty(name);
++        if (item.ValueKind != JsonValueKind.String) throw Invalid();
++        return item.GetString() ?? throw Invalid();
++    }
++    private static int Integer(JsonElement value, string name)
++    {
++        if (!value.GetProperty(name).TryGetInt32(out int number)) throw Invalid();
++        return number;
++    }
++    private static ulong Unsigned(JsonElement value, string name)
++    {
++        if (!value.GetProperty(name).TryGetUInt64(out ulong number)) throw Invalid();
++        return number;
++    }
++    private static List<Entry> ReadManifest(string root, string nonce)
++    {
++        root = Session(root);
++        if (Path.GetFileName(root) != Prefix + nonce) throw Invalid();
++        using (var marker = JsonDocument.Parse(ReadBounded(Path.Combine(root, "marker.json"), 1024)))
++        {
++            Fields(marker.RootElement, "Schema", "Nonce");
++            if (Integer(marker.RootElement, "Schema") != 1 || Text(marker.RootElement, "Nonce") != nonce) throw Invalid();
++        }
++        using var document = JsonDocument.Parse(ReadBounded(Path.Combine(root, "manifest.json"), MaximumManifest));
++        var manifest = document.RootElement;
++        Fields(manifest, "Schema", "Nonce", "Records");
++        if (Integer(manifest, "Schema") != 1 || Text(manifest, "Nonce") != nonce) throw Invalid();
++        var records = manifest.GetProperty("Records");
++        if (records.ValueKind != JsonValueKind.Array || records.GetArrayLength() > 6) throw Invalid();
++        var entries = new List<Entry>(6);
++        var cases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
++        foreach (var value in records.EnumerateArray())
++        {
++            Fields(value, "CaseId", "Payload", "Length", "Sha256", "Volume", "Reference", "SectorSize", "ClusterSize", "Major", "Minor", "ExpectedCode", "ExpectedStatus");
++            string caseId = Text(value, "CaseId"), payload = Text(value, "Payload"), hash = Text(value, "Sha256"), code = Text(value, "ExpectedCode"), status = Text(value, "ExpectedStatus");
++            int length = Integer(value, "Length"), sector = Integer(value, "SectorSize"), cluster = Integer(value, "ClusterSize"), major = Integer(value, "Major"), minor = Integer(value, "Minor");
++            string expectedName = "record-" + (entries.Count + 1).ToString("D3", System.Globalization.CultureInfo.InvariantCulture) + ".bin";
++            if (!ShortId(caseId, 40) || !cases.Add(caseId) || payload != expectedName || !ShortId(code, 80) ||
++                !Regex.IsMatch(hash, @"\A[0-9A-F]{64}\z", RegexOptions.CultureInvariant) || length is < 1024 or > 65536 || length % 512 != 0 ||
++                !Geometry(sector) || !Geometry(cluster) || major is < 0 or > ushort.MaxValue || minor is < 0 or > ushort.MaxValue ||
++                status is not ("Decoded" or "Free" or "Invalid" or "Unsupported")) throw Invalid();
++            entries.Add(new(caseId, payload, length, hash, Unsigned(value, "Volume"), Unsigned(value, "Reference"), sector, cluster,
++                (ushort)major, (ushort)minor, code, status));
++        }
++        var allowed = new HashSet<string>(entries.Select(item => item.Payload), StringComparer.Ordinal) { "marker.json", "manifest.json" };
++        var files = Directory.EnumerateFileSystemEntries(root).Take(9).ToArray();
++        if (files.Length != allowed.Count) throw Invalid();
++        long bytes = 0;
++        foreach (string path in files)
++        {
++            NoReparse(path);
++            if (!allowed.Remove(Path.GetFileName(path)) || (File.GetAttributes(path) & FileAttributes.Directory) != 0) throw Invalid();
++            long length = new FileInfo(path).Length;
++            if (length < 0 || length > MaximumManifest || (bytes += length) > MaximumBytes) throw Invalid();
++        }
++        foreach (var entry in entries)
++        {
++            byte[] payload = ReadBounded(Path.Combine(root, entry.Payload), 65536);
++            if (payload.Length != entry.Length || Convert.ToHexString(SHA256.HashData(payload)) != entry.Sha256) throw Invalid();
++        }
++        return entries;
++    }
++    private static byte[] ReadBounded(string path, int maximum)
++    {
++        NoReparse(path);
++        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
++        if (stream.Length < 1 || stream.Length > maximum) throw Invalid();
++        byte[] result = new byte[(int)stream.Length];
++        stream.ReadExactly(result);
++        if (stream.Position != stream.Length) throw Invalid();
++        NoReparse(path);
++        return result;
++    }
++    private static void WriteNew(string path, byte[] value, Action? created = null)
++    {
++        using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
++        created?.Invoke();
++        stream.Write(value);
++        stream.Flush(true);
++    }
++    private static void RemoveNew(string root, string path)
++    {
++        if (Path.GetDirectoryName(path) != root) throw Invalid();
++        NoReparse(root); NoReparse(path);
++        if ((File.GetAttributes(path) & FileAttributes.Directory) != 0) throw Invalid();
++        File.Delete(path);
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsRecordEvidenceTests.cs b/tests/Prototypes/Ntfs/NtfsRecordEvidenceTests.cs
+new file mode 100644
+index 0000000..bc3126c
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsRecordEvidenceTests.cs
+@@ -0,0 +1,262 @@
++using System.Diagnostics;
++using System.Security.Cryptography;
++using System.Text.Json.Nodes;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// Uses deterministic synthetic bytes and this invocation's temporary artifacts only.
++// No volume handles, personal paths, or original kernel records are read here.
++internal static class NtfsRecordEvidenceTests
++{
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("NTFS record evidence check failed: " + name);
++            passed++;
++            Console.WriteLine("PASS NTFS record evidence " + name);
++        }
++        void Rejected(Action action, string name)
++        {
++            bool rejected = false;
++            try { action(); }
++            catch (InvalidDataException) { rejected = true; }
++            catch (IOException) { rejected = true; }
++            Check(rejected, name);
++        }
++
++        string temp = Path.GetFullPath(Path.GetTempPath());
++        string owner = Path.Combine(temp, "AsukaLens-record-evidence-" + Guid.NewGuid().ToString("N"));
++        string artifacts = Path.Combine(owner, "artifacts");
++        Directory.CreateDirectory(artifacts);
++        const ulong volume = 41;
++        ulong reference = NtfsRecordFixtures.Reference(52, 3);
++        ulong slot = reference & NtfsRecordDecoder.MaximumRecordNumber;
++        byte[] protectedRecord = NtfsRecordFixtures.File();
++        byte[] restoredRecord = (byte[])protectedRecord.Clone();
++        Array.Copy(restoredRecord, 50, restoredRecord, 510, 2);
++        Array.Copy(restoredRecord, 52, restoredRecord, 1022, 2);
++        byte[] mismatchedRecord = (byte[])protectedRecord.Clone();
++        NtfsRecordFixtures.U16(mismatchedRecord, 510, 0x1234);
++        string Code(byte[] bytes) => NtfsRecordDecoder.DecodeKernelReturned(bytes, 512, slot, 4096, 3, 1).Code;
++        string Capture(NtfsRecordEvidence evidence, string caseId, byte[] bytes, string? code = null) =>
++            evidence.Capture(caseId, bytes, volume, reference, 512, 4096, 3, 1, code ?? Code(bytes));
++        void ChildReplay(string directory, int expectedExit, string expectedSummary)
++        {
++            string host = Environment.ProcessPath ?? throw new InvalidOperationException("Evidence child host unavailable.");
++            var start = new ProcessStartInfo(host)
++            {
++                UseShellExecute = false,
++                CreateNoWindow = true,
++                RedirectStandardOutput = true,
++                RedirectStandardError = true
++            };
++            if (string.Equals(Path.GetFileNameWithoutExtension(host), "dotnet", StringComparison.OrdinalIgnoreCase))
++                start.ArgumentList.Add(typeof(NtfsRecordEvidenceTests).Assembly.Location);
++            start.ArgumentList.Add("--ntfs-record-replay");
++            start.ArgumentList.Add(directory);
++            using var process = Process.Start(start) ?? throw new InvalidOperationException("Evidence child did not start.");
++            var output = process.StandardOutput.ReadToEndAsync();
++            var errors = process.StandardError.ReadToEndAsync();
++            bool exited = process.WaitForExit(10000);
++            if (!exited)
++            {
++                try { process.Kill(entireProcessTree: true); }
++                finally { process.WaitForExit(2000); }
++            }
++            Check(exited, "independent replay process finishes within its time budget");
++            Check(Task.WaitAll([output, errors], 2000), "independent replay redirected streams complete");
++            // Never echo captured child output: only compare it with the fixed public contract.
++            Check(process.ExitCode == expectedExit && errors.Result.Length == 0 && output.Result.Length < 256 &&
++                output.Result.TrimEnd('\r', '\n') == expectedSummary,
++                "independent replay returns the expected fixed summary and exit status");
++        }
++
++        try
++        {
++            Check(Code(protectedRecord) == "Decoded", "protected control has a strict expected result");
++            Check(Code(restoredRecord) == "Decoded", "restored control has a strict expected result");
++            Check(Code(mismatchedRecord) == "FixupMismatch", "mismatched tails stay a strict failure");
++            var evidence = NtfsRecordEvidence.Create(artifacts);
++            string root = evidence.Root;
++            Check(Path.GetDirectoryName(root) == artifacts && Directory.Exists(root), "session is an owned direct child");
++            Check(Path.GetFileName(root).StartsWith("ntfs-record-evidence-", StringComparison.Ordinal), "session has a recognizable bounded name");
++            Check(Capture(evidence, "Protected", protectedRecord) == "Saved", "protected bytes are captured");
++            Check(Capture(evidence, "Restored", restoredRecord) == "Saved", "restored bytes are captured");
++            Check(Capture(evidence, "Mismatch", mismatchedRecord) == "Saved", "strict failure bytes can be captured without becoming success");
++            var report = NtfsRecordEvidence.Replay(root);
++            Check(report.Records == 3 && report.Matching == 3 && report.Mismatching == 0, "same-process disk reload reproduces all expected outcomes");
++            ChildReplay(root, 0, "NTFS record replay: records=3; matching=3; mismatching=0");
++            Check(protectedRecord.SequenceEqual(NtfsRecordFixtures.File()), "capture and replay leave caller bytes unchanged");
++
++            string manifest = Path.Combine(root, "manifest.json");
++            JsonObject document = JsonNode.Parse(File.ReadAllText(manifest))!.AsObject();
++            var records = document["Records"]!.AsArray();
++            Check(records.Count == 3, "manifest contains only saved records");
++            byte[][] originals = [protectedRecord, restoredRecord, mismatchedRecord];
++            for (int i = 0; i < originals.Length; i++)
++            {
++                var entry = records[i]!.AsObject();
++                string payload = entry["Payload"]!.GetValue<string>();
++                byte[] saved = File.ReadAllBytes(Path.Combine(root, payload));
++                Check(saved.SequenceEqual(originals[i]), "stored payload is byte exact");
++                Check(entry["Length"]!.GetValue<int>() == saved.Length, "stored payload length matches the original");
++                Check(string.Equals(entry["Sha256"]!.GetValue<string>(), Convert.ToHexString(SHA256.HashData(saved)), StringComparison.OrdinalIgnoreCase),
++                    "manifest hash binds the exact original payload");
++            }
++            byte[] manifestBytes = File.ReadAllBytes(manifest);
++            void AlterManifest(Action<JsonObject> change, Action assertion)
++            {
++                try
++                {
++                    var changed = JsonNode.Parse(manifestBytes)!.AsObject();
++                    change(changed);
++                    File.WriteAllText(manifest, changed.ToJsonString());
++                    assertion();
++                }
++                finally { File.WriteAllBytes(manifest, manifestBytes); }
++            }
++            void RejectManifest(Action<JsonObject> change, string name) =>
++                AlterManifest(change, () => Rejected(() => NtfsRecordEvidence.Replay(root), name));
++            void RejectRawManifest(Func<string, string> change, string name)
++            {
++                try
++                {
++                    string compact = JsonNode.Parse(manifestBytes)!.ToJsonString();
++                    File.WriteAllText(manifest, change(compact));
++                    Rejected(() => NtfsRecordEvidence.Replay(root), name);
++                }
++                finally { File.WriteAllBytes(manifest, manifestBytes); }
++            }
++            RejectRawManifest(x => "{\"Schema\":1," + x[1..], "duplicate JSON properties are rejected");
++            RejectRawManifest(x => "{\"schema\":1," + x[1..], "case-variant JSON properties are rejected");
++            RejectRawManifest(x => x.Insert(x.IndexOf("\"CaseId\":", StringComparison.Ordinal), "\"CaseId\":\"Injected\","),
++                "duplicate per-record JSON properties are rejected");
++            RejectManifest(x => x["Injected"] = "not permitted", "unknown manifest fields are rejected");
++            RejectManifest(x => x["Records"]![0]!["Injected"] = "not permitted", "unknown per-record fields are rejected");
++            RejectManifest(x => x["Schema"] = 999, "unknown schema cannot be replayed");
++            RejectManifest(x => x["Nonce"] = "not-the-owned-session", "manifest must match the owned session identity");
++            RejectManifest(x => x["Records"]![0]!["Payload"] = "../outside.bin", "payload path traversal is rejected");
++            RejectManifest(x => x["Records"]![0]!["Payload"] = Path.Combine(owner, "outside.bin"), "absolute payload paths are rejected");
++            RejectManifest(x => x["Records"]![0]!["CaseId"] = "../Injected", "injected case paths are rejected at replay");
++            RejectManifest(x => x["Records"]![1]!["CaseId"] = x["Records"]![0]!["CaseId"]!.GetValue<string>(), "duplicate case identities are rejected");
++            RejectManifest(x => x["Records"]![1]!["Payload"] = x["Records"]![0]!["Payload"]!.GetValue<string>(), "duplicate payload references are rejected");
++            RejectManifest(x => x["Records"]![0]!["Length"] = 65537, "declared oversized payload is rejected");
++            RejectManifest(x => x["Records"]![0]!["Sha256"] = new string('0', 64), "hash tampering is rejected");
++            RejectManifest(x => x["Records"]![0]!["ExpectedCode"] = "Injected\nMessage", "non-whitelisted expected result text is rejected");
++            AlterManifest(x => x["Records"]![0]!["ExpectedCode"] = "FixupMismatch", () =>
++            {
++                var different = NtfsRecordEvidence.Replay(root);
++                Check(different.Records == 3 && different.Matching == 2 && different.Mismatching == 1,
++                    "a legal expected-code disagreement remains a visible mismatch");
++                ChildReplay(root, 1, "NTFS record replay: records=3; matching=2; mismatching=1");
++            });
++            AlterManifest(x => x["Records"]![0]!["Reference"] = NtfsRecordFixtures.Reference(52, 4), () =>
++            {
++                var different = NtfsRecordEvidence.Replay(root);
++                Check(different.Records == 3 && different.Matching == 2 && different.Mismatching == 1,
++                    "decoded record sequence disagreement is a visible identity mismatch");
++            });
++            try
++            {
++                File.WriteAllBytes(manifest, new byte[512 * 1024 + 1]);
++                Rejected(() => NtfsRecordEvidence.Replay(root), "oversized manifest is rejected before parsing");
++            }
++            finally { File.WriteAllBytes(manifest, manifestBytes); }
++
++            string firstPayload = Path.Combine(root, records[0]!["Payload"]!.GetValue<string>());
++            byte[] firstBytes = File.ReadAllBytes(firstPayload);
++            try
++            {
++                byte[] altered = (byte[])firstBytes.Clone(); altered[100] ^= 1;
++                File.WriteAllBytes(firstPayload, altered);
++                Rejected(() => NtfsRecordEvidence.Replay(root), "payload modification is rejected by its hash");
++                File.WriteAllBytes(firstPayload, new byte[65537]);
++                Rejected(() => NtfsRecordEvidence.Replay(root), "actual oversized payload is rejected");
++            }
++            finally { File.WriteAllBytes(firstPayload, firstBytes); }
++            foreach (string caseId in new[] { "", "../escape", "bad/name", "bad\\name", "bad:name", "bad\0name", new string('x', 41) })
++                Rejected(() => Capture(evidence, caseId, protectedRecord), "invalid capture case identity is rejected");
++            Rejected(() => Capture(evidence, "Protected", protectedRecord), "capture refuses an existing case identity");
++            foreach (int length in new[] { 0, 512, 1025, 65537 })
++                Rejected(() => Capture(evidence, "InvalidSize", new byte[length], "RecordLength"), "capture rejects out-of-contract payload size");
++            Rejected(() => Capture(evidence, "BadCode", protectedRecord, "Injected\nCode"), "capture expected result is bounded controlled text");
++
++            string unknown = Path.Combine(root, "unknown.tmp");
++            File.WriteAllText(unknown, "synthetic interference");
++            Rejected(() => NtfsRecordEvidence.Replay(root), "unexpected session files block replay");
++            Rejected(evidence.DeleteOwned, "unknown files block owned deletion");
++            Check(File.Exists(unknown) && File.Exists(firstPayload), "refused deletion preserves all session files");
++            File.Delete(unknown);
++
++            string targetSentinel = Path.Combine(owner, "symlink-target.bin");
++            File.WriteAllBytes(targetSentinel, firstBytes);
++            bool linkCreated = false;
++            try
++            {
++                File.Delete(firstPayload);
++                try { File.CreateSymbolicLink(firstPayload, targetSentinel); linkCreated = true; }
++                catch (UnauthorizedAccessException) { Console.WriteLine("SKIP NTFS record evidence reparse checks: link capability unavailable"); }
++                catch (IOException) { Console.WriteLine("SKIP NTFS record evidence reparse checks: link capability unavailable"); }
++                if (linkCreated)
++                {
++                    Rejected(() => NtfsRecordEvidence.Replay(root), "a known payload name cannot redirect replay through a reparse entry");
++                    Rejected(evidence.DeleteOwned, "a known payload reparse entry blocks owned deletion");
++                    Check(File.ReadAllBytes(targetSentinel).SequenceEqual(firstBytes), "refused reparse deletion leaves its external target untouched");
++                }
++            }
++            finally
++            {
++                if (linkCreated) File.Delete(firstPayload);
++                File.WriteAllBytes(firstPayload, firstBytes);
++            }
++
++            for (int i = 4; i <= 5; i++)
++                Check(Capture(evidence, "Limit" + i, protectedRecord) == "Saved", "capture accepts records within the six-record budget");
++            Check(Capture(evidence, "MaximumSize", new byte[65536]) == "Saved", "exact 64 KiB payload endpoint is retained without truncation");
++            Check(Capture(evidence, "Seventh", protectedRecord) == "LimitReached", "seventh capture is explicitly limited");
++            var limited = NtfsRecordEvidence.Replay(root);
++            Check(limited.Records == 6 && limited.Matching == 6 && limited.Mismatching == 0, "limit refusal does not alter the six retained records");
++            Check(Directory.EnumerateFiles(root, "*.bin").Count() == 6, "limit refusal creates no extra binary sample");
++            evidence.DeleteOwned();
++            Check(!Directory.Exists(root) && Directory.Exists(artifacts), "owned cleanup removes its session and preserves the artifacts parent");
++            return passed;
++        }
++        finally
++        {
++            // Every path in this flat synthetic test owner was created above. Never follow links.
++            string full = Path.GetFullPath(owner);
++            if (Path.GetDirectoryName(full) != temp.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) ||
++                !Path.GetFileName(full).StartsWith("AsukaLens-record-evidence-", StringComparison.Ordinal))
++                throw new InvalidOperationException("NTFS record evidence cleanup boundary failed.");
++            if (Directory.Exists(full))
++            {
++                if ((File.GetAttributes(full) & FileAttributes.ReparsePoint) != 0) Directory.Delete(full);
++                else DeleteTree(full);
++            }
++        }
++    }
++
++    private static void DeleteTree(string directory)
++    {
++        // Check the directory itself before enumeration; a changed root must never redirect cleanup.
++        if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
++        {
++            Directory.Delete(directory);
++            return;
++        }
++        foreach (string entry in Directory.EnumerateFileSystemEntries(directory))
++        {
++            FileAttributes attributes = File.GetAttributes(entry);
++            bool isDirectory = (attributes & FileAttributes.Directory) != 0;
++            if ((attributes & FileAttributes.ReparsePoint) != 0)
++            {
++                if (isDirectory) Directory.Delete(entry); else File.Delete(entry);
++            }
++            else if (isDirectory) DeleteTree(entry);
++            else File.Delete(entry);
++        }
++        Directory.Delete(directory);
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/README.md b/tests/Prototypes/Ntfs/README.md
+index c59bbb3..b867112 100644
+--- a/tests/Prototypes/Ntfs/README.md
++++ b/tests/Prototypes/Ntfs/README.md
+@@ -68,6 +68,8 @@ pwsh -NoProfile -File tests/NtfsSpecialCostEvidence.Tests.ps1
+ 
+ ## 合成夹具与依据
+ 
++`NtfsRecordEvidence` 提供本机有界正文留样与严格无卷重放；最多六条、每条 64 KiB，清单 64 KiB、会话总计 512 KiB。拒绝字段注入、重复/大小写变体字段、路径越界、哈希变化、重解析及未知文件；清理只针对当前实例明确拥有的平坦会话。重放匹配原错误码也计 Matching，不能将其当作解码通过。基础不接 Live，不保存 IOCTL 外层头，固定矩阵/真实留样、崩溃孤儿恢复及并发对抗尚未验收，见[基础记录](../../../iterations/2026-11-12-11-record-evidence/README.md)。
++
+ `NtfsRecordFixtures` 在内存创建记录；测试覆盖 fixup、属性边界、UTF-16、空/驻留/非驻留文件、硬链接与 DOS 名称、簇几何、特殊类型的补查标记、取消和索引冲突，另有 512 次固定种子的有限变异检查。合成数据不是磁盘镜像；测试不是完整 NTFS 格式一致性认证。
+ 
+ 格式参考 Microsoft Learn 的 [FILE_RECORD_SEGMENT_HEADER](https://learn.microsoft.com/en-us/windows/win32/devnotes/file-record-segment-header)、[MULTI_SECTOR_HEADER](https://learn.microsoft.com/en-us/windows/win32/devnotes/multi-sector-header)、[ATTRIBUTE_RECORD_HEADER](https://learn.microsoft.com/en-us/windows/win32/devnotes/attribute-record-header)、[FILE_NAME](https://learn.microsoft.com/en-us/windows/win32/devnotes/file-name)。部分头部字段在公开结构中被保留，本原型的合成布局尚需未来独立来源和真实记录交叉验证；文件身份采用外部提供的槽号加记录序列，不猜测保留字段。

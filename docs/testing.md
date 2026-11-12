@@ -15,6 +15,8 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll
 
 ## NTFS 特殊流原型
 
+留样基础使用 `--ntfs-record-evidence-tests`，仅处理自建临时合成记录；`--ntfs-record-replay <session-directory>` 严格校验自有会话结构、大小和哈希后重放，不打开原始卷。CLI 只输出记录/匹配/失配计数；结果码匹配意味着重现原结果，原结果可能本来就是严格失败，不能视为解码成功。没有真实失败矩阵或 Live 捕获验收，基础边界见[本轮记录](../iterations/2026-11-12-11-record-evidence/README.md)。
+
 原型只编入测试程序，不进入软件扫描后端。`--ntfs-special-lease-tests` 使用自有临时 NTFS 文件和合成观察，检查压缩/稀疏默认流、身份/属性/格式、已有写者/删除者拒绝及释放；`--ntfs-special-lookup-tests` 检查批次边界、未知与合法零、来源和取消。摘要白名单运行 `pwsh -NoProfile -File tests/NtfsSpecialEvidence.Tests.ps1` 与 `pwsh -NoProfile -File tests/NtfsSpecialCostEvidence.Tests.ps1`，均无磁盘操作。
 
 仍需运行共享路径的 `--ntfs-prototype-tests`、`--ntfs-resident-lease-tests` 及夹具守卫。VHD 操作另需本轮范围授权，入口及失败清理见[隔离盘说明](../scripts/ntfs-prototype/README.md)。本轮严格解码拒绝的复杂记录不能因短名子集通过而视为已修复；实际摘要、覆盖与成本边界见[迭代证据](../iterations/2026-11-12-09-special-lookup/README.md)。成本只观察四个预热对象，参考的单快照与补查的双快照保证不同；不包含整卷读取、建树、UI 或资源峰值。
