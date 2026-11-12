@@ -20,6 +20,22 @@
 
 ## 建议接口与摘要合同
 
+### 实现取舍（仅建议，未实施）
+
+对照当前 `NtfsBoundedMftSource` 后建议方案B，仍需用户确定下一轮范围：
+
+| 方向 | 结论与理由 |
+| --- | --- |
+| A：复制一个新owner | 不推荐；会复制锁、Map、取消和关闭错误优先逻辑，两套生命周期容易分叉 |
+| B：同owner的私有固定profile及专用入口 | 推荐；复用当前bootstrap、范围/21目标与关闭闭环，旧模式不执行新定位器 |
+| C：在Live外另开/另读record0 | 不推荐；产生新handle/代际及额外读取，不能继承原token/map证明 |
+
+最小触点为Initialize完成bootstrap映射反核验后做形态观察、专用真实factory与Run入口、私有共享执行核心，以及Guard/Live/wrapper的独立模式及新摘要。示意入口 `OpenBitmapObservation` / `RunBitmapObservation` 尚不存在；profile由私有固定枚举选择，禁止caller传模式字符串、预算、handle或验证bool。
+
+当前 `RunEnumeration` 已执行 `CloseAndVerify→Dispose`，不能先调用它再补观察或再读record0。新入口须在同一个私有执行核心中完成范围与形态观察，一次关闭、后验、释放和最后取消检查后再构造报告；旧 `RunEnumeration` 保持原v2合同。错profile入口在额外读取前拒绝并进入明确关闭路径；初始化失败/Dispose清空暂存元数据，不因新观察而保留原始正文。
+
+新测试替身入口固定Synthetic；真实工厂仍只收对应manifest，绑定准备守卫/无父链和同owner。先验证新路径不改变旧RangeOnly行为、预算及已通过的主错误/取消优先级，再做另获授权的真实验收，不复用旧测试结果替代。
+
 真实入口只收新建夹具manifest，不接收volume handle、物理偏移、caller验证标志、任意预算或位图正文。新mode使用固定工厂；测试替身始终输出Synthetic，即使所有模拟校验通过也不能通过真实摘要入口。
 
 bootstrap仍由同一私有owner读入，来源/map/有效长度改变即废弃该代；定位器只消费该私有bootstrap副本，不能用调用方传入的新记录替换。观察数据在内存暂存，到21对象、解锁、后验、fresh facts、backend关闭及最终取消检查全部通过之后才组装公开摘要。父脚本仍以卸载和清理完成为最后成功条件。
@@ -28,10 +44,12 @@ bootstrap仍由同一私有owner读入，来源/map/有效长度改变即废弃�
 
 建议把现有v2范围摘要作为独立受检字段，新增的属性观察摘要仅有以下受控内容，不能直接序列化内部定位器对象：
 
+外层可用独立revision `bitmap-bootstrap-source-v1`，阶段固定 `ObservedShapeOnly`；Range字段保持整个原v2报告并复用其深白名单，Bitmap字段只包含状态、代码、预期槽、覆盖容量、payload字节数和可空非驻留长度元数据。Invalid定位结果不能进入成功报告。此处字段名/结构均为待实现合同，不是当前软件已支持的格式。
+
 | 字段类别 | 约束与含义 |
 | --- | --- |
 | 来源与阶段 | 真实owner建立的来源类别；阶段固定ObservedShapeOnly，无VerifiedAllocation或SnapshotComplete值 |
-| 状态/代码 | 固定Missing、ResidentPartial、ResidentCapacityOnly、Deferred、Invalid及已审查代码，不接任意字符串 |
+| 状态/代码 | 成功只允许固定Missing、ResidentPartial、ResidentCapacityOnly、Deferred及已审查代码；Invalid只作整体失败，不接任意字符串 |
 | 预期与容量 | 预期槽数等于范围摘要，1..4096；payload字节0..512，驻留容量=min(预期槽,payload字节×8)，未提取则0 |
 | 非驻留元数据 | 只在对应Deferred代码下允许三个长度整数，范围/大小关系严格校验；其他情况必须null，不含映射或地址 |
 | 禁止内容 | bitmap/record正文、逐槽行、真实引用/路径、token、LCN/run、异常文本、真实分配总数与“已修复”标志 |

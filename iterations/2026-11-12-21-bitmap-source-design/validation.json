@@ -1,0 +1,12 @@
+{
+  "baseline": "a3fefba0931b5d2f365f39528cc4011c6151a745",
+  "scope": "PlanningAndHandoffOnly",
+  "independent_read_only_evaluations": 2,
+  "recommended_option": "PrivateFixedProfileWithinExistingOwner",
+  "implementation_authorized": false,
+  "code_changed": false,
+  "new_build_or_runtime_tests": false,
+  "native_or_vhd_operations": false,
+  "release_or_packaging": false,
+  "checks": ["ExistingCodeTouchpoints", "LifecycleAndVersionContract", "RelativeLinks", "Privacy", "AuthorityBoundaries"]
+}

@@ -1,0 +1,101 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index 8a19b59..c69117d 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,6 +1,6 @@
+ # AsukaLens 开发检查点
+ 
+-2026-11-12；本次最后一轮C20基线 `cc4a09165de032426dcd63f27ce7e5da63d983f2`。C20开发、相称验证、独立审查与清理完成；恢复补丁/提交绑定以archive20、files.json及Git为准。事实入口docs/project-status.md和docs/development-plan.md。
++2026-11-12；本次验证代码提交 `a3fefba0931b5d2f365f39528cc4011c6151a745`（第20轮已推main）。C20的14文件正向恢复、15条committed SHA通过，五轮manifest均按各自提交复核。当前只做21号接续文档记录，不是新功能实现。事实入口docs/project-status.md和docs/development-plan.md。
+ 
+ ## 用户目标与时效
+ 
+@@ -19,10 +19,10 @@
+ 
+ C20作者封板：attribute_probe locator+core、special_contract独立反例、special_tests_plan只读复核；Root Program/docs/AGENTS/记忆与archive20。本轮仅纯内存，不需VHD或临时目录；当前无运行中exec/UAC/Native，无VHD/ntfs-test目录。本窗口Native结果副本均SHA核对归档后删除；旧kernel六样本会话8文件/9683B未变，不上传。
+ 
+-C20归档 iterations/2026-11-12-20-bitmap-attribute；patch不递归旧archives/自身，显式stage、恢复核验、fetch后commit/push main，不force/tag/Release。正常开发构建保留，无新预览目录/发行包。原自动/高速路径未改，v1.5.0仍最后正式发行。
++C20归档 iterations/2026-11-12-20-bitmap-attribute 已封板推送。最后doc-only记录 iterations/2026-11-12-21-bitmap-source-design 基线a3fefba，只细化Native来源方案与记忆；不改代码或重跑测试，文档恢复/隐私检查后提交，不force/tag/Release。正常开发构建保留，无新预览目录/发行包。原自动/高速路径未改，v1.5.0仍最后正式发行。
+ 
+ ## 下一轮已备方案但未实施
+ 
+-见 docs/ntfs-bitmap-source-plan.md：另获本轮许可后，仅新建自有VHD复用同owner已有bootstrap观察BITMAP形态；独立mode/factory/revision与字段白名单，21目标及关闭/后验/卸载清理仍需通过，不增加非驻留块读。真实来源与位图解释分开，ResidentCapacityOnly/Missing/Partial/Deferred不生成VerifiedAllocation；实际非驻留到Deferred即停，不临时扩大预算。当前没有该轮实施授权或新VHD许可。
++见 docs/ntfs-bitmap-source-plan.md：另获本轮许可后，仅新建自有VHD复用同owner已有bootstrap观察BITMAP形态；独立mode/factory/revision与字段白名单，21目标及关闭/后验/卸载清理仍需通过，不增加非驻留块读。真实来源与位图解释分开，ResidentCapacityOnly/Missing/Partial/Deferred不生成VerifiedAllocation；实际非驻留到Deferred即停，不临时扩大预算。当前没有该轮实施授权或新VHD许可。两个独立只读评估建议B：既有BoundedSource的私有固定profile/专用factory+Run共享同一执行核心，不复制owner或在Live重开；因为现RunEnumeration已CloseAndVerify→Dispose，不能运行后补观察。推荐尚待下轮选择，触点/风险和独立摘要合同已在方案中细化。
+ 
+ 非驻留run映射/块读取、真实位序/释放槽对照、同来源位图解释/后验、182槽实际分配、RecordFlags/SparseMappingFlags支持、4096真实槽/其他系统几何、VSS/活跃卷、完整建树/补查融合/资源基准和产品入口仍未完成。下一步不把纯模型/定位器改标签当Native证明，不把记录位图与卷簇位图混用。窗口结束后等待下一次明确任务；Skill正文不改，事实写references。
+diff --git a/docs/ntfs-bitmap-source-plan.md b/docs/ntfs-bitmap-source-plan.md
+index e3fab3a..bb9ce94 100644
+--- a/docs/ntfs-bitmap-source-plan.md
++++ b/docs/ntfs-bitmap-source-plan.md
+@@ -20,6 +20,22 @@
+ 
+ ## 建议接口与摘要合同
+ 
++### 实现取舍（仅建议，未实施）
++
++对照当前 `NtfsBoundedMftSource` 后建议方案B，仍需用户确定下一轮范围：
++
++| 方向 | 结论与理由 |
++| --- | --- |
++| A：复制一个新owner | 不推荐；会复制锁、Map、取消和关闭错误优先逻辑，两套生命周期容易分叉 |
++| B：同owner的私有固定profile及专用入口 | 推荐；复用当前bootstrap、范围/21目标与关闭闭环，旧模式不执行新定位器 |
++| C：在Live外另开/另读record0 | 不推荐；产生新handle/代际及额外读取，不能继承原token/map证明 |
++
++最小触点为Initialize完成bootstrap映射反核验后做形态观察、专用真实factory与Run入口、私有共享执行核心，以及Guard/Live/wrapper的独立模式及新摘要。示意入口 `OpenBitmapObservation` / `RunBitmapObservation` 尚不存在；profile由私有固定枚举选择，禁止caller传模式字符串、预算、handle或验证bool。
++
++当前 `RunEnumeration` 已执行 `CloseAndVerify→Dispose`，不能先调用它再补观察或再读record0。新入口须在同一个私有执行核心中完成范围与形态观察，一次关闭、后验、释放和最后取消检查后再构造报告；旧 `RunEnumeration` 保持原v2合同。错profile入口在额外读取前拒绝并进入明确关闭路径；初始化失败/Dispose清空暂存元数据，不因新观察而保留原始正文。
++
++新测试替身入口固定Synthetic；真实工厂仍只收对应manifest，绑定准备守卫/无父链和同owner。先验证新路径不改变旧RangeOnly行为、预算及已通过的主错误/取消优先级，再做另获授权的真实验收，不复用旧测试结果替代。
++
+ 真实入口只收新建夹具manifest，不接收volume handle、物理偏移、caller验证标志、任意预算或位图正文。新mode使用固定工厂；测试替身始终输出Synthetic，即使所有模拟校验通过也不能通过真实摘要入口。
+ 
+ bootstrap仍由同一私有owner读入，来源/map/有效长度改变即废弃该代；定位器只消费该私有bootstrap副本，不能用调用方传入的新记录替换。观察数据在内存暂存，到21对象、解锁、后验、fresh facts、backend关闭及最终取消检查全部通过之后才组装公开摘要。父脚本仍以卸载和清理完成为最后成功条件。
+@@ -28,10 +44,12 @@ bootstrap仍由同一私有owner读入，来源/map/有效长度改变即废弃
+ 
+ 建议把现有v2范围摘要作为独立受检字段，新增的属性观察摘要仅有以下受控内容，不能直接序列化内部定位器对象：
+ 
++外层可用独立revision `bitmap-bootstrap-source-v1`，阶段固定 `ObservedShapeOnly`；Range字段保持整个原v2报告并复用其深白名单，Bitmap字段只包含状态、代码、预期槽、覆盖容量、payload字节数和可空非驻留长度元数据。Invalid定位结果不能进入成功报告。此处字段名/结构均为待实现合同，不是当前软件已支持的格式。
++
+ | 字段类别 | 约束与含义 |
+ | --- | --- |
+ | 来源与阶段 | 真实owner建立的来源类别；阶段固定ObservedShapeOnly，无VerifiedAllocation或SnapshotComplete值 |
+-| 状态/代码 | 固定Missing、ResidentPartial、ResidentCapacityOnly、Deferred、Invalid及已审查代码，不接任意字符串 |
++| 状态/代码 | 成功只允许固定Missing、ResidentPartial、ResidentCapacityOnly、Deferred及已审查代码；Invalid只作整体失败，不接任意字符串 |
+ | 预期与容量 | 预期槽数等于范围摘要，1..4096；payload字节0..512，驻留容量=min(预期槽,payload字节×8)，未提取则0 |
+ | 非驻留元数据 | 只在对应Deferred代码下允许三个长度整数，范围/大小关系严格校验；其他情况必须null，不含映射或地址 |
+ | 禁止内容 | bitmap/record正文、逐槽行、真实引用/路径、token、LCN/run、异常文本、真实分配总数与“已修复”标志 |
+diff --git a/iterations/2026-11-12-21-bitmap-source-design/README.md b/iterations/2026-11-12-21-bitmap-source-design/README.md
+new file mode 100644
+index 0000000..b0caff8
+--- /dev/null
++++ b/iterations/2026-11-12-21-bitmap-source-design/README.md
+@@ -0,0 +1,11 @@
++# 后续来源接入方案细化（仅文档）
++
++2026-11-12，验证代码基线 `a3fefba0931b5d2f365f39528cc4011c6151a745`。本次2小时窗口已完成第16–20轮实现与相称验证，最后阶段只细化[下一轮方案](../../docs/ntfs-bitmap-source-plan.md)，未开始第21轮功能实现、Native或新VHD操作。
++
++两份独立只读评估均建议复用既有owner，通过私有固定profile/专用factory和入口共享执行核心；不复制owner，不在Live外重开record0。当前RunEnumeration已关闭owner，不能先运行后补观察；需在同一私有执行核心完成范围与形态，再一次关闭/后验后构造独立摘要。
++
++新增方案明确错profile、旧v2隔离、初始化/取消/关闭、临时元数据释放和摘要白名单。定位器仍Synthetic，真实owner只证明输入来源，不把容量或标签升级为真实位图解释；实际非驻留到Deferred结束，不扩预算。推荐不是已实施决定，下轮范围及真实VHD许可仍需确认。
++
++本轮只有文档与项目记忆，不重复构建/运行测试。检查代码引用、合同一致性、链接、隐私和范围边界；不把只读评估当Native验收。验证记录见[validation.json](validation.json)。没有新增临时文件或构建产物，不打包、标签或Release。
++
++恢复补丁基于上述代码提交，SHA清单保存本次文档变更，不递归旧归档；原第16–20轮快照及已提交SHA保持不变。
+diff --git a/iterations/2026-11-12-21-bitmap-source-design/validation.json b/iterations/2026-11-12-21-bitmap-source-design/validation.json
+new file mode 100644
+index 0000000..f184239
+--- /dev/null
++++ b/iterations/2026-11-12-21-bitmap-source-design/validation.json
+@@ -0,0 +1,12 @@
++{
++  "baseline": "a3fefba0931b5d2f365f39528cc4011c6151a745",
++  "scope": "PlanningAndHandoffOnly",
++  "independent_read_only_evaluations": 2,
++  "recommended_option": "PrivateFixedProfileWithinExistingOwner",
++  "implementation_authorized": false,
++  "code_changed": false,
++  "new_build_or_runtime_tests": false,
++  "native_or_vhd_operations": false,
++  "release_or_packaging": false,
++  "checks": ["ExistingCodeTouchpoints", "LifecycleAndVersionContract", "RelativeLinks", "Privacy", "AuthorityBoundaries"]
++}

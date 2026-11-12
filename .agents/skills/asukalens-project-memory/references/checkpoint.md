@@ -1,6 +1,6 @@
 # AsukaLens 开发检查点
 
-2026-11-12；本次最后一轮C20基线 `cc4a09165de032426dcd63f27ce7e5da63d983f2`。C20开发、相称验证、独立审查与清理完成；恢复补丁/提交绑定以archive20、files.json及Git为准。事实入口docs/project-status.md和docs/development-plan.md。
+2026-11-12；本次验证代码提交 `a3fefba0931b5d2f365f39528cc4011c6151a745`（第20轮已推main）。C20的14文件正向恢复、15条committed SHA通过，五轮manifest均按各自提交复核。当前只做21号接续文档记录，不是新功能实现。事实入口docs/project-status.md和docs/development-plan.md。
 
 ## 用户目标与时效
 
@@ -19,10 +19,10 @@
 
 C20作者封板：attribute_probe locator+core、special_contract独立反例、special_tests_plan只读复核；Root Program/docs/AGENTS/记忆与archive20。本轮仅纯内存，不需VHD或临时目录；当前无运行中exec/UAC/Native，无VHD/ntfs-test目录。本窗口Native结果副本均SHA核对归档后删除；旧kernel六样本会话8文件/9683B未变，不上传。
 
-C20归档 iterations/2026-11-12-20-bitmap-attribute；patch不递归旧archives/自身，显式stage、恢复核验、fetch后commit/push main，不force/tag/Release。正常开发构建保留，无新预览目录/发行包。原自动/高速路径未改，v1.5.0仍最后正式发行。
+C20归档 iterations/2026-11-12-20-bitmap-attribute 已封板推送。最后doc-only记录 iterations/2026-11-12-21-bitmap-source-design 基线a3fefba，只细化Native来源方案与记忆；不改代码或重跑测试，文档恢复/隐私检查后提交，不force/tag/Release。正常开发构建保留，无新预览目录/发行包。原自动/高速路径未改，v1.5.0仍最后正式发行。
 
 ## 下一轮已备方案但未实施
 
-见 docs/ntfs-bitmap-source-plan.md：另获本轮许可后，仅新建自有VHD复用同owner已有bootstrap观察BITMAP形态；独立mode/factory/revision与字段白名单，21目标及关闭/后验/卸载清理仍需通过，不增加非驻留块读。真实来源与位图解释分开，ResidentCapacityOnly/Missing/Partial/Deferred不生成VerifiedAllocation；实际非驻留到Deferred即停，不临时扩大预算。当前没有该轮实施授权或新VHD许可。
+见 docs/ntfs-bitmap-source-plan.md：另获本轮许可后，仅新建自有VHD复用同owner已有bootstrap观察BITMAP形态；独立mode/factory/revision与字段白名单，21目标及关闭/后验/卸载清理仍需通过，不增加非驻留块读。真实来源与位图解释分开，ResidentCapacityOnly/Missing/Partial/Deferred不生成VerifiedAllocation；实际非驻留到Deferred即停，不临时扩大预算。当前没有该轮实施授权或新VHD许可。两个独立只读评估建议B：既有BoundedSource的私有固定profile/专用factory+Run共享同一执行核心，不复制owner或在Live重开；因为现RunEnumeration已CloseAndVerify→Dispose，不能运行后补观察。推荐尚待下轮选择，触点/风险和独立摘要合同已在方案中细化。
 
 非驻留run映射/块读取、真实位序/释放槽对照、同来源位图解释/后验、182槽实际分配、RecordFlags/SparseMappingFlags支持、4096真实槽/其他系统几何、VSS/活跃卷、完整建树/补查融合/资源基准和产品入口仍未完成。下一步不把纯模型/定位器改标签当Native证明，不把记录位图与卷簇位图混用。窗口结束后等待下一次明确任务；Skill正文不改，事实写references。

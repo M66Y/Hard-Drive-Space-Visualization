@@ -1,0 +1,25 @@
+{
+  "baseline": "a3fefba0931b5d2f365f39528cc4011c6151a745",
+  "files": [
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "95315342f2d617d21936b8d9bea7a6dd790990aa42ffa29136739c4366a69254"
+    },
+    {
+      "path": "docs/ntfs-bitmap-source-plan.md",
+      "sha256": "777c1de8c102f921b2b39f94cc1494538c7c305069a2bdfbac407456cb9ac750"
+    },
+    {
+      "path": "iterations/2026-11-12-21-bitmap-source-design/README.md",
+      "sha256": "0bce8eedae55f3a324fe9d28b54e74711a64e14d5d3b42eae5493f19a522174e"
+    },
+    {
+      "path": "iterations/2026-11-12-21-bitmap-source-design/validation.json",
+      "sha256": "522d951ddbfad36cac04edf6a78589f495d5a269d8ca8023434b53013668fb9e"
+    },
+    {
+      "path": "iterations/2026-11-12-21-bitmap-source-design/changes.patch",
+      "sha256": "d7d179154a8e4eb37903fe5afd0a44c7389ca6bbb69614ee5a1b2e7674a3ca5a"
+    }
+  ]
+}
