@@ -4,6 +4,8 @@ using System.Drawing;
 if (args.Contains("--disk-activity-resource-child")) return DiskActivityResourceProbe.Child(args.Last());
 if (args.Contains("--disk-activity-scan-child")) return DiskActivityScanProbe.Child(args.Last());
 Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
+if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
 
 if (args.Contains("--package-smoke")) return PackageSmoke.Run();
 if (args.Contains("--disk-activity-tests"))

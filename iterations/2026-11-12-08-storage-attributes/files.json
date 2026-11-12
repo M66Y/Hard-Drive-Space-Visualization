@@ -1,0 +1,49 @@
+{
+  "baseline": "26300a0720b5520e86b472c5225a2bc301e0b3d5",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "0f3fce858cea2b70bc2e89fd468f3b28a2684b56670722c5cb79b69fea271bfb"
+    },
+    {
+      "path": "NativeStorage.cs",
+      "sha256": "1641bbb6b6c2b429ebeeb1a3c88fefba292c7a68c52d6aa002291a819aa4250c"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "2deedf2a37d07add8985896f6e6cae982fb3d7523168de9cc94bade306b9ed88"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "dff9c1be0d2a8867bdea287930531907ae9c8e916b960a925749442660ca0be8"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "8d7c55715730cad9ec8bf081bb7ff183a46d68f78bf53a1a3d110e96d2cada13"
+    },
+    {
+      "path": "iterations/2026-11-12-08-storage-attributes/README.md",
+      "sha256": "24884742c3d67843b0ad0c9ff0ddd1e32296f37bb2b24e2eb32b79c41c718505"
+    },
+    {
+      "path": "iterations/2026-11-12-08-storage-attributes/after.txt",
+      "sha256": "69a8b6eac32c19a4cb7e83c20a91d3503e3dbecd0493e38528e1185cb1fb373c"
+    },
+    {
+      "path": "iterations/2026-11-12-08-storage-attributes/before.txt",
+      "sha256": "70b7a5dca18ad253ced03b8c8491bbaf25976eafb6b577e62f81e9cc43ceae8f"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "6a3b30728a6baa99cdcb2a425c145513dd4942addde7bac03e86222c144fe11e"
+    },
+    {
+      "path": "tests/StorageAttributeHintTests.cs",
+      "sha256": "64858bebbcaff43f0b8fad35b7bddf698607014e81a80e26bc32c41214a4a2f6"
+    },
+    {
+      "path": "iterations/2026-11-12-08-storage-attributes/changes.patch",
+      "sha256": "225813a2ab1477eb7f676a108c05b8a637ae4f3acb0abbb9b8c8fe93e1b9cfd3"
+    }
+  ]
+}

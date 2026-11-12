@@ -89,7 +89,9 @@ internal static class NativeStorage
             if (directory) { info = new(id, 0, legacy.Links, false, -1, modified); return true; }
             if (!Standard(handle, 1, out var standard, (uint)Marshal.SizeOf<StandardInfo>())) { error = new Win32Exception(Marshal.GetLastWin32Error()).Message; return false; }
             long allocated = standard.AllocationSize;
-            if ((attributes & (FileAttributes.Compressed | FileAttributes.SparseFile)) != 0)
+            // Enumeration hints may be old or describe another stream's state.
+            // Select the query from the attributes of this opened stream.
+            if (((FileAttributes)legacy.Attributes & (FileAttributes.Compressed | FileAttributes.SparseFile)) != 0)
             {
                 if (!Compression(handle, 8, out var compression, (uint)Marshal.SizeOf<CompressionInfo>())) { error = new Win32Exception(Marshal.GetLastWin32Error()).Message; return false; }
                 allocated = compression.CompressedFileSize;

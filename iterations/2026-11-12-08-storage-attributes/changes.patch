@@ -1,0 +1,368 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 8e58ccd..97e5121 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -125,6 +125,7 @@
+ - NTFS 原型位于 `tests/Prototypes/Ntfs/`，合成测试入口为测试 DLL 的 `--ntfs-prototype-tests`；隔离测试盘守卫检查运行 `pwsh -NoProfile -File tests/NtfsFixtureGuards.Tests.ps1`。2026-11-12 用户另行授权本轮 256 MiB VHD 验收，流程见 `scripts/ntfs-prototype/README.md`，不扩展为个人卷扫描或以后默认提权授权。原型不是生产后端、活跃卷快照或性能验收；实际读取必须验证镜像归属、卷格式、几何及记录身份。
+ - NTFS 驻留补查的摘要白名单改动另运行 `pwsh -NoProfile -File tests/NtfsLookupEvidence.Tests.ps1`。原型中的 `NativeCalls` 指完整 reader/NativeStorage 回调，不是物理 I/O 或单个 Win32 调用；暖缓存补查微实验不得当作完整扫描基准。
+ - NTFS 单句柄补查运行 `--ntfs-resident-lease-tests`（仅创建并打开本轮随机临时文件，不读取原始卷）；摘要改动另运行 `pwsh -NoProfile -File tests/NtfsLeaseEvidence.Tests.ps1`。`LeaseHandles` 与 `LeaseSnapshots` 分别指每批成功打开的文件句柄和元信息快照组数；单句柄的两组观察仍不代表驻留性或活跃卷一致性证明。
++- 存储属性提示分支改动另运行 `--storage-attribute-tests`，只使用自有临时 NTFS 普通/压缩/稀疏及命名流夹具，能力缺失明确跳过。`--storage-attribute-observe` 只记录差异，退出成功不代表回归通过；对照无差异时不得宣称已复现误算或证明所有文件系统支持。
+ - 混合目录调度改动补测 `--mixed-benchmark before/after` 的同夹具对比；用户明确指定实际目录后才使用 `--folder-benchmark`，其报告与隔离诊断仅留本机临时目录，不进入仓库。比较自动与高速必须核对完整扫描、结果一致性和运行顺序，保留异常波动样本。
+ - 本地目录比较出现指纹差异时，可使用 `--folder-benchmark --pair` 做针对性正确性诊断；额外保留的逐项快照影响测量条件，其计时不并入常规性能基准。差异计数和实际耗时仍只在本机核查，不纳入公开归档。工具边界检查使用 `--folder-comparison-tests`。
+ - 合成目录与软件配置隔离测试，不默认扫描用户整盘或覆盖真实背景设置。缺权限/文件系统特性的跳过、程序断言、人工观察和性能实测分别记录。
+diff --git a/NativeStorage.cs b/NativeStorage.cs
+index bb52745..8b84353 100644
+--- a/NativeStorage.cs
++++ b/NativeStorage.cs
+@@ -89,7 +89,9 @@ internal static class NativeStorage
+             if (directory) { info = new(id, 0, legacy.Links, false, -1, modified); return true; }
+             if (!Standard(handle, 1, out var standard, (uint)Marshal.SizeOf<StandardInfo>())) { error = new Win32Exception(Marshal.GetLastWin32Error()).Message; return false; }
+             long allocated = standard.AllocationSize;
+-            if ((attributes & (FileAttributes.Compressed | FileAttributes.SparseFile)) != 0)
++            // Enumeration hints may be old or describe another stream's state.
++            // Select the query from the attributes of this opened stream.
++            if (((FileAttributes)legacy.Attributes & (FileAttributes.Compressed | FileAttributes.SparseFile)) != 0)
+             {
+                 if (!Compression(handle, 8, out var compression, (uint)Marshal.SizeOf<CompressionInfo>())) { error = new Win32Exception(Marshal.GetLastWin32Error()).Message; return false; }
+                 allocated = compression.CompressedFileSize;
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 133410e..583b912 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -38,7 +38,7 @@ NTFS-01 第 1 轮的小范围为**驻留文件分配语义、可验证的大小
+ 
+ 验收以两种大小、入口/对象关系、未知与错误状态一致为主，不以速度掩盖统计缺失。新 VHD、其他系统/几何的实际操作先按本轮范围明确授权，不沿用上轮一次性提权许可。
+ 
+-下一轮建议先收紧**压缩/稀疏默认流补查**的小范围：核查现有 `NativeStorage` 对照是否会受调用者提供的陈旧属性影响（当前 CompressionInfo 分支使用传入属性，实际差异尚待受控复现），再在独立原型中以句柄实测属性、完整身份、EOF、可见链接数、修改/变化时间及两组 CompressionInfo 验证大小。先只讨论单一 `Compressed` 或单一 `Sparse` 理由，叠加命名流、属性列表、扩展、加密、重解析等继续未知；理由组合应以真实夹具结果确定，不能通过掩掉标记扩大支持。
++压缩/稀疏默认流补查的前置核查已完成：`NativeStorage` 改为使用句柄属性选择查询，7 类临时 NTFS 文件的 28 种提示在变更前后都未见大小差异，属于防御性改进，见[属性记录](../iterations/2026-11-12-08-storage-attributes/README.md)。本小时用户已确认继续开发独立原型，以句柄实测属性、完整身份、EOF、可见链接数、修改/变化时间及两组 CompressionInfo 验证大小。只接受单一 `Compressed` 或单一 `Sparse` 理由，叠加命名流、属性列表、扩展、加密、重解析等继续未知；理由组合应以真实夹具结果确定，不能通过掩掉标记扩大支持。
+ 
+ 验收包括可压缩/难压缩文件、有孔/已分配稀疏文件、合法零与未知、错误属性提示、硬链接范围外写入、已有写者、取消及资源释放；能力缺失明确跳过。接口输出只代表所开流，不包含所有命名流、整个文件系统开销或删除释放量。参考 [FILE_COMPRESSION_INFO](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_compression_info)、[流与分享](https://learn.microsoft.com/en-us/windows/win32/fileio/file-streams)、[稀疏操作](https://learn.microsoft.com/en-us/windows/win32/fileio/sparse-file-operations)。这是下一轮建议，尚未实施，不启动整卷 MFT、生产后端或新的 VHD 操作。
+ 
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 67ff0da..2d9c8bb 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-12：存储分配查询改用已打开流的句柄属性选择 CompressionInfo 分支，保留原调用参数以兼容调用者。7 类自有 NTFS 临时文件、28 种提示对照在变更前后均无差异；本机未复现误算，这是减少外部提示依赖的防御性改进。核心 38 / 高级 25 项通过，见[本轮记录](../iterations/2026-11-12-08-storage-attributes/README.md)。没有改变大小口径、缓存策略或发布包。
++
+ 2026-11-12：用户确认布局后，开发版新增进度条上方的可折叠磁盘活动面板，跟随目录或手动选盘，每秒采样、60 秒内存曲线及四项指标；暂停、等待、不可用、延迟过期和旧结果隔离已实现。中文 Windows 11 的本机真实映射和采样、144/96 DPI 合成集成流程已验证；修复最小窗口内容越界。真实热插拔/休眠、Windows 10、多物理盘及更广负载仍待验收。见[功能说明](disk-activity.md)与[本轮记录](../iterations/2026-11-12-07-disk-activity/README.md)，未打包或发布新版本。
+ 
+ 2026-11-12：NTFS-01 后续单句柄补查已在隔离 VHD 通过 1,327 项检查，卸载和清理完成；另有 84 项自有临时文件/集成检查。20 个驻留候选由每批 40 次完整读取回调改为 20 次 lease 回调、20 个成功句柄及 40 组快照。仅是暖缓存原型实验，生产扫描器未接入，不能作为整盘提速结论。见[单句柄记录](../iterations/2026-11-12-06-resident-lease/README.md)。
+diff --git a/docs/testing.md b/docs/testing.md
+index f869882..22d2e1f 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -62,6 +62,12 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
+ 
+ 三轮审查的发现、修改、实测证据与验证范围见 [优化审查记录.md](../优化审查记录.md)。
+ 
++## 存储属性提示对照
++
++`--storage-attribute-observe` 在自己的随机临时 NTFS 目录创建普通、压缩、稀疏和带稀疏命名流的 7 类文件，比较真实属性与四种外部属性提示。仅输出受控类别、大小、身份是否相同等信息，不打印路径或文件身份。观察模式退出 0 只表示观察完成；`--storage-attribute-tests` 才将差异视为失败，能力覆盖不足返回明确跳过。夹具逻辑长度约 28 MiB，关闭所有句柄并核验归属后清理。
++
++该检查没有在当前主机复现大小差异；句柄属性作为分支依据的改动是防御性处理。它不验证其他文件系统、驱动、真实并发属性切换或全卷快照。
++
+ ## 磁盘活动面板
+ 
+ 先构建测试项目，再运行下列入口。合成检查不读取真实计数器或个人目录；主窗检查使用内存扫描树和假的采样源，背景与诊断不读个人配置。
+diff --git a/iterations/2026-11-12-08-storage-attributes/README.md b/iterations/2026-11-12-08-storage-attributes/README.md
+new file mode 100644
+index 0000000..455d7d8
+--- /dev/null
++++ b/iterations/2026-11-12-08-storage-attributes/README.md
+@@ -0,0 +1,24 @@
++# 存储属性提示的前置核查
++
++日期：2026-11-12。基线：`26300a0720b5520e86b472c5225a2bc301e0b3d5`。用户要求按计划再连续开发一小时，并确认先核查陈旧属性、必要时修正，再开发压缩/稀疏默认流的独立原型。本轮记录生产查询依据的防御性改进；后续原型另行归档，不接入整卷扫描或发布。
++
++`NativeStorage` 原先按调用者传入的属性选择 CompressionInfo。现在改用同一打开句柄的 LegacyInfo 属性，避免依赖先前枚举或其他来源的提示；复用已有查询，无新增权限、分享变化、原生请求或大小口径。保留原参数以兼容调用者。
++
++## 实测与限制
++
++在本机 Windows 11 的自有临时 NTFS 目录创建 7 类夹具：普通零/随机、压缩零/随机、稀疏全孔/含写入区、普通默认流加稀疏命名流。各与 Normal、Compressed、Sparse、组合属性提示对照，共 28 次。变更前观察和变更后回归均全部一致、无跳过，见 `before.txt` / `after.txt`。
++
++因此本机**未复现误算**。本轮是查询依据的防御性收紧，不声称修复了已观测的错误统计、提高性能或解决并发快照问题。参考值也来自 NativeStorage，自有静态夹具的提示不变性不能作为独立物理占用证明；其他文件系统、驱动及并发属性切换未验收。
++
++微软说明目录枚举的稀疏标志可能与其他流相关，而无流名的句柄查询反映默认流；各流的大小/分配分别管理，见[File Streams](https://learn.microsoft.com/en-us/windows/win32/fileio/file-streams)。本机命名流夹具的枚举标志未导致大小差异，不由此扩展为所有枚举入口或系统的结论。
++
++## 验证与清理
++
++- 应用及测试 Release 构建：0 警告、0 错误。
++- 属性对照：7 类 / 28 次，前后均 0 差异；观察模式不是回归通过声明，回归模式会将差异作为失败。
++- 核心 38 项、高级 25 项通过，包括压缩/稀疏占用、三种策略、硬链接、刷新和取消。
++- 独立只读审查未发现本轮范围的阻塞问题，确认权限/分享和其他行为未改变。
++
++测试逻辑长度约 28 MiB，只有自身随机临时目录；能力缺失明确跳过，关闭全部句柄并核验 nonce、已知文件名和无重解析点后清理。运行中没有创建 VHD 或扫描个人目录。所保留文本仅含固定类别、合成大小、身份是否匹配等字段，不含路径、身份值或原始异常。工作区中间报告在归档后清理。
++
++恢复补丁为 `changes.patch`，不包含自身；相关文件与 SHA-256 见 `files.json`。后续特殊补查将以这一核实后的读取器作对照，但仍需分别证明它的格式、失败和来源边界。
+diff --git a/iterations/2026-11-12-08-storage-attributes/after.txt b/iterations/2026-11-12-08-storage-attributes/after.txt
+new file mode 100644
+index 0000000..0a2e917
+--- /dev/null
++++ b/iterations/2026-11-12-08-storage-attributes/after.txt
+@@ -0,0 +1,38 @@
++RUNTIME .NET 10.0.14; WinForms 10.0.0.0; X64
++BASELINE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; logical=1048576; allocated=1048576; attributes=32
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; hint=Normal; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; hint=Compressed; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; hint=Sparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; hint=CompressedAndSparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++BASELINE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; logical=1048576; allocated=1048576; attributes=32
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; hint=Normal; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; hint=Compressed; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; hint=Sparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; hint=CompressedAndSparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++BASELINE STORAGE_ATTRIBUTE_HINT case=CompressedZero; logical=1048576; allocated=0; attributes=2080
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedZero; hint=Normal; success=True; logical=1048576; allocated=0; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedZero; hint=Compressed; success=True; logical=1048576; allocated=0; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedZero; hint=Sparse; success=True; logical=1048576; allocated=0; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedZero; hint=CompressedAndSparse; success=True; logical=1048576; allocated=0; identity_match=True; match=True
++BASELINE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; logical=1048576; allocated=1048576; attributes=2080
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; hint=Normal; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; hint=Compressed; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; hint=Sparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; hint=CompressedAndSparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++BASELINE STORAGE_ATTRIBUTE_HINT case=SparseHole; logical=8388608; allocated=0; attributes=544
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseHole; hint=Normal; success=True; logical=8388608; allocated=0; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseHole; hint=Compressed; success=True; logical=8388608; allocated=0; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseHole; hint=Sparse; success=True; logical=8388608; allocated=0; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseHole; hint=CompressedAndSparse; success=True; logical=8388608; allocated=0; identity_match=True; match=True
++BASELINE STORAGE_ATTRIBUTE_HINT case=SparseWritten; logical=8388608; allocated=131072; attributes=544
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseWritten; hint=Normal; success=True; logical=8388608; allocated=131072; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseWritten; hint=Compressed; success=True; logical=8388608; allocated=131072; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseWritten; hint=Sparse; success=True; logical=8388608; allocated=131072; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseWritten; hint=CompressedAndSparse; success=True; logical=8388608; allocated=131072; identity_match=True; match=True
++BASELINE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; logical=4096; allocated=4096; attributes=32
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; hint=Normal; success=True; logical=4096; allocated=4096; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; hint=Compressed; success=True; logical=4096; allocated=4096; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; hint=Sparse; success=True; logical=4096; allocated=4096; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; hint=CompressedAndSparse; success=True; logical=4096; allocated=4096; identity_match=True; match=True
++PASS STORAGE_ATTRIBUTE_HINT regression=True; cases=7; comparisons=28; differences=0
++CLEANUP STORAGE_ATTRIBUTE_HINT completed=True
+diff --git a/iterations/2026-11-12-08-storage-attributes/before.txt b/iterations/2026-11-12-08-storage-attributes/before.txt
+new file mode 100644
+index 0000000..0ec9d84
+--- /dev/null
++++ b/iterations/2026-11-12-08-storage-attributes/before.txt
+@@ -0,0 +1,38 @@
++RUNTIME .NET 10.0.14; WinForms 10.0.0.0; X64
++BASELINE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; logical=1048576; allocated=1048576; attributes=32
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; hint=Normal; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; hint=Compressed; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; hint=Sparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; hint=CompressedAndSparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++BASELINE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; logical=1048576; allocated=1048576; attributes=32
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; hint=Normal; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; hint=Compressed; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; hint=Sparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; hint=CompressedAndSparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++BASELINE STORAGE_ATTRIBUTE_HINT case=CompressedZero; logical=1048576; allocated=0; attributes=2080
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedZero; hint=Normal; success=True; logical=1048576; allocated=0; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedZero; hint=Compressed; success=True; logical=1048576; allocated=0; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedZero; hint=Sparse; success=True; logical=1048576; allocated=0; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedZero; hint=CompressedAndSparse; success=True; logical=1048576; allocated=0; identity_match=True; match=True
++BASELINE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; logical=1048576; allocated=1048576; attributes=2080
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; hint=Normal; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; hint=Compressed; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; hint=Sparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; hint=CompressedAndSparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
++BASELINE STORAGE_ATTRIBUTE_HINT case=SparseHole; logical=8388608; allocated=0; attributes=544
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseHole; hint=Normal; success=True; logical=8388608; allocated=0; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseHole; hint=Compressed; success=True; logical=8388608; allocated=0; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseHole; hint=Sparse; success=True; logical=8388608; allocated=0; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseHole; hint=CompressedAndSparse; success=True; logical=8388608; allocated=0; identity_match=True; match=True
++BASELINE STORAGE_ATTRIBUTE_HINT case=SparseWritten; logical=8388608; allocated=131072; attributes=544
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseWritten; hint=Normal; success=True; logical=8388608; allocated=131072; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseWritten; hint=Compressed; success=True; logical=8388608; allocated=131072; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseWritten; hint=Sparse; success=True; logical=8388608; allocated=131072; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseWritten; hint=CompressedAndSparse; success=True; logical=8388608; allocated=131072; identity_match=True; match=True
++BASELINE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; logical=4096; allocated=4096; attributes=32
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; hint=Normal; success=True; logical=4096; allocated=4096; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; hint=Compressed; success=True; logical=4096; allocated=4096; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; hint=Sparse; success=True; logical=4096; allocated=4096; identity_match=True; match=True
++OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; hint=CompressedAndSparse; success=True; logical=4096; allocated=4096; identity_match=True; match=True
++OBSERVED STORAGE_ATTRIBUTE_HINT regression=False; cases=7; comparisons=28; differences=0
++CLEANUP STORAGE_ATTRIBUTE_HINT completed=True
+diff --git a/tests/Program.cs b/tests/Program.cs
+index a74cccc..2581068 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -4,6 +4,8 @@ using System.Drawing;
+ if (args.Contains("--disk-activity-resource-child")) return DiskActivityResourceProbe.Child(args.Last());
+ if (args.Contains("--disk-activity-scan-child")) return DiskActivityScanProbe.Child(args.Last());
+ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
++if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
++if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
+ 
+ if (args.Contains("--package-smoke")) return PackageSmoke.Run();
+ if (args.Contains("--disk-activity-tests"))
+diff --git a/tests/StorageAttributeHintTests.cs b/tests/StorageAttributeHintTests.cs
+new file mode 100644
+index 0000000..0f55de1
+--- /dev/null
++++ b/tests/StorageAttributeHintTests.cs
+@@ -0,0 +1,162 @@
++using DiskAtlas;
++
++// Uses only this run's flat, nonce-owned temporary fixture. Observation mode
++// reports differences without calling them a regression pass.
++internal static class StorageAttributeHintTests
++{
++    private const string Prefix = "AsukaLens-storage-hints-", Marker = ".owner";
++    private const int MiB = 1024 * 1024;
++    private enum Kind { OrdinaryZero, OrdinaryRandom, CompressedZero, CompressedRandom, SparseHole, SparseWritten, OrdinaryWithSparseStream }
++
++    internal static int Run(bool requireConsistent = false)
++    {
++        string temp = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath()));
++        string nonce = Guid.NewGuid().ToString("N");
++        string root = Path.GetFullPath(Path.Combine(temp, Prefix + nonce));
++        string[] names = Enumerable.Range(0, 7).Select(index => $"f{index}.bin").ToArray();
++        bool owned = false;
++        int compared = 0, differences = 0, skipped = 0, cases = 0, result = 1;
++        try
++        {
++            if (!OperatingSystem.IsWindows() || !string.Equals(new DriveInfo(Path.GetPathRoot(root)!).DriveFormat, "NTFS", StringComparison.OrdinalIgnoreCase))
++            {
++                Console.WriteLine("SKIP STORAGE_ATTRIBUTE_HINT NTFS_WINDOWS_REQUIRED");
++                return 2;
++            }
++            Directory.CreateDirectory(root);
++            owned = true;
++            File.WriteAllText(Path.Combine(root, Marker), nonce);
++            byte[] random = new byte[MiB];
++            new Random(0x4153554b).NextBytes(random);
++            foreach (var kind in Enum.GetValues<Kind>())
++            {
++                string path = Path.Combine(root, names[(int)kind]);
++                if (!CreateCase(path, kind, random))
++                {
++                    skipped++;
++                    Console.WriteLine($"SKIP STORAGE_ATTRIBUTE_HINT case={kind}; code=FEATURE_UNAVAILABLE_OR_DENIED");
++                    continue;
++                }
++                FileAttributes actual = File.GetAttributes(path);
++                if (!NativeStorage.TryRead(path, false, actual, out var reference, out _) || reference == null ||
++                    reference.LogicalBytes < 0 || reference.AllocatedBytes < 0 || reference.WritableHandleOpen)
++                    throw new InvalidOperationException("BASELINE_UNAVAILABLE");
++                cases++;
++                Console.WriteLine($"BASELINE STORAGE_ATTRIBUTE_HINT case={kind}; logical={reference.LogicalBytes}; allocated={reference.AllocatedBytes}; attributes={(uint)actual}");
++                (string Label, FileAttributes Value)[] hints =
++                [
++                    ("Normal", FileAttributes.Normal), ("Compressed", FileAttributes.Compressed),
++                    ("Sparse", FileAttributes.SparseFile), ("CompressedAndSparse", FileAttributes.Compressed | FileAttributes.SparseFile)
++                ];
++                foreach (var hint in hints)
++                {
++                    bool success = NativeStorage.TryRead(path, false, hint.Value, out var sample, out _);
++                    bool same = success && sample == reference;
++                    compared++;
++                    if (!same) differences++;
++                    Console.WriteLine($"OBSERVE STORAGE_ATTRIBUTE_HINT case={kind}; hint={hint.Label}; success={success}; logical={sample?.LogicalBytes}; allocated={sample?.AllocatedBytes}; identity_match={sample?.Identity == reference.Identity}; match={same}");
++                }
++                if (!NativeStorage.TryRead(path, false, File.GetAttributes(path), out var after, out _) ||
++                    after != reference || File.GetAttributes(path) != actual)
++                    throw new InvalidOperationException("BASELINE_CHANGED");
++            }
++            if (cases == 0 || skipped > 0)
++            {
++                Console.WriteLine($"SKIP STORAGE_ATTRIBUTE_HINT incomplete_coverage=True; cases={cases}; skipped={skipped}; comparisons={compared}; differences={differences}");
++                result = requireConsistent && differences > 0 ? 1 : 2;
++            }
++            else if (requireConsistent)
++            {
++                result = differences == 0 ? 0 : 1;
++                Console.WriteLine($"{(result == 0 ? "PASS" : "FAIL")} STORAGE_ATTRIBUTE_HINT regression=True; cases={cases}; comparisons={compared}; differences={differences}");
++            }
++            else
++            {
++                result = 0;
++                Console.WriteLine($"OBSERVED STORAGE_ATTRIBUTE_HINT regression=False; cases={cases}; comparisons={compared}; differences={differences}");
++            }
++        }
++        catch
++        {
++            Console.Error.WriteLine("FAIL STORAGE_ATTRIBUTE_HINT FIXTURE_OR_READ_FAILED");
++            result = 1;
++        }
++        finally
++        {
++            if (owned)
++            {
++                try
++                {
++                    string full = Path.GetFullPath(root);
++                    if (!string.Equals(Path.GetDirectoryName(full), temp, StringComparison.OrdinalIgnoreCase) ||
++                        Path.GetFileName(full) != Prefix + nonce ||
++                        (File.GetAttributes(full) & FileAttributes.ReparsePoint) != 0)
++                        throw new InvalidOperationException();
++                    string marker = Path.Combine(full, Marker);
++                    if ((File.GetAttributes(marker) & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0 ||
++                        new FileInfo(marker).Length != nonce.Length || File.ReadAllText(marker) != nonce)
++                        throw new InvalidOperationException();
++                    var expected = names.Append(Marker).ToHashSet(StringComparer.Ordinal);
++                    foreach (string entry in Directory.EnumerateFileSystemEntries(full))
++                        if (!expected.Remove(Path.GetFileName(entry)) ||
++                            (File.GetAttributes(entry) & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
++                            throw new InvalidOperationException();
++                    Directory.Delete(full, recursive: true);
++                    Console.WriteLine("CLEANUP STORAGE_ATTRIBUTE_HINT completed=True");
++                }
++                catch
++                {
++                    Console.Error.WriteLine("FAIL STORAGE_ATTRIBUTE_HINT CLEANUP_REFUSED");
++                    result = 1;
++                }
++            }
++        }
++        return result;
++    }
++
++    private static bool Compression(FileStream file, bool enabled)
++    {
++        byte[] format = enabled ? [2, 0] : [0, 0];
++        return NativeStorage.DeviceIoControl(file.SafeFileHandle, 0x0009c040, format, format.Length, [], 0, out _, IntPtr.Zero);
++    }
++
++    private static bool CreateCase(string path, Kind kind, byte[] random)
++    {
++        using (var file = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete))
++        {
++            // Avoid inherited directory compression changing an ordinary fixture's type.
++            if (!Compression(file, false) && (File.GetAttributes(path) & FileAttributes.Compressed) != 0) return false;
++            bool compressed = kind is Kind.CompressedZero or Kind.CompressedRandom;
++            bool sparse = kind is Kind.SparseHole or Kind.SparseWritten;
++            if (compressed && !Compression(file, true)) return false;
++            if (sparse && !NativeStorage.DeviceIoControl(file.SafeFileHandle, 0x000900c4, null, 0, [], 0, out _, IntPtr.Zero)) return false;
++            if (sparse)
++            {
++                file.SetLength(8L * MiB);
++                if (kind == Kind.SparseWritten)
++                {
++                    file.Write(random, 0, 4096);
++                    file.Position = file.Length - 4096;
++                    file.Write(random, 4096, 4096);
++                }
++            }
++            else if (kind == Kind.OrdinaryWithSparseStream) file.Write(random, 0, 4096);
++            else file.Write(kind is Kind.OrdinaryRandom or Kind.CompressedRandom ? random : new byte[MiB]);
++            file.Flush(flushToDisk: true);
++        }
++        FileAttributes actual = File.GetAttributes(path);
++        if (kind is Kind.CompressedZero or Kind.CompressedRandom && (actual & FileAttributes.Compressed) == 0) return false;
++        if (kind is Kind.SparseHole or Kind.SparseWritten && (actual & FileAttributes.SparseFile) == 0) return false;
++        if (kind == Kind.OrdinaryWithSparseStream)
++        {
++            using var stream = new FileStream(path + ":fixture", FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
++            if (!Compression(stream, false)) return false;
++            if (!NativeStorage.DeviceIoControl(stream.SafeFileHandle, 0x000900c4, null, 0, [], 0, out _, IntPtr.Zero)) return false;
++            stream.SetLength(8L * MiB);
++            stream.Position = stream.Length - 4096;
++            stream.Write(random, 0, 4096);
++            stream.Flush(flushToDisk: true);
++        }
++        return true;
++    }
++}

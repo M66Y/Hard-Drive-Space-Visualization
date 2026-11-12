@@ -1,0 +1,38 @@
+RUNTIME .NET 10.0.14; WinForms 10.0.0.0; X64
+BASELINE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; logical=1048576; allocated=1048576; attributes=32
+OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; hint=Normal; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; hint=Compressed; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; hint=Sparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryZero; hint=CompressedAndSparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
+BASELINE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; logical=1048576; allocated=1048576; attributes=32
+OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; hint=Normal; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; hint=Compressed; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; hint=Sparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryRandom; hint=CompressedAndSparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
+BASELINE STORAGE_ATTRIBUTE_HINT case=CompressedZero; logical=1048576; allocated=0; attributes=2080
+OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedZero; hint=Normal; success=True; logical=1048576; allocated=0; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedZero; hint=Compressed; success=True; logical=1048576; allocated=0; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedZero; hint=Sparse; success=True; logical=1048576; allocated=0; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedZero; hint=CompressedAndSparse; success=True; logical=1048576; allocated=0; identity_match=True; match=True
+BASELINE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; logical=1048576; allocated=1048576; attributes=2080
+OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; hint=Normal; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; hint=Compressed; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; hint=Sparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=CompressedRandom; hint=CompressedAndSparse; success=True; logical=1048576; allocated=1048576; identity_match=True; match=True
+BASELINE STORAGE_ATTRIBUTE_HINT case=SparseHole; logical=8388608; allocated=0; attributes=544
+OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseHole; hint=Normal; success=True; logical=8388608; allocated=0; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseHole; hint=Compressed; success=True; logical=8388608; allocated=0; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseHole; hint=Sparse; success=True; logical=8388608; allocated=0; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseHole; hint=CompressedAndSparse; success=True; logical=8388608; allocated=0; identity_match=True; match=True
+BASELINE STORAGE_ATTRIBUTE_HINT case=SparseWritten; logical=8388608; allocated=131072; attributes=544
+OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseWritten; hint=Normal; success=True; logical=8388608; allocated=131072; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseWritten; hint=Compressed; success=True; logical=8388608; allocated=131072; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseWritten; hint=Sparse; success=True; logical=8388608; allocated=131072; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=SparseWritten; hint=CompressedAndSparse; success=True; logical=8388608; allocated=131072; identity_match=True; match=True
+BASELINE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; logical=4096; allocated=4096; attributes=32
+OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; hint=Normal; success=True; logical=4096; allocated=4096; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; hint=Compressed; success=True; logical=4096; allocated=4096; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; hint=Sparse; success=True; logical=4096; allocated=4096; identity_match=True; match=True
+OBSERVE STORAGE_ATTRIBUTE_HINT case=OrdinaryWithSparseStream; hint=CompressedAndSparse; success=True; logical=4096; allocated=4096; identity_match=True; match=True
+OBSERVED STORAGE_ATTRIBUTE_HINT regression=False; cases=7; comparisons=28; differences=0
+CLEANUP STORAGE_ATTRIBUTE_HINT completed=True

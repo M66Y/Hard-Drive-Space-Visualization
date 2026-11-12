@@ -38,7 +38,7 @@ NTFS-01 第 1 轮的小范围为**驻留文件分配语义、可验证的大小�
 
 验收以两种大小、入口/对象关系、未知与错误状态一致为主，不以速度掩盖统计缺失。新 VHD、其他系统/几何的实际操作先按本轮范围明确授权，不沿用上轮一次性提权许可。
 
-下一轮建议先收紧**压缩/稀疏默认流补查**的小范围：核查现有 `NativeStorage` 对照是否会受调用者提供的陈旧属性影响（当前 CompressionInfo 分支使用传入属性，实际差异尚待受控复现），再在独立原型中以句柄实测属性、完整身份、EOF、可见链接数、修改/变化时间及两组 CompressionInfo 验证大小。先只讨论单一 `Compressed` 或单一 `Sparse` 理由，叠加命名流、属性列表、扩展、加密、重解析等继续未知；理由组合应以真实夹具结果确定，不能通过掩掉标记扩大支持。
+压缩/稀疏默认流补查的前置核查已完成：`NativeStorage` 改为使用句柄属性选择查询，7 类临时 NTFS 文件的 28 种提示在变更前后都未见大小差异，属于防御性改进，见[属性记录](../iterations/2026-11-12-08-storage-attributes/README.md)。本小时用户已确认继续开发独立原型，以句柄实测属性、完整身份、EOF、可见链接数、修改/变化时间及两组 CompressionInfo 验证大小。只接受单一 `Compressed` 或单一 `Sparse` 理由，叠加命名流、属性列表、扩展、加密、重解析等继续未知；理由组合应以真实夹具结果确定，不能通过掩掉标记扩大支持。
 
 验收包括可压缩/难压缩文件、有孔/已分配稀疏文件、合法零与未知、错误属性提示、硬链接范围外写入、已有写者、取消及资源释放；能力缺失明确跳过。接口输出只代表所开流，不包含所有命名流、整个文件系统开销或删除释放量。参考 [FILE_COMPRESSION_INFO](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_compression_info)、[流与分享](https://learn.microsoft.com/en-us/windows/win32/fileio/file-streams)、[稀疏操作](https://learn.microsoft.com/en-us/windows/win32/fileio/sparse-file-operations)。这是下一轮建议，尚未实施，不启动整卷 MFT、生产后端或新的 VHD 操作。
 
