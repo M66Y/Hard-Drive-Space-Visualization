@@ -1,0 +1,2995 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index eb0c12b..8e58ccd 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -117,6 +117,9 @@
+ | 框架大版本 | 上述全部回归，加 `--desktop-compatibility` 的目录拖放/复制路径检查与实际窗口观察 |
+ | 性能 | 正确性回归加对应同条件基准，不无条件跑所有基准 |
+ 
++- 磁盘活动修改运行 `--disk-activity-tests`（纯合成采样/映射和后台编排），面板运行 `--disk-activity-panel-tests`、`--disk-activity-mainform-tests` 并分别加 `--dpi-96`。真实只读采样用 `--disk-activity-live`，不打印实例、路径或设备名称。可选 `--disk-activity-resource-probe` 比较独立进程后台监测开启/关闭，不含 UI 和扫描；生命周期峰值工作集不代表单个测量窗口峰值。功能和未验收边界见 [磁盘活动说明](docs/disk-activity.md)。
++- 可选 `--disk-activity-scan-probe` 仅创建并清理自有 30,000 文件夹具，四个独立主窗进程按 off/on/on/off 比较扫描与最终 UI 查询；单独核对扫描期间的采样重叠，不把预热期间有样本当作扫描期间有样本。缓存与外部负载未控制，少量观测不作为普遍性能保证。
++
+ - 可选 `--policy-benchmark` 用于三策略对比，`--refresh-benchmark` 用于刷新同条件诊断；方法与限制见 README 和相关迭代。先保留已有报告，再运行会覆盖报告的基准。
+ - 高速目录内并行改动另运行 `--parallel-file-tests`；可选 `--response-benchmark` 在真实桌面测量同条件主窗扫描、预览、搜索和取消，报告存在时拒绝覆盖。固定夹具与测量边界见扫描性能方案及本轮归档。
+ - NTFS 原型位于 `tests/Prototypes/Ntfs/`，合成测试入口为测试 DLL 的 `--ntfs-prototype-tests`；隔离测试盘守卫检查运行 `pwsh -NoProfile -File tests/NtfsFixtureGuards.Tests.ps1`。2026-11-12 用户另行授权本轮 256 MiB VHD 验收，流程见 `scripts/ntfs-prototype/README.md`，不扩展为个人卷扫描或以后默认提权授权。原型不是生产后端、活跃卷快照或性能验收；实际读取必须验证镜像归属、卷格式、几何及记录身份。
+diff --git a/MainForm.cs b/MainForm.cs
+index ca1e38e..2c43f16 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -6,6 +6,8 @@ internal sealed class MainForm : Form
+ {
+     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+     internal Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult>? ScanRunner { get; init; }
++    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
++    internal Func<Action<DiskActivityUpdate>, DiskActivityMonitor>? ActivityMonitorFactory { get; set; }
+     internal readonly WallpaperRaster WallpaperRaster = new();
+     internal BackgroundView BackgroundCrop { get; private set; } = BackgroundView.Default;
+     internal bool HasCustomBackground { get; private set; }
+@@ -50,6 +52,12 @@ internal sealed class MainForm : Form
+     private readonly TextBox pathBox = new() { ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = Theme.Surface, ForeColor = Theme.Text, Dock = DockStyle.Fill };
+     private readonly TextBox search = new() { PlaceholderText = "搜索名称或扩展名…", BorderStyle = BorderStyle.None, BackColor = Theme.Surface, ForeColor = Theme.Text, Dock = DockStyle.Fill };
+     private readonly ScanProgressControl progressBar = new() { Dock = DockStyle.Fill };
++    private readonly DiskActivityPanel activityPanel = new() { Dock = DockStyle.Fill, Margin = Padding.Empty };
++    private RowStyle? activityRow;
++    private DiskActivityMonitor? activityMonitor;
++    private string? activityPath;
++    private bool activitySuspended;
++    private readonly System.Windows.Forms.Timer activityClock = new() { Interval = 1000 };
+     private readonly CheckBox reduceMotion = new() { Text = "减弱动效", AutoSize = true, Anchor = AnchorStyles.Right, BackColor = Color.Transparent };
+     private readonly DataGridView grid = new WallpaperGrid();
+     private readonly StatCard totalCard = new() { Title = "当前目录大小", Caption = "文件逻辑大小 · 1024 进制", Highlight = true, Dock = DockStyle.Fill };
+@@ -91,6 +99,15 @@ internal sealed class MainForm : Form
+         DoubleBuffered = true;
+         AllowDrop = true;
+         BuildInterface();
++        activityPanel.ExpansionChanged += (_, _) =>
++        {
++            if (activityRow != null) activityRow.Height = (activityPanel.Expanded ? 110 : 32) * DeviceDpi / 96f;
++            activityPanel.ResetHistory();
++            RefreshDiskActivity();
++        };
++        activityPanel.TargetChanged += (_, _) => RefreshDiskActivity();
++        activityPanel.SetMessage("已暂停 · 展开面板后采样");
++        activityClock.Tick += (_, _) => activityPanel.AdvanceClock(DateTimeOffset.UtcNow);
+         reduceMotion.Checked = false;
+         reduceMotion.CheckedChanged += (_, _) => ApplyMotionPreference();
+         ApplyMotionPreference();
+@@ -141,7 +158,7 @@ internal sealed class MainForm : Form
+         KeyDown += HandleKeys;
+         DragEnter += (_, e) => { if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1 && Directory.Exists(paths[0])) e.Effect = DragDropEffects.Copy; };
+         DragDrop += async (_, e) => { if (scanCancellation == null && e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1) await ScanFolder(paths[0]); };
+-        FormClosing += (_, _) => { scanCancellation?.Cancel(); viewCancellation?.Cancel(); };
++        FormClosing += (_, _) => { scanCancellation?.Cancel(); viewCancellation?.Cancel(); activityMonitor?.Dispose(); };
+         backgroundSettings.Click += (_, _) => EditBackground();
+         diagnosticsButton.Enabled = diagnostics != null;
+         diagnosticsButton.Click += (_, _) => OpenDiagnostics();
+@@ -192,6 +209,49 @@ internal sealed class MainForm : Form
+         base.OnResize(e);
+         // Repaint unchanged child bounds too: all surfaces share window coordinates.
+         Invalidate(true);
++        RefreshDiskActivity();
++    }
++
++    private void RefreshDiskActivity()
++    {
++        if (activityPanel == null || !IsHandleCreated || IsDisposed || Disposing) return;
++        bool enabled = activityPanel.Expanded && WindowState != FormWindowState.Minimized && Visible && !activitySuspended;
++        if (enabled) activityClock.Start(); else activityClock.Stop();
++        if (activityMonitor == null && !enabled) return;
++        activityMonitor ??= (ActivityMonitorFactory ?? (callback => new DiskActivityMonitor(callback)))(update =>
++        {
++            if (IsDisposed || Disposing || !IsHandleCreated) return;
++            try
++            {
++                BeginInvoke((Action)(() =>
++                {
++                    if (IsDisposed || Disposing || activityMonitor?.IsCurrent(update.Revision) != true) return;
++                    if (update.Targets != null) activityPanel.SetTargets(update.Targets);
++                    if (update.Sample != null) activityPanel.SetSample(update.Sample);
++                    else if (update.Message.Length > 0) activityPanel.SetMessage(update.Message);
++                }));
++            }
++            catch (InvalidOperationException) { /* Window closed before the post. */ }
++        });
++        activityMonitor.Update(activityPath ?? scan?.Root.Path, activityPanel.SelectedDiskNumber, enabled);
++    }
++
++    protected override void WndProc(ref Message message)
++    {
++        base.WndProc(ref message);
++        HandleMonitoringSystemEvent(message.Msg, message.WParam.ToInt64());
++    }
++
++    private void HandleMonitoringSystemEvent(int message, long value)
++    {
++        if (message == 0x0219 && value is 0x8000 or 0x8004 or 0x0007) // Device arrival/removal/tree change.
++            activityMonitor?.InvalidateTarget();
++        if (message == 0x0218 && value is 4 or 7 or 18) // Power suspend/resume.
++        {
++            activitySuspended = value == 4;
++            if (!activitySuspended) activityMonitor?.InvalidateTarget();
++            RefreshDiskActivity();
++        }
+     }
+ 
+     private static WallpaperTable Table(int columns, int rows)
+@@ -207,11 +267,14 @@ internal sealed class MainForm : Form
+         shell.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 232));
+         shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+         shell.Controls.Add(navigation, 0, 0);
+-        var main = Table(1, 8);
++        var main = Table(1, 9);
++        main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+         main.Padding = new Padding(28, 22, 28, 12);
+         foreach (float height in new float[] { 85, 46, 124, 62 }) main.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+         main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
++        activityRow = new RowStyle(SizeType.Absolute, 32);
++        main.RowStyles.Add(activityRow);
+         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+         shell.Controls.Add(main, 1, 0);
+@@ -315,12 +378,13 @@ internal sealed class MainForm : Form
+         detailText.Controls.Add(detailTitle, 0, 0); detailText.Controls.Add(detailPath, 0, 1);
+         detail.Controls.Add(detailText, 0, 0); detail.Controls.Add(reveal, 1, 0);
+         main.Controls.Add(detail, 0, 5);
+-        main.Controls.Add(progressBar, 0, 6);
++        main.Controls.Add(activityPanel, 0, 6);
++        main.Controls.Add(progressBar, 0, 7);
+         var footer = Table(2, 1);
+         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 122));
+         footer.Controls.Add(status, 0, 0); footer.Controls.Add(issues, 1, 0);
+-        main.Controls.Add(footer, 0, 7);
++        main.Controls.Add(footer, 0, 8);
+     }
+ 
+     private static Control PanelHeader(Label heading, Label caption)
+@@ -412,6 +476,8 @@ internal sealed class MainForm : Form
+     private async Task ScanFolder(string path)
+     {
+         if (scanCancellation != null) return;
++        activityPath = path;
++        RefreshDiskActivity();
+         var previousDirectory = current;
+         int previousMode = mode;
+         string? previousType = typeFilter;
+@@ -534,6 +600,8 @@ internal sealed class MainForm : Form
+             previewTimer.Stop();
+             liveSession = null;
+             scanCancellation = null;
++            activityPath = scan?.Root.Path;
++            RefreshDiskActivity();
+             if (!IsDisposed)
+             {
+                 choose.Enabled = true; refresh.Enabled = scan != null; cancel.Visible = false;
+@@ -1030,6 +1098,8 @@ internal sealed class MainForm : Form
+         if (disposing)
+         {
+             searchTimer.Dispose(); previewTimer.Dispose(); scanTip.Dispose(); scanCancellation?.Cancel(); viewCancellation?.Cancel();
++            activityMonitor?.Dispose();
++            activityClock.Dispose();
+             WallpaperRaster.Dispose();
+             var image = BackgroundImage; BackgroundImage = null; image?.Dispose();
+         }
+diff --git a/README.en.md b/README.en.md
+index ac8ddf2..4854e8a 100644
+--- a/README.en.md
++++ b/README.en.md
+@@ -44,6 +44,8 @@ Also includes Automatic / Low-impact / High-speed strategies, live partial previ
+ 
+ ## Quick start
+ 
++**New in the current development build: [disk activity panel](docs/disk-activity.md)** (Chinese guide). Expand it above scan progress to view the physical disk's last 60 seconds, activity, read/write throughput and response time. It follows the scan folder or a manually selected disk, pauses when collapsed or minimized, and keeps samples only in memory. Metrics cover the whole disk, including other processes. The published v1.5.0 assets do not include it.
++
+ 1. Build and launch as below. Click **选择文件夹** (Choose folder), or drag a folder into the window.
+ 2. Watch the stage and progress at the bottom. Browse discovered folders or cancel; live previews are marked as incomplete statistics.
+ 3. Switch between **空间分布 / 大文件 / 文件类型** (Treemap / Largest files / File types), then search or sort.
+@@ -73,7 +75,7 @@ cd Hard-Drive-Space-Visualization
+ .\run.ps1
+ ```
+ 
+-You can also double-click [run.cmd](run.cmd). It builds the current source before launching `bin/Release/net10.0-windows/DiskAtlas.exe`. Build failures and an already-running development app produce a message. Opening an existing EXE directly does not update it. The title shows the version; **诊断 → 开发记录说明** (Diagnostics → Development records) shows the build identifier.
++You can also double-click [run.cmd](run.cmd). It builds the current source before launching `bin/Release/net10.0-windows/DiskAtlas.exe`. Build failures and an already-running development app produce a message. Opening an existing EXE directly does not update it. The title keeps the product name; **诊断 → 开发记录说明** (Diagnostics → Development records) shows the version and build identifier.
+ 
+ ```powershell
+ # Build only; no package
+@@ -96,7 +98,7 @@ The application does not automatically upload files, paths, images or logs. Mini
+ 
+ ## Planned work and limits
+ 
+-- **Initial delivery preparation:** self-contained portable, per-user installer and both source archive scripts now have local acceptance coverage. Formal delivery still requires clean Windows and remote draft validation; see the [release guide](docs/releasing.md) (Chinese).
++- **Future release acceptance:** v1.5.0 is published. Later versions still need a new freeze, packages and acceptance; existing clean-environment gaps remain recorded. See the [release guide](docs/releasing.md) (Chinese).
+ - **After the initial version (P2):** High-speed mode is not consistently faster than Automatic. Nonblocking restructuring and additional visual polish are deferred to the same stage.
+ - **Current limits:** Automatic chooses concurrency by device, without load adaptation. If the change journal is unavailable, refresh still verifies metadata for all directories and files and may not be much faster. The cache exists only within the current process.
+ 
+@@ -112,6 +114,7 @@ AsukaLens/
+ ├─ ScanCoordinator.cs        Refresh and cache coordination
+ ├─ src/Diagnostics/          Local diagnostics and problem notes
+ ├─ src/Scanning/             File-read concurrency budget
++├─ src/Monitoring/           Physical disk sampling and activity panel
+ ├─ assets/                   Default theme, icons and provenance
+ ├─ tests/                    Functional/UI checks and synthetic preview
+ ├─ docs/                     Developer docs, delivery plan and preview
+diff --git a/README.md b/README.md
+index a4c87e0..b49542c 100644
+--- a/README.md
++++ b/README.md
+@@ -42,6 +42,8 @@ SDK 和运行时从[微软官方下载页](https://dotnet.microsoft.com/en-us/do
+ 
+ 另有自动 / 低占用 / 高速三种策略、边扫边显示、取消与结果恢复、NTFS 日志增量刷新、本地背景裁切与强调色适配，以及[本地诊断和问题记录](docs/diagnostics.md)。
+ 
++**当前开发版新增[磁盘活动面板](docs/disk-activity.md)**：在进度条上方展开，查看物理磁盘最近 60 秒曲线、读写速度和响应时间，可跟随目录或手动选盘；收起及最小化时暂停，数据只在内存保存。它显示整块磁盘的活动，包含其他进程。已发布的 v1.5.0 尚未包含此功能。
++
+ ## 快速开始
+ 
+ 1. 按下节构建并启动，点击 **选择文件夹**，或把目录拖入窗口。
+@@ -73,7 +75,7 @@ cd Hard-Drive-Space-Visualization
+ .\run.ps1
+ ```
+ 
+-也可双击根目录 [run.cmd](run.cmd)。入口先构建当前源码，再启动 `bin/Release/net10.0-windows/DiskAtlas.exe`；构建失败或当前开发版仍在运行时会提示。直接打开已有 EXE 不会更新源码。标题显示版本，“诊断 → 开发记录说明”可查看构建标识。
++也可双击根目录 [run.cmd](run.cmd)。入口先构建当前源码，再启动 `bin/Release/net10.0-windows/DiskAtlas.exe`；构建失败或当前开发版仍在运行时会提示。直接打开已有 EXE 不会更新源码。标题保留软件名，“诊断 → 开发记录说明”可查看版本和构建标识。
+ 
+ ```powershell
+ # 普通构建，不打包
+@@ -96,7 +98,7 @@ dotnet run --project DiskAtlas.csproj -- "X:\ExampleFolder"
+ 
+ ## 待优化与开发
+ 
+-- **初版交付准备**：自包含便携版、当前用户安装器及两种源码包的脚本和本机验收已实现；正式发布仍待干净 Windows 环境与远程草稿验收，见[发布说明](docs/releasing.md)。
++- **后续发行验收**：v1.5.0 已公开发布；后续版本仍需重新冻结、打包和验收，既有干净环境缺口继续保留，见[发布说明](docs/releasing.md)。
+ - **初版后处理（P2）**：高速模式尚不能稳定快于自动，非阻塞结构整理与额外视觉打磨同级延期。
+ - **现有限制**：自动策略按设备选择并发，未实现负载自适应；变化日志不可用时仍核验所有目录与文件元信息，刷新不保证大幅提速；缓存只在本次运行内有效。
+ 
+@@ -112,6 +114,7 @@ AsukaLens/
+ ├─ ScanCoordinator.cs        刷新协调与缓存复用
+ ├─ src/Diagnostics/          本地诊断与问题记录
+ ├─ src/Scanning/             文件读取并发预算
++├─ src/Monitoring/           物理磁盘活动采样与面板
+ ├─ assets/                   默认主题、图标与来源说明
+ ├─ tests/                    功能、UI 检查与合成预览
+ ├─ docs/                     开发说明、交付方案与界面预览
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index e0ee225..133410e 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -10,9 +10,9 @@
+ 
+ - v1.5.0 已发布；后续标题、左下角文案及 README 截图调整已提交，尚未生成包含这些改动的新发行包。
+ - 通用发布工具已统一 GitHub 可保留的点号资产名并通过离线回归；下一份包仍需实际安装和远程草稿验收。
+-- NTFS 原型已通过合成记录 86 项、守卫 36 项及本机隔离 VHD 的指定文件记录比对 140 项；这是正确性证据，没有整卷 MFT 批量读取、产品入口或性能测量。驻留/压缩/稀疏分配和属性扩展等仍待补查。证据见[真实记录验收](../iterations/2026-11-12-03-ntfs-vhd/README.md)。
++- NTFS 原型已通过合成记录/补查 147 项、自有临时文件单句柄 84 项及本机隔离 VHD 1,327 项；普通驻留分配可经验证后的句柄补查。已有暖缓存补查微实验，没有整卷 MFT 批量读取、产品入口或整卷性能测量。压缩/稀疏分配和属性扩展等仍待补查，证据见[单句柄记录](../iterations/2026-11-12-06-resident-lease/README.md)。
+ - 现有目录扫描仍为可用基线，七项产品功能必须保留。高速模式不能稳定快于自动的问题尚未解决。
+-- 磁盘活动面板、软件占用分析及清理功能均为新提案，当前软件尚未实现。
++- 磁盘活动面板首版已进入当前开发源码，见[功能与边界](disk-activity.md)；Windows 10、真实热插拔/休眠及更广的负载验收仍待补。软件占用分析及清理功能尚未实现。
+ 
+ ### 优先级与建议顺序
+ 
+@@ -21,14 +21,14 @@ P1 表示本阶段核心产品路线，P2 表示辅助体验与功能扩展，P3
+ | 顺序 / 编号 | 优先级 | 开发目标 | 状态与前置条件 |
+ | --- | --- | --- | --- |
+ | 1 / NTFS-01 | P1 | 明确大小语义，测清特殊类型补查成本 | 驻留补查和单句柄原型已验证；其他类型与活跃卷一致性仍待推进 |
+-| 2 / MON-01 | P2 | 主窗轻量磁盘活动面板 | 用户已确认实际窗口布局及每秒采样范围，正在实施；可独立于 NTFS 后端实施 |
++| 2 / MON-01 | P2 | 主窗轻量磁盘活动面板 | 首版已实现并完成本机核心流程，其他系统/设备及完整负载验收待补；不依赖 NTFS 后端 |
+ | 3 / NTFS-02 | P1 | 整卷 MFT 批量读取、建树及资源基准 | 依赖 NTFS-01 的统计契约和读取可行性；面板不是其必要依赖 |
+ | 4 / NTFS-03 | P1 | 可选快速扫描入口与可靠回退 | 仅在 NTFS-02 有可重复收益后实施 |
+ | 5 / APP-01 | P2 | 从软件入口查看占用结构，只读分析 | 后续独立功能，先限定支持范围和归属证据 |
+ | 6 / APP-02 | P2 | 针对已支持软件提供清理建议 | 依赖 APP-01 与经过验证的软件规则，不执行删除 |
+ | 7 / CLEAN-01 | P3 | 用户确认的可恢复清理 | 独立较大改动，需明确确认写入与恢复行为 |
+ 
+-NTFS-01 第 1 轮的小范围为**驻留文件分配语义、可验证的大小来源、补查比例与开销**，现已验证普通驻留补查，但尚未消除高补查比例和双读成本。后续先评估更低成本的可靠取值，再分别安排压缩/稀疏和属性扩展；不将所有复杂格式一次塞进同一轮。若用户更希望先看到界面改善，可单独选择 MON-01，不同时重构扫描器以免难以归因。
++NTFS-01 第 1 轮的小范围为**驻留文件分配语义、可验证的大小来源、补查比例与开销**，后续单句柄已减少重复打开，但仍需逐对象读取两组元信息，补查比例问题仍在。下一步分别安排压缩/稀疏和属性扩展，保持每类来源与未知语义；不将所有复杂格式一次塞进同一轮。目录批量信息可能因其他硬链接的写入而陈旧，不能直接替代正式占用核验。
+ 
+ ### NTFS-01：统计语义与补查
+ 
+@@ -38,8 +38,14 @@ NTFS-01 第 1 轮的小范围为**驻留文件分配语义、可验证的大小
+ 
+ 验收以两种大小、入口/对象关系、未知与错误状态一致为主，不以速度掩盖统计缺失。新 VHD、其他系统/几何的实际操作先按本轮范围明确授权，不沿用上轮一次性提权许可。
+ 
++下一轮建议先收紧**压缩/稀疏默认流补查**的小范围：核查现有 `NativeStorage` 对照是否会受调用者提供的陈旧属性影响（当前 CompressionInfo 分支使用传入属性，实际差异尚待受控复现），再在独立原型中以句柄实测属性、完整身份、EOF、可见链接数、修改/变化时间及两组 CompressionInfo 验证大小。先只讨论单一 `Compressed` 或单一 `Sparse` 理由，叠加命名流、属性列表、扩展、加密、重解析等继续未知；理由组合应以真实夹具结果确定，不能通过掩掉标记扩大支持。
++
++验收包括可压缩/难压缩文件、有孔/已分配稀疏文件、合法零与未知、错误属性提示、硬链接范围外写入、已有写者、取消及资源释放；能力缺失明确跳过。接口输出只代表所开流，不包含所有命名流、整个文件系统开销或删除释放量。参考 [FILE_COMPRESSION_INFO](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_compression_info)、[流与分享](https://learn.microsoft.com/en-us/windows/win32/fileio/file-streams)、[稀疏操作](https://learn.microsoft.com/en-us/windows/win32/fileio/sparse-file-operations)。这是下一轮建议，尚未实施，不启动整卷 MFT、生产后端或新的 VHD 操作。
++
+ ### MON-01：主界面磁盘活动面板
+ 
++用户已确认进度条上方的实际窗口布局。首版已实现下述主要交互、真实本机单盘采样及合成状态检查；详细实现与尚未验收项见[磁盘活动说明](disk-activity.md)。以下保留完整目标，不能将首版通过等同所有系统和设备已通过。
++
+ 建议位置为扫描进度条上方的可折叠小面板，先提供实际尺寸效果供用户确定。显示最近 60 秒活动曲线及活动时间、读取速度、写入速度和平均响应时间；颜色适配主题，窄窗口保留简洁摘要，展开时不遮挡图表、文件列表或取消按钮。
+ 
+ 默认跟随扫描目录所在的物理磁盘，可手动切换；C/D 等分区若同属一块磁盘，明确显示同一物理盘指标。首版优先支持可可靠映射的本地单磁盘；跨盘卷、网络、虚拟盘和未知映射不猜测。显示“整块磁盘，包含其他进程”，不能当作 AsukaLens 的专属 I/O，也不能把元信息处理量或估算进度当作磁盘速度。
+diff --git a/docs/disk-activity.md b/docs/disk-activity.md
+new file mode 100644
+index 0000000..eb8fa3a
+--- /dev/null
++++ b/docs/disk-activity.md
+@@ -0,0 +1,31 @@
++# 磁盘活动面板（开发版）
++
++该功能已进入当前源码，尚未包含在已发布的 v1.5.0 资产中。运行开发版后，扫描进度条上方有“磁盘活动”栏，点击“展开”即可采样；初始折叠，不在后台预先采集。
++
++默认跟随扫描目录所在的物理磁盘，也可以从右侧选择“磁盘 N”。多个分区属于同一块物理盘时显示相同指标。面板显示整块磁盘的活动，包含其他进程，不能用来判断 AsukaLens 自己产生了多少 I/O。
++
++展开后显示最近 60 秒活动曲线，以及活动时间、读取速度、写入速度和平均响应。读写单位是 MiB/s（1 MiB = 1,048,576 字节）；响应以毫秒显示。活动时间来自有效的 `% Idle Time` 的补数，不是扫描完成百分比。
++
++面板展开会占用数据区高度；最小窗口下图表与列表较矮，建议收起面板或扩大窗口。更紧凑的小窗口布局仍待优化。
++
++## 状态与边界
++
++每秒由一个后台循环采样，最多保留 60 个内存点，无文件留存、遥测或上传。首次、切换磁盘或最小化后恢复时重新建立基线，先显示“等待采样”。收起、最小化和退出时暂停并释放源，恢复后不把跨暂停的平均值拼成一秒数据。缺值显示“—”，曲线在缺值或时间断档处断开，不补假零。
++
++原生读取卡住时，界面仍按一秒时钟移动并过期旧曲线；超过 4 秒未更新的指标清为“—”，显示“采样延迟”。迟到的旧样本不能重新变成当前值。系统时钟回退会清除不兼容历史，等待新样本。
++
++首版仅支持能够可靠映射的固定本地单磁盘卷；跨盘卷、网络、可移除盘、明确的 VHD/虚拟/Storage Spaces 总线以及无法核验的设备不猜测。手动选择列表同样来自已验证的固定卷映射。未挂载到盘符、没有固定卷的物理盘不保证被列出。虚拟机若把虚拟设备伪装为 SCSI/NVMe，仅靠该接口不能证明它是实体硬件。
++
++计数器缺失、策略拒绝或设备不再可见时显示不可用，不默认提权或修改系统配置。收起再展开会重新发现和连接。收到设备变化通知时重新核验映射；收到系统暂停/恢复通知时暂停并重新建立基线。通知路径已作合成检查，热插拔、磁盘编号复用、跨多显示器、真正休眠恢复及 Windows 10 尚待真实验收；不保证热插拔后仍绑定原实体设备。
++
++## 实现与验证
++
++`src/Monitoring/` 分为原生采样、卷映射、单后台循环和 UI 四个文件。采样使用英文 PDH 路径，在中文 Windows 上避免依赖本地化计数器名称；使用 `DOUBLE | NOSCALE` 保留字节/秒和秒的原始单位。四项按同一实例名组合，独立检查有效状态，拒绝模糊或重复磁盘号。缓冲最多 1 MiB、4096 项及两次容量重试。
++
++映射使用挂载点、卷 GUID 和单一 volume extent 取得物理磁盘号，再核验设备描述符；不遍历文件树，不提取设备型号或序列字符串。快速选择只保留最新请求，一条采样循环串行拥有源，旧后台和已入队 UI 回调均核对版本。退出不等待阻塞的原生调用；其后台所有者完成后释放，原生同步调用中途取消不作即时保证。
++
++当前中文 Windows 11 上已取得真实映射和四项有效样本，并观察展开、手动选盘、折叠暂停及最小化恢复。与任务管理器同一物理盘的近时段观察仅确认低活动趋势相符，采样时间和口径不能据此视为完全一致；高负载与响应时间的同步对照待补。
++
++独立进程的短时资源观测只覆盖后台监测器，不含 UI、扫描或其他应用的前台响应。以 off/on/on/off 各 5 秒窗口测得开启时约 0.93%–0.94% 单核 CPU，生命周期峰值工作集增加约 9 MiB；单核百分比没有除以逻辑核心数。峰值含运行时和初始化，样本短且外部负载未控制，不能据此承诺普遍资源上限。
++
++检查命令及准确结果见[开发验证](testing.md)和本轮迭代记录。原生接口依据：[英文计数器](https://learn.microsoft.com/en-us/windows/win32/api/pdh/nf-pdh-pdhaddenglishcounterw)、[通配数组](https://learn.microsoft.com/en-us/windows/win32/api/pdh/nf-pdh-pdhgetformattedcounterarrayw)、[两次采样](https://learn.microsoft.com/en-us/windows/win32/perfctrs/collecting-performance-data)、[卷映射](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-ioctl_volume_get_volume_disk_extents)。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index aa1570f..67ff0da 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-12：用户确认布局后，开发版新增进度条上方的可折叠磁盘活动面板，跟随目录或手动选盘，每秒采样、60 秒内存曲线及四项指标；暂停、等待、不可用、延迟过期和旧结果隔离已实现。中文 Windows 11 的本机真实映射和采样、144/96 DPI 合成集成流程已验证；修复最小窗口内容越界。真实热插拔/休眠、Windows 10、多物理盘及更广负载仍待验收。见[功能说明](disk-activity.md)与[本轮记录](../iterations/2026-11-12-07-disk-activity/README.md)，未打包或发布新版本。
++
+ 2026-11-12：NTFS-01 后续单句柄补查已在隔离 VHD 通过 1,327 项检查，卸载和清理完成；另有 84 项自有临时文件/集成检查。20 个驻留候选由每批 40 次完整读取回调改为 20 次 lease 回调、20 个成功句柄及 40 组快照。仅是暖缓存原型实验，生产扫描器未接入，不能作为整盘提速结论。见[单句柄记录](../iterations/2026-11-12-06-resident-lease/README.md)。
+ 
+ 2026-11-12：NTFS-01 第 1 轮完成普通驻留分配的选择性句柄补查、来源标记和有界批处理，并在本轮另行授权的 VHD 上通过 862 项检查。25 个普通候选中 20 个需要补查，每轮 40 次 NativeStorage 回调，全部对象双读对照为 50 次；不能当作与生产扫描器的提速对比。见[本轮记录](../iterations/2026-11-12-05-resident-lookup/README.md)。其他特殊类型补查、批量读取和产品接入仍未实现。
+diff --git a/docs/testing.md b/docs/testing.md
+index 206b9c1..f869882 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -62,6 +62,30 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
+ 
+ 三轮审查的发现、修改、实测证据与验证范围见 [优化审查记录.md](../优化审查记录.md)。
+ 
++## 磁盘活动面板
++
++先构建测试项目，再运行下列入口。合成检查不读取真实计数器或个人目录；主窗检查使用内存扫描树和假的采样源，背景与诊断不读个人配置。
++
++```powershell
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --disk-activity-tests
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --disk-activity-panel-tests
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --disk-activity-panel-tests --dpi-96
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --disk-activity-mainform-tests
++dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --disk-activity-mainform-tests --dpi-96
++```
++
++覆盖 PDH 字段/单位/缓冲边界、映射拒绝、单后台循环、过期回调、等待/断档/延迟、时钟回退、最小布局、磁盘选择、折叠/最小化、模拟设备与电源通知，以及关闭后的回调与释放。模拟通知不等于真实热插拔或休眠通过。改动主窗还需原有 `--ui-regression` 两种 DPI 及实际观察。
++
++`--disk-activity-live` 只读检查当前工作目录的卷映射和间隔至少一秒的三个真实样本，不扫描文件、不输出路径/实例/设备名称。当前映射不支持会明确跳过，跳过不作通过。
++
++可选 `--disk-activity-resource-probe` 以 off/on/on/off 四个独立进程观察后台监测器，预热 1.5 秒后测 5 秒 CPU 和结束工作集。CPU 为未除以逻辑核心数的单核百分比；OS 峰值工作集覆盖子进程整个生命周期，包含运行时与初始化。没有 UI 或扫描，不据此声称完整软件开销。
++
++可选 `--disk-activity-scan-probe` 创建并清理自己的随机临时目录（30,000 个合成小文件、60 个目录及所有权标记），四个独立主窗进程比较同一夹具的 off/on/on/off 完整扫描与最终查询/绘制，核对两种大小及未知/失败计数。输出单份安全 JSON；`MonitoringDuringEveryOnScanObserved` 单独说明是否真的在每次开启扫描期间观察到采样。生命周期峰值仍不是扫描阶段专属峰值，预核验已访问目录，缓存/外部负载未控制，不能推导整盘性能或稳定差异。结果需由调用者先保留，不默认写报告或覆盖历史。
++
++`--disk-activity-layout-preview artifacts/monitor-layout.png` 生成真实生产控件的合成布局图，拒绝覆盖、不会调用真实 PDH 或保存个人设置；该截图不作真实磁盘性能证据。功能及边界见[磁盘活动说明](disk-activity.md)。
++
++需要目视最小窗口时，用 `--disk-activity-layout-preview --minimum artifacts/monitor-minimum.png`；同样拒绝覆盖，用后只保留必要证据，避免重复大图。
++
+ ## 发布脚本与本机临时包
+ 
+ 脚本边界：`pwsh -File tests/ReleaseScripts.Tests.ps1`。用户明确允许临时包后，按[发布说明](releasing.md)生成 `-LocalTest` 资产，再执行 `Test-Release.ps1` 和 `PackageAcceptance.ps1`。后者需要先构建测试项目，使用包内生产 DLL、包内运行时和隔离配置，不读取个人扫描数据；会验证专属测试安装身份并清理注册项与快捷方式。
+diff --git a/iterations/2026-11-12-07-disk-activity/README.md b/iterations/2026-11-12-07-disk-activity/README.md
+new file mode 100644
+index 0000000..97d7546
+--- /dev/null
++++ b/iterations/2026-11-12-07-disk-activity/README.md
+@@ -0,0 +1,49 @@
++# MON-01：磁盘活动面板首版
++
++日期：2026-11-12。基线：`6f797a30da0edb767f4f8a608402fa8327491c4b`。用户要求按计划连续开发一小时，并在看到实际窗口的合成效果后确认采用进度条上方的布局，继续接入每秒采样、物理磁盘映射、暂停与不可用状态。本轮为普通开发，不打包或发布；v1.5.0 资产保持不变。
++
++## 用户可见行为
++
++初始折叠，不预先采样；展开显示最近 60 秒曲线、活动时间、读写 MiB/s 和平均响应毫秒。默认跟随扫描目录，也可手动选择已验证的物理磁盘，图中显示“磁盘 N”和“整块磁盘，包含其他进程”。同一实体盘上的多个分区使用同一指标。
++
++收起、最小化及退出暂停并释放；恢复与目标变化重新建立基线，不把首样本、缺值或暂停时间伪装成零。4 秒未更新会清空当前指标，曲线继续移动/过期，迟到值不能恢复成新鲜指标；时钟回退丢弃历史。设备与电源通知触发重新核验/预热，真实硬件场景仍见下方限制。
++
++在最小窗口首次检查发现主表格的自动列宽会让面板及其他内容越过右边界，修为明确的百分比单列宽。144/96 DPI 的最小与常用尺寸检查及原 UI 回归通过，未改扫描算法或统计含义。
++
++## 关键实现与健壮性
++
++- `src/Monitoring/DiskActivitySource.cs`：延迟初始化 PDH 英文通配计数器，DOUBLE/NOSCALE/NOCAP100，按同一实例名组合四指标；每项状态/数值独立核验，不借另一磁盘。采集时间在格式化读取前记录，迟到格式化结果仍保留原时间。缓冲上限 1 MiB、4096 项、两次容量尝试，指针只能指向自己的分配区；query 和临时缓冲均释放。
++- `DiskActivityResolver.cs`：挂载点 → 卷 GUID → 单 extent → 物理盘描述符，拒绝网络、可移除、多 extent、明确虚拟总线及不明映射。不遍历文件树，不提取型号/序列字符串，界面标签仅磁盘号。
++- `DiskActivityMonitor.cs`：一个后台所有者、一格唤醒信号、最新请求替换。快速选择不排队创建原生查询，取消及 UI 回写按版本隔离；关闭不在 UI 等待同步调用，后台最终释放。
++- `DiskActivityPanel.cs` 与 `MainForm.cs`：60 点有界内存历史、1 Hz 主窗时钟、过期/断档、键盘按钮/目标选择、DPI/高对比颜色、折叠和窗口状态集成；时钟和字体在退出释放。无采样持久化、遥测、上传或默认提权。
++
++独立只读审查补齐采集时间戳和无先前暂停通知时的恢复重建，未发现本轮范围的阻塞问题。同步原生调用仍不能保证立即取消；进程内旧结果隔离不等于驱动有硬性响应期限。
++
++## 验证与性能边界
++
++应用/测试 Release 构建均 0 警告、0 错误。合成采样/映射/后台编排 174 项通过，含 50 次快速关闭的释放竞态检查；面板 144/96 DPI 各 28 项，主窗集成各 58 项。原有 UI 两种 DPI 回归通过，覆盖扫描预览、取消恢复、结果范围、口径/刷新、长路径、主题和绘制。核心 38、高级 25 项在本小时前一轮通过，本轮未改变扫描器。
++
++中文 Windows 11 上，普通权限真实映射和连续三次 PDH 四指标均有效。实际窗口观察了展开、选盘、曲线更新、折叠暂停及最小化恢复等待。用户协助打开任务管理器同一物理盘页面，近时段低活动约 1% 与本面板趋势相符；高负载和响应时间同步对照尚未完成。未归档任务管理器或桌面原始截图。
++
++`resource-probe.json` 保留四个独立进程 off/on/on/off 的短时观察：1.5 秒预热、5 秒窗口，开启时约 0.93%–0.94% 单核 CPU，生命周期峰值工作集较关闭约高 9 MiB。测量只含后台监测器，无 UI/扫描；CPU 未除以逻辑核心数，峰值含整个子进程初始化，不能当作窗口独享峰值或普遍资源上限。
++
++首组 6,000 文件扫描不到一秒，开启时有预热样本，但扫描窗口没有采样重叠；保留 `small-scan-observation.json`，不作开启采样期间的性能结论。随后扩大到 30,000 文件、60 目录及一个所有权标记，四个全新主窗进程在同一夹具按 off/on/on/off 完整扫描，见 `scan-probe.json`：
++
++| 顺序 | 面板 | 总耗时 ms | 进程 CPU ms | 扫描期间有效采样 |
++| --- | --- | ---: | ---: | ---: |
++| 1 | 关闭 | 1386.8879 | 4296.875 | 0 |
++| 2 | 开启 | 1320.6594 | 4406.250 | 1 |
++| 3 | 开启 | 1293.7322 | 4203.125 | 1 |
++| 4 | 关闭 | 1459.3751 | 3890.625 | 0 |
++
++四次逻辑/分配量、文件/目录、未知、跳过及完整性一致。计时包括最终查询和界面刷新，不包括准备；所有权核验已访问目录，缓存与外部负载未控制。每模式只有两次，不能确定稳定性能差异、扫描加速或日常前台响应。第一、第二组夹具及其版本条件分开保留，不合并计算。
++
++## 尚未验收与清理
++
++首版仅完成当前本机单盘的核心流程。Windows 10、多物理盘、真实拔插与编号复用、真实休眠、跨多显示器和更广负载仍待验收；合成通知不代替硬件实测。明确虚拟总线会拒绝，虚拟机伪装实体总线的情况不能由当前属性证明。未实现 NTFS 批量扫描、软件占用分析或清理功能。
++
++实际观察了修复后的最小窗口截图：监测四项可读、控件没有越界，但全展开会明显挤压图表/列表高度；初始折叠保留主要数据区，更紧凑的小窗口布局仍待优化。临时最小尺寸截图查看后删除，不重复归档。
++
++两组自有扫描夹具、隔离主窗配置、测试进程均已清理，无残留 VHD。只留当前普通构建与一张本机合成预览 `artifacts/monitor-layout.png`（SHA-256 `af4f547e45590341a26be9876542ef998cb7bd7ae11c75f420f2bde4a871566a`），不上传桌面截图、日志、真实路径或文件名，也不重复归档大图。预览可由测试入口重新生成。
++
++双语 README、功能说明、开发状态/计划与检查入口同步维护。`changes.patch` 记录本轮恢复变更且不含自身；`files.json` 记录相关 SHA-256，以本轮基线与 Git 历史恢复，不复制整个项目。
+diff --git a/iterations/2026-11-12-07-disk-activity/resource-probe.json b/iterations/2026-11-12-07-disk-activity/resource-probe.json
+new file mode 100644
+index 0000000..e6a59ca
+--- /dev/null
++++ b/iterations/2026-11-12-07-disk-activity/resource-probe.json
+@@ -0,0 +1,14 @@
++{
++  "order": ["off", "on", "on", "off"],
++  "warmup_ms": 1500,
++  "window_seconds": 5,
++  "scope": "background monitor only; no UI or scan",
++  "cpu_basis": "single core percentage; not divided by logical processors",
++  "peak_scope": "whole child process lifetime through report, including runtime and initialization",
++  "samples": [
++    {"mode":"off","wall_ms":5051.0861,"cpu_ms":0,"cpu_percent":0,"lifetime_peak_working_set_bytes":29130752,"window_end_working_set_bytes":29081600,"valid_samples":0},
++    {"mode":"on","wall_ms":5040.692,"cpu_ms":46.875,"cpu_percent":0.92993184269144,"lifetime_peak_working_set_bytes":38281216,"window_end_working_set_bytes":38248448,"valid_samples":5},
++    {"mode":"on","wall_ms":5001.87,"cpu_ms":46.875,"cpu_percent":0.9371495060847242,"lifetime_peak_working_set_bytes":38838272,"window_end_working_set_bytes":38805504,"valid_samples":5},
++    {"mode":"off","wall_ms":5059.1361,"cpu_ms":0,"cpu_percent":0,"lifetime_peak_working_set_bytes":29032448,"window_end_working_set_bytes":28983296,"valid_samples":0}
++  ]
++}
+diff --git a/iterations/2026-11-12-07-disk-activity/scan-probe.json b/iterations/2026-11-12-07-disk-activity/scan-probe.json
+new file mode 100644
+index 0000000..3f54c64
+--- /dev/null
++++ b/iterations/2026-11-12-07-disk-activity/scan-probe.json
+@@ -0,0 +1 @@
++{"Kind":"disk-activity-ui-scan-probe","Order":"off/on/on/off","FixtureFiles":30000,"OwnershipMarkerFiles":1,"FixtureDirectories":60,"PrewaitMilliseconds":1600,"TimingScope":"ScanFolder plus final UI query and refresh; excludes preparation and shutdown","PeakScope":"whole child process lifetime through scan report; not scan-phase peak","CacheScope":"not controlled; own-tree ownership validation precedes each scan","StatisticsMatch":true,"MonitoringObserved":true,"Success":true,"MonitoringDuringEveryOnScanObserved":true,"Samples":[{"Mode":"off","Files":30001,"Directories":60,"LogicalBytes":15615091,"AllocatedBytes":61800096,"UnknownAllocation":0,"Incomplete":false,"Skipped":0,"AllocationIssues":0,"WallMs":1386.8879,"CpuMs":4296.875,"PeakWorkingSetBytes":126246912,"PeakScope":"process-start-through-scan-report","MonitorAvailableSamples":0,"MonitorAvailableDuringScan":0},{"Mode":"on","Files":30001,"Directories":60,"LogicalBytes":15615091,"AllocatedBytes":61800096,"UnknownAllocation":0,"Incomplete":false,"Skipped":0,"AllocationIssues":0,"WallMs":1320.6594,"CpuMs":4406.25,"PeakWorkingSetBytes":132345856,"PeakScope":"process-start-through-scan-report","MonitorAvailableSamples":2,"MonitorAvailableDuringScan":1},{"Mode":"on","Files":30001,"Directories":60,"LogicalBytes":15615091,"AllocatedBytes":61800096,"UnknownAllocation":0,"Incomplete":false,"Skipped":0,"AllocationIssues":0,"WallMs":1293.7322,"CpuMs":4203.125,"PeakWorkingSetBytes":135839744,"PeakScope":"process-start-through-scan-report","MonitorAvailableSamples":2,"MonitorAvailableDuringScan":1},{"Mode":"off","Files":30001,"Directories":60,"LogicalBytes":15615091,"AllocatedBytes":61800096,"UnknownAllocation":0,"Incomplete":false,"Skipped":0,"AllocationIssues":0,"WallMs":1459.3751,"CpuMs":3890.625,"PeakWorkingSetBytes":126275584,"PeakScope":"process-start-through-scan-report","MonitorAvailableSamples":0,"MonitorAvailableDuringScan":0}]}
+\ No newline at end of file
+diff --git a/iterations/2026-11-12-07-disk-activity/small-scan-observation.json b/iterations/2026-11-12-07-disk-activity/small-scan-observation.json
+new file mode 100644
+index 0000000..03bef2b
+--- /dev/null
++++ b/iterations/2026-11-12-07-disk-activity/small-scan-observation.json
+@@ -0,0 +1,21 @@
++{
++  "fixture_files":6000,
++  "ownership_marker_files":1,
++  "directories":60,
++  "order":["off","on","on","off"],
++  "statistics_match":true,
++  "logical_bytes":3123091,
++  "allocated_bytes":12360096,
++  "unknown_allocation":0,
++  "incomplete":false,
++  "monitoring_observed":true,
++  "monitoring_during_every_on_scan_observed":false,
++  "peak_scope":"whole child process lifetime through scan report, not scan-phase peak",
++  "samples":[
++    {"mode":"off","wall_ms":732.6452,"cpu_ms":1078.125,"peak_working_set_bytes":112193536,"monitor_available_samples":0,"monitor_available_during_scan":0},
++    {"mode":"on","wall_ms":714.6602,"cpu_ms":1156.25,"peak_working_set_bytes":118910976,"monitor_available_samples":1,"monitor_available_during_scan":0},
++    {"mode":"on","wall_ms":563.7406,"cpu_ms":1062.5,"peak_working_set_bytes":118489088,"monitor_available_samples":1,"monitor_available_during_scan":0},
++    {"mode":"off","wall_ms":646.3972,"cpu_ms":1062.5,"peak_working_set_bytes":112496640,"monitor_available_samples":0,"monitor_available_during_scan":0}
++  ],
++  "conclusion":"scan windows were too short to overlap sampling; retained as an inconclusive observation, not merged with the larger fixture"
++}
+diff --git a/src/Monitoring/DiskActivityMonitor.cs b/src/Monitoring/DiskActivityMonitor.cs
+new file mode 100644
+index 0000000..b9da8f6
+--- /dev/null
++++ b/src/Monitoring/DiskActivityMonitor.cs
+@@ -0,0 +1,155 @@
++namespace DiskAtlas;
++
++internal sealed record DiskActivityUpdate(long Revision, DiskActivitySample? Sample, string Message,
++    IReadOnlyList<DiskActivityTarget>? Targets = null);
++
++// One background owner and a capacity-one wake-up signal. Rapid changes replace
++// the desired state; no native query or task is queued for each UI interaction.
++internal sealed class DiskActivityMonitor : IDisposable
++{
++    private sealed record Request(string? Path, int? Disk, bool Enabled, long Revision);
++    private readonly object gate = new();
++    private readonly SemaphoreSlim changed = new(0, 1);
++    private readonly CancellationTokenSource stopped = new();
++    private readonly Action<DiskActivityUpdate> publish;
++    private readonly Func<string, CancellationToken, DiskActivityTarget?> resolve;
++    private readonly Func<CancellationToken, IReadOnlyList<DiskActivityTarget>> discover;
++    private readonly Func<int, IDiskActivitySource> create;
++    private readonly TimeSpan interval;
++    private readonly Task worker;
++    private Request desired = new(null, null, false, 0);
++    private long revision;
++    private int disposed;
++
++    internal DiskActivityMonitor(Action<DiskActivityUpdate> publish,
++        Func<string, CancellationToken, DiskActivityTarget?>? resolve = null,
++        Func<CancellationToken, IReadOnlyList<DiskActivityTarget>>? discover = null,
++        Func<int, IDiskActivitySource>? create = null, TimeSpan? interval = null)
++    {
++        this.publish = publish;
++        this.resolve = resolve ?? DiskActivityResolver.Resolve;
++        this.discover = discover ?? DiskActivityResolver.Discover;
++        this.create = create ?? (disk => new PdhDiskActivitySource(disk));
++        this.interval = interval ?? TimeSpan.FromSeconds(1);
++        if (this.interval <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(interval));
++        worker = Task.Run(Work);
++    }
++
++    internal Task Completion => worker;
++    internal bool IsCurrent(long value) => Volatile.Read(ref disposed) == 0 && value == Volatile.Read(ref revision);
++
++    internal long Update(string? path, int? disk, bool enabled)
++    {
++        lock (gate)
++        {
++            if (disposed != 0) return -1;
++            if (desired.Path == path && desired.Disk == disk && desired.Enabled == enabled) return desired.Revision;
++            desired = new(path, disk, enabled, Interlocked.Increment(ref revision));
++            try { changed.Release(); } catch (SemaphoreFullException) { }
++            return desired.Revision;
++        }
++    }
++
++    private Request Current() { lock (gate) return desired; }
++    internal void InvalidateTarget()
++    {
++        lock (gate)
++        {
++            if (disposed != 0) return;
++            desired = desired with { Revision = Interlocked.Increment(ref revision) };
++            try { changed.Release(); } catch (SemaphoreFullException) { }
++        }
++    }
++    private void Publish(Request request, DiskActivitySample? sample, string message,
++        IReadOnlyList<DiskActivityTarget>? targets = null)
++    {
++        if (IsCurrent(request.Revision)) publish(new(request.Revision, sample, message, targets));
++    }
++
++    private async Task Work()
++    {
++        IDiskActivitySource? source = null;
++        long activeRevision = -1;
++        var token = stopped.Token;
++        try
++        {
++            while (true)
++            {
++                token.ThrowIfCancellationRequested();
++                var request = Current();
++                while (changed.Wait(0)) { }
++                if (activeRevision != request.Revision)
++                {
++                    source?.Dispose(); source = null;
++                    activeRevision = request.Revision;
++                    if (request.Enabled)
++                    {
++                        Publish(request, null, "正在识别磁盘…");
++                        try
++                        {
++                            var targets = discover(token);
++                            if (!IsCurrent(request.Revision)) continue;
++                            Publish(request, null, "", targets);
++                            var target = request.Disk.HasValue
++                                ? targets.FirstOrDefault(item => item.DiskNumber == request.Disk.Value)
++                                : string.IsNullOrWhiteSpace(request.Path) ? null : resolve(request.Path, token);
++                            if (!IsCurrent(request.Revision)) continue;
++                            if (target == null)
++                                Publish(request, null, request.Disk.HasValue || !string.IsNullOrWhiteSpace(request.Path)
++                                    ? "无法可靠映射物理磁盘 · 可选择其他磁盘" : "选择扫描目录或手动选择磁盘");
++                            else
++                            {
++                                source = create(target.DiskNumber);
++                                Publish(request, null, "等待首个有效采样间隔…");
++                            }
++                        }
++                        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
++                        catch { Publish(request, null, "磁盘监测不可用"); }
++                    }
++                    else Publish(request, null, "已暂停 · 展开面板后采样");
++                }
++                if (source != null && request.Enabled && IsCurrent(request.Revision))
++                {
++                    try
++                    {
++                        var sample = source.Collect(token);
++                        Publish(request, sample, sample.Status switch
++                        {
++                            DiskActivityStatus.Waiting => "等待首个有效采样间隔…",
++                            DiskActivityStatus.Unavailable => "磁盘计数器不可用",
++                            _ => ""
++                        });
++                    }
++                    catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
++                    catch
++                    {
++                        source.Dispose(); source = null;
++                        Publish(request, null, "磁盘监测不可用 · 收起再展开可重试");
++                    }
++                }
++                if (!IsCurrent(request.Revision)) continue;
++                if (request.Enabled && source != null) await changed.WaitAsync(interval, token);
++                else await changed.WaitAsync(token);
++            }
++        }
++        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
++        finally
++        {
++            source?.Dispose();
++            // Serialize final CTS disposal with the UI's Cancel call.
++            lock (gate) { changed.Dispose(); stopped.Dispose(); }
++        }
++    }
++
++    public void Dispose()
++    {
++        lock (gate)
++        {
++            if (Interlocked.Exchange(ref disposed, 1) != 0) return;
++            Interlocked.Increment(ref revision);
++            stopped.Cancel();
++        }
++        // Native calls may finish later. The worker owns their final disposal;
++        // the UI never waits for a synchronous provider call during close.
++    }
++}
+diff --git a/src/Monitoring/DiskActivityPanel.cs b/src/Monitoring/DiskActivityPanel.cs
+new file mode 100644
+index 0000000..735d89f
+--- /dev/null
++++ b/src/Monitoring/DiskActivityPanel.cs
+@@ -0,0 +1,331 @@
++using System.Drawing.Drawing2D;
++using System.Globalization;
++using System.ComponentModel;
++
++namespace DiskAtlas;
++
++// UI-thread owned. Samples stay in this fixed, in-memory ring; no timer or disk I/O.
++internal sealed class DiskActivityPanel : Control
++{
++    private readonly DiskActivitySample?[] history = new DiskActivitySample?[60];
++    private int historyStart, historyCount;
++    private DiskActivitySample? current;
++    private DateTimeOffset? displayTime;
++    private string message = "等待采样";
++    private bool changingTargets, disposed;
++    private readonly ComboBox targetBox;
++    private readonly Button toggle;
++    private readonly Font heading = Theme.Font(9, FontStyle.Bold);
++    private readonly Font small = Theme.Font(8);
++    private readonly Font value = Theme.Font(13, FontStyle.Bold);
++
++    private sealed record TargetChoice(int? Number, string Label)
++    {
++        public override string ToString() => Label;
++    }
++
++    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
++    public bool Expanded { get; private set; }
++    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
++    public int? SelectedDiskNumber => (targetBox.SelectedItem as TargetChoice)?.Number;
++    public event EventHandler? ExpansionChanged;
++    public event EventHandler? TargetChanged;
++
++    public DiskActivityPanel()
++    {
++        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
++            ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
++        BackColor = Theme.Surface;
++        AccessibleName = "磁盘活动";
++        AccessibleRole = AccessibleRole.Grouping;
++        targetBox = new ComboBox
++        {
++            DropDownStyle = ComboBoxStyle.DropDownList, Font = small,
++            FlatStyle = FlatStyle.Flat, IntegralHeight = true, DropDownWidth = 220,
++            AccessibleName = "磁盘活动目标", AccessibleDescription = "跟随扫描目录，或选择整块物理磁盘。",
++            TabIndex = 0
++        };
++        targetBox.Items.Add(new TargetChoice(null, "跟随扫描目录"));
++        targetBox.SelectedIndex = 0;
++        targetBox.SelectedIndexChanged += (_, _) =>
++        {
++            if (changingTargets || disposed) return;
++            ResetHistory();
++            TargetChanged?.Invoke(this, EventArgs.Empty);
++        };
++        toggle = new Button
++        {
++            Text = "展开", Font = small, FlatStyle = FlatStyle.Flat,
++            BackColor = Theme.Surface, ForeColor = Theme.Accent, TabIndex = 1,
++            AccessibleName = "展开磁盘活动", UseVisualStyleBackColor = false
++        };
++        toggle.FlatAppearance.BorderSize = 1;
++        toggle.Click += (_, _) =>
++        {
++            if (disposed) return;
++            Expanded = !Expanded;
++            toggle.Text = Expanded ? "收起" : "展开";
++            toggle.AccessibleName = Expanded ? "收起磁盘活动" : "展开磁盘活动";
++            ExpansionChanged?.Invoke(this, EventArgs.Empty);
++            Invalidate();
++        };
++        Controls.Add(targetBox);
++        Controls.Add(toggle);
++        UpdateDescription();
++    }
++
++    public void SetTargets(IReadOnlyList<DiskActivityTarget> targets)
++    {
++        if (disposed) return;
++        ArgumentNullException.ThrowIfNull(targets);
++        int? previous = SelectedDiskNumber;
++        changingTargets = true;
++        targetBox.BeginUpdate();
++        try
++        {
++            targetBox.Items.Clear();
++            targetBox.Items.Add(new TargetChoice(null, "跟随扫描目录"));
++            var seen = new HashSet<int>();
++            foreach (var target in targets)
++                if (target.DiskNumber >= 0 && seen.Add(target.DiskNumber))
++                    targetBox.Items.Add(new TargetChoice(target.DiskNumber, target.Label));
++            targetBox.SelectedIndex = 0;
++            for (int i = 1; i < targetBox.Items.Count; i++)
++                if (((TargetChoice)targetBox.Items[i]!).Number == previous) targetBox.SelectedIndex = i;
++        }
++        finally { targetBox.EndUpdate(); changingTargets = false; }
++        if (previous != SelectedDiskNumber)
++        {
++            ResetHistory();
++            TargetChanged?.Invoke(this, EventArgs.Empty);
++        }
++        Invalidate();
++    }
++
++    public void SetSample(DiskActivitySample sample)
++    {
++        if (disposed) return;
++        ArgumentNullException.ThrowIfNull(sample);
++        if (displayTime.HasValue && displayTime.Value - sample.Timestamp > TimeSpan.FromSeconds(4)) return;
++        if (historyCount > 0 && At(historyCount - 1).DiskNumber != sample.DiskNumber) ResetHistory();
++        if (current != null && current.DiskNumber != sample.DiskNumber) ResetHistory();
++        if (historyCount > 0 && sample.Timestamp <= At(historyCount - 1).Timestamp) return;
++        while (historyCount > 0 && sample.Timestamp - At(0).Timestamp >= TimeSpan.FromSeconds(60))
++        { history[historyStart] = null; historyStart = (historyStart + 1) % history.Length; historyCount--; }
++        if (historyCount == history.Length)
++        { history[historyStart] = null; historyStart = (historyStart + 1) % history.Length; historyCount--; }
++        history[(historyStart + historyCount) % history.Length] = sample;
++        historyCount++;
++        current = sample;
++        if (!displayTime.HasValue || sample.Timestamp > displayTime) displayTime = sample.Timestamp;
++        message = sample.Status switch
++        {
++            DiskActivityStatus.Available => $"磁盘 {sample.DiskNumber} · 最近 60 秒",
++            DiskActivityStatus.Waiting => "等待采样",
++            _ => "磁盘活动暂不可用"
++        };
++        UpdateDescription();
++        Invalidate();
++    }
++
++    public void SetMessage(string text)
++    {
++        if (disposed) return;
++        ResetHistory();
++        message = string.IsNullOrWhiteSpace(text) ? "等待采样" : text[..Math.Min(text.Length, 160)];
++        UpdateDescription();
++        Invalidate();
++    }
++
++    public void ResetHistory()
++    {
++        if (disposed) return;
++        Array.Clear(history);
++        historyStart = historyCount = 0;
++        current = null;
++        displayTime = null;
++        message = "等待采样";
++        UpdateDescription();
++        Invalidate();
++    }
++
++    // Called by the visible host's 1 Hz UI clock, even if a native provider stalls.
++    internal void AdvanceClock(DateTimeOffset now)
++    {
++        if (disposed) return;
++        if (displayTime.HasValue && now < displayTime.Value)
++        {
++            ResetHistory();
++            message = "时间变化 · 等待更新";
++            UpdateDescription();
++            return;
++        }
++        displayTime = now;
++        while (historyCount > 0 && now - At(0).Timestamp >= TimeSpan.FromSeconds(60))
++        { history[historyStart] = null; historyStart = (historyStart + 1) % history.Length; historyCount--; }
++        if (current != null && now - current.Timestamp > TimeSpan.FromSeconds(4))
++        {
++            current = null;
++            message = "采样延迟 · 等待更新";
++        }
++        UpdateDescription();
++        Invalidate();
++    }
++
++    private DiskActivitySample At(int index) => history[(historyStart + index) % history.Length]!;
++    private int S(float logical) => (int)Math.Round(logical * DeviceDpi / 96f);
++    private static double? Valid(double? number, double max = double.MaxValue) =>
++        number is { } value && double.IsFinite(value) && value >= 0 && value <= max ? value : null;
++    private double? Metric(Func<DiskActivitySample, double?> getter, double max = double.MaxValue) =>
++        current?.Status == DiskActivityStatus.Available ? Valid(getter(current), max) : null;
++    private static string Number(double? number, string suffix, bool integer = false) =>
++        number is { } value ? value.ToString(integer ? "0" : "0.0", CultureInfo.CurrentCulture) + suffix : "—";
++    private string[] Values() =>
++    [
++        Number(Metric(sample => sample.ActivePercent, 100), "%", true),
++        Number(Metric(sample => sample.ReadBytesPerSecond) / (1024 * 1024), " MiB/s"),
++        Number(Metric(sample => sample.WriteBytesPerSecond) / (1024 * 1024), " MiB/s"),
++        Number(Metric(sample => sample.ResponseMilliseconds), " 毫秒")
++    ];
++    private void UpdateDescription()
++    {
++        var values = Values();
++        AccessibleDescription = $"整块磁盘，包含其他进程；{message}；活动时间 {values[0]}；读取速度 {values[1]}；写入速度 {values[2]}；平均响应 {values[3]}";
++    }
++
++    protected override void OnLayout(LayoutEventArgs levent)
++    {
++        base.OnLayout(levent);
++        if (targetBox == null || toggle == null) return;
++        toggle.Bounds = new Rectangle(Math.Max(0, Width - S(62)), S(3), S(52), S(24));
++        targetBox.Bounds = new Rectangle(Math.Max(0, toggle.Left - S(118)), S(4), S(110), S(23));
++    }
++    protected override void OnDpiChangedAfterParent(EventArgs e)
++    {
++        base.OnDpiChangedAfterParent(e);
++        PerformLayout();
++        Invalidate();
++    }
++
++    private List<PointF[]> BuildSegments(RectangleF chart)
++    {
++        var result = new List<PointF[]>();
++        if (historyCount == 0) return result;
++        var segment = new List<PointF>(60);
++        DiskActivitySample? previous = null;
++        DateTimeOffset end = displayTime ?? At(historyCount - 1).Timestamp;
++        void Flush() { if (segment.Count > 0) result.Add(segment.ToArray()); segment.Clear(); }
++        for (int i = 0; i < historyCount; i++)
++        {
++            var sample = At(i);
++            double? active = sample.Status == DiskActivityStatus.Available ? Valid(sample.ActivePercent, 100) : null;
++            if (active == null) { Flush(); previous = null; continue; }
++            if (previous != null && (sample.Timestamp - previous.Timestamp > TimeSpan.FromSeconds(2.5) ||
++                sample.DiskNumber != previous.DiskNumber)) Flush();
++            segment.Add(new PointF(chart.Right - chart.Width * (float)(end - sample.Timestamp).TotalSeconds / 60,
++                chart.Bottom - chart.Height * (float)active.Value / 100));
++            previous = sample;
++        }
++        Flush();
++        return result;
++    }
++
++    protected override void OnPaint(PaintEventArgs e)
++    {
++        if (disposed || Width < 2 || Height < 2) return;
++        base.OnPaint(e);
++        bool contrast = SystemInformation.HighContrast;
++        Color surface = contrast ? SystemColors.Window : Theme.Surface;
++        Color text = contrast ? SystemColors.WindowText : Theme.Text;
++        Color muted = contrast ? SystemColors.WindowText : Theme.Muted;
++        Color accent = contrast ? SystemColors.Highlight : Theme.Accent;
++        Color borderColor = contrast ? SystemColors.WindowText : Theme.Border;
++        if (BackColor != surface) BackColor = surface;
++        targetBox.BackColor = toggle.BackColor = surface;
++        targetBox.ForeColor = text;
++        toggle.ForeColor = accent;
++        toggle.FlatAppearance.BorderColor = borderColor;
++        var graphics = e.Graphics;
++        graphics.SmoothingMode = SmoothingMode.AntiAlias;
++        using var border = new Pen(borderColor);
++        using var outline = Theme.Round(new RectangleF(.5f, .5f, Width - 1, Height - 1), S(9));
++        graphics.DrawPath(border, outline);
++        DrawText(graphics, "磁盘活动", heading, text, new Rectangle(S(14), S(3), S(82), S(24)));
++        int textEnd = targetBox.Left - S(10);
++        DrawText(graphics, "整块磁盘，包含其他进程", small, muted,
++            new Rectangle(S(104), S(3), Math.Max(0, Math.Min(S(192), textEnd - S(104))), S(24)));
++        if (textEnd > S(340))
++        {
++            string summary = !Expanded && current?.Status == DiskActivityStatus.Available
++                ? $"{Values()[0]} · 读 {Values()[1]}" : message;
++            DrawText(graphics, summary, small, muted,
++                new Rectangle(S(306), S(3), Math.Max(0, textEnd - S(306)), S(24)));
++        }
++        if (!Expanded) return;
++        float logicalWidth = Width * 96f / DeviceDpi;
++        float chartRight = Width * (logicalWidth < 900 ? .34f : .44f);
++        var chart = new RectangleF(S(14), S(35), Math.Max(S(50), chartRight - S(30)), S(47));
++        using var grid = new Pen(contrast ? borderColor : Theme.Mix(borderColor, surface, .4f));
++        for (int i = 0; i <= 4; i++)
++        {
++            float y = chart.Top + chart.Height * i / 4;
++            graphics.DrawLine(grid, chart.Left, y, chart.Right, y);
++        }
++        for (int i = 0; i <= 6; i++)
++        {
++            float x = chart.Left + chart.Width * i / 6;
++            graphics.DrawLine(grid, x, chart.Top, x, chart.Bottom);
++        }
++        using var line = new Pen(accent, 1.5f * DeviceDpi / 96f);
++        using var fill = new SolidBrush(Color.FromArgb(contrast ? 0 : 30, accent));
++        foreach (var points in BuildSegments(chart))
++        {
++            if (points.Length == 1)
++            {
++                using var dot = new SolidBrush(accent);
++                graphics.FillEllipse(dot, points[0].X - S(1), points[0].Y - S(1), S(2), S(2));
++                continue;
++            }
++            using var area = new GraphicsPath();
++            area.AddLines(points);
++            area.AddLine(points[^1], new PointF(points[^1].X, chart.Bottom));
++            area.AddLine(new PointF(points[^1].X, chart.Bottom), new PointF(points[0].X, chart.Bottom));
++            area.CloseFigure();
++            graphics.FillPath(fill, area);
++            graphics.DrawLines(line, points);
++        }
++        DrawText(graphics, current == null ? "最近 60 秒 · 活动时间" : $"磁盘 {current.DiskNumber} · 最近 60 秒", small, muted,
++            new Rectangle(S(14), S(82), Math.Max(0, (int)chart.Width), S(18)));
++        string[] labels = ["活动时间", "读取速度", "写入速度", "平均响应"];
++        string[] values = Values();
++        float start = chartRight + S(14), cell = Math.Max(0, (Width - start - S(12)) / 4);
++        for (int i = 0; i < labels.Length; i++)
++        {
++            float x = start + cell * i;
++            if (i > 0) graphics.DrawLine(grid, x - S(10), S(40), x - S(10), S(87));
++            DrawText(graphics, labels[i], small, muted,
++                new Rectangle((int)x, S(35), Math.Max(0, (int)cell - S(10)), S(21)));
++            DrawText(graphics, values[i], value, i == 0 ? accent : text,
++                new Rectangle((int)x, S(57), Math.Max(0, (int)cell - S(10)), S(30)));
++        }
++    }
++
++    private static void DrawText(Graphics graphics, string text, Font font, Color color, Rectangle bounds)
++    {
++        if (bounds.Width > 0 && bounds.Height > 0) Theme.TextAt(graphics, text, font, color, bounds);
++    }
++
++    protected override void Dispose(bool disposing)
++    {
++        if (disposing && !disposed)
++        {
++            disposed = true;
++            Array.Clear(history);
++            current = null;
++            ExpansionChanged = null;
++            TargetChanged = null;
++            heading.Dispose(); small.Dispose(); value.Dispose();
++        }
++        base.Dispose(disposing);
++    }
++}
+diff --git a/src/Monitoring/DiskActivityResolver.cs b/src/Monitoring/DiskActivityResolver.cs
+new file mode 100644
+index 0000000..510ea74
+--- /dev/null
++++ b/src/Monitoring/DiskActivityResolver.cs
+@@ -0,0 +1,161 @@
++using System.Buffers.Binary;
++using System.Runtime.InteropServices;
++using System.Security;
++using System.Text;
++using Microsoft.Win32.SafeHandles;
++
++namespace DiskAtlas;
++
++internal sealed record DiskActivityTarget(int DiskNumber, string Label);
++
++// Resolves Windows physical-disk counter numbers without enumerating any files.
++// Unsupported/ambiguous mappings remain unavailable instead of choosing a disk.
++internal static class DiskActivityResolver
++{
++    private const uint VolumeDiskExtents = 0x00560000, StorageQueryProperty = 0x002d1400;
++    private const int SingleExtentBytes = 32, DescriptorPrefixBytes = 36, MaximumDescriptorBytes = 65536;
++
++    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
++    private static extern bool GetVolumePathNameW(string path, StringBuilder mountPoint, uint length);
++    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
++    private static extern bool GetVolumeNameForVolumeMountPointW(string mountPoint, StringBuilder volumeName, uint length);
++    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
++    private static extern uint GetDriveTypeW(string root);
++
++    internal static DiskActivityTarget? Resolve(string path, CancellationToken token = default)
++    {
++        token.ThrowIfCancellationRequested();
++        if (!OperatingSystem.IsWindows() || !IsLocalAbsolutePath(path)) return null;
++        try
++        {
++            string absolute = Path.GetFullPath(path);
++            var mountPoint = new StringBuilder(32768);
++            bool mapped = GetVolumePathNameW(absolute, mountPoint, (uint)mountPoint.Capacity);
++            token.ThrowIfCancellationRequested();
++            if (!mapped || !IsLocalAbsolutePath(mountPoint.ToString())) return null;
++            string mount = mountPoint.ToString();
++            uint driveType = GetDriveTypeW(mount);
++            token.ThrowIfCancellationRequested();
++            if (driveType != 3) return null; // DRIVE_FIXED only; never UNC/removable.
++            var volumeName = new StringBuilder(64);
++            bool named = GetVolumeNameForVolumeMountPointW(mount, volumeName, (uint)volumeName.Capacity);
++            token.ThrowIfCancellationRequested();
++            if (!named || !IsVolumeGuidPath(volumeName.ToString())) return null;
++
++            using var volume = NativeStorage.CreateFileW(volumeName.ToString()[..^1], 0, NativeStorage.ShareAll,
++                IntPtr.Zero, 3, 0, IntPtr.Zero);
++            token.ThrowIfCancellationRequested();
++            if (volume.IsInvalid) return null;
++            var extents = new byte[SingleExtentBytes];
++            bool located = NativeStorage.DeviceIoControl(volume, VolumeDiskExtents, null, 0, extents, extents.Length,
++                out int returned, IntPtr.Zero);
++            token.ThrowIfCancellationRequested();
++            if (!located || !TryReadSingleExtent(extents, returned, out int diskNumber)) return null;
++
++            using var disk = NativeStorage.CreateFileW(@"\\.\PhysicalDrive" + diskNumber, 0, NativeStorage.ShareAll,
++                IntPtr.Zero, 3, 0, IntPtr.Zero);
++            token.ThrowIfCancellationRequested();
++            if (disk.IsInvalid || !ReadSupportedDevice(disk, token)) return null;
++            token.ThrowIfCancellationRequested();
++            return new(diskNumber, "磁盘 " + diskNumber);
++        }
++        catch (Exception error) when (IsExpectedReadFailure(error)) { return null; }
++    }
++
++    internal static IReadOnlyList<DiskActivityTarget> Discover(CancellationToken token = default)
++    {
++        token.ThrowIfCancellationRequested();
++        if (!OperatingSystem.IsWindows()) return Array.Empty<DiskActivityTarget>();
++        DriveInfo[] drives;
++        try { drives = DriveInfo.GetDrives(); }
++        catch (Exception error) when (IsExpectedReadFailure(error)) { return Array.Empty<DiskActivityTarget>(); }
++        var targets = new SortedDictionary<int, DiskActivityTarget>();
++        foreach (var drive in drives)
++        {
++            token.ThrowIfCancellationRequested();
++            try
++            {
++                if (drive.DriveType != DriveType.Fixed) continue;
++                var target = Resolve(drive.RootDirectory.FullName, token);
++                if (target != null) targets.TryAdd(target.DiskNumber, target);
++            }
++            catch (Exception error) when (IsExpectedReadFailure(error)) { }
++        }
++        token.ThrowIfCancellationRequested();
++        return Array.AsReadOnly(targets.Values.ToArray());
++    }
++
++    private static bool ReadSupportedDevice(SafeFileHandle disk, CancellationToken token)
++    {
++        byte[] query = new byte[12]; // StorageDeviceProperty=0, PropertyStandardQuery=0.
++        var header = new byte[8];
++        bool received = NativeStorage.DeviceIoControl(disk, StorageQueryProperty, query, query.Length, header, header.Length,
++            out int returned, IntPtr.Zero);
++        token.ThrowIfCancellationRequested();
++        if (!received || !TryReadDescriptorSize(header, returned, out int size)) return false;
++        var descriptor = new byte[size];
++        received = NativeStorage.DeviceIoControl(disk, StorageQueryProperty, query, query.Length, descriptor, descriptor.Length,
++            out returned, IntPtr.Zero);
++        token.ThrowIfCancellationRequested();
++        return received && IsSupportedDeviceDescriptor(descriptor, returned);
++    }
++
++    // The native VOLUME_DISK_EXTENTS layout aligns DISK_EXTENT at offset 8;
++    // DiskNumber is at 8, StartingOffset at 16, and ExtentLength at 24.
++    internal static bool TryReadSingleExtent(ReadOnlySpan<byte> buffer, int returned, out int diskNumber)
++    {
++        diskNumber = -1;
++        if (returned < SingleExtentBytes || returned > buffer.Length) return false;
++        var bytes = buffer[..returned];
++        if (BinaryPrimitives.ReadUInt32LittleEndian(bytes) != 1) return false;
++        uint number = BinaryPrimitives.ReadUInt32LittleEndian(bytes[8..]);
++        long start = BinaryPrimitives.ReadInt64LittleEndian(bytes[16..]);
++        long length = BinaryPrimitives.ReadInt64LittleEndian(bytes[24..]);
++        if (number > int.MaxValue || start < 0 || length <= 0 || start > long.MaxValue - length) return false;
++        diskNumber = (int)number;
++        return true;
++    }
++
++    internal static bool TryReadDescriptorSize(ReadOnlySpan<byte> header, int returned, out int size)
++    {
++        size = 0;
++        if (returned < 8 || returned > header.Length) return false;
++        uint version = BinaryPrimitives.ReadUInt32LittleEndian(header);
++        uint declared = BinaryPrimitives.ReadUInt32LittleEndian(header[4..]);
++        if (version < DescriptorPrefixBytes || version > declared || declared < DescriptorPrefixBytes || declared > MaximumDescriptorBytes)
++            return false;
++        size = (int)declared;
++        return true;
++    }
++
++    internal static bool IsSupportedDeviceDescriptor(ReadOnlySpan<byte> buffer, int returned)
++    {
++        if (!TryReadDescriptorSize(buffer, returned, out int size) || size > returned) return false;
++        // SCSI direct-access block device, non-removable. Never decode identifying strings.
++        if (buffer[8] != 0 || buffer[10] != 0) return false;
++        uint rawLength = BinaryPrimitives.ReadUInt32LittleEndian(buffer[32..]);
++        if (rawLength > size - DescriptorPrefixBytes) return false;
++        return IsSupportedBusType(BinaryPrimitives.ReadUInt32LittleEndian(buffer[28..]));
++    }
++
++    internal static bool IsSupportedBusType(uint bus) => bus is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 10 or 11 or 12 or 13 or 17 or 18 or 19;
++
++    internal static bool IsLocalAbsolutePath(string? path)
++    {
++        if (string.IsNullOrWhiteSpace(path) || path.IndexOf('\0') >= 0) return false;
++        ReadOnlySpan<char> local = path.AsSpan();
++        if (local.StartsWith(@"\\?\", StringComparison.Ordinal)) local = local[4..];
++        return local.Length >= 3 && char.IsAsciiLetter(local[0]) && local[1] == ':' &&
++            (local[2] == '\\' || local[2] == '/');
++    }
++
++    internal static bool IsVolumeGuidPath(string value)
++    {
++        const string prefix = @"\\?\Volume{";
++        return value.Length == prefix.Length + 38 && value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
++            value.EndsWith(@"}\", StringComparison.Ordinal) && Guid.TryParseExact(value.AsSpan(prefix.Length, 36), "D", out _);
++    }
++
++    internal static bool IsExpectedReadFailure(Exception error) => error is IOException or UnauthorizedAccessException or
++        ArgumentException or NotSupportedException or SecurityException or DllNotFoundException or EntryPointNotFoundException;
++}
+diff --git a/src/Monitoring/DiskActivitySource.cs b/src/Monitoring/DiskActivitySource.cs
+new file mode 100644
+index 0000000..405efae
+--- /dev/null
++++ b/src/Monitoring/DiskActivitySource.cs
+@@ -0,0 +1,279 @@
++using System.Globalization;
++using System.Runtime.InteropServices;
++
++namespace DiskAtlas;
++
++internal enum DiskActivityStatus { Waiting, Available, Unavailable }
++internal sealed record DiskActivitySample(DateTimeOffset Timestamp, int DiskNumber, double? ActivePercent,
++    double? ReadBytesPerSecond, double? WriteBytesPerSecond, double? ResponseMilliseconds, DiskActivityStatus Status);
++internal interface IDiskActivitySource : IDisposable
++{
++    DiskActivitySample Collect(CancellationToken token);
++}
++
++// Internal seam keeps buffer/state tests independent of the machine's disks and counters.
++internal sealed record DiskActivityCounter(string Instance, int DiskNumber, double? Value);
++internal interface IDiskActivityQuery : IDisposable
++{
++    bool Collect(CancellationToken token);
++    IReadOnlyList<DiskActivityCounter>? Read(int counter, CancellationToken token);
++}
++
++// Owned by one background sampling loop. The constructor does not call PDH.
++internal sealed class PdhDiskActivitySource : IDiskActivitySource
++{
++    private readonly int diskNumber;
++    private readonly Func<IDiskActivityQuery> createQuery;
++    private readonly object gate = new();
++    private IDiskActivityQuery? query;
++    private bool primed, disposed;
++
++    internal PdhDiskActivitySource(int diskNumber) : this(diskNumber, () => new PdhDiskActivityQuery()) { }
++    internal PdhDiskActivitySource(int diskNumber, Func<IDiskActivityQuery> createQuery)
++    {
++        ArgumentOutOfRangeException.ThrowIfNegative(diskNumber);
++        this.diskNumber = diskNumber;
++        this.createQuery = createQuery ?? throw new ArgumentNullException(nameof(createQuery));
++    }
++
++    public DiskActivitySample Collect(CancellationToken token)
++    {
++        token.ThrowIfCancellationRequested();
++        lock (gate)
++        {
++            ObjectDisposedException.ThrowIf(disposed, this);
++            token.ThrowIfCancellationRequested();
++            try
++            {
++                query ??= createQuery();
++                bool collected = query.Collect(token);
++                DateTimeOffset collectedAt = DateTimeOffset.UtcNow;
++                token.ThrowIfCancellationRequested();
++                if (!collected)
++                {
++                    primed = false;
++                    return Empty(DiskActivityStatus.Unavailable);
++                }
++                if (!primed)
++                {
++                    primed = true;
++                    return Empty(DiskActivityStatus.Waiting);
++                }
++                var counters = new IReadOnlyList<DiskActivityCounter>?[4];
++                for (int i = 0; i < counters.Length; i++)
++                {
++                    token.ThrowIfCancellationRequested();
++                    counters[i] = query.Read(i, token);
++                }
++                token.ThrowIfCancellationRequested();
++                return Compose(collectedAt, diskNumber, counters[0], counters[1], counters[2], counters[3]);
++            }
++            catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
++            {
++                primed = false;
++                return Empty(DiskActivityStatus.Unavailable);
++            }
++        }
++    }
++
++    private DiskActivitySample Empty(DiskActivityStatus status) => new(DateTimeOffset.UtcNow, diskNumber, null, null, null, null, status);
++
++    internal static DiskActivitySample Compose(DateTimeOffset timestamp, int diskNumber,
++        IReadOnlyList<DiskActivityCounter>? idle, IReadOnlyList<DiskActivityCounter>? read,
++        IReadOnlyList<DiskActivityCounter>? write, IReadOnlyList<DiskActivityCounter>? response)
++    {
++        var arrays = new[] { idle, read, write, response };
++        var matches = new DiskActivityCounter?[4];
++        for (int i = 0; i < arrays.Length; i++)
++        {
++            if (arrays[i] is not { } items) continue;
++            bool duplicate = false;
++            foreach (var item in items)
++            {
++                if (item.DiskNumber != diskNumber || !TryParseInstance(item.Instance, out int parsed) || parsed != diskNumber) continue;
++                if (matches[i] != null) { duplicate = true; break; }
++                matches[i] = item;
++            }
++            if (duplicate) matches[i] = null;
++        }
++        // A topology/instance-name change between arrays must not join different instances.
++        string[] names = matches.Where(item => item != null).Select(item => item!.Instance).Distinct(StringComparer.Ordinal).ToArray();
++        if (names.Length != 1) return new(timestamp, diskNumber, null, null, null, null, DiskActivityStatus.Unavailable);
++        static double? Nonnegative(double? value) => value is { } number && double.IsFinite(number) && number >= 0 ? number : null;
++        double? idleValue = Nonnegative(matches[0]?.Value);
++        double? active = idleValue is <= 100 ? 100 - idleValue.Value : null;
++        double? readValue = Nonnegative(matches[1]?.Value), writeValue = Nonnegative(matches[2]?.Value);
++        double? seconds = Nonnegative(matches[3]?.Value);
++        double? milliseconds = seconds.HasValue ? Nonnegative(seconds.Value * 1000) : null;
++        bool available = active.HasValue || readValue.HasValue || writeValue.HasValue || milliseconds.HasValue;
++        return new(timestamp, diskNumber, active, readValue, writeValue, milliseconds,
++            available ? DiskActivityStatus.Available : DiskActivityStatus.Unavailable);
++    }
++
++    internal static bool TryParseInstance(string? name, out int diskNumber)
++    {
++        diskNumber = -1;
++        if (string.IsNullOrEmpty(name) || name.Length > 256) return false;
++        int digits = 0;
++        while (digits < name.Length && char.IsAsciiDigit(name[digits])) digits++;
++        if (digits == 0 || (digits > 1 && name[0] == '0') ||
++            !int.TryParse(name.AsSpan(0, digits), NumberStyles.None, CultureInfo.InvariantCulture, out int number)) return false;
++        var letters = new HashSet<char>();
++        for (int i = digits; i < name.Length; i += 3)
++        {
++            if (i + 2 >= name.Length || name[i] != ' ' || !char.IsAsciiLetter(name[i + 1]) || name[i + 2] != ':' ||
++                !letters.Add(char.ToUpperInvariant(name[i + 1]))) return false;
++        }
++        diskNumber = number;
++        return true;
++    }
++
++    public void Dispose()
++    {
++        lock (gate)
++        {
++            if (disposed) return;
++            disposed = true;
++            query?.Dispose();
++            query = null;
++        }
++    }
++}
++
++internal sealed class PdhDiskActivityQuery : IDiskActivityQuery
++{
++    internal const int MaximumBufferBytes = 1024 * 1024, MaximumItems = 4096, ItemBytes = 24;
++    private const uint MoreData = 0x800007D2, InvalidArgument = 0xC0000BBD;
++    private const uint Format = 0x00000200 | 0x00001000 | 0x00008000; // DOUBLE | NOSCALE | NOCAP100; validate idle bounds ourselves.
++    private readonly IntPtr[] counters = new IntPtr[4];
++    private IntPtr query;
++    private bool disposed;
++
++    [StructLayout(LayoutKind.Explicit, Size = ItemBytes)]
++    internal struct FormattedItem
++    {
++        [FieldOffset(0)] internal IntPtr Name;
++        [FieldOffset(8)] internal uint Status;
++        [FieldOffset(16)] internal double Value;
++    }
++
++    internal PdhDiskActivityQuery()
++    {
++        if (!OperatingSystem.IsWindows() || IntPtr.Size != 8) return;
++        if (PdhOpenQueryW(null, UIntPtr.Zero, out query) != 0 || query == IntPtr.Zero)
++        {
++            if (query != IntPtr.Zero) PdhCloseQuery(query);
++            query = IntPtr.Zero;
++            return;
++        }
++        try
++        {
++            string[] paths = [@"\PhysicalDisk(*)\% Idle Time", @"\PhysicalDisk(*)\Disk Read Bytes/sec",
++                @"\PhysicalDisk(*)\Disk Write Bytes/sec", @"\PhysicalDisk(*)\Avg. Disk sec/Transfer"];
++            for (int i = 0; i < paths.Length; i++)
++                if (PdhAddEnglishCounterW(query, paths[i], UIntPtr.Zero, out var counter) == 0) counters[i] = counter;
++        }
++        catch
++        {
++            PdhCloseQuery(query);
++            query = IntPtr.Zero;
++            throw;
++        }
++    }
++
++    public bool Collect(CancellationToken token)
++    {
++        ObjectDisposedException.ThrowIf(disposed, this);
++        token.ThrowIfCancellationRequested();
++        bool success = query != IntPtr.Zero && counters.Any(counter => counter != IntPtr.Zero) && PdhCollectQueryData(query) == 0;
++        token.ThrowIfCancellationRequested();
++        return success;
++    }
++
++    public IReadOnlyList<DiskActivityCounter>? Read(int counter, CancellationToken token)
++    {
++        ObjectDisposedException.ThrowIf(disposed, this);
++        ArgumentOutOfRangeException.ThrowIfNegative(counter);
++        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(counter, counters.Length);
++        token.ThrowIfCancellationRequested();
++        if (query == IntPtr.Zero || counters[counter] == IntPtr.Zero) return null;
++        // Restart the size probe after a race; PDH does not guarantee the size
++        // returned when an already nonzero buffer is insufficient.
++        for (int attempt = 0; attempt < 2; attempt++)
++        {
++            token.ThrowIfCancellationRequested();
++            uint bytes = 0;
++            uint status = PdhGetFormattedCounterArrayW(counters[counter], Format, ref bytes, out uint count, IntPtr.Zero);
++            if (status == 0 && count == 0) return Array.Empty<DiskActivityCounter>();
++            if (status != MoreData || bytes is 0 or > MaximumBufferBytes || count > MaximumItems) return null;
++            int capacity = (int)bytes;
++            IntPtr buffer = Marshal.AllocHGlobal(capacity);
++            try
++            {
++                status = PdhGetFormattedCounterArrayW(counters[counter], Format, ref bytes, out count, buffer);
++                token.ThrowIfCancellationRequested();
++                if (status is MoreData or InvalidArgument) continue;
++                if (status != 0 || bytes > capacity) return null;
++                return TryDecodeArray(buffer, (int)bytes, count, out var values) ? values : null;
++            }
++            finally { Marshal.FreeHGlobal(buffer); }
++        }
++        return null;
++    }
++
++    // The caller owns a readable buffer of exactly bufferBytes. Every embedded
++    // string pointer is checked against that same allocation before dereferencing.
++    internal static bool TryDecodeArray(IntPtr buffer, int bufferBytes, uint count, out IReadOnlyList<DiskActivityCounter> values)
++    {
++        values = Array.Empty<DiskActivityCounter>();
++        if (IntPtr.Size != 8 || bufferBytes < 0 || bufferBytes > MaximumBufferBytes || count > MaximumItems ||
++            (long)count * ItemBytes > bufferBytes) return false;
++        if (count == 0) return true;
++        long start = buffer.ToInt64();
++        if (start <= 0 || start > long.MaxValue - bufferBytes) return false;
++        long stringsStart = start + (long)count * ItemBytes, end = start + bufferBytes;
++        var output = new List<DiskActivityCounter>((int)count);
++        var disks = new HashSet<int>();
++        for (int i = 0; i < count; i++)
++        {
++            var item = Marshal.PtrToStructure<FormattedItem>(IntPtr.Add(buffer, i * ItemBytes));
++            long name = item.Name.ToInt64();
++            if (name < stringsStart || name > end - 2 || (name - start) % 2 != 0) return false;
++            int maximum = (int)Math.Min(257, (end - name) / 2), length = 0;
++            while (length < maximum && Marshal.ReadInt16(item.Name, length * 2) != 0) length++;
++            if (length == maximum || length > 256) return false;
++            string instance = Marshal.PtrToStringUni(item.Name, length) ?? string.Empty;
++            if (!PdhDiskActivitySource.TryParseInstance(instance, out int disk)) continue;
++            if (!disks.Add(disk)) return false;
++            double? number = item.Status is 0 or 1 && double.IsFinite(item.Value) && item.Value >= 0 ? item.Value : null;
++            output.Add(new(instance, disk, number));
++        }
++        values = output.AsReadOnly();
++        return true;
++    }
++
++    public void Dispose()
++    {
++        if (disposed) return;
++        disposed = true;
++        if (query != IntPtr.Zero) PdhCloseQuery(query); // Also removes all added counters.
++        query = IntPtr.Zero;
++        Array.Clear(counters);
++    }
++
++    [DllImport("pdh.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
++    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
++    private static extern uint PdhOpenQueryW(string? source, UIntPtr userData, out IntPtr query);
++    [DllImport("pdh.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
++    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
++    private static extern uint PdhAddEnglishCounterW(IntPtr query, string path, UIntPtr userData, out IntPtr counter);
++    [DllImport("pdh.dll", ExactSpelling = true)]
++    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
++    private static extern uint PdhCollectQueryData(IntPtr query);
++    [DllImport("pdh.dll", ExactSpelling = true)]
++    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
++    private static extern uint PdhGetFormattedCounterArrayW(IntPtr counter, uint format, ref uint bufferBytes, out uint count, IntPtr buffer);
++    [DllImport("pdh.dll", ExactSpelling = true)]
++    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
++    private static extern uint PdhCloseQuery(IntPtr query);
++}
+diff --git a/tests/DiskActivityLayoutPreview.cs b/tests/DiskActivityLayoutPreview.cs
+new file mode 100644
+index 0000000..25f86ad
+--- /dev/null
++++ b/tests/DiskActivityLayoutPreview.cs
+@@ -0,0 +1,137 @@
++using DiskAtlas;
++using System.Reflection;
++using System.Runtime.InteropServices;
++
++// A visible, synthetic layout study. It neither samples disks nor loads saved settings.
++internal static class DiskActivityLayoutPreview
++{
++    [DllImport("user32.dll", SetLastError = true)]
++    private static extern bool PrintWindow(IntPtr window, IntPtr dc, uint flags);
++    public static int Run(string output, bool minimum = false)
++    {
++        try { return Render(output, minimum); }
++        catch
++        {
++            Console.Error.WriteLine("FAIL DISK_ACTIVITY_LAYOUT_PREVIEW");
++            return 1;
++        }
++    }
++
++    private static int Render(string output, bool minimum)
++    {
++        string target = Path.GetFullPath(output);
++        string expected = Path.GetFullPath(Path.Combine("artifacts", minimum ? "monitor-minimum.png" : "monitor-layout.png"));
++        if (!target.Equals(expected, StringComparison.OrdinalIgnoreCase) || File.Exists(target))
++            throw new InvalidOperationException();
++        Exception? failure = null;
++        var thread = new Thread(() =>
++        {
++            try
++            {
++                Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles();
++                Application.SetCompatibleTextRenderingDefault(false);
++                Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
++                var root = CreateSample();
++                using var iconStream = typeof(MainForm).Assembly.GetManifestResourceStream("DiskAtlas.AppIcon")!;
++                using var icon = new Icon(iconStream);
++                using var form = new MainForm(null)
++                {
++                    Icon = icon,
++                    ScanRunner = (_, _, _, _) => new(root, TimeSpan.FromSeconds(1.2), 0, [])
++                };
++                form.Shown += async (_, _) =>
++                {
++                    try
++                    {
++                        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
++                        if (minimum) { form.Size = form.MinimumSize; form.Location = Point.Empty; }
++                        await (Task)typeof(MainForm).GetMethod("ScanFolder", flags)!.Invoke(form, [root.Path])!;
++                        await (Task)typeof(MainForm).GetMethod("UpdateViewAsync", flags)!.Invoke(form, [false])!;
++                        var main = Descendants(form).OfType<TableLayoutPanel>()
++                            .Single(table => table.ColumnCount == 1 && table.RowCount == 9);
++                        typeof(MainForm).GetField("activityMonitor", flags)!.SetValue(form,
++                            new DiskActivityMonitor(_ => { }, (_, _) => null, _ => [], _ => throw new InvalidOperationException()));
++                        var panel = Descendants(form).OfType<DiskActivityPanel>().Single();
++                        var toggle = panel.Controls.OfType<Button>().Single();
++                        toggle.PerformClick();
++                        if (!panel.Expanded || Math.Abs(main.RowStyles[6].Height - 110 * form.DeviceDpi / 96f) > 1)
++                            throw new InvalidOperationException();
++                        var end = DateTimeOffset.UtcNow;
++                        for (int i = 0; i < 60; i++)
++                            panel.SetSample(new(end.AddSeconds(i - 59), 0,
++                                12 + 10 * Math.Sin(i * .36) + (i is >= 20 and <= 27 ? 38 : 0) + (i is >= 42 and <= 47 ? 57 : 0),
++                                24.8 * 1024 * 1024, 2.1 * 1024 * 1024, .4, DiskActivityStatus.Available));
++                        ((Label)typeof(MainForm).GetField("subtitle", flags)!.GetValue(form)!).Text = "布局预览 · 合成数据，不代表当前磁盘活动";
++                        form.Text = "AsukaLens";
++                        form.Activate();
++                        Cursor.Position = form.PointToScreen(new Point(12, 12));
++                        await Task.Delay(1000);
++                        form.PerformLayout();
++                        form.Refresh();
++                        using var image = new Bitmap(form.Width, form.Height);
++                        using (var graphics = Graphics.FromImage(image))
++                        {
++                            IntPtr dc = graphics.GetHdc();
++                            try { if (!PrintWindow(form.Handle, dc, 2)) throw new InvalidOperationException(); }
++                            finally { graphics.ReleaseHdc(dc); }
++                        }
++                        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
++                        using (var file = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None))
++                            image.Save(file, System.Drawing.Imaging.ImageFormat.Png);
++                        Console.WriteLine("PASS DISK_ACTIVITY_LAYOUT_PREVIEW production panel; synthetic data");
++                    }
++                    catch (Exception error) { failure = error; }
++                    finally { form.Close(); }
++                };
++                Application.Run(form);
++            }
++            catch (Exception error) { failure = error; }
++        }) { IsBackground = true };
++        thread.SetApartmentState(ApartmentState.STA);
++        thread.Start();
++        if (!thread.Join(TimeSpan.FromSeconds(25)) || failure != null) throw new InvalidOperationException();
++        return 0;
++    }
++
++    private static IEnumerable<Control> Descendants(Control parent)
++    {
++        foreach (Control child in parent.Controls)
++        {
++            yield return child;
++            foreach (var descendant in Descendants(child)) yield return descendant;
++        }
++    }
++
++    private static DiskEntry CreateSample()
++    {
++        const long mb = 1024 * 1024;
++        var root = new DiskEntry(@"X:\AsukaLens-Demo", true);
++        ulong identity = 1;
++        void Folder(string name, params (string Name, long Bytes)[] files)
++        {
++            var folder = new DiskEntry(Path.Combine(root.Path, name), true, root);
++            foreach (var (fileName, bytes) in files)
++                folder.MutableChildren.Add(new DiskEntry(Path.Combine(folder.Path, fileName), false, folder)
++                {
++                    Size = bytes, AllocatedSize = bytes, FileCount = 1,
++                    Modified = new DateTime(2026, 1, 1),
++                    Storage = new(new(1, identity++, 0), bytes, 1, false)
++                });
++            folder.Size = folder.AllocatedSize = files.Sum(file => file.Bytes);
++            folder.FileCount = files.Length;
++            root.MutableChildren.Add(folder);
++            root.Size += folder.Size;
++            root.AllocatedSize += folder.AllocatedSize;
++            root.FileCount += folder.FileCount;
++            root.FolderCount++;
++        }
++        Folder("视频 Videos", ("travel-demo.mp4", 4200 * mb), ("recording-demo.mp4", 2400 * mb));
++        Folder("图片 Pictures", ("photo-collection.zip", 2100 * mb), ("wallpaper-demo.png", 160 * mb));
++        Folder("应用 Apps", ("app-demo.exe", 1600 * mb), ("tools-demo.zip", 800 * mb));
++        Folder("项目 Projects", ("project-backup.zip", 900 * mb), ("source-demo.cs", 2 * mb));
++        Folder("文档 Documents", ("notes-demo.pdf", 320 * mb), ("report-demo.docx", 70 * mb));
++        return root;
++    }
++
++}
+diff --git a/tests/DiskActivityLiveChecks.cs b/tests/DiskActivityLiveChecks.cs
+new file mode 100644
+index 0000000..b6d652a
+--- /dev/null
++++ b/tests/DiskActivityLiveChecks.cs
+@@ -0,0 +1,32 @@
++using DiskAtlas;
++
++internal static class DiskActivityLiveChecks
++{
++    internal static int Run()
++    {
++        try
++        {
++            var targets = DiskActivityResolver.Discover();
++            var current = DiskActivityResolver.Resolve(Environment.CurrentDirectory);
++            Console.WriteLine($"MAPPING targets={targets.Count}; current_supported={current != null}");
++            if (current == null) { Console.WriteLine("SKIP disk activity live: current mapping unsupported"); return 2; }
++            using var source = new PdhDiskActivitySource(current.DiskNumber);
++            var first = source.Collect(default);
++            if (first.Status != DiskActivityStatus.Waiting) throw new InvalidOperationException();
++            int complete = 0;
++            for (int i = 0; i < 3; i++)
++            {
++                Thread.Sleep(1100);
++                var sample = source.Collect(default);
++                bool all = sample.Status == DiskActivityStatus.Available && sample.ActivePercent.HasValue &&
++                    sample.ReadBytesPerSecond.HasValue && sample.WriteBytesPerSecond.HasValue && sample.ResponseMilliseconds.HasValue;
++                if (all) complete++;
++                Console.WriteLine($"SAMPLE {i + 1}; all_metrics_valid={all}; activity={sample.ActivePercent:F2}; read_MiBs={sample.ReadBytesPerSecond / 1048576:F2}; write_MiBs={sample.WriteBytesPerSecond / 1048576:F2}; response_ms={sample.ResponseMilliseconds:F3}");
++            }
++            if (complete != 3) throw new InvalidOperationException();
++            Console.WriteLine("PASS disk activity live: native mapping and unlocalized PDH metrics; no paths or instance names emitted");
++            return 0;
++        }
++        catch { Console.Error.WriteLine("FAIL disk activity live; no private details emitted"); return 1; }
++    }
++}
+diff --git a/tests/DiskActivityMainFormTests.cs b/tests/DiskActivityMainFormTests.cs
+new file mode 100644
+index 0000000..7383e24
+--- /dev/null
++++ b/tests/DiskActivityMainFormTests.cs
+@@ -0,0 +1,286 @@
++using DiskAtlas;
++using System.Collections.Concurrent;
++using System.Diagnostics;
++using System.Reflection;
++
++// The actual MainForm/monitor/panel pipeline, with synthetic discovery and counters.
++// No real PDH source, filesystem fixture, saved configuration or diagnostic store.
++internal static class DiskActivityMainFormTests
++{
++    public static int Run(bool dpi96 = false)
++    {
++        string? failure = null;
++        int passed = 0;
++        var thread = new Thread(() =>
++        {
++            try
++            {
++                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles();
++                Application.SetCompatibleTextRenderingDefault(false);
++                Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
++                using var state = new FakeState();
++                DiskActivityMonitor? monitor = null;
++                Action<DiskActivityUpdate>? deliver = null;
++                int factories = 0;
++                var root = new DiskEntry(@"X:\AsukaLens-Monitor-Demo", true) { Size = 17, AllocatedSize = 17, FileCount = 1 };
++                root.MutableChildren.Add(new DiskEntry(Path.Combine(root.Path, "sample.txt"), false, root)
++                {
++                    Size = 17, AllocatedSize = 17, FileCount = 1, Modified = new DateTime(2026, 1, 1),
++                    Storage = new(new(1, 1, 0), 17, 1, false)
++                });
++                using var form = new MainForm(null)
++                {
++                    ScanRunner = (_, _, _, _) => new(root, TimeSpan.FromSeconds(.01), 0, []),
++                    ActivityMonitorFactory = callback =>
++                    {
++                        factories++;
++                        deliver = callback;
++                        monitor = new DiskActivityMonitor(update =>
++                        {
++                            state.Updates.Enqueue(update);
++                            callback(update);
++                        }, (_, token) => { token.ThrowIfCancellationRequested(); return new(0, "磁盘 0"); },
++                            token => { token.ThrowIfCancellationRequested(); return [new(0, "磁盘 0"), new(1, "磁盘 1")]; },
++                            state.Create, TimeSpan.FromMilliseconds(20));
++                        return monitor;
++                    }
++                };
++                const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
++                T Field<T>(string name) => (T)typeof(MainForm).GetField(name, flags)!.GetValue(form)!;
++                var panel = Field<DiskActivityPanel>("activityPanel");
++                var progress = Field<ScanProgressControl>("progressBar");
++                var main = (TableLayoutPanel)panel.Parent!;
++                var toggle = panel.Controls.OfType<Button>().Single();
++                var selection = panel.Controls.OfType<ComboBox>().Single();
++                DiskActivitySample? Current() => (DiskActivitySample?)typeof(DiskActivityPanel).GetField("current", flags)!.GetValue(panel);
++                int HistoryCount() => (int)typeof(DiskActivityPanel).GetField("historyCount", flags)!.GetValue(panel)!;
++                void Check(bool condition, string code)
++                {
++                    if (!condition) throw new CheckFailure(code);
++                    passed++;
++                    Console.WriteLine("PASS disk activity main form " + code);
++                }
++                async Task PumpUntil(Func<bool> ready, string code)
++                {
++                    var clock = Stopwatch.StartNew();
++                    while (!ready())
++                    {
++                        if (clock.Elapsed > TimeSpan.FromSeconds(5)) throw new CheckFailure(code);
++                        await Task.Delay(10);
++                    }
++                }
++                async Task CheckLayout(string label)
++                {
++                    form.PerformLayout(); main.PerformLayout(); panel.PerformLayout();
++                    await Task.Delay(30);
++                    var client = form.RectangleToScreen(form.ClientRectangle);
++                    var mainBounds = main.RectangleToScreen(main.ClientRectangle);
++                    var panelBounds = panel.RectangleToScreen(panel.ClientRectangle);
++                    var progressBounds = progress.RectangleToScreen(progress.ClientRectangle);
++                    var primary = main.GetControlFromPosition(0, 4)!;
++                    var primaryBounds = primary.RectangleToScreen(primary.ClientRectangle);
++                    Check(main.RowCount == 9 && main.GetRow(panel) == 6 && main.GetRow(progress) == 7 &&
++                        main.GetControlFromPosition(0, 8) != null, label + "_ROW_CONTRACT");
++                    Check(Math.Abs(main.RowStyles[6].Height - (panel.Expanded ? 110 : 32) * form.DeviceDpi / 96f) <= 1,
++                        label + "_DPI_ROW_HEIGHT");
++                    Check(client.Contains(panelBounds) && mainBounds.Contains(panelBounds) && panel.Height > 0,
++                        label + "_PANEL_VISIBLE");
++                    Check(primary.Height > 0 && !panelBounds.IntersectsWith(primaryBounds) &&
++                        !panelBounds.IntersectsWith(progressBounds) && progress.Height > 0,
++                        label + "_CONTENT_PROGRESS_SEPARATE");
++                    foreach (Control child in panel.Controls)
++                        Check(child.Width > 0 && child.Height > 0 && panel.ClientRectangle.Contains(child.Bounds),
++                            label + (child is ComboBox ? "_SELECTOR_VISIBLE" : "_TOGGLE_VISIBLE"));
++                    foreach (string name in new[] { "choose", "refresh", "cancel" })
++                    {
++                        var button = Field<Button>(name);
++                        var bounds = button.RectangleToScreen(button.ClientRectangle);
++                        Check(button.Width > 0 && button.Height > 0 && client.Contains(bounds) && mainBounds.Contains(bounds),
++                            label + "_HEADER_" + name.ToUpperInvariant());
++                    }
++                    Check(selection.Right <= toggle.Left, label + "_HEADER_NO_OVERLAP");
++                }
++
++                form.Shown += async (_, _) =>
++                {
++                    // Let Application.Run() begin before any checks or failure cleanup.
++                    await Task.Yield();
++                    try
++                    {
++                        Check(!panel.Expanded && factories == 0 && monitor == null,
++                            "INITIAL_COLLAPSED_HAS_NO_WORKER");
++                        await (Task)typeof(MainForm).GetMethod("ScanFolder", flags)!.Invoke(form, [root.Path])!;
++                        Check(factories == 0, "COLLAPSED_SCAN_DOES_NOT_CREATE_WORKER");
++                        toggle.PerformClick();
++                        await PumpUntil(() => Current()?.Status == DiskActivityStatus.Available, "EXPAND_PIPELINE_TIMEOUT");
++                        Check(panel.Expanded && factories == 1 && state.Created == 1 && Current()?.DiskNumber == 0,
++                            "EXPAND_USES_MONITOR_PIPELINE");
++                        Check(state.Updates.First(update => update.Sample != null).Sample!.Status == DiskActivityStatus.Waiting,
++                            "NEW_SOURCE_STARTS_WITH_WAITING");
++                        Check(HistoryCount() is > 0 and <= 60, "PANEL_HISTORY_REMAINS_BOUNDED");
++                        var area = Screen.FromControl(form).WorkingArea;
++                        form.WindowState = FormWindowState.Normal;
++                        form.Location = area.Location;
++                        form.Size = form.MinimumSize;
++                        var cancel = Field<Button>("cancel");
++                        cancel.Visible = true;
++                        await CheckLayout("MINIMUM_EXPANDED");
++                        toggle.PerformClick();
++                        await PumpUntil(() => state.Released == state.Created && HistoryCount() == 0, "COLLAPSE_RELEASE_TIMEOUT");
++                        await CheckLayout("MINIMUM_COLLAPSED");
++                        int pausedCalls = state.Collected;
++                        await Task.Delay(65);
++                        Check(state.Collected == pausedCalls, "COLLAPSED_MONITOR_DOES_NOT_COLLECT");
++                        int beforeCreate = state.Created;
++                        long beforeRevision = state.Updates.Last().Revision;
++                        toggle.PerformClick();
++                        await PumpUntil(() => state.Created == beforeCreate + 1 && Current()?.Status == DiskActivityStatus.Available,
++                            "REEXPAND_PIPELINE_TIMEOUT");
++                        Check(state.Updates.First(update => update.Revision > beforeRevision && update.Sample != null).Sample!.Status == DiskActivityStatus.Waiting,
++                            "REEXPAND_CREATES_FRESH_BASELINE");
++                        float scale = form.DeviceDpi / 96f;
++                        form.Size = new Size(Math.Min((int)(1440 * scale), area.Width), Math.Min((int)(940 * scale), area.Height));
++                        await CheckLayout("COMMON_EXPANDED");
++                        beforeCreate = state.Created;
++                        form.WindowState = FormWindowState.Minimized;
++                        await PumpUntil(() => state.Released == state.Created && HistoryCount() == 0, "MINIMIZE_RELEASE_TIMEOUT");
++                        pausedCalls = state.Collected;
++                        await Task.Delay(65);
++                        Check(state.Collected == pausedCalls && state.Created == beforeCreate, "MINIMIZED_MONITOR_STAYS_PAUSED");
++                        beforeRevision = state.Updates.Last().Revision;
++                        form.WindowState = FormWindowState.Normal;
++                        await PumpUntil(() => state.Created == beforeCreate + 1 && Current()?.Status == DiskActivityStatus.Available,
++                            "RESTORE_PIPELINE_TIMEOUT");
++                        Check(state.Updates.First(update => update.Revision > beforeRevision && update.Sample != null).Sample!.Status == DiskActivityStatus.Waiting,
++                            "RESTORE_CREATES_FRESH_BASELINE");
++                        beforeCreate = state.Created;
++                        selection.SelectedIndex = 2; // Follow, synthetic disk 0, synthetic disk 1.
++                        await PumpUntil(() => state.Created == beforeCreate + 1 && Current()?.DiskNumber == 1 &&
++                            Current()?.Status == DiskActivityStatus.Available, "MANUAL_DISK_PIPELINE_TIMEOUT");
++                        Check(panel.SelectedDiskNumber == 1 && Current()?.DiskNumber == 1, "MANUAL_DISK_REACHES_PANEL");
++                        Check(state.Released == state.Created - 1, "SWITCH_RELEASES_PREVIOUS_SOURCE");
++                        await CheckLayout("COMMON_MANUAL_DISK");
++                        var systemEvent = typeof(MainForm).GetMethod("HandleMonitoringSystemEvent", flags)!;
++                        systemEvent.Invoke(form, [0x0218, 4L]);
++                        await PumpUntil(() => state.Released == state.Created, "POWER_SUSPEND_RELEASE_TIMEOUT");
++                        pausedCalls = state.Collected;
++                        await Task.Delay(65);
++                        Check(state.Collected == pausedCalls, "POWER_SUSPEND_PAUSES_SOURCE");
++                        beforeCreate = state.Created;
++                        beforeRevision = state.Updates.Last().Revision;
++                        systemEvent.Invoke(form, [0x0218, 18L]);
++                        await PumpUntil(() => state.Created == beforeCreate + 1 && Current()?.Status == DiskActivityStatus.Available,
++                            "POWER_RESUME_PIPELINE_TIMEOUT");
++                        Check(state.Updates.First(update => update.Revision > beforeRevision && update.Sample != null).Sample!.Status == DiskActivityStatus.Waiting,
++                            "POWER_RESUME_STARTS_NEW_BASELINE");
++                        beforeCreate = state.Created;
++                        beforeRevision = state.Updates.Last().Revision;
++                        systemEvent.Invoke(form, [0x0219, 0x8004L]);
++                        await PumpUntil(() => state.Created == beforeCreate + 1 && Current()?.Status == DiskActivityStatus.Available,
++                            "DEVICE_CHANGE_PIPELINE_TIMEOUT");
++                        Check(state.Updates.First(update => update.Revision > beforeRevision && update.Sample != null).Sample!.Status == DiskActivityStatus.Waiting,
++                            "DEVICE_CHANGE_REVALIDATES_AND_REPRIMES");
++                        beforeCreate = state.Created;
++                        beforeRevision = state.Updates.Last().Revision;
++                        systemEvent.Invoke(form, [0x0218, 7L]);
++                        await PumpUntil(() => state.Created == beforeCreate + 1 && Current()?.Status == DiskActivityStatus.Available,
++                            "RESUME_WITHOUT_SUSPEND_PIPELINE_TIMEOUT");
++                        Check(state.Updates.First(update => update.Revision > beforeRevision && update.Sample != null).Sample!.Status == DiskActivityStatus.Waiting,
++                            "RESUME_WITHOUT_PRIOR_SUSPEND_REPRIMES");
++                        state.BlockOneCollection();
++                        await PumpUntil(() => state.BlockEntered.IsSet, "DELAYED_PROVIDER_DID_NOT_ENTER");
++                        long oldRevision = state.Updates.Last().Revision;
++                        form.Close();
++                        string? description = panel.AccessibleDescription;
++                        deliver!(new(oldRevision, new(DateTimeOffset.UtcNow, 99, 99, 99, 99, 99, DiskActivityStatus.Available), "late"));
++                        Check(panel.IsDisposed && panel.AccessibleDescription == description,
++                            "CLOSE_IGNORES_DELAYED_UI_CALLBACK");
++                        state.ReleaseBlockedCollection();
++                        await PumpUntil(() => monitor!.Completion.IsCompleted, "CLOSE_WORKER_COMPLETION_TIMEOUT");
++                        Check(monitor!.Completion.IsCompletedSuccessfully && state.Released == state.Created,
++                            "CLOSE_RELEASES_ALL_SOURCES");
++                        Check(!monitor.IsCurrent(oldRevision), "CLOSED_MONITOR_REJECTS_OLD_REVISION");
++                    }
++                    catch (CheckFailure error) { failure = error.Code; }
++                    catch { failure = "UNEXPECTED"; }
++                    finally
++                    {
++                        state.ReleaseBlockedCollection();
++                        monitor?.Dispose();
++                        if (!form.IsDisposed) form.Close();
++                        Application.ExitThread();
++                    }
++                };
++                form.Show();
++                Application.Run();
++            }
++            catch (CheckFailure error) { failure = error.Code; }
++            catch { failure = "INITIALIZATION"; }
++        }) { IsBackground = true };
++        thread.SetApartmentState(ApartmentState.STA);
++        thread.Start();
++        if (!thread.Join(TimeSpan.FromSeconds(35))) failure = "THREAD_TIMEOUT";
++        if (failure != null)
++        {
++            Console.Error.WriteLine("FAIL DISK_ACTIVITY_MAINFORM_TESTS " + failure);
++            return 1;
++        }
++        Console.WriteLine("PASS disk activity MainForm checks: " + passed);
++        return 0;
++    }
++
++    private sealed class CheckFailure(string code) : Exception
++    {
++        internal string Code { get; } = code;
++    }
++
++    private sealed class FakeState : IDisposable
++    {
++        private int created, released, collected, blockNext;
++        private readonly ManualResetEventSlim unblock = new();
++        internal readonly ManualResetEventSlim BlockEntered = new();
++        internal readonly ConcurrentQueue<DiskActivityUpdate> Updates = new();
++        internal int Created => Volatile.Read(ref created);
++        internal int Released => Volatile.Read(ref released);
++        internal int Collected => Volatile.Read(ref collected);
++        internal IDiskActivitySource Create(int disk)
++        {
++            Interlocked.Increment(ref created);
++            return new FakeSource(this, disk);
++        }
++        internal void BlockOneCollection()
++        {
++            BlockEntered.Reset(); unblock.Reset();
++            Interlocked.Exchange(ref blockNext, 1);
++        }
++        internal void ReleaseBlockedCollection() => unblock.Set();
++        public void Dispose() { unblock.Set(); unblock.Dispose(); BlockEntered.Dispose(); }
++
++        private sealed class FakeSource(FakeState owner, int disk) : IDiskActivitySource
++        {
++            private int calls, disposed;
++            public DiskActivitySample Collect(CancellationToken token)
++            {
++                token.ThrowIfCancellationRequested();
++                if (Volatile.Read(ref disposed) != 0) throw new InvalidOperationException("DisposedFakeSource");
++                Interlocked.Increment(ref owner.collected);
++                if (Interlocked.Exchange(ref owner.blockNext, 0) != 0)
++                {
++                    owner.BlockEntered.Set();
++                    // Models a provider that finishes late instead of cancelling mid-native-call.
++                    if (!owner.unblock.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException("SyntheticProviderTimeout");
++                }
++                bool waiting = Interlocked.Increment(ref calls) == 1;
++                return new(DateTimeOffset.UtcNow, disk, waiting ? null : 35, waiting ? null : 1048576,
++                    waiting ? null : 2097152, waiting ? null : .5,
++                    waiting ? DiskActivityStatus.Waiting : DiskActivityStatus.Available);
++            }
++            public void Dispose()
++            {
++                if (Interlocked.Exchange(ref disposed, 1) == 0) Interlocked.Increment(ref owner.released);
++            }
++        }
++    }
++}
+diff --git a/tests/DiskActivityMonitorTests.cs b/tests/DiskActivityMonitorTests.cs
+new file mode 100644
+index 0000000..ba451b5
+--- /dev/null
++++ b/tests/DiskActivityMonitorTests.cs
+@@ -0,0 +1,115 @@
++using DiskAtlas;
++using System.Collections.Concurrent;
++using System.Diagnostics;
++
++internal static class DiskActivityMonitorTests
++{
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("Disk activity monitor check failed: " + name);
++            passed++; Console.WriteLine("PASS disk monitor " + name);
++        }
++        void Until(Func<bool> ready)
++        {
++            var watch = Stopwatch.StartNew();
++            while (!ready() && watch.Elapsed < TimeSpan.FromSeconds(4)) Thread.Sleep(5);
++            if (!ready()) throw new InvalidOperationException("Monitor test timeout");
++        }
++        var updates = new ConcurrentQueue<DiskActivityUpdate>();
++        int created = 0, released = 0, calls = 0, resolverCalls = 0;
++        using (var monitor = new DiskActivityMonitor(updates.Enqueue,
++            (_, _) => { Interlocked.Increment(ref resolverCalls); return new(0, "磁盘 0"); },
++            _ => [new(0, "磁盘 0"), new(1, "磁盘 1")],
++            disk => { Interlocked.Increment(ref created); return new FakeSource(disk, () => Interlocked.Increment(ref calls), () => Interlocked.Increment(ref released)); },
++            TimeSpan.FromMilliseconds(20)))
++        {
++            long revision = monitor.Update("synthetic", null, true);
++            Until(() => updates.Any(update => update.Sample?.Status == DiskActivityStatus.Available));
++            Check(created == 1 && resolverCalls == 1, "automatic selection creates one background source");
++            Check(updates.Where(update => update.Sample != null).First().Sample!.Status == DiskActivityStatus.Waiting,
++                "initial sample remains waiting rather than fake zero");
++            Check(monitor.Update("synthetic", null, true) == revision && created == 1,
++                "identical requests do not restart or create queues");
++            long paused = monitor.Update("synthetic", null, false);
++            Until(() => released == 1 && updates.Any(update => update.Revision == paused));
++            Check(!monitor.IsCurrent(revision) && monitor.IsCurrent(paused), "paused generation rejects queued stale results");
++            int atPause = calls;
++            Thread.Sleep(70);
++            Check(calls == atPause && created == 1, "paused monitor releases source and does not sample");
++            long resumed = monitor.Update("synthetic", 1, true);
++            Until(() => updates.Any(update => update.Revision == resumed && update.Sample?.DiskNumber == 1));
++            Check(created == 2 && resolverCalls == 1, "manual selection uses only verified discovery targets");
++            Check(updates.First(update => update.Revision == resumed && update.Sample != null).Sample!.Status == DiskActivityStatus.Waiting,
++                "resume uses a fresh interval baseline");
++            monitor.InvalidateTarget();
++            Until(() => created == 3 && updates.Any(update => update.Revision > resumed && update.Sample != null));
++            Check(!monitor.IsCurrent(resumed) && released == 2, "device invalidation releases and reconnects the source");
++            Check(updates.First(update => update.Revision > resumed && update.Sample != null).Sample!.Status == DiskActivityStatus.Waiting,
++                "device reconnection requires a new interval baseline");
++            monitor.Dispose();
++            Check(!monitor.IsCurrent(resumed) && monitor.Update(null, null, true) == -1, "disposed monitor rejects requests and stale publication");
++            Check(monitor.Completion.Wait(4000) && released == created, "close eventually releases every owned source");
++        }
++
++        using var entered = new ManualResetEventSlim();
++        using var unblock = new ManualResetEventSlim();
++        updates.Clear(); created = released = 0;
++        var disks = new ConcurrentQueue<int>();
++        using (var monitor = new DiskActivityMonitor(updates.Enqueue, (_, _) => new(0, "磁盘 0"),
++            _ => [new(0, "磁盘 0"), new(1, "磁盘 1"), new(2, "磁盘 2")], disk =>
++            {
++                Interlocked.Increment(ref created); disks.Enqueue(disk);
++                return new FakeSource(disk, () => { if (disk == 0) { entered.Set(); if (!unblock.Wait(4000)) throw new TimeoutException(); } },
++                    () => Interlocked.Increment(ref released));
++            }, TimeSpan.FromMilliseconds(20)))
++        {
++            long old = monitor.Update("synthetic", 0, true);
++            Check(entered.Wait(4000), "blocking provider entered on background worker");
++            monitor.Update("synthetic", 1, true);
++            long latest = monitor.Update("synthetic", 2, true);
++            Check(created == 1, "rapid changes do not overlap a blocked native query");
++            unblock.Set();
++            Until(() => updates.Any(update => update.Revision == latest && update.Sample != null));
++            Check(disks.SequenceEqual([0, 2]), "intermediate pending selection is replaced by the latest request");
++            Check(!updates.Any(update => update.Revision == old && update.Sample != null), "late blocked-provider result is discarded");
++            monitor.Dispose();
++            Check(monitor.Completion.Wait(4000) && released == created, "switch and close dispose all providers serially");
++        }
++        updates.Clear();
++        using (var monitor = new DiskActivityMonitor(updates.Enqueue, (_, _) => null, _ => [],
++            _ => throw new InvalidOperationException("must not create source")))
++        {
++            long revision = monitor.Update("synthetic", null, true);
++            Until(() => updates.Any(update => update.Revision == revision && update.Message.Contains("无法可靠映射")));
++            Check(!updates.Any(update => update.Sample != null), "unsupported mapping has no invented metrics");
++            monitor.Dispose(); Check(monitor.Completion.Wait(4000), "unavailable state remains cancellable");
++        }
++        var closing = new List<Task>();
++        for (int i = 0; i < 50; i++)
++        {
++            var monitor = new DiskActivityMonitor(_ => { }, (_, _) => new(0, "磁盘 0"), _ => [new(0, "磁盘 0")],
++                disk => new FakeSource(disk, () => { }, () => { }), TimeSpan.FromMilliseconds(5));
++            monitor.Update("synthetic", null, true);
++            monitor.Dispose();
++            closing.Add(monitor.Completion);
++        }
++        Check(Task.WaitAll(closing.ToArray(), 5000) && closing.All(task => task.IsCompletedSuccessfully),
++            "rapid immediate close completes without cancellation-source disposal races");
++        return passed;
++    }
++
++    private sealed class FakeSource(int disk, Action collect, Action dispose) : IDiskActivitySource
++    {
++        private int calls;
++        public DiskActivitySample Collect(CancellationToken token)
++        {
++            token.ThrowIfCancellationRequested(); collect();
++            return new(DateTimeOffset.UtcNow, disk, calls == 0 ? null : 30, 1024, 2048, .2,
++                calls++ == 0 ? DiskActivityStatus.Waiting : DiskActivityStatus.Available);
++        }
++        public void Dispose() => dispose();
++    }
++}
+diff --git a/tests/DiskActivityPanelTests.cs b/tests/DiskActivityPanelTests.cs
+new file mode 100644
+index 0000000..f747e4c
+--- /dev/null
++++ b/tests/DiskActivityPanelTests.cs
+@@ -0,0 +1,124 @@
++using DiskAtlas;
++using System.Reflection;
++
++internal static class DiskActivityPanelTests
++{
++    public static int Run(bool dpi96 = false)
++    {
++        Exception? failure = null;
++        int passed = 0;
++        var thread = new Thread(() =>
++        {
++            try
++            {
++                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles();
++                Application.SetCompatibleTextRenderingDefault(false);
++                Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
++                using var form = new Form { Size = new Size(1150, 260), ShowInTaskbar = false };
++                using var panel = new DiskActivityPanel { Dock = DockStyle.Fill };
++                form.Controls.Add(panel);
++                form.Show();
++                Application.DoEvents();
++                void Check(bool condition, string code)
++                {
++                    if (!condition) throw new InvalidOperationException(code);
++                    passed++;
++                    Console.WriteLine("PASS disk activity panel " + code);
++                }
++                const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
++                int Count() => (int)typeof(DiskActivityPanel).GetField("historyCount", flags)!.GetValue(panel)!;
++                List<PointF[]> Segments() => (List<PointF[]>)typeof(DiskActivityPanel)
++                    .GetMethod("BuildSegments", flags)!.Invoke(panel, [new RectangleF(0, 0, 600, 100)])!;
++                var button = panel.Controls.OfType<Button>().Single();
++                var box = panel.Controls.OfType<ComboBox>().Single();
++                int expanded = 0, changed = 0;
++                panel.ExpansionChanged += (_, _) => expanded++;
++                panel.TargetChanged += (_, _) => changed++;
++                Check(!panel.Expanded && panel.SelectedDiskNumber == null, "starts collapsed and follows scan");
++                button.PerformClick();
++                Check(panel.Expanded && expanded == 1 && button.AccessibleName!.Contains("收起"), "expand is keyboard-focusable button");
++                button.PerformClick();
++                Check(!panel.Expanded && expanded == 2, "collapse raises one event");
++                panel.SetTargets([new(0, "磁盘 0"), new(1, "磁盘 1"), new(1, "重复")]);
++                Check(box.Items.Count == 3 && changed == 0, "targets deduplicate without changing follow selection");
++                box.SelectedIndex = 2;
++                Check(panel.SelectedDiskNumber == 1 && changed == 1, "explicit disk selection raises event");
++                panel.SetTargets([new(1, "磁盘 1 · 更新"), new(0, "磁盘 0")]);
++                Check(panel.SelectedDiskNumber == 1 && changed == 1, "target refresh preserves selected disk");
++                panel.SetTargets([new(0, "磁盘 0")]);
++                Check(panel.SelectedDiskNumber == null && changed == 2, "missing disk returns to follow selection");
++                DateTimeOffset at = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
++                DiskActivitySample Sample(int second, double? active = 40, DiskActivityStatus status = DiskActivityStatus.Available, int disk = 0) =>
++                    new(at.AddSeconds(second), disk, active, 1024 * 1024, 2 * 1024 * 1024, .5, status);
++                for (int i = 0; i < 150; i++) panel.SetSample(Sample(i));
++                Check(Count() == 60 && Segments().Single().Length == 60, "history is bounded to sixty points");
++                panel.SetSample(Sample(148, 90));
++                Check(Count() == 60, "out-of-order samples cannot replace current state");
++                panel.SetSample(Sample(211));
++                Check(Count() == 1, "sixty-second gap expires old history");
++                panel.ResetHistory();
++                panel.SetSample(Sample(0)); panel.SetSample(Sample(1));
++                panel.SetSample(Sample(2, null, DiskActivityStatus.Waiting));
++                panel.SetSample(Sample(3)); panel.SetSample(Sample(4));
++                Check(Segments().Count == 2 && Segments().All(segment => segment.Length == 2), "waiting leaves a gap instead of zero");
++                panel.SetSample(Sample(10));
++                Check(Segments().Count == 3, "timestamp discontinuity breaks curve");
++                panel.SetSample(Sample(11, null));
++                Check(panel.AccessibleDescription!.Contains("活动时间 —"), "unknown activity is a dash");
++                panel.SetSample(new(at.AddSeconds(12), 0, double.NaN, double.PositiveInfinity, -1, null, DiskActivityStatus.Available));
++                Check(panel.AccessibleDescription!.Count(character => character == '—') == 4, "invalid and unknown metrics stay unknown");
++                panel.SetSample(Sample(13, 30, DiskActivityStatus.Unavailable));
++                Check(panel.AccessibleDescription!.Count(character => character == '—') == 4, "unavailable metrics never show supplied stale values");
++                panel.SetSample(Sample(14, disk: 1));
++                Check(Count() == 1, "switching disks clears previous disk history");
++                Check(panel.AccessibleDescription!.Contains("MiB/s") && panel.AccessibleDescription.Contains("毫秒"), "units explicitly identify MiB and milliseconds");
++                panel.SetMessage("等待目标磁盘");
++                Check(Count() == 0 && panel.AccessibleDescription!.Contains("等待目标磁盘"), "message clears stale samples");
++                button.PerformClick();
++                foreach (int width in new[] { 800, 1100 })
++                {
++                    form.ClientSize = new Size(width, 180);
++                    form.PerformLayout(); panel.PerformLayout();
++                    using var image = new Bitmap(panel.Width, panel.Height);
++                    panel.DrawToBitmap(image, panel.ClientRectangle);
++                    Check(box.Right < button.Left && button.Right <= panel.Width && box.Left >= 0,
++                        "header controls do not overlap at width " + width);
++                }
++                panel.ResetHistory();
++                Check(Count() == 0 && Segments().Count == 0, "reset drops history");
++                panel.SetSample(Sample(0)); panel.SetSample(Sample(1));
++                panel.AdvanceClock(at.AddSeconds(3));
++                Check(panel.AccessibleDescription!.Contains("活动时间 40%") && Segments().Single()[^1].X < 600,
++                    "host clock advances the chart without inventing samples");
++                panel.AdvanceClock(at.AddSeconds(6));
++                Check(panel.AccessibleDescription!.Contains("采样延迟") && panel.AccessibleDescription.Contains("活动时间 —"),
++                    "blocked provider cannot leave stale current metrics visible");
++                panel.SetSample(Sample(1, 90));
++                Check(panel.AccessibleDescription!.Contains("活动时间 —"), "late stale sample cannot revive current metrics");
++                panel.SetSample(Sample(7, disk: 1));
++                Check(Count() == 1 && panel.AccessibleDescription!.Contains("活动时间 40%"),
++                    "fresh sample after a stall recovers and clears another disk history");
++                panel.AdvanceClock(at.AddSeconds(68));
++                Check(Count() == 0 && Segments().Count == 0, "host clock expires history without provider callbacks");
++                panel.SetSample(Sample(69));
++                panel.AdvanceClock(at.AddSeconds(10));
++                Check(Count() == 0 && panel.AccessibleDescription!.Contains("时间变化"),
++                    "wall clock rollback discards incompatible history");
++                int eventsBeforeDispose = expanded + changed;
++                panel.Dispose();
++                panel.SetTargets([new(1, "磁盘 1")]);
++                panel.SetSample(Sample(15)); panel.SetMessage("ignored"); panel.ResetHistory();
++                Check(expanded + changed == eventsBeforeDispose && panel.IsDisposed, "late callbacks after disposal are ignored");
++                form.Close();
++            }
++            catch (Exception error) { failure = error; }
++        }) { IsBackground = true };
++        thread.SetApartmentState(ApartmentState.STA);
++        thread.Start();
++        if (!thread.Join(TimeSpan.FromSeconds(20))) throw new InvalidOperationException("Disk activity panel test timed out");
++        if (failure != null) throw new InvalidOperationException("Disk activity panel test failed", failure);
++        Console.WriteLine("PASS disk activity panel checks: " + passed);
++        return 0;
++    }
++}
+diff --git a/tests/DiskActivityResolverTests.cs b/tests/DiskActivityResolverTests.cs
+new file mode 100644
+index 0000000..84f725a
+--- /dev/null
++++ b/tests/DiskActivityResolverTests.cs
+@@ -0,0 +1,106 @@
++using System.Buffers.Binary;
++using System.Security;
++
++namespace DiskAtlas;
++
++internal static class DiskActivityResolverTests
++{
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("Disk activity resolver check failed: " + name);
++            passed++; Console.WriteLine("PASS disk activity resolver " + name);
++        }
++        byte[] Extent(uint count = 1, uint disk = 2, long start = 1048576, long length = 268435456)
++        {
++            byte[] bytes = new byte[32];
++            BinaryPrimitives.WriteUInt32LittleEndian(bytes, count);
++            BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(8), disk);
++            BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(16), start);
++            BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(24), length);
++            return bytes;
++        }
++        bool ExtentAccepted(byte[] bytes, int? returned = null) =>
++            DiskActivityResolver.TryReadSingleExtent(bytes, returned ?? bytes.Length, out _);
++        Check(DiskActivityResolver.TryReadSingleExtent(Extent(), 32, out int disk) && disk == 2,
++            "aligned single extent supplies the physical disk number");
++        Check(DiskActivityResolver.TryReadSingleExtent(Extent(disk: 0, start: 0, length: 1), 32, out disk) && disk == 0,
++            "zero disk and zero starting offset are valid");
++        foreach (uint count in new uint[] { 0, 2, uint.MaxValue })
++            Check(!ExtentAccepted(Extent(count: count)), "ambiguous or missing extents are rejected");
++        foreach (int returned in new[] { -1, 0, 8, 31, 33, int.MaxValue })
++            Check(!ExtentAccepted(Extent(), returned), "invalid native extent length is rejected");
++        Check(!ExtentAccepted(new byte[31], 32), "short extent buffer cannot be read");
++        Check(!ExtentAccepted(Extent(disk: uint.MaxValue)), "unrepresentable disk number is rejected");
++        Check(!ExtentAccepted(Extent(start: -1)), "negative starting offset is rejected");
++        Check(!ExtentAccepted(Extent(length: 0)) && !ExtentAccepted(Extent(length: -1)), "nonpositive extent length is rejected");
++        Check(!ExtentAccepted(Extent(start: long.MaxValue, length: 1)), "extent end overflow is rejected");
++        Check(ExtentAccepted(Extent(start: long.MaxValue - 1, length: 1)), "largest valid extent end stays representable");
++        Check(!DiskActivityResolver.TryReadSingleExtent(Extent(count: 2), 32, out disk) && disk == -1,
++            "failed extent parsing leaves no guessed disk number");
++
++        byte[] Descriptor(uint bus = 17, int size = 40)
++        {
++            var bytes = new byte[size];
++            BinaryPrimitives.WriteUInt32LittleEndian(bytes, 40);
++            BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(4), (uint)size);
++            BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(28), bus);
++            return bytes;
++        }
++        bool DescriptorAccepted(byte[] bytes, int? returned = null) =>
++            DiskActivityResolver.IsSupportedDeviceDescriptor(bytes, returned ?? bytes.Length);
++        Check(DescriptorAccepted(Descriptor()), "fixed NVMe direct-access descriptor is supported");
++        foreach (uint bus in new uint[] { 0, 9, 14, 15, 16, 20, 127, uint.MaxValue })
++            Check(!DescriptorAccepted(Descriptor(bus)), "unknown remote or virtual bus is rejected");
++        foreach (uint bus in new uint[] { 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17, 18, 19 })
++            Check(DescriptorAccepted(Descriptor(bus)), "known fixed local bus is accepted");
++        var removable = Descriptor(); removable[10] = 1;
++        Check(!DescriptorAccepted(removable), "removable media are rejected");
++        var optical = Descriptor(); optical[8] = 5;
++        Check(!DescriptorAccepted(optical), "non-disk device types are rejected");
++        foreach (int returned in new[] { -1, 0, 7, 35, 39, 41, int.MaxValue })
++            Check(!DescriptorAccepted(Descriptor(), returned), "invalid or truncated descriptor result is rejected");
++        var wrongVersion = Descriptor(); BinaryPrimitives.WriteUInt32LittleEndian(wrongVersion, 0);
++        Check(!DescriptorAccepted(wrongVersion), "missing descriptor version is rejected");
++        var futureVersion = Descriptor(); BinaryPrimitives.WriteUInt32LittleEndian(futureVersion, 41);
++        Check(!DescriptorAccepted(futureVersion), "descriptor version cannot exceed its declared size");
++        var oversized = Descriptor(); BinaryPrimitives.WriteUInt32LittleEndian(oversized.AsSpan(4), 65537);
++        Check(!DiskActivityResolver.TryReadDescriptorSize(oversized, 8, out _), "descriptor allocation is bounded");
++        var shortHeader = new byte[7];
++        Check(!DiskActivityResolver.TryReadDescriptorSize(shortHeader, 7, out _), "truncated descriptor header is rejected");
++        var rawOverflow = Descriptor(); BinaryPrimitives.WriteUInt32LittleEndian(rawOverflow.AsSpan(32), 5);
++        Check(!DescriptorAccepted(rawOverflow), "bus-specific raw data cannot extend beyond the descriptor");
++        var rawFits = Descriptor(); BinaryPrimitives.WriteUInt32LittleEndian(rawFits.AsSpan(32), 4);
++        Check(DescriptorAccepted(rawFits), "bounded bus-specific raw bytes need not be interpreted");
++
++        foreach (string? path in new[] { null, "", " ", "relative", "C:relative", @"\rooted", @"\\server\fixture",
++            @"\\?\UNC\server\fixture", @"\\.\PhysicalDrive0", @"\\?\GLOBALROOT\Device\fixture", "C:\\fixture\0" })
++            Check(!DiskActivityResolver.IsLocalAbsolutePath(path) && DiskActivityResolver.Resolve(path!) == null,
++                "unsupported input returns unavailable before any native lookup");
++        foreach (string path in new[] { @"C:\", @"D:\fixture\folder", "D:/fixture/folder", @"\\?\D:\fixture" })
++            Check(DiskActivityResolver.IsLocalAbsolutePath(path), "absolute local syntax is recognized without accessing it");
++        const string guidPath = @"\\?\Volume{4f4ce85b-a857-4892-9c4f-c326c0aa60c6}\";
++        Check(DiskActivityResolver.IsVolumeGuidPath(guidPath), "canonical volume GUID path is accepted");
++        foreach (string value in new[] { @"C:\", guidPath[..^1], guidPath + "extra", guidPath.Replace("4f4ce85b", "notaguid") })
++            Check(!DiskActivityResolver.IsVolumeGuidPath(value), "noncanonical volume identity is rejected");
++        foreach (Exception error in new Exception[] { new IOException(), new UnauthorizedAccessException(), new ArgumentException(),
++            new NotSupportedException(), new SecurityException(), new DllNotFoundException(), new EntryPointNotFoundException() })
++            Check(DiskActivityResolver.IsExpectedReadFailure(error), "expected metadata failure can return unavailable");
++        Check(!DiskActivityResolver.IsExpectedReadFailure(new OperationCanceledException()), "cancellation is not swallowed as unavailable");
++        Check(!DiskActivityResolver.IsExpectedReadFailure(new InvalidOperationException()), "unexpected programming failure is not swallowed");
++        using (var cancelled = new CancellationTokenSource())
++        {
++            cancelled.Cancel(); bool resolveStopped = false, discoverStopped = false;
++            try { DiskActivityResolver.Resolve("synthetic", cancelled.Token); }
++            catch (OperationCanceledException) { resolveStopped = true; }
++            try { DiskActivityResolver.Discover(cancelled.Token); }
++            catch (OperationCanceledException) { discoverStopped = true; }
++            Check(resolveStopped && discoverStopped, "pre-cancelled resolution and discovery perform no native work");
++        }
++        Check(new DiskActivityTarget(2, "磁盘 2").Label == "磁盘 2", "public target label contains only the disk number");
++        Console.WriteLine("PASS disk activity resolver checks: " + passed + "; native drive mapping not exercised");
++        return passed;
++    }
++}
+diff --git a/tests/DiskActivityResourceProbe.cs b/tests/DiskActivityResourceProbe.cs
+new file mode 100644
+index 0000000..b029050
+--- /dev/null
++++ b/tests/DiskActivityResourceProbe.cs
+@@ -0,0 +1,250 @@
++using System.Diagnostics;
++using System.Reflection;
++using System.Text;
++using System.Text.Json;
++using DiskAtlas;
++
++// Controlled local resource observation only. No scan, synthetic data, UI,
++// diagnostic logging, or output file is created. Loading the executable and its
++// runtime is naturally part of starting the four independent child processes.
++internal static class DiskActivityResourceProbe
++{
++    private sealed record Result(int Schema, string Mode, string Status, string Code,
++        double? WallMilliseconds, double? CpuMilliseconds, double? CpuSingleCorePercent,
++        long? LifetimePeakWorkingSetBytes, long? WindowEndWorkingSetBytes,
++        int WindowSamples, int WindowValidSamples);
++
++    private const string SkippedMarker = "DISK_ACTIVITY_RESOURCE_SKIPPED", FailedMarker = "DISK_ACTIVITY_RESOURCE_FAILED";
++    private static readonly string[] Fields = ["Schema", "Mode", "Status", "Code", "WallMilliseconds", "CpuMilliseconds",
++        "CpuSingleCorePercent", "LifetimePeakWorkingSetBytes", "WindowEndWorkingSetBytes", "WindowSamples", "WindowValidSamples"];
++
++    internal static int Run()
++    {
++        int failure = 0;
++        string[] modes = ["off", "on", "on", "off"];
++        for (int i = 0; i < modes.Length; i++)
++        {
++            Result result = RunChild(modes[i]);
++            // Rebuild the printable object: never relay raw child output or errors.
++            Console.WriteLine(JsonSerializer.Serialize(new
++            {
++                result.Schema, Round = i + 1, result.Mode, result.Status, result.Code,
++                CpuBasis = "single-core-percent-not-divided-by-logical-processors",
++                PeakScope = "child-process-lifetime-through-report-including-runtime-and-initialization",
++                result.WallMilliseconds, result.CpuMilliseconds, result.CpuSingleCorePercent,
++                result.LifetimePeakWorkingSetBytes, result.WindowEndWorkingSetBytes,
++                result.WindowSamples, result.WindowValidSamples
++            }));
++            if (result.Status == "failed") failure = 1;
++            else if (result.Status == "skipped" && failure == 0) failure = 2;
++        }
++        return failure;
++    }
++
++    internal static int Child(string mode)
++    {
++        Result result;
++        DiskActivityMonitor? monitor = null;
++        try
++        {
++            if (mode is not ("off" or "on"))
++                return Emit(Failure("invalid", "InvalidMode"));
++            string path = Environment.CurrentDirectory;
++            var target = DiskActivityResolver.Resolve(path);
++            if (target == null) return Emit(Empty(mode, "skipped", "UnsupportedTarget"));
++
++            object sampleGate = new();
++            bool measuring = false;
++            int samples = 0, valid = 0;
++            if (mode == "on")
++            {
++                // Use the production resolver/discovery/source and its real 1 Hz
++                // schedule. The callback only counts observations; there is no UI.
++                monitor = new DiskActivityMonitor(update =>
++                {
++                    if (update.Sample is not { } sample || sample.DiskNumber != target.DiskNumber) return;
++                    lock (sampleGate)
++                    {
++                        if (!measuring) return;
++                        samples++;
++                        if (sample.Status == DiskActivityStatus.Available &&
++                            (sample.ActivePercent.HasValue || sample.ReadBytesPerSecond.HasValue ||
++                             sample.WriteBytesPerSecond.HasValue || sample.ResponseMilliseconds.HasValue)) valid++;
++                    }
++                });
++                monitor.Update(path, null, true);
++            }
++            Pause(TimeSpan.FromMilliseconds(1500));
++            using var process = Process.GetCurrentProcess();
++            process.Refresh();
++            TimeSpan before = process.TotalProcessorTime;
++            long started = Stopwatch.GetTimestamp();
++            lock (sampleGate) measuring = true;
++            Pause(TimeSpan.FromSeconds(5));
++            lock (sampleGate) measuring = false;
++            long finished = Stopwatch.GetTimestamp();
++            process.Refresh();
++            double cpu = (process.TotalProcessorTime - before).TotalMilliseconds;
++            double wall = (finished - started) * 1000.0 / Stopwatch.Frequency;
++            long windowWorkingSet = process.WorkingSet64;
++            if (monitor != null)
++            {
++                var stopping = monitor;
++                monitor = null;
++                stopping.Dispose();
++                if (!stopping.Completion.Wait(TimeSpan.FromSeconds(2)))
++                    return Emit(Failure(mode, "ShutdownTimeout"));
++            }
++            process.Refresh();
++            // This OS-maintained peak is since child startup through this query,
++            // including initialization and shutdown; it is NOT a five-second peak.
++            long lifetimePeak = process.PeakWorkingSet64;
++            bool unavailable = mode == "on" && valid == 0;
++            result = new(1, mode, unavailable ? "skipped" : "passed", unavailable ? "CounterUnavailable" : "None",
++                wall, cpu, cpu / wall * 100.0, lifetimePeak, windowWorkingSet, samples, valid);
++            if (!Validate(result, mode)) result = Failure(mode, "ChildFailed");
++        }
++        catch
++        {
++            // Native exception messages, stack traces, and discovery details may
++            // contain private information. Only fixed codes leave this process.
++            result = Failure(mode is "on" or "off" ? mode : "invalid", "ChildFailed");
++        }
++        finally
++        {
++            if (monitor != null)
++            {
++                try { monitor.Dispose(); monitor.Completion.Wait(TimeSpan.FromSeconds(2)); }
++                catch { }
++            }
++        }
++        return Emit(result);
++    }
++
++    private static void Pause(TimeSpan duration)
++    {
++        long started = Stopwatch.GetTimestamp();
++        while (Stopwatch.GetElapsedTime(started) < duration) Thread.Sleep(50);
++    }
++
++    private static int Emit(Result result)
++    {
++        Console.WriteLine(JsonSerializer.Serialize(result));
++        if (result.Status == "skipped") { Console.Error.WriteLine(SkippedMarker); return 2; }
++        if (result.Status == "failed") { Console.Error.WriteLine(FailedMarker); return 1; }
++        return 0;
++    }
++
++    private static Result Empty(string mode, string status, string code) => new(1, mode, status, code, null, null, null, null, null, 0, 0);
++    private static Result Failure(string mode, string code) => Empty(mode, "failed", code);
++
++    private static Result RunChild(string mode)
++    {
++        Process? child = null;
++        try
++        {
++            string assembly = Assembly.GetExecutingAssembly().Location;
++            string? currentHost = Environment.ProcessPath;
++            string host = string.Equals(Path.GetFileNameWithoutExtension(currentHost), "dotnet", StringComparison.OrdinalIgnoreCase)
++                ? currentHost! : "dotnet";
++            var start = new ProcessStartInfo(host)
++            {
++                UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden,
++                RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = Environment.CurrentDirectory
++            };
++            start.ArgumentList.Add(assembly);
++            start.ArgumentList.Add("--disk-activity-resource-child");
++            start.ArgumentList.Add(mode);
++            child = Process.Start(start);
++            if (child == null) return Failure(mode, "ChildStartFailed");
++            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
++            var output = ReadBounded(child.StandardOutput.BaseStream, 16384, deadline.Token);
++            var error = ReadBounded(child.StandardError.BaseStream, 256, deadline.Token);
++            try
++            {
++                Task.WhenAll(output, error, child.WaitForExitAsync(deadline.Token)).GetAwaiter().GetResult();
++            }
++            catch (OperationCanceledException)
++            {
++                StopChild(child);
++                return Failure(mode, "ChildTimeout");
++            }
++            catch
++            {
++                StopChild(child);
++                return Failure(mode, "ChildOutputInvalid");
++            }
++            try
++            {
++                var encoding = new UTF8Encoding(false, true);
++                using var document = JsonDocument.Parse(encoding.GetString(output.Result));
++                var root = document.RootElement;
++                if (root.ValueKind != JsonValueKind.Object) return Failure(mode, "ChildOutputInvalid");
++                var names = new HashSet<string>(StringComparer.Ordinal);
++                foreach (var property in root.EnumerateObject())
++                    if (!names.Add(property.Name) || !Fields.Contains(property.Name, StringComparer.Ordinal))
++                        return Failure(mode, "ChildOutputInvalid");
++                if (names.Count != Fields.Length) return Failure(mode, "ChildOutputInvalid");
++                double? Number(string name) => root.GetProperty(name).ValueKind == JsonValueKind.Null ? null : root.GetProperty(name).GetDouble();
++                long? Integer(string name) => root.GetProperty(name).ValueKind == JsonValueKind.Null ? null : root.GetProperty(name).GetInt64();
++                var result = new Result(root.GetProperty("Schema").GetInt32(),
++                    root.GetProperty("Mode").GetString() ?? throw new FormatException(),
++                    root.GetProperty("Status").GetString() ?? throw new FormatException(),
++                    root.GetProperty("Code").GetString() ?? throw new FormatException(),
++                    Number("WallMilliseconds"), Number("CpuMilliseconds"), Number("CpuSingleCorePercent"),
++                    Integer("LifetimePeakWorkingSetBytes"), Integer("WindowEndWorkingSetBytes"),
++                    root.GetProperty("WindowSamples").GetInt32(), root.GetProperty("WindowValidSamples").GetInt32());
++                if (!Validate(result, mode)) return Failure(mode, "ChildOutputInvalid");
++                string stderr = encoding.GetString(error.Result).Trim();
++                int expectedExit = result.Status == "passed" ? 0 : result.Status == "skipped" ? 2 : 1;
++                string expectedError = result.Status == "passed" ? "" : result.Status == "skipped" ? SkippedMarker : FailedMarker;
++                return child.ExitCode == expectedExit && stderr == expectedError ? result : Failure(mode, "ChildOutputInvalid");
++            }
++            catch { return Failure(mode, "ChildOutputInvalid"); }
++        }
++        catch { if (child != null) StopChild(child); return Failure(mode, "ChildStartFailed"); }
++        finally { child?.Dispose(); }
++    }
++
++    private static async Task<byte[]> ReadBounded(Stream stream, int maximum, CancellationToken token)
++    {
++        using var data = new MemoryStream();
++        byte[] buffer = new byte[512];
++        while (true)
++        {
++            int count = await stream.ReadAsync(buffer.AsMemory(), token).ConfigureAwait(false);
++            if (count == 0) return data.ToArray();
++            if (data.Length + count > maximum) throw new InvalidDataException("ResourceChildOutputLimit");
++            data.Write(buffer, 0, count);
++        }
++    }
++
++    private static void StopChild(Process child)
++    {
++        try { if (!child.HasExited) child.Kill(true); } catch { }
++        try { child.WaitForExit(2000); } catch { }
++    }
++
++    private static bool Validate(Result result, string mode)
++    {
++        if (result.Schema != 1 || result.Mode != mode || result.Status is not ("passed" or "skipped" or "failed") ||
++            result.WindowSamples is < 0 or > 64 || result.WindowValidSamples < 0 || result.WindowValidSamples > result.WindowSamples ||
++            (mode == "off" && (result.WindowSamples != 0 || result.WindowValidSamples != 0))) return false;
++        if (result.Status == "failed")
++            return result.Code is "ChildFailed" or "ShutdownTimeout" or "InvalidMode" &&
++                result.WallMilliseconds == null && result.CpuMilliseconds == null && result.CpuSingleCorePercent == null &&
++                result.LifetimePeakWorkingSetBytes == null && result.WindowEndWorkingSetBytes == null && result.WindowSamples == 0;
++        if (result.Status == "skipped" && result.Code == "UnsupportedTarget")
++            return result.WallMilliseconds == null && result.CpuMilliseconds == null && result.CpuSingleCorePercent == null &&
++                result.LifetimePeakWorkingSetBytes == null && result.WindowEndWorkingSetBytes == null && result.WindowSamples == 0;
++        if (result.Status == "passed" ? result.Code != "None" : result.Code != "CounterUnavailable" || mode != "on" || result.WindowValidSamples != 0)
++            return false;
++        static bool Finite(double? number) => number.HasValue && double.IsFinite(number.Value) && number.Value >= 0;
++        if (!Finite(result.WallMilliseconds) || result.WallMilliseconds is < 5000 or > 12000 || !Finite(result.CpuMilliseconds) ||
++            !Finite(result.CpuSingleCorePercent) || result.LifetimePeakWorkingSetBytes is not > 0 || result.WindowEndWorkingSetBytes is not > 0 ||
++            result.LifetimePeakWorkingSetBytes < result.WindowEndWorkingSetBytes ||
++            (result.Status == "passed" && mode == "on" && result.WindowValidSamples == 0)) return false;
++        double expected = result.CpuMilliseconds!.Value / result.WallMilliseconds!.Value * 100.0;
++        return Math.Abs(result.CpuSingleCorePercent!.Value - expected) <= 0.000001 * Math.Max(1, expected);
++    }
++}
+diff --git a/tests/DiskActivityScanProbe.cs b/tests/DiskActivityScanProbe.cs
+new file mode 100644
+index 0000000..66dc771
+--- /dev/null
++++ b/tests/DiskActivityScanProbe.cs
+@@ -0,0 +1,256 @@
++using System.Diagnostics;
++using System.Reflection;
++using System.Text;
++using System.Text.Json;
++using DiskAtlas;
++
++internal static class DiskActivityScanProbe
++{
++    private const string Prefix = "AsukaLens-monitor-scan-", Marker = ".asuka-monitor-owner";
++    private const string FixtureVariable = "ASUKALENS_MONITOR_SCAN_FIXTURE", OwnerVariable = "ASUKALENS_MONITOR_SCAN_OWNER";
++    private const int DirectoryCount = 60, FilesPerDirectory = 500;
++    private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
++    internal sealed record Sample(string Mode, long Files, long Directories, long LogicalBytes, long AllocatedBytes,
++        long UnknownAllocation, bool Incomplete, long Skipped, int AllocationIssues, double WallMs, double CpuMs,
++        long PeakWorkingSetBytes, string PeakScope, int MonitorAvailableSamples, int MonitorAvailableDuringScan);
++
++    // Four fresh processes share the same owned fixture: off/on/on/off. The
++    // ownership preflight enumerates it before timing, so this is not a cold-cache test.
++    internal static int Run()
++    {
++        string root = Path.Combine(Path.GetFullPath(Path.GetTempPath()), Prefix + Guid.NewGuid().ToString("N"));
++        string owner = Guid.NewGuid().ToString("N");
++        var children = new List<Process>();
++        var samples = new List<Sample>();
++        int result = 1;
++        string? error = null;
++        bool statisticsMatch = false, monitoringObserved = false, owned = false;
++        try
++        {
++            Directory.CreateDirectory(root);
++            File.WriteAllText(Path.Combine(root, Marker), MarkerText(root, owner), new UTF8Encoding(false));
++            owned = true;
++            long expectedLogical = new FileInfo(Path.Combine(root, Marker)).Length;
++            for (int d = 0; d < DirectoryCount; d++)
++            {
++                string directory = Path.Combine(root, $"folder-{d:00}");
++                Directory.CreateDirectory(directory);
++                for (int f = 0; f < FilesPerDirectory; f++)
++                {
++                    byte[] bytes = new byte[f % 2 == 0 ? 17 : 1024];
++                    File.WriteAllBytes(Path.Combine(directory, $"file-{f:000}.bin"), bytes);
++                    expectedLogical += bytes.Length;
++                }
++            }
++            ValidateOwned(root, owner, complete: true);
++            foreach (string mode in new[] { "off", "on", "on", "off" })
++                samples.Add(RunChild(root, owner, mode, children));
++            var baseline = samples[0];
++            statisticsMatch = samples.All(sample => sample.Files == DirectoryCount * FilesPerDirectory + 1 && sample.Directories == DirectoryCount &&
++                sample.LogicalBytes == expectedLogical && sample.AllocatedBytes == baseline.AllocatedBytes &&
++                sample.UnknownAllocation == 0 && !sample.Incomplete && sample.Skipped == 0 && sample.AllocationIssues == 0);
++            monitoringObserved = samples.Where(sample => sample.Mode == "on").All(sample => sample.MonitorAvailableSamples > 0) &&
++                samples.Where(sample => sample.Mode == "off").All(sample => sample.MonitorAvailableSamples == 0);
++            if (!statisticsMatch) error = "MONITOR_SCAN_PROBE_STATISTICS_MISMATCH";
++            else if (!monitoringObserved) error = "MONITOR_SCAN_PROBE_MONITORING_NOT_OBSERVED";
++            else result = 0;
++        }
++        catch (OperationCanceledException) { error = "MONITOR_SCAN_PROBE_CHILD_TIMEOUT"; }
++        catch { error = "MONITOR_SCAN_PROBE_FAILED"; }
++        finally
++        {
++            bool stopped = true;
++            foreach (var child in children)
++            {
++                try
++                {
++                    if (!child.HasExited) child.Kill(entireProcessTree: true);
++                    if (!child.WaitForExit(5000)) stopped = false;
++                }
++                catch { stopped = false; }
++            }
++            if (owned)
++            {
++                try
++                {
++                    if (!stopped) throw new InvalidOperationException();
++                    ValidateOwned(root, owner, complete: false);
++                    Directory.Delete(root, true);
++                }
++                catch { result = 1; error = "MONITOR_SCAN_PROBE_CLEANUP_REFUSED"; }
++            }
++            foreach (var child in children) child.Dispose();
++        }
++        // Preserve every completed aggregate sample, including inconclusive/failing runs.
++        Console.WriteLine(JsonSerializer.Serialize(new
++        {
++            Kind = "disk-activity-ui-scan-probe", Order = "off/on/on/off", FixtureFiles = DirectoryCount * FilesPerDirectory,
++            OwnershipMarkerFiles = 1, FixtureDirectories = DirectoryCount, PrewaitMilliseconds = 1600,
++            TimingScope = "ScanFolder plus final UI query and refresh; excludes preparation and shutdown",
++            PeakScope = "whole child process lifetime through scan report; not scan-phase peak",
++            CacheScope = "not controlled; own-tree ownership validation precedes each scan",
++            StatisticsMatch = statisticsMatch, MonitoringObserved = monitoringObserved, Success = result == 0,
++            MonitoringDuringEveryOnScanObserved = samples.Where(sample => sample.Mode == "on").Any() &&
++                samples.Where(sample => sample.Mode == "on").All(sample => sample.MonitorAvailableDuringScan > 0),
++            Samples = samples
++        }));
++        if (error != null) Console.Error.WriteLine(error);
++        return result;
++    }
++
++    private static Sample RunChild(string root, string owner, string mode, List<Process> children)
++    {
++        var start = new ProcessStartInfo("dotnet")
++        {
++            UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true
++        };
++        start.ArgumentList.Add(typeof(DiskActivityScanProbe).Assembly.Location);
++        start.ArgumentList.Add("--disk-activity-scan-child");
++        start.ArgumentList.Add(mode);
++        start.Environment[FixtureVariable] = root;
++        start.Environment[OwnerVariable] = owner;
++        start.Environment["ASUKALENS_DATA_DIR"] = Path.Combine(root, ".isolated-state");
++        start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
++        var process = new Process { StartInfo = start };
++        try { if (!process.Start()) throw new InvalidOperationException(); }
++        catch { process.Dispose(); throw; }
++        children.Add(process);
++        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
++        var output = ReadBounded(process.StandardOutput.BaseStream, 16384, timeout.Token);
++        var errors = ReadBounded(process.StandardError.BaseStream, 4096, timeout.Token);
++        Task.WhenAll(process.WaitForExitAsync(timeout.Token), output, errors).GetAwaiter().GetResult();
++        if (process.ExitCode != 0 || errors.Result.Length != 0) throw new InvalidOperationException();
++        var sample = JsonSerializer.Deserialize<Sample>(output.Result) ?? throw new InvalidOperationException();
++        if (sample.Mode != mode || !double.IsFinite(sample.WallMs) || sample.WallMs <= 0 ||
++            !double.IsFinite(sample.CpuMs) || sample.CpuMs < 0 || sample.PeakWorkingSetBytes <= 0 ||
++            sample.Files < 0 || sample.Directories < 0 || sample.LogicalBytes < 0 || sample.AllocatedBytes < 0 ||
++            sample.UnknownAllocation < 0 || sample.Skipped < 0 || sample.AllocationIssues < 0 ||
++            sample.MonitorAvailableSamples < 0 || sample.MonitorAvailableDuringScan < 0 ||
++            sample.PeakScope != "process-start-through-scan-report") throw new InvalidOperationException();
++        return sample;
++    }
++
++    private static async Task<byte[]> ReadBounded(Stream stream, int maximum, CancellationToken token)
++    {
++        using var bytes = new MemoryStream();
++        byte[] buffer = new byte[1024];
++        while (true)
++        {
++            int count = await stream.ReadAsync(buffer, token);
++            if (count == 0) break;
++            if (bytes.Length + count > maximum) throw new InvalidOperationException();
++            bytes.Write(buffer, 0, count);
++        }
++        return bytes.ToArray();
++    }
++
++    // Called before the ordinary test runner's output/initialization by the root entry point.
++    internal static int Child(string mode)
++    {
++        if (mode is not ("off" or "on")) { Console.Error.WriteLine("MONITOR_SCAN_CHILD_MODE"); return 1; }
++        Sample? sample = null;
++        bool failed = false;
++        try
++        {
++            string root = Environment.GetEnvironmentVariable(FixtureVariable) ?? throw new InvalidOperationException();
++            string owner = Environment.GetEnvironmentVariable(OwnerVariable) ?? throw new InvalidOperationException();
++            ValidateOwned(root, owner, complete: true);
++            var thread = new Thread(() =>
++            {
++                try
++                {
++                    Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++                    Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
++                    Application.EnableVisualStyles();
++                    Application.SetCompatibleTextRenderingDefault(false);
++                    using var form = new MainForm(null, loadSavedBackground: false,
++                        backgroundSettingsPath: Path.Combine(root, ".unused-background.dat"), diagnostics: null)
++                    { Text = "AsukaLens - synthetic monitoring scan probe" };
++                    form.Shown += async (_, _) =>
++                    {
++                        try
++                        {
++                            var panel = Field<DiskActivityPanel>(form, "activityPanel");
++                            typeof(MainForm).GetField("activityPath", Private)!.SetValue(form, root);
++                            if (mode == "on") Field<Button>(panel, "toggle").PerformClick();
++                            await Task.Delay(1600);
++                            if (panel.Expanded != (mode == "on")) throw new InvalidOperationException();
++                            int before = AvailableSamples(panel);
++                            using var process = Process.GetCurrentProcess();
++                            var cpu = process.TotalProcessorTime;
++                            var clock = Stopwatch.StartNew();
++                            var scanTask = (Task?)typeof(MainForm).GetMethod("ScanFolder", Private)!.Invoke(form, [root]);
++                            if (scanTask == null) throw new InvalidOperationException();
++                            await scanTask;
++                            while (Field<CancellationTokenSource?>(form, "viewCancellation") != null ||
++                                !Field<DataGridView>(form, "grid").Enabled) await Task.Delay(10);
++                            form.Refresh();
++                            clock.Stop();
++                            double cpuMs = (process.TotalProcessorTime - cpu).TotalMilliseconds;
++                            var scan = Field<ScanResult?>(form, "scan") ?? throw new InvalidOperationException();
++                            if (Field<DataGridView>(form, "grid").RowCount == 0) throw new InvalidOperationException();
++                            int after = AvailableSamples(panel);
++                            process.Refresh();
++                            sample = new(mode, scan.Root.FileCount, scan.Root.FolderCount, scan.Root.Size, scan.Root.AllocatedSize,
++                                scan.Root.UnknownAllocationFiles, scan.Root.Incomplete, scan.Skipped, scan.AllocationIssues.Count,
++                                clock.Elapsed.TotalMilliseconds, cpuMs, process.PeakWorkingSet64,
++                                "process-start-through-scan-report", after, Math.Max(0, after - before));
++                        }
++                        catch { failed = true; }
++                        finally { form.Close(); }
++                    };
++                    Application.Run(form);
++                }
++                catch { failed = true; }
++            }) { IsBackground = true };
++            thread.SetApartmentState(ApartmentState.STA);
++            thread.Start();
++            if (!thread.Join(TimeSpan.FromSeconds(26))) { Console.Error.WriteLine("MONITOR_SCAN_CHILD_TIMEOUT"); return 1; }
++        }
++        catch { failed = true; }
++        if (failed || sample == null) { Console.Error.WriteLine("MONITOR_SCAN_CHILD_FAILED"); return 1; }
++        Console.WriteLine(JsonSerializer.Serialize(sample));
++        return 0;
++    }
++
++    private static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name, Private)!.GetValue(owner)!;
++    private static int AvailableSamples(DiskActivityPanel panel) => Field<DiskActivitySample?[]>(panel, "history")
++        .Count(sample => sample?.Status == DiskActivityStatus.Available);
++    private static string MarkerText(string root, string owner) => "ASUKALENS_MONITOR_SCAN_V1\n" + Path.GetFileName(root)[Prefix.Length..] + "\n" + owner;
++
++    private static void ValidateOwned(string root, string owner, bool complete)
++    {
++        string resolved = Path.GetFullPath(root);
++        string temp = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath()));
++        string name = Path.GetFileName(resolved);
++        if (!Path.IsPathFullyQualified(root) || !string.Equals(resolved, root, StringComparison.OrdinalIgnoreCase) ||
++            !string.Equals(Path.GetDirectoryName(resolved), temp, StringComparison.OrdinalIgnoreCase) ||
++            !name.StartsWith(Prefix, StringComparison.Ordinal) || !Guid.TryParseExact(name.AsSpan(Prefix.Length), "N", out _) ||
++            !Guid.TryParseExact(owner, "N", out _) || (File.GetAttributes(resolved) & FileAttributes.ReparsePoint) != 0)
++            throw new InvalidOperationException();
++        string marker = Path.Combine(resolved, Marker);
++        if ((File.GetAttributes(marker) & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != 0 ||
++            new FileInfo(marker).Length > 256 || File.ReadAllText(marker) != MarkerText(resolved, owner))
++            throw new InvalidOperationException();
++        var expectedDirectories = Enumerable.Range(0, DirectoryCount).Select(d => $"folder-{d:00}").ToHashSet(StringComparer.Ordinal);
++        int directoryCount = 0;
++        foreach (var entry in Directory.EnumerateFileSystemEntries(resolved, "*", SearchOption.TopDirectoryOnly))
++        {
++            var attributes = File.GetAttributes(entry);
++            if ((attributes & FileAttributes.ReparsePoint) != 0) throw new InvalidOperationException();
++            if (Path.GetFileName(entry) == Marker && (attributes & FileAttributes.Directory) == 0) continue;
++            if ((attributes & FileAttributes.Directory) == 0 || !expectedDirectories.Remove(Path.GetFileName(entry))) throw new InvalidOperationException();
++            directoryCount++;
++            var expectedFiles = Enumerable.Range(0, FilesPerDirectory).Select(f => $"file-{f:000}.bin").ToHashSet(StringComparer.Ordinal);
++            int fileCount = 0;
++            foreach (string file in Directory.EnumerateFileSystemEntries(entry, "*", SearchOption.TopDirectoryOnly))
++            {
++                if ((File.GetAttributes(file) & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != 0 ||
++                    !expectedFiles.Remove(Path.GetFileName(file))) throw new InvalidOperationException();
++                fileCount++;
++            }
++            if (complete && fileCount != FilesPerDirectory) throw new InvalidOperationException();
++        }
++        if (complete && directoryCount != DirectoryCount) throw new InvalidOperationException();
++    }
++}
+diff --git a/tests/DiskActivitySourceTests.cs b/tests/DiskActivitySourceTests.cs
+new file mode 100644
+index 0000000..4145324
+--- /dev/null
++++ b/tests/DiskActivitySourceTests.cs
+@@ -0,0 +1,147 @@
++using System.Runtime.InteropServices;
++using System.Text;
++using DiskAtlas;
++
++internal static class DiskActivitySourceTests
++{
++    private sealed class Query : IDiskActivityQuery
++    {
++        internal bool Success = true, Disposed;
++        internal int Collects, Reads;
++        internal Action? OnCollect;
++        internal Action<int>? OnRead;
++        internal IReadOnlyList<DiskActivityCounter>?[] Values =
++        [new[] { new DiskActivityCounter("0 C: D:", 0, 75) }, new[] { new DiskActivityCounter("0 C: D:", 0, 123456) },
++            new[] { new DiskActivityCounter("0 C: D:", 0, 654321) }, new[] { new DiskActivityCounter("0 C: D:", 0, 0.002) }];
++        public bool Collect(CancellationToken token) { Collects++; OnCollect?.Invoke(); return Success; }
++        public IReadOnlyList<DiskActivityCounter>? Read(int index, CancellationToken token) { Reads++; OnRead?.Invoke(index); return Values[index]; }
++        public void Dispose() => Disposed = true;
++    }
++
++    // All buffers and counter observations below are synthetic; no native query is opened.
++    internal static int Run()
++    {
++        int checks = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("Disk activity source check failed: " + name);
++            checks++; Console.WriteLine("PASS disk activity source " + name);
++        }
++        Check(IntPtr.Size == 8 && Marshal.SizeOf<PdhDiskActivityQuery.FormattedItem>() == 24 &&
++            Marshal.OffsetOf<PdhDiskActivityQuery.FormattedItem>(nameof(PdhDiskActivityQuery.FormattedItem.Name)).ToInt32() == 0 &&
++            Marshal.OffsetOf<PdhDiskActivityQuery.FormattedItem>(nameof(PdhDiskActivityQuery.FormattedItem.Status)).ToInt32() == 8 &&
++            Marshal.OffsetOf<PdhDiskActivityQuery.FormattedItem>(nameof(PdhDiskActivityQuery.FormattedItem.Value)).ToInt32() == 16,
++            "x64 PDH item offsets and stride");
++        foreach (var (name, expected) in new[] { ("0", 0), ("0 C: D:", 0), ("12 X:", 12), ("2147483647", int.MaxValue) })
++            Check(PdhDiskActivitySource.TryParseInstance(name, out int disk) && disk == expected, "known instance grammar");
++        foreach (string? name in new string?[] { null, "", "_Total", "01 C:", "-1", "2147483648", " 0 C:", "0 C: ", "0 ", "0 other", "0 C: C:", "0 C:\\", "０ C:", "0  C:" })
++            Check(!PdhDiskActivitySource.TryParseInstance(name, out _), "unknown instance rejected");
++        bool negativeDisk = false;
++        try { using var invalid = new PdhDiskActivitySource(-1); } catch (ArgumentOutOfRangeException) { negativeDisk = true; }
++        Check(negativeDisk, "negative target disk rejected before native work");
++        using (var unavailable = new PdhDiskActivitySource(0, () => throw new DllNotFoundException("synthetic private marker")))
++            Check(unavailable.Collect(default).Status == DiskActivityStatus.Unavailable, "missing native provider degrades without exposing its message");
++        var stamp = DateTimeOffset.UtcNow;
++        var fake = new Query();
++        int created = 0;
++        using (var source = new PdhDiskActivitySource(0, () => { created++; return fake; }))
++        {
++            Check(created == 0, "construction has no native work");
++            var first = source.Collect(default);
++            Check(first.Status == DiskActivityStatus.Waiting && first.ActivePercent == null && fake.Reads == 0, "first collect primes without fake zero");
++            DateTimeOffset beforeRead = default;
++            fake.OnRead = index => { if (index == 0) { beforeRead = DateTimeOffset.UtcNow; Thread.Sleep(20); } };
++            var second = source.Collect(default);
++            Check(second.Timestamp <= beforeRead, "sample freshness begins at collection before slow formatting reads");
++            fake.OnRead = null;
++            Check(second.Status == DiskActivityStatus.Available && second.DiskNumber == 0 && second.ActivePercent == 25 &&
++                second.ReadBytesPerSecond == 123456 && second.WriteBytesPerSecond == 654321 && second.ResponseMilliseconds == 2,
++                "idle conversion and unscaled byte and millisecond units");
++            fake.Success = false;
++            Check(source.Collect(default).Status == DiskActivityStatus.Unavailable, "failed collection is unavailable");
++            fake.Success = true;
++            Check(source.Collect(default).Status == DiskActivityStatus.Waiting, "collection failure invalidates prime");
++            Check(source.Collect(default).Status == DiskActivityStatus.Available && created == 1, "query reused after fresh prime");
++            using var cancel = new CancellationTokenSource(); cancel.Cancel();
++            int before = fake.Collects; bool stopped = false;
++            try { source.Collect(cancel.Token); } catch (OperationCanceledException) { stopped = true; }
++            Check(stopped && fake.Collects == before, "pre-cancel avoids provider work");
++            using var mid = new CancellationTokenSource(); fake.OnCollect = mid.Cancel; stopped = false;
++            try { source.Collect(mid.Token); } catch (OperationCanceledException) { stopped = true; }
++            Check(stopped, "post-provider cancellation publishes no sample");
++            fake.OnCollect = null;
++        }
++        Check(fake.Disposed, "source disposes its query");
++        var disposed = new PdhDiskActivitySource(0, () => new Query()); disposed.Dispose(); disposed.Dispose();
++        bool refused = false;
++        try { disposed.Collect(default); } catch (ObjectDisposedException) { refused = true; }
++        Check(refused, "dispose is idempotent and blocks later samples");
++        using (var resumed = new PdhDiskActivitySource(0, () => new Query()))
++            Check(resumed.Collect(default).Status == DiskActivityStatus.Waiting, "new source resumes with a fresh prime");
++        IReadOnlyList<DiskActivityCounter> Metric(double? value, string instance = "0 C:") => new[] { new DiskActivityCounter(instance, 0, value) };
++        var partial = PdhDiskActivitySource.Compose(stamp, 0, null, Metric(10), null, null);
++        Check(partial.Status == DiskActivityStatus.Available && partial.ReadBytesPerSecond == 10 && partial.ActivePercent == null,
++            "single usable metric remains available");
++        foreach (double number in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity, -1, 101 })
++            Check(PdhDiskActivitySource.Compose(stamp, 0, Metric(number), null, null, null).ActivePercent == null,
++                "invalid idle value cannot become activity");
++        foreach (double number in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity, -1 })
++        {
++            var invalid = PdhDiskActivitySource.Compose(stamp, 0, null, Metric(number), Metric(number), Metric(number));
++            Check(invalid.Status == DiskActivityStatus.Unavailable && invalid.ReadBytesPerSecond == null && invalid.WriteBytesPerSecond == null && invalid.ResponseMilliseconds == null,
++                "invalid rates and latency remain unknown");
++        }
++        Check(PdhDiskActivitySource.Compose(stamp, 0, Metric(100), Metric(0), Metric(0), Metric(0)).ActivePercent == 0,
++            "valid zero remains measured zero");
++        Check(PdhDiskActivitySource.Compose(stamp, 0, Metric(0), null, null, null).ActivePercent == 100, "fully busy disk is bounded at 100");
++        Check(PdhDiskActivitySource.Compose(stamp, 0, null, null, null, Metric(double.MaxValue)).ResponseMilliseconds == null,
++            "unit conversion overflow stays unknown");
++        Check(PdhDiskActivitySource.Compose(stamp, 0, Metric(50), Metric(1, "0 D:"), null, null).Status == DiskActivityStatus.Unavailable,
++            "different instance names never join across counters");
++        Check(PdhDiskActivitySource.Compose(stamp, 0, new[] { new DiskActivityCounter("0 C:", 0, 1), new DiskActivityCounter("0 C:", 0, 2) }, Metric(5), null, null).ActivePercent == null,
++            "duplicate target invalidates the ambiguous metric");
++        var other = new[] { new DiskActivityCounter("1 D:", 1, 5) };
++        Check(PdhDiskActivitySource.Compose(stamp, 0, other, null, null, null).Status == DiskActivityStatus.Unavailable, "other disk is never substituted");
++
++        bool Decode((string Name, uint Status, double Value)[] entries, Action<IntPtr, int>? mutate, out IReadOnlyList<DiskActivityCounter> decoded)
++        {
++            int stringBytes = entries.Sum(item => Encoding.Unicode.GetByteCount(item.Name + '\0'));
++            int capacity = entries.Length * 24 + stringBytes;
++            IntPtr buffer = Marshal.AllocHGlobal(Math.Max(1, capacity));
++            try
++            {
++                int offset = entries.Length * 24;
++                for (int i = 0; i < entries.Length; i++)
++                {
++                    byte[] text = Encoding.Unicode.GetBytes(entries[i].Name + '\0');
++                    IntPtr name = IntPtr.Add(buffer, offset); Marshal.Copy(text, 0, name, text.Length);
++                    Marshal.StructureToPtr(new PdhDiskActivityQuery.FormattedItem { Name = name, Status = entries[i].Status, Value = entries[i].Value }, IntPtr.Add(buffer, i * 24), false);
++                    offset += text.Length;
++                }
++                mutate?.Invoke(buffer, capacity);
++                return PdhDiskActivityQuery.TryDecodeArray(buffer, capacity, (uint)entries.Length, out decoded);
++            }
++            finally { Marshal.FreeHGlobal(buffer); }
++        }
++        Check(Decode(new[] { ("0 C: D:", 0u, 75.5), ("1 X:", 1u, 2.0), ("_Total", 0u, 9.0), ("unknown", 0u, 1.0) }, null, out var decoded) &&
++            decoded.Count == 2 && decoded[0].Value == 75.5 && decoded[1].Value == 2, "array values and valid/new statuses decoded while totals ignored");
++        Check(Decode(new[] { ("0 C:", 0xC0000BBAu, 5.0) }, null, out decoded) && decoded.Single().Value == null,
++            "item status checked independently of API status");
++        foreach (double invalid in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity, -1 })
++            Check(Decode(new[] { ("0 C:", 0u, invalid) }, null, out decoded) && decoded.Single().Value == null, "nonfinite or negative buffer value ignored");
++        Check(!Decode(new[] { ("0 C:", 0u, 1.0), ("0 D:", 0u, 2.0) }, null, out _), "duplicate disk number rejected in native array");
++        Check(!Decode(new[] { ("0 C:", 0u, 1.0) }, (buffer, _) => Marshal.WriteIntPtr(buffer, IntPtr.Zero), out _), "null name pointer rejected");
++        Check(!Decode(new[] { ("0 C:", 0u, 1.0) }, (buffer, _) => Marshal.WriteIntPtr(buffer, buffer), out _), "name pointer into item headers rejected");
++        Check(!Decode(new[] { ("0 C:", 0u, 1.0) }, (buffer, size) => Marshal.WriteIntPtr(buffer, IntPtr.Add(buffer, size)), out _), "name pointer past allocation rejected");
++        Check(!Decode(new[] { ("0 C:", 0u, 1.0) }, (buffer, _) => Marshal.WriteIntPtr(buffer, IntPtr.Add(buffer, 25)), out _), "unaligned name pointer rejected");
++        Check(!Decode(new[] { ("0 C:", 0u, 1.0) }, (buffer, size) => Marshal.WriteInt16(buffer, size - 2, 65), out _), "unterminated name rejected within buffer");
++        Check(!Decode(new[] { (new string('x', 257), 0u, 1.0) }, null, out _), "name length bounded");
++        Check(PdhDiskActivityQuery.TryDecodeArray(IntPtr.Zero, 0, 0, out decoded) && decoded.Count == 0, "empty arrays remain empty");
++        Check(!PdhDiskActivityQuery.TryDecodeArray(IntPtr.Zero, 23, 1, out _), "array header truncation rejected before dereference");
++        Check(!PdhDiskActivityQuery.TryDecodeArray(IntPtr.Zero, 1024 * 1024 + 1, 0, out _), "buffer cap enforced");
++        Check(!PdhDiskActivityQuery.TryDecodeArray(IntPtr.Zero, 0, 4097, out _), "item cap enforced");
++        Check(!PdhDiskActivityQuery.TryDecodeArray(IntPtr.Zero, -1, 0, out _), "negative buffer size rejected");
++        Console.WriteLine("PASS disk activity source checks: " + checks + "; native sampling: none");
++        return checks;
++    }
++}
+diff --git a/tests/DiskAtlas.Tests.csproj b/tests/DiskAtlas.Tests.csproj
+index 245bfd0..1286ea9 100644
+--- a/tests/DiskAtlas.Tests.csproj
++++ b/tests/DiskAtlas.Tests.csproj
+@@ -12,6 +12,7 @@
+     <Compile Include="..\src\AppDataLocation.cs" Link="AppDataLocation.cs" />
+     <Compile Include="..\src\Diagnostics\**\*.cs" Link="Diagnostics\%(RecursiveDir)%(Filename)%(Extension)" />
+     <Compile Include="..\src\Scanning\**\*.cs" Link="Scanning\%(RecursiveDir)%(Filename)%(Extension)" />
++    <Compile Include="..\src\Monitoring\**\*.cs" Link="Monitoring\%(RecursiveDir)%(Filename)%(Extension)" />
+     <Compile Include="..\ErrorReport.cs" Link="ErrorReport.cs" />
+     <Compile Include="..\Core.cs" Link="Core.cs" />
+     <Compile Include="..\NativeStorage.cs" Link="NativeStorage.cs" />
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 15d8035..a74cccc 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -1,9 +1,27 @@
+ using DiskAtlas;
+ using System.Drawing;
+ 
++if (args.Contains("--disk-activity-resource-child")) return DiskActivityResourceProbe.Child(args.Last());
++if (args.Contains("--disk-activity-scan-child")) return DiskActivityScanProbe.Child(args.Last());
+ Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+ 
+ if (args.Contains("--package-smoke")) return PackageSmoke.Run();
++if (args.Contains("--disk-activity-tests"))
++{
++    try
++    {
++        int checks = DiskActivitySourceTests.Run() + DiskActivityResolverTests.Run() + DiskActivityMonitorTests.Run();
++        Console.WriteLine($"PASS disk activity checks: {checks}");
++        return 0;
++    }
++    catch { Console.Error.WriteLine("FAIL disk activity checks; no private details emitted"); return 1; }
++}
++if (args.Contains("--disk-activity-panel-tests")) return DiskActivityPanelTests.Run(args.Contains("--dpi-96"));
++if (args.Contains("--disk-activity-mainform-tests")) return DiskActivityMainFormTests.Run(args.Contains("--dpi-96"));
++if (args.Contains("--disk-activity-live")) return DiskActivityLiveChecks.Run();
++if (args.Contains("--disk-activity-resource-probe")) return DiskActivityResourceProbe.Run();
++if (args.Contains("--disk-activity-scan-probe")) return DiskActivityScanProbe.Run();
++if (args.Contains("--disk-activity-layout-preview")) return DiskActivityLayoutPreview.Run(args.Last(), args.Contains("--minimum"));
+ if (args.Contains("--ntfs-prototype-tests")) return DiskAtlas.NtfsPrototype.NtfsPrototypeTests.Run();
+ if (args.Contains("--ntfs-resident-lease-tests"))
+ {

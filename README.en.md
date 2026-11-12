@@ -44,6 +44,8 @@ Also includes Automatic / Low-impact / High-speed strategies, live partial previ
 
 ## Quick start
 
+**New in the current development build: [disk activity panel](docs/disk-activity.md)** (Chinese guide). Expand it above scan progress to view the physical disk's last 60 seconds, activity, read/write throughput and response time. It follows the scan folder or a manually selected disk, pauses when collapsed or minimized, and keeps samples only in memory. Metrics cover the whole disk, including other processes. The published v1.5.0 assets do not include it.
+
 1. Build and launch as below. Click **选择文件夹** (Choose folder), or drag a folder into the window.
 2. Watch the stage and progress at the bottom. Browse discovered folders or cancel; live previews are marked as incomplete statistics.
 3. Switch between **空间分布 / 大文件 / 文件类型** (Treemap / Largest files / File types), then search or sort.
@@ -73,7 +75,7 @@ cd Hard-Drive-Space-Visualization
 .\run.ps1
 ```
 
-You can also double-click [run.cmd](run.cmd). It builds the current source before launching `bin/Release/net10.0-windows/DiskAtlas.exe`. Build failures and an already-running development app produce a message. Opening an existing EXE directly does not update it. The title shows the version; **诊断 → 开发记录说明** (Diagnostics → Development records) shows the build identifier.
+You can also double-click [run.cmd](run.cmd). It builds the current source before launching `bin/Release/net10.0-windows/DiskAtlas.exe`. Build failures and an already-running development app produce a message. Opening an existing EXE directly does not update it. The title keeps the product name; **诊断 → 开发记录说明** (Diagnostics → Development records) shows the version and build identifier.
 
 ```powershell
 # Build only; no package
@@ -96,7 +98,7 @@ The application does not automatically upload files, paths, images or logs. Mini
 
 ## Planned work and limits
 
-- **Initial delivery preparation:** self-contained portable, per-user installer and both source archive scripts now have local acceptance coverage. Formal delivery still requires clean Windows and remote draft validation; see the [release guide](docs/releasing.md) (Chinese).
+- **Future release acceptance:** v1.5.0 is published. Later versions still need a new freeze, packages and acceptance; existing clean-environment gaps remain recorded. See the [release guide](docs/releasing.md) (Chinese).
 - **After the initial version (P2):** High-speed mode is not consistently faster than Automatic. Nonblocking restructuring and additional visual polish are deferred to the same stage.
 - **Current limits:** Automatic chooses concurrency by device, without load adaptation. If the change journal is unavailable, refresh still verifies metadata for all directories and files and may not be much faster. The cache exists only within the current process.
 
@@ -112,6 +114,7 @@ AsukaLens/
 ├─ ScanCoordinator.cs        Refresh and cache coordination
 ├─ src/Diagnostics/          Local diagnostics and problem notes
 ├─ src/Scanning/             File-read concurrency budget
+├─ src/Monitoring/           Physical disk sampling and activity panel
 ├─ assets/                   Default theme, icons and provenance
 ├─ tests/                    Functional/UI checks and synthetic preview
 ├─ docs/                     Developer docs, delivery plan and preview

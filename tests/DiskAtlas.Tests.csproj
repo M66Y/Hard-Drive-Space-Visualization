@@ -12,6 +12,7 @@
     <Compile Include="..\src\AppDataLocation.cs" Link="AppDataLocation.cs" />
     <Compile Include="..\src\Diagnostics\**\*.cs" Link="Diagnostics\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\src\Scanning\**\*.cs" Link="Scanning\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\src\Monitoring\**\*.cs" Link="Monitoring\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\ErrorReport.cs" Link="ErrorReport.cs" />
     <Compile Include="..\Core.cs" Link="Core.cs" />
     <Compile Include="..\NativeStorage.cs" Link="NativeStorage.cs" />

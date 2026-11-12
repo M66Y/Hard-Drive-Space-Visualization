@@ -6,6 +6,8 @@ internal sealed class MainForm : Form
 {
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     internal Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult>? ScanRunner { get; init; }
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    internal Func<Action<DiskActivityUpdate>, DiskActivityMonitor>? ActivityMonitorFactory { get; set; }
     internal readonly WallpaperRaster WallpaperRaster = new();
     internal BackgroundView BackgroundCrop { get; private set; } = BackgroundView.Default;
     internal bool HasCustomBackground { get; private set; }
@@ -50,6 +52,12 @@ internal sealed class MainForm : Form
     private readonly TextBox pathBox = new() { ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = Theme.Surface, ForeColor = Theme.Text, Dock = DockStyle.Fill };
     private readonly TextBox search = new() { PlaceholderText = "搜索名称或扩展名…", BorderStyle = BorderStyle.None, BackColor = Theme.Surface, ForeColor = Theme.Text, Dock = DockStyle.Fill };
     private readonly ScanProgressControl progressBar = new() { Dock = DockStyle.Fill };
+    private readonly DiskActivityPanel activityPanel = new() { Dock = DockStyle.Fill, Margin = Padding.Empty };
+    private RowStyle? activityRow;
+    private DiskActivityMonitor? activityMonitor;
+    private string? activityPath;
+    private bool activitySuspended;
+    private readonly System.Windows.Forms.Timer activityClock = new() { Interval = 1000 };
     private readonly CheckBox reduceMotion = new() { Text = "减弱动效", AutoSize = true, Anchor = AnchorStyles.Right, BackColor = Color.Transparent };
     private readonly DataGridView grid = new WallpaperGrid();
     private readonly StatCard totalCard = new() { Title = "当前目录大小", Caption = "文件逻辑大小 · 1024 进制", Highlight = true, Dock = DockStyle.Fill };
@@ -91,6 +99,15 @@ internal sealed class MainForm : Form
         DoubleBuffered = true;
         AllowDrop = true;
         BuildInterface();
+        activityPanel.ExpansionChanged += (_, _) =>
+        {
+            if (activityRow != null) activityRow.Height = (activityPanel.Expanded ? 110 : 32) * DeviceDpi / 96f;
+            activityPanel.ResetHistory();
+            RefreshDiskActivity();
+        };
+        activityPanel.TargetChanged += (_, _) => RefreshDiskActivity();
+        activityPanel.SetMessage("已暂停 · 展开面板后采样");
+        activityClock.Tick += (_, _) => activityPanel.AdvanceClock(DateTimeOffset.UtcNow);
         reduceMotion.Checked = false;
         reduceMotion.CheckedChanged += (_, _) => ApplyMotionPreference();
         ApplyMotionPreference();
@@ -141,7 +158,7 @@ internal sealed class MainForm : Form
         KeyDown += HandleKeys;
         DragEnter += (_, e) => { if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1 && Directory.Exists(paths[0])) e.Effect = DragDropEffects.Copy; };
         DragDrop += async (_, e) => { if (scanCancellation == null && e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1) await ScanFolder(paths[0]); };
-        FormClosing += (_, _) => { scanCancellation?.Cancel(); viewCancellation?.Cancel(); };
+        FormClosing += (_, _) => { scanCancellation?.Cancel(); viewCancellation?.Cancel(); activityMonitor?.Dispose(); };
         backgroundSettings.Click += (_, _) => EditBackground();
         diagnosticsButton.Enabled = diagnostics != null;
         diagnosticsButton.Click += (_, _) => OpenDiagnostics();
@@ -192,6 +209,49 @@ internal sealed class MainForm : Form
         base.OnResize(e);
         // Repaint unchanged child bounds too: all surfaces share window coordinates.
         Invalidate(true);
+        RefreshDiskActivity();
+    }
+
+    private void RefreshDiskActivity()
+    {
+        if (activityPanel == null || !IsHandleCreated || IsDisposed || Disposing) return;
+        bool enabled = activityPanel.Expanded && WindowState != FormWindowState.Minimized && Visible && !activitySuspended;
+        if (enabled) activityClock.Start(); else activityClock.Stop();
+        if (activityMonitor == null && !enabled) return;
+        activityMonitor ??= (ActivityMonitorFactory ?? (callback => new DiskActivityMonitor(callback)))(update =>
+        {
+            if (IsDisposed || Disposing || !IsHandleCreated) return;
+            try
+            {
+                BeginInvoke((Action)(() =>
+                {
+                    if (IsDisposed || Disposing || activityMonitor?.IsCurrent(update.Revision) != true) return;
+                    if (update.Targets != null) activityPanel.SetTargets(update.Targets);
+                    if (update.Sample != null) activityPanel.SetSample(update.Sample);
+                    else if (update.Message.Length > 0) activityPanel.SetMessage(update.Message);
+                }));
+            }
+            catch (InvalidOperationException) { /* Window closed before the post. */ }
+        });
+        activityMonitor.Update(activityPath ?? scan?.Root.Path, activityPanel.SelectedDiskNumber, enabled);
+    }
+
+    protected override void WndProc(ref Message message)
+    {
+        base.WndProc(ref message);
+        HandleMonitoringSystemEvent(message.Msg, message.WParam.ToInt64());
+    }
+
+    private void HandleMonitoringSystemEvent(int message, long value)
+    {
+        if (message == 0x0219 && value is 0x8000 or 0x8004 or 0x0007) // Device arrival/removal/tree change.
+            activityMonitor?.InvalidateTarget();
+        if (message == 0x0218 && value is 4 or 7 or 18) // Power suspend/resume.
+        {
+            activitySuspended = value == 4;
+            if (!activitySuspended) activityMonitor?.InvalidateTarget();
+            RefreshDiskActivity();
+        }
     }
 
     private static WallpaperTable Table(int columns, int rows)
@@ -207,11 +267,14 @@ internal sealed class MainForm : Form
         shell.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 232));
         shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         shell.Controls.Add(navigation, 0, 0);
-        var main = Table(1, 8);
+        var main = Table(1, 9);
+        main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         main.Padding = new Padding(28, 22, 28, 12);
         foreach (float height in new float[] { 85, 46, 124, 62 }) main.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
         main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
+        activityRow = new RowStyle(SizeType.Absolute, 32);
+        main.RowStyles.Add(activityRow);
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
         shell.Controls.Add(main, 1, 0);
@@ -315,12 +378,13 @@ internal sealed class MainForm : Form
         detailText.Controls.Add(detailTitle, 0, 0); detailText.Controls.Add(detailPath, 0, 1);
         detail.Controls.Add(detailText, 0, 0); detail.Controls.Add(reveal, 1, 0);
         main.Controls.Add(detail, 0, 5);
-        main.Controls.Add(progressBar, 0, 6);
+        main.Controls.Add(activityPanel, 0, 6);
+        main.Controls.Add(progressBar, 0, 7);
         var footer = Table(2, 1);
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 122));
         footer.Controls.Add(status, 0, 0); footer.Controls.Add(issues, 1, 0);
-        main.Controls.Add(footer, 0, 7);
+        main.Controls.Add(footer, 0, 8);
     }
 
     private static Control PanelHeader(Label heading, Label caption)
@@ -412,6 +476,8 @@ internal sealed class MainForm : Form
     private async Task ScanFolder(string path)
     {
         if (scanCancellation != null) return;
+        activityPath = path;
+        RefreshDiskActivity();
         var previousDirectory = current;
         int previousMode = mode;
         string? previousType = typeFilter;
@@ -534,6 +600,8 @@ internal sealed class MainForm : Form
             previewTimer.Stop();
             liveSession = null;
             scanCancellation = null;
+            activityPath = scan?.Root.Path;
+            RefreshDiskActivity();
             if (!IsDisposed)
             {
                 choose.Enabled = true; refresh.Enabled = scan != null; cancel.Visible = false;
@@ -1030,6 +1098,8 @@ internal sealed class MainForm : Form
         if (disposing)
         {
             searchTimer.Dispose(); previewTimer.Dispose(); scanTip.Dispose(); scanCancellation?.Cancel(); viewCancellation?.Cancel();
+            activityMonitor?.Dispose();
+            activityClock.Dispose();
             WallpaperRaster.Dispose();
             var image = BackgroundImage; BackgroundImage = null; image?.Dispose();
         }

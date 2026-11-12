@@ -1,0 +1,117 @@
+{
+  "baseline": "6f797a30da0edb767f4f8a608402fa8327491c4b",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "d5b4b4baf735bfb20f29fdb28842481729382c5a915c43b622a8f11c1def5e4c"
+    },
+    {
+      "path": "MainForm.cs",
+      "sha256": "7b561b76dd5aa925d9798aa9cac89d38979d8fdcd8399709190ff970e98baff0"
+    },
+    {
+      "path": "README.en.md",
+      "sha256": "7dc5389282ef04e633608cb6f703b8bf1b5ab593ca30b9a10bd97f56652e2d08"
+    },
+    {
+      "path": "README.md",
+      "sha256": "36e49690107ae063e11dab39ca6f40cef2a187d4405223be76c4396c72b3f75b"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "f932bfa86ee68a00c6ce5c9c6dc49ffdaae7e8b0f6204fbcd21f4c1698b1d836"
+    },
+    {
+      "path": "docs/disk-activity.md",
+      "sha256": "7a5bdb80411faf4b3273446ac39be1a0168a4f12d8464c69913a17b041d6f78b"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "58573901736682a4072c514f7044c0bf89e46101a3e15895abf3bf2508ba85f1"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "10edda49942c4470b195578eab7f4f327a2c142501724a0e69e180cf13d84b5e"
+    },
+    {
+      "path": "iterations/2026-11-12-07-disk-activity/README.md",
+      "sha256": "3a3e4799bd2fcb08cbca04eb33ad4d12f8b69021e1caa60d38435af043e20d3d"
+    },
+    {
+      "path": "iterations/2026-11-12-07-disk-activity/resource-probe.json",
+      "sha256": "f73c89911cde7643e0b05463995f362c0791133b9f52f4ea2725cc9ec43259c0"
+    },
+    {
+      "path": "iterations/2026-11-12-07-disk-activity/scan-probe.json",
+      "sha256": "40ee0148665e0cc0d087258eed171515a75930d33bd816a0e1cd2b1dcf2a9836"
+    },
+    {
+      "path": "iterations/2026-11-12-07-disk-activity/small-scan-observation.json",
+      "sha256": "e9ae0b3a9fc7fe77e58f71de29b91d1fec438744e86fded9946e7257c27d822d"
+    },
+    {
+      "path": "src/Monitoring/DiskActivityMonitor.cs",
+      "sha256": "912ae21fd81bab64a16170765a14ad7a3f8b17b7f988b09c717bdc0ce03ef316"
+    },
+    {
+      "path": "src/Monitoring/DiskActivityPanel.cs",
+      "sha256": "131c07fb33d3f49e1b163ca23da8a63dbe410859c94ed8d7323317ad484018f4"
+    },
+    {
+      "path": "src/Monitoring/DiskActivityResolver.cs",
+      "sha256": "924f32c9000b61660687f71c9cb81c673cae7891b5820d766b2f9540cba29cf7"
+    },
+    {
+      "path": "src/Monitoring/DiskActivitySource.cs",
+      "sha256": "5762d7e4cf284b7050a468276287702f224c5612e313c8cbf6a3ad5771fe89c4"
+    },
+    {
+      "path": "tests/DiskActivityLayoutPreview.cs",
+      "sha256": "4e44c416ba7b6ffc9985e7371a679f144b41bef5e8aa25dac878c61fa4cdd6d6"
+    },
+    {
+      "path": "tests/DiskActivityLiveChecks.cs",
+      "sha256": "ac2ea5b1414723e378154aec1f0335a64d015e5bdbd4b6d8b848f340323aebcd"
+    },
+    {
+      "path": "tests/DiskActivityMainFormTests.cs",
+      "sha256": "ce78ac6755e14e9889ec6eba2e28d2a6dabf1e6d20379601431b3e794d62379a"
+    },
+    {
+      "path": "tests/DiskActivityMonitorTests.cs",
+      "sha256": "d1720ec8dd0ae3a3dfc9224b102d296dc898f8e3548a51e21c3c6e9ab68c665c"
+    },
+    {
+      "path": "tests/DiskActivityPanelTests.cs",
+      "sha256": "4d80611015be3b9f0f11539c171fc933cec092fa9aae038b607ae79f0ccd0ac3"
+    },
+    {
+      "path": "tests/DiskActivityResolverTests.cs",
+      "sha256": "44b276aefc28244f04028ccc241d1756e4e3109d808c490e1e0a29816f756d0a"
+    },
+    {
+      "path": "tests/DiskActivityResourceProbe.cs",
+      "sha256": "9dc8fd5d4365dd051435d8bf4b597f4f64f184f2a5fbca807a9cea4a4222d894"
+    },
+    {
+      "path": "tests/DiskActivityScanProbe.cs",
+      "sha256": "baf63978733a45cf49b5f0f36755f41a79eeea0e919b8d504026825503ba0110"
+    },
+    {
+      "path": "tests/DiskActivitySourceTests.cs",
+      "sha256": "7af302d6d2dfd6f5e3f6b52a4351b7be988963a312e87f9e77bddcdfc6629a8b"
+    },
+    {
+      "path": "tests/DiskAtlas.Tests.csproj",
+      "sha256": "2fb546bcbda43134df799b7477cbb8391516865d460e6627cfc30f605bd4e719"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "85c4de233e913b03e8c3985c3e3727255e41e7d61b9e571bb9c2bcd04815e4b6"
+    },
+    {
+      "path": "iterations/2026-11-12-07-disk-activity/changes.patch",
+      "sha256": "6203b46783f56b1bb05562f7898877e312948c436c5630278a7147dd051a3532"
+    }
+  ]
+}

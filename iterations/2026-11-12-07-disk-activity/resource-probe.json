@@ -1,0 +1,14 @@
+{
+  "order": ["off", "on", "on", "off"],
+  "warmup_ms": 1500,
+  "window_seconds": 5,
+  "scope": "background monitor only; no UI or scan",
+  "cpu_basis": "single core percentage; not divided by logical processors",
+  "peak_scope": "whole child process lifetime through report, including runtime and initialization",
+  "samples": [
+    {"mode":"off","wall_ms":5051.0861,"cpu_ms":0,"cpu_percent":0,"lifetime_peak_working_set_bytes":29130752,"window_end_working_set_bytes":29081600,"valid_samples":0},
+    {"mode":"on","wall_ms":5040.692,"cpu_ms":46.875,"cpu_percent":0.92993184269144,"lifetime_peak_working_set_bytes":38281216,"window_end_working_set_bytes":38248448,"valid_samples":5},
+    {"mode":"on","wall_ms":5001.87,"cpu_ms":46.875,"cpu_percent":0.9371495060847242,"lifetime_peak_working_set_bytes":38838272,"window_end_working_set_bytes":38805504,"valid_samples":5},
+    {"mode":"off","wall_ms":5059.1361,"cpu_ms":0,"cpu_percent":0,"lifetime_peak_working_set_bytes":29032448,"window_end_working_set_bytes":28983296,"valid_samples":0}
+  ]
+}

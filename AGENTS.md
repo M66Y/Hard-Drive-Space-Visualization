@@ -117,6 +117,9 @@
 | 框架大版本 | 上述全部回归，加 `--desktop-compatibility` 的目录拖放/复制路径检查与实际窗口观察 |
 | 性能 | 正确性回归加对应同条件基准，不无条件跑所有基准 |
 
+- 磁盘活动修改运行 `--disk-activity-tests`（纯合成采样/映射和后台编排），面板运行 `--disk-activity-panel-tests`、`--disk-activity-mainform-tests` 并分别加 `--dpi-96`。真实只读采样用 `--disk-activity-live`，不打印实例、路径或设备名称。可选 `--disk-activity-resource-probe` 比较独立进程后台监测开启/关闭，不含 UI 和扫描；生命周期峰值工作集不代表单个测量窗口峰值。功能和未验收边界见 [磁盘活动说明](docs/disk-activity.md)。
+- 可选 `--disk-activity-scan-probe` 仅创建并清理自有 30,000 文件夹具，四个独立主窗进程按 off/on/on/off 比较扫描与最终 UI 查询；单独核对扫描期间的采样重叠，不把预热期间有样本当作扫描期间有样本。缓存与外部负载未控制，少量观测不作为普遍性能保证。
+
 - 可选 `--policy-benchmark` 用于三策略对比，`--refresh-benchmark` 用于刷新同条件诊断；方法与限制见 README 和相关迭代。先保留已有报告，再运行会覆盖报告的基准。
 - 高速目录内并行改动另运行 `--parallel-file-tests`；可选 `--response-benchmark` 在真实桌面测量同条件主窗扫描、预览、搜索和取消，报告存在时拒绝覆盖。固定夹具与测量边界见扫描性能方案及本轮归档。
 - NTFS 原型位于 `tests/Prototypes/Ntfs/`，合成测试入口为测试 DLL 的 `--ntfs-prototype-tests`；隔离测试盘守卫检查运行 `pwsh -NoProfile -File tests/NtfsFixtureGuards.Tests.ps1`。2026-11-12 用户另行授权本轮 256 MiB VHD 验收，流程见 `scripts/ntfs-prototype/README.md`，不扩展为个人卷扫描或以后默认提权授权。原型不是生产后端、活跃卷快照或性能验收；实际读取必须验证镜像归属、卷格式、几何及记录身份。

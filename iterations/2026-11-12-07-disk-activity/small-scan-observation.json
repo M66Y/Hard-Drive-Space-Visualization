@@ -1,0 +1,21 @@
+{
+  "fixture_files":6000,
+  "ownership_marker_files":1,
+  "directories":60,
+  "order":["off","on","on","off"],
+  "statistics_match":true,
+  "logical_bytes":3123091,
+  "allocated_bytes":12360096,
+  "unknown_allocation":0,
+  "incomplete":false,
+  "monitoring_observed":true,
+  "monitoring_during_every_on_scan_observed":false,
+  "peak_scope":"whole child process lifetime through scan report, not scan-phase peak",
+  "samples":[
+    {"mode":"off","wall_ms":732.6452,"cpu_ms":1078.125,"peak_working_set_bytes":112193536,"monitor_available_samples":0,"monitor_available_during_scan":0},
+    {"mode":"on","wall_ms":714.6602,"cpu_ms":1156.25,"peak_working_set_bytes":118910976,"monitor_available_samples":1,"monitor_available_during_scan":0},
+    {"mode":"on","wall_ms":563.7406,"cpu_ms":1062.5,"peak_working_set_bytes":118489088,"monitor_available_samples":1,"monitor_available_during_scan":0},
+    {"mode":"off","wall_ms":646.3972,"cpu_ms":1062.5,"peak_working_set_bytes":112496640,"monitor_available_samples":0,"monitor_available_during_scan":0}
+  ],
+  "conclusion":"scan windows were too short to overlap sampling; retained as an inconclusive observation, not merged with the larger fixture"
+}

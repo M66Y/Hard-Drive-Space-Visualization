@@ -1,9 +1,27 @@
 using DiskAtlas;
 using System.Drawing;
 
+if (args.Contains("--disk-activity-resource-child")) return DiskActivityResourceProbe.Child(args.Last());
+if (args.Contains("--disk-activity-scan-child")) return DiskActivityScanProbe.Child(args.Last());
 Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
 
 if (args.Contains("--package-smoke")) return PackageSmoke.Run();
+if (args.Contains("--disk-activity-tests"))
+{
+    try
+    {
+        int checks = DiskActivitySourceTests.Run() + DiskActivityResolverTests.Run() + DiskActivityMonitorTests.Run();
+        Console.WriteLine($"PASS disk activity checks: {checks}");
+        return 0;
+    }
+    catch { Console.Error.WriteLine("FAIL disk activity checks; no private details emitted"); return 1; }
+}
+if (args.Contains("--disk-activity-panel-tests")) return DiskActivityPanelTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--disk-activity-mainform-tests")) return DiskActivityMainFormTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--disk-activity-live")) return DiskActivityLiveChecks.Run();
+if (args.Contains("--disk-activity-resource-probe")) return DiskActivityResourceProbe.Run();
+if (args.Contains("--disk-activity-scan-probe")) return DiskActivityScanProbe.Run();
+if (args.Contains("--disk-activity-layout-preview")) return DiskActivityLayoutPreview.Run(args.Last(), args.Contains("--minimum"));
 if (args.Contains("--ntfs-prototype-tests")) return DiskAtlas.NtfsPrototype.NtfsPrototypeTests.Run();
 if (args.Contains("--ntfs-resident-lease-tests"))
 {

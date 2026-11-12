@@ -62,6 +62,30 @@ dotnet run --project tests/DiskAtlas.Tests.csproj --configuration Release -p:Tar
 
 三轮审查的发现、修改、实测证据与验证范围见 [优化审查记录.md](../优化审查记录.md)。
 
+## 磁盘活动面板
+
+先构建测试项目，再运行下列入口。合成检查不读取真实计数器或个人目录；主窗检查使用内存扫描树和假的采样源，背景与诊断不读个人配置。
+
+```powershell
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --disk-activity-tests
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --disk-activity-panel-tests
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --disk-activity-panel-tests --dpi-96
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --disk-activity-mainform-tests
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --disk-activity-mainform-tests --dpi-96
+```
+
+覆盖 PDH 字段/单位/缓冲边界、映射拒绝、单后台循环、过期回调、等待/断档/延迟、时钟回退、最小布局、磁盘选择、折叠/最小化、模拟设备与电源通知，以及关闭后的回调与释放。模拟通知不等于真实热插拔或休眠通过。改动主窗还需原有 `--ui-regression` 两种 DPI 及实际观察。
+
+`--disk-activity-live` 只读检查当前工作目录的卷映射和间隔至少一秒的三个真实样本，不扫描文件、不输出路径/实例/设备名称。当前映射不支持会明确跳过，跳过不作通过。
+
+可选 `--disk-activity-resource-probe` 以 off/on/on/off 四个独立进程观察后台监测器，预热 1.5 秒后测 5 秒 CPU 和结束工作集。CPU 为未除以逻辑核心数的单核百分比；OS 峰值工作集覆盖子进程整个生命周期，包含运行时与初始化。没有 UI 或扫描，不据此声称完整软件开销。
+
+可选 `--disk-activity-scan-probe` 创建并清理自己的随机临时目录（30,000 个合成小文件、60 个目录及所有权标记），四个独立主窗进程比较同一夹具的 off/on/on/off 完整扫描与最终查询/绘制，核对两种大小及未知/失败计数。输出单份安全 JSON；`MonitoringDuringEveryOnScanObserved` 单独说明是否真的在每次开启扫描期间观察到采样。生命周期峰值仍不是扫描阶段专属峰值，预核验已访问目录，缓存/外部负载未控制，不能推导整盘性能或稳定差异。结果需由调用者先保留，不默认写报告或覆盖历史。
+
+`--disk-activity-layout-preview artifacts/monitor-layout.png` 生成真实生产控件的合成布局图，拒绝覆盖、不会调用真实 PDH 或保存个人设置；该截图不作真实磁盘性能证据。功能及边界见[磁盘活动说明](disk-activity.md)。
+
+需要目视最小窗口时，用 `--disk-activity-layout-preview --minimum artifacts/monitor-minimum.png`；同样拒绝覆盖，用后只保留必要证据，避免重复大图。
+
 ## 发布脚本与本机临时包
 
 脚本边界：`pwsh -File tests/ReleaseScripts.Tests.ps1`。用户明确允许临时包后，按[发布说明](releasing.md)生成 `-LocalTest` 资产，再执行 `Test-Release.ps1` 和 `PackageAcceptance.ps1`。后者需要先构建测试项目，使用包内生产 DLL、包内运行时和隔离配置，不读取个人扫描数据；会验证专属测试安装身份并清理注册项与快捷方式。
