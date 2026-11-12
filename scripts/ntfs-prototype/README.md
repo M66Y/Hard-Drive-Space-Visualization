@@ -100,6 +100,8 @@ pwsh -NoProfile -File scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 -ResultPath 
 
 最多4096槽/4MiB有效范围，加1024字节bootstrap；最多256次ReadFile尝试，每页64KiB，超限前置拒绝，不截断。一个managed页与一个aligned native缓冲复用，不保存原始记录。四类和必须等于visited，特殊分配未知仍保留。实际256槽分类与未验边界见[第17轮](../../iterations/2026-11-12-17-bounded-mft/README.md)。计数不是物理I/O，未测整卷吞吐。不延续本轮授权到以后、个人卷或VSS。
 
+当前新版摘要revision为 `bounded-mft-source-v2`，新增 `AllZeroInvalid` 与最多128项 `CodeCounts`（固定Status/Code/Count）。32种精确配对按状态与Ordinal代码排序，四类小计、visited总数及全零子集均需吻合；helper不静默接受旧v1。全零计数不能代替MFT位图或分配状态核验；字段仍仅聚合信息，无槽号或原始字节。历史第17轮v1快照不修改，后续证据见[第18轮](../../iterations/2026-11-12-18-mft-classification/README.md)。
+
 ## 自有来源适配器模式
 
 在本轮已明确获准重复隔离VHD时，使用既有新结果路径入口加 `-SourceAdapter`（与 `-RawRecords` / `-KernelDiagnostics` 互斥）：

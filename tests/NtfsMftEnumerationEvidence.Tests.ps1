@@ -37,8 +37,12 @@ function Fixture {
     $range=[pscustomobject]@{ValidBytes=[long]65536;ExpectedSlots=64;VisitedSlots=64;Decoded=40;Free=16;Unsupported=4;Invalid=4;
         LookupRequired=20;UnknownLogical=2;UnknownAllocated=16;Pages=1;CompletedCursor=$true;MatchedObjects=21;
         UnknownAllocationObjects=14;MftRuns=1;ReadCalls=2;RequestedBytes=[long]66560;PhysicalSectorBytes=512;
-        LockAcquired=$true;UnlockSucceeded=$true;PostNativeStable=$true;Cases=$cases}
-    return [pscustomobject]@{Revision='bounded-mft-source-v1';EvidenceKind='NativeOwnedFixture';GuardOwned=$true;
+        LockAcquired=$true;UnlockSucceeded=$true;PostNativeStable=$true;Cases=$cases;AllZeroInvalid=2;CodeCounts=@(
+            [pscustomobject]@{Status='Decoded';Code='Decoded';Count=40},
+            [pscustomobject]@{Status='Free';Code='FreeRecord';Count=16},
+            [pscustomobject]@{Status='Invalid';Code='Signature';Count=4},
+            [pscustomobject]@{Status='Unsupported';Code='AttributeType';Count=4})}
+    return [pscustomobject]@{Revision='bounded-mft-source-v2';EvidenceKind='NativeOwnedFixture';GuardOwned=$true;
         TokenBound=$true;MapBound=$true;Closed=$true;RejectedReads=0;Enumeration=$range}
 }
 function Reject([scriptblock]$Mutation,[string]$Name) {
@@ -53,7 +57,7 @@ function RejectValue($Value,[string]$Name) {
 
 $value=Fixture; $safe=ConvertTo-MftEnumerationEvidence $value
 Check (($safe.Keys -join ',') -ceq 'Revision,EvidenceKind,GuardOwned,TokenBound,MapBound,Closed,RejectedReads,Enumeration') 'canonical source fields'
-Check (($safe.Enumeration.Keys -join ',') -ceq 'ValidBytes,ExpectedSlots,VisitedSlots,Decoded,Free,Unsupported,Invalid,LookupRequired,UnknownLogical,UnknownAllocated,Pages,CompletedCursor,MatchedObjects,UnknownAllocationObjects,MftRuns,ReadCalls,RequestedBytes,PhysicalSectorBytes,LockAcquired,UnlockSucceeded,PostNativeStable,Cases') 'canonical range fields'
+Check (($safe.Enumeration.Keys -join ',') -ceq 'ValidBytes,ExpectedSlots,VisitedSlots,Decoded,Free,Unsupported,Invalid,LookupRequired,UnknownLogical,UnknownAllocated,Pages,CompletedCursor,MatchedObjects,UnknownAllocationObjects,MftRuns,ReadCalls,RequestedBytes,PhysicalSectorBytes,LockAcquired,UnlockSucceeded,PostNativeStable,Cases,AllZeroInvalid,CodeCounts') 'canonical range fields'
 Check (($safe.Enumeration.Cases[0].Keys -join ',') -ceq 'CaseId,Kind,NameLength,RawCode,IdentityMatched,LogicalMatched,LinksMatched,NamesMatched,AllocationCheck') 'canonical target fields'
 Check ($safe.Enumeration.ReadCalls -eq 2 -and $safe.Enumeration.ReadCalls -lt 22) 'batched range does not inherit the old twenty-two-call minimum'
 Check ($safe.Enumeration.Unsupported -eq 4 -and $safe.Enumeration.Invalid -eq 4 -and $safe.Enumeration.Free -eq 16) 'strict rejected classifications remain separate from free slots'
@@ -71,14 +75,17 @@ Check ($json -cnotmatch 'private-marker|output-marker|SourceToken|MapEpoch|Refer
 $lower=Fixture; $r=$lower.Enumeration
 $r.ValidBytes=[long]22528; $r.ExpectedSlots=22; $r.VisitedSlots=22; $r.Decoded=22; $r.Free=0; $r.Unsupported=0; $r.Invalid=0
 $r.LookupRequired=16; $r.UnknownLogical=0; $r.UnknownAllocated=14; $r.RequestedBytes=[long]23552
+$r.AllZeroInvalid=0; $r.CodeCounts=@([pscustomobject]@{Status='Decoded';Code='Decoded';Count=22})
 Check ((ConvertTo-MftEnumerationEvidence $lower).Enumeration.ExpectedSlots -eq 22) 'minimum finite target and bootstrap coverage accepted'
 $upper=Fixture; $r=$upper.Enumeration
 $r.ValidBytes=[long]4194304; $r.ExpectedSlots=4096; $r.VisitedSlots=4096; $r.Decoded=22; $r.Free=4074; $r.Unsupported=0; $r.Invalid=0
 $r.LookupRequired=16; $r.UnknownLogical=0; $r.UnknownAllocated=14; $r.Pages=64; $r.MftRuns=128; $r.ReadCalls=256
 $r.RequestedBytes=[long]4195328; $r.PhysicalSectorBytes=65536; $upper.RejectedReads=128
+$r.AllZeroInvalid=0; $r.CodeCounts=@([pscustomobject]@{Status='Decoded';Code='Decoded';Count=22},[pscustomobject]@{Status='Free';Code='FreeRecord';Count=4074})
 Check ((ConvertTo-MftEnumerationEvidence $upper).Enumeration.RequestedBytes -eq 4195328) 'maximum bounded coverage and IO budgets accepted'
 $twoPages=Fixture; $r=$twoPages.Enumeration
 $r.ValidBytes=[long]66560; $r.ExpectedSlots=65; $r.VisitedSlots=65; $r.Free=17; $r.Pages=2; $r.ReadCalls=3; $r.RequestedBytes=[long]67584
+$r.CodeCounts[1].Count=17
 Check ((ConvertTo-MftEnumerationEvidence $twoPages).Enumeration.Pages -eq 2) 'short last page uses exact record-aligned remainder'
 foreach($sector in @(512,1024,2048,4096,8192,16384,32768,65536)) {
     $value=Fixture; $value.Enumeration.PhysicalSectorBytes=$sector
@@ -86,6 +93,40 @@ foreach($sector in @(512,1024,2048,4096,8192,16384,32768,65536)) {
 }
 $reordered=Fixture; $reordered.Enumeration.Cases=@($reordered.Enumeration.Cases | Sort-Object CaseId -Descending)
 Check ((ConvertTo-MftEnumerationEvidence $reordered).Enumeration.Cases.Count -eq 21) 'target set membership is independent of row order'
+Check (($safe.Enumeration.CodeCounts[0].Keys -join ',') -ceq 'Status,Code,Count') 'canonical diagnostic row fields'
+Check ($safe.Revision -ceq 'bounded-mft-source-v2' -and $safe.Enumeration.AllZeroInvalid -eq 2 -and
+    $safe.Enumeration.CodeCounts.Count -eq 4) 'v2 preserves separate all-zero observation and strict code partitions'
+$copyInput=Fixture; $copyOutput=ConvertTo-MftEnumerationEvidence $copyInput
+$copyInput.Enumeration.CodeCounts[0].Count=1; $copyInput.Enumeration.AllZeroInvalid=0
+Check ($copyOutput.Enumeration.CodeCounts[0].Count -eq 40 -and $copyOutput.Enumeration.AllZeroInvalid -eq 2) 'new diagnostics are deeply copied without input aliases'
+$invalidCodes=@('AllocationGeometry','AttributeHeader','AttributeLength','AttributeName','DataSize','DuplicateAttributeId',
+    'FileName','FixupMismatch','MappingBounds','MappingPairs','MissingEndMarker','RecordHeader','RecordLength','RecordNumber',
+    'ResidentBounds','Sequence','Signature','SparseMappingFlags','StandardInformation')
+$unsupportedCodes=@('AttributeFlags','AttributeForm','AttributeLimit','AttributeType','ClusterGeometry','FixupStride',
+    'MetadataFlags','MultipleUnnamedData','NameLimit','NtfsVersion','RecordFlags')
+foreach($code in $invalidCodes) {
+    $value=Fixture; $value.Enumeration.AllZeroInvalid=0; $value.Enumeration.CodeCounts[2].Code=$code
+    Check ((ConvertTo-MftEnumerationEvidence $value).Enumeration.CodeCounts[2].Code -ceq $code) 'each current strict Invalid code is accepted with its proper status'
+}
+foreach($code in $unsupportedCodes) {
+    $value=Fixture; $value.Enumeration.CodeCounts[3].Code=$code
+    Check ((ConvertTo-MftEnumerationEvidence $value).Enumeration.CodeCounts[3].Code -ceq $code) 'each current strict Unsupported code is accepted with its proper status'
+}
+$allPairs=Fixture; $r=$allPairs.Enumeration
+$r.Decoded=33; $r.Free=1; $r.Invalid=19; $r.Unsupported=11; $r.AllZeroInvalid=1
+$r.CodeCounts=@([pscustomobject]@{Status='Decoded';Code='Decoded';Count=33},[pscustomobject]@{Status='Free';Code='FreeRecord';Count=1})+
+    @($invalidCodes|ForEach-Object {[pscustomobject]@{Status='Invalid';Code=$_;Count=1}})+
+    @($unsupportedCodes|ForEach-Object {[pscustomobject]@{Status='Unsupported';Code=$_;Count=1}})
+Check ((ConvertTo-MftEnumerationEvidence $allPairs).Enumeration.CodeCounts.Count -eq 32) 'all thirty-two exact pairs coexist in enum and ordinal order'
+$maximumReason=Fixture; $r=$maximumReason.Enumeration
+$r.ValidBytes=[long]4194304; $r.ExpectedSlots=4096; $r.VisitedSlots=4096; $r.Decoded=4096; $r.Free=0; $r.Invalid=0; $r.Unsupported=0
+$r.Pages=64; $r.ReadCalls=65; $r.RequestedBytes=[long]4195328; $r.AllZeroInvalid=0
+$r.CodeCounts=@([pscustomobject]@{Status='Decoded';Code='Decoded';Count=[long]4096})
+Check ((ConvertTo-MftEnumerationEvidence $maximumReason).Enumeration.CodeCounts[0].Count -eq 4096) 'maximum exact reason count and absent zero-count statuses accepted'
+foreach($count in @(0,4)) {
+    $value=Fixture; $value.Enumeration.AllZeroInvalid=$count
+    Check ((ConvertTo-MftEnumerationEvidence $value).Enumeration.AllZeroInvalid -eq $count) 'all-zero Invalid observation accepts its exact subset endpoints'
+}
 
 RejectValue $null 'null source rejected'
 RejectValue @{} 'hashtable source rejected'
@@ -93,7 +134,7 @@ RejectValue @((Fixture),(Fixture)) 'source array rejected'
 $rootFields=@('Revision','EvidenceKind','GuardOwned','TokenBound','MapBound','Closed','RejectedReads','Enumeration')
 $rangeFields=@('ValidBytes','ExpectedSlots','VisitedSlots','Decoded','Free','Unsupported','Invalid','LookupRequired','UnknownLogical',
     'UnknownAllocated','Pages','CompletedCursor','MatchedObjects','UnknownAllocationObjects','MftRuns','ReadCalls','RequestedBytes',
-    'PhysicalSectorBytes','LockAcquired','UnlockSucceeded','PostNativeStable','Cases')
+    'PhysicalSectorBytes','LockAcquired','UnlockSucceeded','PostNativeStable','Cases','AllZeroInvalid','CodeCounts')
 $caseFields=@('CaseId','Kind','NameLength','RawCode','IdentityMatched','LogicalMatched','LinksMatched','NamesMatched','AllocationCheck')
 foreach($field in $rootFields) {Reject {param($v) $v.PSObject.Properties.Remove($field)} ('missing source field '+$field)}
 foreach($field in $rangeFields) {Reject {param($v) $v.Enumeration.PSObject.Properties.Remove($field)} ('missing range field '+$field)}
@@ -109,7 +150,7 @@ Reject {param($v) $v.Enumeration.Cases[0].PSObject.Properties.Remove('CaseId');$
 Reject {param($v) $v.PSObject.Properties.Remove('Closed');$v|Add-Member -MemberType ScriptProperty -Name Closed -Value {throw 'private-marker'}} 'active source property rejected before evaluation'
 Reject {param($v) $v.Enumeration.PSObject.Properties.Remove('Decoded');$v.Enumeration|Add-Member -MemberType ScriptProperty -Name Decoded -Value {throw 'private-marker'}} 'active range property rejected before evaluation'
 Reject {param($v) $v.Enumeration.Cases[0].PSObject.Properties.Remove('RawCode');$v.Enumeration.Cases[0]|Add-Member -MemberType ScriptProperty -Name RawCode -Value {throw 'private-marker'}} 'active target property rejected before evaluation'
-foreach($bad in @('bounded-mft-source-v2','BOUNDED-MFT-SOURCE-V1',$true,1,$null)) {Reject {param($v) $v.Revision=$bad} 'source revision value and type strict'}
+foreach($bad in @('bounded-mft-source-v1','bounded-mft-source-v3','BOUNDED-MFT-SOURCE-V2',$true,1,$null)) {Reject {param($v) $v.Revision=$bad} 'source revision value and type strict'}
 foreach($bad in @('SyntheticFixture','NativeOwnedFixture-Private','nativeownedfixture','VSS','ValidatedImmutable',$true,$null)) {Reject {param($v) $v.EvidenceKind=$bad} 'synthetic or unknown source cannot mint native success'}
 Reject {param($v) $v.EvidenceKind='SyntheticFixture';$v.GuardOwned=$false} 'actual synthetic source-report shape rejected'
 foreach($field in @('GuardOwned','TokenBound','MapBound','Closed')) {
@@ -119,7 +160,7 @@ foreach($bad in @(-1,129,'0',$true,[double]0,[decimal]0,$null)) {Reject {param($
 Reject {param($v) $v.Enumeration=$null} 'missing enumeration rejected'
 Reject {param($v) $v.Enumeration=@{}} 'hashtable enumeration rejected'
 foreach($field in @('ValidBytes','ExpectedSlots','VisitedSlots','Decoded','Free','Unsupported','Invalid','LookupRequired',
-    'UnknownLogical','UnknownAllocated','Pages','MatchedObjects','UnknownAllocationObjects','MftRuns','ReadCalls','RequestedBytes','PhysicalSectorBytes')) {
+    'UnknownLogical','UnknownAllocated','Pages','MatchedObjects','UnknownAllocationObjects','MftRuns','ReadCalls','RequestedBytes','PhysicalSectorBytes','AllZeroInvalid')) {
     foreach($bad in @(-1,[long]::MaxValue,'1',$true,[double]1,[decimal]1,$null)) {Reject {param($v) $v.Enumeration.$field=$bad} ('range numeric boundary '+$field)}
 }
 Reject {param($v) $v.Enumeration.ValidBytes=21504} 'valid range below target and bootstrap minimum rejected'
@@ -167,8 +208,43 @@ foreach($field in @('IdentityMatched','LogicalMatched','LinksMatched','NamesMatc
 Reject {param($v) $v.Enumeration.Cases[0].AllocationCheck='Unknown'} 'ordinary target allocation match retained'
 Reject {param($v) $v.Enumeration.Cases[3].AllocationCheck='Matched'} 'special target allocation uncertainty retained'
 foreach($rawJson in @('{"Closed":true,"Closed":true}','{"Closed":true,"closed":true}',
-    '{"Enumeration":{"VisitedSlots":64,"visitedSlots":64}}','{"Enumeration":{"Cases":[{"CaseId":"A","caseid":"B"}]}}')) {
+    '{"Enumeration":{"VisitedSlots":64,"visitedSlots":64}}','{"Enumeration":{"Cases":[{"CaseId":"A","caseid":"B"}]}}',
+    '{"Enumeration":{"CodeCounts":[{"Status":"Invalid","status":"Invalid"}]}}',
+    '{"Enumeration":{"CodeCounts":[{"Code":"Signature","code":"Signature"}]}}')) {
     $message=$null;try {Assert-UniqueJsonKeys $rawJson} catch {$message=$_.Exception.Message}
     Check ($message -ceq 'MATRIX_JSON_INVALID') 'shared duplicate-key guard rejects case variants at every depth'
 }
+$legacy=Fixture; $legacy.Revision='bounded-mft-source-v1'
+$legacy.Enumeration.PSObject.Properties.Remove('AllZeroInvalid'); $legacy.Enumeration.PSObject.Properties.Remove('CodeCounts')
+RejectValue $legacy 'v1 without diagnostics is not silently upgraded or reinterpreted'
+Reject {param($v) $v.Enumeration.CodeCounts=$null} 'null reason table rejected'
+Reject {param($v) $v.Enumeration.CodeCounts=@()} 'empty reason table rejected for nonempty coverage'
+Reject {param($v) $v.Enumeration.CodeCounts=$v.Enumeration.CodeCounts[0]} 'scalar reason table rejected'
+Reject {param($v) $v.Enumeration.CodeCounts=@($v.Enumeration.CodeCounts[0])*129} 'reason table has a hard bounded item count'
+Reject {param($v) $v.Enumeration.CodeCounts[0]=$null} 'null reason row rejected'
+Reject {param($v) $v.Enumeration.CodeCounts[0]=@{Status='Decoded';Code='Decoded';Count=40}} 'hashtable reason row rejected'
+foreach($field in @('Status','Code','Count')) {Reject {param($v) $v.Enumeration.CodeCounts[0].PSObject.Properties.Remove($field)} ('missing reason field '+$field)}
+foreach($field in @('Path','Reference','SlotId','Raw','Sha256','Exception','Message','SourceToken')) {
+    Reject {param($v) $v.Enumeration.CodeCounts[0]|Add-Member -NotePropertyName $field -NotePropertyValue 'private-marker'} ('reason injection '+$field)
+}
+Reject {param($v) $v.Enumeration.CodeCounts[0].PSObject.Properties.Remove('Status');$v.Enumeration.CodeCounts[0]|Add-Member -NotePropertyName status -NotePropertyValue 'Decoded'} 'reason field casing exact'
+Reject {param($v) $v.Enumeration.CodeCounts[0].PSObject.Properties.Remove('Count');$v.Enumeration.CodeCounts[0]|Add-Member -MemberType ScriptProperty -Name Count -Value {throw 'private-marker'}} 'active reason property rejected before evaluation'
+Reject {param($v) $v.Enumeration|Add-Member -NotePropertyName InvalidAllZero -NotePropertyValue 2} 'alternate all-zero field spelling rejected'
+Reject {param($v) $v.Enumeration|Add-Member -NotePropertyName Reasons -NotePropertyValue @()} 'alternate reason table spelling rejected'
+foreach($bad in @('decoded','Unknown',$true,1,$null,@('Decoded'))) {Reject {param($v) $v.Enumeration.CodeCounts[0].Status=$bad} 'reason status type and enum exact'}
+foreach($bad in @('decoded','Signature','private-marker',"Decoded`nprivate-marker",$true,1,$null,@('Decoded'))) {Reject {param($v) $v.Enumeration.CodeCounts[0].Code=$bad} 'reason code type and status pairing exact'}
+Reject {param($v) $v.Enumeration.CodeCounts[2].Code='AttributeType'} 'Unsupported code cannot be relabeled Invalid'
+Reject {param($v) $v.Enumeration.CodeCounts[3].Code='FixupMismatch'} 'Invalid code cannot be relabeled Unsupported'
+foreach($bad in @(-1,0,4097,[long]::MaxValue,'40',$true,[double]40,[decimal]40,$null,@(40))) {Reject {param($v) $v.Enumeration.CodeCounts[0].Count=$bad} 'reason count positive bounded integer'}
+Reject {param($v) $v.Enumeration.CodeCounts[0].Count=39} 'reason counts sum to the visited range'
+Reject {param($v) $v.Enumeration.CodeCounts[1].Count=15;$v.Enumeration.CodeCounts[2].Count=5} 'reason status subtotals match the four strict classes even when total matches'
+Reject {param($v) $v.Enumeration.CodeCounts=@(
+    [pscustomobject]@{Status='Decoded';Code='Decoded';Count=20},[pscustomobject]@{Status='Decoded';Code='Decoded';Count=20})+@($v.Enumeration.CodeCounts[1..3])} 'split duplicate pair cannot conceal itself behind valid totals'
+Reject {param($v) $v.Enumeration.CodeCounts=@($v.Enumeration.CodeCounts[0],$v.Enumeration.CodeCounts[1],$v.Enumeration.CodeCounts[3],$v.Enumeration.CodeCounts[2])} 'reason status order follows enum rather than report field order'
+Reject {param($v) $v.Enumeration.CodeCounts=@($v.Enumeration.CodeCounts[0],$v.Enumeration.CodeCounts[1],
+    [pscustomobject]@{Status='Invalid';Code='Signature';Count=3},[pscustomobject]@{Status='Invalid';Code='DataSize';Count=1},$v.Enumeration.CodeCounts[3])} 'within-status codes require strict ordinal order'
+Reject {param($v) $v.Enumeration.AllZeroInvalid=5} 'all-zero count is bounded by strict Invalid count'
+Reject {param($v) $v.Enumeration.AllZeroInvalid=2;$v.Enumeration.CodeCounts=@($v.Enumeration.CodeCounts[0],$v.Enumeration.CodeCounts[1],
+    [pscustomobject]@{Status='Invalid';Code='FixupMismatch';Count=3},[pscustomobject]@{Status='Invalid';Code='Signature';Count=1},$v.Enumeration.CodeCounts[3])} 'all-zero count cannot exceed Invalid Signature subset'
+Reject {param($v) $v.Enumeration.CodeCounts[2].Code='FixupMismatch'} 'all-zero observation requires the Signature subset instead of zero reclassification'
 Write-Output ('PASS NTFS MFT enumeration evidence checks: '+$checks)

@@ -16,6 +16,8 @@ pwsh -NoProfile -File tests/NtfsMftEnumerationEvidence.Tests.ps1
 
 本机新建VHD已覆盖256槽，21对象匹配及关闭/卸载清理通过；仍有6 unsupported、183 invalid，不能把这些槽当空闲、零占用或磁盘损坏。真实4096槽、碎片化/属性扩展、活跃卷、建树和资源收益未验。详见[方案](../../../docs/ntfs-bounded-mft-plan.md)与[第17轮](../../../iterations/2026-11-12-17-bounded-mft/README.md)。
 
+后续v2新增有界 `CodeCounts`（32种固定Status/Code配对）和 `AllZeroInvalid`，保持四类及全部读取限制。原因小计必须与四类吻合；全零仅是严格Invalid中原始字节全零的观察，不自动判为空闲。安全摘要只在来源关闭核验后发布，不输出原始记录。新helper拒绝v1混用，历史归档保持原revision，见[分类诊断方案](../../../docs/ntfs-classification-diagnostics-plan.md)。
+
 ## 有限原始读取原型
 
 `NtfsMftMap` 从严格校验的原始record0建立不可变映射，限定一个未命名普通非驻留DATA、最多128区段；验证VCN、带符号LCN增量、大小及物理范围，不支持属性扩展或稀疏MFT。`PlanRecord` 生成有界连续目标切片，不假定MFT在磁盘上连续。

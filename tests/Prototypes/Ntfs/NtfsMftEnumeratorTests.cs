@@ -63,6 +63,10 @@ internal static class NtfsMftEnumeratorTests
             "strict invalid unsupported and free remain separate classifications");
         Check(result.LookupRequired == 2 && result.UnknownLogical == 1 && result.UnknownAllocated == 2,
             "unknown logical allocation and lookup reasons are counted without zero substitution");
+        Check(result.AllZeroInvalid == 0 && result.CodeCounts.SequenceEqual(new[] {
+            new NtfsMftCodeCount("Decoded", "Decoded", 67), new("Free", "FreeRecord", 1),
+            new("Invalid", "FixupMismatch", 1), new("Unsupported", "RecordFlags", 1) }),
+            "diagnostic counts preserve exact strict status and fixed code without changing categories");
         Check(result.Pages == 2 && reads == 2 && windows.SequenceEqual(new[] { (0L, 65536), (65536L, 6144) }),
             "pages neither skip nor overlap and EOF is never padded or overread");
         Check(result.TargetRecords.Count == targets.Length && targets.All(reference => result.TargetRecords[reference].Reference == reference),
@@ -72,6 +76,9 @@ internal static class NtfsMftEnumeratorTests
         bool immutable = false;
         try { ((IDictionary<ulong, NtfsRecord>)result.TargetRecords).Clear(); } catch (NotSupportedException) { immutable = true; }
         Check(immutable, "retained target dictionary cannot be edited by consumers");
+        bool codeCountsImmutable = false;
+        try { ((IList<NtfsMftCodeCount>)result.CodeCounts).Clear(); } catch (NotSupportedException) { codeCountsImmutable = true; }
+        Check(codeCountsImmutable, "published code counts are immutable and contain no raw records");
         inspectBuffer = false;
         var allTargets = Enumerable.Range(6, 21).Select(slot => NtfsRecordFixtures.Reference((ulong)slot, 3)).ToArray();
         var finiteTargets = NtfsMftEnumerator.Enumerate(map, allTargets, ReadMixed);
@@ -98,6 +105,51 @@ internal static class NtfsMftEnumeratorTests
         var maximum = NtfsMftEnumerator.Enumerate(Map(4096), [], ReadOrdinary);
         Check(maximum.CompletedCursor && maximum.ExpectedSlots == 4096 && maximum.VisitedSlots == 4096 && maximum.Pages == 64 &&
             maximum.Decoded == 4096 && readAttempts == 64, "the exact maximum slot budget covers all sixty-four pages");
+        Check(maximum.CodeCounts.SequenceEqual(new[] { new NtfsMftCodeCount("Decoded", "Decoded", 4096) }) && maximum.AllZeroInvalid == 0,
+            "one diagnostic bucket aggregates the complete record ceiling without per-record output");
+        byte[] allZero = new byte[1024];
+        byte[] nonzeroSignature = (byte[])ordinary.Clone(); nonzeroSignature[0] = (byte)'B';
+        byte[] unknownAttribute = NtfsRecordFixtures.Record([NtfsRecordFixtures.Name(), NtfsRecordFixtures.Resident(0xdead, new byte[8])]);
+        byte[][] diagnosticRecords = [allZero, nonzeroSignature, invalid, unknownAttribute, ordinary, free];
+        var diagnostic = NtfsMftEnumerator.Enumerate(Map(6), [], (offset, destination, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            for (int local = 0; local < destination.Length; local += 1024)
+                diagnosticRecords[checked((int)((offset + local) / 1024))].CopyTo(destination.Span[local..]);
+            return destination.Length;
+        });
+        Check(diagnostic is { VisitedSlots: 6, Decoded: 1, Free: 1, Invalid: 3, Unsupported: 1, AllZeroInvalid: 1 },
+            "all-zero raw records remain invalid alongside nonzero signature and USA failures");
+        Check(diagnostic.CodeCounts.SequenceEqual(new[] { new NtfsMftCodeCount("Decoded", "Decoded", 1), new("Free", "FreeRecord", 1),
+            new("Invalid", "FixupMismatch", 1), new("Invalid", "Signature", 2), new("Unsupported", "AttributeType", 1) }),
+            "fixed diagnostic matrix distinguishes unknown attributes from both signature and USA failures");
+        Check(diagnostic.CodeCounts.Sum(row => row.Count) == diagnostic.VisitedSlots && diagnostic.CodeCounts.Count <= NtfsMftEnumerator.MaximumCodeCounts &&
+            diagnostic.CodeCounts.Where(row => row.Status == "Invalid").Sum(row => row.Count) == diagnostic.Invalid &&
+            diagnostic.AllZeroInvalid <= diagnostic.CodeCounts.Single(row => row.Status == "Invalid" && row.Code == "Signature").Count,
+            "diagnostic subtotals match complete coverage and the zero-byte subset stays within invalid signatures");
+        var maximumZero = NtfsMftEnumerator.Enumerate(Map(4096), [], (_, destination, token) =>
+        { token.ThrowIfCancellationRequested(); destination.Span.Clear(); return destination.Length; });
+        Check(maximumZero is { Invalid: 4096, Free: 0, AllZeroInvalid: 4096, CompletedCursor: true } &&
+            maximumZero.CodeCounts.SequenceEqual(new[] { new NtfsMftCodeCount("Invalid", "Signature", 4096) }),
+            "the all-zero maximum remains invalid rather than claiming free or known-zero occupancy");
+        string[] invalidCodes = ["AllocationGeometry", "AttributeHeader", "AttributeLength", "AttributeName", "DataSize", "DuplicateAttributeId",
+            "FileName", "FixupMismatch", "MappingBounds", "MappingPairs", "MissingEndMarker", "RecordHeader", "RecordLength", "RecordNumber",
+            "ResidentBounds", "Sequence", "Signature", "SparseMappingFlags", "StandardInformation"];
+        string[] unsupportedCodes = ["AttributeFlags", "AttributeForm", "AttributeLimit", "AttributeType", "ClusterGeometry", "FixupStride",
+            "MetadataFlags", "MultipleUnnamedData", "NameLimit", "NtfsVersion", "RecordFlags"];
+        foreach (string code in invalidCodes)
+            Check(NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Invalid, code) && !NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Unsupported, code),
+                "an approved invalid code cannot migrate to the unsupported category");
+        foreach (string code in unsupportedCodes)
+            Check(NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Unsupported, code) && !NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Invalid, code),
+                "an approved unsupported code cannot migrate to the invalid category");
+        Check(NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Decoded, "Decoded") && NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Free, "FreeRecord") &&
+            !NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Invalid, "Decoded") && !NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Free, "Signature"),
+            "successful decoded and free status codes have separate exact pair contracts");
+        foreach (string? code in new string?[] { null, "", "signature", "FutureCode", "Signature\nprivate", @"X:\Private" })
+            Check(!Enum.GetValues<NtfsDecodeStatus>().Any(status => NtfsMftEnumerator.IsKnownCode(status, code)),
+                "unknown case-variant empty or injected diagnostic text is rejected by the whitelist");
+        Check(!NtfsMftEnumerator.IsKnownCode((NtfsDecodeStatus)99, "Decoded"), "an unknown status cannot enter the fixed diagnostic contract");
         readAttempts = 0;
         Rejected(() => NtfsMftEnumerator.Enumerate(Map(4097), [], ReadOrdinary), "MftEnumerationSlotBudget",
             "an oversized valid range is rejected before any prefix read");

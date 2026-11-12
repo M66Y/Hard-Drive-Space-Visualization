@@ -126,7 +126,7 @@ internal static class NtfsBoundedMftSourceTests
             Check(fixture.Locks == 1 && fixture.Reads == 1 && fixture.Allocations == 1 && fixture.Frees == 0,
                 "opening acquires one lock and reusable bootstrap buffer");
             var report = source.RunEnumeration(); var enumeration = report.Enumeration;
-            Check(report is { Revision: "bounded-mft-source-v1", EvidenceKind: "SyntheticFixture", GuardOwned: false,
+            Check(report is { Revision: "bounded-mft-source-v2", EvidenceKind: "SyntheticFixture", GuardOwned: false,
                 TokenBound: true, MapBound: true, Closed: true, RejectedReads: 0 }, "fake factory never mints native-owned source evidence");
             Check(enumeration.ValidBytes == slots * 1024L && enumeration.ExpectedSlots == slots && enumeration.VisitedSlots == slots &&
                 enumeration.Decoded == 22 && enumeration.Free == 1 && enumeration.Unsupported == 1 && enumeration.Invalid == slots - 24 && enumeration.CompletedCursor,
@@ -134,6 +134,11 @@ internal static class NtfsBoundedMftSourceTests
             Check(enumeration.LookupRequired == 16 && enumeration.UnknownLogical == 0 && enumeration.UnknownAllocated == 14 &&
                 enumeration.MatchedObjects == 21 && enumeration.UnknownAllocationObjects == 14 && enumeration.Cases.Count == 21,
                 "fixed targets match while special allocation remains unknown without global totals");
+            Check(enumeration.AllZeroInvalid == slots - 24 && enumeration.CodeCounts.SequenceEqual(new[] {
+                new NtfsMftCodeCount("Decoded", "Decoded", 22), new("Free", "FreeRecord", 1),
+                new("Invalid", "Signature", slots - 24), new("Unsupported", "RecordFlags", 1) }) &&
+                enumeration.CodeCounts.Sum(row => row.Count) == enumeration.VisitedSlots,
+                "closed v2 evidence exposes only bounded aggregate reasons while zero records stay invalid");
             int pages = (slots * 1024 + 65535) / 65536;
             Check(enumeration.Pages == pages && enumeration.ReadCalls == pages + 1 && enumeration.RequestedBytes == slots * 1024L + 1024 &&
                 fixture.Reads == pages + 1 && fixture.Windows.Skip(1).Sum(item => (long)item.Length) == slots * 1024L,

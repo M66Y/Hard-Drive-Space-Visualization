@@ -1,5 +1,7 @@
 # AsukaLens 项目现状
 
+2026-11-12：有界MFT摘要升级v2，新增固定原因码计数及全零Invalid观察。本机隔离VHD仍256槽/21对象匹配，183 Invalid细分为182全零Signature与1 SparseMappingFlags，6 Unsupported为RecordFlags；来源关闭、后验、卸载清理通过。严格decoder/四类/预算未改，不能将全零当已证明空闲或将拒绝当磁盘损坏。枚举91、来源68、PS477及外层284项通过，详见[第18轮](../iterations/2026-11-12-18-mft-classification/README.md)。无产品扫描提速或新发行包。
+
 2026-11-12：测试程序新增自有VHD的有界MFT分批遍历，实际连续覆盖256槽/4页，21固定对象全部匹配；严格分类为67已解码、0空闲、6不支持、183无法解析，未知大小未当零。5次读取请求263168字节（含bootstrap），来源关闭、后置核验、卸载及清理通过。它不汇总全卷占用、不接生产扫描，也不证明183项是磁盘损坏或已接近WizTree速度；4096槽只完成合成边界验证。见[第17轮](../iterations/2026-11-12-17-bounded-mft/README.md)。
 
 2026-11-12：测试程序新增真实自有fixture来源适配器，私有factory核对固定/无父链VHD、卷/marker/分区归属后自持新句柄，token/map及结果envelope随owner失效。最终隔离VHD对照22严格解码、21对象匹配、14特殊占用未知，关闭/后置核验与卸载清理通过；旧comparison/RawRecords分别1583/860通过。该来源仍仅用于自有静态测试盘，不是VSS、全MFT或生产扫描，见[第16轮](../iterations/2026-11-12-16-fixture-source/README.md)。

@@ -1,0 +1,85 @@
+{
+  "baseline": "e01f672ec005c967f51a8afe1d5457777886d533",
+  "files": [
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "af876903c4fea61844bef5ed6a78d242d4779a04767c72d5ee7cd9f690f31d11"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "300370cb6cd22a69b441d62ed7eb1cef54b42d60ce2b8530a4787e38754eb456"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "6f7542a2b75b4bdaa0a6d768d7bce505caa078ec399bac41837752199de29fca"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "9071ff7834db5200f6c3af7ee5a193949aa237ff3b4281bc64bae541fc89ddef"
+    },
+    {
+      "path": "docs/ntfs-bitmap-model-plan.md",
+      "sha256": "c96f386a8a9bd688dddca7f7ab104f03c88aa941bc67410fcd04cb1a68e04e9a"
+    },
+    {
+      "path": "docs/ntfs-bounded-mft-plan.md",
+      "sha256": "05d39be525d59432ae75614b5bb5d6005b719e492e14aaefdfc9fad90ec3ef90"
+    },
+    {
+      "path": "docs/ntfs-classification-diagnostics-plan.md",
+      "sha256": "208c2be246a85ff0c05eec7029fdd65ee545217dca9e4b9350e073b059a22662"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "ebb00b07c22b0e1b1ee8aa1043464a234475e2cc420ac96630f23f536d37ac9e"
+    },
+    {
+      "path": "iterations/2026-11-12-18-mft-classification/README.md",
+      "sha256": "6f6b61c8c7692886ef6c311c4f3aaae4682ca0258c0f54e01d64d61437e803b2"
+    },
+    {
+      "path": "iterations/2026-11-12-18-mft-classification/range-native.json",
+      "sha256": "d9474b7497e2140d0ee8298eb5e0f54b82893870555a50e0835524a8a76694c3"
+    },
+    {
+      "path": "iterations/2026-11-12-18-mft-classification/validation.json",
+      "sha256": "dc722c5bba7becee17d849f85b4b8d3502d2852e601cc804cc70dbb18491c524"
+    },
+    {
+      "path": "scripts/ntfs-prototype/MftEnumerationEvidence.ps1",
+      "sha256": "ad12b43f23f37b1bab507621a5372d8db2f965cfa8f7cfce322a128659e796c5"
+    },
+    {
+      "path": "scripts/ntfs-prototype/README.md",
+      "sha256": "886d60fc2f02951ea9d1aeeb451067dd7fd58b9656db4bc3367b3b6cc452ae44"
+    },
+    {
+      "path": "tests/NtfsMftEnumerationEvidence.Tests.ps1",
+      "sha256": "de80a0eb024072d3b7ec27ea004ca9cdaa82590a9815d06080f7c5d1d1b60bae"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsBoundedMftSource.cs",
+      "sha256": "1384f57ea4227669923574fab4a6a3aa9c8e85e6ef6b5414c7cc481846941617"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsBoundedMftSourceTests.cs",
+      "sha256": "0057a8d8855dae199be7312046a6e300edbd055f9a78466fc4ad7e05aed6ed54"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsMftEnumerator.cs",
+      "sha256": "7b61b38ac1e46fcae30a6f70a7d1cbee97da8abadf9cf6613a20f3193a11c81b"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsMftEnumeratorTests.cs",
+      "sha256": "dd782d047b85f35facfaa50b84f40d2db083e2a65da589ef0a9d38f41dad6f2b"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/README.md",
+      "sha256": "6f8905b9580e12e7c22eea38db7e92240d6f1de72351a05b1be2af332bc8eae0"
+    },
+    {
+      "path": "iterations/2026-11-12-18-mft-classification/changes.patch",
+      "sha256": "549cee7eb219f0d568a7a6eb3805f920315b9e3973eb2658ff64f75f730f0712"
+    }
+  ]
+}

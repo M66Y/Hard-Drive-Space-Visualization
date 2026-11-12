@@ -10,13 +10,15 @@ internal sealed class NtfsMftEnumerationException(string code) : IOException(cod
 {
     internal string Code { get; } = code;
 }
+internal sealed record NtfsMftCodeCount(string Status, string Code, int Count);
 
 // Private parsed targets can contain fixture names and references. This object
 // must not be serialized: the source publishes a separate safe summary only
 // after unlocking and rechecking its Native context.
 internal sealed record NtfsMftEnumerationResult(long ValidBytes, int ExpectedSlots, int VisitedSlots,
     int Decoded, int Free, int Unsupported, int Invalid, int LookupRequired, int UnknownLogical,
-    int UnknownAllocated, int Pages, bool CompletedCursor, IReadOnlyDictionary<ulong, NtfsRecord> TargetRecords);
+    int UnknownAllocated, int Pages, bool CompletedCursor, IReadOnlyDictionary<ulong, NtfsRecord> TargetRecords,
+    int AllZeroInvalid, IReadOnlyList<NtfsMftCodeCount> CodeCounts);
 
 // Pure, serial, bounded traversal. No file/device opening, source authority,
 // name tokens, tree building, allocation totals or raw-record retention.
@@ -25,9 +27,26 @@ internal static class NtfsMftEnumerator
     internal const int MaximumSlots = 4096;
     internal const int PageBytes = 65536;
     internal const int MaximumTargets = 21;
+    internal const int MaximumCodeCounts = 128;
 
     private static void Require([DoesNotReturnIf(false)] bool condition, string code)
     { if (!condition) throw new NtfsMftEnumerationException(code); }
+
+    // This whitelist is deliberately independent of arbitrary decoder messages.
+    // A future decoder status/code must be explicitly reviewed before it can be
+    // exported. Status/code pairs are not interchangeable across categories.
+    internal static bool IsKnownCode(NtfsDecodeStatus status, string? code) => status switch
+    {
+        NtfsDecodeStatus.Decoded => code == "Decoded",
+        NtfsDecodeStatus.Free => code == "FreeRecord",
+        NtfsDecodeStatus.Invalid => code is "AllocationGeometry" or "AttributeHeader" or "AttributeLength" or "AttributeName" or
+            "DataSize" or "DuplicateAttributeId" or "FileName" or "FixupMismatch" or "MappingBounds" or "MappingPairs" or
+            "MissingEndMarker" or "RecordHeader" or "RecordLength" or "RecordNumber" or "ResidentBounds" or "Sequence" or
+            "Signature" or "SparseMappingFlags" or "StandardInformation",
+        NtfsDecodeStatus.Unsupported => code is "AttributeFlags" or "AttributeForm" or "AttributeLimit" or "AttributeType" or
+            "ClusterGeometry" or "FixupStride" or "MetadataFlags" or "MultipleUnnamedData" or "NameLimit" or "NtfsVersion" or "RecordFlags",
+        _ => false
+    };
 
     internal static NtfsMftEnumerationResult Enumerate(NtfsMftMap map, IReadOnlyList<ulong> targetReferences,
         NtfsMftReadInto read, CancellationToken token = default)
@@ -59,6 +78,8 @@ internal static class NtfsMftEnumerator
         long cursor = 0;
         int visited = 0, decoded = 0, free = 0, unsupported = 0, invalid = 0;
         int lookup = 0, unknownLogical = 0, unknownAllocated = 0, pages = 0;
+        int allZeroInvalid = 0;
+        var codeCounts = new Dictionary<(NtfsDecodeStatus Status, string Code), int>();
         while (cursor < validBytes)
         {
             token.ThrowIfCancellationRequested();
@@ -80,6 +101,14 @@ internal static class NtfsMftEnumerator
                 Require(slot == (ulong)visited, "MftEnumerationCursor");
                 var result = NtfsRecordDecoder.Decode(page.AsSpan(offset, geometry.RecordBytes), geometry.SectorBytes,
                     token: token, recordNumber: slot, clusterSize: geometry.ClusterBytes);
+                Require(IsKnownCode(result.Status, result.Code), "MftEnumerationDecodeCode");
+                var key = (result.Status, result.Code);
+                if (codeCounts.TryGetValue(key, out int previous)) codeCounts[key] = checked(previous + 1);
+                else
+                {
+                    Require(codeCounts.Count < MaximumCodeCounts, "MftEnumerationCodeBudget");
+                    codeCounts.Add(key, 1);
+                }
                 switch (result.Status)
                 {
                     case NtfsDecodeStatus.Decoded:
@@ -97,7 +126,12 @@ internal static class NtfsMftEnumerator
                         break;
                     case NtfsDecodeStatus.Free: free++; break;
                     case NtfsDecodeStatus.Unsupported: unsupported++; break;
-                    case NtfsDecodeStatus.Invalid: invalid++; break;
+                    case NtfsDecodeStatus.Invalid:
+                        invalid++;
+                        // An observation of raw bytes, not an allocation bitmap
+                        // or a reason to classify this record as free.
+                        if (page.AsSpan(offset, geometry.RecordBytes).IndexOfAnyExcept((byte)0) < 0) allZeroInvalid++;
+                        break;
                     default: throw new NtfsMftEnumerationException("MftEnumerationDecodeStatus");
                 }
                 visited++;
@@ -108,7 +142,12 @@ internal static class NtfsMftEnumerator
         Require(cursor == validBytes && visited == expected && visited == decoded + free + unsupported + invalid,
             "MftEnumerationCoverage");
         Require(retained.Count == targetCount, "MftEnumerationTargetsMissing");
+        Require(codeCounts.Values.Sum() == visited && allZeroInvalid <= invalid &&
+            allZeroInvalid <= codeCounts.GetValueOrDefault((NtfsDecodeStatus.Invalid, "Signature")), "MftEnumerationCodeCoverage");
+        var reasons = codeCounts.OrderBy(item => (int)item.Key.Status).ThenBy(item => item.Key.Code, StringComparer.Ordinal)
+            .Select(item => new NtfsMftCodeCount(item.Key.Status.ToString(), item.Key.Code, item.Value)).ToArray();
+        token.ThrowIfCancellationRequested();
         return new(validBytes, expected, visited, decoded, free, unsupported, invalid, lookup,
-            unknownLogical, unknownAllocated, pages, true, new ReadOnlyDictionary<ulong, NtfsRecord>(retained));
+            unknownLogical, unknownAllocated, pages, true, new ReadOnlyDictionary<ulong, NtfsRecord>(retained), allZeroInvalid, Array.AsReadOnly(reasons));
     }
 }

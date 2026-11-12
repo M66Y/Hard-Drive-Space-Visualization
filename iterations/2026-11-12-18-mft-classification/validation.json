@@ -1,0 +1,15 @@
+{
+  "baseline": "e01f672ec005c967f51a8afe1d5457777886d533",
+  "scope": "TestOnlyFixedMftClassificationDiagnostics",
+  "build": { "configuration": "Release", "warnings": 0, "errors": 0 },
+  "synthetic": { "mft_enumerator": 91, "bounded_source": 68, "legacy_guard": 206, "legacy_source": 63 },
+  "powershell": { "mft_evidence": 477, "fixture_code_and_wrapper": 284 },
+  "native": { "status": "range_classified", "revision": "bounded-mft-source-v2", "checks": 473, "slots": 256, "all_zero_invalid": 182, "target_matches": 21, "target_allocation_unknown": 14, "closed": true, "detached": true, "cleaned": true },
+  "independent_review": "NoBlockingFinding",
+  "strict_decoder_changed": false,
+  "read_budget_changed": false,
+  "production_integration": false,
+  "raw_capture_added": false,
+  "performance_claim": false,
+  "packaging_or_release": false
+}

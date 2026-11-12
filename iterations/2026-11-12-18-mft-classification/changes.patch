@@ -1,0 +1,1041 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index 8955487..f3a52c0 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,26 +1,28 @@
+ # AsukaLens 开发检查点
+ 
+-2026-11-12；最近核对基线 `73c184e6b581a2232529b0480ec784960809b366`（第16轮已提交/推送）。第17轮属于本窗口独立改动，开发验收和清理已完成；恢复核验与上传结果以本轮files.json、归档及Git历史为准。事实入口：docs/project-status.md、docs/development-plan.md、iterations/2026-11-12-17-bounded-mft/README.md。
++2026-11-12；第18轮基线 `e01f672ec005c967f51a8afe1d5457777886d533`（第17轮已提交并推送main）。当前第18轮开发/验收和清理完成，恢复补丁/提交绑定以本轮archive和Git为准。事实入口docs/project-status.md、docs/development-plan.md。
+ 
+-## 本次目标与授权
++## 本次目标及授权时效
+ 
+-用户要求连续开发2小时，窗口10:09:17–12:09:17 UTC。先批准第16轮256MiB新建自有VHD、仅22目标；随后明确另批第17轮有界MFT范围（系统/空闲槽、最多4096槽/4MiB+1024字节/256次读取尝试）。只限此窗口，自有新镜像测试后卸载清理，不个人盘/VSS/新增原始留样/生产接入/发布。不要重复询问已批准范围，不将许可延续到以后。
++用户要求连续开发2小时，10:09:17–12:09:17 UTC。已确认第16轮自有256MiB VHD的22目标；另行明确扩大到第17轮有界MFT有效范围（系统/空闲槽、最多4096槽/4MiB+1024请求字节/256次读取尝试），并允许第18轮固定分类原因诊断沿用本窗口VHD流程。仅自有新镜像，测试后卸载清理；不个人盘/VSS/新增原始留样/生产接入/发布。不反复询问已授权范围，不延续许可到以后。
+ 
+-## 已完成与证据
++## 已核实阶段
+ 
+-- 第16轮commit73c184e已推送main，来源适配器/准备期真实归属与无父链、私有token/map、后验和关闭通过；旧22目标模式保持独立。immutable归档 iterations/2026-11-12-16-fixture-source。
+-- 第17轮已实现 NtfsMftMap.PlanRange、NtfsMftEnumerator、NtfsBoundedMftSource、新固定RawLease profile、独立guard mode factory、Live/wrapper及深白名单。只保留21目标；一个managed页与一个原生64KiB+padding分配复用，decoder有每记录副本，不称全进程内存上限。
+-- C#构建0warn/error；map199、enum46、rawlease101、bounded65、guard206+旧source63、原NTFS147及rawcomparison回归通过。PS新摘要372、外层模式284，旧guard/source/raw摘要回归通过。独立只读审查无阻塞。
+-- 真实mft-range473检查通过：256槽/4页/262144有效字节；67 decoded、0 free、6 unsupported、183 invalid；lookup24、unknownAllocated17；21目标全匹配、14目标分配未知。ReadCalls5/RequestedBytes263168（含bootstrap）。来源关闭、解锁、后验、卸载和清理均true。不是格式全支持、全占用、物理I/O或吞吐结论；183项尚未细分原因，不称磁盘损坏/空闲/零占用。
+-- 旧fixture-source473、raw-records860实际兼容通过，仍22条/21目标/14未知、22次22528请求字节，均清理。一次选定PowerShell宿主不存在导致启动前失败，无VHD创建，已改用发现的可用宿主；不是Native失败。
+-- 三份Native白名单摘要已按SHA一致复制到第17轮archive。当前无VHD或ntfs-test目录。旧6条kernel样本会话8文件/9683字节保持不变，不上传。三份本轮结果副本已在归档SHA核对后删除。
++- C16 `73c184e` 已独立提交推送，固定来源适配器与准备期真实归属/无父链、私有token/map、后验/关闭通过；只限record0+21目标。immutable archive16。
++- C17 `e01f672` 已独立提交推送，32文件正向恢复、33条committed SHA已核对。NtfsMftMap.PlanRange、Enum、BoundedSource、新固定Lease profile与guard factory/Live/wrapper完成。真实256槽/4页、21匹配14目标unknown，67decoded/0free/183invalid/6unsupported，5reads263168请求字节；关闭/解锁/后验/卸载清理通过。旧source473/raw860模式兼容仍22条，不用5对22宣称等工作量加速。immutable archive17。
++- C18本轮v2已完成：新增AllZeroInvalid/CodeCounts，32种固定Status+Code配对，最多128项，四类小计/visited守恒、排序唯一，未知/注入拒绝。严格decoder/四类/预算不变，关闭后才发布安全聚合。
++- C18 build0warn/error；enum91、bounded68、旧guard206+source63通过，PS477及outer284通过。独立只读审查无阻塞。
++- C18实际新VHD473通过：256槽=67Decoded+182Invalid/Signature（全零）+1Invalid/SparseMappingFlags+6Unsupported/RecordFlags，Free0，AllZeroInvalid182；21匹配、14目标分配未知，5reads263168，closed/unlock/post/detach/cleanup全部通过。原始记录不保存。只解释拒绝分支，不证明182槽未分配或其他7槽损坏，更不证明格式支持/占用完整/速度。
++- 原C17单页managed与64KiB+padding native缓冲复用仍保留，decoder有每记录副本，不称进程内存上限。同步I/O不能瞬时取消；取消/失败不发布部分成功。
+ 
+-## 代码归属与当前状态
++## 工作区归属与清理
+ 
+-全部C17改动属于本轮，无其他用户改动。attribute_probe负责Map/Enumerator四文件，special_contract负责RawLease/BoundedSource四文件；均封板并已统一构建。special_tests_plan负责MftEnumerationEvidence/Tests并只读审查共享入口。Root负责guard、Live、Program、wrapper、FixtureCodeEvidence、docs/AGENTS及archive。当前无运行中Native进程、exec或UAC请求。
++C18作者封板：special_contract仅Enum/BoundedSource及两Tests；special_tests_plan仅MftEnumerationEvidence/Tests；Root负责docs/AGENTS/记忆及archive18。当前无运行中exec/UAC/Native，无VHD/ntfs-test目录；C18结果已SHA核对归档range-native.json并删除副本。旧6条kernel本机样本会话8文件/9683字节未变，不上传。
+ 
+-## 收尾与下一步
++C18归档 iterations/2026-11-12-18-mft-classification，基线e01f672；恢复补丁只含本轮必要文件，不递归旧archives或自身。显式暂存、fetch核对再提交main，不force/tag/Release。原生产自动/高速路径未改，v1.5.0仍最后正式发行。
+ 
+-第17轮链接/隐私/变化范围已检查；恢复补丁与files.json在收尾验证，按授权显式暂存、fetch核对、提交推送main（不force、不tag/Release）。基线73c184e；补丁不要递归包含自己、manifest或旧archives。仅日常事实写references，不改Skill正文。
++## 下一建议与未完成
+ 
+-下一建议先解释严格分类的未解析原因，增加固定受控错误类别计数与合成矩阵，不放松decoder、不上传原始字节。方案已写docs/ntfs-classification-diagnostics-plan.md，用户已同意在本窗口剩余时间实施；待本轮独立提交后开始第18轮，仍沿用本窗口有界VHD许可；VSS实际来源、4096真实槽、其他几何/系统、碎片化/属性扩展、建树/补查融合及资源基准仍未完成。未接生产，软件高速速度未改变。
++Root已写 docs/ntfs-bitmap-model-plan.md 并询问用户是否在剩余窗口做纯合成MFT分配位图模型：最多4096槽/512字节、明确部分覆盖与缺失Unknown、三态声明与四类交叉计数、模拟来源/map绑定；无I/O/VHD/真实BITMAP提取/产品接入。用户已确认实施，Root先完成C18独立提交；C19仅新增模型和测试，不增加真实操作。官方MFT文档区分MFT记录位图与卷簇位图，不能用FSCTL_GET_VOLUME_BITMAP替代记录分配证据。
++
++真实位图提取/格式及绑定、182槽实际分配状态、RecordFlags/SparseMappingFlags支持、4096真实槽、其他系统/几何、碎片化/属性扩展、VSS/活跃卷、完整建树/补查融合及资源收益仍未完成。一次性VHD许可仍在12:09:17UTC终止，Skill正文不改，事实写references。
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index 66de92a..570ff2c 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -21,3 +21,5 @@
+ - 2026-11-12：真实来源先选自有固定VHD的短生命周期owner，准备阶段也先守卫真实归属/无父链，读者不可凭caller bool/裸句柄/旧token复用map。固定Native后验与Dispose分开，关闭期间取消必须复查；VSS只读研究不当现成来源。理由是先建立可核查真实绑定，再扩大批量范围；第16轮仍22目标，扩大4096槽另需确认。依据 iterations/2026-11-12-16-fixture-source/README.md 与 docs/ntfs-fixture-source-plan.md。
+ 
+ - 2026-11-12：用户另行批准本窗口内读取新建测试VHD的MFT有效范围；独立mft-range与固定4096槽/4MiB+bootstrap/256次预算，不扩大旧22目标模式。第17轮256真实槽读完而183 invalid、6 unsupported仍如实保留，范围完成不等于格式支持或完整占用；原因是先建立可核验的批量覆盖与失败语义，避免把未知数据当零来制造速度。下一步先做受控分类原因诊断，再决定格式/建树/性能范围，不放松严格decoder。依据 iterations/2026-11-12-17-bounded-mft/README.md 与 docs/ntfs-bounded-mft-plan.md。
++
++- 2026-11-12：第18轮只加固定聚合原因诊断，保持严格decoder/分类/预算。真实183 Invalid分解为182全零Signature与1 SparseMappingFlags，6 Unsupported为RecordFlags；不凭全零改成Free，也不凭错误码宣布损坏。理由是字节形态与记录分配是两种证据，下一步先设计纯合成位图模型，真实来源后续单独验证。依据 iterations/2026-11-12-18-mft-classification/README.md 与 docs/ntfs-classification-diagnostics-plan.md。
+diff --git a/AGENTS.md b/AGENTS.md
+index 3faa83f..cc6300a 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -136,6 +136,7 @@
+ - NTFS 受限原始读取修改运行 `--ntfs-mft-map-tests`、`--ntfs-raw-volume-tests`、`--ntfs-raw-comparison-tests`、`tests/NtfsRawComparisonEvidence.Tests.ps1` 与 `tests/NtfsFixtureCodeEvidence.Tests.ps1`。隔离脚本 `-RawRecords` 仅在本轮明确授权内使用，先锁自有新建VHD，固定record0及21对象、同句柄对齐读取，解锁后复核；锁或任何校验失败即停止，不强制卸载。`verified` 必须同时核对解锁、卸载清理及占用未知项；不等于活跃卷快照、生产后端或整盘性能。原始记录只在内存，不能自动沿用为个人卷读取许可，范围见[受控方案](docs/ntfs-raw-record-plan.md)。
+ - NTFS 读取会话模型运行 `--ntfs-read-session-tests`，只用合成输入，不访问卷。全会话累计最多4096条、2次重启、每批256条；来源断言不是实际验证器，`CompletedSyntheticSession` 不代表MFT覆盖或真实快照完成。映射/来源失效、已观察高水位、全部异步入口代际、取消/重入、未知值及溢出按[会话契约](docs/ntfs-read-session-plan.md)检查，不据此启用VSS、真实卷读取或产品入口。
+ - NTFS 有界MFT范围运行 `--ntfs-mft-enumerator-tests`、`--ntfs-bounded-mft-tests`，共享改动另跑map/raw-volume/fixture-source检查及 `tests/NtfsMftEnumerationEvidence.Tests.ps1`、`tests/NtfsFixtureCodeEvidence.Tests.ps1`。`-MftRange` 独立于旧22目标模式，仅本轮另获范围授权后操作新建VHD，最多4096槽/4MiB+bootstrap/256次读取尝试。`range_classified` 只表示严格四类覆盖与21对象/关闭核验，不代表全格式、完整占用或速度；invalid/unsupported不得当空闲、零占用或磁盘损坏。见[有界方案](docs/ntfs-bounded-mft-plan.md)，当前许可不延续到以后、个人卷或VSS。
++- 有界MFT分类诊断当前使用v2摘要；`CodeCounts`只接收32种固定Status/Code配对，`AllZeroInvalid`只是严格Invalid中的全零观察，不改变Free或证明未分配。更改诊断合同需同步上述C#/PS检查、版本及深白名单，保留历史revision，不输出原始记录或任意异常文本；来源关闭/失败隔离仍适用，见[分类方案](docs/ntfs-classification-diagnostics-plan.md)。
+ - NTFS 自有来源适配器运行 `--ntfs-fixture-source-tests`、`tests/NtfsSourceEvidence.Tests.ps1`、`tests/NtfsFixtureCodeEvidence.Tests.ps1` 及原隔离守卫。真实脚本 `-SourceAdapter` 只在本轮明确VHD许可内运行，固定record0+21对象；新模式为 `fixture-source`、成功为 `source_verified`，不与旧raw成功混用。准备期先验证fixed/no-parent、实际VHD/卷/marker归属再调用旧准备路径；实际来源factory另开自持句柄、私有token/map及固定Native后验，不能由caller bool、任意路径/句柄或模拟来源伪造。结果envelope关闭失效，旧immutable副本不能当当前证明。仅当前受控静态来源，不是全MFT/VSS/活跃卷验证，详见[来源方案](docs/ntfs-fixture-source-plan.md)。
+ - 存储属性提示分支改动另运行 `--storage-attribute-tests`，只使用自有临时 NTFS 普通/压缩/稀疏及命名流夹具，能力缺失明确跳过。`--storage-attribute-observe` 只记录差异，退出成功不代表回归通过；对照无差异时不得宣称已复现误算或证明所有文件系统支持。
+ - 混合目录调度改动补测 `--mixed-benchmark before/after` 的同夹具对比；用户明确指定实际目录后才使用 `--folder-benchmark`，其报告与隔离诊断仅留本机临时目录，不进入仓库。比较自动与高速必须核对完整扫描、结果一致性和运行顺序，保留异常波动样本。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 637e5f2..45394c9 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -2,7 +2,9 @@
+ 
+ ## 当前执行计划（2026-11-12）
+ 
+-第17轮[有界MFT分批遍历](ntfs-bounded-mft-plan.md)已获单独确认并完成本机隔离VHD验证：256槽/4页、21目标匹配、严格分类67 decoded/0 free/6 unsupported/183 invalid，来源关闭及卸载清理通过，见[归档](../iterations/2026-11-12-17-bounded-mft/README.md)。4096槽上限仅合成验证；范围覆盖不等于格式支持、占用完整或整卷速度已验收。下一步先细分未解析槽的固定错误类别并验证分类含义，再决定扩展格式、完整建树和更大资源基准；不通过放松严格校验清除失败计数。实际操作需按届时明确的方案与授权执行。
++第18轮[分类诊断](ntfs-classification-diagnostics-plan.md)已完成：实际183 Invalid中182为全零Signature、1为SparseMappingFlags，6 Unsupported为RecordFlags，21对象与关闭/清理仍通过，见[归档](../iterations/2026-11-12-18-mft-classification/README.md)。只是解释严格拒绝分支，不改变其有效性或证明空闲。下一步建议先设计纯合成的有界分配位图校验模型，明确占用位与记录解码结果的关系，再分别安排真实位图来源、格式支持、完整建树和资源基准。计划不等于实施授权，不凭全零跳过或放松decoder。
++
++第17轮[有界MFT分批遍历](ntfs-bounded-mft-plan.md)已获单独确认并完成本机隔离VHD验证：256槽/4页、21目标匹配、严格分类67 decoded/0 free/6 unsupported/183 invalid，来源关闭及卸载清理通过，见[归档](../iterations/2026-11-12-17-bounded-mft/README.md)。4096槽上限仅合成验证；范围覆盖不等于格式支持、占用完整或整卷速度已验收。后续原因细分见上方第18轮，实际操作需按届时明确的方案与授权执行。
+ 
+ 第16轮[自有来源适配器](ntfs-fixture-source-plan.md)的22目标模式仍独立保留；本轮复验没有扩大其预算。VSS仍仅[只读研究](ntfs-vss-source-research.md)，实际快照未实施。
+ 
+diff --git a/docs/ntfs-bitmap-model-plan.md b/docs/ntfs-bitmap-model-plan.md
+new file mode 100644
+index 0000000..0821f75
+--- /dev/null
++++ b/docs/ntfs-bitmap-model-plan.md
+@@ -0,0 +1,19 @@
++# 建议下一轮：纯合成MFT分配位图校验模型
++
++2026-11-12，第18轮识别出182个全零Invalid槽；当前没有MFT记录分配位图证据，不能据此改成Free。本文件是待确认方案，不表示已实施。
++
++微软区分 `$Mft` 的未命名 `$BITMAP`（哪些MFT记录在用）与卷级 `$Bitmap`（哪些簇在用）；`FSCTL_GET_VOLUME_BITMAP`取的是后者，不能拿来替代记录分配证据。来源：[MFT说明](https://learn.microsoft.com/en-us/windows/win32/devnotes/master-file-table)、[卷位图接口](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_volume_bitmap)。
++
++## 本轮建议仅做模型
++
++不读取卷或文件、不新增Native/Live入口、不解析真实 `$BITMAP` 属性。输入为最多4096槽的无名称合成观察、最多512字节合成位图和模拟来源/映射绑定；全部结果明确标为Synthetic，模拟token不成为真实来源证明。位序采用模型中明确约定的LSB-first协议，真实NTFS格式及来源以后另验。
++
++位图缺失或明确声明仅覆盖部分槽时，未覆盖部分保持Unknown。Provided位图必须严格满足声明的覆盖长度，不能把截断/超量/错绑定当有意部分覆盖；预计槽数、完整观察列表、槽号唯一与边界均检查。
++
++输出保留Allocated/Unallocated/Unknown三态声明，与Decoded/Free/Invalid/Unsupported四类交叉计数；三态及四类分别守恒。原始解码状态不改写，全零本身不提供分配证据；位图和已观察记录头在用标志不同仅记录不一致，不自动修复、不判断损坏、不统计大小或释放量。
++
++## 验收与边界
++
++合成测试覆盖全零但声明已分配、非零但声明未分配、有效Free、缺失/部分覆盖、声明截断、7/8和4095边界、末字节填充、来源/映射不符、重复/遗漏槽、取消及输入不变。所有错误为固定代码，不输出原始位图/逐槽身份、路径或任意消息；模型不接入现有v2/产品统计。
++
++完成独立归档、文档与提交；本轮无VHD操作或发布。真实位图提取、驻留/非驻留与属性扩展、绑定同一持锁来源、前后核验和182槽的真实分配状态，仍需后续另给方案与验证。
+diff --git a/docs/ntfs-bounded-mft-plan.md b/docs/ntfs-bounded-mft-plan.md
+index 27d270c..ea514a5 100644
+--- a/docs/ntfs-bounded-mft-plan.md
++++ b/docs/ntfs-bounded-mft-plan.md
+@@ -23,4 +23,6 @@
+ 
+ 本2小时窗口内另获允许后，新建隔离VHD完成端到端范围分类与21对象对照：256槽/4页，67 decoded、0 free、6 unsupported、183 invalid，21目标全部匹配，14目标的分配量仍未知。5次ReadFile请求263168字节（含bootstrap），来源关闭、后置核验及父脚本卸载清理通过。无法解析的非目标不自动归为空闲，也不能据此断言磁盘损坏；尚未细分其受控失败原因。
+ 
++以上是第17轮v1范围，历史摘要不改写；随后[第18轮](../iterations/2026-11-12-18-mft-classification/README.md)已用v2固定原因计数细分182全零Signature、1 SparseMappingFlags及6 RecordFlags，严格分类仍保留，不追认格式支持。
++
+ 计数/请求字节不是物理I/O或性能保证，首轮不做WizTree倍数比较、用户盘测试或正式发布。VSS实际来源、活跃卷一致性、扩展属性/大小补查、完整建树及生产回退仍另行安排。当前仅证明这台Windows 11、指定NTFS几何、自有静态小卷的范围读取和固定目标对照，不代表4096槽上限已在真实卷实测。
+diff --git a/docs/ntfs-classification-diagnostics-plan.md b/docs/ntfs-classification-diagnostics-plan.md
+index 90fdf99..e956eef 100644
+--- a/docs/ntfs-classification-diagnostics-plan.md
++++ b/docs/ntfs-classification-diagnostics-plan.md
+@@ -1,6 +1,6 @@
+-# 建议下一轮：有界MFT分类原因诊断
++# 有界MFT分类原因诊断方案
+ 
+-2026-11-12，第17轮已验证新建隔离VHD的256槽覆盖，但严格分类仍有183 invalid、6 unsupported。当前只知道类别，尚不能说明原因；不应直接扩大格式支持、汇总占用或把这些项当空闲。本文件是待确认方案，不表示已实施。
++2026-11-12，第17轮已验证新建隔离VHD的256槽覆盖，但严格分类仍有183 invalid、6 unsupported。用户确认在本次2小时窗口剩余时间实施本方案后，已完成开发和本机受限验收，结果见[第18轮](../iterations/2026-11-12-18-mft-classification/README.md)。不直接扩大格式支持、汇总占用或把这些项当空闲。
+ 
+ ## 建议范围
+ 
+@@ -12,6 +12,12 @@
+ 
+ ## 实际验证及边界
+ 
+-如用户确认，在本次2小时窗口内沿用已批准的新建256MiB隔离VHD有界范围流程，核对原因统计、21目标和清理；不扫描个人盘、不创建VSS、不改变4096槽/4MiB+bootstrap/256次预算。若窗口结束或有未解决失败，先记录半成品与授权时效，不自动延长真实操作。
++在已确认的本次2小时窗口内沿用已批准的新建256MiB隔离VHD有界范围流程，核对原因统计、21目标和清理；不扫描个人盘、不创建VSS、不改变4096槽/4MiB+bootstrap/256次预算。若窗口结束或有未解决失败，先记录半成品与授权时效，不自动延长真实操作。
+ 
+ 完成后独立归档、更新现状/计划/记忆并提交推送；不打包发布。格式修复、MFT位图解释、更大真实样本、全卷建树与资源性能基准另行安排。
++
++## 本机结果
++
++v2合成枚举91、来源68、PS白名单477及外层284项通过，构建0警告/0错误。新建VHD的473项检查通过：256槽，67 decoded；Invalid/Signature182且均全零、Invalid/SparseMappingFlags1；Unsupported/RecordFlags6，Free0。21对象匹配，14目标分配仍未知；5次ReadFile请求263168字节，来源关闭、后验、卸载清理均完成。
++
++这些结果仅说明原始字节形态与现有decoder的拒绝分支；不证明182槽是未分配、不证明其他7槽损坏，也未实现相关格式支持。下一步可先设计独立的有界分配位图校验模型，再讨论真实来源与分类政策，不凭全零直接跳过。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index a4dfba9..5c51290 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-12：有界MFT摘要升级v2，新增固定原因码计数及全零Invalid观察。本机隔离VHD仍256槽/21对象匹配，183 Invalid细分为182全零Signature与1 SparseMappingFlags，6 Unsupported为RecordFlags；来源关闭、后验、卸载清理通过。严格decoder/四类/预算未改，不能将全零当已证明空闲或将拒绝当磁盘损坏。枚举91、来源68、PS477及外层284项通过，详见[第18轮](../iterations/2026-11-12-18-mft-classification/README.md)。无产品扫描提速或新发行包。
++
+ 2026-11-12：测试程序新增自有VHD的有界MFT分批遍历，实际连续覆盖256槽/4页，21固定对象全部匹配；严格分类为67已解码、0空闲、6不支持、183无法解析，未知大小未当零。5次读取请求263168字节（含bootstrap），来源关闭、后置核验、卸载及清理通过。它不汇总全卷占用、不接生产扫描，也不证明183项是磁盘损坏或已接近WizTree速度；4096槽只完成合成边界验证。见[第17轮](../iterations/2026-11-12-17-bounded-mft/README.md)。
+ 
+ 2026-11-12：测试程序新增真实自有fixture来源适配器，私有factory核对固定/无父链VHD、卷/marker/分区归属后自持新句柄，token/map及结果envelope随owner失效。最终隔离VHD对照22严格解码、21对象匹配、14特殊占用未知，关闭/后置核验与卸载清理通过；旧comparison/RawRecords分别1583/860通过。该来源仍仅用于自有静态测试盘，不是VSS、全MFT或生产扫描，见[第16轮](../iterations/2026-11-12-16-fixture-source/README.md)。
+diff --git a/iterations/2026-11-12-18-mft-classification/README.md b/iterations/2026-11-12-18-mft-classification/README.md
+new file mode 100644
+index 0000000..f27bc7c
+--- /dev/null
++++ b/iterations/2026-11-12-18-mft-classification/README.md
+@@ -0,0 +1,32 @@
++# 有界MFT分类原因诊断
++
++2026-11-12，基线 `e01f672ec005c967f51a8afe1d5457777886d533`（第17轮已提交并推送）。用户已确认[本轮方案](../../docs/ntfs-classification-diagnostics-plan.md)，在本次2小时窗口剩余时间实施，沿用已批准的新建256MiB隔离VHD范围验证；不访问个人卷、不创建VSS、不保留原始记录、不接产品或发布。
++
++本轮已完成实现、相称回归、本机v2真实验收和独立审查。上一轮v1摘要仍保持原样，不用作本轮v2通过证据。
++
++## 范围与合同
++
++新增 `CodeCounts`（Status/Code/Count）和 `AllZeroInvalid`，revision为 `bounded-mft-source-v2`。32种固定状态/代码配对白名单，最多128项，四类小计及总和必须吻合；按Decoded/Free/Invalid/Unsupported及Code的Ordinal顺序输出。Invalid中原始1024字节全零只是数据形态观察，不自动变成Free、未分配或零占用。
++
++不修改严格decoder、四类主分类、21目标/关闭核验、4096槽/4MiB+bootstrap/256读取预算。只输出聚合计数，不输出槽号、路径、引用、原始字节或异常文本；旧v1历史仍保留，新摘要拒绝版本混用。
++
++## 验证与收尾
++
++测试项目Release构建0警告/0错误；枚举器91、来源68、旧guard206+source63通过。PS新摘要477、外层模式/代码284项通过。固定6记录矩阵覆盖全零、非零Signature、USA失败、未知属性、正常在用和有效空闲；4096全零合成检查保留Invalid，最多128种原因聚合，未知配对/注入/乱序/重复/版本混用/计数不符均拒绝。详见[validation.json](validation.json)。
++
++在新建256MiB VHD实际通过473项，完整256槽/4页，v2结果如下：
++
++| 状态/固定代码 | 数量 | 本轮含义 |
++| --- | --- | --- |
++| Decoded / Decoded | 67 | 当前严格decoder接受 |
++| Invalid / Signature | 182 | 原始1024字节均全零，仍保持Invalid |
++| Invalid / SparseMappingFlags | 1 | 触发现有映射标志校验拒绝 |
++| Unsupported / RecordFlags | 6 | 记录标志超出现有支持范围 |
++
++合计256；Free=0，AllZeroInvalid=182，21目标全部匹配、14目标分配未知。ReadCalls5/RequestedBytes263168（含bootstrap）；来源关闭、后置Native/facts核验、解锁、父脚本卸载与清理均通过。没有测量性能或物理I/O，不用本表证明磁盘损坏、182槽未分配或全部格式支持。
++
++独立只读审查未发现阻塞。全零与错误码均来自同一次严格decode及原始页观察，不改变decoder、不跳过目标/关闭核验，不新增I/O。失败/取消仍不发布部分结果，新原因列表仅在成功关闭后外泄；同步I/O取消边界与第17轮相同。PS深重建输出，仅固定聚合信息，无槽号/路径/引用/token/原始字节或任意异常文本。
++
++真实证据见[range-native.json](range-native.json)。本轮无失败Native尝试；一个自有VHD已卸载清理，结果副本在归档SHA一致核对后删除；此前kernel的6条本机原样本（8文件/9683字节）未变，不上传。生产代码未改变，不打包、不创建标签或Release。
++
++MFT位图解释、格式支持、真实4096槽与更广系统/几何、活跃卷、完整建树和资源收益仍未实现。`changes.patch`从本轮基线正向恢复并逐文件核对，`files.json`记录必要文件SHA-256，不递归包含自身及旧归档；提交与推送绑定以Git历史为准。
+diff --git a/iterations/2026-11-12-18-mft-classification/range-native.json b/iterations/2026-11-12-18-mft-classification/range-native.json
+new file mode 100644
+index 0000000..c6fb1be
+--- /dev/null
++++ b/iterations/2026-11-12-18-mft-classification/range-native.json
+@@ -0,0 +1,314 @@
++{
++  "schema": 1,
++  "status": "range_classified",
++  "stage": "MftRangeClassified",
++  "code": "None",
++  "native_error": 0,
++  "exit_code": 0,
++  "checks": 473,
++  "failures": 0,
++  "detached": true,
++  "cleanup_completed": true,
++  "lookup_experiment": null,
++  "lease_experiment": null,
++  "special_lookup": null,
++  "special_cost": null,
++  "mode": "mft-range",
++  "kernel_matrix": null,
++  "all_decoded": null,
++  "capture_cleanup_status": null,
++  "raw_comparison": null,
++  "raw_verified": false,
++  "source_adapter": null,
++  "source_verified": false,
++  "mft_range": {
++    "Revision": "bounded-mft-source-v2",
++    "EvidenceKind": "NativeOwnedFixture",
++    "GuardOwned": true,
++    "TokenBound": true,
++    "MapBound": true,
++    "Closed": true,
++    "RejectedReads": 0,
++    "Enumeration": {
++      "ValidBytes": 262144,
++      "ExpectedSlots": 256,
++      "VisitedSlots": 256,
++      "Decoded": 67,
++      "Free": 0,
++      "Unsupported": 6,
++      "Invalid": 183,
++      "LookupRequired": 24,
++      "UnknownLogical": 0,
++      "UnknownAllocated": 17,
++      "Pages": 4,
++      "CompletedCursor": true,
++      "MatchedObjects": 21,
++      "UnknownAllocationObjects": 14,
++      "MftRuns": 1,
++      "ReadCalls": 5,
++      "RequestedBytes": 263168,
++      "PhysicalSectorBytes": 512,
++      "LockAcquired": true,
++      "UnlockSucceeded": true,
++      "PostNativeStable": true,
++      "Cases": [
++        {
++          "CaseId": "A-Ordinary-8",
++          "Kind": "Ordinary",
++          "NameLength": 8,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "A-Ordinary-24",
++          "Kind": "Ordinary",
++          "NameLength": 24,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "A-Ordinary-64",
++          "Kind": "Ordinary",
++          "NameLength": 64,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "A-Compressed-8",
++          "Kind": "Compressed",
++          "NameLength": 8,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Compressed-24",
++          "Kind": "Compressed",
++          "NameLength": 24,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Compressed-64",
++          "Kind": "Compressed",
++          "NameLength": 64,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Sparse-8",
++          "Kind": "Sparse",
++          "NameLength": 8,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Sparse-24",
++          "Kind": "Sparse",
++          "NameLength": 24,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "A-Sparse-64",
++          "Kind": "Sparse",
++          "NameLength": 64,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "B-Ordinary-8",
++          "Kind": "Ordinary",
++          "NameLength": 8,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "B-Ordinary-64",
++          "Kind": "Ordinary",
++          "NameLength": 64,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "B-Compressed-8",
++          "Kind": "Compressed",
++          "NameLength": 8,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "B-Compressed-64",
++          "Kind": "Compressed",
++          "NameLength": 64,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "B-Sparse-8",
++          "Kind": "Sparse",
++          "NameLength": 8,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "B-Sparse-64",
++          "Kind": "Sparse",
++          "NameLength": 64,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "C-Ordinary-8",
++          "Kind": "Ordinary",
++          "NameLength": 8,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "C-Ordinary-64",
++          "Kind": "Ordinary",
++          "NameLength": 64,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Matched"
++        },
++        {
++          "CaseId": "C-Compressed-8",
++          "Kind": "Compressed",
++          "NameLength": 8,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "C-Compressed-64",
++          "Kind": "Compressed",
++          "NameLength": 64,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "C-Sparse-8",
++          "Kind": "Sparse",
++          "NameLength": 8,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        },
++        {
++          "CaseId": "C-Sparse-64",
++          "Kind": "Sparse",
++          "NameLength": 64,
++          "RawCode": "Decoded",
++          "IdentityMatched": true,
++          "LogicalMatched": true,
++          "LinksMatched": true,
++          "NamesMatched": true,
++          "AllocationCheck": "Unknown"
++        }
++      ],
++      "AllZeroInvalid": 182,
++      "CodeCounts": [
++        {
++          "Status": "Decoded",
++          "Code": "Decoded",
++          "Count": 67
++        },
++        {
++          "Status": "Invalid",
++          "Code": "Signature",
++          "Count": 182
++        },
++        {
++          "Status": "Invalid",
++          "Code": "SparseMappingFlags",
++          "Count": 1
++        },
++        {
++          "Status": "Unsupported",
++          "Code": "RecordFlags",
++          "Count": 6
++        }
++      ]
++    }
++  },
++  "range_classified": true,
++  "native_operation": "None"
++}
+\ No newline at end of file
+diff --git a/iterations/2026-11-12-18-mft-classification/validation.json b/iterations/2026-11-12-18-mft-classification/validation.json
+new file mode 100644
+index 0000000..0878ffe
+--- /dev/null
++++ b/iterations/2026-11-12-18-mft-classification/validation.json
+@@ -0,0 +1,15 @@
++{
++  "baseline": "e01f672ec005c967f51a8afe1d5457777886d533",
++  "scope": "TestOnlyFixedMftClassificationDiagnostics",
++  "build": { "configuration": "Release", "warnings": 0, "errors": 0 },
++  "synthetic": { "mft_enumerator": 91, "bounded_source": 68, "legacy_guard": 206, "legacy_source": 63 },
++  "powershell": { "mft_evidence": 477, "fixture_code_and_wrapper": 284 },
++  "native": { "status": "range_classified", "revision": "bounded-mft-source-v2", "checks": 473, "slots": 256, "all_zero_invalid": 182, "target_matches": 21, "target_allocation_unknown": 14, "closed": true, "detached": true, "cleaned": true },
++  "independent_review": "NoBlockingFinding",
++  "strict_decoder_changed": false,
++  "read_budget_changed": false,
++  "production_integration": false,
++  "raw_capture_added": false,
++  "performance_claim": false,
++  "packaging_or_release": false
++}
+diff --git a/scripts/ntfs-prototype/MftEnumerationEvidence.ps1 b/scripts/ntfs-prototype/MftEnumerationEvidence.ps1
+index bc33c78..43aef32 100644
+--- a/scripts/ntfs-prototype/MftEnumerationEvidence.ps1
++++ b/scripts/ntfs-prototype/MftEnumerationEvidence.ps1
+@@ -21,14 +21,15 @@ function ConvertTo-MftEnumerationEvidence($Value) {
+             }
+         }
+         Assert-MftEnumerationFields $Value @('Revision','EvidenceKind','GuardOwned','TokenBound','MapBound','Closed','RejectedReads','Enumeration')
+-        if ($Value.Revision -isnot [string] -or $Value.Revision -cne 'bounded-mft-source-v1' -or
++        if ($Value.Revision -isnot [string] -or $Value.Revision -cne 'bounded-mft-source-v2' -or
+             $Value.EvidenceKind -isnot [string] -or $Value.EvidenceKind -cne 'NativeOwnedFixture') { throw 'MFT_ENUMERATION_EVIDENCE_INVALID' }
+         Assert-MftEnumerationTrue $Value @('GuardOwned','TokenBound','MapBound','Closed')
+         Assert-MftEnumerationInteger $Value.RejectedReads 0 128
+         $range = $Value.Enumeration
+         Assert-MftEnumerationFields $range @('ValidBytes','ExpectedSlots','VisitedSlots','Decoded','Free','Unsupported','Invalid',
+             'LookupRequired','UnknownLogical','UnknownAllocated','Pages','CompletedCursor','MatchedObjects','UnknownAllocationObjects',
+-            'MftRuns','ReadCalls','RequestedBytes','PhysicalSectorBytes','LockAcquired','UnlockSucceeded','PostNativeStable','Cases')
++            'MftRuns','ReadCalls','RequestedBytes','PhysicalSectorBytes','LockAcquired','UnlockSucceeded','PostNativeStable','Cases',
++            'AllZeroInvalid','CodeCounts')
+         Assert-MftEnumerationInteger $range.ValidBytes 22528 4194304
+         Assert-MftEnumerationInteger $range.ExpectedSlots 22 4096
+         Assert-MftEnumerationInteger $range.VisitedSlots 22 4096
+@@ -53,6 +54,51 @@ function ConvertTo-MftEnumerationEvidence($Value) {
+         Assert-MftEnumerationTrue $range @('CompletedCursor','LockAcquired','UnlockSucceeded','PostNativeStable')
+         if ($range.Cases -isnot [array] -or $range.Cases.Count -ne 21) { throw 'MFT_ENUMERATION_EVIDENCE_INVALID' }
+ 
++        Assert-MftEnumerationInteger $range.AllZeroInvalid 0 $range.Invalid
++        if ($range.CodeCounts -isnot [array] -or $range.CodeCounts.Count -lt 1 -or $range.CodeCounts.Count -gt 128) {
++            throw 'MFT_ENUMERATION_EVIDENCE_INVALID'
++        }
++        # Exact results of the unchanged strict decoder. A code belongs to one
++        # status only; generic strings and exception messages never become codes.
++        $invalidCodes = @('AllocationGeometry','AttributeHeader','AttributeLength','AttributeName','DataSize','DuplicateAttributeId',
++            'FileName','FixupMismatch','MappingBounds','MappingPairs','MissingEndMarker','RecordHeader','RecordLength','RecordNumber',
++            'ResidentBounds','Sequence','Signature','SparseMappingFlags','StandardInformation')
++        $unsupportedCodes = @('AttributeFlags','AttributeForm','AttributeLimit','AttributeType','ClusterGeometry','FixupStride',
++            'MetadataFlags','MultipleUnnamedData','NameLimit','NtfsVersion','RecordFlags')
++        $rank = [Collections.Generic.Dictionary[string,int]]::new([StringComparer]::Ordinal)
++        $rank.Add('Decoded',0); $rank.Add('Free',1); $rank.Add('Invalid',2); $rank.Add('Unsupported',3)
++        $pairs = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
++        $codes = [Collections.Generic.List[object]]::new()
++        [long[]]$totals = @(0,0,0,0)
++        [long]$total = 0; [long]$signatureInvalid = 0
++        $previousRank = -1; $previousCode = ''
++        foreach ($row in $range.CodeCounts) {
++            Assert-MftEnumerationFields $row @('Status','Code','Count')
++            if ($row.Status -isnot [string] -or -not $rank.ContainsKey($row.Status) -or $row.Code -isnot [string]) {
++                throw 'MFT_ENUMERATION_EVIDENCE_INVALID'
++            }
++            $validCode = switch -CaseSensitive ($row.Status) {
++                'Decoded' {$row.Code -ceq 'Decoded'}
++                'Free' {$row.Code -ceq 'FreeRecord'}
++                'Invalid' {$row.Code -cin $invalidCodes}
++                'Unsupported' {$row.Code -cin $unsupportedCodes}
++                default {$false}
++            }
++            if (-not $validCode -or -not $pairs.Add($row.Status + '/' + $row.Code)) { throw 'MFT_ENUMERATION_EVIDENCE_INVALID' }
++            Assert-MftEnumerationInteger $row.Count 1 $range.VisitedSlots
++            $currentRank = $rank[$row.Status]
++            if ($currentRank -lt $previousRank -or ($currentRank -eq $previousRank -and
++                [string]::CompareOrdinal($row.Code,$previousCode) -le 0)) { throw 'MFT_ENUMERATION_EVIDENCE_INVALID' }
++            $previousRank = $currentRank; $previousCode = $row.Code
++            $totals[$currentRank] += [long]$row.Count; $total += [long]$row.Count
++            if ($row.Status -ceq 'Invalid' -and $row.Code -ceq 'Signature') {$signatureInvalid = [long]$row.Count}
++            $codes.Add([ordered]@{Status=[string]$row.Status;Code=[string]$row.Code;Count=[int]$row.Count})
++        }
++        if ($total -ne $range.VisitedSlots -or $totals[0] -ne $range.Decoded -or $totals[1] -ne $range.Free -or
++            $totals[2] -ne $range.Invalid -or $totals[3] -ne $range.Unsupported -or $range.AllZeroInvalid -gt $signatureInvalid) {
++            throw 'MFT_ENUMERATION_EVIDENCE_INVALID'
++        }
++
+         $expected = [Collections.Generic.Dictionary[string,object]]::new([StringComparer]::Ordinal)
+         foreach ($phase in @('A','B','C')) {
+             $lengths = if ($phase -ceq 'A') {@(8,24,64)} else {@(8,64)}
+@@ -85,8 +131,9 @@ function ConvertTo-MftEnumerationEvidence($Value) {
+             LookupRequired=[int]$range.LookupRequired;UnknownLogical=[int]$range.UnknownLogical;UnknownAllocated=[int]$range.UnknownAllocated;
+             Pages=[int]$range.Pages;CompletedCursor=$true;MatchedObjects=21;UnknownAllocationObjects=14;MftRuns=[int]$range.MftRuns;
+             ReadCalls=[int]$range.ReadCalls;RequestedBytes=[long]$range.RequestedBytes;PhysicalSectorBytes=[int]$range.PhysicalSectorBytes;
+-            LockAcquired=$true;UnlockSucceeded=$true;PostNativeStable=$true;Cases=$cases.ToArray()}
+-        return [ordered]@{Revision='bounded-mft-source-v1';EvidenceKind='NativeOwnedFixture';GuardOwned=$true;
++            LockAcquired=$true;UnlockSucceeded=$true;PostNativeStable=$true;Cases=$cases.ToArray();
++            AllZeroInvalid=[int]$range.AllZeroInvalid;CodeCounts=$codes.ToArray()}
++        return [ordered]@{Revision='bounded-mft-source-v2';EvidenceKind='NativeOwnedFixture';GuardOwned=$true;
+             TokenBound=$true;MapBound=$true;Closed=$true;RejectedReads=[int]$Value.RejectedReads;Enumeration=$safe}
+     }
+     catch { throw 'MFT_ENUMERATION_EVIDENCE_INVALID' }
+diff --git a/scripts/ntfs-prototype/README.md b/scripts/ntfs-prototype/README.md
+index ee4172d..b1293e6 100644
+--- a/scripts/ntfs-prototype/README.md
++++ b/scripts/ntfs-prototype/README.md
+@@ -100,6 +100,8 @@ pwsh -NoProfile -File scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 -ResultPath
+ 
+ 最多4096槽/4MiB有效范围，加1024字节bootstrap；最多256次ReadFile尝试，每页64KiB，超限前置拒绝，不截断。一个managed页与一个aligned native缓冲复用，不保存原始记录。四类和必须等于visited，特殊分配未知仍保留。实际256槽分类与未验边界见[第17轮](../../iterations/2026-11-12-17-bounded-mft/README.md)。计数不是物理I/O，未测整卷吞吐。不延续本轮授权到以后、个人卷或VSS。
+ 
++当前新版摘要revision为 `bounded-mft-source-v2`，新增 `AllZeroInvalid` 与最多128项 `CodeCounts`（固定Status/Code/Count）。32种精确配对按状态与Ordinal代码排序，四类小计、visited总数及全零子集均需吻合；helper不静默接受旧v1。全零计数不能代替MFT位图或分配状态核验；字段仍仅聚合信息，无槽号或原始字节。历史第17轮v1快照不修改，后续证据见[第18轮](../../iterations/2026-11-12-18-mft-classification/README.md)。
++
+ ## 自有来源适配器模式
+ 
+ 在本轮已明确获准重复隔离VHD时，使用既有新结果路径入口加 `-SourceAdapter`（与 `-RawRecords` / `-KernelDiagnostics` 互斥）：
+diff --git a/tests/NtfsMftEnumerationEvidence.Tests.ps1 b/tests/NtfsMftEnumerationEvidence.Tests.ps1
+index ac97902..a00c8ab 100644
+--- a/tests/NtfsMftEnumerationEvidence.Tests.ps1
++++ b/tests/NtfsMftEnumerationEvidence.Tests.ps1
+@@ -37,8 +37,12 @@ function Fixture {
+     $range=[pscustomobject]@{ValidBytes=[long]65536;ExpectedSlots=64;VisitedSlots=64;Decoded=40;Free=16;Unsupported=4;Invalid=4;
+         LookupRequired=20;UnknownLogical=2;UnknownAllocated=16;Pages=1;CompletedCursor=$true;MatchedObjects=21;
+         UnknownAllocationObjects=14;MftRuns=1;ReadCalls=2;RequestedBytes=[long]66560;PhysicalSectorBytes=512;
+-        LockAcquired=$true;UnlockSucceeded=$true;PostNativeStable=$true;Cases=$cases}
+-    return [pscustomobject]@{Revision='bounded-mft-source-v1';EvidenceKind='NativeOwnedFixture';GuardOwned=$true;
++        LockAcquired=$true;UnlockSucceeded=$true;PostNativeStable=$true;Cases=$cases;AllZeroInvalid=2;CodeCounts=@(
++            [pscustomobject]@{Status='Decoded';Code='Decoded';Count=40},
++            [pscustomobject]@{Status='Free';Code='FreeRecord';Count=16},
++            [pscustomobject]@{Status='Invalid';Code='Signature';Count=4},
++            [pscustomobject]@{Status='Unsupported';Code='AttributeType';Count=4})}
++    return [pscustomobject]@{Revision='bounded-mft-source-v2';EvidenceKind='NativeOwnedFixture';GuardOwned=$true;
+         TokenBound=$true;MapBound=$true;Closed=$true;RejectedReads=0;Enumeration=$range}
+ }
+ function Reject([scriptblock]$Mutation,[string]$Name) {
+@@ -53,7 +57,7 @@ function RejectValue($Value,[string]$Name) {
+ 
+ $value=Fixture; $safe=ConvertTo-MftEnumerationEvidence $value
+ Check (($safe.Keys -join ',') -ceq 'Revision,EvidenceKind,GuardOwned,TokenBound,MapBound,Closed,RejectedReads,Enumeration') 'canonical source fields'
+-Check (($safe.Enumeration.Keys -join ',') -ceq 'ValidBytes,ExpectedSlots,VisitedSlots,Decoded,Free,Unsupported,Invalid,LookupRequired,UnknownLogical,UnknownAllocated,Pages,CompletedCursor,MatchedObjects,UnknownAllocationObjects,MftRuns,ReadCalls,RequestedBytes,PhysicalSectorBytes,LockAcquired,UnlockSucceeded,PostNativeStable,Cases') 'canonical range fields'
++Check (($safe.Enumeration.Keys -join ',') -ceq 'ValidBytes,ExpectedSlots,VisitedSlots,Decoded,Free,Unsupported,Invalid,LookupRequired,UnknownLogical,UnknownAllocated,Pages,CompletedCursor,MatchedObjects,UnknownAllocationObjects,MftRuns,ReadCalls,RequestedBytes,PhysicalSectorBytes,LockAcquired,UnlockSucceeded,PostNativeStable,Cases,AllZeroInvalid,CodeCounts') 'canonical range fields'
+ Check (($safe.Enumeration.Cases[0].Keys -join ',') -ceq 'CaseId,Kind,NameLength,RawCode,IdentityMatched,LogicalMatched,LinksMatched,NamesMatched,AllocationCheck') 'canonical target fields'
+ Check ($safe.Enumeration.ReadCalls -eq 2 -and $safe.Enumeration.ReadCalls -lt 22) 'batched range does not inherit the old twenty-two-call minimum'
+ Check ($safe.Enumeration.Unsupported -eq 4 -and $safe.Enumeration.Invalid -eq 4 -and $safe.Enumeration.Free -eq 16) 'strict rejected classifications remain separate from free slots'
+@@ -71,14 +75,17 @@ Check ($json -cnotmatch 'private-marker|output-marker|SourceToken|MapEpoch|Refer
+ $lower=Fixture; $r=$lower.Enumeration
+ $r.ValidBytes=[long]22528; $r.ExpectedSlots=22; $r.VisitedSlots=22; $r.Decoded=22; $r.Free=0; $r.Unsupported=0; $r.Invalid=0
+ $r.LookupRequired=16; $r.UnknownLogical=0; $r.UnknownAllocated=14; $r.RequestedBytes=[long]23552
++$r.AllZeroInvalid=0; $r.CodeCounts=@([pscustomobject]@{Status='Decoded';Code='Decoded';Count=22})
+ Check ((ConvertTo-MftEnumerationEvidence $lower).Enumeration.ExpectedSlots -eq 22) 'minimum finite target and bootstrap coverage accepted'
+ $upper=Fixture; $r=$upper.Enumeration
+ $r.ValidBytes=[long]4194304; $r.ExpectedSlots=4096; $r.VisitedSlots=4096; $r.Decoded=22; $r.Free=4074; $r.Unsupported=0; $r.Invalid=0
+ $r.LookupRequired=16; $r.UnknownLogical=0; $r.UnknownAllocated=14; $r.Pages=64; $r.MftRuns=128; $r.ReadCalls=256
+ $r.RequestedBytes=[long]4195328; $r.PhysicalSectorBytes=65536; $upper.RejectedReads=128
++$r.AllZeroInvalid=0; $r.CodeCounts=@([pscustomobject]@{Status='Decoded';Code='Decoded';Count=22},[pscustomobject]@{Status='Free';Code='FreeRecord';Count=4074})
+ Check ((ConvertTo-MftEnumerationEvidence $upper).Enumeration.RequestedBytes -eq 4195328) 'maximum bounded coverage and IO budgets accepted'
+ $twoPages=Fixture; $r=$twoPages.Enumeration
+ $r.ValidBytes=[long]66560; $r.ExpectedSlots=65; $r.VisitedSlots=65; $r.Free=17; $r.Pages=2; $r.ReadCalls=3; $r.RequestedBytes=[long]67584
++$r.CodeCounts[1].Count=17
+ Check ((ConvertTo-MftEnumerationEvidence $twoPages).Enumeration.Pages -eq 2) 'short last page uses exact record-aligned remainder'
+ foreach($sector in @(512,1024,2048,4096,8192,16384,32768,65536)) {
+     $value=Fixture; $value.Enumeration.PhysicalSectorBytes=$sector
+@@ -86,6 +93,40 @@ foreach($sector in @(512,1024,2048,4096,8192,16384,32768,65536)) {
+ }
+ $reordered=Fixture; $reordered.Enumeration.Cases=@($reordered.Enumeration.Cases | Sort-Object CaseId -Descending)
+ Check ((ConvertTo-MftEnumerationEvidence $reordered).Enumeration.Cases.Count -eq 21) 'target set membership is independent of row order'
++Check (($safe.Enumeration.CodeCounts[0].Keys -join ',') -ceq 'Status,Code,Count') 'canonical diagnostic row fields'
++Check ($safe.Revision -ceq 'bounded-mft-source-v2' -and $safe.Enumeration.AllZeroInvalid -eq 2 -and
++    $safe.Enumeration.CodeCounts.Count -eq 4) 'v2 preserves separate all-zero observation and strict code partitions'
++$copyInput=Fixture; $copyOutput=ConvertTo-MftEnumerationEvidence $copyInput
++$copyInput.Enumeration.CodeCounts[0].Count=1; $copyInput.Enumeration.AllZeroInvalid=0
++Check ($copyOutput.Enumeration.CodeCounts[0].Count -eq 40 -and $copyOutput.Enumeration.AllZeroInvalid -eq 2) 'new diagnostics are deeply copied without input aliases'
++$invalidCodes=@('AllocationGeometry','AttributeHeader','AttributeLength','AttributeName','DataSize','DuplicateAttributeId',
++    'FileName','FixupMismatch','MappingBounds','MappingPairs','MissingEndMarker','RecordHeader','RecordLength','RecordNumber',
++    'ResidentBounds','Sequence','Signature','SparseMappingFlags','StandardInformation')
++$unsupportedCodes=@('AttributeFlags','AttributeForm','AttributeLimit','AttributeType','ClusterGeometry','FixupStride',
++    'MetadataFlags','MultipleUnnamedData','NameLimit','NtfsVersion','RecordFlags')
++foreach($code in $invalidCodes) {
++    $value=Fixture; $value.Enumeration.AllZeroInvalid=0; $value.Enumeration.CodeCounts[2].Code=$code
++    Check ((ConvertTo-MftEnumerationEvidence $value).Enumeration.CodeCounts[2].Code -ceq $code) 'each current strict Invalid code is accepted with its proper status'
++}
++foreach($code in $unsupportedCodes) {
++    $value=Fixture; $value.Enumeration.CodeCounts[3].Code=$code
++    Check ((ConvertTo-MftEnumerationEvidence $value).Enumeration.CodeCounts[3].Code -ceq $code) 'each current strict Unsupported code is accepted with its proper status'
++}
++$allPairs=Fixture; $r=$allPairs.Enumeration
++$r.Decoded=33; $r.Free=1; $r.Invalid=19; $r.Unsupported=11; $r.AllZeroInvalid=1
++$r.CodeCounts=@([pscustomobject]@{Status='Decoded';Code='Decoded';Count=33},[pscustomobject]@{Status='Free';Code='FreeRecord';Count=1})+
++    @($invalidCodes|ForEach-Object {[pscustomobject]@{Status='Invalid';Code=$_;Count=1}})+
++    @($unsupportedCodes|ForEach-Object {[pscustomobject]@{Status='Unsupported';Code=$_;Count=1}})
++Check ((ConvertTo-MftEnumerationEvidence $allPairs).Enumeration.CodeCounts.Count -eq 32) 'all thirty-two exact pairs coexist in enum and ordinal order'
++$maximumReason=Fixture; $r=$maximumReason.Enumeration
++$r.ValidBytes=[long]4194304; $r.ExpectedSlots=4096; $r.VisitedSlots=4096; $r.Decoded=4096; $r.Free=0; $r.Invalid=0; $r.Unsupported=0
++$r.Pages=64; $r.ReadCalls=65; $r.RequestedBytes=[long]4195328; $r.AllZeroInvalid=0
++$r.CodeCounts=@([pscustomobject]@{Status='Decoded';Code='Decoded';Count=[long]4096})
++Check ((ConvertTo-MftEnumerationEvidence $maximumReason).Enumeration.CodeCounts[0].Count -eq 4096) 'maximum exact reason count and absent zero-count statuses accepted'
++foreach($count in @(0,4)) {
++    $value=Fixture; $value.Enumeration.AllZeroInvalid=$count
++    Check ((ConvertTo-MftEnumerationEvidence $value).Enumeration.AllZeroInvalid -eq $count) 'all-zero Invalid observation accepts its exact subset endpoints'
++}
+ 
+ RejectValue $null 'null source rejected'
+ RejectValue @{} 'hashtable source rejected'
+@@ -93,7 +134,7 @@ RejectValue @((Fixture),(Fixture)) 'source array rejected'
+ $rootFields=@('Revision','EvidenceKind','GuardOwned','TokenBound','MapBound','Closed','RejectedReads','Enumeration')
+ $rangeFields=@('ValidBytes','ExpectedSlots','VisitedSlots','Decoded','Free','Unsupported','Invalid','LookupRequired','UnknownLogical',
+     'UnknownAllocated','Pages','CompletedCursor','MatchedObjects','UnknownAllocationObjects','MftRuns','ReadCalls','RequestedBytes',
+-    'PhysicalSectorBytes','LockAcquired','UnlockSucceeded','PostNativeStable','Cases')
++    'PhysicalSectorBytes','LockAcquired','UnlockSucceeded','PostNativeStable','Cases','AllZeroInvalid','CodeCounts')
+ $caseFields=@('CaseId','Kind','NameLength','RawCode','IdentityMatched','LogicalMatched','LinksMatched','NamesMatched','AllocationCheck')
+ foreach($field in $rootFields) {Reject {param($v) $v.PSObject.Properties.Remove($field)} ('missing source field '+$field)}
+ foreach($field in $rangeFields) {Reject {param($v) $v.Enumeration.PSObject.Properties.Remove($field)} ('missing range field '+$field)}
+@@ -109,7 +150,7 @@ Reject {param($v) $v.Enumeration.Cases[0].PSObject.Properties.Remove('CaseId');$
+ Reject {param($v) $v.PSObject.Properties.Remove('Closed');$v|Add-Member -MemberType ScriptProperty -Name Closed -Value {throw 'private-marker'}} 'active source property rejected before evaluation'
+ Reject {param($v) $v.Enumeration.PSObject.Properties.Remove('Decoded');$v.Enumeration|Add-Member -MemberType ScriptProperty -Name Decoded -Value {throw 'private-marker'}} 'active range property rejected before evaluation'
+ Reject {param($v) $v.Enumeration.Cases[0].PSObject.Properties.Remove('RawCode');$v.Enumeration.Cases[0]|Add-Member -MemberType ScriptProperty -Name RawCode -Value {throw 'private-marker'}} 'active target property rejected before evaluation'
+-foreach($bad in @('bounded-mft-source-v2','BOUNDED-MFT-SOURCE-V1',$true,1,$null)) {Reject {param($v) $v.Revision=$bad} 'source revision value and type strict'}
++foreach($bad in @('bounded-mft-source-v1','bounded-mft-source-v3','BOUNDED-MFT-SOURCE-V2',$true,1,$null)) {Reject {param($v) $v.Revision=$bad} 'source revision value and type strict'}
+ foreach($bad in @('SyntheticFixture','NativeOwnedFixture-Private','nativeownedfixture','VSS','ValidatedImmutable',$true,$null)) {Reject {param($v) $v.EvidenceKind=$bad} 'synthetic or unknown source cannot mint native success'}
+ Reject {param($v) $v.EvidenceKind='SyntheticFixture';$v.GuardOwned=$false} 'actual synthetic source-report shape rejected'
+ foreach($field in @('GuardOwned','TokenBound','MapBound','Closed')) {
+@@ -119,7 +160,7 @@ foreach($bad in @(-1,129,'0',$true,[double]0,[decimal]0,$null)) {Reject {param($
+ Reject {param($v) $v.Enumeration=$null} 'missing enumeration rejected'
+ Reject {param($v) $v.Enumeration=@{}} 'hashtable enumeration rejected'
+ foreach($field in @('ValidBytes','ExpectedSlots','VisitedSlots','Decoded','Free','Unsupported','Invalid','LookupRequired',
+-    'UnknownLogical','UnknownAllocated','Pages','MatchedObjects','UnknownAllocationObjects','MftRuns','ReadCalls','RequestedBytes','PhysicalSectorBytes')) {
++    'UnknownLogical','UnknownAllocated','Pages','MatchedObjects','UnknownAllocationObjects','MftRuns','ReadCalls','RequestedBytes','PhysicalSectorBytes','AllZeroInvalid')) {
+     foreach($bad in @(-1,[long]::MaxValue,'1',$true,[double]1,[decimal]1,$null)) {Reject {param($v) $v.Enumeration.$field=$bad} ('range numeric boundary '+$field)}
+ }
+ Reject {param($v) $v.Enumeration.ValidBytes=21504} 'valid range below target and bootstrap minimum rejected'
+@@ -167,8 +208,43 @@ foreach($field in @('IdentityMatched','LogicalMatched','LinksMatched','NamesMatc
+ Reject {param($v) $v.Enumeration.Cases[0].AllocationCheck='Unknown'} 'ordinary target allocation match retained'
+ Reject {param($v) $v.Enumeration.Cases[3].AllocationCheck='Matched'} 'special target allocation uncertainty retained'
+ foreach($rawJson in @('{"Closed":true,"Closed":true}','{"Closed":true,"closed":true}',
+-    '{"Enumeration":{"VisitedSlots":64,"visitedSlots":64}}','{"Enumeration":{"Cases":[{"CaseId":"A","caseid":"B"}]}}')) {
++    '{"Enumeration":{"VisitedSlots":64,"visitedSlots":64}}','{"Enumeration":{"Cases":[{"CaseId":"A","caseid":"B"}]}}',
++    '{"Enumeration":{"CodeCounts":[{"Status":"Invalid","status":"Invalid"}]}}',
++    '{"Enumeration":{"CodeCounts":[{"Code":"Signature","code":"Signature"}]}}')) {
+     $message=$null;try {Assert-UniqueJsonKeys $rawJson} catch {$message=$_.Exception.Message}
+     Check ($message -ceq 'MATRIX_JSON_INVALID') 'shared duplicate-key guard rejects case variants at every depth'
+ }
++$legacy=Fixture; $legacy.Revision='bounded-mft-source-v1'
++$legacy.Enumeration.PSObject.Properties.Remove('AllZeroInvalid'); $legacy.Enumeration.PSObject.Properties.Remove('CodeCounts')
++RejectValue $legacy 'v1 without diagnostics is not silently upgraded or reinterpreted'
++Reject {param($v) $v.Enumeration.CodeCounts=$null} 'null reason table rejected'
++Reject {param($v) $v.Enumeration.CodeCounts=@()} 'empty reason table rejected for nonempty coverage'
++Reject {param($v) $v.Enumeration.CodeCounts=$v.Enumeration.CodeCounts[0]} 'scalar reason table rejected'
++Reject {param($v) $v.Enumeration.CodeCounts=@($v.Enumeration.CodeCounts[0])*129} 'reason table has a hard bounded item count'
++Reject {param($v) $v.Enumeration.CodeCounts[0]=$null} 'null reason row rejected'
++Reject {param($v) $v.Enumeration.CodeCounts[0]=@{Status='Decoded';Code='Decoded';Count=40}} 'hashtable reason row rejected'
++foreach($field in @('Status','Code','Count')) {Reject {param($v) $v.Enumeration.CodeCounts[0].PSObject.Properties.Remove($field)} ('missing reason field '+$field)}
++foreach($field in @('Path','Reference','SlotId','Raw','Sha256','Exception','Message','SourceToken')) {
++    Reject {param($v) $v.Enumeration.CodeCounts[0]|Add-Member -NotePropertyName $field -NotePropertyValue 'private-marker'} ('reason injection '+$field)
++}
++Reject {param($v) $v.Enumeration.CodeCounts[0].PSObject.Properties.Remove('Status');$v.Enumeration.CodeCounts[0]|Add-Member -NotePropertyName status -NotePropertyValue 'Decoded'} 'reason field casing exact'
++Reject {param($v) $v.Enumeration.CodeCounts[0].PSObject.Properties.Remove('Count');$v.Enumeration.CodeCounts[0]|Add-Member -MemberType ScriptProperty -Name Count -Value {throw 'private-marker'}} 'active reason property rejected before evaluation'
++Reject {param($v) $v.Enumeration|Add-Member -NotePropertyName InvalidAllZero -NotePropertyValue 2} 'alternate all-zero field spelling rejected'
++Reject {param($v) $v.Enumeration|Add-Member -NotePropertyName Reasons -NotePropertyValue @()} 'alternate reason table spelling rejected'
++foreach($bad in @('decoded','Unknown',$true,1,$null,@('Decoded'))) {Reject {param($v) $v.Enumeration.CodeCounts[0].Status=$bad} 'reason status type and enum exact'}
++foreach($bad in @('decoded','Signature','private-marker',"Decoded`nprivate-marker",$true,1,$null,@('Decoded'))) {Reject {param($v) $v.Enumeration.CodeCounts[0].Code=$bad} 'reason code type and status pairing exact'}
++Reject {param($v) $v.Enumeration.CodeCounts[2].Code='AttributeType'} 'Unsupported code cannot be relabeled Invalid'
++Reject {param($v) $v.Enumeration.CodeCounts[3].Code='FixupMismatch'} 'Invalid code cannot be relabeled Unsupported'
++foreach($bad in @(-1,0,4097,[long]::MaxValue,'40',$true,[double]40,[decimal]40,$null,@(40))) {Reject {param($v) $v.Enumeration.CodeCounts[0].Count=$bad} 'reason count positive bounded integer'}
++Reject {param($v) $v.Enumeration.CodeCounts[0].Count=39} 'reason counts sum to the visited range'
++Reject {param($v) $v.Enumeration.CodeCounts[1].Count=15;$v.Enumeration.CodeCounts[2].Count=5} 'reason status subtotals match the four strict classes even when total matches'
++Reject {param($v) $v.Enumeration.CodeCounts=@(
++    [pscustomobject]@{Status='Decoded';Code='Decoded';Count=20},[pscustomobject]@{Status='Decoded';Code='Decoded';Count=20})+@($v.Enumeration.CodeCounts[1..3])} 'split duplicate pair cannot conceal itself behind valid totals'
++Reject {param($v) $v.Enumeration.CodeCounts=@($v.Enumeration.CodeCounts[0],$v.Enumeration.CodeCounts[1],$v.Enumeration.CodeCounts[3],$v.Enumeration.CodeCounts[2])} 'reason status order follows enum rather than report field order'
++Reject {param($v) $v.Enumeration.CodeCounts=@($v.Enumeration.CodeCounts[0],$v.Enumeration.CodeCounts[1],
++    [pscustomobject]@{Status='Invalid';Code='Signature';Count=3},[pscustomobject]@{Status='Invalid';Code='DataSize';Count=1},$v.Enumeration.CodeCounts[3])} 'within-status codes require strict ordinal order'
++Reject {param($v) $v.Enumeration.AllZeroInvalid=5} 'all-zero count is bounded by strict Invalid count'
++Reject {param($v) $v.Enumeration.AllZeroInvalid=2;$v.Enumeration.CodeCounts=@($v.Enumeration.CodeCounts[0],$v.Enumeration.CodeCounts[1],
++    [pscustomobject]@{Status='Invalid';Code='FixupMismatch';Count=3},[pscustomobject]@{Status='Invalid';Code='Signature';Count=1},$v.Enumeration.CodeCounts[3])} 'all-zero count cannot exceed Invalid Signature subset'
++Reject {param($v) $v.Enumeration.CodeCounts[2].Code='FixupMismatch'} 'all-zero observation requires the Signature subset instead of zero reclassification'
+ Write-Output ('PASS NTFS MFT enumeration evidence checks: '+$checks)
+diff --git a/tests/Prototypes/Ntfs/NtfsBoundedMftSource.cs b/tests/Prototypes/Ntfs/NtfsBoundedMftSource.cs
+index be60570..e08d686 100644
+--- a/tests/Prototypes/Ntfs/NtfsBoundedMftSource.cs
++++ b/tests/Prototypes/Ntfs/NtfsBoundedMftSource.cs
+@@ -9,7 +9,8 @@ internal sealed record NtfsBoundedMftRangeReport(long ValidBytes, int ExpectedSl
+     int Decoded, int Free, int Unsupported, int Invalid, int LookupRequired, int UnknownLogical,
+     int UnknownAllocated, int Pages, bool CompletedCursor, int MatchedObjects, int UnknownAllocationObjects,
+     int MftRuns, int ReadCalls, long RequestedBytes, int PhysicalSectorBytes, bool LockAcquired,
+-    bool UnlockSucceeded, bool PostNativeStable, IReadOnlyList<NtfsBoundedMftCase> Cases);
++    bool UnlockSucceeded, bool PostNativeStable, IReadOnlyList<NtfsBoundedMftCase> Cases,
++    int AllZeroInvalid, IReadOnlyList<NtfsMftCodeCount> CodeCounts);
+ internal sealed record NtfsBoundedMftSourceReport(string Revision, string EvidenceKind, bool GuardOwned,
+     bool TokenBound, bool MapBound, bool Closed, int RejectedReads, NtfsBoundedMftRangeReport Enumeration);
+ 
+@@ -206,9 +207,10 @@ internal sealed class NtfsBoundedMftSource : IDisposable
+                 CloseAndVerify(cancellation);
+                 var enumeration = new NtfsBoundedMftRangeReport(result.ValidBytes, result.ExpectedSlots, result.VisitedSlots, result.Decoded, result.Free,
+                     result.Unsupported, result.Invalid, result.LookupRequired, result.UnknownLogical, result.UnknownAllocated, result.Pages,
+-                    result.CompletedCursor, 21, 14, runs, reads, bytes, facts.PhysicalSectorBytes, true, true, true, rows.AsReadOnly());
++                    result.CompletedCursor, 21, 14, runs, reads, bytes, facts.PhysicalSectorBytes, true, true, true, rows.AsReadOnly(),
++                    result.AllZeroInvalid, result.CodeCounts);
+                 cancellation.ThrowIfCancellationRequested();
+-                return new("bounded-mft-source-v1", nativeProvenance ? "NativeOwnedFixture" : "SyntheticFixture", nativeProvenance,
++                return new("bounded-mft-source-v2", nativeProvenance ? "NativeOwnedFixture" : "SyntheticFixture", nativeProvenance,
+                     true, true, true, 0, enumeration);
+             }
+             catch (NtfsRawVolumeException error)
+diff --git a/tests/Prototypes/Ntfs/NtfsBoundedMftSourceTests.cs b/tests/Prototypes/Ntfs/NtfsBoundedMftSourceTests.cs
+index b236c52..71392e1 100644
+--- a/tests/Prototypes/Ntfs/NtfsBoundedMftSourceTests.cs
++++ b/tests/Prototypes/Ntfs/NtfsBoundedMftSourceTests.cs
+@@ -126,7 +126,7 @@ internal static class NtfsBoundedMftSourceTests
+             Check(fixture.Locks == 1 && fixture.Reads == 1 && fixture.Allocations == 1 && fixture.Frees == 0,
+                 "opening acquires one lock and reusable bootstrap buffer");
+             var report = source.RunEnumeration(); var enumeration = report.Enumeration;
+-            Check(report is { Revision: "bounded-mft-source-v1", EvidenceKind: "SyntheticFixture", GuardOwned: false,
++            Check(report is { Revision: "bounded-mft-source-v2", EvidenceKind: "SyntheticFixture", GuardOwned: false,
+                 TokenBound: true, MapBound: true, Closed: true, RejectedReads: 0 }, "fake factory never mints native-owned source evidence");
+             Check(enumeration.ValidBytes == slots * 1024L && enumeration.ExpectedSlots == slots && enumeration.VisitedSlots == slots &&
+                 enumeration.Decoded == 22 && enumeration.Free == 1 && enumeration.Unsupported == 1 && enumeration.Invalid == slots - 24 && enumeration.CompletedCursor,
+@@ -134,6 +134,11 @@ internal static class NtfsBoundedMftSourceTests
+             Check(enumeration.LookupRequired == 16 && enumeration.UnknownLogical == 0 && enumeration.UnknownAllocated == 14 &&
+                 enumeration.MatchedObjects == 21 && enumeration.UnknownAllocationObjects == 14 && enumeration.Cases.Count == 21,
+                 "fixed targets match while special allocation remains unknown without global totals");
++            Check(enumeration.AllZeroInvalid == slots - 24 && enumeration.CodeCounts.SequenceEqual(new[] {
++                new NtfsMftCodeCount("Decoded", "Decoded", 22), new("Free", "FreeRecord", 1),
++                new("Invalid", "Signature", slots - 24), new("Unsupported", "RecordFlags", 1) }) &&
++                enumeration.CodeCounts.Sum(row => row.Count) == enumeration.VisitedSlots,
++                "closed v2 evidence exposes only bounded aggregate reasons while zero records stay invalid");
+             int pages = (slots * 1024 + 65535) / 65536;
+             Check(enumeration.Pages == pages && enumeration.ReadCalls == pages + 1 && enumeration.RequestedBytes == slots * 1024L + 1024 &&
+                 fixture.Reads == pages + 1 && fixture.Windows.Skip(1).Sum(item => (long)item.Length) == slots * 1024L,
+diff --git a/tests/Prototypes/Ntfs/NtfsMftEnumerator.cs b/tests/Prototypes/Ntfs/NtfsMftEnumerator.cs
+index ebf10da..b57d81c 100644
+--- a/tests/Prototypes/Ntfs/NtfsMftEnumerator.cs
++++ b/tests/Prototypes/Ntfs/NtfsMftEnumerator.cs
+@@ -10,13 +10,15 @@ internal sealed class NtfsMftEnumerationException(string code) : IOException(cod
+ {
+     internal string Code { get; } = code;
+ }
++internal sealed record NtfsMftCodeCount(string Status, string Code, int Count);
+ 
+ // Private parsed targets can contain fixture names and references. This object
+ // must not be serialized: the source publishes a separate safe summary only
+ // after unlocking and rechecking its Native context.
+ internal sealed record NtfsMftEnumerationResult(long ValidBytes, int ExpectedSlots, int VisitedSlots,
+     int Decoded, int Free, int Unsupported, int Invalid, int LookupRequired, int UnknownLogical,
+-    int UnknownAllocated, int Pages, bool CompletedCursor, IReadOnlyDictionary<ulong, NtfsRecord> TargetRecords);
++    int UnknownAllocated, int Pages, bool CompletedCursor, IReadOnlyDictionary<ulong, NtfsRecord> TargetRecords,
++    int AllZeroInvalid, IReadOnlyList<NtfsMftCodeCount> CodeCounts);
+ 
+ // Pure, serial, bounded traversal. No file/device opening, source authority,
+ // name tokens, tree building, allocation totals or raw-record retention.
+@@ -25,10 +27,27 @@ internal static class NtfsMftEnumerator
+     internal const int MaximumSlots = 4096;
+     internal const int PageBytes = 65536;
+     internal const int MaximumTargets = 21;
++    internal const int MaximumCodeCounts = 128;
+ 
+     private static void Require([DoesNotReturnIf(false)] bool condition, string code)
+     { if (!condition) throw new NtfsMftEnumerationException(code); }
+ 
++    // This whitelist is deliberately independent of arbitrary decoder messages.
++    // A future decoder status/code must be explicitly reviewed before it can be
++    // exported. Status/code pairs are not interchangeable across categories.
++    internal static bool IsKnownCode(NtfsDecodeStatus status, string? code) => status switch
++    {
++        NtfsDecodeStatus.Decoded => code == "Decoded",
++        NtfsDecodeStatus.Free => code == "FreeRecord",
++        NtfsDecodeStatus.Invalid => code is "AllocationGeometry" or "AttributeHeader" or "AttributeLength" or "AttributeName" or
++            "DataSize" or "DuplicateAttributeId" or "FileName" or "FixupMismatch" or "MappingBounds" or "MappingPairs" or
++            "MissingEndMarker" or "RecordHeader" or "RecordLength" or "RecordNumber" or "ResidentBounds" or "Sequence" or
++            "Signature" or "SparseMappingFlags" or "StandardInformation",
++        NtfsDecodeStatus.Unsupported => code is "AttributeFlags" or "AttributeForm" or "AttributeLimit" or "AttributeType" or
++            "ClusterGeometry" or "FixupStride" or "MetadataFlags" or "MultipleUnnamedData" or "NameLimit" or "NtfsVersion" or "RecordFlags",
++        _ => false
++    };
++
+     internal static NtfsMftEnumerationResult Enumerate(NtfsMftMap map, IReadOnlyList<ulong> targetReferences,
+         NtfsMftReadInto read, CancellationToken token = default)
+     {
+@@ -59,6 +78,8 @@ internal static class NtfsMftEnumerator
+         long cursor = 0;
+         int visited = 0, decoded = 0, free = 0, unsupported = 0, invalid = 0;
+         int lookup = 0, unknownLogical = 0, unknownAllocated = 0, pages = 0;
++        int allZeroInvalid = 0;
++        var codeCounts = new Dictionary<(NtfsDecodeStatus Status, string Code), int>();
+         while (cursor < validBytes)
+         {
+             token.ThrowIfCancellationRequested();
+@@ -80,6 +101,14 @@ internal static class NtfsMftEnumerator
+                 Require(slot == (ulong)visited, "MftEnumerationCursor");
+                 var result = NtfsRecordDecoder.Decode(page.AsSpan(offset, geometry.RecordBytes), geometry.SectorBytes,
+                     token: token, recordNumber: slot, clusterSize: geometry.ClusterBytes);
++                Require(IsKnownCode(result.Status, result.Code), "MftEnumerationDecodeCode");
++                var key = (result.Status, result.Code);
++                if (codeCounts.TryGetValue(key, out int previous)) codeCounts[key] = checked(previous + 1);
++                else
++                {
++                    Require(codeCounts.Count < MaximumCodeCounts, "MftEnumerationCodeBudget");
++                    codeCounts.Add(key, 1);
++                }
+                 switch (result.Status)
+                 {
+                     case NtfsDecodeStatus.Decoded:
+@@ -97,7 +126,12 @@ internal static class NtfsMftEnumerator
+                         break;
+                     case NtfsDecodeStatus.Free: free++; break;
+                     case NtfsDecodeStatus.Unsupported: unsupported++; break;
+-                    case NtfsDecodeStatus.Invalid: invalid++; break;
++                    case NtfsDecodeStatus.Invalid:
++                        invalid++;
++                        // An observation of raw bytes, not an allocation bitmap
++                        // or a reason to classify this record as free.
++                        if (page.AsSpan(offset, geometry.RecordBytes).IndexOfAnyExcept((byte)0) < 0) allZeroInvalid++;
++                        break;
+                     default: throw new NtfsMftEnumerationException("MftEnumerationDecodeStatus");
+                 }
+                 visited++;
+@@ -108,7 +142,12 @@ internal static class NtfsMftEnumerator
+         Require(cursor == validBytes && visited == expected && visited == decoded + free + unsupported + invalid,
+             "MftEnumerationCoverage");
+         Require(retained.Count == targetCount, "MftEnumerationTargetsMissing");
++        Require(codeCounts.Values.Sum() == visited && allZeroInvalid <= invalid &&
++            allZeroInvalid <= codeCounts.GetValueOrDefault((NtfsDecodeStatus.Invalid, "Signature")), "MftEnumerationCodeCoverage");
++        var reasons = codeCounts.OrderBy(item => (int)item.Key.Status).ThenBy(item => item.Key.Code, StringComparer.Ordinal)
++            .Select(item => new NtfsMftCodeCount(item.Key.Status.ToString(), item.Key.Code, item.Value)).ToArray();
++        token.ThrowIfCancellationRequested();
+         return new(validBytes, expected, visited, decoded, free, unsupported, invalid, lookup,
+-            unknownLogical, unknownAllocated, pages, true, new ReadOnlyDictionary<ulong, NtfsRecord>(retained));
++            unknownLogical, unknownAllocated, pages, true, new ReadOnlyDictionary<ulong, NtfsRecord>(retained), allZeroInvalid, Array.AsReadOnly(reasons));
+     }
+ }
+diff --git a/tests/Prototypes/Ntfs/NtfsMftEnumeratorTests.cs b/tests/Prototypes/Ntfs/NtfsMftEnumeratorTests.cs
+index 566e62e..0c67794 100644
+--- a/tests/Prototypes/Ntfs/NtfsMftEnumeratorTests.cs
++++ b/tests/Prototypes/Ntfs/NtfsMftEnumeratorTests.cs
+@@ -63,6 +63,10 @@ internal static class NtfsMftEnumeratorTests
+             "strict invalid unsupported and free remain separate classifications");
+         Check(result.LookupRequired == 2 && result.UnknownLogical == 1 && result.UnknownAllocated == 2,
+             "unknown logical allocation and lookup reasons are counted without zero substitution");
++        Check(result.AllZeroInvalid == 0 && result.CodeCounts.SequenceEqual(new[] {
++            new NtfsMftCodeCount("Decoded", "Decoded", 67), new("Free", "FreeRecord", 1),
++            new("Invalid", "FixupMismatch", 1), new("Unsupported", "RecordFlags", 1) }),
++            "diagnostic counts preserve exact strict status and fixed code without changing categories");
+         Check(result.Pages == 2 && reads == 2 && windows.SequenceEqual(new[] { (0L, 65536), (65536L, 6144) }),
+             "pages neither skip nor overlap and EOF is never padded or overread");
+         Check(result.TargetRecords.Count == targets.Length && targets.All(reference => result.TargetRecords[reference].Reference == reference),
+@@ -72,6 +76,9 @@ internal static class NtfsMftEnumeratorTests
+         bool immutable = false;
+         try { ((IDictionary<ulong, NtfsRecord>)result.TargetRecords).Clear(); } catch (NotSupportedException) { immutable = true; }
+         Check(immutable, "retained target dictionary cannot be edited by consumers");
++        bool codeCountsImmutable = false;
++        try { ((IList<NtfsMftCodeCount>)result.CodeCounts).Clear(); } catch (NotSupportedException) { codeCountsImmutable = true; }
++        Check(codeCountsImmutable, "published code counts are immutable and contain no raw records");
+         inspectBuffer = false;
+         var allTargets = Enumerable.Range(6, 21).Select(slot => NtfsRecordFixtures.Reference((ulong)slot, 3)).ToArray();
+         var finiteTargets = NtfsMftEnumerator.Enumerate(map, allTargets, ReadMixed);
+@@ -98,6 +105,51 @@ internal static class NtfsMftEnumeratorTests
+         var maximum = NtfsMftEnumerator.Enumerate(Map(4096), [], ReadOrdinary);
+         Check(maximum.CompletedCursor && maximum.ExpectedSlots == 4096 && maximum.VisitedSlots == 4096 && maximum.Pages == 64 &&
+             maximum.Decoded == 4096 && readAttempts == 64, "the exact maximum slot budget covers all sixty-four pages");
++        Check(maximum.CodeCounts.SequenceEqual(new[] { new NtfsMftCodeCount("Decoded", "Decoded", 4096) }) && maximum.AllZeroInvalid == 0,
++            "one diagnostic bucket aggregates the complete record ceiling without per-record output");
++        byte[] allZero = new byte[1024];
++        byte[] nonzeroSignature = (byte[])ordinary.Clone(); nonzeroSignature[0] = (byte)'B';
++        byte[] unknownAttribute = NtfsRecordFixtures.Record([NtfsRecordFixtures.Name(), NtfsRecordFixtures.Resident(0xdead, new byte[8])]);
++        byte[][] diagnosticRecords = [allZero, nonzeroSignature, invalid, unknownAttribute, ordinary, free];
++        var diagnostic = NtfsMftEnumerator.Enumerate(Map(6), [], (offset, destination, token) =>
++        {
++            token.ThrowIfCancellationRequested();
++            for (int local = 0; local < destination.Length; local += 1024)
++                diagnosticRecords[checked((int)((offset + local) / 1024))].CopyTo(destination.Span[local..]);
++            return destination.Length;
++        });
++        Check(diagnostic is { VisitedSlots: 6, Decoded: 1, Free: 1, Invalid: 3, Unsupported: 1, AllZeroInvalid: 1 },
++            "all-zero raw records remain invalid alongside nonzero signature and USA failures");
++        Check(diagnostic.CodeCounts.SequenceEqual(new[] { new NtfsMftCodeCount("Decoded", "Decoded", 1), new("Free", "FreeRecord", 1),
++            new("Invalid", "FixupMismatch", 1), new("Invalid", "Signature", 2), new("Unsupported", "AttributeType", 1) }),
++            "fixed diagnostic matrix distinguishes unknown attributes from both signature and USA failures");
++        Check(diagnostic.CodeCounts.Sum(row => row.Count) == diagnostic.VisitedSlots && diagnostic.CodeCounts.Count <= NtfsMftEnumerator.MaximumCodeCounts &&
++            diagnostic.CodeCounts.Where(row => row.Status == "Invalid").Sum(row => row.Count) == diagnostic.Invalid &&
++            diagnostic.AllZeroInvalid <= diagnostic.CodeCounts.Single(row => row.Status == "Invalid" && row.Code == "Signature").Count,
++            "diagnostic subtotals match complete coverage and the zero-byte subset stays within invalid signatures");
++        var maximumZero = NtfsMftEnumerator.Enumerate(Map(4096), [], (_, destination, token) =>
++        { token.ThrowIfCancellationRequested(); destination.Span.Clear(); return destination.Length; });
++        Check(maximumZero is { Invalid: 4096, Free: 0, AllZeroInvalid: 4096, CompletedCursor: true } &&
++            maximumZero.CodeCounts.SequenceEqual(new[] { new NtfsMftCodeCount("Invalid", "Signature", 4096) }),
++            "the all-zero maximum remains invalid rather than claiming free or known-zero occupancy");
++        string[] invalidCodes = ["AllocationGeometry", "AttributeHeader", "AttributeLength", "AttributeName", "DataSize", "DuplicateAttributeId",
++            "FileName", "FixupMismatch", "MappingBounds", "MappingPairs", "MissingEndMarker", "RecordHeader", "RecordLength", "RecordNumber",
++            "ResidentBounds", "Sequence", "Signature", "SparseMappingFlags", "StandardInformation"];
++        string[] unsupportedCodes = ["AttributeFlags", "AttributeForm", "AttributeLimit", "AttributeType", "ClusterGeometry", "FixupStride",
++            "MetadataFlags", "MultipleUnnamedData", "NameLimit", "NtfsVersion", "RecordFlags"];
++        foreach (string code in invalidCodes)
++            Check(NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Invalid, code) && !NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Unsupported, code),
++                "an approved invalid code cannot migrate to the unsupported category");
++        foreach (string code in unsupportedCodes)
++            Check(NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Unsupported, code) && !NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Invalid, code),
++                "an approved unsupported code cannot migrate to the invalid category");
++        Check(NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Decoded, "Decoded") && NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Free, "FreeRecord") &&
++            !NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Invalid, "Decoded") && !NtfsMftEnumerator.IsKnownCode(NtfsDecodeStatus.Free, "Signature"),
++            "successful decoded and free status codes have separate exact pair contracts");
++        foreach (string? code in new string?[] { null, "", "signature", "FutureCode", "Signature\nprivate", @"X:\Private" })
++            Check(!Enum.GetValues<NtfsDecodeStatus>().Any(status => NtfsMftEnumerator.IsKnownCode(status, code)),
++                "unknown case-variant empty or injected diagnostic text is rejected by the whitelist");
++        Check(!NtfsMftEnumerator.IsKnownCode((NtfsDecodeStatus)99, "Decoded"), "an unknown status cannot enter the fixed diagnostic contract");
+         readAttempts = 0;
+         Rejected(() => NtfsMftEnumerator.Enumerate(Map(4097), [], ReadOrdinary), "MftEnumerationSlotBudget",
+             "an oversized valid range is rejected before any prefix read");
+diff --git a/tests/Prototypes/Ntfs/README.md b/tests/Prototypes/Ntfs/README.md
+index 6e8a34e..13f2664 100644
+--- a/tests/Prototypes/Ntfs/README.md
++++ b/tests/Prototypes/Ntfs/README.md
+@@ -16,6 +16,8 @@ pwsh -NoProfile -File tests/NtfsMftEnumerationEvidence.Tests.ps1
+ 
+ 本机新建VHD已覆盖256槽，21对象匹配及关闭/卸载清理通过；仍有6 unsupported、183 invalid，不能把这些槽当空闲、零占用或磁盘损坏。真实4096槽、碎片化/属性扩展、活跃卷、建树和资源收益未验。详见[方案](../../../docs/ntfs-bounded-mft-plan.md)与[第17轮](../../../iterations/2026-11-12-17-bounded-mft/README.md)。
+ 
++后续v2新增有界 `CodeCounts`（32种固定Status/Code配对）和 `AllZeroInvalid`，保持四类及全部读取限制。原因小计必须与四类吻合；全零仅是严格Invalid中原始字节全零的观察，不自动判为空闲。安全摘要只在来源关闭核验后发布，不输出原始记录。新helper拒绝v1混用，历史归档保持原revision，见[分类诊断方案](../../../docs/ntfs-classification-diagnostics-plan.md)。
++
+ ## 有限原始读取原型
+ 
+ `NtfsMftMap` 从严格校验的原始record0建立不可变映射，限定一个未命名普通非驻留DATA、最多128区段；验证VCN、带符号LCN增量、大小及物理范围，不支持属性扩展或稀疏MFT。`PlanRecord` 生成有界连续目标切片，不假定MFT在磁盘上连续。

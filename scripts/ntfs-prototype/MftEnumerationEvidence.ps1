@@ -21,14 +21,15 @@ function ConvertTo-MftEnumerationEvidence($Value) {
             }
         }
         Assert-MftEnumerationFields $Value @('Revision','EvidenceKind','GuardOwned','TokenBound','MapBound','Closed','RejectedReads','Enumeration')
-        if ($Value.Revision -isnot [string] -or $Value.Revision -cne 'bounded-mft-source-v1' -or
+        if ($Value.Revision -isnot [string] -or $Value.Revision -cne 'bounded-mft-source-v2' -or
             $Value.EvidenceKind -isnot [string] -or $Value.EvidenceKind -cne 'NativeOwnedFixture') { throw 'MFT_ENUMERATION_EVIDENCE_INVALID' }
         Assert-MftEnumerationTrue $Value @('GuardOwned','TokenBound','MapBound','Closed')
         Assert-MftEnumerationInteger $Value.RejectedReads 0 128
         $range = $Value.Enumeration
         Assert-MftEnumerationFields $range @('ValidBytes','ExpectedSlots','VisitedSlots','Decoded','Free','Unsupported','Invalid',
             'LookupRequired','UnknownLogical','UnknownAllocated','Pages','CompletedCursor','MatchedObjects','UnknownAllocationObjects',
-            'MftRuns','ReadCalls','RequestedBytes','PhysicalSectorBytes','LockAcquired','UnlockSucceeded','PostNativeStable','Cases')
+            'MftRuns','ReadCalls','RequestedBytes','PhysicalSectorBytes','LockAcquired','UnlockSucceeded','PostNativeStable','Cases',
+            'AllZeroInvalid','CodeCounts')
         Assert-MftEnumerationInteger $range.ValidBytes 22528 4194304
         Assert-MftEnumerationInteger $range.ExpectedSlots 22 4096
         Assert-MftEnumerationInteger $range.VisitedSlots 22 4096
@@ -52,6 +53,51 @@ function ConvertTo-MftEnumerationEvidence($Value) {
             ($range.PhysicalSectorBytes -band ($range.PhysicalSectorBytes - 1)) -ne 0) { throw 'MFT_ENUMERATION_EVIDENCE_INVALID' }
         Assert-MftEnumerationTrue $range @('CompletedCursor','LockAcquired','UnlockSucceeded','PostNativeStable')
         if ($range.Cases -isnot [array] -or $range.Cases.Count -ne 21) { throw 'MFT_ENUMERATION_EVIDENCE_INVALID' }
+
+        Assert-MftEnumerationInteger $range.AllZeroInvalid 0 $range.Invalid
+        if ($range.CodeCounts -isnot [array] -or $range.CodeCounts.Count -lt 1 -or $range.CodeCounts.Count -gt 128) {
+            throw 'MFT_ENUMERATION_EVIDENCE_INVALID'
+        }
+        # Exact results of the unchanged strict decoder. A code belongs to one
+        # status only; generic strings and exception messages never become codes.
+        $invalidCodes = @('AllocationGeometry','AttributeHeader','AttributeLength','AttributeName','DataSize','DuplicateAttributeId',
+            'FileName','FixupMismatch','MappingBounds','MappingPairs','MissingEndMarker','RecordHeader','RecordLength','RecordNumber',
+            'ResidentBounds','Sequence','Signature','SparseMappingFlags','StandardInformation')
+        $unsupportedCodes = @('AttributeFlags','AttributeForm','AttributeLimit','AttributeType','ClusterGeometry','FixupStride',
+            'MetadataFlags','MultipleUnnamedData','NameLimit','NtfsVersion','RecordFlags')
+        $rank = [Collections.Generic.Dictionary[string,int]]::new([StringComparer]::Ordinal)
+        $rank.Add('Decoded',0); $rank.Add('Free',1); $rank.Add('Invalid',2); $rank.Add('Unsupported',3)
+        $pairs = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        $codes = [Collections.Generic.List[object]]::new()
+        [long[]]$totals = @(0,0,0,0)
+        [long]$total = 0; [long]$signatureInvalid = 0
+        $previousRank = -1; $previousCode = ''
+        foreach ($row in $range.CodeCounts) {
+            Assert-MftEnumerationFields $row @('Status','Code','Count')
+            if ($row.Status -isnot [string] -or -not $rank.ContainsKey($row.Status) -or $row.Code -isnot [string]) {
+                throw 'MFT_ENUMERATION_EVIDENCE_INVALID'
+            }
+            $validCode = switch -CaseSensitive ($row.Status) {
+                'Decoded' {$row.Code -ceq 'Decoded'}
+                'Free' {$row.Code -ceq 'FreeRecord'}
+                'Invalid' {$row.Code -cin $invalidCodes}
+                'Unsupported' {$row.Code -cin $unsupportedCodes}
+                default {$false}
+            }
+            if (-not $validCode -or -not $pairs.Add($row.Status + '/' + $row.Code)) { throw 'MFT_ENUMERATION_EVIDENCE_INVALID' }
+            Assert-MftEnumerationInteger $row.Count 1 $range.VisitedSlots
+            $currentRank = $rank[$row.Status]
+            if ($currentRank -lt $previousRank -or ($currentRank -eq $previousRank -and
+                [string]::CompareOrdinal($row.Code,$previousCode) -le 0)) { throw 'MFT_ENUMERATION_EVIDENCE_INVALID' }
+            $previousRank = $currentRank; $previousCode = $row.Code
+            $totals[$currentRank] += [long]$row.Count; $total += [long]$row.Count
+            if ($row.Status -ceq 'Invalid' -and $row.Code -ceq 'Signature') {$signatureInvalid = [long]$row.Count}
+            $codes.Add([ordered]@{Status=[string]$row.Status;Code=[string]$row.Code;Count=[int]$row.Count})
+        }
+        if ($total -ne $range.VisitedSlots -or $totals[0] -ne $range.Decoded -or $totals[1] -ne $range.Free -or
+            $totals[2] -ne $range.Invalid -or $totals[3] -ne $range.Unsupported -or $range.AllZeroInvalid -gt $signatureInvalid) {
+            throw 'MFT_ENUMERATION_EVIDENCE_INVALID'
+        }
 
         $expected = [Collections.Generic.Dictionary[string,object]]::new([StringComparer]::Ordinal)
         foreach ($phase in @('A','B','C')) {
@@ -85,8 +131,9 @@ function ConvertTo-MftEnumerationEvidence($Value) {
             LookupRequired=[int]$range.LookupRequired;UnknownLogical=[int]$range.UnknownLogical;UnknownAllocated=[int]$range.UnknownAllocated;
             Pages=[int]$range.Pages;CompletedCursor=$true;MatchedObjects=21;UnknownAllocationObjects=14;MftRuns=[int]$range.MftRuns;
             ReadCalls=[int]$range.ReadCalls;RequestedBytes=[long]$range.RequestedBytes;PhysicalSectorBytes=[int]$range.PhysicalSectorBytes;
-            LockAcquired=$true;UnlockSucceeded=$true;PostNativeStable=$true;Cases=$cases.ToArray()}
-        return [ordered]@{Revision='bounded-mft-source-v1';EvidenceKind='NativeOwnedFixture';GuardOwned=$true;
+            LockAcquired=$true;UnlockSucceeded=$true;PostNativeStable=$true;Cases=$cases.ToArray();
+            AllZeroInvalid=[int]$range.AllZeroInvalid;CodeCounts=$codes.ToArray()}
+        return [ordered]@{Revision='bounded-mft-source-v2';EvidenceKind='NativeOwnedFixture';GuardOwned=$true;
             TokenBound=$true;MapBound=$true;Closed=$true;RejectedReads=[int]$Value.RejectedReads;Enumeration=$safe}
     }
     catch { throw 'MFT_ENUMERATION_EVIDENCE_INVALID' }

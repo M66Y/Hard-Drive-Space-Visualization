@@ -2,7 +2,9 @@
 
 ## 当前执行计划（2026-11-12）
 
-第17轮[有界MFT分批遍历](ntfs-bounded-mft-plan.md)已获单独确认并完成本机隔离VHD验证：256槽/4页、21目标匹配、严格分类67 decoded/0 free/6 unsupported/183 invalid，来源关闭及卸载清理通过，见[归档](../iterations/2026-11-12-17-bounded-mft/README.md)。4096槽上限仅合成验证；范围覆盖不等于格式支持、占用完整或整卷速度已验收。下一步先细分未解析槽的固定错误类别并验证分类含义，再决定扩展格式、完整建树和更大资源基准；不通过放松严格校验清除失败计数。实际操作需按届时明确的方案与授权执行。
+第18轮[分类诊断](ntfs-classification-diagnostics-plan.md)已完成：实际183 Invalid中182为全零Signature、1为SparseMappingFlags，6 Unsupported为RecordFlags，21对象与关闭/清理仍通过，见[归档](../iterations/2026-11-12-18-mft-classification/README.md)。只是解释严格拒绝分支，不改变其有效性或证明空闲。下一步建议先设计纯合成的有界分配位图校验模型，明确占用位与记录解码结果的关系，再分别安排真实位图来源、格式支持、完整建树和资源基准。计划不等于实施授权，不凭全零跳过或放松decoder。
+
+第17轮[有界MFT分批遍历](ntfs-bounded-mft-plan.md)已获单独确认并完成本机隔离VHD验证：256槽/4页、21目标匹配、严格分类67 decoded/0 free/6 unsupported/183 invalid，来源关闭及卸载清理通过，见[归档](../iterations/2026-11-12-17-bounded-mft/README.md)。4096槽上限仅合成验证；范围覆盖不等于格式支持、占用完整或整卷速度已验收。后续原因细分见上方第18轮，实际操作需按届时明确的方案与授权执行。
 
 第16轮[自有来源适配器](ntfs-fixture-source-plan.md)的22目标模式仍独立保留；本轮复验没有扩大其预算。VSS仍仅[只读研究](ntfs-vss-source-research.md)，实际快照未实施。
 

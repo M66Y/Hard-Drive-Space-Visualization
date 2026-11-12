@@ -9,7 +9,8 @@ internal sealed record NtfsBoundedMftRangeReport(long ValidBytes, int ExpectedSl
     int Decoded, int Free, int Unsupported, int Invalid, int LookupRequired, int UnknownLogical,
     int UnknownAllocated, int Pages, bool CompletedCursor, int MatchedObjects, int UnknownAllocationObjects,
     int MftRuns, int ReadCalls, long RequestedBytes, int PhysicalSectorBytes, bool LockAcquired,
-    bool UnlockSucceeded, bool PostNativeStable, IReadOnlyList<NtfsBoundedMftCase> Cases);
+    bool UnlockSucceeded, bool PostNativeStable, IReadOnlyList<NtfsBoundedMftCase> Cases,
+    int AllZeroInvalid, IReadOnlyList<NtfsMftCodeCount> CodeCounts);
 internal sealed record NtfsBoundedMftSourceReport(string Revision, string EvidenceKind, bool GuardOwned,
     bool TokenBound, bool MapBound, bool Closed, int RejectedReads, NtfsBoundedMftRangeReport Enumeration);
 
@@ -206,9 +207,10 @@ internal sealed class NtfsBoundedMftSource : IDisposable
                 CloseAndVerify(cancellation);
                 var enumeration = new NtfsBoundedMftRangeReport(result.ValidBytes, result.ExpectedSlots, result.VisitedSlots, result.Decoded, result.Free,
                     result.Unsupported, result.Invalid, result.LookupRequired, result.UnknownLogical, result.UnknownAllocated, result.Pages,
-                    result.CompletedCursor, 21, 14, runs, reads, bytes, facts.PhysicalSectorBytes, true, true, true, rows.AsReadOnly());
+                    result.CompletedCursor, 21, 14, runs, reads, bytes, facts.PhysicalSectorBytes, true, true, true, rows.AsReadOnly(),
+                    result.AllZeroInvalid, result.CodeCounts);
                 cancellation.ThrowIfCancellationRequested();
-                return new("bounded-mft-source-v1", nativeProvenance ? "NativeOwnedFixture" : "SyntheticFixture", nativeProvenance,
+                return new("bounded-mft-source-v2", nativeProvenance ? "NativeOwnedFixture" : "SyntheticFixture", nativeProvenance,
                     true, true, true, 0, enumeration);
             }
             catch (NtfsRawVolumeException error)
