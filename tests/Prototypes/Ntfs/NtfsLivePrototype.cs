@@ -115,8 +115,8 @@ internal static class NtfsLivePrototype
             string data = Path.Combine(volumeGuid, "AsukaLensFixture-" + nonce);
             Check(!Directory.Exists(data), "FreshSyntheticDirectory");
             Directory.CreateDirectory(data);
-            var files = new List<(string Path, NtfsLookupReason Expected)>();
-            void Make(string name, byte[] bytes, NtfsLookupReason expected = NtfsLookupReason.None)
+            var files = new List<(string Path, NtfsLookupReason? Expected)>();
+            void Make(string name, byte[] bytes, NtfsLookupReason? expected = NtfsLookupReason.None)
             {
                 string path = Path.Combine(data, name);
                 using (var output = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))
@@ -125,6 +125,9 @@ internal static class NtfsLivePrototype
             }
             Make("empty.bin", []);
             Make("resident.bin", "synthetic resident"u8.ToArray(), NtfsLookupReason.ResidentAllocation);
+            string residentAlias = Path.Combine(data, "resident-link.bin");
+            Check(CreateHardLinkW(residentAlias, files[^1].Path, IntPtr.Zero), "CreateResidentHardLink");
+            files.Add((residentAlias, NtfsLookupReason.ResidentAllocation));
             var random = new byte[65536]; new Random(417).NextBytes(random); Make("ordinary.bin", random);
             string alias = Path.Combine(data, "ordinary-link.bin");
             Check(CreateHardLinkW(alias, files[^1].Path, IntPtr.Zero), "CreateSyntheticHardLink");
@@ -140,6 +143,8 @@ internal static class NtfsLivePrototype
             }
             Make("with-stream.bin", "default"u8.ToArray(), NtfsLookupReason.NamedData);
             File.WriteAllText(files[^1].Path + ":meta", "synthetic named stream");
+            foreach (int length in new[] { 1, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 255, 256, 400, 512, 768, 1024, 4096 })
+                Make("size-" + length + ".bin", new byte[length], expected: null);
 
             NtfsRecord ReadRecord(string path, bool directory)
             {
@@ -173,19 +178,27 @@ internal static class NtfsLivePrototype
             }
 
             var decodedFiles = new Dictionary<ulong, NtfsRecord>();
+            var objectPaths = new Dictionary<ulong, string>();
             foreach (var item in files)
             {
                 var decoded = ReadRecord(item.Path, false);
-                if (item.Expected != NtfsLookupReason.None) Check(decoded.LookupReasons.HasFlag(item.Expected), "SpecialTypeRequestsLookup");
-                else Check(decoded.LookupReasons == NtfsLookupReason.None, "OrdinaryTypeHasCompleteMetadata");
+                if (item.Expected is { } expected)
+                {
+                    if (expected != NtfsLookupReason.None) Check(decoded.LookupReasons.HasFlag(expected), "SpecialTypeRequestsLookup");
+                    else Check(decoded.LookupReasons == NtfsLookupReason.None, "OrdinaryTypeHasCompleteMetadata");
+                }
+                else Check(decoded.LookupReasons is NtfsLookupReason.None or NtfsLookupReason.ResidentAllocation, "SizeCaseHasBoundedLookupPolicy");
                 if (item.Expected is NtfsLookupReason.Compressed or NtfsLookupReason.Sparse or NtfsLookupReason.ResidentAllocation)
                     Check(decoded.AllocatedBytes == null, "SpecialAllocationRemainsUnknown");
                 decodedFiles.TryAdd(decoded.Reference, decoded);
+                objectPaths.TryAdd(decoded.Reference, item.Path);
             }
-            Check(decodedFiles.Count == files.Count - 1, "HardLinkObjectDeduplication");
+            Check(decodedFiles.Count == files.Count - 2, "HardLinkObjectDeduplication");
             var dir = ReadRecord(data, true);
             Check(dir.Names.All(n => n.Namespace == 2 || n.ParentReference != dir.Reference), "SyntheticDirectoryParent");
-            WriteSummary(summaryPath, "passed", checks, 0, "None");
+            var lookupItems = decodedFiles.Values.Select(item => new NtfsLookupItem(serial, item, objectPaths[item.Reference])).ToArray();
+            var experiment = NtfsLookupExperiment.Run(lookupItems, Check);
+            WriteSummary(summaryPath, "passed", checks, 0, "None", experiment);
             Console.WriteLine("PASS NTFS live checks: " + checks + "; known synthetic files only");
             return 0;
         }
@@ -203,7 +216,8 @@ internal static class NtfsLivePrototype
         }
     }
 
-    private static void WriteSummary(string path, string status, int checks, int failures, string code) =>
-        File.WriteAllText(path, JsonSerializer.Serialize(new { schema = 1, status, checks, failures, code }));
+    private static void WriteSummary(string path, string status, int checks, int failures, string code,
+        NtfsLookupExperimentReport? experiment = null) =>
+        File.WriteAllText(path, JsonSerializer.Serialize(new { schema = 1, status, checks, failures, code, lookup_experiment = experiment }));
     private sealed class FixtureFailure(string code) : Exception { internal string Code { get; } = code; }
 }

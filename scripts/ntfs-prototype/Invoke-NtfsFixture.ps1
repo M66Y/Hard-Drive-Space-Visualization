@@ -18,6 +18,7 @@ $detached = $false; $cleaned = $false; $runner = $null; $runnerExit = $null
 $checks = 0; $failureCount = 0; $status = 'failed'
 $failureCode = 'None'; $runnerStopped = $true
 $nativeError = 0
+$lookupEvidence = $null
 $diskNumber = $null; $diskPath = $null; $imageDevicePath = $null
 
 function Assert-NoReparsePath([string]$Path) {
@@ -75,6 +76,58 @@ function Get-OwnedPartition([uint32]$Number) {
 
 function Write-SafeJson($Value, [string]$Path) {
     [IO.File]::WriteAllText($Path, ($Value | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
+}
+
+# Only synthetic counts and timings may survive deletion of the test workspace.
+# NativeCalls/NativeMilliseconds describe the complete NativeStorage reader
+# callback, not individual Win32 calls or physical I/O operations.
+function ConvertTo-LookupEvidence($Value) {
+    function Assert-Fields($Object, [string[]]$Expected) {
+        if ($null -eq $Object -or $Object -isnot [pscustomobject]) { throw 'LOOKUP_EVIDENCE_INVALID' }
+        $actual = @($Object.PSObject.Properties.Name)
+        if ($actual.Count -ne $Expected.Count -or (Compare-Object $Expected $actual -CaseSensitive)) { throw 'LOOKUP_EVIDENCE_INVALID' }
+    }
+    function Assert-Integer($Number, [long]$Minimum, [long]$Maximum) {
+        if (($Number -isnot [int] -and $Number -isnot [long]) -or $Number -lt $Minimum -or $Number -gt $Maximum) { throw 'LOOKUP_EVIDENCE_INVALID' }
+    }
+    function Assert-Time($Number) {
+        if (($Number -isnot [int] -and $Number -isnot [long] -and $Number -isnot [double]) -or
+            -not [double]::IsFinite([double]$Number) -or $Number -lt 0) { throw 'LOOKUP_EVIDENCE_INVALID' }
+    }
+    Assert-Fields $Value @('Objects','ResidentObjects','DirectObjects','UnsupportedExcluded','SelectiveNativeCalls','AllHandleNativeCalls','Samples','ResidentExamples')
+    Assert-Integer $Value.Objects 1 4096
+    Assert-Integer $Value.ResidentObjects 0 $Value.Objects
+    Assert-Integer $Value.DirectObjects 0 $Value.Objects
+    Assert-Integer $Value.UnsupportedExcluded 0 4096
+    Assert-Integer $Value.SelectiveNativeCalls 0 8192
+    Assert-Integer $Value.AllHandleNativeCalls 2 8192
+    if ($Value.Objects -ne $Value.ResidentObjects + $Value.DirectObjects -or
+        $Value.SelectiveNativeCalls -ne 2 * $Value.ResidentObjects -or $Value.AllHandleNativeCalls -ne 2 * $Value.Objects) { throw 'LOOKUP_EVIDENCE_INVALID' }
+    if ($Value.Samples -isnot [array] -or $Value.Samples.Count -ne 6 -or
+        $Value.ResidentExamples -isnot [array] -or $Value.ResidentExamples.Count -gt 64 -or
+        $Value.ResidentExamples.Count -gt $Value.ResidentObjects) { throw 'LOOKUP_EVIDENCE_INVALID' }
+    $samples = [Collections.Generic.List[object]]::new()
+    for ($i = 0; $i -lt 6; $i++) {
+        $sample = $Value.Samples[$i]
+        Assert-Fields $sample @('Round','Order','SelectiveMilliseconds','AllHandleMilliseconds','SelectiveNativeMilliseconds','AllHandleNativeMilliseconds')
+        Assert-Integer $sample.Round 1 6
+        $expectedOrder = if ($i % 2 -eq 0) { 'selective-first' } else { 'handle-first' }
+        if ($sample.Round -ne $i + 1 -or $sample.Order -isnot [string] -or $sample.Order -cne $expectedOrder) { throw 'LOOKUP_EVIDENCE_INVALID' }
+        foreach ($field in @('SelectiveMilliseconds','AllHandleMilliseconds','SelectiveNativeMilliseconds','AllHandleNativeMilliseconds')) { Assert-Time $sample.$field }
+        $samples.Add([ordered]@{Round=[int]$sample.Round;Order=$expectedOrder;
+            SelectiveMilliseconds=[double]$sample.SelectiveMilliseconds;AllHandleMilliseconds=[double]$sample.AllHandleMilliseconds;
+            SelectiveNativeMilliseconds=[double]$sample.SelectiveNativeMilliseconds;AllHandleNativeMilliseconds=[double]$sample.AllHandleNativeMilliseconds})
+    }
+    $examples = [Collections.Generic.List[object]]::new()
+    foreach ($example in $Value.ResidentExamples) {
+        Assert-Fields $example @('LogicalBytes','LookupAllocatedBytes')
+        Assert-Integer $example.LogicalBytes 0 ([long]::MaxValue)
+        Assert-Integer $example.LookupAllocatedBytes 0 ([long]::MaxValue)
+        $examples.Add([ordered]@{LogicalBytes=[long]$example.LogicalBytes;LookupAllocatedBytes=[long]$example.LookupAllocatedBytes})
+    }
+    return [ordered]@{Objects=[int]$Value.Objects;ResidentObjects=[int]$Value.ResidentObjects;DirectObjects=[int]$Value.DirectObjects;
+        UnsupportedExcluded=[int]$Value.UnsupportedExcluded;SelectiveNativeCalls=[int]$Value.SelectiveNativeCalls;
+        AllHandleNativeCalls=[int]$Value.AllHandleNativeCalls;Samples=$samples.ToArray();ResidentExamples=$examples.ToArray()}
 }
 
 # The result is the only retained evidence. It never contains paths, names or raw errors.
@@ -212,6 +265,8 @@ public static class AsukaLensFixtureImage {
     $checks = [int]$summary.checks; $failureCount = [int]$summary.failures
     if ($summary.PSObject.Properties['code'] -and [string]$summary.code -cmatch '^[A-Za-z][A-Za-z0-9-]{0,79}$') { $failureCode=[string]$summary.code }
     if ($runnerExit -ne 0 -or $summary.status -cne 'passed' -or $failureCount -ne 0) { throw 'COMPARISON_FAILED' }
+    if (-not $summary.PSObject.Properties['lookup_experiment']) { throw 'LOOKUP_EVIDENCE_MISSING' }
+    $lookupEvidence = ConvertTo-LookupEvidence $summary.lookup_experiment
     $status = 'passed'; $stage = 'ComparisonPassed'
 } catch {
     # Native messages and logs can include local paths. Never copy them to the result.
@@ -241,6 +296,7 @@ public static class AsukaLensFixtureImage {
         $cleaned = $true
     } catch { $status = 'cleanup_failed' }
     $result = [ordered]@{schema=1;status=$status;stage=$stage;code=$failureCode;native_error=$nativeError;exit_code=$runnerExit;checks=$checks;failures=$failureCount;detached=$detached;cleanup_completed=$cleaned}
+    $result.lookup_experiment = if ($status -ceq 'passed') { $lookupEvidence } else { $null }
     $resultTemp = $ResultPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
     try {
         [void](Assert-NoReparsePath $ResultPath)

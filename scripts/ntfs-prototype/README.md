@@ -32,3 +32,17 @@ pwsh -NoProfile -File tests/NtfsFixtureGuards.Tests.ps1
 真实测试读取记录使用 `FSCTL_GET_NTFS_FILE_RECORD`，返回记录可能是更小的在用槽，故必须先校验返回槽号再解析。输出记录数据从 offset 12 开始。微软文档没有承诺 USA fixup 表示，本入口对全体 raw/全体已还原两种形态分别校验，不能用该接口失败证明磁盘损坏。参考 [记录 IOCTL](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_ntfs_file_record)、[输出结构](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-ntfs_file_record_output_buffer)、[卷几何](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-ntfs_volume_data_buffer)、[VHD 创建](https://learn.microsoft.com/en-us/windows/win32/api/virtdisk/nf-virtdisk-createvirtualdisk)。
 
 这不是整卷读取、稳定快照、吞吐或资源占用验收，也不证明已接近 WizTree。尚未覆盖 Windows 10、其他卷格式/几何、碎片化 MFT、属性扩展、持续写入和日志协调。
+
+## 驻留补查实验（NTFS-01 第 1 轮）
+
+本轮再次取得用户同意后扩展夹具，覆盖 1/7/8/9 等小尺寸及向非驻留数据转换的较大文件。真实记录先与 NativeStorage 核对；仅将普通直接可用或需要驻留分配补查的唯一对象送入实验，压缩/稀疏/命名流等排除数量单独报告。
+
+新版成功摘要必须包含 `lookup_experiment`：25 个候选、其中 20 个驻留补查和 5 个直接取值、另有 3 个特殊对象排除；每轮选择性查询 40 次、全部对象双读对照 50 次，6 轮交替顺序的原始耗时和去名称的驻留长度/分配示例均保留。该次数是整个 NativeStorage 回调，不是单次 Win32 调用或物理 I/O。真实过程检查数因新增夹具与验证而变为 862，旧 140 项证据保留原范围。
+
+对照是每对象两次句柄读取以做稳定性检查，不等于当前生产扫描器；生产完整扫描通常逐入口做一次 NativeStorage 读取，且硬链接入口数也可能不同。因此不能把 40 对 50 的差值当作相对生产扫描的节省。实验已预热，不包含 MFT 获取和建树；没有 CPU、峰值内存或物理 I/O 测量。小样本成本用于选择下一步方案，不是整盘提速证明。
+
+摘要在脚本中经过字段、类型、范围与关系校验，仅成功且清理完成后透传；拒绝额外路径等字段。检查入口：
+
+```powershell
+pwsh -NoProfile -File tests/NtfsLookupEvidence.Tests.ps1
+```

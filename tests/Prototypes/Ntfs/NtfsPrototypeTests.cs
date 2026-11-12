@@ -165,6 +165,7 @@ internal static class NtfsPrototypeTests
             }
             Check(cancelled, "cancelled decode exits without publishing a record");
             passed += NtfsIndexTests.Run();
+            passed += NtfsSizeLookupTests.Run();
             Console.WriteLine($"PASS NTFS synthetic prototype checks: {passed}; raw volume access: none");
             return 0;
         }

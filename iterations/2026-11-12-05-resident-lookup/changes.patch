@@ -1,0 +1,1107 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 8d1f4a0..3ee5cd1 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -120,6 +120,7 @@
+ - 可选 `--policy-benchmark` 用于三策略对比，`--refresh-benchmark` 用于刷新同条件诊断；方法与限制见 README 和相关迭代。先保留已有报告，再运行会覆盖报告的基准。
+ - 高速目录内并行改动另运行 `--parallel-file-tests`；可选 `--response-benchmark` 在真实桌面测量同条件主窗扫描、预览、搜索和取消，报告存在时拒绝覆盖。固定夹具与测量边界见扫描性能方案及本轮归档。
+ - NTFS 原型位于 `tests/Prototypes/Ntfs/`，合成测试入口为测试 DLL 的 `--ntfs-prototype-tests`；隔离测试盘守卫检查运行 `pwsh -NoProfile -File tests/NtfsFixtureGuards.Tests.ps1`。2026-11-12 用户另行授权本轮 256 MiB VHD 验收，流程见 `scripts/ntfs-prototype/README.md`，不扩展为个人卷扫描或以后默认提权授权。原型不是生产后端、活跃卷快照或性能验收；实际读取必须验证镜像归属、卷格式、几何及记录身份。
++- NTFS 驻留补查的摘要白名单改动另运行 `pwsh -NoProfile -File tests/NtfsLookupEvidence.Tests.ps1`。原型中的 `NativeCalls` 指完整 reader/NativeStorage 回调，不是物理 I/O 或单个 Win32 调用；暖缓存补查微实验不得当作完整扫描基准。
+ - 混合目录调度改动补测 `--mixed-benchmark before/after` 的同夹具对比；用户明确指定实际目录后才使用 `--folder-benchmark`，其报告与隔离诊断仅留本机临时目录，不进入仓库。比较自动与高速必须核对完整扫描、结果一致性和运行顺序，保留异常波动样本。
+ - 本地目录比较出现指纹差异时，可使用 `--folder-benchmark --pair` 做针对性正确性诊断；额外保留的逐项快照影响测量条件，其计时不并入常规性能基准。差异计数和实际耗时仍只在本机核查，不纳入公开归档。工具边界检查使用 `--folder-comparison-tests`。
+ - 合成目录与软件配置隔离测试，不默认扫描用户整盘或覆盖真实背景设置。缺权限/文件系统特性的跳过、程序断言、人工观察和性能实测分别记录。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 9917873..533aa2a 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -2,6 +2,8 @@
+ 
+ ## 当前执行计划（2026-11-12）
+ 
++本节发布后已实施 NTFS-01 第 1 轮：普通驻留分配的有界补查和暖缓存微实验已验证，见[开发记录](../iterations/2026-11-12-05-resident-lookup/README.md)。下一轮应评估如何减少逐文件双读成本，并逐项确定其他特殊类型的支持范围；本轮不意味着 NTFS-01 全部完成或 NTFS-02 已可直接产品化。
++
+ 本节整合 NTFS 快速扫描、磁盘活动面板和软件占用分析三条方向，作为后续开发的当前排序入口。以下历史记录中的“当前阶段”“下一步”只对应原记录日期，不覆盖本节。制定计划不等于启动全部任务，也不自动授权提权、创建虚拟盘、扫描个人磁盘、删除文件或发布新版本。
+ 
+ ### 已确认基线
+@@ -18,7 +20,7 @@ P1 表示本阶段核心产品路线，P2 表示辅助体验与功能扩展，P3
+ 
+ | 顺序 / 编号 | 优先级 | 开发目标 | 状态与前置条件 |
+ | --- | --- | --- | --- |
+-| 1 / NTFS-01 | P1 | 明确大小语义，测清特殊类型补查成本 | 延续已认可方向；下一轮先收敛小范围方案 |
++| 1 / NTFS-01 | P1 | 明确大小语义，测清特殊类型补查成本 | 第 1 轮驻留补查已验证；其他类型与低成本可靠取值仍待推进 |
+ | 2 / MON-01 | P2 | 主窗轻量磁盘活动面板 | 用户新需求；布局与首版范围待确认；可独立于 NTFS 后端实施 |
+ | 3 / NTFS-02 | P1 | 整卷 MFT 批量读取、建树及资源基准 | 依赖 NTFS-01 的统计契约和读取可行性；面板不是其必要依赖 |
+ | 4 / NTFS-03 | P1 | 可选快速扫描入口与可靠回退 | 仅在 NTFS-02 有可重复收益后实施 |
+@@ -26,7 +28,7 @@ P1 表示本阶段核心产品路线，P2 表示辅助体验与功能扩展，P3
+ | 6 / APP-02 | P2 | 针对已支持软件提供清理建议 | 依赖 APP-01 与经过验证的软件规则，不执行删除 |
+ | 7 / CLEAN-01 | P3 | 用户确认的可恢复清理 | 独立较大改动，需明确确认写入与恢复行为 |
+ 
+-建议下一轮选 NTFS-01 的首个小范围：**驻留文件分配语义、可验证的大小来源、补查比例与开销**。先确认什么能直接可靠计算，什么必须查询句柄，再安排压缩/稀疏和属性扩展；不将所有复杂格式一次塞进同一轮。若用户更希望先看到界面改善，可单独选择 MON-01，不同时重构扫描器以免难以归因。
++NTFS-01 第 1 轮的小范围为**驻留文件分配语义、可验证的大小来源、补查比例与开销**，现已验证普通驻留补查，但尚未消除高补查比例和双读成本。后续先评估更低成本的可靠取值，再分别安排压缩/稀疏和属性扩展；不将所有复杂格式一次塞进同一轮。若用户更希望先看到界面改善，可单独选择 MON-01，不同时重构扫描器以免难以归因。
+ 
+ ### NTFS-01：统计语义与补查
+ 
+diff --git a/docs/project-status.md b/docs/project-status.md
+index aa88b12..550b39f 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,7 @@
+ # AsukaLens 项目现状
+ 
++2026-11-12：NTFS-01 第 1 轮完成普通驻留分配的选择性句柄补查、来源标记和有界批处理，并在本轮另行授权的 VHD 上通过 862 项检查。25 个普通候选中 20 个需要补查，每轮 40 次 NativeStorage 回调，全部对象双读对照为 50 次；不能当作与生产扫描器的提速对比。见[本轮记录](../iterations/2026-11-12-05-resident-lookup/README.md)。其他特殊类型补查、批量读取和产品接入仍未实现。
++
+ 2026-11-12：已将 NTFS 正确性补齐、磁盘活动面板、批量读取/资源基准、产品接入、软件占用分析及清理建议整合为[当前开发计划](development-plan.md#当前执行计划2026-11-12)。这是规划更新；磁盘活动面板、软件占用分析、清理及整卷快速扫描均未实现，本轮没有启动新功能开发。
+ 
+ 2026-11-12：用户另行同意 256 MiB 隔离 VHD 验收，已完成本机 Windows 11 / NTFS 3.1 测试盘的指定合成文件记录比对（140 项）及卸载清理。驻留分配大小改为未知待补查，DOS 名称引用数与 Windows 可见硬链接数分开校验。见[真实记录验收](../iterations/2026-11-12-03-ntfs-vhd/README.md)。尚无整卷 MFT 批量读取、性能数据或产品入口；下方保留此前合成阶段的历史范围。
+diff --git a/iterations/2026-11-12-05-resident-lookup/README.md b/iterations/2026-11-12-05-resident-lookup/README.md
+new file mode 100644
+index 0000000..24ba51a
+--- /dev/null
++++ b/iterations/2026-11-12-05-resident-lookup/README.md
+@@ -0,0 +1,46 @@
++# 路线图第 1 轮：驻留分配补查与成本
++
++日期：2026-11-12。基线：`6242e71b9f3c072f0446e3cdfd5e5bcccc28daad`。用户要求即刻开始计划第 1 轮，并另行同意本轮继续使用已审查的 256 MiB 隔离 VHD 流程。本轮限于普通驻留 DATA 的分配口径、大小来源和小规模补查成本，不实施磁盘活动面板、压缩/稀疏算法、属性拼接、整卷 MFT 读取或产品入口。
++
++## 实现
++
++`NtfsSizeLookup.cs` 仅编入测试项目。输出区分 Record / HandleLookup / Unknown；逻辑大小保留记录来源，分配量只有在两次 NativeStorage 回调的身份、逻辑大小、链接数、修改时间和分配量稳定，且无打开写句柄时才接受。错误不携带原始异常消息，失败保留分配未知。
++
++仅单一 `ResidentAllocation` 原因可进入补查；其他类型明确不支持，不能顺带用句柄结果清除未解决的范围问题。每批单路、无队列、无跨批缓存，最多 4096 个唯一对象；重复身份、同槽不同序列、相同路径不同对象和名称超限均在 I/O 前拒绝。取消前/中会抛出并丢弃部分结果，不承诺打断已进入的同步系统调用。调用方仍须保证范围和输入新鲜度；这不是活跃卷一致性证明。
++
++`NtfsLookupExperiment.cs` 与真实夹具增加 1/7/8/9 等长度及更大文件、驻留硬链接；按唯一对象送入补查，避免将硬链接入口当成多份对象。暖缓存预读和预热后，以 AB/BA 交替 6 轮比较选择性补查与全部对象双读对照，逐项核对结果在计时区间之外。`NativeCalls` 是整个 reader/NativeStorage 回调的次数，不是单个 Win32 调用或物理 I/O；回调耗时同理。
++
++VHD 脚本仅在成功且清理完成时转存严格白名单实验摘要。新增摘要检查拒绝额外字段、错误类型/关系/范围、非有限时间、错误样本顺序或过多示例，防止文件路径等意外进入公开结果。
++
++## 真实夹具结果与限制
++
++两次本轮 VHD 执行都通过，第一次 847 项；补充驻留硬链接后最终 862 项。两次结果均 `detached=true`、`cleanup_completed=true`，见 `live-attempts.json`；镜像、夹具、原始临时摘要与运行日志已清理。
++
++最终普通候选对象 25 个，其中 20 个驻留、5 个直接取值；另有 3 个压缩/稀疏/命名流对象明确排除，不算作直接成功。因此这组人工候选的补查比例为 80%，不是现实软件或整盘分布。
++
++| 指标 | 选择性补查 | 全部对象双读对照 |
++| --- | ---: | ---: |
++| 每轮 NativeStorage 回调 | 40 | 50 |
++| 最终运行 6 轮总耗时中位数（ms） | 1.0389 | 1.8199 |
++| 最终运行耗时范围（ms） | 0.9147–2.5846 | 1.1682–2.9575 |
++
++这里的对照是两次句柄稳定检查，不是现有生产扫描器。当前生产完整扫描通常逐入口做一次 NativeStorage 读取，入口数和唯一对象数也不同；不能把 40 对 50 宣称为相对生产扫描节省。实验不含文件创建、MFT 获取、建树、UI 或补查以外的工作，没有冷缓存控制、CPU、峰值内存或物理 I/O 测量。两次运行有明显耗时波动，保留全部样本，不据此承诺加速比例。
++
++本轮普通驻留示例中，1 字节句柄分配为 8、9 为 16、17 为 24，说明将独立数据簇 0 直接当作现有分配口径不成立。尽管当前例子呈现 8 字节对齐，不将一次主机/夹具观察写成通用 NTFS 公式；本轮使用经身份校验的句柄来源。其他版本、几何、改写/缩小和复杂属性布局仍需验证。
++
++## 验收与审查
++
++- 应用与测试项目 Release 构建：0 警告、0 错误，使用已还原依赖。
++- 合成原型：147 项通过，其中驻留补查 61 项；包括零分配、身份/大小/时间/链接变化、writer、错误、无缓存、容量及取消。
++- VHD 安全守卫：36 项 mock 检查通过，无虚拟盘操作。
++- 补查摘要：45 项纯内存检查通过，无虚拟盘操作。
++- 核心/高级回归：38 / 25 项通过。
++- 本机 Windows 11 / NTFS 3.1 隔离 VHD：最终 862 项通过；普通与驻留硬链接、各大小来源和微实验结果逐项核对。
++
++独立审查补齐槽位复用拒绝，并要求明确回调次数、暖缓存、输入范围和非扫描器对照的含义。用户原始目录、其他账户数据、诊断和背景没有用于测试。脚本本轮授权仅用于这两次隔离验收，不扩展为以后默认提权许可。
++
++## 后续与交付
++
++普通驻留补查已可正确工作，但高补查比例及双读成本仍可能抵消批量读取收益。下一轮先评估更低成本且可验证的驻留大小来源，或有连续变化证据的稳定性方案，再分别处理其他特殊类型。尚不能据此进入正式高速扫描或宣称 NTFS-01 全部完成。
++
++本轮源码、文档、精选白名单摘要与补丁归档；未打包、创建标签或发布版本，生产扫描器未接入原型。`changes.patch` 不包含自身，文件与 SHA-256 清单见 `files.json`，补丁反向适用检查用于验证可恢复性。
+diff --git a/iterations/2026-11-12-05-resident-lookup/live-attempts.json b/iterations/2026-11-12-05-resident-lookup/live-attempts.json
+new file mode 100644
+index 0000000..151b796
+--- /dev/null
++++ b/iterations/2026-11-12-05-resident-lookup/live-attempts.json
+@@ -0,0 +1,296 @@
++[
++  {
++    "attempt": 1,
++    "status": "passed",
++    "checks": 847,
++    "detached": true,
++    "cleanup_completed": true,
++    "lookup_experiment": {
++      "Objects": 25,
++      "ResidentObjects": 20,
++      "DirectObjects": 5,
++      "UnsupportedExcluded": 3,
++      "SelectiveNativeCalls": 40,
++      "AllHandleNativeCalls": 50,
++      "Samples": [
++        {
++          "Round": 1,
++          "Order": "selective-first",
++          "SelectiveMilliseconds": 2.1467,
++          "AllHandleMilliseconds": 1.4434,
++          "SelectiveNativeMilliseconds": 2.0107,
++          "AllHandleNativeMilliseconds": 1.3815
++        },
++        {
++          "Round": 2,
++          "Order": "handle-first",
++          "SelectiveMilliseconds": 0.9338,
++          "AllHandleMilliseconds": 1.3671,
++          "SelectiveNativeMilliseconds": 0.8833,
++          "AllHandleNativeMilliseconds": 1.2885
++        },
++        {
++          "Round": 3,
++          "Order": "selective-first",
++          "SelectiveMilliseconds": 2.8985,
++          "AllHandleMilliseconds": 3.6401,
++          "SelectiveNativeMilliseconds": 2.6895,
++          "AllHandleNativeMilliseconds": 3.4487
++        },
++        {
++          "Round": 4,
++          "Order": "handle-first",
++          "SelectiveMilliseconds": 2.5991,
++          "AllHandleMilliseconds": 3.3446,
++          "SelectiveNativeMilliseconds": 2.4374,
++          "AllHandleNativeMilliseconds": 3.1631
++        },
++        {
++          "Round": 5,
++          "Order": "selective-first",
++          "SelectiveMilliseconds": 2.7287,
++          "AllHandleMilliseconds": 3.1774,
++          "SelectiveNativeMilliseconds": 2.5504,
++          "AllHandleNativeMilliseconds": 2.9925
++        },
++        {
++          "Round": 6,
++          "Order": "handle-first",
++          "SelectiveMilliseconds": 2.591,
++          "AllHandleMilliseconds": 3.3905,
++          "SelectiveNativeMilliseconds": 2.4151,
++          "AllHandleNativeMilliseconds": 3.1577
++        }
++      ],
++      "ResidentExamples": [
++        {
++          "LogicalBytes": 18,
++          "LookupAllocatedBytes": 24
++        },
++        {
++          "LogicalBytes": 1,
++          "LookupAllocatedBytes": 8
++        },
++        {
++          "LogicalBytes": 7,
++          "LookupAllocatedBytes": 8
++        },
++        {
++          "LogicalBytes": 8,
++          "LookupAllocatedBytes": 8
++        },
++        {
++          "LogicalBytes": 9,
++          "LookupAllocatedBytes": 16
++        },
++        {
++          "LogicalBytes": 15,
++          "LookupAllocatedBytes": 16
++        },
++        {
++          "LogicalBytes": 16,
++          "LookupAllocatedBytes": 16
++        },
++        {
++          "LogicalBytes": 17,
++          "LookupAllocatedBytes": 24
++        },
++        {
++          "LogicalBytes": 31,
++          "LookupAllocatedBytes": 32
++        },
++        {
++          "LogicalBytes": 32,
++          "LookupAllocatedBytes": 32
++        },
++        {
++          "LogicalBytes": 33,
++          "LookupAllocatedBytes": 40
++        },
++        {
++          "LogicalBytes": 63,
++          "LookupAllocatedBytes": 64
++        },
++        {
++          "LogicalBytes": 64,
++          "LookupAllocatedBytes": 64
++        },
++        {
++          "LogicalBytes": 65,
++          "LookupAllocatedBytes": 72
++        },
++        {
++          "LogicalBytes": 127,
++          "LookupAllocatedBytes": 128
++        },
++        {
++          "LogicalBytes": 128,
++          "LookupAllocatedBytes": 128
++        },
++        {
++          "LogicalBytes": 255,
++          "LookupAllocatedBytes": 256
++        },
++        {
++          "LogicalBytes": 256,
++          "LookupAllocatedBytes": 256
++        },
++        {
++          "LogicalBytes": 400,
++          "LookupAllocatedBytes": 400
++        },
++        {
++          "LogicalBytes": 512,
++          "LookupAllocatedBytes": 512
++        }
++      ]
++    }
++  },
++  {
++    "attempt": 2,
++    "status": "passed",
++    "checks": 862,
++    "detached": true,
++    "cleanup_completed": true,
++    "lookup_experiment": {
++      "Objects": 25,
++      "ResidentObjects": 20,
++      "DirectObjects": 5,
++      "UnsupportedExcluded": 3,
++      "SelectiveNativeCalls": 40,
++      "AllHandleNativeCalls": 50,
++      "Samples": [
++        {
++          "Round": 1,
++          "Order": "selective-first",
++          "SelectiveMilliseconds": 1.0749,
++          "AllHandleMilliseconds": 1.1853,
++          "SelectiveNativeMilliseconds": 1.0096,
++          "AllHandleNativeMilliseconds": 1.129
++        },
++        {
++          "Round": 2,
++          "Order": "handle-first",
++          "SelectiveMilliseconds": 0.9147,
++          "AllHandleMilliseconds": 2.2761,
++          "SelectiveNativeMilliseconds": 0.8696,
++          "AllHandleNativeMilliseconds": 2.1583
++        },
++        {
++          "Round": 3,
++          "Order": "selective-first",
++          "SelectiveMilliseconds": 1.0009,
++          "AllHandleMilliseconds": 1.1682,
++          "SelectiveNativeMilliseconds": 0.9353,
++          "AllHandleNativeMilliseconds": 1.1214
++        },
++        {
++          "Round": 4,
++          "Order": "handle-first",
++          "SelectiveMilliseconds": 2.1791,
++          "AllHandleMilliseconds": 1.3637,
++          "SelectiveNativeMilliseconds": 2.0396,
++          "AllHandleNativeMilliseconds": 1.2438
++        },
++        {
++          "Round": 5,
++          "Order": "selective-first",
++          "SelectiveMilliseconds": 2.5846,
++          "AllHandleMilliseconds": 2.9575,
++          "SelectiveNativeMilliseconds": 2.4162,
++          "AllHandleNativeMilliseconds": 2.8106
++        },
++        {
++          "Round": 6,
++          "Order": "handle-first",
++          "SelectiveMilliseconds": 1.0029,
++          "AllHandleMilliseconds": 2.9033,
++          "SelectiveNativeMilliseconds": 0.9459,
++          "AllHandleNativeMilliseconds": 2.7563
++        }
++      ],
++      "ResidentExamples": [
++        {
++          "LogicalBytes": 18,
++          "LookupAllocatedBytes": 24
++        },
++        {
++          "LogicalBytes": 1,
++          "LookupAllocatedBytes": 8
++        },
++        {
++          "LogicalBytes": 7,
++          "LookupAllocatedBytes": 8
++        },
++        {
++          "LogicalBytes": 8,
++          "LookupAllocatedBytes": 8
++        },
++        {
++          "LogicalBytes": 9,
++          "LookupAllocatedBytes": 16
++        },
++        {
++          "LogicalBytes": 15,
++          "LookupAllocatedBytes": 16
++        },
++        {
++          "LogicalBytes": 16,
++          "LookupAllocatedBytes": 16
++        },
++        {
++          "LogicalBytes": 17,
++          "LookupAllocatedBytes": 24
++        },
++        {
++          "LogicalBytes": 31,
++          "LookupAllocatedBytes": 32
++        },
++        {
++          "LogicalBytes": 32,
++          "LookupAllocatedBytes": 32
++        },
++        {
++          "LogicalBytes": 33,
++          "LookupAllocatedBytes": 40
++        },
++        {
++          "LogicalBytes": 63,
++          "LookupAllocatedBytes": 64
++        },
++        {
++          "LogicalBytes": 64,
++          "LookupAllocatedBytes": 64
++        },
++        {
++          "LogicalBytes": 65,
++          "LookupAllocatedBytes": 72
++        },
++        {
++          "LogicalBytes": 127,
++          "LookupAllocatedBytes": 128
++        },
++        {
++          "LogicalBytes": 128,
++          "LookupAllocatedBytes": 128
++        },
++        {
++          "LogicalBytes": 255,
++          "LookupAllocatedBytes": 256
++        },
++        {
++          "LogicalBytes": 256,
++          "LookupAllocatedBytes": 256
++        },
++        {
++          "LogicalBytes": 400,
++          "LookupAllocatedBytes": 400
++        },
++        {
++          "LogicalBytes": 512,
++          "LookupAllocatedBytes": 512
++        }
++      ]
++    }
++  }
++]
+\ No newline at end of file
+diff --git a/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 b/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1
+index e1b3e92..7923ea7 100644
+--- a/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1
++++ b/scripts/ntfs-prototype/Invoke-NtfsFixture.ps1
+@@ -18,6 +18,7 @@ $detached = $false; $cleaned = $false; $runner = $null; $runnerExit = $null
+ $checks = 0; $failureCount = 0; $status = 'failed'
+ $failureCode = 'None'; $runnerStopped = $true
+ $nativeError = 0
++$lookupEvidence = $null
+ $diskNumber = $null; $diskPath = $null; $imageDevicePath = $null
+ 
+ function Assert-NoReparsePath([string]$Path) {
+@@ -77,6 +78,58 @@ function Write-SafeJson($Value, [string]$Path) {
+     [IO.File]::WriteAllText($Path, ($Value | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
+ }
+ 
++# Only synthetic counts and timings may survive deletion of the test workspace.
++# NativeCalls/NativeMilliseconds describe the complete NativeStorage reader
++# callback, not individual Win32 calls or physical I/O operations.
++function ConvertTo-LookupEvidence($Value) {
++    function Assert-Fields($Object, [string[]]$Expected) {
++        if ($null -eq $Object -or $Object -isnot [pscustomobject]) { throw 'LOOKUP_EVIDENCE_INVALID' }
++        $actual = @($Object.PSObject.Properties.Name)
++        if ($actual.Count -ne $Expected.Count -or (Compare-Object $Expected $actual -CaseSensitive)) { throw 'LOOKUP_EVIDENCE_INVALID' }
++    }
++    function Assert-Integer($Number, [long]$Minimum, [long]$Maximum) {
++        if (($Number -isnot [int] -and $Number -isnot [long]) -or $Number -lt $Minimum -or $Number -gt $Maximum) { throw 'LOOKUP_EVIDENCE_INVALID' }
++    }
++    function Assert-Time($Number) {
++        if (($Number -isnot [int] -and $Number -isnot [long] -and $Number -isnot [double]) -or
++            -not [double]::IsFinite([double]$Number) -or $Number -lt 0) { throw 'LOOKUP_EVIDENCE_INVALID' }
++    }
++    Assert-Fields $Value @('Objects','ResidentObjects','DirectObjects','UnsupportedExcluded','SelectiveNativeCalls','AllHandleNativeCalls','Samples','ResidentExamples')
++    Assert-Integer $Value.Objects 1 4096
++    Assert-Integer $Value.ResidentObjects 0 $Value.Objects
++    Assert-Integer $Value.DirectObjects 0 $Value.Objects
++    Assert-Integer $Value.UnsupportedExcluded 0 4096
++    Assert-Integer $Value.SelectiveNativeCalls 0 8192
++    Assert-Integer $Value.AllHandleNativeCalls 2 8192
++    if ($Value.Objects -ne $Value.ResidentObjects + $Value.DirectObjects -or
++        $Value.SelectiveNativeCalls -ne 2 * $Value.ResidentObjects -or $Value.AllHandleNativeCalls -ne 2 * $Value.Objects) { throw 'LOOKUP_EVIDENCE_INVALID' }
++    if ($Value.Samples -isnot [array] -or $Value.Samples.Count -ne 6 -or
++        $Value.ResidentExamples -isnot [array] -or $Value.ResidentExamples.Count -gt 64 -or
++        $Value.ResidentExamples.Count -gt $Value.ResidentObjects) { throw 'LOOKUP_EVIDENCE_INVALID' }
++    $samples = [Collections.Generic.List[object]]::new()
++    for ($i = 0; $i -lt 6; $i++) {
++        $sample = $Value.Samples[$i]
++        Assert-Fields $sample @('Round','Order','SelectiveMilliseconds','AllHandleMilliseconds','SelectiveNativeMilliseconds','AllHandleNativeMilliseconds')
++        Assert-Integer $sample.Round 1 6
++        $expectedOrder = if ($i % 2 -eq 0) { 'selective-first' } else { 'handle-first' }
++        if ($sample.Round -ne $i + 1 -or $sample.Order -isnot [string] -or $sample.Order -cne $expectedOrder) { throw 'LOOKUP_EVIDENCE_INVALID' }
++        foreach ($field in @('SelectiveMilliseconds','AllHandleMilliseconds','SelectiveNativeMilliseconds','AllHandleNativeMilliseconds')) { Assert-Time $sample.$field }
++        $samples.Add([ordered]@{Round=[int]$sample.Round;Order=$expectedOrder;
++            SelectiveMilliseconds=[double]$sample.SelectiveMilliseconds;AllHandleMilliseconds=[double]$sample.AllHandleMilliseconds;
++            SelectiveNativeMilliseconds=[double]$sample.SelectiveNativeMilliseconds;AllHandleNativeMilliseconds=[double]$sample.AllHandleNativeMilliseconds})
++    }
++    $examples = [Collections.Generic.List[object]]::new()
++    foreach ($example in $Value.ResidentExamples) {
++        Assert-Fields $example @('LogicalBytes','LookupAllocatedBytes')
++        Assert-Integer $example.LogicalBytes 0 ([long]::MaxValue)
++        Assert-Integer $example.LookupAllocatedBytes 0 ([long]::MaxValue)
++        $examples.Add([ordered]@{LogicalBytes=[long]$example.LogicalBytes;LookupAllocatedBytes=[long]$example.LookupAllocatedBytes})
++    }
++    return [ordered]@{Objects=[int]$Value.Objects;ResidentObjects=[int]$Value.ResidentObjects;DirectObjects=[int]$Value.DirectObjects;
++        UnsupportedExcluded=[int]$Value.UnsupportedExcluded;SelectiveNativeCalls=[int]$Value.SelectiveNativeCalls;
++        AllHandleNativeCalls=[int]$Value.AllHandleNativeCalls;Samples=$samples.ToArray();ResidentExamples=$examples.ToArray()}
++}
++
+ # The result is the only retained evidence. It never contains paths, names or raw errors.
+ $ResultPath = [IO.Path]::GetFullPath($ResultPath)
+ if ([IO.Path]::GetDirectoryName($ResultPath) -cne $artifactsRoot -or
+@@ -212,6 +265,8 @@ public static class AsukaLensFixtureImage {
+     $checks = [int]$summary.checks; $failureCount = [int]$summary.failures
+     if ($summary.PSObject.Properties['code'] -and [string]$summary.code -cmatch '^[A-Za-z][A-Za-z0-9-]{0,79}$') { $failureCode=[string]$summary.code }
+     if ($runnerExit -ne 0 -or $summary.status -cne 'passed' -or $failureCount -ne 0) { throw 'COMPARISON_FAILED' }
++    if (-not $summary.PSObject.Properties['lookup_experiment']) { throw 'LOOKUP_EVIDENCE_MISSING' }
++    $lookupEvidence = ConvertTo-LookupEvidence $summary.lookup_experiment
+     $status = 'passed'; $stage = 'ComparisonPassed'
+ } catch {
+     # Native messages and logs can include local paths. Never copy them to the result.
+@@ -241,6 +296,7 @@ public static class AsukaLensFixtureImage {
+         $cleaned = $true
+     } catch { $status = 'cleanup_failed' }
+     $result = [ordered]@{schema=1;status=$status;stage=$stage;code=$failureCode;native_error=$nativeError;exit_code=$runnerExit;checks=$checks;failures=$failureCount;detached=$detached;cleanup_completed=$cleaned}
++    $result.lookup_experiment = if ($status -ceq 'passed') { $lookupEvidence } else { $null }
+     $resultTemp = $ResultPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
+     try {
+         [void](Assert-NoReparsePath $ResultPath)
+diff --git a/scripts/ntfs-prototype/README.md b/scripts/ntfs-prototype/README.md
+index 50b5c41..a3c7601 100644
+--- a/scripts/ntfs-prototype/README.md
++++ b/scripts/ntfs-prototype/README.md
+@@ -32,3 +32,17 @@ pwsh -NoProfile -File tests/NtfsFixtureGuards.Tests.ps1
+ 真实测试读取记录使用 `FSCTL_GET_NTFS_FILE_RECORD`，返回记录可能是更小的在用槽，故必须先校验返回槽号再解析。输出记录数据从 offset 12 开始。微软文档没有承诺 USA fixup 表示，本入口对全体 raw/全体已还原两种形态分别校验，不能用该接口失败证明磁盘损坏。参考 [记录 IOCTL](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_ntfs_file_record)、[输出结构](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-ntfs_file_record_output_buffer)、[卷几何](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-ntfs_volume_data_buffer)、[VHD 创建](https://learn.microsoft.com/en-us/windows/win32/api/virtdisk/nf-virtdisk-createvirtualdisk)。
+ 
+ 这不是整卷读取、稳定快照、吞吐或资源占用验收，也不证明已接近 WizTree。尚未覆盖 Windows 10、其他卷格式/几何、碎片化 MFT、属性扩展、持续写入和日志协调。
++
++## 驻留补查实验（NTFS-01 第 1 轮）
++
++本轮再次取得用户同意后扩展夹具，覆盖 1/7/8/9 等小尺寸及向非驻留数据转换的较大文件。真实记录先与 NativeStorage 核对；仅将普通直接可用或需要驻留分配补查的唯一对象送入实验，压缩/稀疏/命名流等排除数量单独报告。
++
++新版成功摘要必须包含 `lookup_experiment`：25 个候选、其中 20 个驻留补查和 5 个直接取值、另有 3 个特殊对象排除；每轮选择性查询 40 次、全部对象双读对照 50 次，6 轮交替顺序的原始耗时和去名称的驻留长度/分配示例均保留。该次数是整个 NativeStorage 回调，不是单次 Win32 调用或物理 I/O。真实过程检查数因新增夹具与验证而变为 862，旧 140 项证据保留原范围。
++
++对照是每对象两次句柄读取以做稳定性检查，不等于当前生产扫描器；生产完整扫描通常逐入口做一次 NativeStorage 读取，且硬链接入口数也可能不同。因此不能把 40 对 50 的差值当作相对生产扫描的节省。实验已预热，不包含 MFT 获取和建树；没有 CPU、峰值内存或物理 I/O 测量。小样本成本用于选择下一步方案，不是整盘提速证明。
++
++摘要在脚本中经过字段、类型、范围与关系校验，仅成功且清理完成后透传；拒绝额外路径等字段。检查入口：
++
++```powershell
++pwsh -NoProfile -File tests/NtfsLookupEvidence.Tests.ps1
++```
+diff --git a/tests/NtfsLookupEvidence.Tests.ps1 b/tests/NtfsLookupEvidence.Tests.ps1
+new file mode 100644
+index 0000000..0805a5f
+--- /dev/null
++++ b/tests/NtfsLookupEvidence.Tests.ps1
+@@ -0,0 +1,89 @@
++#requires -Version 7.4
++# Pure-memory whitelist tests. Never invoke the fixture script's top-level code.
++$ErrorActionPreference = 'Stop'
++Set-StrictMode -Version Latest
++$checks = 0
++function Check([bool]$Condition, [string]$Name) {
++    if (-not $Condition) { throw ('FAIL ' + $Name) }
++    $script:checks++; Write-Output ('PASS NTFS lookup evidence ' + $Name)
++}
++$source = Join-Path $PSScriptRoot '../scripts/ntfs-prototype/Invoke-NtfsFixture.ps1'
++$tokens = $null; $errors = $null
++$ast = [Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $source).Path, [ref]$tokens, [ref]$errors)
++Check ($errors.Count -eq 0) 'fixture script syntax'
++$functions = @($ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'ConvertTo-LookupEvidence'}, $false))
++Check ($functions.Count -eq 1) 'extract only evidence converter'
++. ([scriptblock]::Create($functions[0].Extent.Text))
++
++function Fixture {
++    [pscustomobject]@{
++        Objects=3;ResidentObjects=1;DirectObjects=2;UnsupportedExcluded=2;SelectiveNativeCalls=2;AllHandleNativeCalls=6
++        Samples=@(1..6 | ForEach-Object {
++            [pscustomobject]@{Round=$_;Order=$(if ($_ % 2 -eq 1) {'selective-first'} else {'handle-first'});
++                SelectiveMilliseconds=1.25;AllHandleMilliseconds=2.5;SelectiveNativeMilliseconds=0.5;AllHandleNativeMilliseconds=1.5}
++        })
++        ResidentExamples=@([pscustomobject]@{LogicalBytes=17;LookupAllocatedBytes=24})
++    }
++}
++function Reject([scriptblock]$Mutation, [string]$Name) {
++    $value=Fixture; & $Mutation $value
++    $message=$null
++    try { ConvertTo-LookupEvidence $value | Out-Null } catch { $message=$_.Exception.Message }
++    Check ($message -ceq 'LOOKUP_EVIDENCE_INVALID') $Name
++}
++$valid=Fixture
++$safe=ConvertTo-LookupEvidence $valid
++Check ($safe.Objects -eq 3 -and $safe.Samples.Count -eq 6 -and $safe.ResidentExamples.Count -eq 1) 'valid evidence preserved'
++Check (($safe.Keys -join ',') -ceq 'Objects,ResidentObjects,DirectObjects,UnsupportedExcluded,SelectiveNativeCalls,AllHandleNativeCalls,Samples,ResidentExamples') 'canonical root field order'
++Check (($safe.Samples[0].Keys -join ',') -ceq 'Round,Order,SelectiveMilliseconds,AllHandleMilliseconds,SelectiveNativeMilliseconds,AllHandleNativeMilliseconds') 'canonical sample field order'
++$valid.Samples[0].SelectiveMilliseconds=99
++$valid.ResidentExamples[0].LogicalBytes=99
++Check ($safe.Samples[0].SelectiveMilliseconds -eq 1.25 -and $safe.ResidentExamples[0].LogicalBytes -eq 17) 'output is a new deep whitelist copy'
++$json=$safe | ConvertTo-Json -Depth 5
++$roundTrip=ConvertTo-LookupEvidence ($json | ConvertFrom-Json)
++Check ($roundTrip.SelectiveNativeCalls -eq 2) 'JSON integer and double roundtrip'
++
++Reject {param($v) $v.Objects=4} 'object partition relationship'
++Reject {param($v) $v.SelectiveNativeCalls=1} 'selective reader count relationship'
++Reject {param($v) $v.AllHandleNativeCalls=5} 'control reader count relationship'
++Reject {param($v) $v.Objects=4097} 'object upper limit'
++Reject {param($v) $v.Objects=0} 'empty experiment rejected'
++Reject {param($v) $v.ResidentObjects=-1} 'negative resident count'
++Reject {param($v) $v.DirectObjects=4} 'direct count cannot exceed objects'
++Reject {param($v) $v.UnsupportedExcluded=4097} 'excluded count upper limit'
++Reject {param($v) $v.SelectiveNativeCalls=8193} 'reader count upper limit'
++Reject {param($v) $v.Objects='3'} 'numeric strings rejected'
++Reject {param($v) $v.Objects=[double]3} 'fractional count type rejected'
++Reject {param($v) $v.Objects=$true} 'boolean count rejected'
++Reject {param($v) $v.Samples=$v.Samples[0..4]} 'missing timed round rejected'
++Reject {param($v) $v.Samples=@($v.Samples)+@($v.Samples[0])} 'extra timed round rejected'
++Reject {param($v) $v.Samples[0].Round=2} 'out of sequence round rejected'
++Reject {param($v) $v.Samples[0].Order='handle-first'} 'run order must alternate from selective first'
++Reject {param($v) $v.Samples[0].Order='SELECTIVE-FIRST'} 'run order has exact spelling'
++Reject {param($v) $v.Samples[0].SelectiveMilliseconds=[double]::NaN} 'NaN rejected'
++Reject {param($v) $v.Samples[0].AllHandleMilliseconds=[double]::PositiveInfinity} 'positive infinity rejected'
++Reject {param($v) $v.Samples[0].AllHandleNativeMilliseconds=[double]::NegativeInfinity} 'negative infinity rejected'
++Reject {param($v) $v.Samples[0].SelectiveNativeMilliseconds=-0.1} 'negative callback duration rejected'
++Reject {param($v) $v.Samples[0].SelectiveMilliseconds='0.1'} 'duration strings rejected'
++Reject {param($v) $v.Samples[0].SelectiveMilliseconds=$false} 'duration booleans rejected'
++Reject {param($v) $v | Add-Member -NotePropertyName Path -NotePropertyValue 'synthetic-private-marker'} 'unexpected root fields rejected'
++Reject {param($v) $v.Samples[0] | Add-Member -NotePropertyName Path -NotePropertyValue 'synthetic-private-marker'} 'unexpected sample fields rejected'
++Reject {param($v) $v.ResidentExamples[0] | Add-Member -NotePropertyName Path -NotePropertyValue 'synthetic-private-marker'} 'unexpected resident fields rejected'
++Reject {param($v) $v.PSObject.Properties.Remove('Objects')} 'missing root field rejected'
++Reject {param($v) $v.Samples[0].PSObject.Properties.Remove('Round')} 'missing sample field rejected'
++Reject {param($v) $v.ResidentExamples[0].LogicalBytes=-1} 'negative example logical size rejected'
++Reject {param($v) $v.ResidentExamples[0].LookupAllocatedBytes=-1} 'negative example allocation rejected'
++Reject {param($v) $v.ResidentExamples[0].LookupAllocatedBytes=[double]1} 'example size requires integer type'
++Reject {param($v) $v.ResidentExamples=@(1..65 | ForEach-Object {[pscustomobject]@{LogicalBytes=1;LookupAllocatedBytes=8}})} 'example array upper limit'
++Reject {param($v) $v.ResidentExamples=@($v.ResidentExamples[0],$v.ResidentExamples[0])} 'examples cannot exceed resident objects'
++Reject {param($v) $v.ResidentExamples=$null} 'missing example array rejected'
++Reject {param($v) $v.Samples=$null} 'missing sample array rejected'
++
++$none=Fixture; $none.ResidentObjects=0; $none.DirectObjects=3; $none.SelectiveNativeCalls=0; $none.ResidentExamples=@()
++Check ((ConvertTo-LookupEvidence $none).ResidentExamples.Count -eq 0) 'zero resident workload supported'
++$large=Fixture; $large.Objects=4096; $large.ResidentObjects=4096; $large.DirectObjects=0; $large.SelectiveNativeCalls=8192; $large.AllHandleNativeCalls=8192
++$large.ResidentExamples=@(1..64 | ForEach-Object {[pscustomobject]@{LogicalBytes=1;LookupAllocatedBytes=8}})
++Check ((ConvertTo-LookupEvidence $large).Objects -eq 4096) 'maximum bounded workload accepted'
++$maximum=Fixture; $maximum.ResidentExamples[0].LogicalBytes=[long]::MaxValue; $maximum.ResidentExamples[0].LookupAllocatedBytes=[long]::MaxValue
++Check ((ConvertTo-LookupEvidence $maximum).ResidentExamples[0].LogicalBytes -eq [long]::MaxValue) 'integer example bounds do not coerce to double'
++Write-Output ('PASS NTFS lookup evidence checks: '+$checks+'; virtual disk operations: none')
+diff --git a/tests/Prototypes/Ntfs/NtfsLivePrototype.cs b/tests/Prototypes/Ntfs/NtfsLivePrototype.cs
+index 4b25e2d..656cffa 100644
+--- a/tests/Prototypes/Ntfs/NtfsLivePrototype.cs
++++ b/tests/Prototypes/Ntfs/NtfsLivePrototype.cs
+@@ -115,8 +115,8 @@ internal static class NtfsLivePrototype
+             string data = Path.Combine(volumeGuid, "AsukaLensFixture-" + nonce);
+             Check(!Directory.Exists(data), "FreshSyntheticDirectory");
+             Directory.CreateDirectory(data);
+-            var files = new List<(string Path, NtfsLookupReason Expected)>();
+-            void Make(string name, byte[] bytes, NtfsLookupReason expected = NtfsLookupReason.None)
++            var files = new List<(string Path, NtfsLookupReason? Expected)>();
++            void Make(string name, byte[] bytes, NtfsLookupReason? expected = NtfsLookupReason.None)
+             {
+                 string path = Path.Combine(data, name);
+                 using (var output = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+@@ -125,6 +125,9 @@ internal static class NtfsLivePrototype
+             }
+             Make("empty.bin", []);
+             Make("resident.bin", "synthetic resident"u8.ToArray(), NtfsLookupReason.ResidentAllocation);
++            string residentAlias = Path.Combine(data, "resident-link.bin");
++            Check(CreateHardLinkW(residentAlias, files[^1].Path, IntPtr.Zero), "CreateResidentHardLink");
++            files.Add((residentAlias, NtfsLookupReason.ResidentAllocation));
+             var random = new byte[65536]; new Random(417).NextBytes(random); Make("ordinary.bin", random);
+             string alias = Path.Combine(data, "ordinary-link.bin");
+             Check(CreateHardLinkW(alias, files[^1].Path, IntPtr.Zero), "CreateSyntheticHardLink");
+@@ -140,6 +143,8 @@ internal static class NtfsLivePrototype
+             }
+             Make("with-stream.bin", "default"u8.ToArray(), NtfsLookupReason.NamedData);
+             File.WriteAllText(files[^1].Path + ":meta", "synthetic named stream");
++            foreach (int length in new[] { 1, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 255, 256, 400, 512, 768, 1024, 4096 })
++                Make("size-" + length + ".bin", new byte[length], expected: null);
+ 
+             NtfsRecord ReadRecord(string path, bool directory)
+             {
+@@ -173,19 +178,27 @@ internal static class NtfsLivePrototype
+             }
+ 
+             var decodedFiles = new Dictionary<ulong, NtfsRecord>();
++            var objectPaths = new Dictionary<ulong, string>();
+             foreach (var item in files)
+             {
+                 var decoded = ReadRecord(item.Path, false);
+-                if (item.Expected != NtfsLookupReason.None) Check(decoded.LookupReasons.HasFlag(item.Expected), "SpecialTypeRequestsLookup");
+-                else Check(decoded.LookupReasons == NtfsLookupReason.None, "OrdinaryTypeHasCompleteMetadata");
++                if (item.Expected is { } expected)
++                {
++                    if (expected != NtfsLookupReason.None) Check(decoded.LookupReasons.HasFlag(expected), "SpecialTypeRequestsLookup");
++                    else Check(decoded.LookupReasons == NtfsLookupReason.None, "OrdinaryTypeHasCompleteMetadata");
++                }
++                else Check(decoded.LookupReasons is NtfsLookupReason.None or NtfsLookupReason.ResidentAllocation, "SizeCaseHasBoundedLookupPolicy");
+                 if (item.Expected is NtfsLookupReason.Compressed or NtfsLookupReason.Sparse or NtfsLookupReason.ResidentAllocation)
+                     Check(decoded.AllocatedBytes == null, "SpecialAllocationRemainsUnknown");
+                 decodedFiles.TryAdd(decoded.Reference, decoded);
++                objectPaths.TryAdd(decoded.Reference, item.Path);
+             }
+-            Check(decodedFiles.Count == files.Count - 1, "HardLinkObjectDeduplication");
++            Check(decodedFiles.Count == files.Count - 2, "HardLinkObjectDeduplication");
+             var dir = ReadRecord(data, true);
+             Check(dir.Names.All(n => n.Namespace == 2 || n.ParentReference != dir.Reference), "SyntheticDirectoryParent");
+-            WriteSummary(summaryPath, "passed", checks, 0, "None");
++            var lookupItems = decodedFiles.Values.Select(item => new NtfsLookupItem(serial, item, objectPaths[item.Reference])).ToArray();
++            var experiment = NtfsLookupExperiment.Run(lookupItems, Check);
++            WriteSummary(summaryPath, "passed", checks, 0, "None", experiment);
+             Console.WriteLine("PASS NTFS live checks: " + checks + "; known synthetic files only");
+             return 0;
+         }
+@@ -203,7 +216,8 @@ internal static class NtfsLivePrototype
+         }
+     }
+ 
+-    private static void WriteSummary(string path, string status, int checks, int failures, string code) =>
+-        File.WriteAllText(path, JsonSerializer.Serialize(new { schema = 1, status, checks, failures, code }));
++    private static void WriteSummary(string path, string status, int checks, int failures, string code,
++        NtfsLookupExperimentReport? experiment = null) =>
++        File.WriteAllText(path, JsonSerializer.Serialize(new { schema = 1, status, checks, failures, code, lookup_experiment = experiment }));
+     private sealed class FixtureFailure(string code) : Exception { internal string Code { get; } = code; }
+ }
+diff --git a/tests/Prototypes/Ntfs/NtfsLookupExperiment.cs b/tests/Prototypes/Ntfs/NtfsLookupExperiment.cs
+new file mode 100644
+index 0000000..29147d7
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsLookupExperiment.cs
+@@ -0,0 +1,71 @@
++using System.Diagnostics;
++
++namespace DiskAtlas.NtfsPrototype;
++
++internal sealed record NtfsLookupTiming(int Round, string Order, double SelectiveMilliseconds, double AllHandleMilliseconds,
++    double SelectiveNativeMilliseconds, double AllHandleNativeMilliseconds);
++internal sealed record NtfsResidentExample(long LogicalBytes, long LookupAllocatedBytes);
++internal sealed record NtfsLookupExperimentReport(int Objects, int ResidentObjects, int DirectObjects, int UnsupportedExcluded,
++    int SelectiveNativeCalls, int AllHandleNativeCalls, IReadOnlyList<NtfsLookupTiming> Samples, IReadOnlyList<NtfsResidentExample> ResidentExamples);
++
++// Micro-experiment on already decoded, known synthetic files. No MFT read,
++// creation, or full scanner timing is included in the reported interval.
++internal static class NtfsLookupExperiment
++{
++    internal static NtfsLookupExperimentReport Run(IReadOnlyList<NtfsLookupItem> all, Action<bool, string> check)
++    {
++        var candidates = all.Where(item => item.Record.LookupReasons is NtfsLookupReason.None or NtfsLookupReason.ResidentAllocation).ToArray();
++        check(candidates.Length > 0 && candidates.Length <= NtfsSizeLookup.MaximumObjects, "LookupExperimentBound");
++        FileStorageInfo? Read(string path, CancellationToken token)
++        {
++            token.ThrowIfCancellationRequested();
++            return NativeStorage.TryRead(path, false, File.GetAttributes(path), out var storage, out _) ? storage : null;
++        }
++        // This is a two-read stability-check control, NOT the existing scanner.
++        var forceHandle = candidates.Select(item => item with
++        {
++            Record = item.Record with { AllocatedBytes = null, LookupReasons = NtfsLookupReason.ResidentAllocation }
++        }).ToArray();
++        var reference = new Dictionary<(ulong, ulong), (long Logical, long Allocated)>();
++        foreach (var item in candidates)
++        {
++            var storage = Read(item.Path, default);
++            check(storage != null && storage.Identity == new FileIdentity(item.Volume, item.Record.Reference, 0), "LookupReferenceIdentity");
++            reference.Add((item.Volume, item.Record.Reference), (storage!.LogicalBytes, storage.AllocatedBytes));
++        }
++        void Validate(NtfsLookupBatch batch, bool selective)
++        {
++            check(batch.Complete && batch.Items.Count == candidates.Length, "LookupBatchComplete");
++            foreach (var item in batch.Items)
++            {
++                var expected = reference[(item.Volume, item.Reference)];
++                check(item.LogicalBytes == expected.Logical && item.AllocatedBytes == expected.Allocated, "LookupSizeMatchesReference");
++            }
++            check(batch.Metrics.FailedObjects == 0 && batch.Metrics.UnsupportedObjects == 0, "LookupNoHiddenFailures");
++            check(batch.Metrics.NativeCalls == 2 * (selective ? batch.Metrics.EligibleObjects : candidates.Length), "LookupCallBudget");
++        }
++        // Warm each path once. Validation is deliberately outside timed Resolve.
++        Validate(NtfsSizeLookup.Resolve(candidates, Read), true);
++        Validate(NtfsSizeLookup.Resolve(forceHandle, Read), false);
++        var samples = new List<NtfsLookupTiming>();
++        NtfsLookupBatch? last = null;
++        int allHandleCalls = 0;
++        for (int round = 0; round < 6; round++)
++        {
++            NtfsLookupBatch selective, control;
++            if (round % 2 == 0)
++            { selective = NtfsSizeLookup.Resolve(candidates, Read); control = NtfsSizeLookup.Resolve(forceHandle, Read); }
++            else
++            { control = NtfsSizeLookup.Resolve(forceHandle, Read); selective = NtfsSizeLookup.Resolve(candidates, Read); }
++            Validate(selective, true); Validate(control, false);
++            samples.Add(new(round + 1, round % 2 == 0 ? "selective-first" : "handle-first",
++                selective.Metrics.ElapsedMilliseconds, control.Metrics.ElapsedMilliseconds,
++                selective.Metrics.NativeMilliseconds, control.Metrics.NativeMilliseconds));
++            last = selective; allHandleCalls = control.Metrics.NativeCalls;
++        }
++        var examples = last!.Items.Where(item => item.AllocatedSource == NtfsSizeSource.HandleLookup)
++            .Select(item => new NtfsResidentExample(item.LogicalBytes!.Value, item.AllocatedBytes!.Value)).Take(64).ToArray();
++        return new(candidates.Length, last.Metrics.EligibleObjects, candidates.Length - last.Metrics.EligibleObjects,
++            all.Count - candidates.Length, last.Metrics.NativeCalls, allHandleCalls, samples.AsReadOnly(), examples);
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsPrototypeTests.cs b/tests/Prototypes/Ntfs/NtfsPrototypeTests.cs
+index 831386e..a32c936 100644
+--- a/tests/Prototypes/Ntfs/NtfsPrototypeTests.cs
++++ b/tests/Prototypes/Ntfs/NtfsPrototypeTests.cs
+@@ -165,6 +165,7 @@ internal static class NtfsPrototypeTests
+             }
+             Check(cancelled, "cancelled decode exits without publishing a record");
+             passed += NtfsIndexTests.Run();
++            passed += NtfsSizeLookupTests.Run();
+             Console.WriteLine($"PASS NTFS synthetic prototype checks: {passed}; raw volume access: none");
+             return 0;
+         }
+diff --git a/tests/Prototypes/Ntfs/NtfsSizeLookup.cs b/tests/Prototypes/Ntfs/NtfsSizeLookup.cs
+new file mode 100644
+index 0000000..217040e
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsSizeLookup.cs
+@@ -0,0 +1,106 @@
++using System.Diagnostics;
++
++namespace DiskAtlas.NtfsPrototype;
++
++internal enum NtfsSizeSource { Record, HandleLookup, Unknown }
++internal sealed record NtfsLookupItem(ulong Volume, NtfsRecord Record, string Path);
++internal sealed record NtfsResolvedSize(ulong Volume, ulong Reference, long? LogicalBytes, long? AllocatedBytes,
++    NtfsSizeSource LogicalSource, NtfsSizeSource AllocatedSource, string Code);
++internal sealed record NtfsLookupMetrics(int Objects, int EligibleObjects, int NativeCalls, int ResolvedObjects,
++    int FailedObjects, int UnsupportedObjects, double ElapsedMilliseconds, double NativeMilliseconds);
++internal sealed record NtfsLookupBatch(bool Complete, string Code, IReadOnlyList<NtfsResolvedSize> Items, NtfsLookupMetrics Metrics);
++
++// Test-only, per-batch resident allocation lookup. One synchronous reader, no
++// queued work, no persistent cache. Callers own and validate the file scope.
++internal static class NtfsSizeLookup
++{
++    internal const int MaximumObjects = 4096;
++    internal static NtfsLookupBatch Resolve(IReadOnlyList<NtfsLookupItem> items,
++        Func<string, CancellationToken, FileStorageInfo?> reader, CancellationToken token = default, int limit = MaximumObjects)
++    {
++        token.ThrowIfCancellationRequested();
++        var clock = Stopwatch.StartNew();
++        int eligible = 0, calls = 0, resolved = 0, failed = 0, unsupported = 0;
++        long nativeTicks = 0;
++        NtfsLookupMetrics Metrics() => new(items.Count, eligible, calls, resolved, failed, unsupported,
++            clock.Elapsed.TotalMilliseconds, nativeTicks * 1000.0 / Stopwatch.Frequency);
++        NtfsLookupBatch Reject(string code) => new(false, code, [], Metrics());
++        if (limit is < 1 or > MaximumObjects || items.Count > limit) return Reject("RecordLimit");
++        var identities = new HashSet<(ulong, ulong)>();
++        var slots = new HashSet<(ulong, ulong)>();
++        var paths = new HashSet<string>(StringComparer.Ordinal);
++        foreach (var item in items)
++        {
++            token.ThrowIfCancellationRequested();
++            if (!identities.Add((item.Volume, item.Record.Reference))) return Reject("DuplicateObject");
++            if (!slots.Add((item.Volume, item.Record.Reference & NtfsRecordDecoder.MaximumRecordNumber))) return Reject("SlotReused");
++            if (!paths.Add(item.Path)) return Reject("PathCollision");
++            if (item.Record.Names.Count > 256) return Reject("NameLimit");
++        }
++        var output = new List<NtfsResolvedSize>(items.Count);
++        FileStorageInfo? Read(string path)
++        {
++            token.ThrowIfCancellationRequested();
++            calls++;
++            long started = Stopwatch.GetTimestamp();
++            try { return reader(path, token); }
++            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return null; }
++            finally { nativeTicks += Stopwatch.GetTimestamp() - started; }
++        }
++        foreach (var item in items)
++        {
++            token.ThrowIfCancellationRequested();
++            var record = item.Record;
++            long? logical = record.LogicalBytes is >= 0 ? record.LogicalBytes : null;
++            long? allocation = record.AllocatedBytes is >= 0 ? record.AllocatedBytes : null;
++            NtfsResolvedSize Result(long? occupied, NtfsSizeSource source, string code) =>
++                new(item.Volume, record.Reference, logical, occupied, logical.HasValue ? NtfsSizeSource.Record : NtfsSizeSource.Unknown, source, code);
++            int visibleNames = record.Names.Where(n => n.Namespace != 2).Select(n => (n.ParentReference, n.Name)).Distinct().Count();
++            if (record.IsDirectory || record.BaseReference != 0 || (record.Reference >> 48) == 0 ||
++                visibleNames == 0 || record.LinkCount != record.Names.Count || string.IsNullOrWhiteSpace(item.Path))
++            {
++                unsupported++; output.Add(Result(null, NtfsSizeSource.Unknown, "UnsupportedObject")); continue;
++            }
++            if (record.LookupReasons == NtfsLookupReason.None && logical.HasValue && allocation.HasValue)
++            {
++                output.Add(Result(allocation, NtfsSizeSource.Record, "RecordSizes")); continue;
++            }
++            if (record.LookupReasons != NtfsLookupReason.ResidentAllocation || !logical.HasValue || allocation.HasValue)
++            {
++                unsupported++; output.Add(Result(null, NtfsSizeSource.Unknown, "UnsupportedLookupReason")); continue;
++            }
++            eligible++;
++            var first = Read(item.Path);
++            token.ThrowIfCancellationRequested();
++            string? Problem(FileStorageInfo? sample)
++            {
++                if (sample == null) return "ReadFailed";
++                if (sample.Identity != new FileIdentity(item.Volume, record.Reference, 0)) return "IdentityChanged";
++                if (sample.WritableHandleOpen) return "OpenWriter";
++                if (sample.LogicalBytes != logical.Value) return "LogicalChanged";
++                if (sample.AllocatedBytes < 0 || sample.Modified == null || sample.LinkCount != visibleNames) return "InvalidSnapshot";
++                return null;
++            }
++            string? problem = Problem(first);
++            if (problem == null)
++            {
++                var second = Read(item.Path);
++                token.ThrowIfCancellationRequested();
++                problem = Problem(second);
++                if (problem == null && (first!.AllocatedBytes != second!.AllocatedBytes || first.Modified != second.Modified)) problem = "SnapshotChanged";
++            }
++            if (problem != null)
++            {
++                failed++; output.Add(Result(null, NtfsSizeSource.Unknown, problem));
++            }
++            else
++            {
++                resolved++; output.Add(Result(first!.AllocatedBytes, NtfsSizeSource.HandleLookup, "ResidentLookup"));
++            }
++        }
++        token.ThrowIfCancellationRequested();
++        bool complete = output.Count > 0 && failed == 0 && unsupported == 0 &&
++            output.All(item => item.LogicalBytes.HasValue && item.AllocatedBytes.HasValue);
++        return new(complete, complete ? "ResolvedBatch" : "IncompleteBatch", output.AsReadOnly(), Metrics());
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/NtfsSizeLookupTests.cs b/tests/Prototypes/Ntfs/NtfsSizeLookupTests.cs
+new file mode 100644
+index 0000000..e0f0d35
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsSizeLookupTests.cs
+@@ -0,0 +1,189 @@
++using DiskAtlas;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// In-memory observations only: no paths are opened and no native API is called.
++internal static class NtfsSizeLookupTests
++{
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("NTFS lookup check failed: " + name);
++            passed++; Console.WriteLine("PASS NTFS lookup " + name);
++        }
++        const ulong volume = 31;
++        ulong reference = NtfsRecordFixtures.Reference(42, 3);
++        ulong parent = NtfsRecordFixtures.Reference(5, 7);
++        var record = new NtfsRecord(reference, 0, false, 1, [new(parent, "fixture.bin", 1)],
++            17, null, NtfsLookupReason.ResidentAllocation);
++        var item = new NtfsLookupItem(volume, record, "fixture.bin");
++        var stamp = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
++        var native = new FileStorageInfo(new(volume, reference, 0), 24, 1, false, 17, stamp);
++
++        NtfsLookupBatch Resolve(NtfsRecord candidate, Func<string, CancellationToken, FileStorageInfo?> reader) =>
++            NtfsSizeLookup.Resolve([item with { Record = candidate }], reader);
++        void FailedSample(FileStorageInfo? sample, string name, bool second = false)
++        {
++            int calls = 0;
++            var result = Resolve(record, (_, _) => ++calls == 1 && second ? native : sample);
++            var output = result.Items.Single();
++            Check(!result.Complete && output.LogicalBytes == 17 && output.LogicalSource == NtfsSizeSource.Record &&
++                output.AllocatedBytes is null && output.AllocatedSource == NtfsSizeSource.Unknown &&
++                result.Metrics.EligibleObjects == 1 && result.Metrics.FailedObjects == 1 &&
++                result.Metrics.ResolvedObjects == 0 && result.Metrics.NativeCalls == calls && calls == (second ? 2 : 1), name);
++        }
++        void Unsupported(NtfsRecord candidate, string name)
++        {
++            int calls = 0;
++            var result = Resolve(candidate, (_, _) => { calls++; return native; });
++            Check(!result.Complete && calls == 0 && result.Metrics.UnsupportedObjects == 1 &&
++                result.Metrics.EligibleObjects == 0 && result.Items.Single().AllocatedBytes is null &&
++                result.Items.Single().AllocatedSource == NtfsSizeSource.Unknown, name);
++        }
++
++        int readCalls = 0;
++        var completeRecord = record with { AllocatedBytes = 4096, LookupReasons = NtfsLookupReason.None };
++        var direct = Resolve(completeRecord, (_, _) => { readCalls++; return native; });
++        Check(direct.Complete && readCalls == 0 && direct.Metrics.NativeCalls == 0 && direct.Metrics.EligibleObjects == 0 &&
++            direct.Metrics.ResolvedObjects == 0 && direct.Items.Single().AllocatedSource == NtfsSizeSource.Record &&
++            direct.Items.Single().AllocatedBytes == 4096, "known record sizes avoid native lookup");
++        var resident = Resolve(record, (_, _) => { readCalls++; return native; });
++        Check(resident.Complete && readCalls == 2 && resident.Metrics.NativeCalls == 2 && resident.Metrics.ResolvedObjects == 1 &&
++            resident.Metrics.EligibleObjects == 1 && resident.Items.Single().AllocatedBytes == 24 &&
++            resident.Items.Single().LogicalSource == NtfsSizeSource.Record && resident.Items.Single().AllocatedSource == NtfsSizeSource.HandleLookup,
++            "resident allocation requires two stable native observations");
++        Check(record.AllocatedBytes is null && record.LookupReasons == NtfsLookupReason.ResidentAllocation,
++            "lookup does not rewrite decoded source evidence");
++        Check(double.IsFinite(resident.Metrics.ElapsedMilliseconds) && resident.Metrics.ElapsedMilliseconds >= 0 &&
++            double.IsFinite(resident.Metrics.NativeMilliseconds) && resident.Metrics.NativeMilliseconds >= 0,
++            "timing fields are finite and separate from call counts");
++        var zero = Resolve(record, (_, _) => native with { AllocatedBytes = 0 });
++        Check(zero.Complete && zero.Items.Single().AllocatedBytes == 0 && zero.Items.Single().AllocatedSource == NtfsSizeSource.HandleLookup,
++            "native zero allocation is distinct from unknown");
++        var rawNames = record with { LinkCount = 2, Names = [new(parent, "fixture.bin", 1), new(parent, "FIXTUR~1.BIN", 2)] };
++        Check(Resolve(rawNames, (_, _) => native).Complete, "DOS alias does not increase native visible link count");
++        var twoLinks = record with { LinkCount = 3, Names = [new(parent, "fixture.bin", 1), new(parent, "second.bin", 1), new(parent, "FIXTUR~1.BIN", 2)] };
++        Check(Resolve(twoLinks, (_, _) => native with { LinkCount = 2 }).Complete, "two visible hard links are validated separately from raw references");
++
++        FailedSample(null, "first read failure preserves unknown allocation");
++        FailedSample(null, "second read failure rejects first sample", second: true);
++        FailedSample(native with { Identity = native.Identity with { Volume = volume + 1 } }, "wrong volume rejected");
++        FailedSample(native with { Identity = native.Identity with { Low = reference + 1 } }, "wrong file slot rejected");
++        FailedSample(native with { Identity = native.Identity with { Low = NtfsRecordFixtures.Reference(42, 4) } }, "reused file sequence rejected");
++        FailedSample(native with { Identity = native.Identity with { High = 1 } }, "unexpected high identity rejected");
++        FailedSample(native with { Identity = native.Identity with { Low = reference + 1 } }, "identity change between samples rejected", second: true);
++        FailedSample(native with { LogicalBytes = 18 }, "logical mismatch against MFT record rejected");
++        FailedSample(native with { LogicalBytes = 18 }, "logical change between reads rejected", second: true);
++        FailedSample(native with { AllocatedBytes = -1 }, "negative allocation rejected");
++        FailedSample(native with { AllocatedBytes = 32 }, "allocation change between reads rejected", second: true);
++        FailedSample(native with { LinkCount = 2 }, "visible link count mismatch rejected");
++        FailedSample(native with { LinkCount = 2 }, "link count change between reads rejected", second: true);
++        FailedSample(native with { Modified = null }, "missing modification timestamp rejected");
++        FailedSample(native with { Modified = stamp.AddTicks(1) }, "timestamp change between reads rejected", second: true);
++        FailedSample(native with { WritableHandleOpen = true }, "already open writer rejected");
++        FailedSample(native with { WritableHandleOpen = true }, "writer opened between observations rejected", second: true);
++        foreach (Exception error in new Exception[] { new IOException("private synthetic message"), new UnauthorizedAccessException("private synthetic message") })
++        {
++            var failure = Resolve(record, (_, _) => throw error);
++            Check(!failure.Complete && failure.Metrics.FailedObjects == 1 && failure.Items.Single().Code == "ReadFailed" &&
++                !failure.Items.Single().Code.Contains("private", StringComparison.Ordinal), "expected read exception has fixed path-free result");
++        }
++        bool unexpected = false;
++        try { Resolve(record, (_, _) => throw new InvalidOperationException("synthetic unexpected exception")); }
++        catch (InvalidOperationException) { unexpected = true; }
++        Check(unexpected, "unexpected callback failure propagates instead of becoming success");
++        bool nativeCancelled = false;
++        try { Resolve(record, (_, _) => throw new OperationCanceledException()); }
++        catch (OperationCanceledException) { nativeCancelled = true; }
++        Check(nativeCancelled, "callback cancellation is not swallowed as read failure");
++
++        foreach (var reason in new[] { NtfsLookupReason.Compressed, NtfsLookupReason.Sparse, NtfsLookupReason.AttributeList,
++            NtfsLookupReason.NamedData, NtfsLookupReason.ReparsePoint, NtfsLookupReason.Encrypted, NtfsLookupReason.LinkNamesIncomplete,
++            NtfsLookupReason.MissingData, NtfsLookupReason.MissingStandardInformation,
++            NtfsLookupReason.ResidentAllocation | NtfsLookupReason.NamedData })
++            Unsupported(record with { LookupReasons = reason }, "unsupported reason does not launch native work: " + reason);
++        Unsupported(record with { IsDirectory = true }, "directory record does not use resident file lookup");
++        Unsupported(record with { BaseReference = NtfsRecordFixtures.Reference(77, 2) }, "extension record cannot resolve as standalone file");
++        Unsupported(record with { Reference = 42 }, "missing sequence rejected before native work");
++        Unsupported(record with { Names = [] }, "missing visible names rejected before native work");
++        Unsupported(record with { LinkCount = 2 }, "incomplete raw name references rejected before native work");
++        Unsupported(record with { LogicalBytes = -1 }, "negative decoded logical size cannot be repaired implicitly");
++        Unsupported(record with { LogicalBytes = null }, "unknown decoded logical size stays unsupported");
++        Unsupported(record with { AllocatedBytes = 24 }, "inconsistent resident lookup flag does not override known evidence");
++        var noPath = NtfsSizeLookup.Resolve([item with { Path = " " }], (_, _) => throw new InvalidOperationException("must not read"));
++        Check(!noPath.Complete && noPath.Metrics.NativeCalls == 0 && noPath.Metrics.UnsupportedObjects == 1, "empty lookup path rejected");
++
++        readCalls = 0;
++        var duplicate = NtfsSizeLookup.Resolve([item, item with { Path = "another.bin" }], (_, _) => { readCalls++; return native; });
++        Check(!duplicate.Complete && duplicate.Code == "DuplicateObject" && duplicate.Items.Count == 0 && readCalls == 0,
++            "duplicate object batch rejected before any native work");
++        foreach (int limit in new[] { 0, -1, 4097 })
++        {
++            var oversized = NtfsSizeLookup.Resolve([item], (_, _) => throw new InvalidOperationException("must not read"), limit: limit);
++            Check(!oversized.Complete && oversized.Code == "RecordLimit" && oversized.Items.Count == 0 && oversized.Metrics.NativeCalls == 0,
++                "invalid batch budget rejected before native work");
++        }
++        var reusedSlot = item with { Record = record with { Reference = NtfsRecordFixtures.Reference(42, 4) }, Path = "reused.bin" };
++        var reusedBatch = NtfsSizeLookup.Resolve([item, reusedSlot], (_, _) => throw new InvalidOperationException("must not read"));
++        Check(!reusedBatch.Complete && reusedBatch.Code == "SlotReused" && reusedBatch.Items.Count == 0 && reusedBatch.Metrics.NativeCalls == 0,
++            "two sequences for one slot invalidate batch before native work");
++        var pathCollision = item with { Record = record with { Reference = NtfsRecordFixtures.Reference(43, 3) } };
++        var collisionBatch = NtfsSizeLookup.Resolve([item, pathCollision], (_, _) => throw new InvalidOperationException("must not read"));
++        Check(!collisionBatch.Complete && collisionBatch.Code == "PathCollision" && collisionBatch.Items.Count == 0 && collisionBatch.Metrics.NativeCalls == 0,
++            "two identities for one path invalidate batch before native work");
++        var manyNames = record with { Names = Enumerable.Range(0, 257).Select(i => new NtfsName(parent, "name" + i, 1)).ToArray() };
++        var oversizedNames = Resolve(manyNames, (_, _) => throw new InvalidOperationException("must not read"));
++        Check(!oversizedNames.Complete && oversizedNames.Code == "NameLimit" && oversizedNames.Items.Count == 0 && oversizedNames.Metrics.NativeCalls == 0,
++            "name budget rejects oversized record before native work");
++        var secondItem = item with { Record = record with { Reference = NtfsRecordFixtures.Reference(43, 3) }, Path = "second.bin" };
++        var overCount = NtfsSizeLookup.Resolve([item, secondItem], (_, _) => throw new InvalidOperationException("must not read"), limit: 1);
++        Check(!overCount.Complete && overCount.Code == "RecordLimit" && overCount.Items.Count == 0, "object count cannot exceed caller budget");
++        var sameSlotOtherVolume = item with { Volume = volume + 1, Path = "second-volume.bin" };
++        var volumes = NtfsSizeLookup.Resolve([item, sameSlotOtherVolume], (path, _) => path == "second-volume.bin"
++            ? native with { Identity = native.Identity with { Volume = volume + 1 } } : native);
++        Check(volumes.Complete && volumes.Metrics.NativeCalls == 4 && volumes.Metrics.ResolvedObjects == 2, "volume participates in object uniqueness");
++        var empty = NtfsSizeLookup.Resolve([], (_, _) => throw new InvalidOperationException("must not read"));
++        Check(!empty.Complete && empty.Items.Count == 0 && empty.Metrics.NativeCalls == 0, "empty batch does not claim completed analysis");
++        readCalls = 0;
++        Resolve(record, (_, _) => { readCalls++; return native; });
++        var nextBatch = Resolve(record, (_, _) => { readCalls++; return native with { AllocatedBytes = 32 }; });
++        Check(readCalls == 4 && nextBatch.Items.Single().AllocatedBytes == 32, "separate batches do not reuse stale cached allocation");
++
++        using (var cancelled = new CancellationTokenSource())
++        {
++            cancelled.Cancel(); bool stopped = false; readCalls = 0;
++            try { NtfsSizeLookup.Resolve([item], (_, _) => { readCalls++; return native; }, cancelled.Token); }
++            catch (OperationCanceledException) { stopped = true; }
++            Check(stopped && readCalls == 0, "pre-cancelled batch publishes no results and performs no native calls");
++        }
++        using (var cancelled = new CancellationTokenSource())
++        {
++            bool stopped = false; readCalls = 0;
++            try
++            {
++                NtfsSizeLookup.Resolve([item], (_, _) => { readCalls++; cancelled.Cancel(); return native; }, cancelled.Token);
++            }
++            catch (OperationCanceledException) { stopped = true; }
++            Check(stopped && readCalls == 1, "cancellation after first read does not publish a one-sample result");
++        }
++        using (var cancelled = new CancellationTokenSource())
++        {
++            bool stopped = false; readCalls = 0;
++            try
++            {
++                NtfsSizeLookup.Resolve([item, secondItem], (_, _) =>
++                {
++                    readCalls++;
++                    if (readCalls == 3) cancelled.Cancel();
++                    return native;
++                }, cancelled.Token);
++            }
++            catch (OperationCanceledException) { stopped = true; }
++            Check(stopped && readCalls == 3, "mid-batch cancellation discards earlier resolved objects");
++        }
++        Console.WriteLine("PASS NTFS resident lookup checks: " + passed + "; native callbacks: synthetic only");
++        return passed;
++    }
++}
+diff --git a/tests/Prototypes/Ntfs/README.md b/tests/Prototypes/Ntfs/README.md
+index e07d2b4..a7c3601 100644
+--- a/tests/Prototypes/Ntfs/README.md
++++ b/tests/Prototypes/Ntfs/README.md
+@@ -18,7 +18,13 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-prototype-te
+ 
+ ## 保守处理与未实现内容
+ 
+-属性列表和扩展记录尚未拼接，标为待补查并保持大小未知；压缩/稀疏分配空间保持未知，不把 DATA 的表面长度套作实际占用。重解析/云占位、加密、缺失默认数据或标准信息也要求补查。命名流不并入默认流大小，并保留范围提示。这里的“待补查”只有标记，尚没有实际补查器或自动回退连接。
++属性列表和扩展记录尚未拼接，标为待补查并保持大小未知；压缩/稀疏分配空间保持未知，不把 DATA 的表面长度套作实际占用。重解析/云占位、加密、缺失默认数据或标准信息也要求补查。命名流不并入默认流大小，并保留范围提示。上述类型仍只有待补查标记，尚未实现对应补查器或自动回退连接；普通驻留分配的新补查见下一段。
++
++2026-11-12 NTFS-01 第 1 轮新增 `NtfsSizeLookup`，仅对普通文件的 **单一 `ResidentAllocation` 原因**实施句柄补查。上述其他原因仍不处理。输出同时记录逻辑/分配值的来源（记录、句柄补查、未知），不修改原始解析记录。补查连续读取两次，核对卷与完整文件引用、逻辑大小、可见链接数、分配大小、修改时间及打开写句柄状态；失败保留分配未知，不缓存旧结果。
++
++补查按批次单路执行，无工作队列或跨批缓存；最多 4096 个唯一对象，重复对象、槽位复用、路径冲突及名称超限在读取前拒绝。取消在批次和回调前后检查，丢弃部分结果；不能保证打断阻塞中的系统调用。调用方仍须验证文件范围、输入新鲜度和树的一致性，两次句柄结果相同不等于活跃卷快照。
++
++`NtfsLookupExperiment` 在隔离 VHD 内比较选择性补查与“每对象两次句柄读取”的稳定性检查对照：6 轮交替顺序，预读/预热与结果比较不计入耗时。报告字段中的 `NativeCalls`/`NativeMilliseconds` 表示整个 reader/NativeStorage 回调的次数与耗时，一次包含多项系统查询，不能视作物理 I/O 次数。它不包括 MFT 读取、文件创建、建树或 UI，也不是现有扫描器的性能对照；对象比例仅代表人工夹具。
+ 
+ 原始 MFT 名称引用计数包含独立 DOS 名称属性；它与排除 DOS 别名后的 Windows 可见硬链接数分开校验。本轮真实文件比对据此修正了原合成夹具的头部计数。
+ 

@@ -1,0 +1,296 @@
+[
+  {
+    "attempt": 1,
+    "status": "passed",
+    "checks": 847,
+    "detached": true,
+    "cleanup_completed": true,
+    "lookup_experiment": {
+      "Objects": 25,
+      "ResidentObjects": 20,
+      "DirectObjects": 5,
+      "UnsupportedExcluded": 3,
+      "SelectiveNativeCalls": 40,
+      "AllHandleNativeCalls": 50,
+      "Samples": [
+        {
+          "Round": 1,
+          "Order": "selective-first",
+          "SelectiveMilliseconds": 2.1467,
+          "AllHandleMilliseconds": 1.4434,
+          "SelectiveNativeMilliseconds": 2.0107,
+          "AllHandleNativeMilliseconds": 1.3815
+        },
+        {
+          "Round": 2,
+          "Order": "handle-first",
+          "SelectiveMilliseconds": 0.9338,
+          "AllHandleMilliseconds": 1.3671,
+          "SelectiveNativeMilliseconds": 0.8833,
+          "AllHandleNativeMilliseconds": 1.2885
+        },
+        {
+          "Round": 3,
+          "Order": "selective-first",
+          "SelectiveMilliseconds": 2.8985,
+          "AllHandleMilliseconds": 3.6401,
+          "SelectiveNativeMilliseconds": 2.6895,
+          "AllHandleNativeMilliseconds": 3.4487
+        },
+        {
+          "Round": 4,
+          "Order": "handle-first",
+          "SelectiveMilliseconds": 2.5991,
+          "AllHandleMilliseconds": 3.3446,
+          "SelectiveNativeMilliseconds": 2.4374,
+          "AllHandleNativeMilliseconds": 3.1631
+        },
+        {
+          "Round": 5,
+          "Order": "selective-first",
+          "SelectiveMilliseconds": 2.7287,
+          "AllHandleMilliseconds": 3.1774,
+          "SelectiveNativeMilliseconds": 2.5504,
+          "AllHandleNativeMilliseconds": 2.9925
+        },
+        {
+          "Round": 6,
+          "Order": "handle-first",
+          "SelectiveMilliseconds": 2.591,
+          "AllHandleMilliseconds": 3.3905,
+          "SelectiveNativeMilliseconds": 2.4151,
+          "AllHandleNativeMilliseconds": 3.1577
+        }
+      ],
+      "ResidentExamples": [
+        {
+          "LogicalBytes": 18,
+          "LookupAllocatedBytes": 24
+        },
+        {
+          "LogicalBytes": 1,
+          "LookupAllocatedBytes": 8
+        },
+        {
+          "LogicalBytes": 7,
+          "LookupAllocatedBytes": 8
+        },
+        {
+          "LogicalBytes": 8,
+          "LookupAllocatedBytes": 8
+        },
+        {
+          "LogicalBytes": 9,
+          "LookupAllocatedBytes": 16
+        },
+        {
+          "LogicalBytes": 15,
+          "LookupAllocatedBytes": 16
+        },
+        {
+          "LogicalBytes": 16,
+          "LookupAllocatedBytes": 16
+        },
+        {
+          "LogicalBytes": 17,
+          "LookupAllocatedBytes": 24
+        },
+        {
+          "LogicalBytes": 31,
+          "LookupAllocatedBytes": 32
+        },
+        {
+          "LogicalBytes": 32,
+          "LookupAllocatedBytes": 32
+        },
+        {
+          "LogicalBytes": 33,
+          "LookupAllocatedBytes": 40
+        },
+        {
+          "LogicalBytes": 63,
+          "LookupAllocatedBytes": 64
+        },
+        {
+          "LogicalBytes": 64,
+          "LookupAllocatedBytes": 64
+        },
+        {
+          "LogicalBytes": 65,
+          "LookupAllocatedBytes": 72
+        },
+        {
+          "LogicalBytes": 127,
+          "LookupAllocatedBytes": 128
+        },
+        {
+          "LogicalBytes": 128,
+          "LookupAllocatedBytes": 128
+        },
+        {
+          "LogicalBytes": 255,
+          "LookupAllocatedBytes": 256
+        },
+        {
+          "LogicalBytes": 256,
+          "LookupAllocatedBytes": 256
+        },
+        {
+          "LogicalBytes": 400,
+          "LookupAllocatedBytes": 400
+        },
+        {
+          "LogicalBytes": 512,
+          "LookupAllocatedBytes": 512
+        }
+      ]
+    }
+  },
+  {
+    "attempt": 2,
+    "status": "passed",
+    "checks": 862,
+    "detached": true,
+    "cleanup_completed": true,
+    "lookup_experiment": {
+      "Objects": 25,
+      "ResidentObjects": 20,
+      "DirectObjects": 5,
+      "UnsupportedExcluded": 3,
+      "SelectiveNativeCalls": 40,
+      "AllHandleNativeCalls": 50,
+      "Samples": [
+        {
+          "Round": 1,
+          "Order": "selective-first",
+          "SelectiveMilliseconds": 1.0749,
+          "AllHandleMilliseconds": 1.1853,
+          "SelectiveNativeMilliseconds": 1.0096,
+          "AllHandleNativeMilliseconds": 1.129
+        },
+        {
+          "Round": 2,
+          "Order": "handle-first",
+          "SelectiveMilliseconds": 0.9147,
+          "AllHandleMilliseconds": 2.2761,
+          "SelectiveNativeMilliseconds": 0.8696,
+          "AllHandleNativeMilliseconds": 2.1583
+        },
+        {
+          "Round": 3,
+          "Order": "selective-first",
+          "SelectiveMilliseconds": 1.0009,
+          "AllHandleMilliseconds": 1.1682,
+          "SelectiveNativeMilliseconds": 0.9353,
+          "AllHandleNativeMilliseconds": 1.1214
+        },
+        {
+          "Round": 4,
+          "Order": "handle-first",
+          "SelectiveMilliseconds": 2.1791,
+          "AllHandleMilliseconds": 1.3637,
+          "SelectiveNativeMilliseconds": 2.0396,
+          "AllHandleNativeMilliseconds": 1.2438
+        },
+        {
+          "Round": 5,
+          "Order": "selective-first",
+          "SelectiveMilliseconds": 2.5846,
+          "AllHandleMilliseconds": 2.9575,
+          "SelectiveNativeMilliseconds": 2.4162,
+          "AllHandleNativeMilliseconds": 2.8106
+        },
+        {
+          "Round": 6,
+          "Order": "handle-first",
+          "SelectiveMilliseconds": 1.0029,
+          "AllHandleMilliseconds": 2.9033,
+          "SelectiveNativeMilliseconds": 0.9459,
+          "AllHandleNativeMilliseconds": 2.7563
+        }
+      ],
+      "ResidentExamples": [
+        {
+          "LogicalBytes": 18,
+          "LookupAllocatedBytes": 24
+        },
+        {
+          "LogicalBytes": 1,
+          "LookupAllocatedBytes": 8
+        },
+        {
+          "LogicalBytes": 7,
+          "LookupAllocatedBytes": 8
+        },
+        {
+          "LogicalBytes": 8,
+          "LookupAllocatedBytes": 8
+        },
+        {
+          "LogicalBytes": 9,
+          "LookupAllocatedBytes": 16
+        },
+        {
+          "LogicalBytes": 15,
+          "LookupAllocatedBytes": 16
+        },
+        {
+          "LogicalBytes": 16,
+          "LookupAllocatedBytes": 16
+        },
+        {
+          "LogicalBytes": 17,
+          "LookupAllocatedBytes": 24
+        },
+        {
+          "LogicalBytes": 31,
+          "LookupAllocatedBytes": 32
+        },
+        {
+          "LogicalBytes": 32,
+          "LookupAllocatedBytes": 32
+        },
+        {
+          "LogicalBytes": 33,
+          "LookupAllocatedBytes": 40
+        },
+        {
+          "LogicalBytes": 63,
+          "LookupAllocatedBytes": 64
+        },
+        {
+          "LogicalBytes": 64,
+          "LookupAllocatedBytes": 64
+        },
+        {
+          "LogicalBytes": 65,
+          "LookupAllocatedBytes": 72
+        },
+        {
+          "LogicalBytes": 127,
+          "LookupAllocatedBytes": 128
+        },
+        {
+          "LogicalBytes": 128,
+          "LookupAllocatedBytes": 128
+        },
+        {
+          "LogicalBytes": 255,
+          "LookupAllocatedBytes": 256
+        },
+        {
+          "LogicalBytes": 256,
+          "LookupAllocatedBytes": 256
+        },
+        {
+          "LogicalBytes": 400,
+          "LookupAllocatedBytes": 400
+        },
+        {
+          "LogicalBytes": 512,
+          "LookupAllocatedBytes": 512
+        }
+      ]
+    }
+  }
+]

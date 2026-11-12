@@ -1,0 +1,74 @@
+{
+  "baseline": "6242e71b9f3c072f0446e3cdfd5e5bcccc28daad",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "26f456ff1f6216f5b0dd0e5d982a503f322ab625e95408d6cb96627ebbbb5871"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "9da908918f74ebb35bfc1a8e710c25432c36e111f12121fd524e1967df5c12fd"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "b3e5a4b43298127a5b7c22260a3e2972be1ae36ce2cf802dcf5587305dd2d270"
+    },
+    {
+      "path": "scripts/ntfs-prototype/Invoke-NtfsFixture.ps1",
+      "sha256": "e6adef758632104f3a3135e8320ebae376de505cd30a3f98d79a05e2b4a188eb"
+    },
+    {
+      "path": "scripts/ntfs-prototype/README.md",
+      "sha256": "eca72032c84f372b4db808cf0364429176d45a3235624296696403672e6648d5"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsSizeLookup.cs",
+      "sha256": "9353ca2a6f1c5fd31293f4f42f71a77988764fdbfba276201d99ee5935c6973b"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsSizeLookupTests.cs",
+      "sha256": "42d5382e1b11f234c68a0e8ee161f06592d8f923df11a29567b47a0a3c60d4b3"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsLookupExperiment.cs",
+      "sha256": "af5a469f5460e1ba796e1c03bc3f1e8a39802af2ad01365f6d549a4a3bba5a27"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsLivePrototype.cs",
+      "sha256": "b8416c5ca4c7f3ea0c72042a17c0550b91165543c2e19cd7cb30e9a78df7ed0c"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsPrototypeTests.cs",
+      "sha256": "a8a4adf139536e03dbd843b7fb884ee91354146c29cddc82e78044d8ce1c83cf"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/README.md",
+      "sha256": "c2a44afce0cbcc087d8b3d37d122b859940a40c8563e69b8cd1bb3c7e10b7002"
+    },
+    {
+      "path": "tests/NtfsLookupEvidence.Tests.ps1",
+      "sha256": "af3b3cf1628c849203ed9e043f12febb0194d0aebb3e0d408c19d0249a111da6"
+    },
+    {
+      "path": "iterations/2026-11-12-05-resident-lookup/README.md",
+      "sha256": "b9dda58451dc401de67c8fe78b40be12d7d2d5f25e1835c6c25e8ef74bd2cb86"
+    },
+    {
+      "path": "iterations/2026-11-12-05-resident-lookup/live-attempts.json",
+      "sha256": "4dfd1e41b88f9169cc6f39f885eebd78e103596747a5c2896b6ef10f2aa3a9d3"
+    },
+    {
+      "path": "iterations/2026-11-12-05-resident-lookup/changes.patch",
+      "sha256": "200e682c24f1f4a4b0a28ab6bc4bacabd06d052fb7e1e3e1c971ff85fa9e94d2"
+    }
+  ],
+  "prototype_checks": 147,
+  "guard_checks": 36,
+  "evidence_checks": 45,
+  "core_checks": 38,
+  "advanced_checks": 25,
+  "live_checks": 862,
+  "fixture_cleaned": true,
+  "micro_experiment_only": true,
+  "whole_scan_performance_measured": false
+}
