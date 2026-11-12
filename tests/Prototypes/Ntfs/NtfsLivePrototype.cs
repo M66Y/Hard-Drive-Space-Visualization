@@ -7,7 +7,7 @@ using DiskAtlas;
 
 namespace DiskAtlas.NtfsPrototype;
 
-// Test-only: reads records for a finite list of files created by this invocation.
+// Test-only: fixed owned-fixture targets and explicit bounded MFT observations.
 // Never enumerates a host volume or accepts a disk number/device path from the CLI.
 internal static class NtfsLivePrototype
 {
@@ -53,15 +53,17 @@ internal static class NtfsLivePrototype
             string Field(string name) => json.GetProperty(name).GetString() ?? throw new FixtureFailure("ManifestField");
             string nonce = Field("nonce"), root = Field("drive_root"), volumeGuid = Field("volume_guid");
             string mode = Field("mode");
-            Check(mode is "comparison" or "kernel-diagnostics" or "raw-records" or "fixture-source" or "mft-range", "KnownFixtureMode");
-            if (mode is "fixture-source" or "mft-range")
+            Check(mode is "comparison" or "kernel-diagnostics" or "raw-records" or "fixture-source" or "mft-range" or "bitmap-bootstrap" or "fixture-fast-scan", "KnownFixtureMode");
+            if (mode is "fixture-source" or "mft-range" or "bitmap-bootstrap" or "fixture-fast-scan")
             {
                 // Reject wrong backing volumes or parent chains before the
                 // legacy preparation path touches any marker or volume data.
                 string preparationSummary = Path.Combine(workspace, "live-summary.json");
                 Check(!File.Exists(preparationSummary), "FreshSummary");
                 summaryPath = preparationSummary;
-                if (mode == "mft-range") NtfsVerifiedFixtureContext.VerifyPreparationForBoundedMft(manifestFile.FullName);
+                if (mode == "fixture-fast-scan") NtfsVerifiedFixtureContext.VerifyPreparationForFastScan(manifestFile.FullName);
+                else if (mode == "bitmap-bootstrap") NtfsVerifiedFixtureContext.VerifyPreparationForBitmapObservation(manifestFile.FullName);
+                else if (mode == "mft-range") NtfsVerifiedFixtureContext.VerifyPreparationForBoundedMft(manifestFile.FullName);
                 else NtfsVerifiedFixtureContext.VerifyPreparation(manifestFile.FullName);
             }
             string image = Field("image_path");
@@ -94,7 +96,7 @@ internal static class NtfsLivePrototype
             var storageType = new StorageType { DeviceId = 2, Vendor = new Guid("ec984aec-a0f9-47e9-901f-71415a66345b") };
             var open = new OpenParameters { Version = 1, Depth = 1 };
             // GET_INFO plus DETACH access for a permanently mounted VHD; no detach API is called here.
-            Check(OpenVirtualDisk(ref storageType, image, 0xc0000, mode is "fixture-source" or "mft-range" ? 1u : 0u, ref open, out var virtualDisk) == 0, "OpenOwnedVirtualDiskInfo");
+            Check(OpenVirtualDisk(ref storageType, image, 0xc0000, mode is "fixture-source" or "mft-range" or "bitmap-bootstrap" or "fixture-fast-scan" ? 1u : 0u, ref open, out var virtualDisk) == 0, "OpenOwnedVirtualDiskInfo");
             long ownedPartitionBytes = 0;
             uint ownedPhysicalNumber = 0;
             using (virtualDisk)
@@ -130,7 +132,7 @@ internal static class NtfsLivePrototype
 
             string data = Path.Combine(volumeGuid, "AsukaLensFixture-" + nonce);
             Check(!Directory.Exists(data), "FreshSyntheticDirectory");
-            if (mode is "kernel-diagnostics" or "raw-records" or "fixture-source" or "mft-range")
+            if (mode is "kernel-diagnostics" or "raw-records" or "fixture-source" or "mft-range" or "bitmap-bootstrap" or "fixture-fast-scan")
             {
                 var rawTargets = new Dictionary<string, NtfsRawTarget>(StringComparer.Ordinal);
                 NtfsKernelRead ReadKernel(string path)
@@ -174,6 +176,42 @@ internal static class NtfsLivePrototype
                         rawTargets[caseId] = new(caseId, path, parentPath, after!, parent!, File.GetAttributes(path));
                     }
                     return new(output, count, before, after!, sector, cluster, 3, 1);
+                }
+                if (mode == "fixture-fast-scan")
+                {
+                    _ = NtfsKernelMatrix.Run(data, ReadKernel, null, Check, retainFailures: false);
+                    volume.Dispose();
+                    using var fastSource = NtfsBoundedMftSource.OpenFastScan(manifestFile.FullName);
+                    var fastReport = fastSource.RunFastScan();
+                    Check(fastReport.Revision == "fixture-fast-scan-v1" && fastReport.Stage == "ControlledFixtureCompared" &&
+                        fastReport.Resources.Closed && fastReport.Range.EvidenceKind == "NativeOwnedFixture" && fastReport.Range.GuardOwned &&
+                        fastReport.Range.TokenBound && fastReport.Range.MapBound && fastReport.Range.Closed, "FastOwnedClosureVerified");
+                    Check(fastReport.Index.CompleteWithinScope && fastReport.Comparison.Matched && fastReport.Bitmap.Corroborated &&
+                        fastReport.Bitmap.TargetsAllocated == 21 && fastReport.Bitmap.ReleasedUnallocated == 2 &&
+                        fastReport.Bitmap.ReleasedFreeHeaders == 2, "FastFixtureComparisonVerified");
+                    File.WriteAllText(summaryPath, JsonSerializer.Serialize(new { schema = 1, status = "fixture_scanned", checks,
+                        failures = 0, code = "None", fast_scan = fastReport }));
+                    Console.WriteLine("COMPARED controlled fixture tree; personal-volume support and speed are not asserted");
+                    return 0;
+                }
+                if (mode == "bitmap-bootstrap")
+                {
+                    _ = NtfsKernelMatrix.Run(data, ReadKernel, null, Check, retainFailures: false);
+                    volume.Dispose();
+                    using var bitmapSource = NtfsBoundedMftSource.OpenBitmapObservation(manifestFile.FullName);
+                    var bitmapReport = bitmapSource.RunBitmapObservation();
+                    var range = bitmapReport.Range;
+                    Check(bitmapReport.Revision == "bitmap-bootstrap-source-v1" && bitmapReport.Stage == "ObservedShapeOnly" &&
+                        range.EvidenceKind == "NativeOwnedFixture" && range.GuardOwned && range.TokenBound && range.MapBound && range.Closed,
+                        "BitmapOwnedClosureVerified");
+                    Check(range.Enumeration.MatchedObjects == 21 && range.Enumeration.UnknownAllocationObjects == 14 &&
+                        bitmapReport.Bitmap.ExpectedSlots == range.Enumeration.ExpectedSlots &&
+                        bitmapReport.Bitmap.Status is "Missing" or "ResidentPartial" or "ResidentCapacityOnly" or "Deferred",
+                        "BitmapFixedTargetsVerified");
+                    File.WriteAllText(summaryPath, JsonSerializer.Serialize(new { schema = 1, status = "bitmap_observed", checks,
+                        failures = 0, code = "None", bitmap_source = bitmapReport }));
+                    Console.WriteLine("OBSERVED owned bootstrap bitmap shape; allocation interpretation is not asserted");
+                    return 0;
                 }
                 if (mode == "mft-range")
                 {

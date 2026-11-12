@@ -1,0 +1,8 @@
+{
+  "status": "not-started",
+  "stage": "AdministratorLaunch",
+  "code": "ADMIN_LAUNCH_CANCELLED",
+  "fixture_created": false,
+  "native_checks_run": false,
+  "resolved": "RelaunchedAfterExplicitUserConfirmation"
+}

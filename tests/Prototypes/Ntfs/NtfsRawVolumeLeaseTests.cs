@@ -347,6 +347,47 @@ internal static class NtfsRawVolumeLeaseTests
             }
             finally { release.Set(); _ = reading.Wait(5000); if (disposal != null) _ = disposal.Wait(5000); lease.Dispose(); }
         }
+        using (var handle = Handle())
+        {
+            var native = new FakeNative(); var page = new byte[65536];
+            using var lease = NtfsRawVolumeLease.AcquireBitmapPrefixForTests(handle, 16 * 1024 * 1024, 512, 4096, native);
+            _ = lease.ReadInto(0, page.AsMemory(0, 1024));
+            for (int i = 0; i < 64; i++) _ = lease.ReadInto(0, page);
+            Check(lease.ReadInto(4096, page.AsMemory(0, 512)) == 512 && lease.RequestedBytes == 4195840 && lease.ReadCalls == 66 &&
+                native.Allocations == 1 && native.Frees == 0 && native.Aligned,
+                "fixed bitmap profile admits exactly one aligned prefix beyond the original maximum MFT and bootstrap work");
+            Check(Catch(() => lease.ReadInto(0, page.AsMemory(0, 512))) is InvalidDataException && lease.RequestedBytes == 4195840 &&
+                native.Reads == 66 && native.Frees == 1 && native.Unlocks == 1,
+                "bitmap byte ceiling rejects the next request and releases the reusable buffer without widening older profiles");
+        }
+        using (var handle = Handle())
+        {
+            var native = new FakeNative(); using var lease = NtfsRawVolumeLease.AcquireBitmapPrefixForTests(handle, 16 * 1024 * 1024, 512, 4096, native);
+            var page = new byte[512];
+            for (int i = 0; i < 256; i++) _ = lease.ReadInto(0, page);
+            Check(Catch(() => lease.ReadInto(0, page)) is InvalidDataException && lease.ReadCalls == 256 && native.Reads == 256 &&
+                native.Frees == 1 && native.Unlocks == 1,
+                "bitmap profile preserves the independent two-hundred-fifty-six attempt ceiling");
+        }
+        using (var handle = Handle())
+        {
+            var native = new FakeNative(); using var lease = NtfsRawVolumeLease.AcquireBitmapPrefixForTests(handle, 16 * 1024 * 1024, 512, 4096, native);
+            Check(Catch(() => lease.Read(0, 512)) is InvalidDataException && native.Reads == 0 && native.Allocations == 0 && native.Unlocks == 1,
+                "bitmap profile cannot bypass its reuse and budget contract through legacy array-returning reads");
+        }
+        foreach (string fault in new[] { "Read", "Short", "Cancel" })
+        {
+            using var handle = Handle(); using var cts = new CancellationTokenSource(); var native = new FakeNative();
+            var page = Enumerable.Repeat((byte)0xcc, 512).ToArray();
+            using var lease = NtfsRawVolumeLease.AcquireBitmapPrefixForTests(handle, 16 * 1024 * 1024, 512, 4096, native);
+            if (fault == "Read") native.ReadResult = new(false, 0, 5);
+            if (fault == "Short") native.ReadResult = new(true, 256, 0);
+            if (fault == "Cancel") native.OnRead = cts.Cancel;
+            var error = Catch(() => lease.ReadInto(0, page, cts.Token));
+            Check((fault == "Cancel" ? error is OperationCanceledException : error is NtfsRawVolumeException) &&
+                native.Reads == 1 && lease.RequestedBytes == 512 && native.Frees == 1 && native.Unlocks == 1 && page.All(value => value == 0xcc),
+                "bitmap prefix failure short read and cancellation preserve request accounting and no partial publication");
+        }
         return passed;
     }
 }

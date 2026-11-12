@@ -1,6 +1,8 @@
-# 下一步建议：绑定自有来源的BITMAP形态观察
+# 绑定自有来源的BITMAP形态观察
 
-2026-11-12，基于第20轮纯内存定位器。本文件只有方案，尚未实施；本次2小时窗口的VHD许可不自动延续。现有v2有界范围、位图模型与定位器均不证明182个全零槽未分配，也未接入产品扫描。
+2026-11-12，基于第20轮定位器。用户已在新一轮明确批准本方案B及隔离VHD验收，独立形态模式已实现；本机观察确认非驻留且超过512字节处理上限，来源/关闭/清理通过。随后用户另批[受控端到端范围](ntfs-fixture-fast-scan-plan.md)，新模式读取所需位图前缀，见[第22轮](../iterations/2026-11-12-22-ntfs-fast-scan/README.md)。形态模式本身仍不读非驻留块、不解释位图，旧预算不改；这些许可不延续到以后或个人卷。
+
+本轮形态报告使用两个固定预算码区分驻留/非驻留超限，仍只运输六字段，没有原始正文或读取地址。下文保留其独立合同；原建议接口现已实现，不将其扩大为活跃卷或产品功能。
 
 ## 先回答哪个问题
 
@@ -20,9 +22,9 @@
 
 ## 建议接口与摘要合同
 
-### 实现取舍（仅建议，未实施）
+### 实现取舍（本轮已采用B）
 
-对照当前 `NtfsBoundedMftSource` 后建议方案B，仍需用户确定下一轮范围：
+对照 `NtfsBoundedMftSource` 后采用方案B，理由如下：
 
 | 方向 | 结论与理由 |
 | --- | --- |
@@ -30,7 +32,7 @@
 | B：同owner的私有固定profile及专用入口 | 推荐；复用当前bootstrap、范围/21目标与关闭闭环，旧模式不执行新定位器 |
 | C：在Live外另开/另读record0 | 不推荐；产生新handle/代际及额外读取，不能继承原token/map证明 |
 
-最小触点为Initialize完成bootstrap映射反核验后做形态观察、专用真实factory与Run入口、私有共享执行核心，以及Guard/Live/wrapper的独立模式及新摘要。示意入口 `OpenBitmapObservation` / `RunBitmapObservation` 尚不存在；profile由私有固定枚举选择，禁止caller传模式字符串、预算、handle或验证bool。
+触点为Initialize完成bootstrap映射反核验后做形态观察、专用真实factory与Run入口、私有共享执行核心，以及Guard/Live/wrapper的独立模式及新摘要。入口为 `OpenBitmapObservation` / `RunBitmapObservation`；profile由私有固定枚举选择，不接受caller传模式字符串、预算、handle或验证bool。
 
 当前 `RunEnumeration` 已执行 `CloseAndVerify→Dispose`，不能先调用它再补观察或再读record0。新入口须在同一个私有执行核心中完成范围与形态观察，一次关闭、后验、释放和最后取消检查后再构造报告；旧 `RunEnumeration` 保持原v2合同。错profile入口在额外读取前拒绝并进入明确关闭路径；初始化失败/Dispose清空暂存元数据，不因新观察而保留原始正文。
 
@@ -44,7 +46,7 @@ bootstrap仍由同一私有owner读入，来源/map/有效长度改变即废弃�
 
 建议把现有v2范围摘要作为独立受检字段，新增的属性观察摘要仅有以下受控内容，不能直接序列化内部定位器对象：
 
-外层可用独立revision `bitmap-bootstrap-source-v1`，阶段固定 `ObservedShapeOnly`；Range字段保持整个原v2报告并复用其深白名单，Bitmap字段只包含状态、代码、预期槽、覆盖容量、payload字节数和可空非驻留长度元数据。Invalid定位结果不能进入成功报告。此处字段名/结构均为待实现合同，不是当前软件已支持的格式。
+外层使用独立revision `bitmap-bootstrap-source-v1`，阶段固定 `ObservedShapeOnly`；Range字段保持整个原v2报告并复用其深白名单，Bitmap字段只包含状态、代码、预期槽、覆盖容量、payload字节数和可空非驻留长度元数据。Invalid定位结果不能进入成功报告。这是测试工具合同，生产扫描入口不使用此格式。
 
 | 字段类别 | 约束与含义 |
 | --- | --- |

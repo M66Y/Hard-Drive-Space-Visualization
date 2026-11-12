@@ -6,6 +6,17 @@
 
 `NtfsMftMap.PlanRange` 按严格run映射产生最多64KiB的记录对齐窗口，检查有效长度、初始化范围及物理边界；`NtfsMftEnumerator` 串行复用一个64KiB managed页，最多4096槽，只保留21目标的解析对象。四类计数必须等于visited；未知逻辑/分配量与补查理由另计，不计算全卷占用。
 
+后续受控端到端模式使用独立 `NtfsMftIndexCollector`，同样单页有界读取，但最多保留4096个严格已解码对象、16384名称及1048576个UTF-16字符；旧枚举器仍仅保留21目标。`NtfsMftBitmapPrefix` 验证整个受限位图run映射及其与MFT DATA不重叠，只生成一个512字节读取计划或普通驻留前缀，不返回未验证地址。`NtfsFixtureDirectoryIndex` 只建已知dataRoot子树，身份/父链/硬链接/DOS、未知与Native补值来源分开；原扫描器对照只遍历内存结果，实际I/O由已核验backend执行。
+
+```powershell
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-bitmap-prefix-tests
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-fixture-index-tests
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-fixture-fast-scan-tests
+pwsh -NoProfile -File tests/NtfsFixtureFastScanEvidence.Tests.ps1
+```
+
+合成检查分别94 prefix、96 index、12 collector+43 source；真实脚本 `-FastScan` 已通过473项，固定21对象/21目录/27入口及两种大小与DiskScanner一致。原始总请求6次/263680字节，不是整盘吞吐；14对象需Native分配补值。新Lease profile上限4195840/256，旧值不改。所有纯测试不访问卷，真实新建VHD仅在当前轮授权内使用，见[使用入口](../../../scripts/ntfs-prototype/README.md)与[合并证据](../../../iterations/2026-11-12-22-ntfs-fast-scan/README.md)。
+
 `NtfsBoundedMftSource` 仅由真实归属factory建立，私有token/map绑定同一持锁句柄。独立读取profile最多256次ReadFile尝试、4MiB+1024请求字节，`ReadInto`复用一个64KiB加对齐填充的原生分配；旧Acquire/Read仍2MiB/128次。解码另有每记录副本，以上并非整个进程的内存上限。同步I/O中的取消不能即时打断调用；复制后才取消时私有页可能已改变，但不会发布结果。
 
 ```powershell

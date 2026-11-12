@@ -1,0 +1,328 @@
+{
+  "schema": 1,
+  "status": "bitmap_observed",
+  "stage": "BitmapBootstrapObserved",
+  "code": "None",
+  "native_error": 0,
+  "exit_code": 0,
+  "checks": 473,
+  "failures": 0,
+  "detached": true,
+  "cleanup_completed": true,
+  "lookup_experiment": null,
+  "lease_experiment": null,
+  "special_lookup": null,
+  "special_cost": null,
+  "mode": "bitmap-bootstrap",
+  "kernel_matrix": null,
+  "all_decoded": null,
+  "capture_cleanup_status": null,
+  "raw_comparison": null,
+  "raw_verified": false,
+  "source_adapter": null,
+  "source_verified": false,
+  "mft_range": null,
+  "range_classified": false,
+  "bitmap_source": {
+    "Revision": "bitmap-bootstrap-source-v1",
+    "Stage": "ObservedShapeOnly",
+    "Range": {
+      "Revision": "bounded-mft-source-v2",
+      "EvidenceKind": "NativeOwnedFixture",
+      "GuardOwned": true,
+      "TokenBound": true,
+      "MapBound": true,
+      "Closed": true,
+      "RejectedReads": 0,
+      "Enumeration": {
+        "ValidBytes": 262144,
+        "ExpectedSlots": 256,
+        "VisitedSlots": 256,
+        "Decoded": 67,
+        "Free": 0,
+        "Unsupported": 6,
+        "Invalid": 183,
+        "LookupRequired": 24,
+        "UnknownLogical": 0,
+        "UnknownAllocated": 17,
+        "Pages": 4,
+        "CompletedCursor": true,
+        "MatchedObjects": 21,
+        "UnknownAllocationObjects": 14,
+        "MftRuns": 1,
+        "ReadCalls": 5,
+        "RequestedBytes": 263168,
+        "PhysicalSectorBytes": 512,
+        "LockAcquired": true,
+        "UnlockSucceeded": true,
+        "PostNativeStable": true,
+        "Cases": [
+          {
+            "CaseId": "A-Ordinary-8",
+            "Kind": "Ordinary",
+            "NameLength": 8,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Matched"
+          },
+          {
+            "CaseId": "A-Ordinary-24",
+            "Kind": "Ordinary",
+            "NameLength": 24,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Matched"
+          },
+          {
+            "CaseId": "A-Ordinary-64",
+            "Kind": "Ordinary",
+            "NameLength": 64,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Matched"
+          },
+          {
+            "CaseId": "A-Compressed-8",
+            "Kind": "Compressed",
+            "NameLength": 8,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Unknown"
+          },
+          {
+            "CaseId": "A-Compressed-24",
+            "Kind": "Compressed",
+            "NameLength": 24,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Unknown"
+          },
+          {
+            "CaseId": "A-Compressed-64",
+            "Kind": "Compressed",
+            "NameLength": 64,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Unknown"
+          },
+          {
+            "CaseId": "A-Sparse-8",
+            "Kind": "Sparse",
+            "NameLength": 8,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Unknown"
+          },
+          {
+            "CaseId": "A-Sparse-24",
+            "Kind": "Sparse",
+            "NameLength": 24,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Unknown"
+          },
+          {
+            "CaseId": "A-Sparse-64",
+            "Kind": "Sparse",
+            "NameLength": 64,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Unknown"
+          },
+          {
+            "CaseId": "B-Ordinary-8",
+            "Kind": "Ordinary",
+            "NameLength": 8,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Matched"
+          },
+          {
+            "CaseId": "B-Ordinary-64",
+            "Kind": "Ordinary",
+            "NameLength": 64,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Matched"
+          },
+          {
+            "CaseId": "B-Compressed-8",
+            "Kind": "Compressed",
+            "NameLength": 8,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Unknown"
+          },
+          {
+            "CaseId": "B-Compressed-64",
+            "Kind": "Compressed",
+            "NameLength": 64,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Unknown"
+          },
+          {
+            "CaseId": "B-Sparse-8",
+            "Kind": "Sparse",
+            "NameLength": 8,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Unknown"
+          },
+          {
+            "CaseId": "B-Sparse-64",
+            "Kind": "Sparse",
+            "NameLength": 64,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Unknown"
+          },
+          {
+            "CaseId": "C-Ordinary-8",
+            "Kind": "Ordinary",
+            "NameLength": 8,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Matched"
+          },
+          {
+            "CaseId": "C-Ordinary-64",
+            "Kind": "Ordinary",
+            "NameLength": 64,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Matched"
+          },
+          {
+            "CaseId": "C-Compressed-8",
+            "Kind": "Compressed",
+            "NameLength": 8,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Unknown"
+          },
+          {
+            "CaseId": "C-Compressed-64",
+            "Kind": "Compressed",
+            "NameLength": 64,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Unknown"
+          },
+          {
+            "CaseId": "C-Sparse-8",
+            "Kind": "Sparse",
+            "NameLength": 8,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Unknown"
+          },
+          {
+            "CaseId": "C-Sparse-64",
+            "Kind": "Sparse",
+            "NameLength": 64,
+            "RawCode": "Decoded",
+            "IdentityMatched": true,
+            "LogicalMatched": true,
+            "LinksMatched": true,
+            "NamesMatched": true,
+            "AllocationCheck": "Unknown"
+          }
+        ],
+        "AllZeroInvalid": 182,
+        "CodeCounts": [
+          {
+            "Status": "Decoded",
+            "Code": "Decoded",
+            "Count": 67
+          },
+          {
+            "Status": "Invalid",
+            "Code": "Signature",
+            "Count": 182
+          },
+          {
+            "Status": "Invalid",
+            "Code": "SparseMappingFlags",
+            "Count": 1
+          },
+          {
+            "Status": "Unsupported",
+            "Code": "RecordFlags",
+            "Count": 6
+          }
+        ]
+      }
+    },
+    "Bitmap": {
+      "Status": "Deferred",
+      "Code": "BitmapNonresidentPayloadBudget",
+      "ExpectedSlots": 256,
+      "CoveredSlots": 0,
+      "PayloadBytes": 0,
+      "NonresidentMetadata": null
+    }
+  },
+  "bitmap_observed": true,
+  "native_operation": "None"
+}

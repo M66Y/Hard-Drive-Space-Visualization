@@ -1,7 +1,7 @@
 #requires -Version 7.4
 # Semantic result-code whitelist. Unknown text is never forwarded to retained results.
 function ConvertTo-FixtureCodeEvidence($Value, $Status) {
-    if ($Status -isnot [string] -or $Status -cnotin @('passed','collected','verified','source_verified','range_classified','failed')) {
+    if ($Status -isnot [string] -or $Status -cnotin @('passed','collected','verified','source_verified','range_classified','bitmap_observed','fixture_scanned','failed')) {
         throw 'FIXTURE_CODE_EVIDENCE_INVALID'
     }
     if ($Status -cne 'failed') {
@@ -24,7 +24,13 @@ function ConvertTo-FixtureCodeEvidence($Value, $Status) {
         'RAW_EVIDENCE_MISSING','RAW_COMPARISON_EVIDENCE_INVALID','MATRIX_JSON_INVALID',
         'SOURCE_EVIDENCE_MISSING','SOURCE_ADAPTER_EVIDENCE_INVALID',
         'MFT_RANGE_EVIDENCE_MISSING','MFT_ENUMERATION_EVIDENCE_INVALID',
-        'SourceRangeBudget','SourceEnumerationFailed','SourceBufferReleaseFailed','RangeOwnedClosureVerified','RangeFixedTargetsVerified',
+        'BITMAP_SOURCE_EVIDENCE_MISSING','BITMAP_BOOTSTRAP_EVIDENCE_INVALID','BitmapOwnedClosureVerified','BitmapFixedTargetsVerified',
+        'FIXTURE_FAST_SCAN_EVIDENCE_MISSING','FIXTURE_FAST_SCAN_EVIDENCE_INVALID','FastOwnedClosureVerified','FastFixtureComparisonVerified',
+        'SourceFastBackendInvalid','SourceWitnessInvalid','SourceFastBitmapFailed','SourceBitmapCorroborationFailed',
+        'SourceFastIndexFailed','SourceFastComparisonFailed','FixtureWitnessScope','FixtureWitnessAdapter','FixtureWitnessDirectory',
+        'FixtureWitnessCreate','FixtureWitnessIdentity','FixtureWitnessCleanup','FixtureWitnessChanged','FixtureFastScanScope',
+        'FixtureWitnessDelete','FixtureWitnessNotReleased','FixtureWitnessOpen','FixtureWitnessQuery',
+        'SourceProfileMismatch','SourceBitmapInvalid','SourceBitmapShapeInvalid','SourceRangeBudget','SourceEnumerationFailed','SourceBufferReleaseFailed','RangeOwnedClosureVerified','RangeFixedTargetsVerified',
         'FixtureAbsolutePath','FixtureAdapter','FixtureAliasBinding','FixtureAlignmentBounds',
         'FixtureBaselineBudget','FixtureBaselineCase','FixtureBaselinePath','FixtureCaseBudget',
         'FixtureContextClosed','FixtureControlBounds','FixtureControlFailed','FixtureDataRoot',

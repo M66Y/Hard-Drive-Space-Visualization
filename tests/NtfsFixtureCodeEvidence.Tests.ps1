@@ -19,7 +19,7 @@ function RejectSuccess($Code, $Status) {
     try { ConvertTo-FixtureCodeEvidence $Code $Status | Out-Null } catch { $message = $_.Exception.Message }
     Check ($message -ceq 'FIXTURE_CODE_EVIDENCE_INVALID') 'success rejects a missing or non-None result code'
 }
-foreach ($status in @('passed','collected','verified','source_verified','range_classified')) {
+foreach ($status in @('passed','collected','verified','source_verified','range_classified','bitmap_observed','fixture_scanned')) {
     Check ((ConvertTo-FixtureCodeEvidence 'None' $status) -ceq 'None') 'successful fixture mode has exactly None code'
     foreach ($bad in @($null,'','none','OperationFailed','RawUnlockSucceeded','PrivateMarker123',$true,1,@('None'))) { RejectSuccess $bad $status }
 }
@@ -107,6 +107,8 @@ function SummaryResult($Code, [string]$SummaryStatus, [string]$Expected, [int]$E
     $RawRecords = $Expected -ceq 'verified'; $KernelDiagnostics = $Expected -ceq 'collected'
     $SourceAdapter = $Expected -ceq 'source_verified'; $sourceEvidence='synthetic-source'
     $MftRange = $Expected -ceq 'range_classified'; $rangeEvidence='synthetic-range'
+    $BitmapBootstrap = $Expected -ceq 'bitmap_observed'; $bitmapEvidence='synthetic-bitmap'
+    $FastScan = $Expected -ceq 'fixture_scanned'; $fastEvidence='synthetic-fast'
     $nativeError=0; $nativeOperation='None'
     if ($null -ne $InputNativeError) {$summary | Add-Member -NotePropertyName native_error -NotePropertyValue $InputNativeError}
     if ($null -ne $InputNativeOperation) {$summary | Add-Member -NotePropertyName native_operation -NotePropertyValue $InputNativeOperation}
@@ -119,7 +121,7 @@ function SummaryResult($Code, [string]$SummaryStatus, [string]$Expected, [int]$E
     . $exportBlock
     return $result
 }
-foreach ($mode in @('passed','collected','verified','source_verified','range_classified')) {
+foreach ($mode in @('passed','collected','verified','source_verified','range_classified','bitmap_observed','fixture_scanned')) {
     $result = SummaryResult 'None' $mode $mode 0
     Check ($result.status -ceq $mode -and $result.code -ceq 'None') 'valid result keeps its own success mode'
     $result = SummaryResult 'PrivateMarker123' $mode $mode 0
@@ -143,7 +145,7 @@ $result = SummaryResult 'None' 'source_verified' 'source_verified' 0
 Check ($result.mode -ceq 'fixture-source' -and $result.source_verified -and $null -ne $result.source_adapter -and -not $result.raw_verified -and $null -eq $result.raw_comparison) 'source evidence has a distinct success mode and no raw success alias'
 $result = SummaryResult 'None' 'source_verified' 'source_verified' 0 -CleanupFailure $true
 Check (-not $result.source_verified -and $null -eq $result.source_adapter) 'source cleanup failure clears its success evidence'
-foreach ($foreign in @('passed','collected','verified')) {
+foreach ($foreign in @('passed','collected','verified','bitmap_observed')) {
     $result = SummaryResult 'None' $foreign 'source_verified' 0
     Check ($result.status -ceq 'failed' -and -not $result.source_verified -and $null -eq $result.source_adapter) 'other mode success cannot satisfy source mode'
     $result = SummaryResult 'None' 'source_verified' $foreign 0
@@ -152,13 +154,13 @@ foreach ($foreign in @('passed','collected','verified')) {
 $conflict = @($wrapperAst.EndBlock.Statements | Where-Object {$_ -is [Management.Automation.Language.IfStatementAst] -and $_.Extent.Text.Contains('CONFLICTING_FIXTURE_MODES')})
 Check ($conflict.Count -eq 1) 'identify pure fixture mode conflict guard'
 $conflictBlock = [scriptblock]::Create($conflict[0].Extent.Text)
-foreach ($kernel in @($false,$true)) { foreach ($raw in @($false,$true)) { foreach ($source in @($false,$true)) { foreach ($range in @($false,$true)) {
-    $KernelDiagnostics=$kernel; $RawRecords=$raw; $SourceAdapter=$source; $MftRange=$range
+foreach ($kernel in @($false,$true)) { foreach ($raw in @($false,$true)) { foreach ($source in @($false,$true)) { foreach ($range in @($false,$true)) { foreach ($bitmap in @($false,$true)) { foreach ($fast in @($false,$true)) {
+    $KernelDiagnostics=$kernel; $RawRecords=$raw; $SourceAdapter=$source; $MftRange=$range; $BitmapBootstrap=$bitmap; $FastScan=$fast
     $message=$null
     try { . $conflictBlock } catch { $message=$_.Exception.Message }
-    $expectedConflict=([int]$kernel+[int]$raw+[int]$source+[int]$range) -gt 1
+    $expectedConflict=([int]$kernel+[int]$raw+[int]$source+[int]$range+[int]$bitmap+[int]$fast) -gt 1
     Check (($expectedConflict -and $message -ceq 'CONFLICTING_FIXTURE_MODES') -or (-not $expectedConflict -and $null -eq $message)) 'only one real fixture mode may be selected'
-} } } }
+} } } } } }
 foreach ($code in @('SourceNativeFailed','SourceTokenMismatch','SourceNotActive','SourceUnlockFailed','SourceFactsChanged','FixtureImageFixedType','FixtureImageSubtype','FixturePartitionIdentity')) {
     Check ((ConvertTo-FixtureCodeEvidence $code 'failed') -ceq $code) 'source and guard error categories are semantic fixed codes'
 }
@@ -183,7 +185,7 @@ $result = SummaryResult 'None' 'range_classified' 'range_classified' 0
 Check ($result.mode -ceq 'mft-range' -and $result.range_classified -and $null -ne $result.mft_range -and -not $result.source_verified -and -not $result.raw_verified) 'range classification success is independent of earlier source/raw success'
 $result = SummaryResult 'None' 'range_classified' 'range_classified' 0 -CleanupFailure $true
 Check (-not $result.range_classified -and $null -eq $result.mft_range) 'range cleanup failure clears classification evidence'
-foreach ($foreign in @('passed','collected','verified','source_verified')) {
+foreach ($foreign in @('passed','collected','verified','source_verified','bitmap_observed')) {
     $result = SummaryResult 'None' $foreign 'range_classified' 0
     Check ($result.status -ceq 'failed' -and -not $result.range_classified -and $null -eq $result.mft_range) 'foreign success cannot satisfy range mode'
     $result = SummaryResult 'None' 'range_classified' $foreign 0
@@ -192,5 +194,49 @@ foreach ($foreign in @('passed','collected','verified','source_verified')) {
 foreach ($bad in @(5,-1,$true,'0')) {
     $result = SummaryResult 'None' 'range_classified' 'range_classified' 0 -InputNativeError $bad
     Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID') 'range native diagnostics cannot contradict success or contain invalid types'
+}
+$result = SummaryResult 'None' 'bitmap_observed' 'bitmap_observed' 0
+Check ($result.mode -ceq 'bitmap-bootstrap' -and $result.bitmap_observed -and $null -ne $result.bitmap_source -and
+    -not $result.range_classified -and -not $result.source_verified -and -not $result.raw_verified -and $null -eq $result.mft_range) 'bitmap observation has an independent success mode without range or raw aliases'
+$result = SummaryResult 'None' 'bitmap_observed' 'bitmap_observed' 0 -CleanupFailure $true
+Check ($result.status -ceq 'cleanup_failed' -and -not $result.bitmap_observed -and $null -eq $result.bitmap_source) 'bitmap cleanup failure clears all observation evidence'
+foreach ($foreign in @('passed','collected','verified','source_verified','range_classified')) {
+    $result = SummaryResult 'None' $foreign 'bitmap_observed' 0
+    Check ($result.status -ceq 'failed' -and -not $result.bitmap_observed -and $null -eq $result.bitmap_source) 'foreign success cannot satisfy bitmap mode'
+    $result = SummaryResult 'None' 'bitmap_observed' $foreign 0
+    Check ($result.status -ceq 'failed' -and -not $result.bitmap_observed -and $null -eq $result.bitmap_source) 'bitmap observation cannot satisfy old modes'
+}
+foreach ($bad in @(5,-1,$true,'0',1.5)) {
+    $result = SummaryResult 'None' 'bitmap_observed' 'bitmap_observed' 0 -InputNativeError $bad
+    Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID' -and $null -eq $result.bitmap_source) 'bitmap native diagnostics cannot contradict success'
+}
+$result = SummaryResult 'None' 'bitmap_observed' 'bitmap_observed' 0 -InputNativeOperation 'ReadFailed'
+Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID' -and -not $result.bitmap_observed) 'bitmap success rejects native failure operations'
+$result = SummaryResult 'SourceNativeFailed' 'failed' 'bitmap_observed' 1 -InputNativeError 5 -InputNativeOperation 'LockFailed'
+Check ($result.status -ceq 'failed' -and $result.native_operation -ceq 'LockFailed' -and $null -eq $result.bitmap_source) 'bitmap controlled native failure never retains success evidence'
+foreach ($code in @('SourceProfileMismatch','SourceBitmapInvalid','SourceBitmapShapeInvalid','BITMAP_SOURCE_EVIDENCE_MISSING','BITMAP_BOOTSTRAP_EVIDENCE_INVALID')) {
+    Check ((ConvertTo-FixtureCodeEvidence $code 'failed') -ceq $code) 'bitmap source and transport failures use fixed semantic codes'
+}
+$result = SummaryResult 'None' 'fixture_scanned' 'fixture_scanned' 0
+Check ($result.mode -ceq 'fixture-fast-scan' -and $result.fixture_scanned -and $null -ne $result.fast_scan -and
+    -not $result.bitmap_observed -and -not $result.range_classified -and -not $result.source_verified -and -not $result.raw_verified) 'fast comparison has its own mode and no old success aliases'
+$result = SummaryResult 'None' 'fixture_scanned' 'fixture_scanned' 0 -CleanupFailure $true
+Check ($result.status -ceq 'cleanup_failed' -and -not $result.fixture_scanned -and $null -eq $result.fast_scan) 'fast cleanup failure clears comparison evidence'
+foreach ($foreign in @('passed','collected','verified','source_verified','range_classified','bitmap_observed')) {
+    $result=SummaryResult 'None' $foreign 'fixture_scanned' 0
+    Check ($result.status -ceq 'failed' -and -not $result.fixture_scanned -and $null -eq $result.fast_scan) 'foreign success cannot satisfy fast mode'
+    $result=SummaryResult 'None' 'fixture_scanned' $foreign 0
+    Check ($result.status -ceq 'failed' -and -not $result.fixture_scanned -and $null -eq $result.fast_scan) 'fast comparison cannot satisfy old modes'
+}
+foreach ($bad in @(5,-1,$true,'0',1.5)) {
+    $result=SummaryResult 'None' 'fixture_scanned' 'fixture_scanned' 0 -InputNativeError $bad
+    Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID' -and $null -eq $result.fast_scan) 'fast native diagnostics cannot contradict success'
+}
+$result=SummaryResult 'None' 'fixture_scanned' 'fixture_scanned' 0 -InputNativeOperation 'ReadFailed'
+Check ($result.status -ceq 'failed' -and $result.code -ceq 'SUMMARY_INVALID') 'fast success cannot carry a native read failure'
+foreach ($code in @('SourceFastBackendInvalid','SourceWitnessInvalid','SourceFastBitmapFailed','SourceBitmapCorroborationFailed',
+    'SourceFastIndexFailed','SourceFastComparisonFailed','FIXTURE_FAST_SCAN_EVIDENCE_INVALID','FIXTURE_FAST_SCAN_EVIDENCE_MISSING',
+    'FixtureWitnessDelete','FixtureWitnessNotReleased','FixtureWitnessOpen','FixtureWitnessQuery')) {
+    Check ((ConvertTo-FixtureCodeEvidence $code 'failed') -ceq $code) 'fast failures use fixed semantic codes'
 }
 Write-Output ('PASS NTFS fixture code evidence checks: ' + $checks)

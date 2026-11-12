@@ -17,6 +17,37 @@ if (args.Length > 0 && args[0] == "--ntfs-record-replay")
 Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
 if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
 if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
+if (args.Contains("--ntfs-bitmap-prefix-tests"))
+{
+    try { int checks = DiskAtlas.NtfsPrototype.NtfsMftBitmapPrefixTests.Run(); Console.WriteLine($"PASS NTFS bitmap prefix checks: {checks}; synthetic mappings only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL NTFS bitmap prefix; no private details emitted"); return 1; }
+}
+if (args.Contains("--ntfs-fixture-index-tests"))
+{
+    try { int checks = DiskAtlas.NtfsPrototype.NtfsFixtureDirectoryIndexTests.Run(); Console.WriteLine($"PASS NTFS fixture index checks: {checks}; synthetic records only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL NTFS fixture index; no private details emitted"); return 1; }
+}
+if (args.Contains("--ntfs-fixture-fast-scan-tests"))
+{
+    try
+    {
+        int collector = DiskAtlas.NtfsPrototype.NtfsMftIndexCollectorTests.Run();
+        int source = DiskAtlas.NtfsPrototype.NtfsBoundedMftSourceTests.RunFastScanTests();
+        Console.WriteLine($"PASS NTFS fixture fast scan checks: {collector} collector; {source} source; simulated inputs only");
+        return 0;
+    }
+    catch { Console.Error.WriteLine("FAIL NTFS fixture fast scan; no private details emitted"); return 1; }
+}
+if (args.Contains("--ntfs-bitmap-source-tests"))
+{
+    try
+    {
+        int checks = DiskAtlas.NtfsPrototype.NtfsBoundedMftSourceTests.RunBitmapObservationTests();
+        Console.WriteLine($"PASS NTFS bitmap source checks: {checks}; simulated source only");
+        return 0;
+    }
+    catch { Console.Error.WriteLine("FAIL NTFS bitmap source; no private details emitted"); return 1; }
+}
 if (args.Contains("--ntfs-bitmap-attribute-tests"))
 {
     try

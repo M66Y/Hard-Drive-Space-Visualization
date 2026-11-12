@@ -31,12 +31,15 @@ internal sealed class NtfsRawVolumeLease : IDisposable
     internal const long MaximumRequestedBytes = 2 * 1024 * 1024;
     internal const int BoundedMftMaximumReadCalls = 256;
     internal const long BoundedMftMaximumRequestedBytes = 4 * 1024 * 1024 + 1024;
+    internal const int BitmapPrefixMaximumReadCalls = 256;
+    internal const long BitmapPrefixMaximumRequestedBytes = 4 * 1024 * 1024 + 1024 + 512;
+    private enum ReadProfile { RecordArray, BoundedMft, BitmapPrefix }
     private readonly object gate = new();
     private readonly SafeFileHandle volume;
     private readonly long volumeBytes;
     private readonly int logicalSector, physicalSector;
     private readonly INative native;
-    private readonly bool boundedMft;
+    private readonly ReadProfile profile;
     private bool referenceAdded, locked, disposed;
     private int readCalls;
     private long requestedBytes;
@@ -45,10 +48,10 @@ internal sealed class NtfsRawVolumeLease : IDisposable
     private IntPtr reusableAllocation, reusableBuffer;
     private bool bufferReleaseSucceeded = true;
 
-    private NtfsRawVolumeLease(SafeFileHandle borrowedVolume, long bytes, int logical, int physical, INative adapter, bool boundedMft)
+    private NtfsRawVolumeLease(SafeFileHandle borrowedVolume, long bytes, int logical, int physical, INative adapter, ReadProfile profile)
     {
         volume = borrowedVolume; volumeBytes = bytes; logicalSector = logical; physicalSector = physical; native = adapter;
-        this.boundedMft = boundedMft;
+        this.profile = profile;
     }
 
     internal bool UnlockSucceeded { get { lock (gate) return unlockCode == "Unlocked"; } }
@@ -66,18 +69,26 @@ internal sealed class NtfsRawVolumeLease : IDisposable
     // non-owning handle. Tests do not invoke Lock/Read on any real volume.
     internal static NtfsRawVolumeLease AcquireForTests(SafeFileHandle borrowedVolume, long volumeBytes,
         int logicalSector, int physicalSector, INative adapter, CancellationToken token = default) =>
-        AcquireCore(borrowedVolume, volumeBytes, logicalSector, physicalSector, adapter, false, token);
+        AcquireCore(borrowedVolume, volumeBytes, logicalSector, physicalSector, adapter, ReadProfile.RecordArray, token);
 
     internal static NtfsRawVolumeLease AcquireBoundedMft(SafeFileHandle borrowedVolume, long volumeBytes,
         int logicalSector, int physicalSector, CancellationToken token = default) =>
-        AcquireCore(borrowedVolume, volumeBytes, logicalSector, physicalSector, Native.Instance, true, token);
+        AcquireCore(borrowedVolume, volumeBytes, logicalSector, physicalSector, Native.Instance, ReadProfile.BoundedMft, token);
 
     internal static NtfsRawVolumeLease AcquireBoundedMftForTests(SafeFileHandle borrowedVolume, long volumeBytes,
         int logicalSector, int physicalSector, INative adapter, CancellationToken token = default) =>
-        AcquireCore(borrowedVolume, volumeBytes, logicalSector, physicalSector, adapter, true, token);
+        AcquireCore(borrowedVolume, volumeBytes, logicalSector, physicalSector, adapter, ReadProfile.BoundedMft, token);
+
+    internal static NtfsRawVolumeLease AcquireBitmapPrefix(SafeFileHandle borrowedVolume, long volumeBytes,
+        int logicalSector, int physicalSector, CancellationToken token = default) =>
+        AcquireCore(borrowedVolume, volumeBytes, logicalSector, physicalSector, Native.Instance, ReadProfile.BitmapPrefix, token);
+
+    internal static NtfsRawVolumeLease AcquireBitmapPrefixForTests(SafeFileHandle borrowedVolume, long volumeBytes,
+        int logicalSector, int physicalSector, INative adapter, CancellationToken token = default) =>
+        AcquireCore(borrowedVolume, volumeBytes, logicalSector, physicalSector, adapter, ReadProfile.BitmapPrefix, token);
 
     private static NtfsRawVolumeLease AcquireCore(SafeFileHandle borrowedVolume, long volumeBytes,
-        int logicalSector, int physicalSector, INative adapter, bool boundedMft, CancellationToken token)
+        int logicalSector, int physicalSector, INative adapter, ReadProfile profile, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(borrowedVolume);
         ArgumentNullException.ThrowIfNull(adapter);
@@ -86,7 +97,7 @@ internal sealed class NtfsRawVolumeLease : IDisposable
             (physicalSector & (physicalSector - 1)) != 0 || physicalSector < logicalSector ||
             volumeBytes < logicalSector || volumeBytes % logicalSector != 0) throw new InvalidDataException("RawVolumeGeometry");
         token.ThrowIfCancellationRequested();
-        var lease = new NtfsRawVolumeLease(borrowedVolume, volumeBytes, logicalSector, physicalSector, adapter, boundedMft);
+        var lease = new NtfsRawVolumeLease(borrowedVolume, volumeBytes, logicalSector, physicalSector, adapter, profile);
         try
         {
             borrowedVolume.DangerousAddRef(ref lease.referenceAdded);
@@ -113,7 +124,7 @@ internal sealed class NtfsRawVolumeLease : IDisposable
             try
             {
                 token.ThrowIfCancellationRequested();
-                if (boundedMft) throw new InvalidDataException("RawReadProfile");
+                if (profile != ReadProfile.RecordArray) throw new InvalidDataException("RawReadProfile");
                 if (!locked) throw new InvalidDataException("RawVolumeNotLocked");
                 if (volumeOffset < 0 || volumeOffset % logicalSector != 0 || length is < 1 or > MaximumReadLength ||
                     length % logicalSector != 0 || volumeOffset > volumeBytes - length)
@@ -140,12 +151,14 @@ internal sealed class NtfsRawVolumeLease : IDisposable
             try
             {
                 token.ThrowIfCancellationRequested();
-                if (!boundedMft) throw new InvalidDataException("RawReadProfile");
+                if (profile == ReadProfile.RecordArray) throw new InvalidDataException("RawReadProfile");
                 int length = destination.Length;
                 if (!locked || volumeOffset < 0 || volumeOffset % logicalSector != 0 || length is < 1 or > MaximumReadLength ||
                     length % logicalSector != 0 || volumeOffset > volumeBytes - length)
                     throw new InvalidDataException("RawReadBounds");
-                if (readCalls >= BoundedMftMaximumReadCalls || length > BoundedMftMaximumRequestedBytes - requestedBytes)
+                int maximumCalls = profile == ReadProfile.BitmapPrefix ? BitmapPrefixMaximumReadCalls : BoundedMftMaximumReadCalls;
+                long maximumBytes = profile == ReadProfile.BitmapPrefix ? BitmapPrefixMaximumRequestedBytes : BoundedMftMaximumRequestedBytes;
+                if (readCalls >= maximumCalls || length > maximumBytes - requestedBytes)
                     throw new InvalidDataException("RawReadBudget");
                 if (!MemoryMarshal.TryGetArray((ReadOnlyMemory<byte>)destination, out var target) || target.Array == null)
                     throw new InvalidDataException("RawReadTarget");

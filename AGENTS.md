@@ -100,6 +100,7 @@
 1. 先确定用户问题、本次范围、保留行为和验收场景；检查现有代码、项目状态及历史记录。用证据确定优先级，先处理未收尾功能和影响正确性/隐私的缺陷。
 2. 范围明确的小改可直接实施。涉及整体布局、扫描架构、准确性策略、权限、持久化、日志采集、背景设置流程、依赖大版本、安装器或发布机制等较大改动，先给简短方案：现状、可选方向、建议、影响和验收方法，用户确定方向后再实施依赖该选择的部分。
 3. 方案已获认可后持续完成开发、验证、文档、记录和提交；不要对已获授权的日常步骤反复询问。
+   已确认范围内合并内部子步骤、必要验证和收尾，围绕一个可检查的交付目标推进；不为每个解析器、诊断字段或测试辅助类单独拆轮、归档和请求确认。用户给出时间预算时按交付优先级推进，范围扩大、权限或数据边界变化才另行确认，不以减少正确性/隐私检查换进度。
 4. 每轮审查取消/并发、错误恢复、资源释放、数据边界和用户操作闭环，修复范围内问题。无关发现写入计划，不扩大范围；未完成和未验证项明确列出。
 5. 功能“完成”需同时具备可运行实现、对应验收证据、真实限制说明、文档与迭代记录、清理及提交/推送结果。代码存在、构建成功或某组测试通过不能单独代表全部完成。
 6. 完成必要检查、隐私核查、迭代归档与本轮清理后，自动提交并上传本轮改动；正式版本才进入发布流程。
@@ -139,6 +140,8 @@
 - 有界MFT分类诊断当前使用v2摘要；`CodeCounts`只接收32种固定Status/Code配对，`AllZeroInvalid`只是严格Invalid中的全零观察，不改变Free或证明未分配。更改诊断合同需同步上述C#/PS检查、版本及深白名单，保留历史revision，不输出原始记录或任意异常文本；来源关闭/失败隔离仍适用，见[分类方案](docs/ntfs-classification-diagnostics-plan.md)。
 - NTFS 位图模型运行 `--ntfs-bitmap-model-tests`，仅合成输入，最多4096槽/512字节；结果固定Synthetic，三态位图声明与四类解码独立，缺失或未覆盖保持Unknown，不凭全零改成Free。真实MFT记录位图与卷簇位图不得混用，模拟绑定不是真实来源验证器；不由此新增Native读取或产品入口。外部集合/Memory访问的异常不可信，统一净化并用传入token检查取消，不能因异常类型看似受控而透传任意文本。见[模型方案](docs/ntfs-bitmap-model-plan.md)。
 - NTFS 受限BITMAP属性定位运行 `--ntfs-bitmap-attribute-tests`，改动另核对Map/枚举/位图模型回归；只从1024字节合成record0经严格Map/USA校验提取<=512字节普通驻留payload。Missing/Partial/Deferred/Invalid明确区分，非驻留不返回读取地址。Complete只表示字节容量，结果Synthetic不证明真实位序/来源/分配；不序列化payload，不默认接Native、v2或产品。见[属性方案](docs/ntfs-bitmap-attribute-plan.md)。
+- NTFS 自有来源形态观察运行 `--ntfs-bitmap-source-tests`、`tests/NtfsBitmapBootstrapEvidence.Tests.ps1`；真实入口为隔离脚本 `-BitmapBootstrap`，只复用原bootstrap，旧读取预算不扩。驻留/非驻留超限码分别表达，不由容量推断分配状态。见[来源说明](docs/ntfs-bitmap-source-plan.md)。
+- NTFS 受控端到端运行 `--ntfs-bitmap-prefix-tests`、`--ntfs-fixture-index-tests`、`--ntfs-fixture-fast-scan-tests`，共享改动另查raw-volume/bounded/fixture-source/bitmap-source回归及 `tests/NtfsFixtureFastScanEvidence.Tests.ps1`、`tests/NtfsFixtureCodeEvidence.Tests.ps1`。真实 `-FastScan` 仅在本轮明确授权内新建VHD：最多4096槽/4MiB+1536字节/256次请求，最多512字节位图读取，两个固定自建/删除witness。旧profile不扩，新权限不延续。`fixture_scanned` 仅表示固定夹具树与原扫描器一致；14对象Native补值、未知/严格拒绝、scope及非性能边界如实说明，不能当作个人整盘支持或WizTree级收益。见[合并范围](docs/ntfs-fixture-fast-scan-plan.md)。
 - NTFS 自有来源适配器运行 `--ntfs-fixture-source-tests`、`tests/NtfsSourceEvidence.Tests.ps1`、`tests/NtfsFixtureCodeEvidence.Tests.ps1` 及原隔离守卫。真实脚本 `-SourceAdapter` 只在本轮明确VHD许可内运行，固定record0+21对象；新模式为 `fixture-source`、成功为 `source_verified`，不与旧raw成功混用。准备期先验证fixed/no-parent、实际VHD/卷/marker归属再调用旧准备路径；实际来源factory另开自持句柄、私有token/map及固定Native后验，不能由caller bool、任意路径/句柄或模拟来源伪造。结果envelope关闭失效，旧immutable副本不能当当前证明。仅当前受控静态来源，不是全MFT/VSS/活跃卷验证，详见[来源方案](docs/ntfs-fixture-source-plan.md)。
 - 存储属性提示分支改动另运行 `--storage-attribute-tests`，只使用自有临时 NTFS 普通/压缩/稀疏及命名流夹具，能力缺失明确跳过。`--storage-attribute-observe` 只记录差异，退出成功不代表回归通过；对照无差异时不得宣称已复现误算或证明所有文件系统支持。
 - 混合目录调度改动补测 `--mixed-benchmark before/after` 的同夹具对比；用户明确指定实际目录后才使用 `--folder-benchmark`，其报告与隔离诊断仅留本机临时目录，不进入仓库。比较自动与高速必须核对完整扫描、结果一致性和运行顺序，保留异常波动样本。

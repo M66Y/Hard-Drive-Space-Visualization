@@ -1,0 +1,18 @@
+{
+  "baseline": "99fb9980d64fc5e83580b99aaeba3b7e18514af4",
+  "scope": "ConsolidatedOwnedFixtureNtfsPipeline",
+  "build": { "configuration": "Release", "warnings": 0, "errors": 0 },
+  "synthetic_checks": { "collector": 12, "fast_source": 43, "bitmap_prefix": 94, "fixture_index": 96, "raw_lease": 108, "old_bounded_source": 68, "bitmap_shape_source": 113, "fixture_guard": 309, "old_fixture_source": 63 },
+  "powershell_checks": { "fast_evidence": 312, "shape_evidence": 319, "wrapper_and_codes": 420, "old_v2_evidence": 477, "fixture_guards": 36 },
+  "native": {
+    "initial_observation": { "checks": 473, "status": "bitmap_observed", "fully_informative": false, "cleaned": true },
+    "refined_observation": { "checks": 473, "status": "bitmap_observed", "code": "BitmapNonresidentPayloadBudget", "cleaned": true },
+    "pipeline": { "checks": 473, "status": "fixture_scanned", "file_objects": 21, "file_entries": 27, "directories": 21, "logical_bytes": 21233664, "allocated_bytes": 917504, "record_allocation_objects": 7, "native_allocation_objects": 14, "positive_witnesses": 21, "released_witnesses": 2, "logical_bitmap_prefix_bytes": 32, "aligned_bitmap_request_bytes": 512, "read_calls": 6, "requested_bytes": 263680, "closed": true, "detached": true, "cleaned": true }
+  },
+  "independent_review": "NoBlockingFinding",
+  "raw_records_or_bitmaps_retained": false,
+  "performance_benchmark": false,
+  "personal_or_live_volume_support": false,
+  "production_ui_integration": false,
+  "packaging_or_release": false
+}

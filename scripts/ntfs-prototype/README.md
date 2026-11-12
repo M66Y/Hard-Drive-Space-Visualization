@@ -87,9 +87,35 @@ pwsh -NoProfile -File scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 `
 
 原始记录仅在内存，raw模式不创建留样会话；旧6条kernel样本仍仅本机保留。公开结果经过深层字段及语义代码白名单，不转发任意异常或标识。真实成功、失败尝试和未验收项见[本轮记录](../../iterations/2026-11-12-14-raw-records/README.md)。授权不延续到以后，不锁个人卷，不提供生产入口或打包。
 
+## 受控测试卷端到端流程
+
+已实现 `-FastScan`：自动创建新的256MiB隔离VHD，在原固定矩阵中生成21个测试对象及目录/硬链接；额外两个CREATE_NEW文件在同句柄身份核对后删除，用于核验释放槽。读取严格record0、受限MFT及所需位图前缀，建立固定夹具目录索引，并在解锁后用原 `DiskScanner` 逐项对照。它是开发验收入口，普通软件仍使用原扫描后端。
+
+```powershell
+# 开发机先构建测试DLL；本轮已明确允许隔离VHD后，在管理员PowerShell 7.4+执行：
+$result = Join-Path (Resolve-Path artifacts) ('ntfs-live-result-' + [guid]::NewGuid().ToString('N') + '.json')
+pwsh -NoProfile -File scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 -ResultPath $result -FastScan
+```
+
+该模式与其他实验开关互斥，不接受现有磁盘或镜像。新profile固定最多4096槽、4195840字节总请求/256次ReadFile尝试；位图最多512字节对齐读取，只解释覆盖本次槽数的前缀。映射元数据最多1MiB/128runs，即使只读首块也验证整个受限run列表。旧profile不变。首次使用本轮真实范围仍需明确确认，不把文档命令当以后自动提权/读盘许可。
+
+成功需同时核对 `status=fixture_scanned`、`fixture_scanned=true`、`detached=true`、`cleanup_completed=true` 及 `fast_scan`：
+
+- `Range`保留独立v2，记录仅MFT/bootstrap的请求量；`Bitmap`记录前缀、21正例与2已释放/严格Free槽，`Resources`为二者精确总量。
+- `Index`只统计 `FixedFixtureDataRoot`，`Comparison`逐项核名称、类型、完整身份、逻辑大小；分配按唯一对象汇总并对照根总量，不要求硬链接alias的归账位置一致。
+- 当前真实结果为21目录、21文件对象、27入口；逻辑21233664字节、分配917504字节，7对象分配来自记录、14来自前后验证的Native补值。非驻留前缀有效32字节，对齐请求512字节，总6次/263680请求字节。它们不是物理I/O、CPU/峰值内存或速度收益测量。
+
+失败/取消、来源失效、任何后验或清理失败清空成功摘要。原始页/位图/身份/地址/文件清单不进入公开结果；对照树仅内存使用。全部Native句柄、目录pin和witness文件句柄在阶段边界释放，不强制卸载不明卷。新路径的故障/取消目前以替身测试为主，真实只做正常闭环。
+
+本轮未接个人卷、活跃卷/VSS、主窗入口或发布；其它格式、Windows10新路径和规模收益仍待验证。可重复检查与证据见[合并记录](../../iterations/2026-11-12-22-ntfs-fast-scan/README.md)。旧6条kernel样本仍只本机保留，不新增原始留样。
+
+## 真实位图形态观察模式
+
+`-BitmapBootstrap` 对应 `bitmap-bootstrap` / `bitmap_observed`，复用同owner已读bootstrap，不新增原始读取。六字段观察与完整旧v2范围组成独立报告，只在21目标和完整关闭/后验之后发布。超512处理cap分别输出 `BitmapResidentPayloadBudget` 与 `BitmapNonresidentPayloadBudget`；仅表达形态，不解释分配。源码定位器内部Form不自动序列化，不向公有摘要加任意字段。本机复验473通过，确认非驻留超限；记录见同轮归档。
+
 ## 有界MFT范围模式
 
-仅本轮另获有界范围许可时，入口加 `-MftRange`，与其他三种开关互斥。它仍只创建和操作新的256MiB隔离VHD，不接受现有磁盘/镜像输入。准备期先验证真实归属和无父链，新factory再次绑定独立owner，锁成功才读取。
+仅本轮另获有界范围许可时，入口加 `-MftRange`，与其他实验模式开关互斥。它仍只创建和操作新的256MiB隔离VHD，不接受现有磁盘/镜像输入。准备期先验证真实归属和无父链，新factory再次绑定独立owner，锁成功才读取。
 
 ```powershell
 $result = Join-Path (Resolve-Path artifacts) ('ntfs-live-result-' + [guid]::NewGuid().ToString('N') + '.json')

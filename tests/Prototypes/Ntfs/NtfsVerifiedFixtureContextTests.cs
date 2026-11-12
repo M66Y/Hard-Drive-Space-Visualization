@@ -173,33 +173,140 @@ internal static class NtfsVerifiedFixtureContextTests
             Check(cancelled && cancelFinal.Handles.Count == 2 && cancelFinal.Handles.All(x => x.IsClosed),
                 "cancellation at the final data-root check cannot publish context or successful preparation");
         }
-        foreach (string mode in new[] { "fixture-source", "mft-range", "comparison", "raw-records" })
-        foreach (bool bounded in new[] { false, true })
+        foreach (string mode in new[] { "fixture-source", "mft-range", "bitmap-bootstrap", "fixture-fast-scan", "comparison", "raw-records", "kernel-diagnostics", "Bitmap-bootstrap" })
+        foreach (int factory in new[] { 0, 1, 2, 3 })
         {
             var scope = new Fake(); scope.ChangeManifest(value => value["mode"] = mode);
             scope.Marker = (byte[])scope.Manifest.Clone();
             bool accepted = false;
             try
             {
-                using var context = bounded
-                    ? NtfsVerifiedFixtureContext.CreateBoundedMftForTests(scope.ManifestPath, scope.Repository, scope)
-                    : scope.Open();
+                using var context = factory switch {
+                    0 => scope.Open(),
+                    1 => NtfsVerifiedFixtureContext.CreateBoundedMftForTests(scope.ManifestPath, scope.Repository, scope),
+                    2 => NtfsVerifiedFixtureContext.CreateBitmapObservationForTests(scope.ManifestPath, scope.Repository, scope),
+                    _ => NtfsVerifiedFixtureContext.CreateFastScanForTests(scope.ManifestPath, scope.Repository, scope)
+                };
                 accepted = context.IsSynthetic;
             }
             catch (NtfsFixtureGuardException) { }
-            Check(accepted == (mode == (bounded ? "mft-range" : "fixture-source")),
-                "fixed and bounded factories cannot silently exchange their manifest permissions");
+            string expectedMode = factory switch { 0 => "fixture-source", 1 => "mft-range", 2 => "bitmap-bootstrap", _ => "fixture-fast-scan" };
+            Check(accepted == (mode == expectedMode),
+                "fixed bounded and bitmap factories cannot silently exchange their manifest permissions");
             Check(scope.Handles.All(handle => handle.IsClosed), "mode-isolated factory releases every opened synthetic handle");
+            Check(accepted || scope.Handles.Count == 0, "wrong factory mode fails before opening an image or volume");
         }
         var rangePreparation = new Fake(); rangePreparation.ChangeManifest(value => value["mode"] = "mft-range");
         rangePreparation.Marker = (byte[])rangePreparation.Manifest.Clone(); rangePreparation.MissingPaths.Add(rangePreparation.Data);
         NtfsVerifiedFixtureContext.VerifyPreparationBoundedMftForTests(rangePreparation.ManifestPath, rangePreparation.Repository, rangePreparation);
         Check(rangePreparation.Handles.All(handle => handle.IsClosed) && rangePreparation.StoragePaths.Count == 0,
             "bounded preparation validates ownership without publishing authority or reading absent targets");
+        var bitmapPreparation = new Fake(); bitmapPreparation.ChangeManifest(value => value["mode"] = "bitmap-bootstrap");
+        bitmapPreparation.Marker = bitmapPreparation.Manifest.ToArray(); bitmapPreparation.MissingPaths.Add(bitmapPreparation.Data);
+        NtfsVerifiedFixtureContext.VerifyPreparationBitmapObservationForTests(bitmapPreparation.ManifestPath, bitmapPreparation.Repository, bitmapPreparation);
+        Check(bitmapPreparation.Handles.Count == 2 && bitmapPreparation.Handles.All(handle => handle.IsClosed) && bitmapPreparation.StoragePaths.Count == 0,
+            "bitmap preparation validates and closes metadata handles without opening any fixture targets");
+        bool bitmapDataRequired = false;
+        try { using var ignored = NtfsVerifiedFixtureContext.CreateBitmapObservationForTests(bitmapPreparation.ManifestPath, bitmapPreparation.Repository, bitmapPreparation); }
+        catch (NtfsFixtureGuardException) { bitmapDataRequired = true; }
+        Check(bitmapDataRequired && bitmapPreparation.Handles.All(handle => handle.IsClosed) && bitmapPreparation.StoragePaths.Count == 0,
+            "bitmap source construction still requires the complete derived data directory");
+        foreach (string mode in new[] { "fixture-source", "mft-range", "comparison", "raw-records", "kernel-diagnostics", "Bitmap-bootstrap" })
+        {
+            var foreignPreparation = new Fake(); foreignPreparation.ChangeManifest(value => value["mode"] = mode);
+            foreignPreparation.Marker = foreignPreparation.Manifest.ToArray(); bool rejected = false;
+            try { NtfsVerifiedFixtureContext.VerifyPreparationBitmapObservationForTests(foreignPreparation.ManifestPath, foreignPreparation.Repository, foreignPreparation); }
+            catch (NtfsFixtureGuardException error) { rejected = error.Code == "FixtureManifestIdentity"; }
+            Check(rejected && foreignPreparation.Handles.Count == 0 && foreignPreparation.StoragePaths.Count == 0,
+                "bitmap preparation cannot accept a legacy or case-variant manifest mode");
+        }
+        var wrongBitmapVolume = new Fake(); wrongBitmapVolume.ChangeManifest(value => value["mode"] = "bitmap-bootstrap");
+        wrongBitmapVolume.Marker = wrongBitmapVolume.Manifest.ToArray(); wrongBitmapVolume.MutateControl(0x560000, bytes => W32(bytes, 8, 8));
+        bool wrongVolumeRejected = false;
+        try { NtfsVerifiedFixtureContext.VerifyPreparationBitmapObservationForTests(wrongBitmapVolume.ManifestPath, wrongBitmapVolume.Repository, wrongBitmapVolume); }
+        catch (NtfsFixtureGuardException) { wrongVolumeRejected = true; }
+        Check(wrongVolumeRejected && wrongBitmapVolume.Handles.Count == 2 && wrongBitmapVolume.Handles.All(handle => handle.IsClosed) &&
+            !wrongBitmapVolume.FileReads.Contains(wrongBitmapVolume.MarkerPath) && wrongBitmapVolume.StoragePaths.Count == 0,
+            "bitmap preparation still rejects another backing disk before marker or target access");
+        foreach (uint subtype in new uint[] { 3, 4 })
+        {
+            var bitmapType = new Fake { ProviderSubtype = subtype }; bitmapType.ChangeManifest(value => value["mode"] = "bitmap-bootstrap");
+            bitmapType.Marker = bitmapType.Manifest.ToArray(); bool rejected = false;
+            try { NtfsVerifiedFixtureContext.VerifyPreparationBitmapObservationForTests(bitmapType.ManifestPath, bitmapType.Repository, bitmapType); }
+            catch (NtfsFixtureGuardException error) { rejected = error.Code == "FixtureImageFixedType"; }
+            Check(rejected && bitmapType.Handles.Count == 1 && bitmapType.Handles.All(handle => handle.IsClosed) &&
+                !bitmapType.FileReads.Contains(bitmapType.MarkerPath) && bitmapType.StoragePaths.Count == 0,
+                "bitmap preparation rejects dynamic and differencing images before volume marker or target access");
+        }
+        foreach (bool preparationPhase in new[] { false, true })
+        {
+            var bitmapCancel = new Fake(); bitmapCancel.ChangeManifest(value => value["mode"] = "bitmap-bootstrap");
+            bitmapCancel.Marker = bitmapCancel.Manifest.ToArray(); using var bitmapCts = new CancellationTokenSource();
+            bitmapCancel.OnStat = path => { if (path == bitmapCancel.Data) bitmapCts.Cancel(); };
+            bool canceledBitmap = false;
+            try
+            {
+                if (preparationPhase) NtfsVerifiedFixtureContext.VerifyPreparationBitmapObservationForTests(bitmapCancel.ManifestPath, bitmapCancel.Repository, bitmapCancel, bitmapCts.Token);
+                else { using var ignored = NtfsVerifiedFixtureContext.CreateBitmapObservationForTests(bitmapCancel.ManifestPath, bitmapCancel.Repository, bitmapCancel, bitmapCts.Token); }
+            }
+            catch (OperationCanceledException) { canceledBitmap = true; }
+            Check(canceledBitmap && bitmapCancel.Handles.Count == 2 && bitmapCancel.Handles.All(handle => handle.IsClosed) &&
+                bitmapCancel.StoragePaths.Count == 0, "bitmap final-check cancellation closes all ownership handles and publishes no authority");
+        }
+        var fast = new Fake(); fast.ChangeManifest(value => value["mode"] = "fixture-fast-scan"); fast.Marker = fast.Manifest.ToArray();
+        using (var context = NtfsVerifiedFixtureContext.CreateFastScanForTests(fast.ManifestPath, fast.Repository, fast))
+        {
+            var baseline = context.PrepareFastContext();
+            Check(baseline.Released.Count == 2 && baseline.Released.Select(item => item.Storage.Identity.Low).Distinct().Count() == 2 &&
+                fast.WitnessEvents.SequenceEqual(new[] { "Hold", "Create", "Create", "Delete", "Delete" }),
+                "fast preparation creates both independent witnesses before deleting either owned handle");
+            Check(fast.CreatedPaths.All(path => Path.GetDirectoryName(path) == fast.Data) && fast.CreatedPaths.All(fast.MissingPaths.Contains) &&
+                baseline.DataRootStorage.LogicalBytes == -1, "witness scope stays under the fixed directory and preserves native directory semantics");
+            context.VerifyFastContext(baseline);
+            Check(baseline.Released.All(item => item.Storage.LogicalBytes == 0 && item.Storage.AllocatedBytes == 0),
+                "released witness identities retain full native zero-file observations only in memory");
+            bool repeated = false; try { context.PrepareFastContext(); } catch (NtfsFixtureGuardException error) { repeated = error.Code == "FixtureWitnessScope"; }
+            Check(repeated && fast.CreatedPaths.Count == 2, "a context never creates more witnesses on a second preparation attempt");
+        }
+        foreach (int failAt in new[] { 1, 2 })
+        {
+            var fail = new Fake { FailWitnessCreateAt = failAt }; fail.ChangeManifest(value => value["mode"] = "fixture-fast-scan"); fail.Marker = fail.Manifest.ToArray();
+            using var context = NtfsVerifiedFixtureContext.CreateFastScanForTests(fail.ManifestPath, fail.Repository, fail);
+            bool rejected = false; try { context.PrepareFastContext(); } catch (NtfsFixtureGuardException) { rejected = true; }
+            Check(rejected && fail.CreatedPaths.Count == failAt - 1 && fail.CreatedPaths.All(fail.MissingPaths.Contains) &&
+                fail.WitnessHandles.All(handle => handle.IsClosed), "creation failure only deletes and closes the successfully created witness handles");
+        }
+        {
+            var cancel = new Fake(); cancel.ChangeManifest(value => value["mode"] = "fixture-fast-scan"); cancel.Marker = cancel.Manifest.ToArray();
+            using var context = NtfsVerifiedFixtureContext.CreateFastScanForTests(cancel.ManifestPath, cancel.Repository, cancel);
+            using var cts = new CancellationTokenSource(); cancel.OnWitnessCreate = cts.Cancel;
+            bool rejected = false; try { context.PrepareFastContext(cts.Token); } catch (OperationCanceledException) { rejected = true; }
+            Check(rejected && cancel.CreatedPaths.Count == 1 && cancel.CreatedPaths.All(cancel.MissingPaths.Contains) &&
+                cancel.WitnessHandles.All(handle => handle.IsClosed), "cancellation after creating a witness cleans only that owned handle and returns no context");
+        }
+        {
+            var existing = new Fake(); existing.ChangeManifest(value => value["mode"] = "fixture-fast-scan"); existing.Marker = existing.Manifest.ToArray();
+            string path = Path.Combine(existing.Data,"released-witness-1.tmp"); existing.Storages[path] = existing.Storages.Values.First(value => value.LogicalBytes >= 0);
+            using var context = NtfsVerifiedFixtureContext.CreateFastScanForTests(existing.ManifestPath,existing.Repository,existing);
+            bool rejected=false;try{context.PrepareFastContext();}catch(NtfsFixtureGuardException){rejected=true;}
+            Check(rejected && existing.CreatedPaths.Count==0 && existing.Storages.ContainsKey(path) && !existing.MissingPaths.Contains(path),
+                "CreateNew collision never deletes or overwrites a pre-existing entry at the fixed witness spelling");
+        }
+        foreach(bool cancelCleanup in new[]{false,true})
+        {
+            var cleanup=new Fake();cleanup.ChangeManifest(value=>value["mode"]="fixture-fast-scan");cleanup.Marker=cleanup.Manifest.ToArray();
+            using var context=NtfsVerifiedFixtureContext.CreateFastScanForTests(cleanup.ManifestPath,cleanup.Repository,cleanup);
+            using var cts=new CancellationTokenSource();
+            if(cancelCleanup)cleanup.OnWitnessDelete=cts.Cancel;else cleanup.FailWitnessDeleteAt=1;
+            Exception? error=null;try{context.PrepareFastContext(cts.Token);}catch(Exception caught){error=caught;}
+            Check((cancelCleanup?error is OperationCanceledException:error is NtfsFixtureGuardException {Code:"FixtureWitnessCleanup"}) &&
+                cleanup.WitnessHandles.All(handle=>handle.IsClosed) && (cancelCleanup?cleanup.CreatedPaths.All(cleanup.MissingPaths.Contains):true),
+                "cleanup cancellation or delete failure closes every owned handle and prevents witness success");
+        }
         return passed;
     }
 
-    private sealed class Fake : NtfsVerifiedFixtureContext.INative
+    private sealed class Fake : NtfsVerifiedFixtureContext.INative, NtfsVerifiedFixtureContext.IWitnessNative
     {
         internal string Repository = @"C:\Synthetic\FixtureProject";
         internal string Workspace => Path.Combine(Repository, "artifacts", "ntfs-live-" + new string('a', 32));
@@ -221,6 +328,13 @@ internal static class NtfsVerifiedFixtureContextTests
         internal readonly Dictionary<uint, byte[]> ControlData = new();
         internal readonly Dictionary<string, FileStorageInfo> Storages = new(StringComparer.OrdinalIgnoreCase);
         internal readonly List<string> StoragePaths = new(), FileReads = new();
+        internal readonly List<string> CreatedPaths = new(), WitnessEvents = new();
+        internal readonly List<SafeFileHandle> WitnessHandles = new();
+        private readonly Dictionary<SafeFileHandle, string> witnessPaths = new();
+        internal int FailWitnessCreateAt;
+        internal int FailWitnessDeleteAt;
+        private int witnessAttempts,witnessDeletes;
+        internal Action? OnWitnessCreate,OnWitnessDelete;
         private readonly Dictionary<string, FileAttributes> attributes = new(StringComparer.OrdinalIgnoreCase);
         internal Fake()
         {
@@ -228,6 +342,7 @@ internal static class NtfsVerifiedFixtureContextTests
             Manifest = JsonSerializer.SerializeToUtf8Bytes(new { schema = 1, image_path = Image, volume_guid = Volume,
                 drive_root = "E:\\", workspace = Workspace, nonce = new string('a', 32), mode = "fixture-source" });
             Marker = (byte[])Manifest.Clone();
+            Storages[Data] = new(new(41, NtfsRecordFixtures.Reference(40, 1), 0), 0, 1, false, -1, new DateTime(2020, 1, 1));
             byte[] extents = new byte[32]; W32(extents, 0, 1); W32(extents, 8, 7); W64(extents, 16, 1024 * 1024); W64(extents, 24, 255L * 1024 * 1024);
             ControlData[0x560000] = extents;
             byte[] partition = new byte[144]; W64(partition, 8, 1024 * 1024); W64(partition, 16, 255L * 1024 * 1024);
@@ -285,6 +400,24 @@ internal static class NtfsVerifiedFixtureContextTests
         public byte[] Control(SafeFileHandle volume, uint code, byte[]? input, int maximum) => (byte[])ControlData[code].Clone();
         public FileStorageInfo ReadStorage(string path, bool directory, FileAttributes ignored)
         { StoragePaths.Add(path); return Storages.TryGetValue(path, out var value) ? value : throw new NtfsFixtureGuardException("FakeUnexpectedStorage"); }
+        public SafeFileHandle HoldDirectory(string path)
+        {
+            WitnessEvents.Add("Hold"); var handle = Handle(); witnessPaths.Add(handle, path); WitnessHandles.Add(handle); return handle;
+        }
+        public SafeFileHandle CreateEmpty(string path)
+        {
+            witnessAttempts++; if (witnessAttempts == FailWitnessCreateAt) throw new IOException("SyntheticWitnessCreate");
+            if (Storages.ContainsKey(path)) throw new IOException("SyntheticWitnessExists");
+            var handle = Handle(); witnessPaths.Add(handle, path); WitnessHandles.Add(handle); CreatedPaths.Add(path); WitnessEvents.Add("Create");
+            Storages[path] = new(new(41, NtfsRecordFixtures.Reference((ulong)(200 + CreatedPaths.Count), 1), 0), 0, 1, false, 0, new DateTime(2020, 1, 1));
+            attributes[path] = FileAttributes.Archive; OnWitnessCreate?.Invoke(); return handle;
+        }
+        public FileStorageInfo ReadHandle(SafeFileHandle handle, bool directory) => Storages[witnessPaths[handle]];
+        public void DeleteOnClose(SafeFileHandle handle)
+        {
+            witnessDeletes++;if(witnessDeletes==FailWitnessDeleteAt)throw new IOException("SyntheticWitnessDelete");OnWitnessDelete?.Invoke();
+            string path = witnessPaths[handle]; WitnessEvents.Add("Delete"); MissingPaths.Add(path); Storages.Remove(path); attributes.Remove(path);
+        }
     }
     private static void W32(byte[] bytes, int offset, uint value) => BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset), value);
     private static void W64(byte[] bytes, int offset, long value) => BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(offset), value);

@@ -50,6 +50,9 @@ internal static class NtfsMftBitmapAttributeTests
             maximum.CopyPayload().SequenceEqual(maximumPayload), "resident bytes at the USA tail are restored solely in a private copy");
         Rejected(Seed(NtfsRecordFixtures.Resident(0xb0, new byte[513])), "Deferred", "BitmapPayloadBudget",
             "oversized but well-formed resident payload stays deferred rather than treated as corruption");
+        var residentBudget = Parse(Seed(NtfsRecordFixtures.Resident(0xb0, new byte[513])));
+        Check(residentBudget is { Form: "Resident", Status: "Deferred", Code: "BitmapPayloadBudget", CoveredSlots: 0, PayloadBytes: 0 },
+            "resident budget refusal preserves its observed form without changing the existing synthetic code");
         Rejected(Seed(), "Missing", "BitmapMissing", "missing bitmap is explicit and never synthesized as zero payload");
         Rejected(Seed(NtfsRecordFixtures.Resident(0xb0, [1], "named")), "Deferred", "BitmapNamed",
             "named bitmaps do not silently substitute for the unnamed MFT bitmap");
@@ -75,6 +78,11 @@ internal static class NtfsMftBitmapAttributeTests
             "uninitialized nonresident bytes are not exposed as initialized zero bitmap data");
         Rejected(Seed(NonresidentBitmap(513, 4096, 513)), "Deferred", "BitmapPayloadBudget",
             "nonresident logical size beyond the payload budget is deferred without a descriptor");
+        var nonresidentBudget = Parse(Seed(NonresidentBitmap(513, 4096, 513)));
+        Check(nonresidentBudget is { Form: "Nonresident", Status: "Deferred", Code: "BitmapPayloadBudget", CoveredSlots: 0, PayloadBytes: 0,
+            NonresidentMetadata: null }, "nonresident budget refusal records its form without authorizing or describing any block reads");
+        Check(JsonSerializer.Serialize(residentBudget) == "{}" && JsonSerializer.Serialize(nonresidentBudget) == "{}",
+            "internal budget form is not automatically serialized alongside private locator state");
         var compressionUnit = NonresidentBitmap(8, 4096, 8); NtfsRecordFixtures.U16(compressionUnit, 34, 1);
         Rejected(Seed(compressionUnit), "Deferred", "BitmapFlags", "a nonzero compression unit cannot imply ordinary bitmap support");
         foreach (var lengths in new (long Logical, long Allocated, long Initialized)[] {

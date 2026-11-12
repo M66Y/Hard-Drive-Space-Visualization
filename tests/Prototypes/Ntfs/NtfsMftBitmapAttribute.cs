@@ -13,14 +13,17 @@ internal sealed class NtfsMftBitmapAttributeResult
     internal string EvidenceKind => "Synthetic";
     internal string Status { get; }
     internal string Code { get; }
+    // Internal disambiguation when the shared payload budget code is returned.
+    // This is an observed attribute form, never a readable mapping or authority.
+    internal string Form { get; }
     internal int ExpectedSlots { get; }
     internal int CoveredSlots { get; }
     internal int PayloadBytes => payload.Length;
     internal NtfsMftBitmapNonresidentMetadata? NonresidentMetadata { get; }
     internal byte[] CopyPayload() => (byte[])payload.Clone();
     internal NtfsMftBitmapAttributeResult(string status, string code, int expectedSlots, int coveredSlots = 0,
-        byte[]? privatePayload = null, NtfsMftBitmapNonresidentMetadata? metadata = null)
-    { Status = status; Code = code; ExpectedSlots = expectedSlots; CoveredSlots = coveredSlots; payload = privatePayload ?? []; NonresidentMetadata = metadata; }
+        byte[]? privatePayload = null, NtfsMftBitmapNonresidentMetadata? metadata = null, string form = "Unknown")
+    { Status = status; Code = code; Form = form; ExpectedSlots = expectedSlots; CoveredSlots = coveredSlots; payload = privatePayload ?? []; NonresidentMetadata = metadata; }
 }
 
 // Pure attribute location only. Synthetic bytes/geometry do not establish a
@@ -38,8 +41,8 @@ internal static class NtfsMftBitmapAttribute
         int expectedSlots, CancellationToken token = default)
     {
         token.ThrowIfCancellationRequested();
-        NtfsMftBitmapAttributeResult Result(string status, string code)
-        { token.ThrowIfCancellationRequested(); return new(status, code, expectedSlots); }
+        NtfsMftBitmapAttributeResult Result(string status, string code, string form = "Unknown")
+        { token.ThrowIfCancellationRequested(); return new(status, code, expectedSlots, form: form); }
         if (rawRecord0.Length != MaximumRecordBytes) return Result("Invalid", "BitmapInput");
         if (geometry == null || geometry is not { SectorBytes: 512, ClusterBytes: 4096, RecordBytes: 1024 })
             return Result("Invalid", "BitmapGeometry");
@@ -84,7 +87,7 @@ internal static class NtfsMftBitmapAttribute
             {
                 uint size = U32(owned, found + 16); int value = U16(owned, found + 20);
                 if (value < 24 || !Fits(value, size, foundLength)) return Result("Invalid", "BitmapAttributeBounds");
-                if (size > MaximumPayloadBytes) return Result("Deferred", "BitmapPayloadBudget");
+                if (size > MaximumPayloadBytes) return Result("Deferred", "BitmapPayloadBudget", "Resident");
                 byte[] payload = owned.AsSpan(found + value, checked((int)size)).ToArray();
                 int covered = Math.Min(expectedSlots, checked(payload.Length * 8));
                 token.ThrowIfCancellationRequested();
@@ -98,7 +101,7 @@ internal static class NtfsMftBitmapAttribute
             if (logical < 0 || initialized < 0 || initialized > logical || allocated < logical || allocated < 0 ||
                 allocated % geometry.ClusterBytes != 0 || allocated > geometry.VolumeBytes)
                 return Result("Invalid", "BitmapNonresidentBounds");
-            if (logical > MaximumPayloadBytes) return Result("Deferred", "BitmapPayloadBudget");
+            if (logical > MaximumPayloadBytes) return Result("Deferred", "BitmapPayloadBudget", "Nonresident");
             token.ThrowIfCancellationRequested();
             // Metadata is bounded; this does not validate its physical mapping
             // or authorize reading. No offsets, LCNs or mapping bytes escape.

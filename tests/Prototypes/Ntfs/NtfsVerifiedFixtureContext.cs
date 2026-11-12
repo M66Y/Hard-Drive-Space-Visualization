@@ -15,6 +15,8 @@ internal sealed class NtfsFixtureGuardException : IOException
     internal NtfsFixtureGuardException(string code, int nativeErrorCode = 0) : base(code)
     { Code = code; NativeErrorCode = nativeErrorCode; }
 }
+internal sealed record NtfsFixtureReleasedWitness(string CaseId, FileStorageInfo Storage);
+internal sealed record NtfsFixtureFastContext(FileStorageInfo DataRootStorage, IReadOnlyList<NtfsFixtureReleasedWitness> Released);
 
 // Test-only owner for exactly one newly created fixture. It never accepts a
 // caller-supplied volume, target path, disk number, or a validated boolean.
@@ -33,6 +35,13 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
         byte[] Control(SafeFileHandle volume, uint code, byte[]? input, int maximum);
         FileStorageInfo ReadStorage(string path, bool directory, FileAttributes attributes);
     }
+    internal interface IWitnessNative
+    {
+        SafeFileHandle HoldDirectory(string path);
+        SafeFileHandle CreateEmpty(string path);
+        FileStorageInfo ReadHandle(SafeFileHandle handle, bool directory);
+        void DeleteOnClose(SafeFileHandle handle);
+    }
     private sealed record Manifest(string Nonce, string Workspace, string Image, string DriveRoot, string Volume, string Mode);
     private const long ImageBytes = 256L * 1024 * 1024;
     private readonly object gate = new();
@@ -43,7 +52,7 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
     private readonly uint diskNumber;
     private readonly long partitionStart, partitionBytes;
     private readonly ulong serial;
-    private bool disposed;
+    private bool disposed, witnessesPrepared;
     internal bool IsSynthetic { get; }
     internal string DataRoot { get; }
     // Borrowed only; the context owns and closes this handle after the lease.
@@ -94,6 +103,131 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
         INative adapter, CancellationToken token = default)
     {
         using var context = CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: false, expectedMode: "mft-range", token);
+    }
+
+    // A separate fixed mode observes only bootstrap shape under the existing
+    // bounded-source lifecycle. It cannot change either older factory's mode.
+    internal static NtfsVerifiedFixtureContext CreateForBitmapObservation(string manifestPath, CancellationToken token = default) =>
+        CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: true, expectedMode: "bitmap-bootstrap", token);
+    internal static void VerifyPreparationForBitmapObservation(string manifestPath, CancellationToken token = default)
+    {
+        using var context = CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: false, expectedMode: "bitmap-bootstrap", token);
+    }
+    internal static NtfsVerifiedFixtureContext CreateBitmapObservationForTests(string manifestPath, string repositoryRoot,
+        INative adapter, CancellationToken token = default) =>
+        CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: true, expectedMode: "bitmap-bootstrap", token);
+    internal static void VerifyPreparationBitmapObservationForTests(string manifestPath, string repositoryRoot,
+        INative adapter, CancellationToken token = default)
+    {
+        using var context = CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: false, expectedMode: "bitmap-bootstrap", token);
+    }
+
+    internal static NtfsVerifiedFixtureContext CreateForFastScan(string manifestPath, CancellationToken token = default) =>
+        CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: true, expectedMode: "fixture-fast-scan", token);
+    internal static void VerifyPreparationForFastScan(string manifestPath, CancellationToken token = default)
+    {
+        using var context = CreateCore(manifestPath, RepositoryRoot(), Native.Instance, false, requireDataRoot: false, expectedMode: "fixture-fast-scan", token);
+    }
+    internal static NtfsVerifiedFixtureContext CreateFastScanForTests(string manifestPath, string repositoryRoot,
+        INative adapter, CancellationToken token = default) =>
+        CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: true, expectedMode: "fixture-fast-scan", token);
+    internal static void VerifyPreparationFastScanForTests(string manifestPath, string repositoryRoot,
+        INative adapter, CancellationToken token = default)
+    {
+        using var context = CreateCore(manifestPath, repositoryRoot, adapter, true, requireDataRoot: false, expectedMode: "fixture-fast-scan", token);
+    }
+
+    internal NtfsFixtureFastContext PrepareFastContext(CancellationToken token = default) => Guard(() =>
+    {
+        lock (gate)
+        {
+            Active(); token.ThrowIfCancellationRequested(); Require(fixture.Mode == "fixture-fast-scan" && !witnessesPrepared, "FixtureWitnessScope");
+            Require(native is IWitnessNative, "FixtureWitnessAdapter"); witnessesPrepared = true;
+            var writer = (IWitnessNative)native;
+            VerifyOrigin(); NoReparse(native, DataRoot);
+            using var directory = writer.HoldDirectory(DataRoot);
+            Require(!directory.IsInvalid && !directory.IsClosed, "FixtureWitnessDirectory");
+            var rootBefore = writer.ReadHandle(directory, true);
+            Require(Storage(rootBefore, serial, directory: true), "FixtureWitnessDirectory");
+            var handles = new SafeFileHandle?[2]; var marked = new bool[2]; var witnesses = new List<NtfsFixtureReleasedWitness>(2);
+            bool cleanupSucceeded = true, primary = false;
+            try
+            {
+                // Both files exist at once. A create-delete-create sequence can
+                // reuse one MFT slot and would not provide two independent cases.
+                for (int i = 0; i < 2; i++)
+                {
+                    token.ThrowIfCancellationRequested(); NoReparse(native, DataRoot);
+                    string path = Path.Combine(DataRoot, "released-witness-" + (i + 1).ToString(CultureInfo.InvariantCulture) + ".tmp");
+                    handles[i] = writer.CreateEmpty(path);
+                    Require(!handles[i]!.IsInvalid && !handles[i]!.IsClosed, "FixtureWitnessCreate");
+                    token.ThrowIfCancellationRequested(); var storage = writer.ReadHandle(handles[i]!, false);
+                    Require(Storage(storage, serial) && storage.LogicalBytes == 0 && storage.AllocatedBytes == 0 && storage.LinkCount == 1,
+                        "FixtureWitnessIdentity");
+                    Require((native.Stat(path).Attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint | FileAttributes.Compressed |
+                        FileAttributes.SparseFile | FileAttributes.Encrypted)) == 0 && writer.ReadHandle(directory, true).Identity == rootBefore.Identity,
+                        "FixtureWitnessDirectory");
+                    witnesses.Add(new("Released-" + (i + 1).ToString(CultureInfo.InvariantCulture), storage));
+                }
+                Require(witnesses.Select(item => item.Storage.Identity.Low & NtfsRecordDecoder.MaximumRecordNumber).Distinct().Count() == 2,
+                    "FixtureWitnessIdentity");
+                token.ThrowIfCancellationRequested();
+            }
+            catch { primary = true; throw; }
+            finally
+            {
+                for (int i = 0; i < 2; i++)
+                {
+                    if (handles[i] == null) continue;
+                    try { writer.DeleteOnClose(handles[i]!); marked[i] = true; } catch { cleanupSucceeded = false; }
+                    try { handles[i]!.Dispose(); } catch { cleanupSucceeded = false; }
+                }
+                // A cleanup fault cannot replace a pre-existing cancellation or
+                // creation error; it also cannot produce a successful context.
+                if (!primary) { token.ThrowIfCancellationRequested(); Require(cleanupSucceeded && marked.All(value => value), "FixtureWitnessCleanup"); }
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                string path = Path.Combine(DataRoot, "released-witness-" + (i + 1).ToString(CultureInfo.InvariantCulture) + ".tmp");
+                RequireAbsent(path);
+            }
+            NoReparse(native, DataRoot); var rootAfter = native.ReadStorage(DataRoot, true, native.Stat(DataRoot).Attributes);
+            Require(Storage(rootAfter, serial, directory: true) && rootAfter.Identity == rootBefore.Identity &&
+                writer.ReadHandle(directory, true).Identity == rootBefore.Identity, "FixtureWitnessDirectory");
+            token.ThrowIfCancellationRequested(); return new NtfsFixtureFastContext(rootAfter, witnesses.AsReadOnly());
+        }
+    });
+
+    internal void VerifyFastContext(NtfsFixtureFastContext baseline, CancellationToken token = default) => Guard(() =>
+    {
+        lock (gate)
+        {
+            Active(); token.ThrowIfCancellationRequested(); Require(fixture.Mode == "fixture-fast-scan" && witnessesPrepared && baseline != null &&
+                Storage(baseline.DataRootStorage, serial, directory: true) && baseline.Released.Count == 2 &&
+                baseline.Released.Select(item => item.CaseId).SequenceEqual(new[] { "Released-1", "Released-2" }), "FixtureWitnessScope");
+            VerifyOrigin(); NoReparse(native, DataRoot);
+            Require(native.ReadStorage(DataRoot, true, native.Stat(DataRoot).Attributes) == baseline.DataRootStorage, "FixtureWitnessDirectory");
+            for (int i = 1; i <= 2; i++) RequireAbsent(Path.Combine(DataRoot, "released-witness-" + i.ToString(CultureInfo.InvariantCulture) + ".tmp"));
+            token.ThrowIfCancellationRequested(); return true;
+        }
+    });
+
+    internal ScanResult ScanFastFixture(CancellationToken token = default) => Guard(() =>
+    {
+        lock (gate)
+        {
+            Active(); token.ThrowIfCancellationRequested(); Require(fixture.Mode == "fixture-fast-scan" && witnessesPrepared, "FixtureWitnessScope");
+            VerifyOrigin(); NoReparse(native, DataRoot);
+            var result = new DiskScanner(1).Scan(DataRoot, null, token);
+            token.ThrowIfCancellationRequested(); return result;
+        }
+    });
+
+    private void RequireAbsent(string path)
+    {
+        try { _ = native.Stat(path); }
+        catch (Exception error) when (error is FileNotFoundException or DirectoryNotFoundException) { return; }
+        throw Failure("FixtureWitnessNotReleased");
     }
 
     private static NtfsVerifiedFixtureContext CreateCore(string manifestPath, string repositoryRoot,
@@ -386,9 +520,47 @@ internal sealed class NtfsVerifiedFixtureContext : IDisposable
         }
     }
 
-    private sealed class Native : INative
+    private sealed class Native : INative, IWitnessNative
     {
         internal static readonly Native Instance = new();
+        [StructLayout(LayoutKind.Sequential)] private struct WitnessBasic { public long Creation, Access, Write, Change; public uint Attributes; }
+        [StructLayout(LayoutKind.Sequential)] private struct WitnessId { public ulong Volume, Low, High; }
+        [StructLayout(LayoutKind.Sequential)] private struct WitnessStandard { public long Allocated, Logical; public uint Links; public byte DeletePending, Directory; }
+        [StructLayout(LayoutKind.Sequential, Pack = 1)] private struct WitnessDisposition { public byte Delete; }
+        [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)]
+        private static extern bool WitnessInfo(SafeFileHandle file, int kind, out WitnessBasic data, uint bytes);
+        [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)]
+        private static extern bool WitnessInfo(SafeFileHandle file, int kind, out WitnessId data, uint bytes);
+        [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)]
+        private static extern bool WitnessInfo(SafeFileHandle file, int kind, out WitnessStandard data, uint bytes);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool SetFileInformationByHandle(SafeFileHandle file, int kind, ref WitnessDisposition data, uint bytes);
+        public SafeFileHandle HoldDirectory(string path) => OpenWitness(path, 0x80, 3, 0x02200000);
+        public SafeFileHandle CreateEmpty(string path) => OpenWitness(path, 0x10080, 1, 0x00200080);
+        private static SafeFileHandle OpenWitness(string path, uint access, uint creation, uint flags)
+        {
+            var handle = NativeStorage.CreateFileW(path, access, 1, IntPtr.Zero, creation, flags, IntPtr.Zero);
+            if (handle.IsInvalid) { int error = Marshal.GetLastWin32Error(); handle.Dispose(); throw new NtfsFixtureGuardException("FixtureWitnessOpen", error); }
+            return handle;
+        }
+        public FileStorageInfo ReadHandle(SafeFileHandle handle, bool directory)
+        {
+            if (!WitnessInfo(handle, 0, out WitnessBasic basic, (uint)Marshal.SizeOf<WitnessBasic>()) ||
+                !WitnessInfo(handle, 18, out WitnessId id, (uint)Marshal.SizeOf<WitnessId>()) ||
+                !WitnessInfo(handle, 1, out WitnessStandard standard, (uint)Marshal.SizeOf<WitnessStandard>()))
+                throw new NtfsFixtureGuardException("FixtureWitnessQuery", Marshal.GetLastWin32Error());
+            Require((basic.Attributes & (uint)(FileAttributes.ReparsePoint | FileAttributes.Encrypted | FileAttributes.Compressed | FileAttributes.SparseFile)) == 0 &&
+                ((basic.Attributes & (uint)FileAttributes.Directory) != 0) == directory && standard.Directory == (directory ? 1 : 0) && standard.DeletePending == 0,
+                "FixtureWitnessIdentity");
+            return new(new(id.Volume, id.Low, id.High), directory ? 0 : standard.Allocated, standard.Links, false,
+                directory ? -1 : standard.Logical, DateTime.FromFileTimeUtc(basic.Write).ToLocalTime());
+        }
+        public void DeleteOnClose(SafeFileHandle handle)
+        {
+            var disposition = new WitnessDisposition { Delete = 1 };
+            if (!SetFileInformationByHandle(handle, 4, ref disposition, 1))
+                throw new NtfsFixtureGuardException("FixtureWitnessDelete", Marshal.GetLastWin32Error());
+        }
         [StructLayout(LayoutKind.Sequential)] private struct StorageType { public uint DeviceId; public Guid Vendor; }
         [StructLayout(LayoutKind.Sequential)] private struct OpenParameters { public uint Version, Depth; }
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
