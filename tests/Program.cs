@@ -17,6 +17,36 @@ if (args.Length > 0 && args[0] == "--ntfs-record-replay")
 Console.WriteLine($"RUNTIME {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}; WinForms {typeof(System.Windows.Forms.Form).Assembly.GetName().Version}; {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
 if (args.Contains("--storage-attribute-observe")) return StorageAttributeHintTests.Run();
 if (args.Contains("--storage-attribute-tests")) return StorageAttributeHintTests.Run(requireConsistent: true);
+if (args.Contains("--ntfs-raw-comparison-tests"))
+{
+    try
+    {
+        int checks = DiskAtlas.NtfsPrototype.NtfsRawComparisonTests.Run();
+        Console.WriteLine($"PASS NTFS raw comparison checks: {checks}; synthetic metadata only");
+        return 0;
+    }
+    catch { Console.Error.WriteLine("FAIL NTFS raw comparison checks; no private details emitted"); return 1; }
+}
+if (args.Contains("--ntfs-mft-map-tests"))
+{
+    try
+    {
+        int checks = DiskAtlas.NtfsPrototype.NtfsMftMapTests.Run();
+        Console.WriteLine($"PASS NTFS MFT map checks: {checks}; synthetic bytes only");
+        return 0;
+    }
+    catch { Console.Error.WriteLine("FAIL NTFS MFT map checks; no private details emitted"); return 1; }
+}
+if (args.Contains("--ntfs-raw-volume-tests"))
+{
+    try
+    {
+        int checks = DiskAtlas.NtfsPrototype.NtfsRawVolumeLeaseTests.Run();
+        Console.WriteLine($"PASS NTFS raw volume lease checks: {checks}; native operations are simulated");
+        return 0;
+    }
+    catch { Console.Error.WriteLine("FAIL NTFS raw volume lease checks; no private details emitted"); return 1; }
+}
 if (args.Contains("--ntfs-kernel-matrix-tests"))
 {
     try

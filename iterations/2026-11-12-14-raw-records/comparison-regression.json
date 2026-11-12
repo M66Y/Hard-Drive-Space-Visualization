@@ -1,0 +1,300 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "stage": "ComparisonPassed",
+  "code": "None",
+  "native_error": 0,
+  "exit_code": 0,
+  "checks": 1583,
+  "failures": 0,
+  "detached": true,
+  "cleanup_completed": true,
+  "lookup_experiment": {
+    "Objects": 25,
+    "ResidentObjects": 20,
+    "DirectObjects": 5,
+    "UnsupportedExcluded": 7,
+    "SelectiveNativeCalls": 40,
+    "AllHandleNativeCalls": 50,
+    "Samples": [
+      {
+        "Round": 1,
+        "Order": "selective-first",
+        "SelectiveMilliseconds": 1.0551,
+        "AllHandleMilliseconds": 1.4663,
+        "SelectiveNativeMilliseconds": 0.9845,
+        "AllHandleNativeMilliseconds": 1.4095
+      },
+      {
+        "Round": 2,
+        "Order": "handle-first",
+        "SelectiveMilliseconds": 0.9402,
+        "AllHandleMilliseconds": 1.2934,
+        "SelectiveNativeMilliseconds": 0.8845,
+        "AllHandleNativeMilliseconds": 1.2253
+      },
+      {
+        "Round": 3,
+        "Order": "selective-first",
+        "SelectiveMilliseconds": 0.9806,
+        "AllHandleMilliseconds": 1.1982,
+        "SelectiveNativeMilliseconds": 0.9204,
+        "AllHandleNativeMilliseconds": 1.1389
+      },
+      {
+        "Round": 4,
+        "Order": "handle-first",
+        "SelectiveMilliseconds": 0.9511,
+        "AllHandleMilliseconds": 1.2766,
+        "SelectiveNativeMilliseconds": 0.893,
+        "AllHandleNativeMilliseconds": 1.1969
+      },
+      {
+        "Round": 5,
+        "Order": "selective-first",
+        "SelectiveMilliseconds": 1.1667,
+        "AllHandleMilliseconds": 1.2431,
+        "SelectiveNativeMilliseconds": 1.0895,
+        "AllHandleNativeMilliseconds": 1.1787
+      },
+      {
+        "Round": 6,
+        "Order": "handle-first",
+        "SelectiveMilliseconds": 1.2196,
+        "AllHandleMilliseconds": 1.6935,
+        "SelectiveNativeMilliseconds": 1.0879,
+        "AllHandleNativeMilliseconds": 1.5135
+      }
+    ],
+    "ResidentExamples": [
+      {
+        "LogicalBytes": 18,
+        "LookupAllocatedBytes": 24
+      },
+      {
+        "LogicalBytes": 1,
+        "LookupAllocatedBytes": 8
+      },
+      {
+        "LogicalBytes": 7,
+        "LookupAllocatedBytes": 8
+      },
+      {
+        "LogicalBytes": 8,
+        "LookupAllocatedBytes": 8
+      },
+      {
+        "LogicalBytes": 9,
+        "LookupAllocatedBytes": 16
+      },
+      {
+        "LogicalBytes": 15,
+        "LookupAllocatedBytes": 16
+      },
+      {
+        "LogicalBytes": 16,
+        "LookupAllocatedBytes": 16
+      },
+      {
+        "LogicalBytes": 17,
+        "LookupAllocatedBytes": 24
+      },
+      {
+        "LogicalBytes": 31,
+        "LookupAllocatedBytes": 32
+      },
+      {
+        "LogicalBytes": 32,
+        "LookupAllocatedBytes": 32
+      },
+      {
+        "LogicalBytes": 33,
+        "LookupAllocatedBytes": 40
+      },
+      {
+        "LogicalBytes": 63,
+        "LookupAllocatedBytes": 64
+      },
+      {
+        "LogicalBytes": 64,
+        "LookupAllocatedBytes": 64
+      },
+      {
+        "LogicalBytes": 65,
+        "LookupAllocatedBytes": 72
+      },
+      {
+        "LogicalBytes": 127,
+        "LookupAllocatedBytes": 128
+      },
+      {
+        "LogicalBytes": 128,
+        "LookupAllocatedBytes": 128
+      },
+      {
+        "LogicalBytes": 255,
+        "LookupAllocatedBytes": 256
+      },
+      {
+        "LogicalBytes": 256,
+        "LookupAllocatedBytes": 256
+      },
+      {
+        "LogicalBytes": 400,
+        "LookupAllocatedBytes": 400
+      },
+      {
+        "LogicalBytes": 512,
+        "LookupAllocatedBytes": 512
+      }
+    ]
+  },
+  "lease_experiment": {
+    "Objects": 25,
+    "ResidentObjects": 20,
+    "DirectObjects": 5,
+    "UnsupportedExcluded": 7,
+    "DoubleReadCalls": 40,
+    "LeaseCalls": 20,
+    "LeaseHandles": 20,
+    "LeaseSnapshots": 40,
+    "Samples": [
+      {
+        "Round": 1,
+        "Order": "double-first",
+        "DoubleMilliseconds": 2.7791,
+        "LeaseMilliseconds": 1.5809,
+        "DoubleNativeMilliseconds": 2.5883,
+        "LeaseNativeMilliseconds": 1.4368
+      },
+      {
+        "Round": 2,
+        "Order": "lease-first",
+        "DoubleMilliseconds": 2.5851,
+        "LeaseMilliseconds": 1.7856,
+        "DoubleNativeMilliseconds": 2.4366,
+        "LeaseNativeMilliseconds": 1.6073
+      },
+      {
+        "Round": 3,
+        "Order": "double-first",
+        "DoubleMilliseconds": 2.7463,
+        "LeaseMilliseconds": 1.552,
+        "DoubleNativeMilliseconds": 2.5059,
+        "LeaseNativeMilliseconds": 1.4258
+      },
+      {
+        "Round": 4,
+        "Order": "lease-first",
+        "DoubleMilliseconds": 1.7588,
+        "LeaseMilliseconds": 1.8154,
+        "DoubleNativeMilliseconds": 1.6647,
+        "LeaseNativeMilliseconds": 1.6339
+      },
+      {
+        "Round": 5,
+        "Order": "double-first",
+        "DoubleMilliseconds": 3.2007,
+        "LeaseMilliseconds": 1.7558,
+        "DoubleNativeMilliseconds": 2.9517,
+        "LeaseNativeMilliseconds": 1.6203
+      },
+      {
+        "Round": 6,
+        "Order": "lease-first",
+        "DoubleMilliseconds": 0.9323,
+        "LeaseMilliseconds": 0.7143,
+        "DoubleNativeMilliseconds": 0.8807,
+        "LeaseNativeMilliseconds": 0.6438
+      }
+    ]
+  },
+  "special_lookup": {
+    "Objects": 7,
+    "CompressedObjects": 2,
+    "SparseObjects": 2,
+    "UnsupportedObjects": 3,
+    "ResolvedObjects": 4,
+    "FailedObjects": 0,
+    "LeaseCalls": 4,
+    "HandlesOpened": 4,
+    "SnapshotReads": 8,
+    "Cases": [
+      {
+        "Kind": "CompressedZero",
+        "LogicalBytes": 131072,
+        "AllocatedBytes": 0,
+        "Source": "HandleLookup"
+      },
+      {
+        "Kind": "CompressedRandom",
+        "LogicalBytes": 131072,
+        "AllocatedBytes": 131072,
+        "Source": "HandleLookup"
+      },
+      {
+        "Kind": "SparseHole",
+        "LogicalBytes": 2097152,
+        "AllocatedBytes": 0,
+        "Source": "HandleLookup"
+      },
+      {
+        "Kind": "SparseWritten",
+        "LogicalBytes": 2097152,
+        "AllocatedBytes": 131072,
+        "Source": "HandleLookup"
+      }
+    ]
+  },
+  "special_cost": {
+    "Objects": 4,
+    "ReferenceCalls": 4,
+    "LeaseCalls": 4,
+    "HandlesOpened": 4,
+    "SnapshotReads": 8,
+    "Samples": [
+      {
+        "Round": 1,
+        "Order": "reference-first",
+        "ReferenceMilliseconds": 0.2341,
+        "LeaseMilliseconds": 0.1872
+      },
+      {
+        "Round": 2,
+        "Order": "lease-first",
+        "ReferenceMilliseconds": 0.0951,
+        "LeaseMilliseconds": 0.2465
+      },
+      {
+        "Round": 3,
+        "Order": "reference-first",
+        "ReferenceMilliseconds": 0.1266,
+        "LeaseMilliseconds": 0.163
+      },
+      {
+        "Round": 4,
+        "Order": "lease-first",
+        "ReferenceMilliseconds": 0.087,
+        "LeaseMilliseconds": 0.1914
+      },
+      {
+        "Round": 5,
+        "Order": "reference-first",
+        "ReferenceMilliseconds": 0.1473,
+        "LeaseMilliseconds": 0.1732
+      },
+      {
+        "Round": 6,
+        "Order": "lease-first",
+        "ReferenceMilliseconds": 0.1132,
+        "LeaseMilliseconds": 0.2719
+      }
+    ]
+  },
+  "mode": "comparison",
+  "kernel_matrix": null,
+  "all_decoded": null,
+  "capture_cleanup_status": null,
+  "raw_comparison": null,
+  "raw_verified": false
+}

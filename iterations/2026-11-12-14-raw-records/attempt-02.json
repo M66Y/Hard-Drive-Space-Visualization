@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "status": "failed",
+  "stage": "RunRecordComparison",
+  "code": "RawFreshVolumeData",
+  "native_error": 0,
+  "exit_code": 1,
+  "checks": 775,
+  "failures": 1,
+  "detached": true,
+  "cleanup_completed": true,
+  "lookup_experiment": null,
+  "lease_experiment": null,
+  "special_lookup": null,
+  "special_cost": null,
+  "mode": "raw-records",
+  "kernel_matrix": null,
+  "all_decoded": null,
+  "capture_cleanup_status": null,
+  "raw_comparison": null,
+  "raw_verified": false
+}

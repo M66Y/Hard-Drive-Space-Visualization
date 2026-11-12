@@ -53,7 +53,7 @@ internal static class NtfsLivePrototype
             string Field(string name) => json.GetProperty(name).GetString() ?? throw new FixtureFailure("ManifestField");
             string nonce = Field("nonce"), root = Field("drive_root"), volumeGuid = Field("volume_guid");
             string mode = Field("mode");
-            Check(mode is "comparison" or "kernel-diagnostics", "KnownFixtureMode");
+            Check(mode is "comparison" or "kernel-diagnostics" or "raw-records", "KnownFixtureMode");
             string image = Field("image_path");
             Check(json.GetProperty("schema").GetInt32() == 1 && Guid.TryParseExact(nonce, "N", out _) &&
                 suffix == "ntfs-live-" + nonce &&
@@ -85,6 +85,8 @@ internal static class NtfsLivePrototype
             var open = new OpenParameters { Version = 1, Depth = 1 };
             // GET_INFO plus DETACH access for a permanently mounted VHD; no detach API is called here.
             Check(OpenVirtualDisk(ref storageType, image, 0xc0000, 0, ref open, out var virtualDisk) == 0, "OpenOwnedVirtualDiskInfo");
+            long ownedPartitionBytes = 0;
+            uint ownedPhysicalNumber = 0;
             using (virtualDisk)
             {
                 var physical = new StringBuilder(128); uint physicalBytes = 256;
@@ -94,6 +96,7 @@ internal static class NtfsLivePrototype
                 Check(device.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
                     uint.TryParse(device[prefix.Length..], out _), "VirtualDeviceSyntax");
                 uint number = uint.Parse(device[prefix.Length..]);
+                ownedPhysicalNumber = number;
                 var extents = new byte[128];
                 Check(NativeStorage.DeviceIoControl(volume, 0x560000, null, 0, extents, extents.Length, out int extentBytes, IntPtr.Zero) &&
                     extentBytes >= 32 && BinaryPrimitives.ReadUInt32LittleEndian(extents) == 1 &&
@@ -101,6 +104,7 @@ internal static class NtfsLivePrototype
                 long start = BinaryPrimitives.ReadInt64LittleEndian(extents.AsSpan(16));
                 long length = BinaryPrimitives.ReadInt64LittleEndian(extents.AsSpan(24));
                 Check(start >= 0 && length > 0 && start <= 256L * 1024 * 1024 - length, "VirtualPartitionBounds");
+                ownedPartitionBytes = length;
             }
             var geometry = new byte[128];
             Check(NativeStorage.DeviceIoControl(volume, VolumeData, null, 0, geometry, geometry.Length, out int returned, IntPtr.Zero) && returned >= 96,
@@ -116,8 +120,9 @@ internal static class NtfsLivePrototype
 
             string data = Path.Combine(volumeGuid, "AsukaLensFixture-" + nonce);
             Check(!Directory.Exists(data), "FreshSyntheticDirectory");
-            if (mode == "kernel-diagnostics")
+            if (mode is "kernel-diagnostics" or "raw-records")
             {
+                var rawTargets = new Dictionary<string, NtfsRawTarget>(StringComparer.Ordinal);
                 NtfsKernelRead ReadKernel(string path)
                 {
                     Check(NativeStorage.TryRead(path, false, File.GetAttributes(path), out var before, out _) && before != null,
@@ -134,11 +139,88 @@ internal static class NtfsLivePrototype
                         BinaryPrimitives.ReadUInt32LittleEndian(output.AsSpan(8)) == recordSize &&
                         BinaryPrimitives.ReadUInt16LittleEndian(output.AsSpan(28)) == (ushort)(before.Identity.Low >> 48),
                         "MatrixReturnedRecordBinding");
-                    Check(NativeStorage.TryRead(path, false, File.GetAttributes(path), out var after, out _) && after != null &&
-                        after.Identity == before.Identity && after.LogicalBytes == before.LogicalBytes &&
-                        after.AllocatedBytes == before.AllocatedBytes && after.LinkCount == before.LinkCount &&
-                        after.Modified == before.Modified && !after.WritableHandleOpen, "MatrixNativeAfterStable");
+                    bool afterRead = NativeStorage.TryRead(path, false, File.GetAttributes(path), out var after, out _);
+                    int changed = !afterRead || after == null ? 1 :
+                        (after.Identity != before.Identity ? 2 : 0) |
+                        (after.LogicalBytes != before.LogicalBytes ? 4 : 0) |
+                        (after.AllocatedBytes != before.AllocatedBytes ? 8 : 0) |
+                        (after.LinkCount != before.LinkCount ? 16 : 0) |
+                        (after.Modified != before.Modified ? 32 : 0) |
+                        (after.WritableHandleOpen ? 64 : 0);
+                    string observedCase = NtfsKernelMatrix.Cases.FirstOrDefault(item =>
+                        item.CaseId == Path.GetFileName(Path.GetDirectoryName(path)))?.CaseId ?? "UnknownCase";
+                    Check(changed == 0, "MatrixNativeAfterStable-" + observedCase + "-M" + changed);
+                    if (mode == "raw-records")
+                    {
+                        string parentPath = Path.GetDirectoryName(path) ?? throw new FixtureFailure("RawParentPath");
+                        string caseId = Path.GetFileName(parentPath);
+                        Check(NtfsKernelMatrix.Cases.Any(item => item.CaseId == caseId) &&
+                            (File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0 &&
+                            (File.GetAttributes(parentPath) & FileAttributes.ReparsePoint) == 0,
+                            "RawKnownGeneratedPath");
+                        Check(NativeStorage.TryRead(parentPath, true, File.GetAttributes(parentPath), out var parent, out _) &&
+                            parent != null && parent.Identity.Volume == serial && parent.Identity.High == 0,
+                            "RawNativeParentContext");
+                        rawTargets[caseId] = new(caseId, path, parentPath, after!, parent!, File.GetAttributes(path));
+                    }
                     return new(output, count, before, after!, sector, cluster, 3, 1);
+                }
+                if (mode == "raw-records")
+                {
+                    int factsObservation = 0;
+                    NtfsRawVolumeFacts Facts(bool reopen = false)
+                    {
+                        factsObservation++;
+                        using var reopened = reopen ? NativeStorage.CreateFileW(volumeGuid.TrimEnd('\\'), 0x80000000,
+                            NativeStorage.ShareAll, IntPtr.Zero, 3, 0, IntPtr.Zero) : null;
+                        var queryVolume = reopened ?? volume;
+                        Check(!queryVolume.IsInvalid, "RawMetadataVolumeOpen");
+                        var extents = new byte[128];
+                        Check(NativeStorage.DeviceIoControl(queryVolume, 0x560000, null, 0, extents, extents.Length,
+                            out int extentBytes, IntPtr.Zero) && extentBytes >= 32 &&
+                            BinaryPrimitives.ReadUInt32LittleEndian(extents) == 1 &&
+                            BinaryPrimitives.ReadUInt32LittleEndian(extents.AsSpan(8)) == ownedPhysicalNumber &&
+                            BinaryPrimitives.ReadInt64LittleEndian(extents.AsSpan(24)) == ownedPartitionBytes,
+                            "RawMetadataVolumeBinding");
+                        var fresh = new byte[128];
+                        bool volumeRead = NativeStorage.DeviceIoControl(queryVolume, VolumeData, null, 0, fresh, fresh.Length,
+                            out int bytes, IntPtr.Zero);
+                        int volumeError = volumeRead ? 0 : Marshal.GetLastWin32Error();
+                        Check(volumeRead && bytes >= 104, "RawFreshVolumeData-F" + factsObservation + "-E" + volumeError + "-B" + bytes);
+                        int sectorBytes = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(fresh.AsSpan(40)));
+                        int clusterBytes = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(fresh.AsSpan(44)));
+                        int recordBytes = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(fresh.AsSpan(48)));
+                        long sectors = BinaryPrimitives.ReadInt64LittleEndian(fresh.AsSpan(8));
+                        long clusters = BinaryPrimitives.ReadInt64LittleEndian(fresh.AsSpan(16));
+                        Check(BinaryPrimitives.ReadUInt64LittleEndian(fresh) == serial && sectorBytes == 512 &&
+                            clusterBytes == 4096 && recordBytes == 1024 && sectors > 0 && sectors <= ownedPartitionBytes / 512 &&
+                            clusters > 0 && clusters <= sectors / 8 &&
+                            BinaryPrimitives.ReadUInt16LittleEndian(fresh.AsSpan(100)) == 3 &&
+                            BinaryPrimitives.ReadUInt16LittleEndian(fresh.AsSpan(102)) == 1, "RawFreshGeometry");
+                        var query = new byte[12]; BinaryPrimitives.WriteUInt32LittleEndian(query, 6);
+                        var alignment = new byte[64];
+                        Check(NativeStorage.DeviceIoControl(queryVolume, 0x2d1400, query, query.Length, alignment, alignment.Length,
+                            out int alignmentBytes, IntPtr.Zero) && alignmentBytes >= 28 &&
+                            BinaryPrimitives.ReadUInt32LittleEndian(alignment) >= 28 &&
+                            BinaryPrimitives.ReadUInt32LittleEndian(alignment.AsSpan(4)) >= 28 &&
+                            BinaryPrimitives.ReadUInt32LittleEndian(alignment.AsSpan(4)) <= alignmentBytes &&
+                            BinaryPrimitives.ReadUInt32LittleEndian(alignment.AsSpan(16)) == 512,
+                            "RawPhysicalAlignmentDescriptor");
+                        int physical = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(alignment.AsSpan(20)));
+                        Check(physical is >= 512 and <= 65536 && (physical & (physical - 1)) == 0,
+                            "RawPhysicalSectorBound");
+                        var facts = new NtfsMftGeometry(sectorBytes, clusterBytes, recordBytes, checked(sectors * sectorBytes),
+                            clusters, BinaryPrimitives.ReadInt64LittleEndian(fresh.AsSpan(64)),
+                            BinaryPrimitives.ReadInt64LittleEndian(fresh.AsSpan(56)));
+                        return new(facts, serial, physical);
+                    }
+                    var control = NtfsKernelMatrix.Run(data, ReadKernel, null, Check, retainFailures: false);
+                    var facts = Facts();
+                    var raw = NtfsRawComparison.Run(volume, rawTargets.Values.ToArray(), control, facts, () => Facts(reopen: true), Check);
+                    File.WriteAllText(summaryPath, JsonSerializer.Serialize(new { schema = 1, status = "verified", checks,
+                        failures = 0, code = "None", raw_comparison = raw }));
+                    Console.WriteLine($"VERIFIED raw records: {raw.RawDecoded}; matched objects: {raw.MatchedObjects}");
+                    return 0;
                 }
                 var evidence = NtfsRecordEvidence.Create(artifacts.TrimEnd(Path.DirectorySeparatorChar));
                 var matrix = NtfsKernelMatrix.Run(data, ReadKernel, evidence, Check);

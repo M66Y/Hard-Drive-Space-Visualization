@@ -1,6 +1,24 @@
 # NTFS 合成记录原型
 
-本目录仅编入测试程序，不进入软件程序集、扫描策略或 UI。默认合成检查不访问磁盘。2026-11-12 新增受控 VHD 比对入口，仅用于管理员运行的隔离测试：它只读取本轮合成文件的对应记录，不枚举个人磁盘或整卷 MFT。使用与边界见[测试盘说明](../../../scripts/ntfs-prototype/README.md)。
+本目录仅编入测试程序，不进入软件程序集、扫描策略或 UI。默认合成检查不访问磁盘。2026-11-12 新增受控 VHD 比对入口，仅用于管理员运行的隔离测试：IOCTL对照只读取本轮合成文件的对应记录，原始模式另读该自有卷record0以建立映射；不枚举个人磁盘或整卷 MFT。使用与边界见[测试盘说明](../../../scripts/ntfs-prototype/README.md)。
+
+## 有限原始读取原型
+
+`NtfsMftMap` 从严格校验的原始record0建立不可变映射，限定一个未命名普通非驻留DATA、最多128区段；验证VCN、带符号LCN增量、大小及物理范围，不支持属性扩展或稀疏MFT。`PlanRecord` 生成有界连续目标切片，不假定MFT在磁盘上连续。
+
+`NtfsRawVolumeLease` 只借用已经核实归属的自有卷句柄，成功锁定后才进行对齐只读；每次最多64KiB、共128次ReadFile尝试/2MiB，串行保护seek/read、取消后丢弃结果、解锁失败不能验收成功。同步调用中的取消不能立即打断内核I/O，ReadCalls也不代表物理I/O次数。
+
+`NtfsRawComparison` 固定record0与矩阵21对象，经同一持锁句柄读取并走原严格`Decode`。默认流EOF、完整引用、名称/父关系、可见硬链接及限定普通分配量均与Native上下文对照；压缩/稀疏的14个分配量保持未知。解锁后重新核对主对象、硬链接别名、固定命名流和卷元信息；锁前后的不同时间点不构成活跃卷快照。原始字节不落盘，不扩大旧6条kernel样本留存。
+
+```powershell
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-mft-map-tests
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-raw-volume-tests
+dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-raw-comparison-tests
+pwsh -NoProfile -File tests/NtfsRawComparisonEvidence.Tests.ps1
+pwsh -NoProfile -File tests/NtfsFixtureCodeEvidence.Tests.ps1
+```
+
+前三项只用合成记录或注入的Native替身，不打开原始卷。真实入口另需本轮授权，见[方案及实际证据](../../../docs/ntfs-raw-record-plan.md)。当前不支持任意卷输入、整卷扫描或生产接入，IOCTL的复杂USA失败仍保留。
 
 构建测试项目后运行：
 

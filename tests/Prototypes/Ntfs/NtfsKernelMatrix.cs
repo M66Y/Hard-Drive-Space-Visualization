@@ -52,8 +52,9 @@ internal static class NtfsKernelMatrix
     }
 
     internal static NtfsKernelMatrixReport Run(string dataDirectory, Func<string, NtfsKernelRead> read,
-        NtfsRecordEvidence evidence, Action<bool, string> check)
+        NtfsRecordEvidence? evidence, Action<bool, string> check, bool retainFailures = true)
     {
+        if (retainFailures && evidence == null) throw new InvalidDataException("MatrixEvidenceRequired");
         string root = Path.GetFullPath(dataDirectory);
         if (!Path.IsPathFullyQualified(dataDirectory) || Directory.Exists(root) || File.Exists(root))
             throw new InvalidDataException("MatrixFreshDirectory");
@@ -97,10 +98,10 @@ internal static class NtfsKernelMatrix
                 rows.Add(row);
                 if (row.Status == "Decoded") { decoded++; continue; }
                 failures++;
-                if (captured >= 6) { limited++; continue; }
+                if (!retainFailures || captured >= 6) { limited++; continue; }
                 try
                 {
-                    string outcome = evidence.CaptureKernel(row.CaseId, observation.Output, observation.ReturnedBytes,
+                    string outcome = evidence!.CaptureKernel(row.CaseId, observation.Output, observation.ReturnedBytes,
                         observation.Before, observation.After, observation.Sector, observation.Cluster,
                         observation.Major, observation.Minor, row.Code);
                     if (outcome == "Saved") captured++;

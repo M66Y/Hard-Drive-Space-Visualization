@@ -1,0 +1,129 @@
+{
+  "baseline": "fa21d9e57d225f263f59d4a7f4230e520381097b",
+  "files": [
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "20f82be357f09012eba27aba50a6f46615bb7d60ff996aecf8aa8f2bc3c32be9"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "4beb5f34f485a50bbe50e39d84900bd939c109287150fdeea2fe64cf05852aed"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "faf863c6dcca4eb79c13f34365241d31694283491df32bfd75f671136773ef1e"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "24d8867ff6d85ebfebb5deb492e35b5436ec8b509955f530c0f7c056478f81e5"
+    },
+    {
+      "path": "docs/ntfs-raw-record-plan.md",
+      "sha256": "b49944fba13f8446bb3fec790e0b1822954b0da728f77f5abb4270cf88909e48"
+    },
+    {
+      "path": "docs/ntfs-read-session-plan.md",
+      "sha256": "06fb3610c132962293aa75639ab93c16130d91c479e3b0201633fed0e8c517f2"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "992a901ab46318589e704303eea60060cfc7b5e1a9dabde3cc76981cc0373db8"
+    },
+    {
+      "path": "iterations/2026-11-12-14-raw-records/README.md",
+      "sha256": "51684a6cbb72e68512a7310e6df2352d01d97ed10b37af30a776bf55417ff425"
+    },
+    {
+      "path": "iterations/2026-11-12-14-raw-records/attempt-01.json",
+      "sha256": "37ff2d9eefb58fb3fb71e35cfcf28ee522c2a68bf1dc07f9720d6e6c64ae1b80"
+    },
+    {
+      "path": "iterations/2026-11-12-14-raw-records/attempt-02.json",
+      "sha256": "e16fea51d1e02ca2c45fbabce4636160a94d4f5188a20273b5350c30e961e777"
+    },
+    {
+      "path": "iterations/2026-11-12-14-raw-records/attempt-03.json",
+      "sha256": "c38da37a1ee42f2517354bafc496e3c525daeb063ba62ba7453a8b8512559066"
+    },
+    {
+      "path": "iterations/2026-11-12-14-raw-records/attempt-04.json",
+      "sha256": "c38da37a1ee42f2517354bafc496e3c525daeb063ba62ba7453a8b8512559066"
+    },
+    {
+      "path": "iterations/2026-11-12-14-raw-records/attempt-05-final.json",
+      "sha256": "c38da37a1ee42f2517354bafc496e3c525daeb063ba62ba7453a8b8512559066"
+    },
+    {
+      "path": "iterations/2026-11-12-14-raw-records/comparison-regression.json",
+      "sha256": "a3fae38845b4838d8593de96b6f6831c67a789c91329e132cd9dc7c07f451e07"
+    },
+    {
+      "path": "scripts/ntfs-prototype/FixtureCodeEvidence.ps1",
+      "sha256": "13f62f6035f4e5d04cfc98a5f94553f4eb18fa765aeb5591b86a95e48bcdae46"
+    },
+    {
+      "path": "scripts/ntfs-prototype/Invoke-NtfsFixture.ps1",
+      "sha256": "d3d6756e5901c902237f085aa51974e2342e3790c5a6de269e3936f790c12932"
+    },
+    {
+      "path": "scripts/ntfs-prototype/README.md",
+      "sha256": "44cd52f027e73712d77c06a1e1e4690a0a22e6d8b7682b9c2322bad2a6d73d7a"
+    },
+    {
+      "path": "scripts/ntfs-prototype/RawComparisonEvidence.ps1",
+      "sha256": "f418a15488acf9527cd6929922cca7358c73b2c545d42387cc89a5783d0bd73a"
+    },
+    {
+      "path": "tests/NtfsFixtureCodeEvidence.Tests.ps1",
+      "sha256": "a274141664c9aded04ecccbc200f1c42e8d806c68d5655355fd7c235c9bab536"
+    },
+    {
+      "path": "tests/NtfsRawComparisonEvidence.Tests.ps1",
+      "sha256": "03c801934268a12e79e685de2166ae5226518b6917be5dd332d4d5e8c6c5b23a"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "cb5383075bc6873f437fd14ff920485dae39cd7258ed39fa3fcf465fa4c9bbfa"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsKernelMatrix.cs",
+      "sha256": "f28c5779cbcd2377d7206583f0368d33db0db0e6bb7b455b104fb6991f8f1574"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsLivePrototype.cs",
+      "sha256": "a94796a07bf57b785793d4328b3ecc86f0520b95925ed7fcd9a4fe774af97141"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsMftMap.cs",
+      "sha256": "ce448d72a58810d0a4dba42146a0e8244a75e57a8289a791e5c8a485e62b3f6b"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsMftMapTests.cs",
+      "sha256": "1d1b09a675714cff2703ae40515ec90a5299bacc194ac231b82388d970833c98"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsRawComparison.cs",
+      "sha256": "ef4580800682f5d4350800a3b8bc3b06a3e9194adc5603cd32431cf21b1e92d5"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsRawComparisonTests.cs",
+      "sha256": "8211435d709a013fd571e083634aa32b9b5a06c15e7477892a6d1e8c413e5a23"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsRawVolumeLease.cs",
+      "sha256": "7b49c882d4b94ca408f501ff505a97d84575c242c02881c9cc8469b6e836c9ff"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsRawVolumeLeaseTests.cs",
+      "sha256": "517acab503fb68436b3dddbd543efc09aeddfdafbb8223b1553b8d91fe68df21"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/README.md",
+      "sha256": "d6b16e1a8bb8f719954e049e67bf1c589e0b8d2c0c6490e9c6c5e6eeb2dbf0de"
+    },
+    {
+      "path": "iterations/2026-11-12-14-raw-records/changes.patch",
+      "sha256": "4c02922e40adb3f9e4eef2718e51a84b39dac87726ff05171d7a4cb577c049f8"
+    }
+  ]
+}

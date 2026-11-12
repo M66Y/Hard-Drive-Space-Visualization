@@ -4,7 +4,7 @@
 
 VHD 是 `artifacts/ntfs-live-<nonce>/fixture.vhd` 普通文件，占用所在磁盘的可用空间；不调整宿主分区。脚本通过 Windows `CreateVirtualDisk` 创建固定大小镜像，无源盘、无父盘，不复制个人磁盘。先由镜像反查虚拟磁盘，核对容量、总线、非启动/系统盘和稳定身份，才允许初始化和格式化。没有盘号、盘符或现有镜像参数。
 
-新分区在无盘符状态下格式化为 NTFS，完成后再分配临时盘符，避免未格式化卷的系统弹窗。C# 读取器还用 VHD 的物理设备路径与卷 extents 核对归属，合成文件通过卷 GUID 路径写入，仅读取自身创建文件的指定记录；不扫描宿主卷和整个测试卷。虚拟磁盘在流程中短暂可见，完成后卸载并删除本轮镜像。
+新分区在无盘符状态下格式化为 NTFS，完成后再分配临时盘符，避免未格式化卷的系统弹窗。C# 读取器还用 VHD 的物理设备路径与卷 extents 核对归属，合成文件通过卷 GUID 路径写入；IOCTL对照只读自身创建文件的指定记录，原始模式另读该自有卷record0建立映射，不扫描宿主卷和整个测试卷。虚拟磁盘在流程中短暂可见，完成后卸载并删除本轮镜像。
 
 ## 执行
 
@@ -33,7 +33,7 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --ntfs-prototype-te
 pwsh -NoProfile -File tests/NtfsFixtureGuards.Tests.ps1
 ```
 
-真实测试读取记录使用 `FSCTL_GET_NTFS_FILE_RECORD`，返回记录可能是更小的在用槽，故必须先校验返回槽号再解析。输出记录数据从 offset 12 开始。微软文档没有承诺 USA fixup 表示，本入口对全体 raw/全体已还原两种形态分别校验，不能用该接口失败证明磁盘损坏。参考 [记录 IOCTL](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_ntfs_file_record)、[输出结构](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-ntfs_file_record_output_buffer)、[卷几何](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-ntfs_volume_data_buffer)、[VHD 创建](https://learn.microsoft.com/en-us/windows/win32/api/virtdisk/nf-virtdisk-createvirtualdisk)。
+IOCTL对照使用 `FSCTL_GET_NTFS_FILE_RECORD`，返回记录可能是更小的在用槽，故必须先校验返回槽号再解析。输出记录数据从 offset 12 开始。微软文档没有承诺 USA fixup 表示，本入口对全体 raw/全体已还原两种形态分别校验，不能用该接口失败证明磁盘损坏。原始模式另经持锁卷句柄读取并只走严格raw入口。参考 [记录 IOCTL](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_ntfs_file_record)、[输出结构](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-ntfs_file_record_output_buffer)、[卷几何](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-ntfs_volume_data_buffer)、[VHD 创建](https://learn.microsoft.com/en-us/windows/win32/api/virtdisk/nf-virtdisk-createvirtualdisk)。
 
 这不是整卷读取、稳定快照、吞吐或资源占用验收，也不证明已接近 WizTree。尚未覆盖 Windows 10、其他卷格式/几何、碎片化 MFT、属性扩展、持续写入和日志协调。
 
@@ -71,3 +71,18 @@ pwsh -NoProfile -File tests/NtfsSpecialCostEvidence.Tests.ps1
 ```
 
 以上不新增生产入口、原始卷写入或默认管理员要求；VHD 授权仅限本小时。其他形态和系统、实际组内竞争、属性列表/扩展记录与活跃卷协调仍待验证。
+
+## 受控原始记录对照
+
+本模式按已确认的[受控方案](../../docs/ntfs-raw-record-plan.md)实施，只有本轮另行允许时才运行。它与 `-KernelDiagnostics` 互斥，不接受现有镜像、盘号或任意卷输入。先使用既有归属守卫创建256MiB新VHD，完成矩阵Native/IOCTL观察并关闭文件，然后成功锁定该虚拟卷；同一个只读卷句柄读取record0和21个已知对象。解锁后先复核文件，再重新打开元信息句柄核对卷绑定与几何，最后父进程卸载清理。
+
+```powershell
+# 已构建测试DLL，且本轮明确获准使用隔离VHD时，在管理员PowerShell执行：
+$result = Join-Path (Resolve-Path artifacts) ('ntfs-live-result-' + [guid]::NewGuid().ToString('N') + '.json')
+pwsh -NoProfile -File scripts/ntfs-prototype/Invoke-NtfsFixture.ps1 `
+    -ResultPath $result -RawRecords
+```
+
+结果文件必须不存在并处于允许的artifacts范围；不能覆盖旧报告。成功状态为 `verified`，必须同时检查 `raw_verified`、`detached`、`cleanup_completed` 和 `raw_comparison`。`RawDecoded=22` 只说明这22条严格解码，`UnknownAllocationObjects=14` 如实保留特殊分配未知，不是整卷或占用统计全部完成。锁失败不读取，也不用强制卸载重试；失败/清理失败清空成功摘要。最多128次ReadFile尝试、2MiB请求、每次64KiB；实际受控夹具为22次/22528字节，不能当物理I/O或性能结论。
+
+原始记录仅在内存，raw模式不创建留样会话；旧6条kernel样本仍仅本机保留。公开结果经过深层字段及语义代码白名单，不转发任意异常或标识。真实成功、失败尝试和未验收项见[本轮记录](../../iterations/2026-11-12-14-raw-records/README.md)。授权不延续到以后，不锁个人卷，不提供生产入口或打包。
