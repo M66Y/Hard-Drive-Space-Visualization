@@ -176,6 +176,7 @@ public sealed class DiskScanner
 {
     private readonly int maxConcurrency;
     private readonly Func<string, FileAttributes, FileReadResult>? fileReadOverride;
+    private readonly ScanTraversalBudget? traversalBudget;
 
     // A small worker pool overlaps SSD directory reads without opening a task per folder.
     public DiskScanner(int maxConcurrency = 8)
@@ -185,6 +186,8 @@ public sealed class DiskScanner
     }
 
     internal DiskScanner(Func<string, FileAttributes, FileReadResult> fileRead) : this() => fileReadOverride = fileRead;
+    internal DiskScanner(int maxConcurrency, ScanTraversalBudget traversalBudget) : this(maxConcurrency) =>
+        this.traversalBudget = traversalBudget ?? throw new ArgumentNullException(nameof(traversalBudget));
 
     private readonly record struct ScanEntry(string Name, FileAttributes Attributes, long Length, DateTime Modified);
 
@@ -199,12 +202,19 @@ public sealed class DiskScanner
         ScanOptions? options = null, RefreshPlan? refresh = null)
     {
         token.ThrowIfCancellationRequested();
+        if (traversalBudget != null && (options != null || refresh != null || live != null))
+            throw new InvalidOperationException("TraversalBudgetFullScanOnly");
+        var requestedToken = token;
+        using var boundedStop = traversalBudget == null ? null : CancellationTokenSource.CreateLinkedTokenSource(token);
+        if (boundedStop != null) token = boundedStop.Token;
         path = System.IO.Path.GetFullPath(path);
         if (!Directory.Exists(path)) throw new DirectoryNotFoundException("文件夹不存在或当前账户无法访问。" );
         var rootInfo = new DirectoryInfo(path);
         if ((rootInfo.Attributes & FileAttributes.ReparsePoint) != 0)
             throw new IOException("所选目录是链接或联接点，请选择其实际所在的文件夹。" );
         var root = new DiskEntry(rootInfo.FullName, true) { Modified = rootInfo.LastWriteTime };
+        int boundedRootLength = root.Path.TrimEnd('\\').Length;
+        traversalBudget?.Begin(boundedRootLength);
         var profile = options == null ? new ScanProfile(maxConcurrency, 0, "默认") : ScanPolicy.Resolve(options.Mode, NativeStorage.DetectDisk(path));
         NativeStorage.TryRead(path, true, rootInfo.Attributes, out var rootStorage, out _); root.Storage = rootStorage;
         live?.Attach(root);
@@ -280,6 +290,7 @@ public sealed class DiskScanner
             }
             void Schedule(DiskEntry entry)
             {
+                traversalBudget?.EnqueueDirectory();
                 Interlocked.Increment(ref scheduledDirectories);
                 Interlocked.Increment(ref outstanding); pending.Writer.TryWrite(entry);
             }
@@ -404,6 +415,8 @@ public sealed class DiskScanner
                 {
                     workToken.ThrowIfCancellationRequested();
                     pacer.Worked(workToken);
+                    traversalBudget?.ObserveEntry(info.Name.Length, Math.Max(0, current.Path.Length - boundedRootLength - 1),
+                        (info.Attributes & FileAttributes.Directory) != 0);
                     try
                     {
                         var attributes = info.Attributes;
@@ -469,23 +482,42 @@ public sealed class DiskScanner
         }
 
         // Newly discovered folders are available immediately, even while the root is still enumerating.
+        traversalBudget?.EnqueueDirectory();
         pending.Writer.TryWrite(root);
-        Parallel.ForEachAsync(pending.Reader.ReadAllAsync(token), new ParallelOptions
+        try
         {
-            MaxDegreeOfParallelism = profile.Workers, CancellationToken = token
-        }, async (current, workToken) =>
-        {
-            using var directorySlot = fileReads != null ? await fileReads.EnterDirectoryAsync(workToken).ConfigureAwait(false) : default;
-            concurrency.Enter();
-            try
+            Parallel.ForEachAsync(pending.Reader.ReadAllAsync(token), new ParallelOptions
             {
-                await ScanDirectory(current, workToken).ConfigureAwait(false);
-                Interlocked.Increment(ref completedDirectories);
-                if (Interlocked.Decrement(ref outstanding) == 0) pending.Writer.TryComplete();
-                Report(current.Path, phase: refresh != null ? ScanPhase.Reusing : ScanPhase.Scanning);
-            }
-            finally { concurrency.Exit(); }
-        }).GetAwaiter().GetResult();
+                MaxDegreeOfParallelism = profile.Workers, CancellationToken = token
+            }, async (current, workToken) =>
+            {
+                using var directorySlot = fileReads != null ? await fileReads.EnterDirectoryAsync(workToken).ConfigureAwait(false) : default;
+                concurrency.Enter();
+                try
+                {
+                    traversalBudget?.DequeueDirectory();
+                    await ScanDirectory(current, workToken).ConfigureAwait(false);
+                    Interlocked.Increment(ref completedDirectories);
+                    if (Interlocked.Decrement(ref outstanding) == 0) pending.Writer.TryComplete();
+                    Report(current.Path, phase: refresh != null ? ScanPhase.Reusing : ScanPhase.Scanning);
+                }
+                catch
+                {
+                    // Wake the channel reader too: otherwise a boundary failure can
+                    // leave it waiting for directories that will never be scheduled.
+                    if (boundedStop != null) { boundedStop.Cancel(); pending.Writer.TryComplete(); }
+                    throw;
+                }
+                finally { concurrency.Exit(); }
+            }).GetAwaiter().GetResult();
+        }
+        catch when (traversalBudget != null)
+        {
+            requestedToken.ThrowIfCancellationRequested();
+            if (traversalBudget.Failure != ScanTraversalLimitKind.None)
+                throw new ScanTraversalLimitException(traversalBudget.Failure);
+            throw;
+        }
 
         Report(root.Path, true, ScanPhase.Finalizing);
         StorageMetrics.Calculate(root, token);

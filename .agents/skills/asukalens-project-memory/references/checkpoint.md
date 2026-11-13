@@ -1,27 +1,29 @@
 # AsukaLens 开发检查点
 
-2026-11-13。当前 C27 接续，基线 e7b4324（仅 AGENTS 主动询问偏好已独立提交）；继承 C26 be21b34 的代码。先核 Git status，不把未提交修改当正式版本。v1.5.0 已发布但不含实验快扫，本轮不打包或发布。
+2026-11-13，C28 在已推送基线 420a054 上完成；本次提交携带本检查点和恢复归档，提交／远端状态以 Git 为准。没有正式发布，v1.5.0 不包含实验快扫。
 
-## 当前事实
+## 当前完成状态
 
-C26 的 Large 个人范围、受限 MFT 扩展和显式重解析点排除已验收。固定预算、失败恢复及同源正确性见 docs/ntfs-personal-scan.md 与 iterations/2026-11-13-26-personal-ntfs-compatibility/。只跳过链接和目标、声明 partial，不能称完整整盘；未知占用仍失败。快照清理确认先于发布，取消不回退，清理未知锁止本进程快扫。
+C27 已修复生产助手 MTA 分派／桌面显式 STA，真实主窗部分快扫与七项结果流程通过；归档 iterations/2026-11-13-27-personal-ntfs-ui-timing/。旧生产实际 HRESULT 未取得，不宣称全部失败同因。跨时点快照／实时目录比较有逻辑与分配差异，不能据此判断算法误算或宣布提速。
 
-C27 实际生产开发 EXE 已在用户指定目录完成部分快扫，无 fallback，cleanup 确认；已观察空间图/列表、大文件、类型、实际占用、排除明细及快照范围提示。独立 COM-only 12 个进程：6 STA 返回 RPC_E_TOO_LATE、6 MTA 成功；旧生产失败只取得 SnapshotFailed，没取到实际 HRESULT。Program 改 MTA 分派，GUI 独立 STA 后实际入口通过，不据此承诺所有快照失败已解决。
+C28 已完成原 NTFS 后端与原 DiskScanner 固定八路的同一自持 VSS 对照，真实摘要 Matched、ComparisonComplete、SameSourceVerified、BudgetRespected 和 CleanupConfirmed 均为 true。已包含范围、类型、身份、文件逻辑大小、分配量、链接数及两路根汇总／文件和目录数量全部有效，排除集合完整且一致，占用均已知。不需要 Native 差异补查；本轮只有一个实际快照会话，没有追加扫描，对照进程均已退出。
 
-第一后台 FO 因 included/root metrics 不一致停止；排除范围一致、无其他读取错误/未知占用。旧 F 少计 Coordinator 发布核验，不能给稳定加速结论，具体个人计数/时间/指纹不入仓库。v2 已计入 Coordinator 发布核验并完成一对完整 FO：新增/删除/type/identity/links 类别均无差异，文件逻辑大小/分配量有差异，存在晚于快照的修改时间；排除范围一致、无未知占用/其他错误、cleanup 确认、无 fallback。该组仍未通过一致性门槛，exit3为对照拒绝而非扫描崩溃。不单独证明全部差异由外部写入导致。
+首次管理员启动等待超时，目录尚未发送、没有创建来源；用户确认后重新启动原定操作。没有将未启动当失败扫描，也没有将过程退出当清理证明。此次通过关闭同源正确性核查，不回溯解释 C27 全部差异，不声称产品性能通过。
 
-## 工作区及检查
+## 实现与验证
 
-本轮文件归属：Program.cs、FastScanBridge/Coordinator、对应 tests 与 NtfsPersonalTimingDriver、tests/Program.cs、四份状态/合同/归档文档和本记忆。测试 timing worker 独立于旧全对象 Native 审计入口，保留真实生产校验且禁止计时中自动 fallback；目录仅 stdin/私有 pipe，比较信息只留内存。最终 Git status 与归档 files.json 为清单依据。
+测试专用入口与比较代码位于 tests/NtfsSameSnapshot*.cs；tests/Program.cs 注册新入口。Core.cs 与 src/Scanning/ScanTraversalBudget.cs 为原扫描器提供可选单次预算，普通产品默认行为不变；入口、名称、路径、队列有界，异常取消并等待后台工作退出。私有管道仅传固定白名单摘要，同用户／PID／父进程启动时刻及同 EXE 绑定。
 
-已完成 app/tests 构建零警告；Coordinator 68、Bridge 45、最终 timing 58 通过。desktop compatibility、mainform 默认/96 DPI 各86、general UI 两档通过。v2 已通过独立审查和本次真实对照执行；性能一致性拒绝如实保留，不能把执行完成记为性能验收通过。当前正式普通 app 构建已更新；验收预览正常退出。
+应用／测试构建零警告；比较26、驱动1465、遍历预算44、核心38、高级25、并行11、Bridge45项通过。首次自有夹具失败仅目录时间戳未稳定，固定测试时间后严格比较未放宽并通过，夹具已清理。真实差异补查未触发，不把合成覆盖当实际运行。
 
-## 继续顺序与授权
+证据及恢复入口 iterations/2026-11-13-28-same-snapshot-comparison/；范围 docs/ntfs-same-snapshot-comparison-plan.md，状态 docs/project-status.md，后续 docs/development-plan.md。归档只含固定类别／布尔和合成验证，不含私人路径、数量、大小、身份、原始页、清单或个人计时。仅本轮必要文件提交，无新包／Release。
 
-本轮不再追加扫描，统一文档/归档/清理并提交推送 main；提交结果以 Git 为准。用户已选择下一轮同一只读快照逐项比较，排除时点变化再判断统计问题；本轮不执行新方案，未来实际来源生命周期、预算和授权需据届时范围核对。真实测量期间已暂停本仓库源码/构建/归档写入。
+## 后续与边界
 
-本轮用户已明确允许同一个人范围短时 VSS 和 Large raw/bitmap 边界：1,048,576 入口、1 GiB+2 MiB、65,536 请求；接受邻近和驻留片段，只解析元信息、不开文件数据流、不保存或上传原始页/清单、不跟随链接、不改差异区，只清理本次快照。本次继续任务未扩大边界；不延续未来轮次/其他目录/VHD。UAC 由用户本人确认。
+用户已确定下一项为主界面优化：保留角色背景与暖红浅色，先改善列表整块底色、小字承载和组件一致性，用自建目录的真实程序画面对比。之前只读审查确认列表空白会重绘背景，已有主题、按钮状态、Tooltip、减弱动效和磁盘面板折叠，不重复造功能。本轮未改界面，下一轮先按现有代码给可审查效果。
 
-旧原始 kernel 留样仅 ignored 本机保留，不清除或上传。C27 COM-only 源以 .cs.txt 和固定结果归档，避免被主工程编译；生成 DLL 已删。私有真实 GUI 截图不归档。新 backend Windows 10、更广格式/设备、稳定性能和其他阶段真实取消仍待验证。
+Windows10新后端、更广格式／设备／目录、其他取消阶段与稳定性能仍待验证；正确性通过不等于完成这些项目。当前父进程10分钟取消上限包含管理员等待，可能早于助手自身读取上限结束；不自动重试。
 
-项目记忆是索引，长期规则见 AGENTS.md，当前状态见 docs/project-status.md，下一步见 docs/development-plan.md，本轮证据见 iterations/2026-11-13-27-personal-ntfs-ui-timing/。
+本轮个人目录来源授权已使用并清理，不变为未来许可：最多1048576入口、原raw 1GiB+2MiB／65536请求，差异对象最多1024；接受邻近记录／驻留片段，只查元信息，不保存上传原始页／清单，不跟随链接，不改差异区，只删本次快照。不得扩大到其他卷、VHD或发布。旧ignored原始kernel样本保持本机，不删除或上传。
+
+接续先 git status --short --branch，核提交与文件归属，不从旧预览推断当前版本。长期规则 AGENTS.md，记忆只作索引。

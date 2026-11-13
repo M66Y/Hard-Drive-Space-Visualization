@@ -1,0 +1,87 @@
+{
+  "revision": "c28-checks-v1",
+  "date": "2026-11-13",
+  "baseline": "420a0549dd1225e467956f9e62fe319ce0cc5aad",
+  "build": {
+    "application": {
+      "warnings": 0,
+      "errors": 0
+    },
+    "tests": {
+      "warnings": 0,
+      "errors": 0
+    }
+  },
+  "passed_checks": {
+    "same_snapshot_comparison": 26,
+    "same_snapshot_driver": 1465,
+    "traversal_budget": 44,
+    "core": 38,
+    "advanced": 25,
+    "parallel_file": 11,
+    "bridge": 45
+  },
+  "fixture": {
+    "initial_failure": "directory_timestamp_unsettled",
+    "timestamps_fixed": true,
+    "strict_comparison_preserved": true,
+    "cleanup_confirmed": true
+  },
+  "initial_launch": {
+    "status": "authorization_wait_cancelled",
+    "scope_sent": false,
+    "source_created": false
+  },
+  "real_comparison": {
+    "revision": "same-snapshot-driver-v1",
+    "kind": "summary",
+    "outcome": "Matched",
+    "code": "None",
+    "driver_code": "None",
+    "worker_summary_received": true,
+    "cleanup_confirmed": true,
+    "comparison_complete": true,
+    "same_source_verified": true,
+    "budget_respected": true,
+    "included_scope_equal": true,
+    "types_equal": true,
+    "identities_equal": true,
+    "file_logical_equal": true,
+    "file_allocation_equal": true,
+    "file_links_equal": true,
+    "allocation_known": true,
+    "fast_root_logical_valid": true,
+    "fast_root_allocation_valid": true,
+    "directory_root_logical_valid": true,
+    "directory_root_allocation_valid": true,
+    "fast_root_counts_valid": true,
+    "directory_root_counts_valid": true,
+    "exclusions_equal": true,
+    "exclusion_details_complete": true,
+    "native_probe_required": false,
+    "native_probe_attempted": false,
+    "native_probe_complete": false,
+    "probe_branch": "None",
+    "fast_matches_native_identity": null,
+    "directory_matches_native_identity": null,
+    "fast_matches_native_logical": null,
+    "directory_matches_native_logical": null,
+    "fast_matches_native_allocation": null,
+    "directory_matches_native_allocation": null,
+    "fast_matches_native_links": null,
+    "directory_matches_native_links": null,
+    "fast_matches_native_standard_allocation": null,
+    "directory_matches_native_standard_allocation": null,
+    "native_metadata_consistent": null,
+    "native_compression_observed": null,
+    "product_end_to_end_measured": false,
+    "past_live_difference_explained": false,
+    "files_written": false
+  },
+  "completion": {
+    "exit_code": 0,
+    "comparison_processes_remaining": 0,
+    "raw_or_listing_files_saved": false,
+    "new_release": false
+  }
+}

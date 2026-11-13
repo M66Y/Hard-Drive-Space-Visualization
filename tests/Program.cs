@@ -28,6 +28,25 @@ if (args.Length == 1 && args[0] == "--ntfs-large-profile-tests")
     catch { Console.Error.WriteLine("FAIL large profile; no private details emitted"); return 1; }
 }
 
+if (NtfsSameSnapshotDriver.IsWorkerRequest(args))
+    return NtfsSameSnapshotDriver.RunWorker(args);
+if (NtfsSameSnapshotDriver.IsParentRequest(args))
+    return NtfsSameSnapshotDriver.RunParent(args);
+if (args.Length == 1 && args[0] == "--ntfs-same-snapshot-driver-tests")
+{
+    try { int n = NtfsSameSnapshotDriverTests.Run(); Console.WriteLine($"PASS same snapshot driver: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL same snapshot driver; no private details emitted"); return 1; }
+}
+if (args.Length == 1 && args[0] == "--ntfs-same-snapshot-comparison-tests")
+{
+    try { int n = NtfsSameSnapshotComparisonTests.Run(); Console.WriteLine($"PASS same snapshot comparison: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL same snapshot comparison; no private details emitted"); return 1; }
+}
+if (args.Length == 1 && args[0] == "--scan-traversal-budget-tests")
+{
+    try { int n = ScanTraversalBudgetTests.Run(); Console.WriteLine($"PASS scan traversal budget: {n}; owned temporary fixture only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL scan traversal budget; no private details emitted"); return 1; }
+}
 if (FastScanBridge.IsWorkerRequest(args))
     return FastScanBridge.RunWorker(args, DiskAtlas.NtfsPrototype.NtfsPersonalAcceptanceDriver.Validate);
 if (FastScanBridge.IsTimingWorkerRequest(args))

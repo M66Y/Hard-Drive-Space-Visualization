@@ -1,0 +1,68 @@
+{
+  "baseline": "420a0549dd1225e467956f9e62fe319ce0cc5aad",
+  "hash_scope": "versioned-index-bytes",
+  "recovery": "restore exact baseline blobs; git -c core.autocrlf=false apply changes.patch",
+  "verified_recovered_files": 15,
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "6263d2492019b327f9e11c3cc0444c1c3823f070df7afe2d24b305c60083cc69"
+    },
+    {
+      "path": "Core.cs",
+      "sha256": "08969eb36ef24d966d53f5fa8485ef427b4ead906d0798de691aecf22261b0f3"
+    },
+    {
+      "path": "src/Scanning/ScanTraversalBudget.cs",
+      "sha256": "7a423117c0a8790220f985c0c9e456b58f4fea2f1e529986a7cd410adec4c8c6"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "78370eddd92cda76222c925710819d13a3d1719a39ab7482a8346ac5b7e127ad"
+    },
+    {
+      "path": "tests/ScanTraversalBudgetTests.cs",
+      "sha256": "4b48d4d96119b99b60077601f48478869f0e0c85882fe41fedee804b5be04460"
+    },
+    {
+      "path": "tests/NtfsSameSnapshotComparison.cs",
+      "sha256": "9faa580e840e6632dcfbc809aadd73aaf2d9914251e44c069e5c0061f8df8351"
+    },
+    {
+      "path": "tests/NtfsSameSnapshotComparisonTests.cs",
+      "sha256": "ab2446f557df758541de7a349d75c082024415038dccd64332aa9805e16cefcc"
+    },
+    {
+      "path": "tests/NtfsSameSnapshotDriver.cs",
+      "sha256": "e6863be55c225111ef1f8e99590b380c39d96bee697443fb5daaa67488ae795d"
+    },
+    {
+      "path": "tests/NtfsSameSnapshotDriverTests.cs",
+      "sha256": "c063254b3ee4d646b5807e3f2520e6e8dc20b97f58dad75132a4eaefe42d9282"
+    },
+    {
+      "path": "tests/NtfsSameSnapshotNativeProbe.cs",
+      "sha256": "4ca98ea26f1fee5e66e95fdc627e9d4fbfcc62f62de5948116b5aadc9f440412"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "cc60f5b1929fe860f2c37f2141fd7a26fbdc3aae0fb3e9601e32bad73f37f608"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "2f7df8f47a0d4dad0b725cc0da19a2814f7b906612cb0824bacfdd457eb2a5ba"
+    },
+    {
+      "path": "docs/ntfs-same-snapshot-comparison-plan.md",
+      "sha256": "21e7b99995e83620ba03c7961b7e057d998e86a904682853f4f891acc60c0bc4"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "99aa7b09097356273ae458c2d0b59ec1de5b9cd300911b4c98f717c54f4761f6"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "018b6780a8e3cd56a1f2aa39e52a3d2dc679702bc9f327ac03f49d502108cb3f"
+    }
+  ]
+}

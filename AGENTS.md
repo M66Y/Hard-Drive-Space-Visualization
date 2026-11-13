@@ -168,7 +168,10 @@
 - 直接发行入口验收运行包内 `AsukaLens.exe`，按[发布说明](docs/releasing.md#直接发行-exe-的本机使用流程)仅在该进程设置 `ASUKALENS_DATA_DIR`，不能依赖 LOCAL TEST 安装身份隔离个人数据。修改数据目录解析时运行 `--app-data-location-tests`，不在测试中读取或覆盖真实个人配置。
 - 调整目录或构建方式时同步更新上述命令、项目引用、测试链接文件、资源路径及文档。不得写入本机绝对路径作为公共运行要求。
 
+- 同快照比较工具的检查为 `--ntfs-same-snapshot-comparison-tests`、`--ntfs-same-snapshot-driver-tests`、`--scan-traversal-budget-tests`；共享 `Core.cs` 修改同时核对核心／高级及相关并行检查。真实测试 apphost 入口 `--ntfs-same-snapshot-comparison` 仅按当轮已批准的来源范围执行，目录走 stdin，不由合成检查或旧许可自动开启。摘要只含固定类别与布尔值，独立核对同源、完整性、预算与清理；相等不代表产品端到端提速，也不回溯证明所有旧跨时点差异来自文件变化。见 [同快照方案](docs/ntfs-same-snapshot-comparison-plan.md)。
+
 ## Git 提交与上传
+
 
 - 目标仓库：`https://github.com/M66Y/Hard-Drive-Space-Visualization.git`；目标分支：`main`。
 - 用户已授权：本轮改动验证通过后自动提交并推送到 `main`，不为普通提交重复请求确认。较大改动的实施仍先遵循方案规则。
