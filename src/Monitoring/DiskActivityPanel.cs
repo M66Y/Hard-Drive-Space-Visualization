@@ -15,9 +15,9 @@ internal sealed class DiskActivityPanel : Control
     private bool changingTargets, disposed;
     private readonly ComboBox targetBox;
     private readonly Button toggle;
-    private readonly Font heading = Theme.Font(9, FontStyle.Bold);
-    private readonly Font small = Theme.Font(8);
-    private readonly Font value = Theme.Font(13, FontStyle.Bold);
+    private readonly Font heading = Theme.Font(Theme.ControlFontSize, FontStyle.Bold);
+    private readonly Font small = Theme.Font(Theme.CaptionFontSize);
+    private readonly Font value = Theme.Font(14, FontStyle.Bold);
 
     private sealed record TargetChoice(int? Number, string Label)
     {

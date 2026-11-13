@@ -3,10 +3,25 @@ using System.Drawing.Drawing2D;
 
 namespace DiskAtlas;
 
+internal enum MainSurfaceStyle { Clear, Airy }
+internal enum WallpaperSurface { Ambient, Chrome, Data, Canvas, Card }
+
 // Each surface samples the same window-sized image, so panel boundaries do not
 // restart the wallpaper. Text and data can use a stronger white wash locally.
 internal static class Wallpaper
 {
+    internal static int SurfaceAlpha(Control control, WallpaperSurface surface, int fallback = 42)
+    {
+        bool airy = control.FindForm() is MainForm { SurfaceStyle: MainSurfaceStyle.Airy };
+        return surface switch
+        {
+            WallpaperSurface.Chrome => airy ? 235 : 250,
+            WallpaperSurface.Data => 255,
+            WallpaperSurface.Canvas => airy ? 215 : 235,
+            WallpaperSurface.Card => airy ? 230 : 246,
+            _ => fallback
+        };
+    }
     public static Bitmap Load()
     {
         using var stream = typeof(Wallpaper).Assembly.GetManifestResourceStream("DiskAtlas.Background")
@@ -15,8 +30,20 @@ internal static class Wallpaper
         return new Bitmap(image);
     }
 
-    public static void Paint(Control control, Graphics graphics, int wash = 42)
+    public static void Paint(Control control, Graphics graphics, int wash = 42, WallpaperSurface surface = WallpaperSurface.Ambient)
     {
+        if (surface == WallpaperSurface.Ambient)
+        {
+            if (control is ScanProgressControl || control is TreemapControl && wash == 130) surface = WallpaperSurface.Chrome;
+            else if (control is TreemapControl && wash == 215) surface = WallpaperSurface.Canvas;
+        }
+        wash = SurfaceAlpha(control, surface, wash);
+        if (wash == 255)
+        {
+            using var solid = new SolidBrush(Theme.Surface);
+            graphics.FillRectangle(solid, control.ClientRectangle);
+            return;
+        }
         var form = control.FindForm();
         using var background = new SolidBrush(Theme.Background);
         graphics.FillRectangle(background, control.ClientRectangle);
@@ -96,32 +123,19 @@ internal sealed class WallpaperTable : TableLayoutPanel
 {
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public int Wash { get; set; } = 42;
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public WallpaperSurface Surface { get; set; } = WallpaperSurface.Ambient;
     public WallpaperTable()
     {
         DoubleBuffered = true;
         SetStyle(ControlStyles.ResizeRedraw, true);
     }
-    protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics, Wash);
+    protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics, Wash, Surface);
 }
 
 internal sealed class WallpaperGrid : DataGridView
 {
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        base.OnPaint(e);
-        // Keep real cells opaque. Only the unused area reveals the background.
-        int top = ColumnHeadersVisible ? ColumnHeadersHeight : 0;
-        if (RowCount > 0)
-        {
-            int last = Rows.GetLastRow(DataGridViewElementStates.Displayed);
-            if (last >= 0) top = Math.Max(top, GetRowDisplayRectangle(last, false).Bottom);
-        }
-        int right = ClientSize.Width - (Controls.OfType<VScrollBar>().Any(s => s.Visible) ? SystemInformation.VerticalScrollBarWidth : 0);
-        int bottom = ClientSize.Height - (Controls.OfType<HScrollBar>().Any(s => s.Visible) ? SystemInformation.HorizontalScrollBarHeight : 0);
-        if (top >= bottom || right <= 0) return;
-        var state = e.Graphics.Save();
-        e.Graphics.SetClip(new Rectangle(0, top, right, bottom - top), CombineMode.Intersect);
-        Wallpaper.Paint(this, e.Graphics, 125);
-        e.Graphics.Restore(state);
-    }
+    // The native grid paints one stable surface, including empty and scrolled
+    // regions. It no longer repaints wallpaper below the last visible row.
+    public WallpaperGrid() => DoubleBuffered = true;
 }

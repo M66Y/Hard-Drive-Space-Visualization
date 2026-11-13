@@ -1,0 +1,82 @@
+{
+  "revision": "c29-visual-polish-v1",
+  "date": "2026-11-13",
+  "baseline": "adfbd71d9723f0295cc286c29e68ff717a0699ac",
+  "scope": "stage-one-visual-polish",
+  "selected_candidate": "B",
+  "user_stage_result_review": "pending",
+  "stage_two_started": false,
+  "build": {
+    "application": {
+      "warnings": 0,
+      "errors": 0
+    },
+    "tests": {
+      "warnings": 0,
+      "errors": 0
+    }
+  },
+  "regression": {
+    "ui_144": "passed",
+    "ui_96": "passed",
+    "background_groups_144": 7,
+    "background_groups_96": 7,
+    "visual_surface_assertions_144": 234,
+    "visual_surface_assertions_96": 234,
+    "disk_activity_panel_144": 28,
+    "disk_activity_panel_96": 28,
+    "disk_activity_mainform_144": 58,
+    "disk_activity_mainform_96": 58
+  },
+  "desktop": {
+    "dpi": 144,
+    "common_window_observed": true,
+    "minimum_window_observed": true,
+    "search_focus_visible": true,
+    "background_escape_cancel": true,
+    "diagnostics_loaded_in_preview": false
+  },
+  "preview_driver": {
+    "actual_owned_directory_scan": true,
+    "displayed_paths_aliased": true,
+    "tree_paths_unchanged": true,
+    "first_sandbox_window_visible": false,
+    "first_sandbox_auto_exit_cleanup": true,
+    "initial_parent_close_with_modal_failed": true,
+    "owned_modal_close_order_fixed": true,
+    "modal_close_retest_exit": 0,
+    "modal_close_retest_cleanup": true
+  },
+  "fixes": {
+    "grid_blank_area_solid": true,
+    "single_column_panels_bound_to_viewport": true,
+    "rows_headers_columns_scale_with_dpi": true,
+    "kpi_values_units_fit_minimum_window": true,
+    "tile_size_units_never_ellipsized": true
+  },
+  "limits": {
+    "dpi_125_not_observed": true,
+    "real_cross_monitor_not_observed": true,
+    "all_reference_resolutions_not_observed": true,
+    "windows10_new_visuals_not_observed": true,
+    "performance_benchmark_not_run": true
+  },
+  "provenance": {
+    "baseline_development_dll_sha256": "2007367646e6b28a9132f015bc9247dcbd05cc4c4c7d565aa115603932808176",
+    "baseline_binary_is_not_a_git_freeze_proof": true,
+    "native_jpeg_screenshots": true,
+    "ai_image_edits": false
+  },
+  "release_created": false,
+  "personal_directory_scan": false,
+  "raw_volume_or_vss_used": false,
+  "cleanup": {
+    "preview_processes_remaining": 0,
+    "owned_preview_fixtures_remaining": 0,
+    "owned_visual_fixtures_remaining": 0,
+    "temporary_stage_outputs_removed": true,
+    "native_screenshot_copies_verified": true,
+    "recovery_temp_removed": true,
+    "recovery_hash_verified_files": 15
+  }
+}

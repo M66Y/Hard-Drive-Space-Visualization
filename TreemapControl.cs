@@ -1,6 +1,7 @@
 using System.Drawing.Drawing2D;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 
 namespace DiskAtlas;
 
@@ -111,11 +112,12 @@ internal sealed class TreemapControl : Control
             g.DrawRectangle(outline, cx + 16 * s, cy - 26 * s, 30 * s, 29 * s);
             g.DrawRectangle(outline, cx + 16 * s, cy + 9 * s, 30 * s, 26 * s);
             using var titleFont = Theme.Font(17, FontStyle.Bold);
-            using var captionFont = Theme.Font(9);
+            using var captionFont = Theme.Font(10);
             Theme.TextAt(g, Scanning ? "正在读取你的文件夹" : LoadingView ? "正在整理空间分布" : EmptyTitle, titleFont, Theme.Text,
                 new Rectangle((int)(20 * s), cy + (int)(60 * s), Width - (int)(40 * s), (int)(40 * s)), TextFormatFlags.HorizontalCenter);
             Theme.TextAt(g, Scanning ? "已读取的内容会逐步显示，无需等待整个扫描完成" : LoadingView ? "可继续搜索或切换视图，始终显示最新选择" : EmptyCaption, captionFont, Theme.Muted,
                 new Rectangle((int)(30 * s), cy + (int)(108 * s), Width - (int)(60 * s), (int)(62 * s)), TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak);
+            DrawFocusCue(g, s);
             return;
         }
         var clip = Rectangle.Intersect(ClientRectangle, e.ClipRectangle);
@@ -130,15 +132,17 @@ internal sealed class TreemapControl : Control
         DrawInteraction(g, hovered, false);
         if (selected != hovered) DrawInteraction(g, selected, true);
         if (motionItem != null && tileLookup.TryGetValue(motionItem, out var moving)) DrawJelly(g, moving.Bounds);
+        DrawFocusCue(g, s);
     }
 
     private void DrawStaticTiles(Graphics g, Rectangle clip)
     {
         float s = DeviceDpi / 96f;
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        using var nameFont = Theme.Font(10, FontStyle.Bold);
-        using var sizeFont = Theme.Font(9);
-        using var miniFont = Theme.Font(8);
+        using var nameFont = Theme.Font(11, FontStyle.Bold);
+        using var sizeFont = Theme.Font(9.5f);
+        using var miniFont = Theme.Font(9);
+        int nameHeight = LabelHeight(g, nameFont), sizeHeight = LabelHeight(g, sizeFont), miniHeight = LabelHeight(g, miniFont);
         foreach (var tile in tiles)
         {
             if (!clip.IntersectsWith(Rectangle.Ceiling(tile.Bounds))) continue;
@@ -156,37 +160,77 @@ internal sealed class TreemapControl : Control
                 {
                     var inner = child.Bounds; inner.Inflate(-1 * s, -1 * s);
                     if (inner.Width <= 1 || inner.Height <= 1) continue;
-                    var dark = Color.FromArgb(Math.Max(0, baseColor.R - 16 - index % 4 * 5), Math.Max(0, baseColor.G - 16 - index % 4 * 5), Math.Max(0, baseColor.B - 16 - index % 4 * 5));
+                    // Stay within the parent category's tone without making small labels too dark to read.
+                    int shade = 8 + index % 3 * 3;
+                    var dark = Color.FromArgb(Math.Max(0, baseColor.R - shade), Math.Max(0, baseColor.G - shade), Math.Max(0, baseColor.B - shade));
                     using var b = new SolidBrush(dark);
                     g.FillRectangle(b, inner);
-                    if (inner.Width > 65 * s && inner.Height > 24 * s)
-                        Theme.TextAt(g, child.Item.Name, miniFont, Theme.Text, Rectangle.Round(RectangleF.Inflate(inner, -4 * s, 0)));
+                    var childLabel = Rectangle.Round(RectangleF.Inflate(inner, -5 * s, -2 * s));
+                    DrawLabel(g, child.Item.Name, miniFont, Theme.Text, childLabel, miniHeight);
                     index++;
                 }
             }
-            if (rect.Width > 55 * s && rect.Height > 25 * s)
-            {
-                int x = (int)(rect.X + 11 * s), y = (int)(rect.Y + 8 * s), w = (int)(rect.Width - 22 * s);
-                Theme.TextAt(g, tile.Item.Name, nameFont, Theme.Text, new Rectangle(x, y, w, (int)(24 * s)));
-                if (rect.Height > 52 * s)
-                    Theme.TextAt(g, SizeFormat.Bytes(tile.Item.Size), sizeFont, Theme.Text, new Rectangle(x, y + (int)(26 * s), w, (int)(21 * s)));
-            }
+            int x = (int)(rect.X + 11 * s), y = (int)(rect.Y + 8 * s), w = Math.Max(0, (int)(rect.Width - 22 * s));
+            int availableHeight = Math.Max(0, (int)(rect.Bottom - 6 * s) - y);
+            DrawLabel(g, tile.Item.Name, nameFont, Theme.Text, new Rectangle(x, y, w, Math.Min(nameHeight, availableHeight)), nameHeight);
+            int sizeY = y + nameHeight + (int)(4 * s);
+            int availableSizeHeight = Math.Max(0, (int)(rect.Bottom - 6 * s) - sizeY);
+            DrawLabel(g, SizeFormat.Bytes(tile.Item.Size), sizeFont, Theme.Text,
+                new Rectangle(x, sizeY, w, Math.Min(sizeHeight, availableSizeHeight)), sizeHeight, requireFullText: true);
         }
+    }
+
+    private const TextFormatFlags LabelFlags = TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsClipping;
+    private static int LabelHeight(Graphics g, Font font) => TextRenderer.MeasureText(g, "Ag国", font, Size.Empty, LabelFlags).Height;
+    private static void DrawLabel(Graphics g, string text, Font font, Color color, Rectangle bounds, int height, bool requireFullText = false)
+    {
+        if (bounds.Width <= 0 || bounds.Height < height || text.Length == 0) return;
+        // A truncated size can hide its unit. Small tiles keep the full value
+        // in their tooltip instead of presenting an ambiguous partial number.
+        if (requireFullText && TextRenderer.MeasureText(g, text, font, Size.Empty, LabelFlags).Width > bounds.Width) return;
+        // A short meaningful prefix must fit before we draw an ellipsized label.
+        // Text elements keep surrogate pairs and combining marks intact.
+        string first = StringInfo.GetNextTextElement(text, 0);
+        string sample = first;
+        if (first.Length < text.Length)
+        {
+            string second = StringInfo.GetNextTextElement(text, first.Length);
+            sample = first + second + (first.Length + second.Length < text.Length ? "…" : "");
+        }
+        if (TextRenderer.MeasureText(g, sample, font, Size.Empty, LabelFlags).Width > bounds.Width) return;
+        Theme.TextAt(g, text, font, color, bounds, LabelFlags);
     }
 
     private void DrawInteraction(Graphics g, MapItem? item, bool isSelected)
     {
         if (item == null || !tileLookup.TryGetValue(item, out var tile)) return;
         float s = DeviceDpi / 96f;
-        var rect = RectangleF.Inflate(tile.Bounds, -2 * s, -2 * s);
+        bool chosen = isSelected || item == selected;
+        float shortest = Math.Min(tile.Bounds.Width, tile.Bounds.Height);
+        float inset = Math.Min((chosen ? 4.5f : 3) * s, Math.Max(2.25f * s, shortest / 3));
+        var rect = RectangleF.Inflate(tile.Bounds, -inset, -inset);
         if (rect.Width < 1 || rect.Height < 1) return;
         using var path = Theme.Round(rect, Math.Min(5 * s, Math.Min(rect.Width, rect.Height) / 4));
         if (item == hovered)
         {
             using var wash = new SolidBrush(Color.FromArgb(22, Color.White)); g.FillPath(wash, path);
         }
-        using var pen = new Pen(isSelected || item == selected ? Theme.Accent : Theme.Muted, (isSelected || item == selected ? 2.5f : 1.5f) * s);
+        if (chosen && inset >= 4.5f * s && rect.Width > 6 * s && rect.Height > 6 * s)
+        {
+            using var separation = new Pen(Theme.Surface, 5 * s);
+            g.DrawPath(separation, path);
+        }
+        float stroke = Math.Min((chosen ? 2.25f : 1.25f) * s, Math.Max(.5f * s, 2 * (inset - 2 * s)));
+        using var pen = new Pen(chosen ? Theme.Accent : Theme.Muted, stroke);
         g.DrawPath(pen, path);
+    }
+
+    private void DrawFocusCue(Graphics g, float scale)
+    {
+        if (!Focused || !ShowFocusCues) return;
+        int inset = Math.Max(2, (int)Math.Ceiling(3 * scale));
+        var bounds = Rectangle.Inflate(ClientRectangle, -inset, -inset);
+        if (bounds.Width > 0 && bounds.Height > 0) ControlPaint.DrawFocusRectangle(g, bounds, Theme.Accent, Theme.Surface);
     }
 
     private void DrawJelly(Graphics g, RectangleF bounds)
@@ -289,6 +333,8 @@ internal sealed class TreemapControl : Control
     }
     protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (!Visible) { StopMotion(); ReleaseStaticLayer(); } }
     protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); if (!Enabled) StopMotion(); }
+    protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); Invalidate(); }
+    protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); Invalidate(); }
     protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); LayoutTiles(); Invalidate(); }
     protected override void OnParentChanged(EventArgs e) { base.OnParentChanged(e); ReleaseStaticLayer(); }
     protected override void Dispose(bool disposing) { if (disposing) { motionTimer.Dispose(); tip.Dispose(); ReleaseStaticLayer(); } base.Dispose(disposing); }

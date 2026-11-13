@@ -419,8 +419,10 @@ if (args.Contains("--folder-comparison-tests")) return FolderComparison.RunCheck
 if (args.Contains("--folder-benchmark")) return FolderComparison.Run(args.Last(), args.Contains("--pair"));
 if (args.Contains("--memory-benchmark")) return MemoryBenchmark.Run();
 if (args.Contains("--readme-preview")) return ReadmePreview.Run(args.Last());
+if (args.Length > 0 && args[0] == "--stage-one-preview") return StageOnePreview.Run(args);
 if (args.Contains("--result-info-preview")) return ResultInformationRegression.Preview();
 if (args.Contains("--ui-regression")) return UiRegression.Run(args.Contains("--dpi-96"));
+if (args.Contains("--visual-surface-tests")) return VisualSurfaceRegression.Run(args.Contains("--dpi-96"));
 if (args.Contains("--advanced-tests")) return AdvancedFeatures.Run();
 if (args.Contains("--journal-tests")) return JournalRegression.Run();
 if (args.Contains("--refresh-benchmark")) return RefreshBenchmark.Run();

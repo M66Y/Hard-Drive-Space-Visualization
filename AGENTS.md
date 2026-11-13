@@ -118,6 +118,7 @@
 
 - 检查与改动相称。纯文档改动检查覆盖、事实、链接、相互矛盾与隐私，不仅为改文档重复构建；现状审计可运行基线检查。涉及核心扫描、缓存和统计逻辑时，增加必要边界测试并运行对应检查。
 - 界面改动验证实际使用流程、布局和状态；算法或性能改动核对结果正确性与同条件基准。检查通过后，无新改动或疑点不反复扩大测试。
+- 表面、字体或尺寸修改可运行 `--visual-surface-tests` 及 `--dpi-96`：自有小目录真实扫描后用合成背景检查底板、合成对比和最小窗口排版；程序位图断言不替代实际桌面观察。`--stage-one-preview a|b [--minimum] [--dpi-96]` 为测试 apphost 的真实合成目录预览，隔离配置、显示路径使用公开别名，关闭后核归属清理；`baseline` 需预先保留的旧开发程序集，不以其名称当 Git 冻结证明。交互预览使用保持 stdin 的终端会话，精确 `close` 会先退自有弹窗再关主窗；EOF 不会自动关闭。工具细节见 [C29 记录](iterations/2026-11-13-29-visual-polish/README.md)。
 - 开发 SDK 由 `global.json` 固定到已验证的 .NET 10 feature band，允许补丁升级，不使用预览 SDK。运行需要 .NET 10 Windows Desktop Runtime；SDK 已包含它。
 - 当前普通构建入口：`dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。
 - 先构建测试项目：`dotnet build tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。测试 DLL 为 `tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll`，用 `dotnet` 运行，按下表选范围。

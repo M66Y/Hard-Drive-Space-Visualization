@@ -15,6 +15,11 @@ internal static class Theme
     public static Color Accent { get; private set; } = DefaultAccent;
     public static Color Selection { get; private set; } = Color.FromArgb(248, 222, 212);
 
+    // Point sizes are explicit so each layout can reserve enough space at its DPI.
+    internal const float BodyFontSize = 10.5f, CaptionFontSize = 9.5f, ControlFontSize = 10;
+    internal const float SmallRadius = 4, ControlRadius = 7, CardRadius = 10;
+    internal static Color ControlBorder => Mix(Muted, Surface, .16f);
+
     private static bool customAccent;
     internal static (Color Start, Color End) ProgressColors(Color? accent) => accent is { } value
         ? (ReadableAccent(value), Mix(ReadableAccent(value), Surface, .32f))
@@ -129,28 +134,30 @@ internal static class Theme
 
 internal sealed class ActionButton : Button
 {
+    private bool primary, selected;
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public bool Primary { get; set; }
+    public bool Primary { get => primary; set { if (primary == value) return; primary = value; Invalidate(); } }
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public bool Selected { get; set; }
+    public bool Selected { get => selected; set { if (selected == value) return; selected = value; Invalidate(); } }
     private bool hovered, mousePressed, spacePressed;
     public ActionButton(string text, bool primary = false)
     {
         Text = text; Primary = primary; FlatStyle = FlatStyle.Flat;
         FlatAppearance.BorderSize = primary ? 0 : 1; Cursor = Cursors.Hand; BackColor = Theme.Surface;
-        Font = Theme.Font(9, FontStyle.Bold); Height = 38;
+        Font = Theme.Font(Theme.ControlFontSize, FontStyle.Bold); Height = 40;
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
     }
     protected override void OnSizeChanged(EventArgs e)
     {
         base.OnSizeChanged(e);
         if (Width < 4 || Height < 4) return;
-        using var path = Theme.Round(new RectangleF(1, 1, Width - 3, Height - 3), 7 * DeviceDpi / 96f);
+        using var path = Theme.Round(new RectangleF(1, 1, Width - 3, Height - 3), Theme.ControlRadius * DeviceDpi / 96f);
         var previous = Region;
         Region = new Region(path);
         previous?.Dispose();
         Invalidate();
     }
+    protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); OnSizeChanged(EventArgs.Empty); }
     protected override void OnMouseEnter(EventArgs e) { hovered = true; Invalidate(); base.OnMouseEnter(e); }
     protected override void OnMouseLeave(EventArgs e) { hovered = false; Invalidate(); base.OnMouseLeave(e); }
     protected override void OnMouseDown(MouseEventArgs e)
@@ -194,28 +201,52 @@ internal sealed class ActionButton : Button
     }
     protected override void OnPaintBackground(PaintEventArgs e)
     {
-        Wallpaper.Paint(this, e.Graphics, 100);
+        if (SystemInformation.HighContrast) e.Graphics.Clear(SystemColors.Control);
+        else Wallpaper.Paint(this, e.Graphics, 100);
     }
     protected override void OnPaint(PaintEventArgs e)
     {
         if (Width < 4 || Height < 4) return;
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        float s = DeviceDpi / 96f;
         var rect = new Rectangle(1, 1, Width - 3, Height - 3);
-        using var path = Theme.Round(rect, 7 * DeviceDpi / 96f);
+        using var path = Theme.Round(rect, Theme.ControlRadius * s);
         bool pressed = spacePressed || mousePressed && hovered;
-        Color fill = !Enabled ? Theme.Sidebar : Primary
-            ? pressed ? Theme.Mix(Theme.Accent, Color.Black, .25f) : hovered ? Theme.Mix(Theme.Accent, Color.Black, .12f) : Theme.Accent
-            : pressed ? Theme.Border : Selected ? Theme.Selection : hovered ? Theme.Mix(Theme.Selection, Theme.Surface, .35f) : BackColor;
+        bool highContrast = SystemInformation.HighContrast;
+        Color fill = highContrast
+            ? !Enabled ? SystemColors.Control : Primary || Selected ? SystemColors.Highlight : pressed ? SystemColors.ControlDark : hovered ? SystemColors.ControlLight : SystemColors.Control
+            : !Enabled ? Theme.Mix(Theme.Surface, Theme.Sidebar, .7f) : Primary
+                ? pressed ? Theme.Mix(Theme.Accent, Color.Black, .25f) : hovered ? Theme.Mix(Theme.Accent, Color.Black, .12f) : Theme.Accent
+                : pressed ? Theme.Mix(Theme.Selection, Theme.Accent, .13f) : Selected ? Theme.Selection : hovered ? Theme.Mix(Theme.Selection, Theme.Surface, .35f) : BackColor;
+        Color text = highContrast
+            ? !Enabled ? SystemColors.GrayText : Primary || Selected ? SystemColors.HighlightText : SystemColors.ControlText
+            : !Enabled ? Theme.Muted : Primary ? Color.White : Selected ? Theme.Accent : Theme.Text;
         using var brush = new SolidBrush(fill);
         e.Graphics.FillPath(brush, path);
-        if (!Primary && FlatAppearance.BorderSize > 0) { using var pen = new Pen(Theme.Border); e.Graphics.DrawPath(pen, path); }
-        var textRect = TextAlign == ContentAlignment.MiddleLeft ? new Rectangle(rect.X + (int)(16 * DeviceDpi / 96f), rect.Y, Math.Max(0, rect.Width - (int)(24 * DeviceDpi / 96f)), rect.Height) : rect;
-        Theme.TextAt(e.Graphics, Text, Font, !Enabled ? Theme.Muted : Primary ? Color.White : Selected ? Theme.Accent : Theme.Text, textRect, TextAlign == ContentAlignment.MiddleLeft ? TextFormatFlags.Left : TextFormatFlags.HorizontalCenter);
+        if (!Primary && FlatAppearance.BorderSize > 0 || highContrast)
+        {
+            using var pen = new Pen(highContrast ? SystemColors.ControlText : Enabled ? Theme.ControlBorder : Theme.Border, Math.Max(1, s));
+            e.Graphics.DrawPath(pen, path);
+        }
+        if (Selected && !Primary && TextAlign == ContentAlignment.MiddleLeft)
+        {
+            using var marker = new SolidBrush(highContrast ? text : Theme.Accent);
+            var markerRect = new RectangleF(rect.X + 7 * s, rect.Y + 11 * s, 3 * s, Math.Max(2, rect.Height - 22 * s));
+            using var markerPath = Theme.Round(markerRect, 1.5f * s);
+            e.Graphics.FillPath(marker, markerPath);
+        }
+        var textRect = TextAlign == ContentAlignment.MiddleLeft ? new Rectangle(rect.X + (int)(18 * s), rect.Y, Math.Max(0, rect.Width - (int)(27 * s)), rect.Height) : rect;
+        Theme.TextAt(e.Graphics, Text, Font, text, textRect, TextAlign == ContentAlignment.MiddleLeft ? TextFormatFlags.Left : TextFormatFlags.HorizontalCenter);
         if (Focused && Enabled && rect.Width > 12 && rect.Height > 12)
         {
-            using var focus = Theme.Round(Rectangle.Inflate(rect, -4, -4), 3 * DeviceDpi / 96f);
-            using var pen = new Pen(Primary ? Color.White : Theme.Accent, Math.Max(1, DeviceDpi / 96f));
-            e.Graphics.DrawPath(pen, focus);
+            int inset = Math.Max(3, (int)(4 * s));
+            var focusBounds = Rectangle.Inflate(rect, -inset, -inset);
+            if (focusBounds.Width > 0 && focusBounds.Height > 0)
+            {
+                using var focus = Theme.Round(focusBounds, Theme.SmallRadius * s);
+                using var pen = new Pen(highContrast ? text : Primary ? Color.White : Theme.Accent, Math.Max(1, s));
+                e.Graphics.DrawPath(pen, focus);
+            }
         }
     }
 }
@@ -228,7 +259,7 @@ internal sealed class InputFrame : Panel
     public InputFrame(Control input)
     {
         this.input = input;
-        BackColor = Theme.Surface;
+        BackColor = SystemInformation.HighContrast ? SystemColors.Window : Theme.Surface;
         Dock = DockStyle.Fill;
         TabStop = false;
         SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
@@ -238,17 +269,26 @@ internal sealed class InputFrame : Panel
         input.LostFocus += (_, _) => Invalidate();
         input.EnabledChanged += (_, _) =>
         {
-            BackColor = input.Enabled ? Theme.Surface : Theme.Sidebar;
-            input.BackColor = BackColor;
+            ApplyColors();
             Invalidate();
         };
+        ApplyColors();
     }
+
+    private void ApplyColors()
+    {
+        bool highContrast = SystemInformation.HighContrast;
+        BackColor = highContrast ? input.Enabled ? SystemColors.Window : SystemColors.Control : input.Enabled ? Theme.Surface : Theme.Sidebar;
+        input.BackColor = BackColor;
+        input.ForeColor = highContrast ? input.Enabled ? SystemColors.WindowText : SystemColors.GrayText : input.Enabled ? Theme.Text : Theme.Muted;
+    }
+    protected override void OnSystemColorsChanged(EventArgs e) { base.OnSystemColorsChanged(e); if (input != null) ApplyColors(); Invalidate(); }
 
     protected override void OnLayout(LayoutEventArgs e)
     {
         base.OnLayout(e);
         if (input == null) return;
-        int inset = (int)Math.Round(8 * DeviceDpi / 96f);
+        int inset = (int)Math.Round(10 * DeviceDpi / 96f);
         input.SetBounds(inset, Math.Max(1, (ClientSize.Height - input.PreferredSize.Height) / 2),
             Math.Max(0, ClientSize.Width - 2 * inset), input.PreferredSize.Height);
     }
@@ -257,9 +297,16 @@ internal sealed class InputFrame : Panel
     {
         base.OnPaint(e);
         if (Width < 3 || Height < 3) return;
-        using var pen = new Pen(input.Focused ? Theme.Accent : Theme.Border);
-        e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
-        if (input.Focused) e.Graphics.DrawRectangle(pen, 1, 1, Width - 3, Height - 3);
+        float s = DeviceDpi / 96f;
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        Color border = SystemInformation.HighContrast ? input.Enabled ? SystemColors.WindowText : SystemColors.GrayText
+            : input.Focused ? Theme.Accent : input.Enabled ? Theme.ControlBorder : Theme.Border;
+        using var pen = new Pen(border, Math.Max(1, s) * (input.Focused ? 2 : 1));
+        float inset = input.Focused ? Math.Max(1, s) : .5f;
+        var bounds = new RectangleF(inset, inset, Width - inset * 2 - 1, Height - inset * 2 - 1);
+        if (bounds.Width <= 0 || bounds.Height <= 0) return;
+        using var path = Theme.Round(bounds, Theme.ControlRadius * s);
+        e.Graphics.DrawPath(pen, path);
     }
 }
 
@@ -274,23 +321,34 @@ internal sealed class StatCard : Control
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool Highlight { get; set; }
     public StatCard() { DoubleBuffered = true; BackColor = Theme.Background; }
+    internal float ValueFontSize(Graphics graphics)
+    {
+        int width = Math.Max(1, Width - (int)(36 * DeviceDpi / 96f));
+        for (float points = 24; points > 12; points--)
+        {
+            using var font = Theme.Font(points, FontStyle.Bold);
+            if (TextRenderer.MeasureText(graphics, Value, font, new Size(int.MaxValue, int.MaxValue),
+                TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix).Width <= width) return points;
+        }
+        return 12;
+    }
     protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics);
     protected override void OnPaint(PaintEventArgs e)
     {
         if (Width < 2 || Height < 2) return;
         float s = DeviceDpi / 96f;
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        using var path = Theme.Round(new RectangleF(0, 0, Width - 1, Height - 1), 10 * s);
-        using var brush = new SolidBrush(Color.FromArgb(240, Theme.Surface));
+        using var path = Theme.Round(new RectangleF(0, 0, Width - 1, Height - 1), Theme.CardRadius * s);
+        using var brush = new SolidBrush(Color.FromArgb(Wallpaper.SurfaceAlpha(this, WallpaperSurface.Card), Theme.Surface));
         e.Graphics.FillPath(brush, path);
         using var pen = new Pen(Theme.Border);
         e.Graphics.DrawPath(pen, path);
-        using var titleFont = Theme.Font(9, FontStyle.Bold);
-        using var valueFont = Theme.Font(23, FontStyle.Bold);
-        using var captionFont = Theme.Font(8.5f);
+        using var titleFont = Theme.Font(10, FontStyle.Bold);
+        using var valueFont = Theme.Font(ValueFontSize(e.Graphics), FontStyle.Bold);
+        using var captionFont = Theme.Font(Theme.CaptionFontSize);
         int x = (int)(18 * s);
         Theme.TextAt(e.Graphics, Title, titleFont, Theme.Text, new Rectangle(x, (int)(13 * s), Width - x * 2, (int)(22 * s)));
-        Theme.TextAt(e.Graphics, Value, valueFont, Highlight ? Theme.Accent : Theme.Text, new Rectangle(x, (int)(38 * s), Width - x * 2, (int)(42 * s)));
+        Theme.TextAt(e.Graphics, Value, valueFont, Highlight ? Theme.Accent : Theme.Text, new Rectangle(x, (int)(38 * s), Width - x * 2, (int)(42 * s)), TextFormatFlags.SingleLine);
         Theme.TextAt(e.Graphics, Caption, captionFont, Theme.Muted, new Rectangle(x, (int)(84 * s), Width - x * 2, (int)(22 * s)));
     }
 }
@@ -344,9 +402,9 @@ internal sealed class NavigationPanel : Control
         float s = DeviceDpi / 96f;
         Rectangle R(float x, float y, float w, float h) => new((int)(x * s), (int)(y * s), (int)(w * s), (int)(h * s));
         using var logoFont = Theme.Font(16, FontStyle.Bold);
-        using var smallFont = Theme.Font(8);
-        using var navFont = Theme.Font(10, FontStyle.Bold);
-        using var labelFont = Theme.Font(9);
+        using var smallFont = Theme.Font(Theme.CaptionFontSize);
+        using var navFont = Theme.Font(11, FontStyle.Bold);
+        using var labelFont = Theme.Font(Theme.CaptionFontSize);
         using var accentBrush = new SolidBrush(Theme.Accent);
         g.FillRectangle(accentBrush, R(24, 31, 12, 12));
         g.FillRectangle(accentBrush, R(39, 31, 7, 22));

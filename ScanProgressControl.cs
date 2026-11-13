@@ -97,7 +97,7 @@ internal sealed class ScanProgressControl : Control
         if (Width < 40 || Height < 12) return;
         float s = DeviceDpi / 96f;
         var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
-        using var font = Theme.Font(8);
+        using var font = Theme.Font(Theme.CaptionFontSize);
         int rightWidth = Math.Min(Width / 3, (int)(110 * s));
         int textHeight = Math.Min(Height, (int)(20 * s));
         Theme.TextAt(g, Description, font, Theme.Text, new Rectangle(0, 0, Math.Max(0, Width - rightWidth - (int)(10 * s)), textHeight));

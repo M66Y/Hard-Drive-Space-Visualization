@@ -13,6 +13,12 @@ internal sealed class MainForm : Form
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     internal Func<Action<DiskActivityUpdate>, DiskActivityMonitor>? ActivityMonitorFactory { get; set; }
     internal readonly WallpaperRaster WallpaperRaster = new();
+    internal MainSurfaceStyle SurfaceStyle { get; private set; } = MainSurfaceStyle.Airy;
+    internal void ApplyStageOnePreview(string variant)
+    {
+        if (IsHandleCreated || Visible) throw new InvalidOperationException("Choose the preview surface before creating the window handle.");
+        SurfaceStyle = variant switch { "a" => MainSurfaceStyle.Clear, "b" => MainSurfaceStyle.Airy, _ => throw new ArgumentException("Unknown surface preview.", nameof(variant)) };
+    }
     internal BackgroundView BackgroundCrop { get; private set; } = BackgroundView.Default;
     internal bool HasCustomBackground { get; private set; }
     private readonly string backgroundSettingsPath;
@@ -25,7 +31,7 @@ internal sealed class MainForm : Form
     private readonly ComboBox strategyCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
     private readonly ComboBox metricCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
     private readonly CheckBox ntfsFast = new() { Text = "NTFS 快扫（实验）", AutoSize = true, BackColor = Color.Transparent, Margin = Padding.Empty };
-    private readonly Label refreshInfo = LabelOf("首次完整扫描，刷新时自动检查变化", 8, false, true);
+    private readonly Label refreshInfo = LabelOf("首次完整扫描，刷新时自动检查变化", Theme.CaptionFontSize, false, true);
     private readonly ToolTip scanTip = new() { AutoPopDelay = 20000, InitialDelay = 300 };
     private SizeMetric metric;
     private bool changingMetric, forceFullNext;
@@ -44,18 +50,18 @@ internal sealed class MainForm : Form
     private ColumnStyle? filterColumn;
     private readonly ActionButton previousPage = new("上一页") { Dock = DockStyle.Fill, Enabled = false };
     private readonly ActionButton nextPage = new("下一页") { Dock = DockStyle.Fill, Enabled = false };
-    private readonly Label pageInfo = LabelOf("", 8, false, true);
+    private readonly Label pageInfo = LabelOf("", Theme.CaptionFontSize, false, true);
     private RowStyle? pagingRow;
     private int pageIndex;
-    private readonly Label title = LabelOf("文件夹空间，一目了然", 20, true);
-    private readonly Label subtitle = LabelOf("选择一个文件夹，发现每一份空间的去向。", 9, false, true);
-    private readonly Label mapTitle = LabelOf("空间分布", 11, true);
-    private readonly Label mapCaption = LabelOf("矩形面积代表文件大小", 8, false, true);
-    private readonly Label listTitle = LabelOf("文件与文件夹", 11, true);
-    private readonly Label listCaption = LabelOf("按大小排序", 8, false, true);
-    private readonly Label detailTitle = LabelOf("选择矩形或列表项目，查看详情", 10, true);
-    private readonly Label detailPath = LabelOf("双击文件夹进入 · 双击文件在资源管理器中定位", 8, false, true);
-    private readonly Label status = LabelOf("就绪  ·  仅扫描本地文件，文件不会上传", 8, false, true);
+    private readonly Label title = LabelOf("文件夹空间，一目了然", 21, true);
+    private readonly Label subtitle = LabelOf("选择一个文件夹，发现每一份空间的去向。", Theme.BodyFontSize, false, true);
+    private readonly Label mapTitle = LabelOf("空间分布", 12, true);
+    private readonly Label mapCaption = LabelOf("矩形面积代表文件大小", Theme.CaptionFontSize, false, true);
+    private readonly Label listTitle = LabelOf("文件与文件夹", 12, true);
+    private readonly Label listCaption = LabelOf("按大小排序", Theme.CaptionFontSize, false, true);
+    private readonly Label detailTitle = LabelOf("选择矩形或列表项目，查看详情", Theme.BodyFontSize, true);
+    private readonly Label detailPath = LabelOf("双击文件夹进入 · 双击文件在资源管理器中定位", Theme.CaptionFontSize, false, true);
+    private readonly Label status = LabelOf("就绪  ·  仅扫描本地文件，文件不会上传", Theme.CaptionFontSize, false, true);
     private readonly TextBox pathBox = new() { ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = Theme.Surface, ForeColor = Theme.Text, Dock = DockStyle.Fill };
     private readonly TextBox search = new() { PlaceholderText = "搜索名称或扩展名…", BorderStyle = BorderStyle.None, BackColor = Theme.Surface, ForeColor = Theme.Text, Dock = DockStyle.Fill };
     private readonly ScanProgressControl progressBar = new() { Dock = DockStyle.Fill };
@@ -106,7 +112,7 @@ internal sealed class MainForm : Form
         BackgroundImage = Wallpaper.Load();
         ForeColor = Theme.Text;
         AutoScaleMode = AutoScaleMode.None;
-        Font = Theme.Font(9);
+        Font = Theme.Font(Theme.BodyFontSize);
         KeyPreview = true;
         DoubleBuffered = true;
         AllowDrop = true;
@@ -193,6 +199,12 @@ internal sealed class MainForm : Form
         // The handle has its monitor DPI by Load. Finish scaling before the window paints.
         float scale = DeviceDpi / 96f;
         if (Math.Abs(scale - 1) > .01f) Scale(new SizeF(scale, scale));
+        // DataGridView rows and header heights are not Control bounds and do
+        // not follow the form's explicit Scale call.
+        grid.RowTemplate.Height = (int)Math.Round(44 * scale);
+        grid.ColumnHeadersHeight = (int)Math.Round(38 * scale);
+        foreach (var (column, width) in new[] { ("name", 100), ("size", 105), ("percent", 78), ("count", 80), ("location", 140) })
+            grid.Columns[column]!.MinimumWidth = (int)Math.Round(width * scale);
         var area = Screen.FromControl(this).WorkingArea;
         MinimumSize = new Size(Math.Min((int)(1120 * scale), area.Width), Math.Min((int)(780 * scale), area.Height));
         Size = new Size(Math.Min((int)(1440 * scale), area.Width), Math.Min((int)(940 * scale), area.Height));
@@ -278,6 +290,7 @@ internal sealed class MainForm : Form
     private static WallpaperTable Table(int columns, int rows)
     {
         var panel = new WallpaperTable { ColumnCount = columns, RowCount = rows, Dock = DockStyle.Fill, Margin = Padding.Empty, Padding = Padding.Empty, BackColor = Color.Transparent };
+        if (columns == 1) panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         if (rows == 1) panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         return panel;
     }
@@ -289,7 +302,6 @@ internal sealed class MainForm : Form
         shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         shell.Controls.Add(navigation, 0, 0);
         var main = Table(1, 9);
-        main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         main.Padding = new Padding(28, 22, 28, 12);
         foreach (float height in new float[] { 85, 60, 124, 62 }) main.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
         main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -303,31 +315,30 @@ internal sealed class MainForm : Form
 
         var header = Table(2, 1);
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 374));
-        var heading = Table(1, 2);
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 394));
+        var heading = Table(1, 2); heading.Surface = WallpaperSurface.Chrome;
         heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 41));
         heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
         heading.Controls.Add(title, 0, 0); heading.Controls.Add(subtitle, 0, 1);
         header.Controls.Add(heading, 0, 0);
         var actions = Table(3, 1);
         actions.Padding = new Padding(0, 13, 0, 29);
-        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 106));
-        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 106));
+        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
         actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         actions.Controls.Add(cancel, 0, 0); actions.Controls.Add(refresh, 1, 0); actions.Controls.Add(choose, 2, 0);
         header.Controls.Add(actions, 1, 0);
         main.Controls.Add(header, 0, 0);
 
-        var settings = Table(5, 1); settings.Padding = new Padding(0, 2, 0, 8);
+        var settings = Table(5, 1); settings.Surface = WallpaperSurface.Chrome; settings.Padding = new Padding(0, 2, 0, 8);
         foreach (float width in new float[] { 68, 138, 82, 148 }) settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, width));
         settings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        settings.Controls.Add(LabelOf("扫描策略", 9), 0, 0); settings.Controls.Add(new InputFrame(strategyCombo) { Margin = new Padding(0, 0, 20, 0) }, 1, 0);
-        settings.Controls.Add(LabelOf("统计口径", 9), 2, 0); settings.Controls.Add(new InputFrame(metricCombo) { Margin = new Padding(0, 0, 15, 0) }, 3, 0);
+        settings.Controls.Add(LabelOf("扫描策略", Theme.ControlFontSize), 0, 0); settings.Controls.Add(new InputFrame(strategyCombo) { Margin = new Padding(0, 0, 20, 0) }, 1, 0);
+        settings.Controls.Add(LabelOf("统计口径", Theme.ControlFontSize), 2, 0); settings.Controls.Add(new InputFrame(metricCombo) { Margin = new Padding(0, 0, 15, 0) }, 3, 0);
         settings.ColumnCount = 7;
         settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
         settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
-        var scanInfo = Table(1, 2); scanInfo.Margin = Padding.Empty;
-        scanInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        var scanInfo = Table(1, 2); scanInfo.Surface = WallpaperSurface.Chrome; scanInfo.Margin = Padding.Empty;
         scanInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
         scanInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         scanInfo.Controls.Add(ntfsFast, 0, 0); scanInfo.Controls.Add(refreshInfo, 0, 1);
@@ -342,7 +353,7 @@ internal sealed class MainForm : Form
         for (int i = 0; i < stats.Length; i++) { stats[i].Margin = new Padding(0, 0, i == 3 ? 0 : 14, 8); cards.Controls.Add(stats[i], i, 0); }
         main.Controls.Add(cards, 0, 2);
 
-        var toolbar = Table(4, 1);
+        var toolbar = Table(4, 1); toolbar.Surface = WallpaperSurface.Chrome;
         toolbar.Padding = new Padding(0, 8, 0, 12);
         toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
         toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 116));
@@ -359,14 +370,14 @@ internal sealed class MainForm : Form
         split.Size = new Size(1100, 480);
         split.SplitterDistance = 650;
         var mapPanel = Table(1, 2);
-        mapPanel.Wash = 180;
-        mapPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
+        mapPanel.Surface = WallpaperSurface.Canvas;
+        mapPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
         mapPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        var mapHeading = Table(3, 1); mapHeading.Wash = 210;
+        var mapHeading = Table(3, 1); mapHeading.Surface = WallpaperSurface.Chrome;
         mapHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         filterColumn = new ColumnStyle(SizeType.Absolute, 0);
         mapHeading.ColumnStyles.Add(filterColumn);
-        mapHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 98));
+        mapHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
         mapHeading.Controls.Add(PanelHeader(mapTitle, mapCaption), 0, 0);
         mapHeading.Controls.Add(clearType, 1, 0);
         mapHeading.Controls.Add(reduceMotion, 2, 0);
@@ -374,14 +385,14 @@ internal sealed class MainForm : Form
         mapPanel.Controls.Add(map, 0, 1);
         split.Panel1.Controls.Add(mapPanel);
         var listPanel = Table(1, 3);
-        listPanel.Wash = 210;
-        listPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
+        listPanel.Surface = WallpaperSurface.Data;
+        listPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
         listPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         pagingRow = new RowStyle(SizeType.Absolute, 0);
         listPanel.RowStyles.Add(pagingRow);
-        listPanel.Controls.Add(PanelHeader(listTitle, listCaption), 0, 0);
+        listPanel.Controls.Add(PanelHeader(listTitle, listCaption, WallpaperSurface.Data), 0, 0);
         listPanel.Controls.Add(grid, 0, 1);
-        var pages = Table(3, 1);
+        var pages = Table(3, 1); pages.Surface = WallpaperSurface.Data;
         pages.Padding = new Padding(8, 3, 8, 3);
         pages.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 75));
         pages.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -395,10 +406,10 @@ internal sealed class MainForm : Form
         var detail = Table(2, 1);
         detail.Padding = new Padding(14, 12, 10, 8);
         detail.Margin = new Padding(0, 12, 0, 0);
-        detail.Wash = 210;
+        detail.Surface = WallpaperSurface.Chrome;
         detail.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         detail.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
-        var detailText = Table(1, 2); detailText.Wash = 210;
+        var detailText = Table(1, 2); detailText.Surface = WallpaperSurface.Chrome;
         detailText.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         detailText.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         detailText.Controls.Add(detailTitle, 0, 0); detailText.Controls.Add(detailPath, 0, 1);
@@ -406,7 +417,7 @@ internal sealed class MainForm : Form
         main.Controls.Add(detail, 0, 5);
         main.Controls.Add(activityPanel, 0, 6);
         main.Controls.Add(progressBar, 0, 7);
-        var footer = Table(3, 1);
+        var footer = Table(3, 1); footer.Surface = WallpaperSurface.Chrome;
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         restoreCompleteColumn = new ColumnStyle(SizeType.Absolute, 0);
         footer.ColumnStyles.Add(restoreCompleteColumn);
@@ -415,10 +426,10 @@ internal sealed class MainForm : Form
         main.Controls.Add(footer, 0, 8);
     }
 
-    private static Control PanelHeader(Label heading, Label caption)
+    private static Control PanelHeader(Label heading, Label caption, WallpaperSurface surface = WallpaperSurface.Chrome)
     {
-        var panel = Table(1, 2); panel.Wash = 210; panel.Padding = new Padding(16, 10, 12, 4);
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        var panel = Table(1, 2); panel.Surface = surface; panel.Padding = new Padding(16, 10, 12, 4);
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         panel.Controls.Add(heading, 0, 0); panel.Controls.Add(caption, 0, 1);
         return panel;
@@ -440,14 +451,14 @@ internal sealed class MainForm : Form
         grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
         grid.GridColor = Color.FromArgb(239, 224, 217);
         grid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
-        grid.ColumnHeadersHeight = 34;
+        grid.ColumnHeadersHeight = 38;
         grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-        grid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Theme.Sidebar, ForeColor = Theme.Text, Font = Theme.Font(8, FontStyle.Bold), SelectionBackColor = Theme.Sidebar, Padding = new Padding(10, 0, 0, 0) };
-        grid.DefaultCellStyle = new DataGridViewCellStyle { BackColor = Theme.Surface, ForeColor = Theme.Text, SelectionBackColor = Theme.Selection, SelectionForeColor = Theme.Text, Font = Theme.Font(9), Padding = new Padding(10, 0, 4, 0) };
-        grid.RowTemplate.Height = 40;
-        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "name", HeaderText = "名称", FillWeight = 55, MinimumWidth = 100, SortMode = DataGridViewColumnSortMode.Programmatic });
-        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "size", HeaderText = "大小 ↓", FillWeight = 27, MinimumWidth = 85, SortMode = DataGridViewColumnSortMode.Programmatic });
-        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "percent", HeaderText = "占比", FillWeight = 18, MinimumWidth = 65, SortMode = DataGridViewColumnSortMode.Programmatic });
+        grid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Theme.Sidebar, ForeColor = Theme.Text, Font = Theme.Font(Theme.CaptionFontSize, FontStyle.Bold), SelectionBackColor = Theme.Sidebar, Padding = new Padding(12, 0, 0, 0) };
+        grid.DefaultCellStyle = new DataGridViewCellStyle { BackColor = Theme.Surface, ForeColor = Theme.Text, SelectionBackColor = Theme.Selection, SelectionForeColor = Theme.Text, Font = Theme.Font(Theme.BodyFontSize), Padding = new Padding(12, 0, 6, 0) };
+        grid.RowTemplate.Height = 44;
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "name", HeaderText = "名称", FillWeight = 50, MinimumWidth = 100, SortMode = DataGridViewColumnSortMode.Programmatic });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "size", HeaderText = "大小 ↓", FillWeight = 28, MinimumWidth = 105, SortMode = DataGridViewColumnSortMode.Programmatic });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "percent", HeaderText = "占比", FillWeight = 22, MinimumWidth = 78, SortMode = DataGridViewColumnSortMode.Programmatic });
         grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "count", HeaderText = "文件数", FillWeight = 22, MinimumWidth = 70, Visible = false, SortMode = DataGridViewColumnSortMode.Programmatic });
         grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "location", HeaderText = "所在位置", FillWeight = 38, MinimumWidth = 140, Visible = false, SortMode = DataGridViewColumnSortMode.Programmatic });
         grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(252, 245, 240);

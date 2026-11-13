@@ -1,0 +1,90 @@
+{
+  "baseline": "adfbd71d9723f0295cc286c29e68ff717a0699ac",
+  "hash_scope": "versioned-index-bytes",
+  "recovery": "restore exact baseline blobs; git -c core.autocrlf=false apply changes.patch",
+  "verified_recovered_files": 15,
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "1eea0035770b7b4412bc6458bcd4b81424a767b93606eed3b6fcc6a4f37df215"
+    },
+    {
+      "path": "MainForm.cs",
+      "sha256": "4a9a44a240776230992a8d2063428b704f15ad92bd32f497389adb0b7f614c2f"
+    },
+    {
+      "path": "Theme.cs",
+      "sha256": "b5de8449ac3e0b9a6bd6e8643df34f6a6e9ef29c345c1aa2a68b3bf80dd40f26"
+    },
+    {
+      "path": "Wallpaper.cs",
+      "sha256": "ef959200e337caea18777210489fbd8e310956339e8c5e84ecc2e87ce10edeba"
+    },
+    {
+      "path": "TreemapControl.cs",
+      "sha256": "15f0f032af0d5f278ed2aec7ebf46d7fef450852c4edc6c93785c093e0be6fbd"
+    },
+    {
+      "path": "ScanProgressControl.cs",
+      "sha256": "8a93d2f73abc8523933888663085d41718b70a6ff7fcad57bf60b2df6feda6c3"
+    },
+    {
+      "path": "src/Monitoring/DiskActivityPanel.cs",
+      "sha256": "58cb675a4c15d2e3f06c4a207ba9ca4302efc1d7350d80e0f379bab7bad6d414"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "ff2cfa680f2732986745eb897619681c22b898ab342cec85a14ab99c84ff8651"
+    },
+    {
+      "path": "tests/StageOnePreview.cs",
+      "sha256": "6a9848a5398ee777734cf7fe185f3677c7f97e5b9546ae071fb6af8bce41645b"
+    },
+    {
+      "path": "tests/VisualSurfaceRegression.cs",
+      "sha256": "92a05dd5137658140a246f430669666310a79069afadcdd33a326caace338868"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "53935efce1ccced6f2d09ee2b353f6495f1bc553138e646b432c129b04ef8964"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "9e62c069d3741855a6d20fdd09647f7957ef2ee0be9171c6f87068aa29ad3330"
+    },
+    {
+      "path": "docs/ui-design-roadmap.md",
+      "sha256": "fd03e9b8ad8169f862d483ec1612a91e486f5ff2467ebda91343ab4fb94ecc84"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "26bf67c8e162715868ba5f84eae82fb931d0d92f4effcff0c64516095f36debe"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "67818cd8a7d8972ed8b553eee5e4e270c475e197f936e6b6a2196f9b509f7116"
+    }
+  ],
+  "media": [
+    {
+      "path": "iterations/2026-11-13-29-visual-polish/preview-before.jpg",
+      "sha256": "ee9495f97af6e1b153c8051af14752b918ab3e9f2bca7c00c201c97a69eb1ddd",
+      "kind": "native-jpeg-real-owned-directory-preview"
+    },
+    {
+      "path": "iterations/2026-11-13-29-visual-polish/preview-a.jpg",
+      "sha256": "68b677adbab3db336bc17b514a3825c9f9bb35613bdc0c4c22941a2b83e0608f",
+      "kind": "native-jpeg-real-owned-directory-preview"
+    },
+    {
+      "path": "iterations/2026-11-13-29-visual-polish/preview-b.jpg",
+      "sha256": "40132784c90e1fca6b3b9f0dc54923a6739fb6245d70150c9dbee77f7a6a00d0",
+      "kind": "native-jpeg-real-owned-directory-preview"
+    },
+    {
+      "path": "iterations/2026-11-13-29-visual-polish/preview-final.jpg",
+      "sha256": "ae1d45e7773826ba0ed9ee68579b1af4f0aca3aa7271711156afca96188f3842",
+      "kind": "native-jpeg-real-owned-directory-preview"
+    }
+  ]
+}
