@@ -1,0 +1,103 @@
+{
+  "revision": "c27-startup-ui-timing-v1",
+  "date": "2026-11-13",
+  "baseline": "e7b4324dbf1354ce80c2e766ccfd9365957eca37",
+  "build": {
+    "application_release": "passed",
+    "tests_release": "passed",
+    "warnings": 0
+  },
+  "checks": {
+    "timing_synthetic": 58,
+    "bridge_local_pipe": 45,
+    "coordinator": 68,
+    "mainform_default": 86,
+    "mainform_dpi96": 86,
+    "ui_regression_default": "passed",
+    "ui_regression_dpi96": "passed",
+    "desktop_compatibility": "passed",
+    "independent_review": "no-blocker"
+  },
+  "com_only": {
+    "fresh_processes": 12,
+    "sta_too_late": 6,
+    "mta_success": 6,
+    "volume_access": false,
+    "snapshots": false,
+    "previous_production_hresult_obtained": false
+  },
+  "real_product_ui": {
+    "development_executable": true,
+    "passed_partial": true,
+    "fallback": false,
+    "cleanup_confirmed": true,
+    "treemap": true,
+    "file_list": true,
+    "largest": true,
+    "types": true,
+    "allocated_metric": true,
+    "exclusions": true,
+    "snapshot_scope": true,
+    "normal_exit": true
+  },
+  "initial_background_pair": {
+    "revision": "personal-ntfs-timing-v1",
+    "completed_pair": true,
+    "omitted_coordinator_validation": true,
+    "included_equal": false,
+    "root_metrics_equal": false,
+    "excluded_equal": true,
+    "performance_accepted": false
+  },
+  "full_background_pair": {
+    "revision": "personal-ntfs-timing-v2",
+    "order": "FO",
+    "completed_pair": true,
+    "fast_includes_coordinator_validation": true,
+    "ui_drawing_included": false,
+    "no_extra_native_audit": true,
+    "ordinary_force_full": true,
+    "cleanup_confirmed": true,
+    "fallback": false,
+    "included_equal": false,
+    "root_metrics_equal": false,
+    "exclusions_equal": true,
+    "exclusion_details_complete": true,
+    "other_issues_absent": true,
+    "allocation_known": true,
+    "added_entries": false,
+    "removed_entries": false,
+    "type_changes": false,
+    "identity_changes": false,
+    "file_logical_changes": true,
+    "file_allocation_changes": true,
+    "file_links_changes": false,
+    "changed_mtime_after_snapshot": true,
+    "external_change_causality_proven": false,
+    "performance_accepted": false,
+    "stop_exit": 3
+  },
+  "privacy": {
+    "personal_paths_recorded": false,
+    "personal_counts_recorded": false,
+    "personal_timings_recorded": false,
+    "names_ids_hashes_recorded": false,
+    "raw_records_saved": false,
+    "private_reports_created": false
+  },
+  "limits": [
+    "different-source-times",
+    "cache-and-external-load-uncontrolled",
+    "single-complete-pair",
+    "windows10-new-backend-not-tested",
+    "broader-formats-not-tested",
+    "physical-io-and-peak-memory-not-measured"
+  ],
+  "release_created": false,
+  "recovery": {
+    "payload_files": 14,
+    "apply_check": true,
+    "all_recovered_hashes_match": true,
+    "temporary_restore_cleaned": true
+  }
+}

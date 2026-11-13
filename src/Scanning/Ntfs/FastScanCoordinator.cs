@@ -112,7 +112,7 @@ internal static class FastScanCoordinator
             FastScanFailureDetail.MftAttributeListUnsupported or FastScanFailureDetail.MftMetadataUnsupported => "此卷的 NTFS 扩展布局暂不支持快扫",
         FastScanFailureDetail.GeometryUnsupported => "当前卷的扇区或记录格式暂不支持快扫",
         FastScanFailureDetail.MftMetadataBudget => "此卷的扩展元信息超过当前解析上限",
-        _ => GenericReason(code)
+        _ => GenericReason(code) + (context?.NativeError is { } error && error != 0 ? $"（系统代码 0x{unchecked((uint)error):X8}）" : "")
     };
 
     private static string GenericReason(FastScanWireError code) => code switch

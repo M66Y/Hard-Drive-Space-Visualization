@@ -1,0 +1,86 @@
+using System;
+using System.Threading;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+
+namespace ComProbe;
+
+internal static class StaEntry
+{
+    [STAThread]
+    private static int Main() => Probe.Run("STA");
+}
+internal static class MtaEntry
+{
+    [MTAThread]
+    private static int Main() => Probe.Run("MTA");
+}
+internal static class BareStaEntry
+{
+    [STAThread]
+    private static int Main() => Probe.Run("STA", false);
+}
+internal static class BareMtaEntry
+{
+    [MTAThread]
+    private static int Main() => Probe.Run("MTA", false);
+}
+internal static class Probe
+{
+    [DllImport("ole32.dll")] private static extern int CoInitializeEx(IntPtr reserved, uint flags);
+    [DllImport("ole32.dll")] private static extern void CoUninitialize();
+    [DllImport("ole32.dll")] private static extern int CoGetApartmentType(out int type, out int qualifier);
+    [DllImport("ole32.dll")] private static extern int CoInitializeSecurity(IntPtr descriptor, int count, IntPtr services, IntPtr reserved,
+        uint level, uint impersonation, IntPtr auth, uint capabilities, IntPtr reserved2);
+    private static string Hex(int value) => "0x" + unchecked((uint)value).ToString("X8");
+    internal static int Run(string entry, bool inspect = true)
+    {
+        try
+        {
+            string mainManaged = inspect ? Thread.CurrentThread.GetApartmentState().ToString() : entry;
+            int beforeType = 0, before = inspect ? CoGetApartmentType(out beforeType, out _) : -1;
+            int initialize = 0, security = 0, afterWorker = 0, workerType = 0;
+            bool completed = false, securityCalled = false;
+            var worker = new Thread(() =>
+            {
+                try
+                {
+                    // The real worker authenticates its pipe before COM work;
+                    // allow the entry thread to enter Join first, without I/O.
+                    Thread.Sleep(100);
+                    initialize = CoInitializeEx(IntPtr.Zero, 0);
+                    try
+                    {
+                        afterWorker = inspect ? CoGetApartmentType(out workerType, out _) : -1;
+                        if (initialize >= 0)
+                        {
+                            securityCalled = true;
+                            security = CoInitializeSecurity(IntPtr.Zero, -1, IntPtr.Zero, IntPtr.Zero, 6, 2, IntPtr.Zero, 0, IntPtr.Zero);
+                        }
+                        completed = true;
+                    }
+                    finally { if (initialize >= 0) CoUninitialize(); }
+                }
+                catch { }
+            });
+            worker.SetApartmentState(ApartmentState.MTA); worker.Start(); worker.Join();
+            int afterType = 0, after = inspect ? CoGetApartmentType(out afterType, out _) : -1;
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                revision = "com-startup-probe-v1", status = completed ? "observed" : "failed", entry,
+                inspected_apartments = inspect,
+                main_managed_apartment = mainManaged, main_com_before = inspect ? Hex(before) : null, main_type_before = before >= 0 ? beforeType : (int?)null,
+                worker_initialize = Hex(initialize), worker_com = inspect ? Hex(afterWorker) : null, worker_type = afterWorker >= 0 ? workerType : (int?)null,
+                security_called = securityCalled, security_hresult = securityCalled ? Hex(security) : null,
+                main_com_after_join = inspect ? Hex(after) : null, main_type_after = after >= 0 ? afterType : (int?)null,
+                volume_access = false, snapshot_created = false
+            }));
+            return completed ? 0 : 1;
+        }
+        catch
+        {
+            Console.WriteLine("{\"revision\":\"com-startup-probe-v1\",\"status\":\"failed\",\"code\":\"Unexpected\",\"volume_access\":false,\"snapshot_created\":false}");
+            return 1;
+        }
+    }
+}

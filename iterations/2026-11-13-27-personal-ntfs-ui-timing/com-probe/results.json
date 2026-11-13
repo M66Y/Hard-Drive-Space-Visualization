@@ -1,0 +1,129 @@
+{
+  "revision": "com-startup-comparison-v1",
+  "host": "dotnet-managed-entry",
+  "rounds_per_mode": 3,
+  "volume_access": false,
+  "snapshot_created": false,
+  "samples": [
+    {
+      "round": 1,
+      "observation": {
+        "revision": "com-startup-probe-v1",
+        "status": "observed",
+        "entry": "STA",
+        "main_managed_apartment": "STA",
+        "main_com_before": "0x00000000",
+        "main_type_before": 3,
+        "worker_initialize": "0x00000001",
+        "worker_com": "0x00000000",
+        "worker_type": 1,
+        "security_called": true,
+        "security_hresult": "0x80010119",
+        "main_com_after_join": "0x00000000",
+        "main_type_after": 3,
+        "volume_access": false,
+        "snapshot_created": false
+      }
+    },
+    {
+      "round": 2,
+      "observation": {
+        "revision": "com-startup-probe-v1",
+        "status": "observed",
+        "entry": "STA",
+        "main_managed_apartment": "STA",
+        "main_com_before": "0x00000000",
+        "main_type_before": 3,
+        "worker_initialize": "0x00000001",
+        "worker_com": "0x00000000",
+        "worker_type": 1,
+        "security_called": true,
+        "security_hresult": "0x80010119",
+        "main_com_after_join": "0x00000000",
+        "main_type_after": 3,
+        "volume_access": false,
+        "snapshot_created": false
+      }
+    },
+    {
+      "round": 3,
+      "observation": {
+        "revision": "com-startup-probe-v1",
+        "status": "observed",
+        "entry": "STA",
+        "main_managed_apartment": "STA",
+        "main_com_before": "0x00000000",
+        "main_type_before": 3,
+        "worker_initialize": "0x00000001",
+        "worker_com": "0x00000000",
+        "worker_type": 1,
+        "security_called": true,
+        "security_hresult": "0x80010119",
+        "main_com_after_join": "0x00000000",
+        "main_type_after": 3,
+        "volume_access": false,
+        "snapshot_created": false
+      }
+    },
+    {
+      "round": 1,
+      "observation": {
+        "revision": "com-startup-probe-v1",
+        "status": "observed",
+        "entry": "MTA",
+        "main_managed_apartment": "MTA",
+        "main_com_before": "0x00000000",
+        "main_type_before": 1,
+        "worker_initialize": "0x00000001",
+        "worker_com": "0x00000000",
+        "worker_type": 1,
+        "security_called": true,
+        "security_hresult": "0x00000000",
+        "main_com_after_join": "0x00000000",
+        "main_type_after": 1,
+        "volume_access": false,
+        "snapshot_created": false
+      }
+    },
+    {
+      "round": 2,
+      "observation": {
+        "revision": "com-startup-probe-v1",
+        "status": "observed",
+        "entry": "MTA",
+        "main_managed_apartment": "MTA",
+        "main_com_before": "0x00000000",
+        "main_type_before": 1,
+        "worker_initialize": "0x00000001",
+        "worker_com": "0x00000000",
+        "worker_type": 1,
+        "security_called": true,
+        "security_hresult": "0x00000000",
+        "main_com_after_join": "0x00000000",
+        "main_type_after": 1,
+        "volume_access": false,
+        "snapshot_created": false
+      }
+    },
+    {
+      "round": 3,
+      "observation": {
+        "revision": "com-startup-probe-v1",
+        "status": "observed",
+        "entry": "MTA",
+        "main_managed_apartment": "MTA",
+        "main_com_before": "0x00000000",
+        "main_type_before": 1,
+        "worker_initialize": "0x00000001",
+        "worker_com": "0x00000000",
+        "worker_type": 1,
+        "security_called": true,
+        "security_hresult": "0x00000000",
+        "main_com_after_join": "0x00000000",
+        "main_type_after": 1,
+        "volume_access": false,
+        "snapshot_created": false
+      }
+    }
+  ]
+}

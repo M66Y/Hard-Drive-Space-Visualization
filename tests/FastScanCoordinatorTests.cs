@@ -29,6 +29,10 @@ internal static class FastScanCoordinatorTests
         void Check(bool condition, string name)
         { if (!condition) throw new InvalidOperationException("Fast scan coordinator check failed: " + name); passed++; Console.WriteLine("PASS fast scan coordinator " + name); }
         int ordinaryCalls = 0, fastCalls = 0; ScanResult? seenBaseline = null;
+        Check(FastScanCoordinator.Reason(FastScanWireError.SnapshotFailed,
+            new(FastScanWireStage.Snapshot, FastScanFailureDetail.None, unchecked((int)0x80010119))).Contains("0x80010119") &&
+            !FastScanCoordinator.Reason(FastScanWireError.SnapshotFailed).Contains("系统代码"),
+            "snapshot failure exposes only the fixed native error code when available");
         var rawBudget = new FastScanFailureContext(FastScanWireStage.Reading, FastScanFailureDetail.RawRequestLimit);
         Check(NtfsPersonalScan.ClassifyFailure(new NtfsPrototype.NtfsSnapshotSizeException("SnapshotSizeRead"), rawBudget) == FastScanWireError.LimitExceeded &&
             NtfsPersonalScan.ClassifyFailure(new NtfsPrototype.NtfsMftBitmapSelectionException("BitmapSelectionRead"), rawBudget) == FastScanWireError.LimitExceeded,

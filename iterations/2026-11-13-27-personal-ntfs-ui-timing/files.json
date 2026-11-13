@@ -1,0 +1,64 @@
+{
+  "baseline": "e7b4324dbf1354ce80c2e766ccfd9365957eca37",
+  "hash_scope": "versioned-index-bytes",
+  "recovery": "restore exact baseline blobs; git -c core.autocrlf=false apply changes.patch",
+  "verified_recovered_files": 14,
+  "files": [
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "174719ad72e1854d09f218e557202f77efd90c3ddc083b4cdb09a839e4bd4204"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "9e1def3f7669297f92cbe4ad10365091ae54220ee4a5bdfca97150355a5dff44"
+    },
+    {
+      "path": "Program.cs",
+      "sha256": "a163f008cf06d7c29aab88a07067a4e18de67aebe9180dcd4b809a7c0d716a9c"
+    },
+    {
+      "path": "README.md",
+      "sha256": "b1b87cd531ce55746882bbc4862c06dea8cae3f97c45beef4a2ebd527a2db79a"
+    },
+    {
+      "path": "README.en.md",
+      "sha256": "fa87a8756fccf0484755595bb06ac6b70d55b5a1c637fca49ba1e46fee022579"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "8f4f93707f516185d5d248d48bdae8400976c2135c4c2de8bda48181adcc87a2"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "60a1fa475f26d1a9e6d75f62fd70e84519154743f8b9b9dad100fb2ec4f1c444"
+    },
+    {
+      "path": "docs/ntfs-personal-scan.md",
+      "sha256": "82675529af21a07f191f1f3049699569650e4bc9321e605120380c66bef5f072"
+    },
+    {
+      "path": "src/Scanning/Ntfs/FastScanBridge.cs",
+      "sha256": "fe42fc34c3982dbdbbf229770c9d04ff7f0e140b842bb1ff2f7b70b867c1a02a"
+    },
+    {
+      "path": "src/Scanning/Ntfs/FastScanCoordinator.cs",
+      "sha256": "75650d6b0ad3ca4ed486ce5ece8fa68deba6e9b668e036805ba44848054ab39a"
+    },
+    {
+      "path": "tests/FastScanCoordinatorTests.cs",
+      "sha256": "dbd6f89b5f9c360f9ce62e934b25c7d37a641aae8287567158e22e41c46316f3"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "cd7b09e07bb1459be62ed2bc086627670fce2de42fd81aba26ece995880d19c8"
+    },
+    {
+      "path": "tests/NtfsPersonalTimingDriver.cs",
+      "sha256": "61184c5b1b4f2658a28a554cf6b7477c53ca5cd89b23aca94b665c7ec27091c3"
+    },
+    {
+      "path": "tests/NtfsPersonalTimingDriverTests.cs",
+      "sha256": "fefdb613ce338e503c7b46b5d3d0baad5031816ca10807dfbe0fb5f8077fc328"
+    }
+  ]
+}

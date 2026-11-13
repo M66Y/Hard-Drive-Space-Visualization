@@ -1,0 +1,135 @@
+{
+  "revision": "com-startup-comparison-v1",
+  "host": "dotnet-managed-entry",
+  "rounds_per_mode": 3,
+  "volume_access": false,
+  "snapshot_created": false,
+  "samples": [
+    {
+      "round": 1,
+      "observation": {
+        "revision": "com-startup-probe-v1",
+        "status": "observed",
+        "entry": "STA",
+        "inspected_apartments": false,
+        "main_managed_apartment": "STA",
+        "main_com_before": null,
+        "main_type_before": null,
+        "worker_initialize": "0x00000001",
+        "worker_com": null,
+        "worker_type": null,
+        "security_called": true,
+        "security_hresult": "0x80010119",
+        "main_com_after_join": null,
+        "main_type_after": null,
+        "volume_access": false,
+        "snapshot_created": false
+      }
+    },
+    {
+      "round": 2,
+      "observation": {
+        "revision": "com-startup-probe-v1",
+        "status": "observed",
+        "entry": "STA",
+        "inspected_apartments": false,
+        "main_managed_apartment": "STA",
+        "main_com_before": null,
+        "main_type_before": null,
+        "worker_initialize": "0x00000001",
+        "worker_com": null,
+        "worker_type": null,
+        "security_called": true,
+        "security_hresult": "0x80010119",
+        "main_com_after_join": null,
+        "main_type_after": null,
+        "volume_access": false,
+        "snapshot_created": false
+      }
+    },
+    {
+      "round": 3,
+      "observation": {
+        "revision": "com-startup-probe-v1",
+        "status": "observed",
+        "entry": "STA",
+        "inspected_apartments": false,
+        "main_managed_apartment": "STA",
+        "main_com_before": null,
+        "main_type_before": null,
+        "worker_initialize": "0x00000001",
+        "worker_com": null,
+        "worker_type": null,
+        "security_called": true,
+        "security_hresult": "0x80010119",
+        "main_com_after_join": null,
+        "main_type_after": null,
+        "volume_access": false,
+        "snapshot_created": false
+      }
+    },
+    {
+      "round": 1,
+      "observation": {
+        "revision": "com-startup-probe-v1",
+        "status": "observed",
+        "entry": "MTA",
+        "inspected_apartments": false,
+        "main_managed_apartment": "MTA",
+        "main_com_before": null,
+        "main_type_before": null,
+        "worker_initialize": "0x00000001",
+        "worker_com": null,
+        "worker_type": null,
+        "security_called": true,
+        "security_hresult": "0x00000000",
+        "main_com_after_join": null,
+        "main_type_after": null,
+        "volume_access": false,
+        "snapshot_created": false
+      }
+    },
+    {
+      "round": 2,
+      "observation": {
+        "revision": "com-startup-probe-v1",
+        "status": "observed",
+        "entry": "MTA",
+        "inspected_apartments": false,
+        "main_managed_apartment": "MTA",
+        "main_com_before": null,
+        "main_type_before": null,
+        "worker_initialize": "0x00000001",
+        "worker_com": null,
+        "worker_type": null,
+        "security_called": true,
+        "security_hresult": "0x00000000",
+        "main_com_after_join": null,
+        "main_type_after": null,
+        "volume_access": false,
+        "snapshot_created": false
+      }
+    },
+    {
+      "round": 3,
+      "observation": {
+        "revision": "com-startup-probe-v1",
+        "status": "observed",
+        "entry": "MTA",
+        "inspected_apartments": false,
+        "main_managed_apartment": "MTA",
+        "main_com_before": null,
+        "main_type_before": null,
+        "worker_initialize": "0x00000001",
+        "worker_com": null,
+        "worker_type": null,
+        "security_called": true,
+        "security_hresult": "0x00000000",
+        "main_com_after_join": null,
+        "main_type_after": null,
+        "volume_access": false,
+        "snapshot_created": false
+      }
+    }
+  ]
+}

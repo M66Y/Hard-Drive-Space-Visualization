@@ -5,7 +5,7 @@ internal static class Program
     private static int reportingError;
     private static DiagnosticService? diagnostics;
     private static Mutex? installationGuard;
-    [STAThread]
+    [MTAThread]
     private static void Main(string[] args)
     {
         if (FastScanBridge.IsWorkerRequest(args))
@@ -13,6 +13,17 @@ internal static class Program
             Environment.ExitCode = FastScanBridge.RunWorker(args);
             return;
         }
+        // Keep the worker's process entry MTA: waiting on an STA entry thread
+        // can initialize COM security before VSS establishes its own settings.
+        // Desktop controls, clipboard and folder dialogs still require STA.
+        var desktop = new Thread(() => RunDesktop(args)) { Name = "AsukaLens UI" };
+        desktop.SetApartmentState(ApartmentState.STA);
+        desktop.Start();
+        desktop.Join();
+    }
+
+    private static void RunDesktop(string[] args)
+    {
         try
         {
             // Process lifetime, including error dialogs and diagnostic shutdown. Multiple windows remain supported.

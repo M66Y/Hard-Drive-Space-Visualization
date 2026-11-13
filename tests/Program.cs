@@ -30,6 +30,18 @@ if (args.Length == 1 && args[0] == "--ntfs-large-profile-tests")
 
 if (FastScanBridge.IsWorkerRequest(args))
     return FastScanBridge.RunWorker(args, DiskAtlas.NtfsPrototype.NtfsPersonalAcceptanceDriver.Validate);
+if (FastScanBridge.IsTimingWorkerRequest(args))
+    return FastScanBridge.RunTimingWorker(args);
+if (args.Length > 0 && args[0] == NtfsPersonalTimingDriver.Argument)
+{
+    if (!NtfsPersonalTimingDriver.ValidInvocation(args)) { Console.Error.WriteLine("FAIL personal timing arguments"); return 1; }
+    return NtfsPersonalTimingDriver.Run();
+}
+if (args.Length == 1 && args[0] == "--ntfs-personal-timing-tests")
+{
+    try { int n = NtfsPersonalTimingDriverTests.Run(); Console.WriteLine($"PASS personal timing: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL personal timing; no private details emitted"); return 1; }
+}
 if (args.Length is 1 or 2 && args[0] == "--ntfs-personal-acceptance" &&
     (args.Length == 1 || args[1] == "--cancel-on-discovery"))
     return DiskAtlas.NtfsPrototype.NtfsPersonalAcceptanceDriver.Run(args.Length == 2);

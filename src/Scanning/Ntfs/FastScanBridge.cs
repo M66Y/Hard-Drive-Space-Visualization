@@ -14,11 +14,29 @@ namespace DiskAtlas;
 internal static class FastScanBridge
 {
     internal const string WorkerArgument = "--ntfs-scan-worker";
+    internal const string TimingWorkerArgument = "--ntfs-timing-worker";
     private const string PipePrefix = "AsukaLens.Ntfs.";
     private const byte CancelCommand = 0x43;
     private static int cleanupUnconfirmed;
 
-    internal static ScanResult Scan(string path, IProgress<ScanProgress>? progress, CancellationToken token)
+    internal static ScanResult Scan(string path, IProgress<ScanProgress>? progress, CancellationToken token) =>
+        ScanCore(path, progress, token, false, null);
+
+    internal static ScanResult ScanForTiming(string path, IProgress<ScanProgress>? progress, CancellationToken token,
+        Action<FastScanWireStage>? observeStage = null)
+    {
+        if (!IsTimingHost(Environment.ProcessPath, System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name))
+            throw new FastScanUnavailableException(FastScanWireError.Unsupported, true);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(TimeSpan.FromMinutes(10));
+        return ScanCore(path, progress, timeout.Token, true, observeStage);
+    }
+
+    internal static bool IsTimingHost(string? executable, string? assembly) =>
+        string.Equals(Path.GetFileName(executable), "DiskAtlas.Tests.exe", StringComparison.OrdinalIgnoreCase) && assembly == "DiskAtlas.Tests";
+
+    private static ScanResult ScanCore(string path, IProgress<ScanProgress>? progress, CancellationToken token, bool timing,
+        Action<FastScanWireStage>? observeStage)
     {
         token.ThrowIfCancellationRequested();
         if (Volatile.Read(ref cleanupUnconfirmed) != 0)
@@ -38,16 +56,35 @@ internal static class FastScanBridge
         bool requested = false;
         bool terminalCleanupConfirmed = false;
         var timer = Stopwatch.StartNew();
+        // The scan cancels after ten minutes; keep the existing two-minute
+        // transport grace so its cleanup acknowledgement can still arrive.
         using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(12));
         using var close = deadline.Token.Register(() => { try { server.Dispose(); } catch { } });
         try
         {
             progress?.Report(new(0, 0, 0, "等待管理员授权", ScanPhase.Preparing, Message: "仅本次快扫使用短时管理员助手。"));
             var start = new ProcessStartInfo(executable) { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden };
-            start.ArgumentList.Add(WorkerArgument); start.ArgumentList.Add(pipeName);
+            start.ArgumentList.Add(timing ? TimingWorkerArgument : WorkerArgument); start.ArgumentList.Add(pipeName);
             start.ArgumentList.Add(parent.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
             start.ArgumentList.Add(parent.StartTime.ToUniversalTime().Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            try { child = Process.Start(start); }
+            try
+            {
+                if (!timing) child = Process.Start(start);
+                else
+                {
+                    // Test timing must not wait indefinitely for the consent UI.
+                    // An abandoned launch receives no scope: its private server
+                    // closes here, so a late helper cannot start a source.
+                    var launch = Task.Run(() => Process.Start(start));
+                    try { child = launch.WaitAsync(token).GetAwaiter().GetResult(); }
+                    catch
+                    {
+                        _ = launch.ContinueWith(task => { _ = task.Exception; if (task.Status == TaskStatus.RanToCompletion) task.Result?.Dispose(); },
+                            CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+                        throw;
+                    }
+                }
+            }
             catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
             { token.ThrowIfCancellationRequested(); throw new FastScanUnavailableException(FastScanWireError.PermissionDenied, true); }
             if (child == null) throw new FastScanUnavailableException(FastScanWireError.PermissionDenied, true);
@@ -79,7 +116,7 @@ internal static class FastScanBridge
             {
                 var message = reader.Read(deadline.Token);
                 if (message.Kind == FastScanWireEventKind.Status && message.Stage is { } stage)
-                    ReportStage(progress, stage);
+                { observeStage?.Invoke(stage); ReportStage(progress, stage); }
                 else if (message.Kind == FastScanWireEventKind.Progress && message.Progress != null)
                     progress?.Report(message.Progress);
                 else if (message.Kind == FastScanWireEventKind.Failure)
@@ -151,6 +188,15 @@ internal static class FastScanBridge
     }
 
     internal static bool IsWorkerRequest(string[] args) => args.Length > 0 && args[0] == WorkerArgument;
+    internal static bool IsTimingWorkerRequest(string[] args) => args.Length > 0 && args[0] == TimingWorkerArgument;
+
+    internal static int RunTimingWorker(string[] args)
+    {
+        if (!IsTimingHost(Environment.ProcessPath, System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name) ||
+            args.Length != 4 || args[0] != TimingWorkerArgument) return 2;
+        string[] invocation = args.ToArray(); invocation[0] = WorkerArgument;
+        return RunWorker(invocation); // Deliberately no test-only full Native audit.
+    }
 
     internal static int RunWorker(string[] args,
         Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation = null)
