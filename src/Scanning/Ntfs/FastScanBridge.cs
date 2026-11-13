@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using Microsoft.Win32.SafeHandles;
+using DiskAtlas.NtfsPrototype;
 
 namespace DiskAtlas;
 
@@ -26,7 +27,9 @@ internal static class FastScanBridge
         catch (FastScanWireException) { throw new FastScanUnavailableException(FastScanWireError.Unsupported, true); }
         string executable = Environment.ProcessPath ?? throw new FastScanUnavailableException(FastScanWireError.Unsupported, true);
         if (!Path.GetFileName(executable).Equals("DiskAtlas.exe", StringComparison.OrdinalIgnoreCase) &&
-            !Path.GetFileName(executable).Equals("AsukaLens.exe", StringComparison.OrdinalIgnoreCase))
+            !Path.GetFileName(executable).Equals("AsukaLens.exe", StringComparison.OrdinalIgnoreCase) &&
+            !(Path.GetFileName(executable).Equals("DiskAtlas.Tests.exe", StringComparison.OrdinalIgnoreCase) &&
+                System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name == "DiskAtlas.Tests"))
             throw new FastScanUnavailableException(FastScanWireError.Unsupported, true);
         string pipeName = PipePrefix + Guid.NewGuid().ToString("N");
         using var parent = Process.GetCurrentProcess();
@@ -85,13 +88,13 @@ internal static class FastScanBridge
                     terminalCleanupConfirmed = true;
                     token.ThrowIfCancellationRequested();
                     if (message.Error == FastScanWireError.Cancelled) throw new OperationCanceledException();
-                    throw new FastScanUnavailableException(message.Error ?? FastScanWireError.ProtocolError, true);
+                    throw new FastScanUnavailableException(message.Error ?? FastScanWireError.ProtocolError, true, message.Context);
                 }
                 else if (message.Kind == FastScanWireEventKind.Completed && message.Result is { } result)
                 {
                     terminalCleanupConfirmed = true;
                     token.ThrowIfCancellationRequested();
-                    return new(result.Root, timer.Elapsed, 0, []) { Source = new(result.CapturedAt) };
+                    return FromWireResult(result, timer.Elapsed);
                 }
             }
         }
@@ -108,6 +111,10 @@ internal static class FastScanBridge
         }
         finally { child?.Dispose(); }
     }
+
+    internal static ScanResult FromWireResult(FastScanWireResult result, TimeSpan elapsed) =>
+        new(result.Root, elapsed, result.ExcludedReparseEntries, result.Issues)
+        { Source = new(result.CapturedAt, result.ExcludedReparseEntries) };
 
     private static NamedPipeServerStream OpenServer(string name)
     {
@@ -145,17 +152,19 @@ internal static class FastScanBridge
 
     internal static bool IsWorkerRequest(string[] args) => args.Length > 0 && args[0] == WorkerArgument;
 
-    internal static int RunWorker(string[] args)
+    internal static int RunWorker(string[] args,
+        Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation = null)
     {
         if (args.Length != 4 || args[0] != WorkerArgument || !ValidPipeName(args[1]) || !int.TryParse(args[2], out int parentId) || parentId <= 0 ||
             !long.TryParse(args[3], out long parentTicks) || parentTicks <= 0) return 2;
         int exit = 2;
-        var thread = new Thread(() => exit = WorkerCore(args[1], parentId, parentTicks));
+        var thread = new Thread(() => exit = WorkerCore(args[1], parentId, parentTicks, beforeCleanupValidation));
         thread.SetApartmentState(ApartmentState.MTA); thread.Start(); thread.Join();
         return exit;
     }
 
-    private static int WorkerCore(string pipeName, int parentId, long parentTicks)
+    private static int WorkerCore(string pipeName, int parentId, long parentTicks,
+        Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation)
     {
         try
         {
@@ -180,15 +189,16 @@ internal static class FastScanBridge
             bool sourceClosed = false;
             try
             {
-                var result = NtfsPersonalScan.Run(root, stage => FastScanWire.WriteStatus(pipe, stage, linked.Token), linked.Token);
+                var result = NtfsPersonalScan.Run(root, stage => FastScanWire.WriteStatus(pipe, stage, linked.Token), linked.Token, beforeCleanupValidation);
                 sourceClosed = true;
                 // The scan method returns only after confirmed source cleanup.
-                FastScanWire.WriteResult(pipe, result.Root, result.Elapsed, result.CapturedAt, CancellationToken.None);
+                FastScanWire.WriteResult(pipe, result.Root, result.Elapsed, result.CapturedAt, CancellationToken.None,
+                    result.ExcludedReparseEntries, result.Exclusions);
                 pipe.Flush(); return 0;
             }
             catch (FastScanUnavailableException ex)
             {
-                FastScanWire.WriteFailure(pipe, ex.Code, ex.CleanupConfirmed, CancellationToken.None);
+                FastScanWire.WriteFailure(pipe, ex.Code, ex.CleanupConfirmed, CancellationToken.None, ex.Context);
                 pipe.Flush(); return 1;
             }
             catch (OperationCanceledException)
@@ -242,9 +252,10 @@ internal static class FastScanBridge
         uint outBuffer, uint inBuffer, uint timeout, ref SecurityAttributes security);
 }
 
-internal sealed class FastScanUnavailableException(FastScanWireError code, bool cleanupConfirmed) : IOException(
-    cleanupConfirmed ? FastScanCoordinator.Reason(code) : FastScanCoordinator.Reason(FastScanWireError.CleanupUnconfirmed))
+internal sealed class FastScanUnavailableException(FastScanWireError code, bool cleanupConfirmed, FastScanFailureContext? context = null) : IOException(
+    cleanupConfirmed ? FastScanCoordinator.Reason(code, context) : FastScanCoordinator.Reason(FastScanWireError.CleanupUnconfirmed))
 {
     internal FastScanWireError Code { get; } = code;
     internal bool CleanupConfirmed { get; } = cleanupConfirmed;
+    internal FastScanFailureContext? Context { get; } = context;
 }

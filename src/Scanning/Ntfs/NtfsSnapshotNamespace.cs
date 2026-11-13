@@ -19,13 +19,42 @@ internal sealed record NtfsSnapshotNamespaceReport(string Revision, int Entries,
 internal sealed record NtfsSnapshotNamespacePageEntry(string Name, ulong Low, ulong High, FileAttributes Attributes)
 { internal DateTime? Modified { get; init; } }
 internal sealed class NtfsSnapshotNamespaceResult(NtfsSnapshotNamespaceReport report,
-    IReadOnlyList<NtfsSnapshotNamespaceEntry> entries, IReadOnlyList<string> paths, FileIdentity rootIdentity)
+    IReadOnlyList<NtfsSnapshotNamespaceEntry> entries, IReadOnlyList<string?> paths, FileIdentity rootIdentity,
+    NtfsScanLimits? limits = null)
 {
     internal NtfsSnapshotNamespaceReport Report { get; } = report;
     internal IReadOnlyList<NtfsSnapshotNamespaceEntry> Entries { get; } = entries;
     internal FileIdentity RootIdentity { get; } = rootIdentity;
-    internal string RelativePath(int index) => index >= 0 && index < paths.Count ? paths[index] :
-        throw new NtfsSnapshotNamespaceException("NamespaceEntryIndex");
+    internal NtfsScanLimits Limits { get; } = limits ?? NtfsScanLimits.Standard;
+    internal bool HasCachedPath(int index)
+    {
+        try
+        {
+            if (index < 0 || index >= paths.Count || index >= Entries.Count) throw new NtfsSnapshotNamespaceException("NamespaceEntryIndex");
+            return paths[index] != null;
+        }
+        catch { throw new NtfsSnapshotNamespaceException("NamespaceEntryIndex"); }
+    }
+    internal string RelativePath(int index)
+    {
+        try
+        {
+            if (index < 0 || index >= paths.Count || index >= Entries.Count) throw new NtfsSnapshotNamespaceException("NamespaceEntryIndex");
+            string? cached = paths[index];
+            if (cached != null) return cached;
+            var entry = Entries[index];
+            if (!Limits.CompactPaths || entry == null || entry.Index != index || entry.Directory ||
+                entry.ParentIndex < 0 || entry.ParentIndex >= index || !Entries[entry.ParentIndex].Directory ||
+                entry.Name == null || entry.Name.Length is < 1 or > 255 || entry.Name is "." or ".." ||
+                entry.Name.Any(c => char.IsControl(c) || c is '/' or '\\' or ':'))
+                throw new NtfsSnapshotNamespaceException("NamespaceEntryIndex");
+            string prefix = paths[entry.ParentIndex] ?? throw new NtfsSnapshotNamespaceException("NamespaceEntryIndex");
+            if ((long)prefix.Length + (prefix.Length == 0 ? 0 : 1) + entry.Name.Length > 32767)
+                throw new NtfsSnapshotNamespaceException("NamespaceEntryIndex");
+            return prefix.Length == 0 ? entry.Name : prefix + "/" + entry.Name;
+        }
+        catch { throw new NtfsSnapshotNamespaceException("NamespaceEntryIndex"); }
+    }
 }
 internal sealed class NtfsSnapshotNamespaceException(string code) : IOException(code)
 { internal string Code { get; } = code; }
@@ -109,15 +138,17 @@ internal static class NtfsSnapshotNamespace
         token.ThrowIfCancellationRequested(); return result.AsReadOnly();
     }
 
-    internal static NtfsSnapshotNamespaceResult Read(IBackend backend, CancellationToken token = default)
+    internal static NtfsSnapshotNamespaceResult Read(IBackend backend, CancellationToken token = default, NtfsScanLimits? limits = null)
     {
+        limits ??= NtfsScanLimits.Standard;
         token.ThrowIfCancellationRequested(); Require(backend != null, "NamespaceInput");
         FileIdentity rootIdentity = External(() => backend.RootIdentity, token);
         Require(IdentityValid(rootIdentity), "NamespaceIdentity");
         var root = new NtfsSnapshotNamespaceEntry(0, -1, "", rootIdentity, FileAttributes.Directory, false)
             { Modified = External(() => backend.RootModified, token) };
         var entries = new List<NtfsSnapshotNamespaceEntry> { root };
-        var paths = new List<string> { "" };
+        var paths = new List<string?> { "" };
+        var depths = limits.CompactPaths ? new List<int> { 0 } : null;
         var queue = new Queue<int>(); queue.Enqueue(0);
         var seenDirectories = new HashSet<FileIdentity> { rootIdentity };
         var objectKinds = new Dictionary<FileIdentity, (bool Directory, bool Reparse)> { [rootIdentity] = (true, false) };
@@ -130,7 +161,8 @@ internal static class NtfsSnapshotNamespace
         {
             token.ThrowIfCancellationRequested();
             var directory = entries[directoryIndex];
-            var cursor = External(() => backend.OpenDirectory(directory, paths[directoryIndex], token), token);
+            string directoryPath = paths[directoryIndex] ?? throw new NtfsSnapshotNamespaceException("NamespaceEntryIndex");
+            var cursor = External(() => backend.OpenDirectory(directory, directoryPath, token), token);
             Require(cursor != null, "NamespaceCursor");
             try
             {
@@ -143,7 +175,7 @@ internal static class NtfsSnapshotNamespace
                 bool restart = true;
                 while (true)
                 {
-                    token.ThrowIfCancellationRequested(); Require(queries < MaximumQueries, "NamespaceQueryBudget");
+                    token.ThrowIfCancellationRequested(); Require(queries < limits.MaximumEntries * 4 + 1, "NamespaceQueryBudget");
                     page.AsSpan().Clear();
                     var io = External(() => cursor.Read(restart, page, token), token); queries++;
                     if (!io.Success)
@@ -172,16 +204,20 @@ internal static class NtfsSnapshotNamespace
                         ulong slot = identity.Low & NtfsRecordDecoder.MaximumRecordNumber;
                         if (seenSlots.TryGetValue(slot, out var previous)) Require(previous == identity, "NamespaceSlotReused");
                         else seenSlots.Add(slot, identity);
-                        Require(entries.Count < MaximumEntries, "NamespaceEntryBudget");
-                        Require(characters <= MaximumNameCharacters - row.Name.Length, "NamespaceNameBudget");
+                        Require(entries.Count < limits.MaximumEntries, "NamespaceEntryBudget");
+                        Require(characters <= limits.MaximumCharacters - row.Name.Length, "NamespaceNameBudget");
                         characters += row.Name.Length;
-                        string prefix = paths[directoryIndex];
+                        string prefix = directoryPath;
                         int added = prefix.Length + (prefix.Length == 0 ? 0 : 1) + row.Name.Length;
-                        Require(pathCharacters <= MaximumNameCharacters - added, "NamespacePathBudget");
-                        string path = prefix.Length == 0 ? row.Name : prefix + "/" + row.Name;
-                        pathCharacters += path.Length;
+                        bool retainPath = !limits.CompactPaths || isDirectory;
+                        int depth = depths == null ? 0 : depths[directoryIndex] + 1;
+                        if (limits.CompactPaths) Require(added <= 32767 && depth <= 512, "NamespacePathBudget");
+                        Require(!retainPath || pathCharacters <= limits.MaximumCharacters - added, "NamespacePathBudget");
+                        string? path = retainPath ? (prefix.Length == 0 ? row.Name : prefix + "/" + row.Name) : null;
+                        if (retainPath) pathCharacters += added;
                         int index = entries.Count;
                         entries.Add(new(index, directoryIndex, row.Name, identity, row.Attributes, isReparse) { Modified = row.Modified }); paths.Add(path);
+                        depths?.Add(depth);
                         if (isReparse) reparse++;
                         if (isDirectory)
                         {
@@ -198,7 +234,7 @@ internal static class NtfsSnapshotNamespace
         token.ThrowIfCancellationRequested();
         var report = new NtfsSnapshotNamespaceReport("snapshot-namespace-v1", entries.Count, fileEntries, directories, files.Count,
             reparse, opened, pages, queries, checked((int)characters), completed, true);
-        return new(report, entries.AsReadOnly(), paths.AsReadOnly(), rootIdentity);
+        return new(report, entries.AsReadOnly(), paths.AsReadOnly(), rootIdentity, limits);
     }
 
     // This is only a read-only handle adapter. Its use is restricted by the

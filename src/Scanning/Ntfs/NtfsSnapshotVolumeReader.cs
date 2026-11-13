@@ -25,11 +25,13 @@ internal sealed partial class NtfsSnapshotVolumeReader : IDisposable
     internal const int ScaleMaximumCalls = 8192;
     internal const long ScaleMaximumBytes = 256L * 1024 * 1024 + 65536;
     internal const long PersonalMaximumBytes = 256L * 1024 * 1024 + 1024 * 1024;
+    internal const long LargePersonalMaximumBytes = 1024L * 1024 * 1024 + 2L * 1024 * 1024;
+    internal const int LargePersonalMaximumCalls = 65536;
     private readonly object gate = new();
     private readonly INative native;
     private readonly ulong serial;
     private readonly long volumeBytes;
-    private readonly bool scale, personal;
+    private readonly bool scale, personal, largePersonal;
     private IntPtr allocation, aligned;
     private NtfsSnapshotVolumeFacts? facts;
     private int readCalls;
@@ -39,18 +41,18 @@ internal sealed partial class NtfsSnapshotVolumeReader : IDisposable
     internal int ReadCalls { get { lock (gate) return readCalls; } }
     internal long RequestedBytes { get { lock (gate) return requestedBytes; } }
     internal bool BufferReleased { get { lock (gate) return bufferReleased; } }
-    private NtfsSnapshotVolumeReader(INative native, ulong serial, long volumeBytes, bool scale, bool synthetic, bool personal = false)
-    { this.native = native; this.serial = serial; this.volumeBytes = volumeBytes; this.scale = scale; this.personal = personal; IsSynthetic = synthetic; }
+    private NtfsSnapshotVolumeReader(INative native, ulong serial, long volumeBytes, bool scale, bool synthetic, bool personal = false, bool largePersonal = false)
+    { this.native = native; this.serial = serial; this.volumeBytes = volumeBytes; this.scale = scale; this.personal = personal; this.largePersonal = personal && largePersonal; IsSynthetic = synthetic; }
     internal static NtfsSnapshotVolumeReader OpenPersonal(NtfsPersonalSnapshotSource owner, CancellationToken token)
     {
         token.ThrowIfCancellationRequested(); var binding = owner.TakeReadBinding();
         var native = new Native(binding.Device);
-        var reader = new NtfsSnapshotVolumeReader(native, binding.Serial, binding.VolumeBytes, true, false, true);
+        var reader = new NtfsSnapshotVolumeReader(native, binding.Serial, binding.VolumeBytes, true, false, true, ReferenceEquals(binding.Limits, NtfsScanLimits.Large));
         try { owner.TrackReader(reader); token.ThrowIfCancellationRequested(); return reader; }
         catch { reader.Dispose(); throw; }
     }
-    internal static NtfsSnapshotVolumeReader ForPersonalTests(INative native, ulong serial, long volumeBytes) =>
-        new(native, serial, volumeBytes, true, true, true);
+    internal static NtfsSnapshotVolumeReader ForPersonalTests(INative native, ulong serial, long volumeBytes, bool large = false) =>
+        new(native, serial, volumeBytes, true, true, true, large);
     // This seam never opens a device and can never be passed into the real owner.
     internal static NtfsSnapshotVolumeReader ForTests(INative native, ulong serial, long volumeBytes, bool scale = false) =>
         new(native, serial, volumeBytes, scale, true);
@@ -88,7 +90,8 @@ internal sealed partial class NtfsSnapshotVolumeReader : IDisposable
             token.ThrowIfCancellationRequested(); Require(!disposed, "VssRawRead");
             _ = Facts(token);
             int length = destination.Length, maximumLength = scale ? 65536 : ProbeMaximumBytes;
-            long maximumBytes = personal ? PersonalMaximumBytes : scale ? ScaleMaximumBytes : ProbeMaximumBytes; int maximumCalls = scale ? ScaleMaximumCalls : ProbeMaximumCalls;
+            long maximumBytes = largePersonal ? LargePersonalMaximumBytes : personal ? PersonalMaximumBytes : scale ? ScaleMaximumBytes : ProbeMaximumBytes;
+            int maximumCalls = largePersonal ? LargePersonalMaximumCalls : scale ? ScaleMaximumCalls : ProbeMaximumCalls;
             Require(offset >= 0 && offset % 512 == 0 && length is > 0 && length <= maximumLength && length % 512 == 0 &&
                 offset <= volumeBytes - length, "VssRawRead");
             Require(readCalls < maximumCalls && requestedBytes <= maximumBytes - length, personal ? "VssRawBudget" : "VssRawRead");

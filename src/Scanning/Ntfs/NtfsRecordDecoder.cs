@@ -164,11 +164,21 @@ internal static class NtfsRecordDecoder
                     }
                     else
                     {
-                        long allocatedBytes = I64(attr, 40), dataBytes = I64(attr, 48), initialized = I64(attr, 56);
-                        if (allocatedBytes < 0 || dataBytes < 0 || initialized < 0 || initialized > dataBytes) return Invalid("DataSize");
-                        if (U64(attr, 16) != 0) reasons |= NtfsLookupReason.AttributeList;
-                        logical = dataBytes; allocation = allocatedBytes;
-                        if ((attrFlags & 0xc001) == 0 && allocatedBytes < dataBytes) return Invalid("DataSize");
+                        if (U64(attr, 16) != 0)
+                        {
+                            // Total sizes are undefined in a continuation extent.
+                            // Its VCN/runlist was checked above; assembling all
+                            // extents is still required before a size can be known.
+                            reasons |= NtfsLookupReason.AttributeList;
+                            logical = allocation = null;
+                        }
+                        else
+                        {
+                            long allocatedBytes = I64(attr, 40), dataBytes = I64(attr, 48), initialized = I64(attr, 56);
+                            if (allocatedBytes < 0 || dataBytes < 0 || initialized < 0 || initialized > dataBytes) return Invalid("DataSize");
+                            logical = dataBytes; allocation = allocatedBytes;
+                            if ((attrFlags & 0xc001) == 0 && allocatedBytes < dataBytes) return Invalid("DataSize");
+                        }
                     }
                 }
             }

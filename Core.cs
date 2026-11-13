@@ -45,6 +45,19 @@ public sealed class DiskEntry
     internal static DiskEntry FromName(string name, bool isDirectory, DiskEntry parent, string extension) =>
         new(name, isDirectory, parent, isDirectory ? System.IO.Path.Join(parent.Path, name) : null, extension);
 
+    internal bool HasExpectedParentPath()
+    {
+        if (Parent == null) return false;
+        if (storedPath == null) return true; // The file path is defined by this parent and name.
+        ReadOnlySpan<char> prefix = Parent.Path.AsSpan(), actual = storedPath.AsSpan();
+        int separator = System.IO.Path.EndsInDirectorySeparator(prefix) ? 0 : 1;
+        return actual.Length == prefix.Length + separator + Name.Length &&
+            actual[..prefix.Length].Equals(prefix, StringComparison.OrdinalIgnoreCase) &&
+            (separator == 0 || actual[prefix.Length] == System.IO.Path.DirectorySeparatorChar) &&
+            actual[(prefix.Length + separator)..].Equals(Name.AsSpan(), StringComparison.OrdinalIgnoreCase);
+    }
+    internal int StoredPathCharacters => storedPath?.Length ?? 0;
+
     internal DiskEntry CopyMetadata(DiskEntry? parent)
     {
         lock (this)
@@ -139,6 +152,8 @@ public record ScanProgress(long Files, long Folders, long Bytes, string CurrentP
     ScanPhase Phase = ScanPhase.Scanning, int WorkerLimit = 0,
     long CompletedDirectories = 0, long DiscoveredDirectories = 0, RefreshMethod? Method = null, string? Message = null)
 {
+    internal FastScanWireError? FastScanFallback { get; init; }
+    internal FastScanFailureContext? FastScanFallbackContext { get; init; }
     // This describes directory tasks in the CURRENT phase, never elapsed time,
     // bytes, remaining duration or overall completion. Newly found work can lower it.
     public int? EstimatedPercent => DiscoveredDirectories <= 0 || CompletedDirectories < 0 || CompletedDirectories > DiscoveredDirectories
@@ -152,9 +167,10 @@ public record ScanResult(DiskEntry Root, TimeSpan Elapsed, long Skipped, IReadOn
     public ScanStatistics? Statistics { get; init; }
     public SnapshotScanSource? Source { get; init; }
     internal FastScanWireError? FastScanFallback { get; init; }
+    internal FastScanFailureContext? FastScanFallbackContext { get; init; }
 }
 
-public sealed record SnapshotScanSource(DateTimeOffset CapturedAt);
+public sealed record SnapshotScanSource(DateTimeOffset CapturedAt, long ExcludedReparseEntries = 0);
 
 public sealed class DiskScanner
 {

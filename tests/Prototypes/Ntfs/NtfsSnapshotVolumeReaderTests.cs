@@ -79,6 +79,18 @@ internal static class NtfsSnapshotVolumeReaderTests
         }
         using (var reader = NtfsSnapshotVolumeReader.ForTests(Personal(), 41, personalVolume, scale: true))
             Rejected(() => reader.Facts(), "VssRawGeometry", "new personal geometry cannot expand fixture authorization");
+        using (var reader = NtfsSnapshotVolumeReader.ForPersonalTests(Personal(), 41, personalVolume, large: true))
+        {
+            byte[] block = new byte[65536]; for (int i = 0; i < 16416; i++) reader.ReadInto(0, block);
+            Check(reader.RequestedBytes == NtfsSnapshotVolumeReader.LargePersonalMaximumBytes && reader.ReadCalls == 16416,
+                "large personal metadata bitmap and data share one 1 GiB plus 2 MiB aggregate budget");
+            Rejected(() => reader.ReadInto(0, new byte[512]), "VssRawBudget", "large personal aggregate limit stops before I O");
+        }
+        using (var reader = NtfsSnapshotVolumeReader.ForPersonalTests(Personal(), 41, personalVolume, large: true))
+        {
+            byte[] block = new byte[512]; for (int i = 0; i < 65536; i++) reader.ReadInto(0, block);
+            Rejected(() => reader.ReadInto(0, block), "VssRawBudget", "large personal request cap remains finite");
+        }
         foreach (var alteration in new (int Offset, long Value, bool Wide)[] { (0, 42, true), (8, 999, true), (16, 0, true), (16, 9999999, true),
             (40, 4096, false), (44, 8192, false), (48, 2048, false), (56, 0, true), (56, 1025, true), (56, 2097152, true),
             (64, -1, true), (64, 256, true) })

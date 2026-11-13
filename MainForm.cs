@@ -38,6 +38,8 @@ internal sealed class MainForm : Form
     private readonly ActionButton home = new("扫描根目录") { Width = 108, Dock = DockStyle.Fill, Enabled = false };
     private readonly ActionButton reveal = new("在资源管理器中定位") { Width = 170, Dock = DockStyle.Fill, Enabled = false };
     private readonly ActionButton issues = new("查看未读取项") { Width = 115, Dock = DockStyle.Fill, Visible = false };
+    private readonly ActionButton restoreComplete = new("恢复上次完整结果") { Dock = DockStyle.Fill, Visible = false };
+    private ColumnStyle? restoreCompleteColumn;
     private readonly ActionButton clearType = new("清除类型筛选") { Dock = DockStyle.Fill, Visible = false, Margin = new Padding(0, 14, 12, 12) };
     private ColumnStyle? filterColumn;
     private readonly ActionButton previousPage = new("上一页") { Dock = DockStyle.Fill, Enabled = false };
@@ -75,6 +77,11 @@ internal sealed class MainForm : Form
     private bool showingPreview;
     private string? previewDisplayedPath;
     private ScanResult? scan;
+    // At most one older complete tree is retained while a partial result is
+    // displayed. A new complete result, restoration, or closing releases it.
+    private CompleteRecovery? completeRecovery;
+    private sealed record CompleteRecovery(ScanResult Result, string? Directory, int Mode, string? Type,
+        string Search, string Sort, bool Ascending, SizeMetric Metric);
     private DiskEntry? current;
     private CancellationTokenSource? scanCancellation;
     private CancellationTokenSource? viewCancellation;
@@ -153,6 +160,7 @@ internal sealed class MainForm : Form
         };
         reveal.Click += (_, _) => RevealSelection();
         issues.Click += (_, _) => ShowIssues();
+        restoreComplete.Click += (_, _) => RestoreCompleteResult();
         clearType.Click += (_, _) => { typeFilter = null; UpdateView(); };
         previousPage.Click += (_, _) => { PopulatePage(pageIndex - 1); SelectItem(null, false); };
         nextPage.Click += (_, _) => { PopulatePage(pageIndex + 1); SelectItem(null, false); };
@@ -398,10 +406,12 @@ internal sealed class MainForm : Form
         main.Controls.Add(detail, 0, 5);
         main.Controls.Add(activityPanel, 0, 6);
         main.Controls.Add(progressBar, 0, 7);
-        var footer = Table(2, 1);
+        var footer = Table(3, 1);
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        restoreCompleteColumn = new ColumnStyle(SizeType.Absolute, 0);
+        footer.ColumnStyles.Add(restoreCompleteColumn);
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 122));
-        footer.Controls.Add(status, 0, 0); footer.Controls.Add(issues, 1, 0);
+        footer.Controls.Add(status, 0, 0); footer.Controls.Add(restoreComplete, 1, 0); footer.Controls.Add(issues, 2, 0);
         main.Controls.Add(footer, 0, 8);
     }
 
@@ -512,6 +522,7 @@ internal sealed class MainForm : Form
         var previousScan = scan;
         using var cancellation = new CancellationTokenSource();
         scanCancellation = cancellation;
+        UpdateRecoveryAvailability();
         var session = new LiveScanSession();
         liveSession = session;
         searchTimer.Stop();
@@ -529,6 +540,8 @@ internal sealed class MainForm : Form
         refreshInfo.Cursor = Cursors.Default;
         scanTip.SetToolTip(refreshInfo, ScanPolicy.Explain(options.Mode));
         RefreshMethod? activeRefreshMethod = null;
+        FastScanWireError? activeFastFallback = null;
+        FastScanFailureContext? activeFastFallbackContext = null;
         var progress = new Progress<ScanProgress>(p =>
         {
             if (IsDisposed || Disposing || !ReferenceEquals(scanCancellation, cancellation) || cancellation.IsCancellationRequested) return;
@@ -542,10 +555,18 @@ internal sealed class MainForm : Form
             progressBar.Report(p);
             string stage = ScanProgressControl.PhaseName(p.Phase);
             if (p.Method is { } selectedMethod) activeRefreshMethod = selectedMethod;
-            if (p.Message != null) scanTip.SetToolTip(refreshInfo, p.Message);
+            if (p.FastScanFallback is { } fallbackCode) activeFastFallback = fallbackCode;
+            if (p.FastScanFallbackContext is { } fallbackContext) activeFastFallbackContext = fallbackContext;
+            if (p.Message != null || activeFastFallback.HasValue)
+                scanTip.SetToolTip(refreshInfo, (activeFastFallback is { } reason ? "NTFS 快扫已转普通扫描：" + FastScanCoordinator.Reason(reason, activeFastFallbackContext) + "\n" : "") + p.Message);
             status.Text = $"{stage} · {SizeFormat.Number(p.Files)} 个文件 · {(p.Phase == ScanPhase.Verifying ? p.CurrentPath : SizeFormat.Bytes(p.Bytes) + " · " + p.CurrentPath)}";
             refreshInfo.Text = $"{(activeRefreshMethod is { } method ? RefreshPresentation.MethodName(method) : StrategyName)} · {stage}" +
                 (p.WorkerLimit > 0 ? $" · 并发上限 {p.WorkerLimit}" : "");
+            if (activeFastFallback.HasValue)
+            {
+                refreshInfo.Text = "普通扫描（快扫已回退） · " + stage;
+                status.Text += " · 快扫回退：" + FastScanCoordinator.Reason(activeFastFallback.Value, activeFastFallbackContext);
+            }
             if (scan == null && !showingPreview)
             {
                 totalCard.Value = SizeFormat.Bytes(p.Bytes); filesCard.Value = SizeFormat.Number(p.Files); foldersCard.Value = SizeFormat.Number(p.Folders);
@@ -575,6 +596,13 @@ internal sealed class MainForm : Form
             var restored = desiredPath != null ? result.Root.FindDirectory(desiredPath) : null;
             EndPreview();
             SetMetric(previousMetric);
+            if (IsIncomplete(result))
+            {
+                if (previousScan != null && !IsIncomplete(previousScan))
+                    completeRecovery = new(previousScan, previousDirectory?.Path, previousMode, previousType,
+                        previousSearch, previousSort, previousAscending, previousMetric);
+            }
+            else completeRecovery = null;
             scan = result;
             current = restored ?? result.Root;
             navigation.RootName = scan.Root.Name; navigation.RootPath = scan.Root.Path; navigation.Invalidate();
@@ -589,14 +617,19 @@ internal sealed class MainForm : Form
                 refreshInfo.Text = $"{RefreshPresentation.MethodName(stats.Method)} · 重扫 {stats.ReadDirectories:N0} 目录 · 复用 {stats.ReusedFiles:N0} 文件 · 点击详情";
                 scanTip.SetToolTip(refreshInfo, "点击查看最近完成的扫描详情\n" + RefreshPresentation.Details(stats));
             }
-            else refreshInfo.Text = scan.Source is { } source ? $"NTFS 快扫 · 快照 {source.CapturedAt.LocalDateTime:HH:mm:ss}" : IsIncomplete(scan) ? "扫描结束 · 结果不完整" : "扫描完成";
-            status.Text = $"{(IsIncomplete(scan) ? "扫描结束 · 结果不完整" : "扫描完成")} · {SizeFormat.Number(scan.Root.FileCount)} 个文件" + (scan.Statistics is { } finished ? " · " + finished.Reason : "") +
+            else refreshInfo.Text = scan.Source is { } source ? $"{(source.ExcludedReparseEntries > 0 ? "部分快扫完成" : "NTFS 快扫")} · 快照 {source.CapturedAt.LocalDateTime:HH:mm:ss}" : IsIncomplete(scan) ? "扫描结束 · 结果不完整" : "扫描完成";
+            status.Text = $"{(scan.Source is { ExcludedReparseEntries: > 0 } ? "部分快扫完成" : IsIncomplete(scan) ? "扫描结束 · 结果不完整" : "扫描完成")} · {SizeFormat.Number(scan.Root.FileCount)} 个文件" + (scan.Statistics is { } finished ? " · " + finished.Reason : "") +
                 (scan.Skipped > 0 ? $" · {scan.Skipped:N0} 项已跳过" : "") + (scan.Root.UnknownAllocationFiles > 0 ? $" · {scan.Root.UnknownAllocationFiles:N0} 项占用未知" : "");
             if (scan.Source is { } snapshot) status.Text += $" · 只读快照 {snapshot.CapturedAt.LocalDateTime:HH:mm:ss}";
+            if (scan.Source is { ExcludedReparseEntries: > 0 })
+            {
+                status.Text += " · 链接及目标未纳入统计";
+                scanTip.SetToolTip(refreshInfo, $"已跳过 {scan.Skipped:N0} 个链接/重解析点；不跟随或遍历链接目标，统计范围不完整。\n查看未读取项了解详情；有旧完整结果时可恢复。\n本次快照已清理，结果为快照时点的元信息。");
+            }
             if (scan.FastScanFallback is { } fallback)
             {
-                status.Text += " · 已转普通扫描：" + FastScanCoordinator.Reason(fallback);
-                scanTip.SetToolTip(refreshInfo, "NTFS 快扫已转普通扫描：" + FastScanCoordinator.Reason(fallback));
+                status.Text += " · 已转普通扫描：" + FastScanCoordinator.Reason(fallback, scan.FastScanFallbackContext);
+                scanTip.SetToolTip(refreshInfo, "NTFS 快扫已转普通扫描：" + FastScanCoordinator.Reason(fallback, scan.FastScanFallbackContext));
             }
             progressBar.Finish(IsIncomplete(scan) ? ScanDisplayState.Incomplete : ScanDisplayState.Completed);
         }
@@ -635,6 +668,7 @@ internal sealed class MainForm : Form
                 refreshInfo.Cursor = scan?.Statistics != null ? Cursors.Hand : Cursors.Default;
                 map.Scanning = false; map.Invalidate();
                 if (cancellation.IsCancellationRequested || scan == previousScan) UpdateStrategyHint();
+                UpdateRecoveryAvailability();
             }
         }
 
@@ -672,6 +706,32 @@ internal sealed class MainForm : Form
 
     private static bool IsIncomplete(ScanResult result) =>
         result.Skipped > 0 || result.Root.Incomplete || result.Root.UnknownAllocationFiles > 0;
+
+    private void UpdateRecoveryAvailability()
+    {
+        restoreComplete.Visible = completeRecovery != null;
+        restoreComplete.Enabled = completeRecovery != null && scanCancellation == null;
+        if (restoreCompleteColumn != null) restoreCompleteColumn.Width = completeRecovery == null ? 0 : 176 * DeviceDpi / 96f;
+    }
+
+    private void RestoreCompleteResult()
+    {
+        if (scanCancellation != null || completeRecovery is not { } saved) return;
+        EndPreview(); searchTimer.Stop(); viewCancellation?.Cancel();
+        scan = saved.Result; completeRecovery = null;
+        current = saved.Directory == null ? scan.Root : scan.Root.FindDirectory(saved.Directory) ?? scan.Root;
+        mode = saved.Mode; typeFilter = saved.Type; sortColumn = saved.Sort; sortAscending = saved.Ascending;
+        clearingSearch = true;
+        try { search.Text = saved.Search; } finally { clearingSearch = false; }
+        SetMetric(saved.Metric); navigation.SelectedIndex = mode;
+        navigation.RootName = scan.Root.Name; navigation.RootPath = scan.Root.Path; navigation.Invalidate();
+        activityPath = scan.Root.Path; RefreshDiskActivity();
+        issues.Visible = false; refresh.Enabled = true; UpdateRecoveryAvailability(); UpdateView();
+        refreshInfo.Text = scan.Source is { } source ? $"已恢复完整快照 · {source.CapturedAt.LocalDateTime:HH:mm:ss}" : "已恢复上次完整结果";
+        scanTip.SetToolTip(refreshInfo, "当前显示保留的上一次完整结果；未重新扫描，内容可能已变化。");
+        status.Text = "已恢复上次完整结果 · 未重新扫描 · " + SizeFormat.Number(scan.Root.FileCount) + " 个文件";
+        progressBar.Finish(ScanDisplayState.Completed);
+    }
 
     private void SetMetric(SizeMetric value)
     {
@@ -1076,6 +1136,7 @@ internal sealed class MainForm : Form
         using var dialog = new Form { Text = $"未读取项 · 跳过 {scan.Skipped:N0}，占用未知 {scan.Root.UnknownAllocationFiles:N0}", Size = new Size(850, 520), StartPosition = FormStartPosition.CenterParent, BackColor = Theme.Surface, ForeColor = Theme.Text, MinimizeBox = false, Font = Theme.Font(9) };
         var text = new TextBox { Multiline = true, ReadOnly = true, Dock = DockStyle.Fill, ScrollBars = ScrollBars.Both, WordWrap = false, BackColor = Theme.Surface, ForeColor = Theme.Text, BorderStyle = BorderStyle.None, Font = Theme.Font(9) };
         text.Text = "范围：本次扫描根目录及其全部子目录，不受当前视图筛选影响。\r\n跳过项未纳入文件大小统计；占用未知的文件仍计入文件大小，但不假定其占用为 0。\r\n两类各最多保留 2,000 条详情；条数可能少于实际未读取项。\r\n" +
+            (scan.Source is { ExcludedReparseEntries: > 0 } ? "本次快扫跳过链接/重解析点，链接及其目标均未纳入统计；没有跟随链接或遍历目标。详情截断时，各子目录的完整性保守标为未读全。\r\n" : "") +
             (scan.Root.Incomplete && scan.Issues.Count == 0 ? "目录标记为未读全，但没有保留逐项原因；请重新扫描核验。\r\n" : "") + "\r\n" + string.Join("\r\n\r\n", scan.Issues.Concat(scan.AllocationIssues).Select(i => $"{i.Path}\r\n{i.Reason}"));
         dialog.Padding = new Padding(18); dialog.Controls.Add(text); dialog.ShowDialog(this);
     }
@@ -1149,6 +1210,7 @@ internal sealed class MainForm : Form
     {
         if (disposing)
         {
+            completeRecovery = null;
             searchTimer.Dispose(); previewTimer.Dispose(); scanTip.Dispose(); scanCancellation?.Cancel(); viewCancellation?.Cancel();
             activityMonitor?.Dispose();
             activityClock.Dispose();

@@ -8,7 +8,7 @@ using System.Reflection;
 internal static class FastScanMainFormTests
 {
     private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
-    internal static int Run(bool dpi96 = false, string? screenshotPath = null)
+    internal static int Run(bool dpi96 = false, string? screenshotPath = null, string? partialScreenshotPath = null)
     {
         int passed = 0;
         string? failure = null;
@@ -20,7 +20,7 @@ internal static class FastScanMainFormTests
                 Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
                 Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
                 Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
-                int scans = 0, monitorFactories = 0, block = 0;
+                int scans = 0, monitorFactories = 0, block = 0, partial = 0;
                 using var entered = new ManualResetEventSlim();
                 IProgress<ScanProgress>? late = null;
                 const string rootPath = @"X:\AsukaLens-Fast-Synthetic";
@@ -33,11 +33,16 @@ internal static class FastScanMainFormTests
                         if (Volatile.Read(ref block) != 0)
                         {
                             late = progress; entered.Set();
-                            progress?.Report(new(0, 0, 0, "合成只读来源", ScanPhase.Preparing));
+                            progress?.Report(new(0, 0, 0, "合成回退", ScanPhase.Preparing) { FastScanFallback = FastScanWireError.Unsupported });
+                            progress?.Report(new(0, 0, 0, "合成普通扫描", ScanPhase.Scanning));
                             token.WaitHandle.WaitOne(TimeSpan.FromSeconds(8)); token.ThrowIfCancellationRequested();
                             throw new CheckFailure("BLOCK_DID_NOT_CANCEL");
                         }
-                        return Snapshot(path, captured.AddSeconds(round));
+                        var result = Snapshot(path, captured.AddSeconds(round));
+                        if (Volatile.Read(ref partial) == 0) return result;
+                        result.Root.Incomplete = true;
+                        return result with { Skipped = 1, Issues = [new(Path.Combine(path, "linked-cache"), DiskAtlas.NtfsPrototype.NtfsReparsePolicy.Reason)],
+                            Source = new(captured.AddSeconds(round), 1) };
                     },
                     ActivityMonitorFactory = callback =>
                     {
@@ -149,6 +154,9 @@ internal static class FastScanMainFormTests
 
                         Volatile.Write(ref block, 1); var pending = Scan(rootPath + "-next");
                         await Until(() => entered.IsSet, "CANCEL_RUN_DID_NOT_START");
+                        await Until(() => Field<Label>("refreshInfo").Text.Contains("快扫已回退"), "FALLBACK_DID_NOT_REACH_UI");
+                        Check(Field<ToolTip>("scanTip").GetToolTip(Field<Label>("refreshInfo"))?.Contains(FastScanCoordinator.Reason(FastScanWireError.Unsupported)) == true &&
+                            Field<Label>("status").Text.Contains("快扫回退"), "FALLBACK_REASON_VISIBLE_BEFORE_ORDINARY_COMPLETION");
                         Check(!checkbox.Enabled && !metric.Enabled && !Field<ActionButton>("choose").Enabled && Field<ActionButton>("cancel").Visible &&
                             meter.State == ScanDisplayState.Running && meter.Percent != 100 && ReferenceEquals(Field<ScanResult>("scan"), baseline), "IN_FLIGHT_OPTION_LOCK_AND_OLD_TREE_ISOLATION");
                         Check(Field<Label>("subtitle").Text.Contains("上一次扫描结果"), "IN_FLIGHT_OLD_RESULT_IDENTIFIED");
@@ -165,6 +173,44 @@ internal static class FastScanMainFormTests
                         Check(scans == 3 && !ReferenceEquals(Field<ScanResult>("scan"), baseline) && Field<ScanResult>("scan").Source?.CapturedAt == captured.AddSeconds(3), "REFRESH_TAKES_A_FRESH_SNAPSHOT_RESULT");
                         Check(search.Text == "archive" && metric.SelectedIndex == 1 && Field<int>("mode") == 1 && grid.RowCount == 1 && meter.State == ScanDisplayState.Completed,
                             "SUCCESSFUL_REFRESH_PRESERVES_VIEW_CONTEXT");
+                        var latestComplete = Field<ScanResult>("scan");
+                        Volatile.Write(ref partial, 1); await Scan(rootPath); await View();
+                        var partialResult = Field<ScanResult>("scan");
+                        var recovery = Field<ActionButton>("restoreComplete");
+                        Check(partialResult.Source?.ExcludedReparseEntries == 1 && partialResult.Skipped == 1 && partialResult.Root.Incomplete &&
+                            meter.State == ScanDisplayState.Incomplete && Field<Label>("status").Text.Contains("部分快扫完成") &&
+                            Field<Label>("status").Text.Contains("链接及目标未纳入统计") && Field<ActionButton>("issues").Visible,
+                            "DECLARED_LINK_EXCLUSIONS_ARE_VISIBLE_PARTIAL_RESULTS");
+                        Check(recovery.Visible && recovery.Enabled && !latestComplete.Root.Incomplete &&
+                            search.Text == "archive" && metric.SelectedIndex == 1 && grid.RowCount == 1,
+                            "PARTIAL_RESULT_RETAINS_COMPLETE_RECOVERY_AND_QUERY");
+                        form.Size = form.MinimumSize; await Layout("MINIMUM_PARTIAL");
+                        var footerBounds = recovery.Parent!.RectangleToScreen(recovery.Parent.ClientRectangle);
+                        Check(footerBounds.Contains(recovery.RectangleToScreen(recovery.ClientRectangle)) &&
+                            !recovery.RectangleToScreen(recovery.ClientRectangle).IntersectsWith(Field<ActionButton>("issues").RectangleToScreen(Field<ActionButton>("issues").ClientRectangle)),
+                            "MINIMUM_PARTIAL_RECOVERY_AND_ISSUES_FIT");
+                        form.Size = new Size(Math.Min((int)(1440 * scale), area.Width), Math.Min((int)(940 * scale), area.Height)); await Layout("COMMON_PARTIAL");
+                        if (partialScreenshotPath != null)
+                        {
+                            form.BringToFront(); form.Activate(); await Task.Delay(150);
+                            using var image = new Bitmap(form.Width, form.Height);
+                            using (var graphics = Graphics.FromImage(image)) graphics.CopyFromScreen(form.Location, Point.Empty, image.Size);
+                            using var output = new FileStream(partialScreenshotPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                            image.Save(output, System.Drawing.Imaging.ImageFormat.Png);
+                        }
+                        entered.Reset(); Volatile.Write(ref block, 1); var pendingFromPartial = Scan(rootPath + "-cancel");
+                        await Until(() => entered.IsSet, "PARTIAL_CANCEL_RUN_DID_NOT_START");
+                        Check(recovery.Visible && !recovery.Enabled, "RECOVERY_LOCKED_DURING_SCAN");
+                        Field<ActionButton>("cancel").PerformClick(); await pendingFromPartial; await View();
+                        Check(ReferenceEquals(Field<ScanResult>("scan"), partialResult) && recovery.Enabled,
+                            "CANCEL_RETAINS_PARTIAL_RESULT_AND_OLDER_COMPLETE_RECOVERY");
+                        Volatile.Write(ref block, 0); recovery.PerformClick(); await View();
+                        Check(ReferenceEquals(Field<ScanResult>("scan"), latestComplete) && !recovery.Visible && meter.State == ScanDisplayState.Completed &&
+                            search.Text == "archive" && metric.SelectedIndex == 1 && Field<int>("mode") == 1 &&
+                            Field<Label>("status").Text.Contains("未重新扫描"), "RESTORE_COMPLETE_RESULT_PRESERVES_QUERY_AND_LABELS_AGE");
+                        await Scan(rootPath); await View(); Volatile.Write(ref partial, 0); await Scan(rootPath); await View();
+                        Check(!recovery.Visible && typeof(MainForm).GetField("completeRecovery", Private)!.GetValue(form) == null &&
+                            !Field<ScanResult>("scan").Root.Incomplete, "NEW_COMPLETE_RESULT_RELEASES_OLDER_RECOVERY");
                         Check(monitorFactories == 0, "COLLAPSED_MONITOR_NEVER_TOUCHES_REAL_DISKS");
                     }
                     catch (CheckFailure error) { failure = error.Code; }

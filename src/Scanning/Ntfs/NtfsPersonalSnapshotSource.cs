@@ -22,15 +22,18 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
     private readonly int ownerThread = Environment.CurrentManagedThreadId;
     private readonly object gate = new();
     private readonly NtfsVssNativeSession session = new();
-    private readonly List<IDisposable> cursors = new();
+    private readonly Func<bool> closeSession;
+    private readonly HashSet<IDisposable> cursors = new();
     private readonly NtfsSnapshotVolumeFacts liveFacts;
     private string snapshotRoot = "", snapshotDataRoot = "";
     private FileStorageInfo? rootStorage;
     private NtfsSnapshotVolumeReader? reader;
     private bool readerIssued, closed, cleanupConfirmed;
 
-    private NtfsPersonalSnapshotSource(NtfsSnapshotVolumeFacts facts)
-    { liveFacts = facts; }
+    private NtfsPersonalSnapshotSource(NtfsSnapshotVolumeFacts facts, NtfsScanLimits limits)
+    { liveFacts = facts; Limits = limits; closeSession = session.Cleanup; }
+
+    internal NtfsScanLimits Limits { get; }
 
     internal DateTime SnapshotCreatedUtc { get { lock (gate) { Active(); return session.SnapshotCreatedUtc; } } }
     internal string SnapshotRoot { get { lock (gate) { Active(); return snapshotRoot; } } }
@@ -49,7 +52,7 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
         return char.ToUpperInvariant(path[0]) + ":\\" + suffix;
     }
 
-    internal static NtfsPersonalSnapshotSource Create(string selectedPath, CancellationToken token = default)
+    internal static NtfsPersonalSnapshotSource Create(string selectedPath, CancellationToken token = default, NtfsScanLimits? limits = null)
     {
         NtfsPersonalSnapshotSource? source = null;
         var pins = new List<SafeFileHandle>();
@@ -76,7 +79,7 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
                     pinnedIdentities.Add(next.Storage.Identity);
                 }
             var facts = ReadVolumeFacts(volume, serial, token);
-            source = new(facts);
+            source = new(facts, limits ?? NtfsScanLimits.Standard);
             source.snapshotRoot = source.session.Create(volume, token);
             source.snapshotDataRoot = source.snapshotRoot + "\\" + suffix;
             if (suffix.Length == 0) source.snapshotDataRoot = source.snapshotRoot + "\\";
@@ -122,13 +125,13 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
     {
         lock (gate) { Active(); Require(ownerThread == Environment.CurrentManagedThreadId && !readerIssued, "VssRawOpen"); return NtfsSnapshotVolumeReader.OpenPersonal(this, token); }
     }
-    internal sealed record ReadBinding(string Device, ulong Serial, long VolumeBytes);
+    internal sealed record ReadBinding(string Device, ulong Serial, long VolumeBytes, NtfsScanLimits Limits);
     internal ReadBinding TakeReadBinding()
     {
         lock (gate)
         {
             Active(); Require(ownerThread == Environment.CurrentManagedThreadId && !readerIssued, "VssRawOpen"); readerIssued = true;
-            return new(snapshotRoot, liveFacts.Serial, liveFacts.Geometry.VolumeBytes);
+            return new(snapshotRoot, liveFacts.Serial, liveFacts.Geometry.VolumeBytes, Limits);
         }
     }
     internal void TrackReader(NtfsSnapshotVolumeReader value)
@@ -144,13 +147,26 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
         {
             token.ThrowIfCancellationRequested(); Require(entry.Directory && !entry.Reparse && entry.Identity.Volume == RootIdentity.Volume, "VssSnapshotNative");
             string path = owner.Resolve(relativePath, true);
-            var cursor = NtfsSnapshotNamespace.OpenNativeDirectory(path, entry.Identity, token);
+            var cursor = new CursorLease(owner, NtfsSnapshotNamespace.OpenNativeDirectory(path, entry.Identity, token));
             lock (owner.gate)
             {
-                try { owner.Active(); Require(owner.cursors.Count < NtfsSnapshotNamespace.MaximumEntries, "VssSnapshotNative"); owner.cursors.Add(cursor); }
+                try { owner.Active(); Require(owner.cursors.Count < 16, "VssSnapshotNative"); owner.cursors.Add(cursor); }
                 catch { cursor.Dispose(); throw; }
             }
             return cursor;
+        }
+    }
+    private sealed class CursorLease(NtfsPersonalSnapshotSource owner, NtfsSnapshotNamespace.ICursor cursor) : NtfsSnapshotNamespace.ICursor
+    {
+        private int disposed;
+        public FileIdentity Identity => cursor.Identity;
+        public FileAttributes Attributes => cursor.Attributes;
+        public NtfsSnapshotNamespaceIo Read(bool restart, Memory<byte> destination, CancellationToken token) => cursor.Read(restart, destination, token);
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref disposed, 1) != 0) return;
+            try { cursor.Dispose(); }
+            finally { lock (owner.gate) owner.cursors.Remove(this); }
         }
     }
     internal FileStorageInfo ReadNative(string relative, bool directory, CancellationToken token = default) => ReadNativeSize(relative, directory, token).Storage;
@@ -207,14 +223,41 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
             if (ownerThread != Environment.CurrentManagedThreadId) return false;
             closed = true; bool handlesClosed = true;
             try { reader?.Dispose(); if (reader != null) handlesClosed &= reader.BufferReleased; } catch { handlesClosed = false; }
-            foreach (var cursor in cursors) { try { cursor.Dispose(); } catch { handlesClosed = false; } }
-            cursors.Clear();
-            bool sessionClosed;
-            try { sessionClosed = session.Cleanup(); } catch { sessionClosed = false; }
-            cleanupConfirmed = sessionClosed && handlesClosed; return cleanupConfirmed;
+            // The delegate was allocated before snapshot creation. Teardown
+            // neither copies the tracked set nor skips VSS cleanup if a cursor
+            // or the collection fails while the process is under pressure.
+            bool cursorsAndSessionClosed = CloseTrackedCursorsAndSession(cursors, closeSession);
+            cleanupConfirmed = cursorsAndSessionClosed && handlesClosed; return cleanupConfirmed;
         }
     }
     public void Dispose() { _ = Cleanup(); }
+
+    // Pure cleanup contract, not a source factory. The real owner admits at
+    // most 16 concurrent cursors and prevents additions after closing starts.
+    // Remove before Dispose because a lease removes itself from the same set.
+    internal static bool CloseTrackedCursorsAndSession(HashSet<IDisposable> tracked, Func<bool> close)
+    {
+        bool handlesClosed = true, sessionClosed = false;
+        try
+        {
+            int remaining = Math.Min(tracked.Count, 16);
+            while (remaining-- > 0 && tracked.Count != 0)
+            {
+                IDisposable cursor;
+                using (var iterator = tracked.GetEnumerator())
+                {
+                    if (!iterator.MoveNext()) { handlesClosed = false; break; }
+                    cursor = iterator.Current;
+                }
+                if (!tracked.Remove(cursor)) { handlesClosed = false; break; }
+                try { cursor.Dispose(); } catch { handlesClosed = false; }
+            }
+            if (tracked.Count != 0) handlesClosed = false;
+        }
+        catch { handlesClosed = false; }
+        finally { try { sessionClosed = close(); } catch { sessionClosed = false; } }
+        return handlesClosed && sessionClosed;
+    }
 
     private static void Require([DoesNotReturnIf(false)] bool condition, string code, int error = 0) => NtfsVssNativeSession.Require(condition, code, error);
     private static (SafeFileHandle Handle, FileStorageInfo Storage) Pin(string path, string canonical, ulong? serial, CancellationToken token)

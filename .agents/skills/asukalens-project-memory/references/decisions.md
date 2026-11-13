@@ -36,3 +36,5 @@
 - 2026-11-12：用户确定后续合并snapshot namespace/compact sizes/parallel Native及条件式主窗；完整目录入口作为scope authority，以避免strictDecoded缺失导致漏算，不按系统slot编号跳过。用户另允许指定个人卷metadata-only预检，具体值仅本机；没有个人snapshot/原始记录许可。理由是先保证完整范围和真实收益，再开放可选产品入口，不将测试完整性标签直接移给用户目录。
 
 - 2026-11-13：用户恢复C25，先真实卷后主窗，不沿用旧15分钟/VHD/个人metadata-only授权。选择按selected bitmap页/高slot支持大MFT，以明确预算保护资源；通用VSS源和普通权限主窗通过同exe短时助手连接。清理事实先于结果发布，取消不fallback，未知清理本进程锁止；理由是避免部分快结果或残余source污染旧完整结果。快照结果不带live USN checkpoint，修改时间以对象SI为准以避硬链接目录缓存陈旧。MFT物理页可能含邻近记录/驻留内容片段，个人实测必须据准确边界确认，不再用“不读取正文”概括raw。实现及合成/IPC/控件通过不等真实卷/视觉验收；合同docs/ntfs-personal-scan.md，归档iterations/2026-11-13-25-personal-ntfs。
+
+- 2026-11-13：C26个人真实范围依次暴露旧规模、MFT属性列表及reparse边界；用户批准固定Large与显式partial策略。保留严格解析，支持受限扩展而不猜地址；只允许声明的重解析跳过形成部分结果，独立同snapshot核保留对象，Unknown/矛盾仍失败。理由是普通扫描同样不跟随链接，回退不能解决范围本来包含链接这一事实；用明确范围与可恢复旧完整树保证可用性。Wire v3有界描述和固定原因，详情截断保守标全部目录未读全。真实passed-partial/Namespace取消cleanup通过不等整个范围完整/性能/视觉/Win10通过。证据iterations/2026-11-13-26-personal-ntfs-compatibility，合同docs/ntfs-personal-scan.md。

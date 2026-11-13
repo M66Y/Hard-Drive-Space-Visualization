@@ -108,6 +108,9 @@
 
 ## 检查与现有命令
 
+- 个人卷当前合同见 [NTFS 快扫说明](docs/ntfs-personal-scan.md)，不从历史夹具授权推导个人卷权限。扩展布局、紧凑预算与边界策略改动运行 `--ntfs-mft-metadata-tests`、`--ntfs-continuation-record-tests`、`--ntfs-bitmap-bundle-tests`、`--ntfs-large-profile-tests`、`--ntfs-reparse-policy-tests`，并核对旧 Map/namespace/size/reader 回归。`--ntfs-personal-acceptance-tests` 是纯审计反例，`--ntfs-snapshot-metadata-tests` 仅用自有临时文件；通信与主窗检查仍按下方入口执行。
+- 真实个人卷验收必须有当轮范围、快照及原始页读取授权；测试 apphost 的 `--ntfs-personal-acceptance` 从 stdin 接收目录，复用生产管道并在清理前逐对象独立核验，仅输出固定码和布尔摘要。`passed-partial` 明确排除重解析点及目标，不等于整个目录全读完；只有声明的链接边界允许部分成功，读取错误、未知大小和矛盾不能混入。`--cancel-on-discovery` 在快照建立后取消；独立审计成本不作为产品性能。实际窗口观察、合成 UI 回归和真实后台核验分别记录。
+
 - 检查与改动相称。纯文档改动检查覆盖、事实、链接、相互矛盾与隐私，不仅为改文档重复构建；现状审计可运行基线检查。涉及核心扫描、缓存和统计逻辑时，增加必要边界测试并运行对应检查。
 - 界面改动验证实际使用流程、布局和状态；算法或性能改动核对结果正确性与同条件基准。检查通过后，无新改动或疑点不反复扩大测试。
 - 开发 SDK 由 `global.json` 固定到已验证的 .NET 10 feature band，允许补丁升级，不使用预览 SDK。运行需要 .NET 10 Windows Desktop Runtime；SDK 已包含它。

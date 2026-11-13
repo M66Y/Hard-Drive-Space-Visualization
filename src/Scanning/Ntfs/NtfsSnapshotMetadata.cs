@@ -5,6 +5,9 @@ namespace DiskAtlas.NtfsPrototype;
 
 internal static class NtfsSnapshotMetadata
 {
+    // These calls query metadata only. Directory enumeration has its own
+    // FILE_LIST_DIRECTORY handle; size lookup never requests FILE_READ_DATA.
+    internal const uint MetadataReadAccess = 0x80;
     [StructLayout(LayoutKind.Sequential)] private struct BasicInfo { internal long Creation, Access, Write, Change; internal uint Attributes; }
     [StructLayout(LayoutKind.Sequential)] private struct StandardInfo { internal long Allocation, End; internal uint Links; internal byte DeletePending, Directory; }
     [StructLayout(LayoutKind.Sequential)] private struct IdInfo { internal ulong Volume, Low, High; }
@@ -20,7 +23,7 @@ internal static class NtfsSnapshotMetadata
     private static extern bool Compression(SafeFileHandle handle, int kind, out CompressionInfo info, uint size);
     internal static NtfsSnapshotNativeSize Read(string path, bool directory, ulong serial, CancellationToken token)
     {
-        using var handle = NativeStorage.CreateFileW(path, 0x81, NativeStorage.ShareAll, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero);
+        using var handle = NativeStorage.CreateFileW(path, MetadataReadAccess, NativeStorage.ShareAll, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero);
         NtfsVssNativeSession.Require(!handle.IsInvalid, "VssSnapshotNative", Marshal.GetLastWin32Error()); token.ThrowIfCancellationRequested();
         return ReadHandle(handle, directory, serial, token);
     }

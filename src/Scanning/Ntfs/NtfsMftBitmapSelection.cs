@@ -45,20 +45,23 @@ internal sealed class NtfsMftBitmapSelectionPlan
         else
         {
             byte[] page = new byte[512];
-            foreach (var group in slots.GroupBy(slot => checked((long)(slot / 4096))).OrderBy(group => group.Key))
+            try
             {
-                token.ThrowIfCancellationRequested(); page.AsSpan().Clear(); int received;
-                try { received = read(physicalPages[group.Key], page, token); }
-                catch (Exception) { token.ThrowIfCancellationRequested(); throw new NtfsMftBitmapSelectionException("BitmapSelectionRead"); }
-                token.ThrowIfCancellationRequested();
-                if (received != page.Length) throw new NtfsMftBitmapSelectionException("BitmapSelectionShortRead");
-                foreach (ulong slot in group)
+                foreach (var group in slots.GroupBy(slot => checked((long)(slot / 4096))).OrderBy(group => group.Key))
                 {
-                    token.ThrowIfCancellationRequested(); int index = (int)((slot / 8) % 512);
-                    values.Add(slot, (page[index] & (1 << (int)(slot % 8))) != 0);
+                    token.ThrowIfCancellationRequested(); page.AsSpan().Clear(); int received;
+                    try { received = read(physicalPages[group.Key], page, token); }
+                    catch (Exception) { token.ThrowIfCancellationRequested(); throw new NtfsMftBitmapSelectionException("BitmapSelectionRead"); }
+                    token.ThrowIfCancellationRequested();
+                    if (received != page.Length) throw new NtfsMftBitmapSelectionException("BitmapSelectionShortRead");
+                    foreach (ulong slot in group)
+                    {
+                        token.ThrowIfCancellationRequested(); int index = (int)((slot / 8) % 512);
+                        values.Add(slot, (page[index] & (1 << (int)(slot % 8))) != 0);
+                    }
                 }
             }
-            Array.Clear(page);
+            finally { Array.Clear(page); }
         }
         token.ThrowIfCancellationRequested();
         return new(new ReadOnlyDictionary<ulong, bool>(values));
@@ -68,6 +71,7 @@ internal sealed class NtfsMftBitmapSelectionPlan
 internal static class NtfsMftBitmapSelection
 {
     internal const int MaximumSlots = 262144, MaximumPages = 512, MaximumRuns = 128;
+    internal const int MaximumBundleRuns = 1024;
     private static ushort U16(byte[] b, int p) => BinaryPrimitives.ReadUInt16LittleEndian(b.AsSpan(p));
     private static uint U32(byte[] b, int p) => BinaryPrimitives.ReadUInt32LittleEndian(b.AsSpan(p));
     private static ulong U64(byte[] b, int p) => BinaryPrimitives.ReadUInt64LittleEndian(b.AsSpan(p));
@@ -75,6 +79,124 @@ internal static class NtfsMftBitmapSelection
     private static bool Fits(int p, long n, int end) => p >= 0 && n >= 0 && p <= end && n <= end - p;
     private static void Require([DoesNotReturnIf(false)] bool condition, string code)
     { if (!condition) throw new NtfsMftBitmapSelectionException(code); }
+
+    // This overload accepts a completed pure metadata bundle. It independently
+    // checks both stream layouts; no caller-supplied completion flag or layout
+    // object can establish Native provenance. The owner still meters every read.
+    internal static NtfsMftBitmapSelectionPlan Parse(NtfsMftMetadataBundle bundle,
+        IReadOnlyList<ulong> selectedSlots, CancellationToken token = default, NtfsScanLimits? limits = null)
+    {
+        token.ThrowIfCancellationRequested();
+        limits ??= NtfsScanLimits.Standard;
+        Require(bundle is { Map: not null, Bitmap: not null }, "BitmapSelectionInput");
+        var map = bundle.Map; var geometry = map.Geometry; var bitmap = bundle.Bitmap;
+        try
+        {
+            ValidateCompleteMap(map, token);
+            var slots = SelectSlots(geometry, selectedSlots, limits, token);
+            long fullBytes = checked((geometry.MftValidDataLength / geometry.RecordBytes + 7) / 8);
+            Require(bitmap.Runs != null, "BitmapSelectionInput");
+            if (bitmap.Resident)
+            {
+                Require(bitmap.Runs.Count == 0 && bitmap.DataBytes >= fullBytes && bitmap.DataBytes is > 0 and <= 1024 &&
+                    bitmap.DataBytes <= geometry.RecordBytes && bitmap.InitializedBytes == bitmap.DataBytes &&
+                    bitmap.AllocatedBytes == bitmap.DataBytes, "BitmapSelectionLengths");
+                byte[] payload = bitmap.CopyResidentData();
+                Require(payload != null && payload.Length == bitmap.DataBytes, "BitmapSelectionResidentBounds");
+                token.ThrowIfCancellationRequested(); return new(slots, [], payload);
+            }
+
+            Require(bitmap.AllocatedBytes > 0 && bitmap.AllocatedBytes % geometry.ClusterBytes == 0 &&
+                bitmap.AllocatedBytes <= geometry.VolumeBytes && bitmap.DataBytes >= fullBytes &&
+                bitmap.InitializedBytes >= fullBytes && bitmap.InitializedBytes <= bitmap.DataBytes &&
+                bitmap.DataBytes <= bitmap.AllocatedBytes, "BitmapSelectionLengths");
+            Require(bitmap.Runs.Count is >= 1 and <= MaximumBundleRuns, "BitmapSelectionRunBudget");
+            var runs = bitmap.Runs.ToArray(); long nextVcn = 0;
+            for (int i = 0; i < runs.Length; i++)
+            {
+                token.ThrowIfCancellationRequested(); var run = runs[i];
+                Require(run != null && run.FirstVcn == nextVcn && run.ClusterCount > 0, "BitmapSelectionRunCoverage");
+                long lastLcn = checked(run.FirstLcn + run.ClusterCount);
+                nextVcn = checked(nextVcn + run.ClusterCount);
+                Require(run.FirstLcn > 0 && lastLcn <= geometry.TotalClusters &&
+                    checked(lastLcn * geometry.ClusterBytes) <= geometry.VolumeBytes, "BitmapSelectionPhysicalBounds");
+                Require(nextVcn <= bitmap.AllocatedBytes / geometry.ClusterBytes, "BitmapSelectionRunCoverage");
+                for (int j = 0; j < i; j++)
+                    Require(run.FirstLcn >= checked(runs[j].FirstLcn + runs[j].ClusterCount) ||
+                        runs[j].FirstLcn >= lastLcn, "BitmapSelectionPhysicalOverlap");
+                foreach (var data in map.Runs)
+                    Require(run.FirstLcn >= checked(data.FirstLcn + data.ClusterCount) ||
+                        data.FirstLcn >= lastLcn, "BitmapSelectionMftOverlap");
+            }
+            Require(checked(nextVcn * geometry.ClusterBytes) == bitmap.AllocatedBytes, "BitmapSelectionRunCoverage");
+            var pages = new Dictionary<long, long>();
+            foreach (long page in slots.Select(slot => checked((long)(slot / 4096))).Distinct())
+            {
+                token.ThrowIfCancellationRequested();
+                long offset = checked(page * 512);
+                Require(offset >= 0 && offset <= bitmap.AllocatedBytes - 512, "BitmapSelectionPageBounds");
+                var run = runs.FirstOrDefault(item => offset >= checked(item.FirstVcn * geometry.ClusterBytes) &&
+                    offset < checked((item.FirstVcn + item.ClusterCount) * geometry.ClusterBytes));
+                Require(run != null, "BitmapSelectionRunCoverage");
+                long physical = checked(run.FirstLcn * geometry.ClusterBytes + offset - run.FirstVcn * geometry.ClusterBytes);
+                Require(physical >= 0 && physical % geometry.SectorBytes == 0 &&
+                    physical <= geometry.VolumeBytes - 512, "BitmapSelectionPageBounds");
+                pages.Add(page, physical);
+            }
+            token.ThrowIfCancellationRequested(); return new(slots, pages, null);
+        }
+        catch (OverflowException) { token.ThrowIfCancellationRequested(); throw new NtfsMftBitmapSelectionException("BitmapSelectionOverflow"); }
+    }
+
+    private static ulong[] SelectSlots(NtfsMftGeometry geometry, IReadOnlyList<ulong> selectedSlots,
+        NtfsScanLimits limits, CancellationToken token)
+    {
+        Require(selectedSlots != null, "BitmapSelectionInput"); int count;
+        try { count = selectedSlots.Count; }
+        catch (Exception) { token.ThrowIfCancellationRequested(); throw new NtfsMftBitmapSelectionException("BitmapSelectionInput"); }
+        Require(count >= 1 && count <= limits.MaximumEntries, "BitmapSelectionSlotBudget");
+        var unique = new HashSet<ulong>();
+        for (int i = 0; i < count; i++)
+        {
+            token.ThrowIfCancellationRequested(); ulong slot;
+            try { slot = selectedSlots[i]; }
+            catch (Exception) { token.ThrowIfCancellationRequested(); throw new NtfsMftBitmapSelectionException("BitmapSelectionInput"); }
+            token.ThrowIfCancellationRequested();
+            Require(slot <= NtfsRecordDecoder.MaximumRecordNumber && slot < (ulong)(geometry.MftValidDataLength / geometry.RecordBytes),
+                "BitmapSelectionSlotBounds");
+            unique.Add(slot);
+        }
+        var slots = unique.Order().ToArray();
+        Require(slots.Select(slot => slot / 4096).Distinct().Count() <= limits.MaximumBitmapPages, "BitmapSelectionPageBudget");
+        return slots;
+    }
+
+    private static void ValidateCompleteMap(NtfsMftMap map, CancellationToken token)
+    {
+        var geometry = map.Geometry;
+        Require(geometry is { SectorBytes: 512, ClusterBytes: 4096, RecordBytes: 1024 } &&
+            geometry.VolumeBytes > 0 && geometry.VolumeBytes % 512 == 0 && geometry.TotalClusters > 0 &&
+            geometry.TotalClusters <= geometry.VolumeBytes / geometry.ClusterBytes && geometry.MftValidDataLength >= 1024 &&
+            geometry.MftValidDataLength % 1024 == 0 && map.AllocatedBytes > 0 &&
+            map.AllocatedBytes <= geometry.VolumeBytes && map.AllocatedBytes % geometry.ClusterBytes == 0 &&
+            map.InitializedBytes >= geometry.MftValidDataLength && map.InitializedBytes <= map.DataBytes &&
+            map.DataBytes <= map.AllocatedBytes, "BitmapSelectionGeometry");
+        Require(map.Runs is { Count: >= 1 and <= MaximumBundleRuns }, "BitmapSelectionSeed");
+        long nextVcn = 0;
+        for (int i = 0; i < map.Runs.Count; i++)
+        {
+            token.ThrowIfCancellationRequested(); var run = map.Runs[i];
+            Require(run != null && run.FirstVcn == nextVcn && run.ClusterCount > 0 && run.FirstLcn >= 0, "BitmapSelectionSeed");
+            long lastLcn = checked(run.FirstLcn + run.ClusterCount); nextVcn = checked(nextVcn + run.ClusterCount);
+            Require(lastLcn <= geometry.TotalClusters && checked(lastLcn * geometry.ClusterBytes) <= geometry.VolumeBytes,
+                "BitmapSelectionSeed");
+            for (int j = 0; j < i; j++)
+                Require(run.FirstLcn >= checked(map.Runs[j].FirstLcn + map.Runs[j].ClusterCount) ||
+                    map.Runs[j].FirstLcn >= lastLcn, "BitmapSelectionSeed");
+        }
+        Require(checked(nextVcn * geometry.ClusterBytes) == map.AllocatedBytes &&
+            map.Runs[0].FirstLcn == geometry.MftStartLcn, "BitmapSelectionSeed");
+    }
 
     internal static NtfsMftBitmapSelectionPlan Parse(ReadOnlySpan<byte> rawRecord0, NtfsMftGeometry geometry,
         IReadOnlyList<ulong> selectedSlots, CancellationToken token = default)

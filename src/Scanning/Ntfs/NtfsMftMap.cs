@@ -36,6 +36,59 @@ internal sealed class NtfsMftMap
     private static ulong U64(ReadOnlySpan<byte> bytes, int offset) => BinaryPrimitives.ReadUInt64LittleEndian(bytes[offset..]);
     private static long I64(ReadOnlySpan<byte> bytes, int offset) => BinaryPrimitives.ReadInt64LittleEndian(bytes[offset..]);
 
+    // Complete layouts assembled from strictly checked extension records use a
+    // separate factory. The legacy single-record parser and its limits stay unchanged.
+    internal static NtfsMftMapResult FromResolvedLayout(NtfsMftGeometry geometry,
+        IReadOnlyList<NtfsMftRun> runs, long data, long initialized, long allocated,
+        CancellationToken token = default)
+    {
+        token.ThrowIfCancellationRequested();
+        if (geometry == null || runs == null) return Invalid("MftGeometry");
+        if (geometry.SectorBytes != 512) return Unsupported("MftFixupStride");
+        if (geometry.ClusterBytes is < 512 or > 65536 || (geometry.ClusterBytes & (geometry.ClusterBytes - 1)) != 0 ||
+            geometry.RecordBytes is < 1024 or > 65536 || geometry.RecordBytes % 512 != 0 ||
+            geometry.VolumeBytes <= 0 || geometry.VolumeBytes % 512 != 0 || geometry.TotalClusters <= 0 ||
+            geometry.TotalClusters > geometry.VolumeBytes / geometry.ClusterBytes ||
+            geometry.MftStartLcn < 0 || geometry.MftStartLcn >= geometry.TotalClusters ||
+            geometry.MftValidDataLength < geometry.RecordBytes || geometry.MftValidDataLength % geometry.RecordBytes != 0)
+            return Invalid("MftGeometry");
+        try
+        {
+            if (runs.Count is < 1 or > 1024) return Unsupported("MftResolvedRunLimit");
+            if (allocated <= 0 || allocated % geometry.ClusterBytes != 0 || data < geometry.RecordBytes ||
+                data % geometry.RecordBytes != 0 || initialized < geometry.RecordBytes || initialized % geometry.RecordBytes != 0 ||
+                initialized > data || data > allocated || geometry.MftValidDataLength > initialized)
+                return Invalid("MftDataLengths");
+            var owned = runs.ToArray();
+            long next = 0;
+            foreach (var run in owned)
+            {
+                token.ThrowIfCancellationRequested();
+                if (run == null || run.FirstVcn != next || run.ClusterCount <= 0 || run.FirstLcn < 0)
+                    return Invalid("MftRunCoverage");
+                next = checked(next + run.ClusterCount);
+                long end = checked(run.FirstLcn + run.ClusterCount);
+                if (end > geometry.TotalClusters || checked(end * geometry.ClusterBytes) > geometry.VolumeBytes)
+                    return Invalid("MftRunVolumeBounds");
+            }
+            for (int i = 0; i < owned.Length; i++)
+                for (int j = 0; j < i; j++)
+                    if (owned[i].FirstLcn < checked(owned[j].FirstLcn + owned[j].ClusterCount) &&
+                        owned[j].FirstLcn < checked(owned[i].FirstLcn + owned[i].ClusterCount))
+                        return Invalid("MftRunPhysicalOverlap");
+            if (checked(next * geometry.ClusterBytes) != allocated) return Invalid("MftRunCoverage");
+            if (owned[0].FirstLcn != geometry.MftStartLcn) return Invalid("MftBootstrapLcn");
+            var map = new NtfsMftMap(geometry, owned, data, initialized, allocated);
+            var first = map.PlanRecord(0, token);
+            if (first.Count != 1 || first[0].VolumeOffset != checked(geometry.MftStartLcn * geometry.ClusterBytes) ||
+                first[0].RecordOffset != 0 || first[0].Length != geometry.RecordBytes)
+                return Unsupported("MftBootstrapFragmented");
+            return new("Mapped", "Mapped", map);
+        }
+        catch (OverflowException) { return Invalid("MftArithmeticOverflow"); }
+        catch (Exception) { token.ThrowIfCancellationRequested(); return Invalid("MftResolvedLayoutFailure"); }
+    }
+
     internal static NtfsMftMapResult Parse(ReadOnlySpan<byte> rawRecord0, NtfsMftGeometry geometry,
         CancellationToken token = default)
     {

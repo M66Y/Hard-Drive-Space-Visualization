@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using Microsoft.Win32.SafeHandles;
+using DiskAtlas.NtfsPrototype;
 
 namespace DiskAtlas;
 
@@ -19,6 +20,15 @@ internal static class FastScanBridgeContractTests
         int passed = 0;
         void Check(bool condition, string name)
         { if (!condition) throw new InvalidOperationException("Fast scan bridge contract failed: " + name); passed++; Console.WriteLine("PASS fast scan bridge " + name); }
+        {
+            var captured = DateTimeOffset.FromUnixTimeSeconds(1700000000);
+            var root = new DiskEntry(RootPath, true) { Incomplete = true };
+            IReadOnlyList<ScanIssue> issues = [new(Path.Combine(RootPath, "link"), NtfsReparsePolicy.Reason)];
+            var projected = FastScanBridge.FromWireResult(new(root, TimeSpan.FromSeconds(1), captured, 1, issues), TimeSpan.FromSeconds(2));
+            Check(ReferenceEquals(projected.Root, root) && ReferenceEquals(projected.Issues, issues) && projected.Skipped == 1 &&
+                projected.Source == new SnapshotScanSource(captured, 1) && projected.AllocationIssues.Count == 0 && projected.Checkpoint == null &&
+                projected.Elapsed == TimeSpan.FromSeconds(2), "wire reparse scope projects to declared partial result without a live checkpoint");
+        }
         string valid = Name();
         Check(FastScanBridge.ValidPipeName(valid), "generated private pipe accepted");
         Check(FastScanBridge.ValidPipeName(Prefix + new string('A', 32)), "hex pipe suffix accepted");

@@ -56,8 +56,9 @@ internal static class NtfsSnapshotSizeIndex
     {
         token.ThrowIfCancellationRequested();long totalStart=Stopwatch.GetTimestamp();
         Require(scope!=null&&map!=null&&read!=null&&allocated!=null&&lookup!=null,"SnapshotSizeInput");
+        var limits=scope.Limits;
         int entryCount=External(()=>scope.Entries.Count,token,"SnapshotSizeInput");
-        Require(entryCount is >=1 and <=MaximumEntries&&scope.Report.Revision=="snapshot-namespace-v1"&&scope.Report.CompleteWithinBoundary&&scope.Report.Entries==entryCount,"SnapshotSizeNamespaceIncomplete");
+        Require(entryCount>=1&&entryCount<=limits.MaximumEntries&&scope.Report is {Revision:"snapshot-namespace-v1",CompleteWithinBoundary:true}&&scope.Report.Entries==entryCount,"SnapshotSizeNamespaceIncomplete");
         var geometry=map.Geometry;long valid=geometry.MftValidDataLength;
         Require(geometry is {SectorBytes:512,ClusterBytes:4096,RecordBytes:1024}&&valid>=1024&&valid%1024==0&&
             valid<=map.DataBytes&&valid<=map.InitializedBytes&&valid<=map.AllocatedBytes,"SnapshotSizeMap");
@@ -65,7 +66,8 @@ internal static class NtfsSnapshotSizeIndex
         Require(root.High==0&&root.Low>>48!=0,"SnapshotSizeIdentity");
         var items=new Dictionary<FileIdentity,Item>();var bySlot=new Dictionary<ulong,Item>();
         int files=0,directories=0;long characters=0,pathCharacters=0;var directoryFlags=new bool[entryCount];
-        var ownedEntries=new NtfsSnapshotNamespaceEntry[entryCount];var ownedPaths=new string[entryCount];
+        var ownedEntries=new NtfsSnapshotNamespaceEntry[entryCount];var ownedPaths=new string?[entryCount];
+        var depths=limits.CompactPaths?new int[entryCount]:null;
         for(int i=0;i<entryCount;i++)
         {
             token.ThrowIfCancellationRequested();var entry=External(()=>scope.Entries[i],token,"SnapshotSizeInput");
@@ -75,11 +77,20 @@ internal static class NtfsSnapshotSizeIndex
             Require(i==0||entry.Name.Length is >=1 and <=255&&entry.Name is not ("." or "..")&&
                 !entry.Name.Any(character=>char.IsControl(character)||character is '/' or '\\' or ':'),"SnapshotSizeNamespaceIncomplete");
             directoryFlags[i]=entry.Directory;
-            ownedEntries[i]=entry;string prefix=i==0||entry.ParentIndex==0?"":ownedPaths[entry.ParentIndex]+"/";
-            Require(pathCharacters<=32L*1024*1024-prefix.Length-entry.Name.Length,"SnapshotSizeNamespaceBudget");
-            ownedPaths[i]=prefix+entry.Name;pathCharacters+=ownedPaths[i].Length;
+            ownedEntries[i]=entry;
+            string prefix=i==0?"":ownedPaths[entry.ParentIndex]??throw new NtfsSnapshotSizeException("SnapshotSizeNamespaceIncomplete");
+            int pathLength=prefix.Length+(prefix.Length==0?0:1)+entry.Name.Length;
+            bool retainPath=!limits.CompactPaths||entry.Directory;
+            if(depths!=null)
+            {
+                depths[i]=i==0?0:depths[entry.ParentIndex]+1;
+                Require(pathLength<=32767&&depths[i]<=512,"SnapshotSizeNamespaceBudget");
+            }
+            Require(!retainPath||pathCharacters<=limits.MaximumCharacters-pathLength,"SnapshotSizeNamespaceBudget");
+            ownedPaths[i]=retainPath?(prefix.Length==0?entry.Name:prefix+"/"+entry.Name):null;
+            if(retainPath)pathCharacters+=pathLength;
             Require(!entry.Reparse&&(entry.Attributes&FileAttributes.ReparsePoint)==0,"SnapshotSizeBoundary");
-            characters=Add(characters,entry.Name.Length);Require(characters<=32L*1024*1024,"SnapshotSizeNamespaceBudget");
+            characters=Add(characters,entry.Name.Length);Require(characters<=limits.MaximumCharacters,"SnapshotSizeNamespaceBudget");
             ulong slot=entry.Identity.Low&NtfsRecordDecoder.MaximumRecordNumber;
             Require(slot<(ulong)(valid/1024),"SnapshotSizeSlotOutsideMap");
             if(items.TryGetValue(entry.Identity,out var existing))
@@ -103,7 +114,7 @@ internal static class NtfsSnapshotSizeIndex
         // Membership comes from complete same-snapshot namespace enumeration.
         // Unselected slots are neither decoded nor reported as free/valid.
         var selectedPages=bySlot.OrderBy(pair=>pair.Key).GroupBy(pair=>pair.Key/64).ToArray();
-        Require(selectedPages.Length<=MaximumRawPages,"SnapshotSizeRawBudget");
+        Require(selectedPages.Length<=limits.MaximumMftPages,"SnapshotSizeRawBudget");
         foreach(var batch in selectedPages)
         {
             token.ThrowIfCancellationRequested();long offset=checked((long)batch.Key*65536);int length=checked((int)Math.Min(65536,valid-offset));
@@ -157,7 +168,7 @@ internal static class NtfsSnapshotSizeIndex
             parseTicks+=Stopwatch.GetTimestamp()-before;
         }
         Require(items.Values.All(item=>item.RawSeen),"SnapshotSizeCoverage");
-        var pending=items.Values.Where(item=>item.NeedsNative).ToArray();Require(pending.Length<=MaximumNativeObjects,"SnapshotSizeNativeBudget");
+        var pending=items.Values.Where(item=>item.NeedsNative).ToArray();Require(pending.Length<=limits.MaximumNativeObjects,"SnapshotSizeNativeBudget");
         int calls=0,active=0,peakWorkers=0,peakQueue=0;long nativeStart=Stopwatch.GetTimestamp();
         if(pending.Length>0)
         {
@@ -230,7 +241,7 @@ internal static class NtfsSnapshotSizeIndex
         token.ThrowIfCancellationRequested();long indexTicks=Math.Max(0,Stopwatch.GetTimestamp()-totalStart-readTicks-parseTicks-nativeTicks);
         var report=new NtfsSnapshotSizeIndexReport("snapshot-size-index-v1",items.Count,fileObjects,dirObjects-1,files,items.Count-pending.Length,pending.Length,
             calls,peakWorkers,peakQueue,decoded,pages,0,logicalBytes,allocatedBytes,Milliseconds(readTicks),Milliseconds(parseTicks),Milliseconds(indexTicks),Milliseconds(nativeTicks),true);
-        var ownedScope=new NtfsSnapshotNamespaceResult(scope.Report,Array.AsReadOnly(ownedEntries),Array.AsReadOnly(ownedPaths),root);
+        var ownedScope=new NtfsSnapshotNamespaceResult(scope.Report,Array.AsReadOnly(ownedEntries),Array.AsReadOnly(ownedPaths),root,limits);
         return new(ownedScope,new ReadOnlyDictionary<FileIdentity,NtfsSnapshotObjectSize>(values),report);
     }
 
@@ -239,13 +250,36 @@ internal static class NtfsSnapshotSizeIndex
     internal static DiskEntry Materialize(NtfsSnapshotSizeIndexResult index,string rootPath,CancellationToken token=default,bool requireModified=false)
     {
         token.ThrowIfCancellationRequested();Require(index!=null&&rootPath!=null&&index.Report.Complete&&index.Report.UnknownObjects==0,"SnapshotSizeProjectionInput");
-        var entries=index.Namespace.Entries;int count=entries.Count;
-        Require(count is >=1 and <=MaximumEntries&&index.Report.ScopeObjects==index.Objects.Count,"SnapshotSizeProjectionInput");
+        var entries=index.Namespace.Entries;int count=External(()=>entries.Count,token,"SnapshotSizeProjectionInput");
+        var limits=index.Namespace.Limits;
+        Require(count>=1&&count<=limits.MaximumEntries&&index.Report.ScopeObjects==External(()=>index.Objects.Count,token,"SnapshotSizeProjectionInput"),"SnapshotSizeProjectionInput");
+        // DiskEntry caches full paths for directories. Include the selected
+        // absolute root in that retained budget before allocating any tree.
+        var directoryLengths=new int[count];var projectionDirectories=new bool[count];
+        long retainedDirectoryCharacters=0;
+        for(int i=0;i<count;i++)
+        {
+            token.ThrowIfCancellationRequested();var entry=External(()=>entries[i],token,"SnapshotSizeProjectionInput");
+            Require(entry!=null&&entry.Index==i&&entry.Name!=null,"SnapshotSizeProjectionBinding");
+            Require(i==0?entry.ParentIndex==-1&&entry.Directory:
+                entry.ParentIndex>=0&&entry.ParentIndex<i&&projectionDirectories[entry.ParentIndex],"SnapshotSizeProjectionBinding");
+            Require(i==0?entry.Name.Length==0:entry.Name.Length is >=1 and <=255&&entry.Name is not ("." or "..")&&
+                !entry.Name.Any(character=>char.IsControl(character)||character is '/' or '\\' or ':'),"SnapshotSizeProjectionBinding");
+            projectionDirectories[i]=entry.Directory;
+            if(!entry.Directory)continue;
+            long length=i==0?rootPath.Length:(long)directoryLengths[entry.ParentIndex]+entry.Name.Length+
+                (entry.ParentIndex==0&&Path.EndsInDirectorySeparator(rootPath)?0:1);
+            Require(length<=int.MaxValue&&retainedDirectoryCharacters<=limits.MaximumCharacters-length,"SnapshotSizeProjectionBudget");
+            if(limits.CompactPaths)Require(length<=32767,"SnapshotSizeProjectionBudget");
+            directoryLengths[i]=(int)length;retainedDirectoryCharacters+=length;
+        }
         var nodes=new DiskEntry[count];
         for(int i=0;i<count;i++)
         {
-            token.ThrowIfCancellationRequested();var item=entries[i];NtfsSnapshotObjectSize size=default;
-            Require(item!=null&&item.Index==i&&index.Objects.TryGetValue(item.Identity,out size)&&size.Identity==item.Identity&&
+            token.ThrowIfCancellationRequested();var item=External(()=>entries[i],token,"SnapshotSizeProjectionInput");
+            Require(item!=null&&item.Index==i,"SnapshotSizeProjectionBinding");
+            var size=External(()=>index.Objects.TryGetValue(item.Identity,out var value)?value:default,token,"SnapshotSizeProjectionInput");
+            Require(size.Identity==item.Identity&&
                 size.Directory==item.Directory&&size.LogicalBytes>=0&&size.AllocatedBytes>=0&&size.Links>0,"SnapshotSizeProjectionBinding");
             DiskEntry node;
             if(i==0){Require(item.ParentIndex==-1&&item.Identity==index.Namespace.RootIdentity&&item.Directory,"SnapshotSizeProjectionBinding");node=new(rootPath,true);}

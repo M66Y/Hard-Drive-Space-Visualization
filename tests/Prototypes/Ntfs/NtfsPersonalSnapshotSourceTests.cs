@@ -44,6 +44,56 @@ internal static class NtfsPersonalSnapshotSourceTests
         Check(!stillPresent.CleanupConfirmed && stillPresent.Code == "VssPersonalNative" && stillPresent.NativeError == 0, "unconfirmed cleanup remains failure with a sanitized category");
         var closed = NtfsPersonalSnapshotSource.WrapOpenFailure(new OperationCanceledException("private-marker"), () => true);
         Check(closed.CleanupConfirmed && closed.Code == "VssCancelled" && closed.Message == closed.Code && closed.InnerException == null, "cancelled preparation preserves confirmed source teardown");
+        {
+            var events = new List<string>(); var tracked = new HashSet<IDisposable>();
+            tracked.Add(new Disposable(() => events.Add("cursor-1"))); tracked.Add(new Disposable(() => events.Add("cursor-2")));
+            bool complete = NtfsPersonalSnapshotSource.CloseTrackedCursorsAndSession(tracked, () => { events.Add("session"); return true; });
+            Check(complete && tracked.Count == 0 && events.Count == 3 && events[^1] == "session" && events.Contains("cursor-1") && events.Contains("cursor-2"),
+                "tracked cursor teardown finishes before session without a snapshot array");
+        }
+        {
+            int disposed = 0, sessionCalls = 0; var tracked = new HashSet<IDisposable>
+            {
+                new Disposable(() => { disposed++; throw new IOException("private-cursor"); }),
+                new Disposable(() => disposed++)
+            };
+            bool complete = NtfsPersonalSnapshotSource.CloseTrackedCursorsAndSession(tracked, () => { sessionCalls++; return true; });
+            Check(!complete && disposed == 2 && tracked.Count == 0 && sessionCalls == 1,
+                "failed cursor disposal still closes remaining cursors and attempts session exactly once");
+        }
+        {
+            int disposed = 0, sessionCalls = 0; var tracked = new HashSet<IDisposable>(); IDisposable? lease = null;
+            lease = new Disposable(() => { disposed++; tracked.Remove(lease!); }); tracked.Add(lease);
+            bool complete = NtfsPersonalSnapshotSource.CloseTrackedCursorsAndSession(tracked, () => { sessionCalls++; return true; });
+            Check(complete && disposed == 1 && tracked.Count == 0 && sessionCalls == 1,
+                "self-removing cursor lease does not invalidate cleanup enumeration");
+        }
+        {
+            int sessionCalls = 0; var comparer = new FailingComparer(); var tracked = new HashSet<IDisposable>(comparer) { new Disposable(() => { }) };
+            comparer.Fail = true;
+            bool complete = NtfsPersonalSnapshotSource.CloseTrackedCursorsAndSession(tracked, () => { sessionCalls++; return true; });
+            Check(!complete && sessionCalls == 1, "collection teardown failure cannot skip session cleanup");
+        }
+        {
+            int disposed = 0; var tracked = new HashSet<IDisposable> { new Disposable(() => disposed++) };
+            bool complete = NtfsPersonalSnapshotSource.CloseTrackedCursorsAndSession(tracked, () => throw new IOException("private-session"));
+            Check(!complete && disposed == 1 && tracked.Count == 0, "session failure remains unconfirmed after handles close");
+            Check(!NtfsPersonalSnapshotSource.CloseTrackedCursorsAndSession([], () => false), "negative session cleanup remains unconfirmed");
+        }
+        {
+            int disposed = 0, sessionCalls = 0; var tracked = new HashSet<IDisposable>();
+            for (int i = 0; i < 17; i++) tracked.Add(new Disposable(() => disposed++));
+            bool complete = NtfsPersonalSnapshotSource.CloseTrackedCursorsAndSession(tracked, () => { sessionCalls++; return true; });
+            Check(!complete && disposed == 16 && tracked.Count == 1 && sessionCalls == 1,
+                "unexpected cursor growth stays bounded and cannot report confirmed cleanup");
+        }
         return passed;
+    }
+    private sealed class Disposable(Action dispose) : IDisposable { public void Dispose() => dispose(); }
+    private sealed class FailingComparer : IEqualityComparer<IDisposable>
+    {
+        internal bool Fail;
+        public bool Equals(IDisposable? left, IDisposable? right) => ReferenceEquals(left, right);
+        public int GetHashCode(IDisposable value) => Fail ? throw new IOException("private-collection") : System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(value);
     }
 }

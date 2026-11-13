@@ -42,7 +42,7 @@ Get the SDK or runtime from [Microsoft](https://dotnet.microsoft.com/en-us/downl
 
 Also includes Automatic / Low-impact / High-speed strategies, live partial previews, cancellation and result recovery, NTFS journal-assisted refresh, local background cropping and accent colors, and [local diagnostics and problem notes](docs/diagnostics.md) (Chinese).
 
-The development source now has an opt-in **NTFS 快扫（实验）** (experimental fast scan) checkbox. A short-lived elevated helper and read-only snapshot backend are implemented; synthetic indexing, IPC and MainForm flows are tested. Personal-volume and visible-window acceptance remain pending. Unsupported formats, permissions, reparse points or resource limits fall back to directory scanning; this is not a whole-drive speed guarantee. See [scope and limitations](docs/ntfs-personal-scan.md) (Chinese). Published v1.5.0 assets do not include this feature.
+The development source has an opt-in **NTFS 快扫（实验）** (experimental fast scan) checkbox. A real personal folder passed metadata checks for the included scope after reparse-point exclusions, with snapshot cleanup confirmed; cancellation during namespace discovery was also tested on the same scope. Link targets are neither followed nor counted. Results are clearly partial, and a previous complete result can be restored when available. This is not complete whole-drive support. Visual acceptance of the real result, measured speed-up and the new backend on Windows 10 remain pending. Directory scanning remains available. See [scope and limitations](docs/ntfs-personal-scan.md) and [this iteration's evidence](iterations/2026-11-13-26-personal-ntfs-compatibility/README.md) (Chinese). Published v1.5.0 assets do not include this feature.
 
 ## Quick start
 

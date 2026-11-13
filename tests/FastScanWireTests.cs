@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using DiskAtlas.NtfsPrototype;
 
 namespace DiskAtlas;
 
@@ -80,7 +81,7 @@ internal static class FastScanWireTests
             foreach (var stage in Enum.GetValues<FastScanWireStage>()) Check(reader.Read() is { Kind: FastScanWireEventKind.Status, Stage: var seen } && seen == stage, "status roundtrip");
             var progress = reader.Read(); Check(progress.Kind == FastScanWireEventKind.Progress && progress.Progress is { Files: 1, Folders: 2, Bytes: 3,
                 WorkerLimit: 8, CurrentPath: "", Message: null, Method: null, CompletedDirectories: 1, DiscoveredDirectories: 4 }, "progress counts only");
-            var failure = reader.Read(); Check(failure.Kind == FastScanWireEventKind.Failure && failure.Error == FastScanWireError.Unsupported && failure.CleanupConfirmed, "known failure");
+            var failure = reader.Read(); Check(failure.Kind == FastScanWireEventKind.Failure && failure.Error == FastScanWireError.Unsupported && failure.CleanupConfirmed && failure.Context == null, "known failure without context");
             Reject(() => reader.Read(), "terminal reader cannot replay");
             Check(!Encoding.Unicode.GetString(stream.ToArray()).Contains("private-name", StringComparison.Ordinal), "private progress path excluded");
         }
@@ -96,7 +97,9 @@ internal static class FastScanWireTests
         void I32(byte[] bytes, int offset, int value) => BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(offset), value);
         void I64(byte[] bytes, int offset, long value) => BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(offset), value);
         void U64(byte[] bytes, int offset, ulong value) => BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(offset), value);
-        Mutate(bytes => bytes[0] ^= 1, "bad magic"); Mutate(bytes => bytes[4] = 2, "future schema");
+        Mutate(bytes => bytes[0] ^= 1, "bad magic"); Mutate(bytes => bytes[4] = 4, "future schema");
+        Mutate(bytes => bytes[4] = 2, "old schema cannot omit exclusion declaration");
+        Mutate(bytes => bytes[4] = 1, "old schema cannot omit failure context shape");
         Mutate(bytes => bytes[6] = 255, "unknown frame"); Mutate(bytes => I32(bytes, 8, FastScanWire.MaximumFrameBytes + 1), "frame byte budget");
         Mutate(bytes => I32(bytes, begin.Payload, 0), "no root"); Mutate(bytes => I32(bytes, begin.Payload, FastScanWire.MaximumNodes + 1), "node budget");
         Mutate(bytes => I64(bytes, begin.Payload + 4, -1), "negative files"); Mutate(bytes => I64(bytes, begin.Payload + 12, 2), "count declaration mismatch");
@@ -147,6 +150,65 @@ internal static class FastScanWireTests
             Reject(() => Decode(stream.ToArray()), "cleanup status contradiction");
             Reject(() => FastScanWire.WriteFailure(new MemoryStream(), FastScanWireError.CleanupUnconfirmed, true), "writer cleanup status contradiction");
         }
+        byte[] Failure(FastScanFailureContext? context)
+        {
+            using var stream = new MemoryStream();
+            FastScanWire.WriteFailure(stream, FastScanWireError.LimitExceeded, true, context: context);
+            return stream.ToArray();
+        }
+        void Roundtrip(FastScanFailureContext context, string name)
+        {
+            byte[] bytes = Failure(context); var seen = Decode(bytes);
+            Check(seen is { Kind: FastScanWireEventKind.Failure, Error: FastScanWireError.LimitExceeded, CleanupConfirmed: true } &&
+                seen.Context == context, name);
+            Check(bytes.Length == (context.NativeError.HasValue ? 22 : 18), name + " has a fixed bounded payload");
+        }
+        foreach (var detail in Enum.GetValues<FastScanFailureDetail>())
+            Roundtrip(new(FastScanWireStage.Discovering, detail), "fixed failure detail roundtrip");
+        foreach (var stage in Enum.GetValues<FastScanWireStage>())
+            Roundtrip(new(stage, FastScanFailureDetail.None, 5), "fixed failure stage roundtrip");
+        foreach (int native in new[] { 0, 5, int.MaxValue, int.MinValue, unchecked((int)0x80042308) })
+            Roundtrip(new(FastScanWireStage.Snapshot, FastScanFailureDetail.None, native), "signed native failure roundtrip");
+        Check(Failure(null).Length == 15 && Decode(Failure(null)).Context == null, "explicit absent context has no diagnostic values");
+        foreach (var invalid in new[]
+        {
+            new FastScanFailureContext((FastScanWireStage)(-1), FastScanFailureDetail.None),
+            new FastScanFailureContext((FastScanWireStage)256, FastScanFailureDetail.None),
+            new FastScanFailureContext(FastScanWireStage.Preparing, (FastScanFailureDetail)(-1)),
+            new FastScanFailureContext(FastScanWireStage.Preparing, (FastScanFailureDetail)256)
+        })
+        {
+            using var stream = new MemoryStream();
+            Reject(() => FastScanWire.WriteFailure(stream, FastScanWireError.ReadFailed, true, context: invalid), "writer rejects unknown failure context enum");
+            Check(stream.Length == 0, "unknown failure context is not partially written");
+        }
+        {
+            byte[] failure = Failure(new(FastScanWireStage.Discovering, FastScanFailureDetail.NamespacePathLimit, int.MinValue));
+            void Malformed(Action<byte[]> change, string name)
+            { byte[] bytes = failure.ToArray(); change(bytes); Reject(() => Decode(bytes), name); }
+            Check(BinaryPrimitives.ReadUInt16LittleEndian(failure.AsSpan(4)) == 3, "failure envelope uses version three");
+            Malformed(bytes => bytes[4] = 1, "old failure schema rejected before accepting cleanup");
+            Malformed(bytes => bytes[14] = 2, "failure context presence uses strict boolean");
+            Malformed(bytes => bytes[15] = 255, "unknown failure context stage");
+            Malformed(bytes => bytes[16] = 255, "unknown failure context detail");
+            Malformed(bytes => bytes[17] = 2, "native error presence uses strict boolean");
+            Malformed(bytes => bytes[14] = 0, "absent failure context cannot retain unknown fields");
+            Malformed(bytes => bytes[17] = 0, "absent native error cannot retain a numeric field");
+            foreach (int length in new[] { 14, 15, 16, 17, 18, 19, 20, 21 })
+                Reject(() => Decode(failure[..length]), "truncated failure context");
+            Check(!Encoding.Unicode.GetString(failure).Contains("private", StringComparison.OrdinalIgnoreCase) &&
+                typeof(FastScanFailureContext).GetProperties().All(property => property.PropertyType != typeof(string)),
+                "failure context has no arbitrary text carrier");
+        }
+        using (var stream = new MemoryStream())
+        {
+            FastScanWire.Write(stream, FastScanWire.Frame.Failure, writer =>
+            {
+                writer.Write((byte)FastScanWireError.ReadFailed); writer.Write(true); writer.Write(false);
+                writer.Write(@"B:\PRIVATE_PATH_MUST_NOT_ESCAPE");
+            }, default);
+            Reject(() => Decode(stream.ToArray()), "unknown private text field is rejected and sanitized");
+        }
         foreach (var progress in new[] { new ScanProgress(-1, 0, 0, ""), new ScanProgress(0, -1, 0, ""), new ScanProgress(0, 0, -1, ""),
             new ScanProgress(0, 0, 0, "", (ScanPhase)255), new ScanProgress(0, 0, 0, "", WorkerLimit: 17),
             new ScanProgress(0, 0, 0, "", CompletedDirectories: 2, DiscoveredDirectories: 1) })
@@ -183,6 +245,89 @@ internal static class FastScanWireTests
             Reject(() => builder.Add(new(513, 512, true, "d", new(Id(518), 0, 1, false, -1, Modified), Modified), default), "tree depth bounded");
         }
         {
+            byte[] Partial(DiskEntry root, long excluded, IReadOnlyList<NtfsReparseBoundary> boundaries)
+            {
+                using var stream = new MemoryStream();
+                FastScanWire.WriteResult(stream, root, TimeSpan.Zero, Captured, excludedCount: excluded, boundaries: boundaries);
+                return stream.ToArray();
+            }
+            var root = Tree(); var directory = root.Children[0]; root.Incomplete = directory.Incomplete = true;
+            var boundary = new NtfsReparseBoundary(directory.Storage!.Identity, "cache-link", true);
+            byte[] partialBytes = Partial(root, 1, [boundary]); var partial = Decode(partialBytes).Result!;
+            Check(partial.ExcludedReparseEntries == 1 && partial.Issues.Count == 1 && partial.Root.Incomplete && partial.Root.Children[0].Incomplete &&
+                partial.Root.Descendants().Where(entry => !entry.IsDirectory).All(entry => !entry.Incomplete), "declared reparse boundary marks only its directory ancestors");
+            Check(partial.Issues[0] == new ScanIssue(Path.Combine(RootPath, "folder", "cache-link"), NtfsReparsePolicy.Reason) &&
+                partial.Root.Size == 34 && partial.Root.AllocatedSize == 2048 && partial.Root.FileCount == 2 && partial.Root.UnknownAllocationFiles == 0 &&
+                partial.Root.Descendants().All(entry => entry.Name != "cache-link"), "excluded link and target do not become zero-size tree entries");
+            var partialFrames = Frames(partialBytes); var exclusion = partialFrames.Single(frame => frame.Kind == FastScanWire.Frame.Exclusion);
+            var partialBegin = partialFrames.Single(frame => frame.Kind == FastScanWire.Frame.TreeBegin);
+            void Malformed(Action<byte[]> change, string name)
+            { byte[] changed = partialBytes.ToArray(); change(changed); Reject(() => Decode(changed), name); }
+            Malformed(bytes => I64(bytes, partialBegin.Payload + 52, -1), "negative reparse count");
+            Malformed(bytes => I64(bytes, partialBegin.Payload + 52, FastScanWire.MaximumNodes), "included and excluded entry sum bounded");
+            Malformed(bytes => I32(bytes, partialBegin.Payload + 60, 0), "positive reparse count requires complete bounded details");
+            Malformed(bytes => I32(bytes, partialBegin.Payload + 60, 2001), "reparse detail count bounded");
+            Malformed(bytes => I32(bytes, exclusion.Payload, 0), "empty exclusion batch rejected");
+            Malformed(bytes => I32(bytes, exclusion.Payload, 65), "exclusion batch bounded");
+            Malformed(bytes => U64(bytes, exclusion.Payload + 4, 42), "exclusion parent volume must be included");
+            Malformed(bytes => U64(bytes, exclusion.Payload + 12, Id(99).Low), "unknown exclusion parent rejected");
+            Malformed(bytes => U64(bytes, exclusion.Payload + 12, Id(7).Low), "file cannot be exclusion parent");
+            Malformed(bytes => U64(bytes, exclusion.Payload + 20, 1), "full exclusion parent identity required");
+            Malformed(bytes => I32(bytes, exclusion.Payload + 28, 256), "exclusion leaf length bounded");
+            Malformed(bytes => BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(exclusion.Payload + 32), ':'), "exclusion cannot carry an arbitrary path");
+            Malformed(bytes => bytes[exclusion.Payload + 32 + boundary.Name.Length * 2] = 2, "exclusion type uses strict boolean");
+            byte[] collisionBytes = Partial(root, 1, [boundary with { Name = "q.bin", Directory = false }]);
+            var collisionFrame = Frames(collisionBytes).Single(frame => frame.Kind == FastScanWire.Frame.Exclusion);
+            BinaryPrimitives.WriteUInt16LittleEndian(collisionBytes.AsSpan(collisionFrame.Payload + 32), 'b');
+            Reject(() => Decode(collisionBytes), "receiver rejects excluded and included sibling collision");
+            byte[] duplicateBytes = Partial(root, 2, [boundary with { Name = "link-one" }, boundary with { Name = "link-two" }]);
+            var duplicateFrame = Frames(duplicateBytes).Single(frame => frame.Kind == FastScanWire.Frame.Exclusion);
+            duplicateBytes.AsSpan(duplicateFrame.Payload + 32, 16).CopyTo(duplicateBytes.AsSpan(duplicateFrame.Payload + 32 + 45, 16));
+            Reject(() => Decode(duplicateBytes), "receiver rejects duplicate exclusion details");
+            byte[] missing = partialBytes[..exclusion.Header].Concat(partialBytes[(exclusion.Payload + exclusion.Size)..]).ToArray();
+            Reject(() => Decode(missing), "missing exclusion frame cannot publish partial success");
+            foreach (var bad in new[]
+            {
+                new NtfsReparseBoundary(Id(99), "link", true), new NtfsReparseBoundary(Id(7), "link", true),
+                new NtfsReparseBoundary(Id(5), "a.bin", false), new NtfsReparseBoundary(Id(5), "../outside", false),
+                new NtfsReparseBoundary(Id(5), "CON", false)
+            }) Reject(() => Partial(root, 1, [bad]), "writer rejects invalid reparse boundary");
+            Reject(() => Partial(root, 0, [boundary]), "zero excluded count cannot carry a detail");
+            Reject(() => Partial(root, 1, []), "positive excluded count cannot omit details");
+            Reject(() => Partial(root, 2, [boundary, boundary with { Name = "CACHE-LINK" }]), "reparse details are case insensitive unique siblings");
+            root.Incomplete = false;
+            Reject(() => Partial(root, 1, [boundary]), "writer requires incomplete root for excluded scope");
+            root.Incomplete = true; directory.Incomplete = false;
+            Reject(() => Partial(root, 1, [boundary]), "writer requires incomplete boundary ancestor");
+            directory.Incomplete = true; root.Children[1].Incomplete = true;
+            Reject(() => Partial(root, 1, [boundary]), "reparse exclusion never permits incomplete file metadata");
+            root.Children[1].Incomplete = false; root.Children[1].UnknownAllocationFiles = 1;
+            Reject(() => Partial(root, 1, [boundary]), "reparse exclusion never permits unknown allocation");
+            root = Tree(); root.Incomplete = true;
+            var rootBoundary = new NtfsReparseBoundary(Id(5), "root-link", false);
+            var rootPartial = Decode(Partial(root, 1, [rootBoundary])).Result!;
+            Check(rootPartial.Root.Incomplete && !rootPartial.Root.Children[0].Incomplete, "unaffected included directory remains complete");
+            root.Children[0].Incomplete = true;
+            Reject(() => Partial(root, 1, [rootBoundary]), "unexplained incomplete directory cannot hide behind a reparse count");
+            var details = Enumerable.Range(0, 2000).Select(index => new NtfsReparseBoundary(Id(5), "link-" + index, index % 2 == 0)).ToArray();
+            var truncated = Decode(Partial(root, 2001, details)).Result!;
+            Check(truncated.ExcludedReparseEntries == 2001 && truncated.Issues.Count == 2000 &&
+                truncated.Root.Descendants().Where(entry => entry.IsDirectory).Prepend(truncated.Root).All(entry => entry.Incomplete),
+                "truncated reparse details conservatively mark every included directory incomplete");
+            Reject(() => Partial(root, 2001, details[..1999]), "truncated details still require the full fixed cap");
+            root.Children[0].Incomplete = false;
+            Reject(() => Partial(root, 2001, details), "truncated details cannot claim an unobserved directory complete");
+            root = Tree(); root.Incomplete = root.Children[0].Incomplete = true;
+            using var indexedStream = new MemoryStream();
+            FastScanWire.WriteResult(indexedStream, root, TimeSpan.Zero, Captured, excludedCount: 1, boundaries: new IndexOnlyBoundaries(boundary));
+            Check(Decode(indexedStream.ToArray()).Result?.ExcludedReparseEntries == 1,
+                "bounded indexed boundary copy never trusts an unbounded external enumerator");
+            using var cancelled = new CancellationTokenSource(); bool cancelledWrite = false;
+            try { FastScanWire.WriteResult(new MemoryStream(), root, TimeSpan.Zero, Captured, cancelled.Token, 1, new CancellingBoundaries(cancelled)); }
+            catch (OperationCanceledException) { cancelledWrite = true; }
+            Check(cancelledWrite, "real cancellation wins over an external controlled-looking boundary exception");
+        }
+        {
             using var cancelled = new CancellationTokenSource(); cancelled.Cancel(); bool cancelledRead = false, cancelledWrite = false;
             try { _ = new FastScanWireReader(new MemoryStream(encoded), RootPath).Read(cancelled.Token); } catch (OperationCanceledException) { cancelledRead = true; }
             try { FastScanWire.WriteRequest(new MemoryStream(), RootPath, cancelled.Token); } catch (OperationCanceledException) { cancelledWrite = true; }
@@ -196,4 +341,18 @@ internal static class FastScanWireTests
     }
     private sealed class ThrowingStream : MemoryStream
     { public override int Read(Span<byte> buffer) => throw new IOException(@"B:\private-path must not escape"); }
+    private sealed class IndexOnlyBoundaries(NtfsReparseBoundary value) : IReadOnlyList<NtfsReparseBoundary>
+    {
+        public int Count => 1;
+        public NtfsReparseBoundary this[int index] => index == 0 ? value : throw new ArgumentOutOfRangeException(nameof(index));
+        public IEnumerator<NtfsReparseBoundary> GetEnumerator() => throw new IOException("PRIVATE_ENUMERATOR");
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+    private sealed class CancellingBoundaries(CancellationTokenSource cancellation) : IReadOnlyList<NtfsReparseBoundary>
+    {
+        public int Count => 1;
+        public NtfsReparseBoundary this[int index] { get { cancellation.Cancel(); throw new FastScanWireException(); } }
+        public IEnumerator<NtfsReparseBoundary> GetEnumerator() => throw new IOException("PRIVATE_ENUMERATOR");
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
 }

@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using DiskAtlas.NtfsPrototype;
 
 namespace DiskAtlas;
 
@@ -13,10 +14,11 @@ internal enum FastScanWireError
     ReadFailed, Cancelled, ProtocolError, CleanupUnconfirmed, InternalError
 }
 internal enum FastScanWireEventKind { Status, Progress, Completed, Failure }
-internal sealed record FastScanWireResult(DiskEntry Root, TimeSpan Elapsed, DateTimeOffset CapturedAt);
+internal sealed record FastScanWireResult(DiskEntry Root, TimeSpan Elapsed, DateTimeOffset CapturedAt,
+    long ExcludedReparseEntries, IReadOnlyList<ScanIssue> Issues);
 internal sealed record FastScanWireEvent(FastScanWireEventKind Kind, FastScanWireStage? Stage = null,
     ScanProgress? Progress = null, FastScanWireResult? Result = null,
-    FastScanWireError? Error = null, bool CleanupConfirmed = false);
+    FastScanWireError? Error = null, bool CleanupConfirmed = false, FastScanFailureContext? Context = null);
 internal sealed class FastScanWireException : IOException
 {
     internal FastScanWireException() : base("NTFS 快速扫描通信数据无效。") { }
@@ -24,17 +26,19 @@ internal sealed class FastScanWireException : IOException
 
 internal static class FastScanWire
 {
-    internal const int MaximumNodes = 262144;
-    internal const long MaximumNameCharacters = 32L * 1024 * 1024;
+    internal const int MaximumNodes = 1048576;
+    internal const long MaximumNameCharacters = 64L * 1024 * 1024;
     internal const long MaximumWireBytes = 256L * 1024 * 1024;
     internal const int MaximumFrameBytes = 65536;
     internal const int MaximumDepth = 512;
+    internal const int MaximumExclusionDetails = 2000;
     private const uint Magic = 0x314C5341;
-    private const ushort Version = 1;
+    private const ushort Version = 3;
     private static readonly UnicodeEncoding TextEncoding = new(false, false, true);
-    internal enum Frame : ushort { Request = 1, Status, Progress, TreeBegin, Node, Done, Failure }
-    internal sealed record Node(int Index, int Parent, bool Directory, string Name, FileStorageInfo Storage, DateTime Modified);
-    internal sealed record Header(int Nodes, long Files, long Directories, long Logical, long Allocated, long ElapsedTicks, long CapturedTicks);
+    internal enum Frame : ushort { Request = 1, Status, Progress, TreeBegin, Node, Done, Failure, Exclusion }
+    internal sealed record Node(int Index, int Parent, bool Directory, string Name, FileStorageInfo Storage, DateTime Modified, bool Incomplete = false);
+    internal sealed record Header(int Nodes, long Files, long Directories, long Logical, long Allocated, long ElapsedTicks, long CapturedTicks,
+        long ExcludedReparseEntries = 0, int ExclusionDetails = 0);
 
     internal static void Require([DoesNotReturnIf(false)] bool condition) { if (!condition) throw new FastScanWireException(); }
     private static bool Letter(char value) => value is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
@@ -54,7 +58,7 @@ internal static class FastScanWire
         catch (FastScanWireException) { throw; }
         catch { throw new FastScanWireException(); }
     }
-    private static bool ValidName(string value)
+    internal static bool ValidName(string value)
     {
         if (value.Length is < 1 or > 255 || value is "." or ".." || value[^1] is '.' or ' ' ||
             value.Any(c => char.IsControl(c) || c is '<' or '>' or ':' or '"' or '/' or '\\' or '|' or '?' or '*')) return false;
@@ -144,41 +148,63 @@ internal static class FastScanWire
         var value = new ScanProgress(reader.ReadInt64(), reader.ReadInt64(), reader.ReadInt64(), "", (ScanPhase)reader.ReadByte(),
             reader.ReadInt32(), reader.ReadInt64(), reader.ReadInt64()); ValidateProgress(value); return value;
     }
-    internal static void WriteFailure(Stream stream, FastScanWireError error, bool cleanupConfirmed, CancellationToken token = default)
+    internal static void WriteFailure(Stream stream, FastScanWireError error, bool cleanupConfirmed, CancellationToken token = default,
+        FastScanFailureContext? context = null)
     {
         Require(Enum.IsDefined(error) && (error != FastScanWireError.CleanupUnconfirmed || !cleanupConfirmed));
-        Write(stream, Frame.Failure, writer => { writer.Write((byte)error); writer.Write(cleanupConfirmed); }, token);
+        Require(context == null || Enum.IsDefined(context.Stage) && Enum.IsDefined(context.Detail));
+        Write(stream, Frame.Failure, writer =>
+        {
+            writer.Write((byte)error); writer.Write(cleanupConfirmed); writer.Write(context != null);
+            if (context != null)
+            {
+                writer.Write((byte)context.Stage); writer.Write((byte)context.Detail); writer.Write(context.NativeError.HasValue);
+                if (context.NativeError.HasValue) writer.Write(context.NativeError.Value);
+            }
+        }, token);
     }
-    internal static void WriteResult(Stream stream, DiskEntry root, TimeSpan elapsed, DateTimeOffset capturedAt, CancellationToken token = default)
+    internal static void WriteResult(Stream stream, DiskEntry root, TimeSpan elapsed, DateTimeOffset capturedAt, CancellationToken token = default,
+        long excludedCount = 0, IReadOnlyList<NtfsReparseBoundary>? boundaries = null)
     {
-        try { WriteResultCore(stream, root, elapsed, capturedAt, token); }
-        catch (FastScanWireException) { throw; }
+        try { WriteResultCore(stream, root, elapsed, capturedAt, token, excludedCount, boundaries); }
+        catch (FastScanWireException) { token.ThrowIfCancellationRequested(); throw; }
         catch { token.ThrowIfCancellationRequested(); throw new FastScanWireException(); }
     }
-    private static void WriteResultCore(Stream stream, DiskEntry root, TimeSpan elapsed, DateTimeOffset capturedAt, CancellationToken token)
+    private static void WriteResultCore(Stream stream, DiskEntry root, TimeSpan elapsed, DateTimeOffset capturedAt, CancellationToken token,
+        long excludedCount, IReadOnlyList<NtfsReparseBoundary>? boundaries)
     {
-        token.ThrowIfCancellationRequested(); Require(root != null && root.IsDirectory && root.Parent == null && !root.Incomplete && root.UnknownAllocationFiles == 0);
+        token.ThrowIfCancellationRequested(); Require(root != null && root.IsDirectory && root.Parent == null && root.UnknownAllocationFiles == 0);
+        int exclusionDetails = boundaries?.Count ?? 0;
+        Require(excludedCount is >= 0 and <= MaximumNodes && exclusionDetails == Math.Min(excludedCount, MaximumExclusionDetails));
+        var exclusions = new NtfsReparseBoundary[exclusionDetails];
+        for (int i = 0; i < exclusions.Length; i++) { token.ThrowIfCancellationRequested(); exclusions[i] = boundaries![i]; }
         var nodes = new List<Node>(); var pending = new Queue<(DiskEntry Entry, int Parent)>();
         var seen = new HashSet<DiskEntry>(ReferenceEqualityComparer.Instance); pending.Enqueue((root, -1));
         while (pending.TryDequeue(out var work))
         {
             token.ThrowIfCancellationRequested(); var entry = work.Entry;
-            Require(seen.Add(entry) && nodes.Count < MaximumNodes && !entry.Incomplete && entry.UnknownAllocationFiles == 0 && entry.Storage != null);
+            Require(seen.Add(entry) && nodes.Count < MaximumNodes && (!entry.Incomplete || entry.IsDirectory && excludedCount > 0) && entry.UnknownAllocationFiles == 0 && entry.Storage != null);
             int index = nodes.Count; var modified = entry.Modified.ToUniversalTime();
             Require(entry.Storage.Modified == null || entry.Storage.Modified.Value.ToUniversalTime() == modified);
             Require(entry.IsDirectory || entry.Children.Count == 0 && entry.Size == entry.Storage.LogicalBytes && entry.FileCount == 1 && entry.FolderCount == 0);
-            nodes.Add(new(index, work.Parent, entry.IsDirectory, index == 0 ? "" : entry.Name, entry.Storage, modified));
+            Require(entry.Children.Count <= MaximumNodes - nodes.Count - pending.Count - 1);
+            nodes.Add(new(index, work.Parent, entry.IsDirectory, index == 0 ? "" : entry.Name, entry.Storage, modified, entry.Incomplete));
             foreach (var child in entry.Children) { Require(ReferenceEquals(child.Parent, entry)); pending.Enqueue((child, index)); }
         }
-        var expected = new Header(nodes.Count, root.FileCount, root.FolderCount, root.Size, root.AllocatedSize, elapsed.Ticks, capturedAt.UtcTicks);
-        var check = new TreeBuilder(NormalizeRoot(root.Path), expected); foreach (var node in nodes) check.Add(node, token); _ = check.Complete(nodes.Count, true, token);
-        long bytes = 12 + 4 + 6 * 8;
+        var expected = new Header(nodes.Count, root.FileCount, root.FolderCount, root.Size, root.AllocatedSize, elapsed.Ticks, capturedAt.UtcTicks,
+            excludedCount, exclusions.Length);
+        var check = new TreeBuilder(NormalizeRoot(root.Path), expected); foreach (var node in nodes) check.Add(node, token);
+        foreach (var boundary in exclusions) check.AddExclusion(boundary, token);
+        _ = check.Complete(nodes.Count, true, token); check.ValidateIncompleteFlags(nodes, token);
+        long bytes = 12 + 4 + 6 * 8 + 8 + 4;
         foreach (var node in nodes) bytes = checked(bytes + 12 + 4 + 4 + 1 + 4 + node.Name.Length * 2L + 24 + 16 + 4 + 8);
+        foreach (var boundary in exclusions) bytes = checked(bytes + 12 + 4 + 24 + 4 + boundary.Name.Length * 2L + 1);
         Require(bytes + 17 <= MaximumWireBytes);
         Write(stream, Frame.TreeBegin, writer =>
         {
             writer.Write(expected.Nodes); writer.Write(expected.Files); writer.Write(expected.Directories); writer.Write(expected.Logical);
             writer.Write(expected.Allocated); writer.Write(expected.ElapsedTicks); writer.Write(expected.CapturedTicks);
+            writer.Write(expected.ExcludedReparseEntries); writer.Write(expected.ExclusionDetails);
         }, token);
         for (int start = 0; start < nodes.Count; start += 64)
         {
@@ -194,10 +220,25 @@ internal static class FastScanWire
                 }
             }, token);
         }
+        for (int start = 0; start < exclusions.Length; start += 64)
+        {
+            token.ThrowIfCancellationRequested(); Write(stream, Frame.Exclusion, writer =>
+            {
+                int count = Math.Min(64, exclusions.Length - start); writer.Write(count);
+                for (int i = start; i < start + count; i++)
+                {
+                    var boundary = exclusions[i]; writer.Write(boundary.ParentIdentity.Volume);
+                    writer.Write(boundary.ParentIdentity.Low); writer.Write(boundary.ParentIdentity.High);
+                    Text(writer, boundary.Name); writer.Write(boundary.Directory);
+                }
+            }, token);
+        }
         Write(stream, Frame.Done, writer => { writer.Write(nodes.Count); writer.Write(true); }, token);
     }
     internal static Header ReadHeader(BinaryReader reader) => new(reader.ReadInt32(), reader.ReadInt64(), reader.ReadInt64(), reader.ReadInt64(),
-        reader.ReadInt64(), reader.ReadInt64(), reader.ReadInt64());
+        reader.ReadInt64(), reader.ReadInt64(), reader.ReadInt64(), reader.ReadInt64(), reader.ReadInt32());
+    internal static NtfsReparseBoundary ReadExclusion(BinaryReader reader) =>
+        new(new(reader.ReadUInt64(), reader.ReadUInt64(), reader.ReadUInt64()), Text(reader, 255), Boolean(reader));
     internal static Node ReadNode(BinaryReader reader)
     {
         int index = reader.ReadInt32(), parent = reader.ReadInt32(); bool directory = Boolean(reader); string name = Text(reader, 255);
@@ -214,6 +255,8 @@ internal static class FastScanWire
         private readonly Dictionary<FileIdentity, (FileStorageInfo Storage, bool Directory, int Aliases)> objects = new();
         private readonly HashSet<ulong> slots = new();
         private readonly HashSet<(int Parent, string Name)> siblingNames = new(new SiblingComparer());
+        private readonly Dictionary<FileIdentity, int> directoryIdentities = new();
+        private readonly List<ScanIssue> issues = new();
         private long nameCharacters, pathCharacters, logical, allocated, files, directories;
         internal TreeBuilder(string rootPath, Header header)
         {
@@ -222,6 +265,8 @@ internal static class FastScanWire
                 header.Files + header.Directories == header.Nodes - 1L && header.Logical >= 0 && header.Allocated >= 0 &&
                 header.ElapsedTicks >= 0 && header.ElapsedTicks <= TimeSpan.FromDays(1).Ticks &&
                 header.CapturedTicks >= DateTime.FromFileTimeUtc(0).Ticks && header.CapturedTicks <= DateTime.MaxValue.Ticks);
+            Require(header.ExcludedReparseEntries >= 0 && header.ExcludedReparseEntries <= MaximumNodes - header.Nodes &&
+                header.ExclusionDetails == Math.Min(header.ExcludedReparseEntries, MaximumExclusionDetails));
             nodes = new(header.Nodes); depths = new(header.Nodes); pathLengths = new(header.Nodes);
         }
         internal void Add(Node value, CancellationToken token)
@@ -237,7 +282,10 @@ internal static class FastScanWire
             int depth = index == 0 ? 0 : depths[value.Parent] + 1;
             int pathLength = index == 0 ? 0 : checked(pathLengths[value.Parent] + value.Name.Length + (value.Parent == 0 ? 0 : 1));
             Require(depth <= MaximumDepth && rootPath.Length + pathLength + 1 <= 32767);
-            nameCharacters = checked(nameCharacters + value.Name.Length); pathCharacters = checked(pathCharacters + pathLength);
+            nameCharacters = checked(nameCharacters + value.Name.Length);
+            // DiskEntry stores shared file prefixes. Bound the paths actually
+            // retained for directories, including a long original root prefix.
+            if (value.Directory) pathCharacters = checked(pathCharacters + rootPath.Length + pathLength + (index == 0 ? 0 : 1));
             Require(nameCharacters <= MaximumNameCharacters && pathCharacters <= MaximumNameCharacters);
             if (objects.TryGetValue(storage.Identity, out var previous))
             {
@@ -260,10 +308,29 @@ internal static class FastScanWire
             if (value.Directory) { Require(storage.AllocatedBytes == 0 && storage.LogicalBytes == -1); if (index != 0) directories++; }
             else { Require(storage.LogicalBytes >= 0); node.Size = storage.LogicalBytes; node.FileCount = 1; logical = checked(logical + storage.LogicalBytes); files++; }
             nodes.Add(node); depths.Add(depth); pathLengths.Add(pathLength);
+            if (node.IsDirectory) Require(directoryIdentities.TryAdd(storage.Identity, index));
+        }
+        internal void AddExclusion(NtfsReparseBoundary boundary, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested(); int parent = -1;
+            Require(nodes.Count == header.Nodes && issues.Count < header.ExclusionDetails && boundary != null && ValidName(boundary.Name) &&
+                directoryIdentities.TryGetValue(boundary.ParentIdentity, out parent) && siblingNames.Add((parent, boundary.Name)));
+            string path = Path.Join(nodes[parent].Path, boundary.Name);
+            Require(path.Length <= 32767);
+            pathCharacters = checked(pathCharacters + path.Length); nameCharacters = checked(nameCharacters + boundary.Name.Length);
+            Require(pathCharacters <= MaximumNameCharacters && nameCharacters <= MaximumNameCharacters);
+            issues.Add(new(path, NtfsReparsePolicy.Reason));
+            if (header.ExcludedReparseEntries <= MaximumExclusionDetails)
+                for (DiskEntry? entry = nodes[parent]; entry != null; entry = entry.Parent) entry.Incomplete = true;
+        }
+        internal void ValidateIncompleteFlags(IReadOnlyList<Node> original, CancellationToken token)
+        {
+            Require(original.Count == nodes.Count);
+            for (int i = 0; i < nodes.Count; i++) { token.ThrowIfCancellationRequested(); Require(original[i].Incomplete == nodes[i].Incomplete); }
         }
         internal FastScanWireResult Complete(int count, bool cleanupConfirmed, CancellationToken token)
         {
-            Require(cleanupConfirmed && count == header.Nodes && nodes.Count == header.Nodes && files == header.Files && directories == header.Directories &&
+            Require(cleanupConfirmed && count == header.Nodes && nodes.Count == header.Nodes && issues.Count == header.ExclusionDetails && files == header.Files && directories == header.Directories &&
                 logical == header.Logical && allocated == header.Allocated);
             for (int i = nodes.Count - 1; i > 0; i--)
             {
@@ -272,9 +339,12 @@ internal static class FastScanWire
                 parent.FolderCount = checked(parent.FolderCount + entry.FolderCount + (entry.IsDirectory ? 1 : 0));
             }
             StorageMetrics.Calculate(nodes[0], token);
+            if (header.ExcludedReparseEntries > MaximumExclusionDetails)
+                foreach (var node in nodes) { token.ThrowIfCancellationRequested(); if (node.IsDirectory) node.Incomplete = true; }
             Require(nodes[0].Size == logical && nodes[0].AllocatedSize == allocated && nodes[0].UnknownAllocationFiles == 0 &&
                 nodes[0].FileCount == files && nodes[0].FolderCount == directories);
-            token.ThrowIfCancellationRequested(); return new(nodes[0], TimeSpan.FromTicks(header.ElapsedTicks), new DateTimeOffset(header.CapturedTicks, TimeSpan.Zero));
+            token.ThrowIfCancellationRequested(); return new(nodes[0], TimeSpan.FromTicks(header.ElapsedTicks), new DateTimeOffset(header.CapturedTicks, TimeSpan.Zero),
+                header.ExcludedReparseEntries, Array.AsReadOnly(issues.ToArray()));
         }
         private sealed class SiblingComparer : IEqualityComparer<(int Parent, string Name)>
         {
@@ -309,7 +379,15 @@ internal sealed class FastScanWireReader
                 {
                     var error = (FastScanWireError)reader.ReadByte(); FastScanWire.Require(Enum.IsDefined(error)); bool cleanup = FastScanWire.Boolean(reader);
                     FastScanWire.Require(error != FastScanWireError.CleanupUnconfirmed || !cleanup);
-                    return new FastScanWireEvent(FastScanWireEventKind.Failure, Error: error, CleanupConfirmed: cleanup);
+                    FastScanFailureContext? context = null;
+                    if (FastScanWire.Boolean(reader))
+                    {
+                        var stage = (FastScanWireStage)reader.ReadByte(); var detail = (FastScanFailureDetail)reader.ReadByte();
+                        FastScanWire.Require(Enum.IsDefined(stage) && Enum.IsDefined(detail));
+                        int? nativeError = FastScanWire.Boolean(reader) ? reader.ReadInt32() : null;
+                        context = new(stage, detail, nativeError);
+                    }
+                    return new FastScanWireEvent(FastScanWireEventKind.Failure, Error: error, CleanupConfirmed: cleanup, Context: context);
                 }); terminal = true; return result;
             }
             FastScanWire.Require(frame.Kind == FastScanWire.Frame.TreeBegin);
@@ -324,11 +402,21 @@ internal sealed class FastScanWireReader
                     return count;
                 }); i += count;
             }
+            for (int i = 0; i < header.ExclusionDetails;)
+            {
+                token.ThrowIfCancellationRequested(); frame = FastScanWire.Read(stream, ref bytes, token); FastScanWire.Require(frame.Kind == FastScanWire.Frame.Exclusion);
+                int count = FastScanWire.Parse(frame.Payload, reader =>
+                {
+                    int count = reader.ReadInt32(); FastScanWire.Require(count is >= 1 and <= 64 && count <= header.ExclusionDetails - i);
+                    for (int n = 0; n < count; n++) builder.AddExclusion(FastScanWire.ReadExclusion(reader), token);
+                    return count;
+                }); i += count;
+            }
             frame = FastScanWire.Read(stream, ref bytes, token); FastScanWire.Require(frame.Kind == FastScanWire.Frame.Done);
             var completed = FastScanWire.Parse(frame.Payload, reader => builder.Complete(reader.ReadInt32(), FastScanWire.Boolean(reader), token));
             terminal = true; return new(FastScanWireEventKind.Completed, Result: completed, CleanupConfirmed: true);
         }
-        catch (FastScanWireException) { terminal = true; throw; }
+        catch (FastScanWireException) { terminal = true; token.ThrowIfCancellationRequested(); throw; }
         catch { terminal = true; token.ThrowIfCancellationRequested(); throw new FastScanWireException(); }
     }
 }

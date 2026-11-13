@@ -1,6 +1,50 @@
 using DiskAtlas;
 using System.Drawing;
 
+if (args.Length == 1 && args[0] == "--ntfs-reparse-policy-tests")
+{
+    try { int n = DiskAtlas.NtfsPrototype.NtfsReparsePolicyTests.Run(); Console.WriteLine($"PASS reparse policy: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL reparse policy; no private details emitted"); return 1; }
+}
+
+if (args.Length == 1 && args[0] == "--ntfs-mft-metadata-tests")
+{
+    try { int n = DiskAtlas.NtfsPrototype.NtfsMftMetadataResolverTests.Run(); Console.WriteLine($"PASS MFT metadata resolver: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL MFT metadata resolver; no private details emitted"); return 1; }
+}
+if (args.Length == 1 && args[0] == "--ntfs-continuation-record-tests")
+{
+    try { int n = DiskAtlas.NtfsPrototype.NtfsContinuationRecordTests.Run(); Console.WriteLine($"PASS continuation records: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL continuation records; no private details emitted"); return 1; }
+}
+if (args.Length == 1 && args[0] == "--ntfs-bitmap-bundle-tests")
+{
+    try { int n = DiskAtlas.NtfsPrototype.NtfsMftBitmapBundleTests.Run(); Console.WriteLine($"PASS bitmap bundle: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL bitmap bundle; no private details emitted"); return 1; }
+}
+if (args.Length == 1 && args[0] == "--ntfs-large-profile-tests")
+{
+    try { int n = DiskAtlas.NtfsPrototype.NtfsLargeProfileTests.Run(); Console.WriteLine($"PASS large profile: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL large profile; no private details emitted"); return 1; }
+}
+
+if (FastScanBridge.IsWorkerRequest(args))
+    return FastScanBridge.RunWorker(args, DiskAtlas.NtfsPrototype.NtfsPersonalAcceptanceDriver.Validate);
+if (args.Length is 1 or 2 && args[0] == "--ntfs-personal-acceptance" &&
+    (args.Length == 1 || args[1] == "--cancel-on-discovery"))
+    return DiskAtlas.NtfsPrototype.NtfsPersonalAcceptanceDriver.Run(args.Length == 2);
+if (args.Length == 1 && args[0] == "--ntfs-personal-acceptance-tests")
+{
+    try { int n = DiskAtlas.NtfsPrototype.NtfsPersonalAcceptance.RunTests(); int input = DiskAtlas.NtfsPrototype.NtfsPersonalAcceptanceDriverTests.Run(); Console.WriteLine($"PASS personal acceptance: {n}; input {input}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL personal acceptance; no private details emitted"); return 1; }
+}
+
+if (args.Length == 1 && args[0] == "--ntfs-snapshot-metadata-tests")
+{
+    try { int n = DiskAtlas.NtfsPrototype.NtfsSnapshotMetadataTests.Run(); Console.WriteLine($"PASS snapshot metadata: {n}; owned temporary files only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL snapshot metadata; no private details emitted"); return 1; }
+}
+
 if (args.Length == 1 && args[0] == "--fast-scan-bridge-tests")
 {
     try { int n = FastScanBridgeContractTests.Run(); Console.WriteLine($"PASS fast scan bridge: {n}; local pipes only"); return 0; }
@@ -10,7 +54,8 @@ if (args.Length == 1 && args[0] == "--fast-scan-bridge-tests")
 if (args.Contains("--fast-scan-mainform-tests"))
 {
     return FastScanMainFormTests.Run(args.Contains("--dpi-96"),
-        args.Contains("--capture") ? Path.Combine(Environment.CurrentDirectory, "artifacts", "ntfs-mainform-c25.png") : null);
+        args.Contains("--capture") ? Path.Combine(Environment.CurrentDirectory, "artifacts", "ntfs-mainform-c25.png") : null,
+        args.Contains("--capture-partial") ? Path.Combine(Environment.CurrentDirectory, "artifacts", "ntfs-mainform-partial-c26.png") : null);
 }
 
 if (args.Length == 1 && args[0] == "--fast-scan-coordinator-tests")

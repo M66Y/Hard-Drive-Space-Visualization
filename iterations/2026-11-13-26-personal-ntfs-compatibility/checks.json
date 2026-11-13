@@ -1,0 +1,35 @@
+{
+  "revision": "personal-ntfs-compatibility-evidence-v1",
+  "baseline": "00c9b410703237aa14f8555124d2b713668b9a32",
+  "build": { "app": "passed", "tests": "passed", "warnings": 0, "restore": false },
+  "synthetic": {
+    "metadata_resolver_and_reader": 102, "continuation_records": 61,
+    "bitmap_bundle": 41, "large_profile": 25, "reparse_policy": 36,
+    "wire": 277, "coordinator": 67, "local_pipe": 45,
+    "personal_source": 52, "personal_index": 27,
+    "acceptance_audit": 54, "acceptance_input": 18,
+    "namespace": 84, "size_index": 46, "mft_map": 199,
+    "vss_probe": 79, "fixture_guards": 20, "snapshot_reader": 81, "scale_guards": 20,
+    "ntfs_prototype": 147, "raw_volume": 108, "bitmap_prefix": 94, "vss_scale": 28,
+    "core": 38, "advanced": 25, "journal": 16
+  },
+  "owned_temporary_files": { "metadata_checks": 36, "capability_skips": 0, "cleanup": "confirmed" },
+  "ui": {
+    "mainform_default_dpi": 86, "mainform_96_dpi": 86,
+    "general_default_dpi": "passed", "general_96_dpi": "passed",
+    "optional_screenshot": "capture_unavailable",
+    "personal_result_visual": "pending_computer_use_stopped_by_user"
+  },
+  "personal_volume": {
+    "revision": "personal-ntfs-acceptance-v3", "outcome": "passed-partial",
+    "stage": "Complete", "code": "None", "detail": "None", "native_error": null,
+    "cleanup_confirmed": true, "namespace_complete": false,
+    "included_scope_verified": true, "reparse_exclusions_declared": true,
+    "all_included_objects_matched": true, "raw_budget_respected": true
+  },
+  "personal_cancel": { "outcome": "cancelled", "stage": "Namespace", "cleanup_confirmed": true },
+  "prior_failure_categories": ["NamespaceEntryLimit", "MftAttributeListUnsupported", "IndexBoundary"],
+  "powershell": { "fixture_scale_guards": 36, "vss_scale_evidence": 1027, "validation_driver": 266 },
+  "new_vhd": "not_created", "performance": "not_measured",
+  "windows10_new_backend": "pending", "formal_release": false
+}
