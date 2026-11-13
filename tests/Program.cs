@@ -1,6 +1,40 @@
 using DiskAtlas;
 using System.Drawing;
 
+if (args.Length == 1 && args[0] == "--fast-scan-bridge-tests")
+{
+    try { int n = FastScanBridgeContractTests.Run(); Console.WriteLine($"PASS fast scan bridge: {n}; local pipes only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL fast scan bridge; no private details emitted"); return 1; }
+}
+
+if (args.Contains("--fast-scan-mainform-tests"))
+{
+    return FastScanMainFormTests.Run(args.Contains("--dpi-96"),
+        args.Contains("--capture") ? Path.Combine(Environment.CurrentDirectory, "artifacts", "ntfs-mainform-c25.png") : null);
+}
+
+if (args.Length == 1 && args[0] == "--fast-scan-coordinator-tests")
+{
+    try { int n = FastScanCoordinatorTests.Run(); Console.WriteLine($"PASS fast scan coordinator: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL fast scan coordinator; no private details emitted"); return 1; }
+}
+
+if (args.Length == 1 && args[0] == "--fast-scan-wire-tests")
+{
+    try { int n = FastScanWireTests.Run(); Console.WriteLine($"PASS fast scan wire: {n}; memory only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL fast scan wire; no private details emitted"); return 1; }
+}
+if (args.Length == 1 && args[0] == "--ntfs-personal-index-tests")
+{
+    try { int n = DiskAtlas.NtfsPrototype.NtfsPersonalIndexTests.Run(); Console.WriteLine($"PASS personal index: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL personal index; no private details emitted"); return 1; }
+}
+if (args.Length == 1 && args[0] == "--ntfs-personal-source-tests")
+{
+    try { int n = DiskAtlas.NtfsPrototype.NtfsPersonalSnapshotSourceTests.Run(); Console.WriteLine($"PASS personal source: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL personal source; no private details emitted"); return 1; }
+}
+
 if (args.Length > 0 && args[0] == "--ntfs-vss-scale-live")
 {
     if (args.Length != 3 || !int.TryParse(args[2], out int count) || count is not (10000 or 100000))

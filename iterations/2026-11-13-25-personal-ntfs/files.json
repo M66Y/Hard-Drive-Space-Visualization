@@ -1,0 +1,196 @@
+{
+  "baseline": "fd0639e8d3c4b217a376b50460ea261752c20179",
+  "hash_scope": "versioned-index-bytes",
+  "recovery": "restore exact baseline blobs; git -c core.autocrlf=false apply changes.patch",
+  "files": [
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "e148b4d2d8f3f36015ec7d1d3dc58218c1b35d3267fe9bb48ebbd2afdd6e9410"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "d95de959f4e81d8ecab57354123d56c4c8e20706337ad37d05e9bac72d382d2f"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "def311ac30ab819fbc082c81f35a27aa8587da84ecff7162488dd28eec6d0d2e"
+    },
+    {
+      "path": "Core.cs",
+      "sha256": "e2e8b80acdee28327a9199439cd41f4266814ccf65153f00cad25ffae413fc27"
+    },
+    {
+      "path": "MainForm.cs",
+      "sha256": "e5913265f0c3c92be1a933c1a6de889895f68c4f63cf36516f74758caa4b20f8"
+    },
+    {
+      "path": "Program.cs",
+      "sha256": "a49d9bd50e03476824cdefd4dbf7b7bf36b9ac864cb5acc48f432d4df2f5b6a3"
+    },
+    {
+      "path": "README.en.md",
+      "sha256": "86969012d5ca2cbbd266ce6ab14b06a095d4fd30681ced1bfcaea7f897302eda"
+    },
+    {
+      "path": "README.md",
+      "sha256": "b971fc086b079166ee7d0c012837c015a638a81d439fa310037c42afab12d7d0"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "342738d822fa0de903973fb33df3a89966482781b31bd459591945c8d5dd72ed"
+    },
+    {
+      "path": "docs/ntfs-personal-scan.md",
+      "sha256": "035420783a77d496b29b8d8b9b25d3ab30ac660dd931fe2e384a1ef7af01b481"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "ade4c3a9ff198ca730f7885a8b0bbb1bd09abde3da13b15465839a58cd5987aa"
+    },
+    {
+      "path": "iterations/2026-11-13-25-personal-ntfs/README.md",
+      "sha256": "e186ecc7c64c91fafdc4b2be410e4c75642cd4a86542fd4d8a8e436d2ce0c356"
+    },
+    {
+      "path": "iterations/2026-11-13-25-personal-ntfs/changes.patch",
+      "sha256": "77caecfd0c00fa59b8cccf33fbf03553e000eff0f0e7e1046f05573f32d02438"
+    },
+    {
+      "path": "iterations/2026-11-13-25-personal-ntfs/checks.json",
+      "sha256": "b568fdb8b69e9bedb4cb03fe4dc3941cb287b59b461c7093d681e86789b3ee7d"
+    },
+    {
+      "path": "src/Scanning/Ntfs/FastScanBridge.cs",
+      "sha256": "61162cc9e121849daaa000303038088f884990933998bfcd25c675b310b22454"
+    },
+    {
+      "path": "src/Scanning/Ntfs/FastScanCoordinator.cs",
+      "sha256": "59033c33bdb5ccd496b4c018d50505aea3dcacf0e2ab17e0938766113634c701"
+    },
+    {
+      "path": "src/Scanning/Ntfs/FastScanWire.cs",
+      "sha256": "504f99b70d489222c52007524fb783b32525f564b963ae2ac67499e252874a0f"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsMftBitmapPrefix.cs",
+      "sha256": "22a707c2a8ee45e352d4393c027a129c308a9f4bbce66abedd4d83f01e5efeb5"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsMftBitmapSelection.cs",
+      "sha256": "f6237794f02f75b642a33bd696a81ce2f681f219045e989bdfa4ff170e799fed"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsMftMap.cs",
+      "sha256": "cbaf1ba47e6e9f7c2b774a712d5479bf487fec67a366833b65228fd82b73cc94"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsMftReadInto.cs",
+      "sha256": "920b7a94cf9c20efb1a60add6a613dc491a7d17a7d48e50280ea1e15038c3673"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsPersonalScan.cs",
+      "sha256": "e7ad13d33d6ba743e145d31fa6e8a4abf27e6baa7223b398ffd5e948c24c89c4"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsPersonalSnapshotSource.cs",
+      "sha256": "4848c6894475e0614a77d78256be2b739eea7fbdcb92630a009357cd2ed24a11"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsRecordDecoder.cs",
+      "sha256": "492c0bb9705bd5db5ed42098ca7cba08e6e65e911438c97523c5044cc47b967b"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsSnapshotMetadata.cs",
+      "sha256": "c906bd8c89ff69ec2f7dacdbd5b9720a4ade612ce90ec361bd9d41849bf6e527"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsSnapshotNamespace.cs",
+      "sha256": "aafe918dde0fdd5b6abc851630dfc7998de88e7536af74e9a1892b5e27d6d9ef"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsSnapshotSizeIndex.cs",
+      "sha256": "0ce8accbe149cc78a292550dda408b43ac21acd1e57ff251d85946cea38bf933"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsSnapshotVolumeReader.cs",
+      "sha256": "e0f9e103543a4d8769e076d76520d9347a817543887983c64ca3fd2a67ba23d3"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsVolumePreflight.cs",
+      "sha256": "9e35c06299a25604c48928da1330870389d801b96af8e0bb021ab51e7861b758"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsVssNativeSession.cs",
+      "sha256": "7ae732a17c313cd9d91ff6fe354e6e519383ca279d775b6797a3fced6de2cb11"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsVssProbeException.cs",
+      "sha256": "83db518d07482e3179c71e6dc19af2a2b13f7a11a99f7b9dd8caf795ad7c93dc"
+    },
+    {
+      "path": "tests/FastScanBridgeContractTests.cs",
+      "sha256": "f37e6a98d500dee9a87d428635ca43d6f29d66e969b3b96358c33eb7d7124de1"
+    },
+    {
+      "path": "tests/FastScanCoordinatorTests.cs",
+      "sha256": "0e0375ea1a2f643c10e6acb486110093c8a1388c4aa13607f455b4edcc448567"
+    },
+    {
+      "path": "tests/FastScanMainFormTests.cs",
+      "sha256": "e94c71a8884b0583a7cc37e22e273924d721193c68e5607ecc4c794785fcbc9f"
+    },
+    {
+      "path": "tests/FastScanWireTests.cs",
+      "sha256": "52d1a57ed16bc558bef70aebc4040488493dbf5b8729cdbdeb3f451ff05620b1"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "07f8cbae8fdb978fd4bb0cb7e8295036f15785d3e39c9018a4afa650be29f40d"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsMftEnumerator.cs",
+      "sha256": "1d8a7ddad5a9a8e8ebd62cbd194f67a871e0e6acf245b67afd341ebc79426608"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsPersonalIndexTests.cs",
+      "sha256": "758529f2eeff08436fe5adb3fb5d7390b481802fc2c23a2ae7e5992d332fa338"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsPersonalSnapshotSourceTests.cs",
+      "sha256": "1bbcc653ada9b26da348179783f145dcf92ba5368fbd4387231893ca9e37f4ec"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsSnapshotVolumeReader.Fixture.cs",
+      "sha256": "e52c8cb8d92e4d1dbb6a72d197409150b9366c023796e862ac14ce527974b583"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsSnapshotVolumeReaderTests.cs",
+      "sha256": "5adf1b68f7ec9d476b43c093cc3deba6ac20cb11f4fff419eba72b78fe16c4c1"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsVssFixtureOwner.cs",
+      "sha256": "d83319b3692040700055781aab62b84fdec4261a5324a6cf73453e938d523a42"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsVssFixtureProbe.cs",
+      "sha256": "6b9de9faca2703fdc98200db481d61759259b56239f277ead2bad789a0738c63"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsVssFixtureProbeTests.cs",
+      "sha256": "e05378104903b8550db00058b21f2173529bd7a64628e225f06bbb7b0a1147c4"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/README.md",
+      "sha256": "a2a6ec30f91cdcd3d3e4e0d735d05f260633a84641669d567e8abcad62f3bdce"
+    }
+  ],
+  "deleted": [
+    "tests/Prototypes/Ntfs/NtfsMftBitmapPrefix.cs",
+    "tests/Prototypes/Ntfs/NtfsMftMap.cs",
+    "tests/Prototypes/Ntfs/NtfsRecordDecoder.cs",
+    "tests/Prototypes/Ntfs/NtfsSnapshotNamespace.cs",
+    "tests/Prototypes/Ntfs/NtfsSnapshotSizeIndex.cs",
+    "tests/Prototypes/Ntfs/NtfsSnapshotVolumeReader.cs",
+    "tests/Prototypes/Ntfs/NtfsVolumePreflight.cs"
+  ]
+}

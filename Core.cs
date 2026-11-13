@@ -150,7 +150,11 @@ public record ScanResult(DiskEntry Root, TimeSpan Elapsed, long Skipped, IReadOn
     public IReadOnlyList<ScanIssue> AllocationIssues { get; init; } = [];
     public JournalCheckpoint? Checkpoint { get; init; }
     public ScanStatistics? Statistics { get; init; }
+    public SnapshotScanSource? Source { get; init; }
+    internal FastScanWireError? FastScanFallback { get; init; }
 }
+
+public sealed record SnapshotScanSource(DateTimeOffset CapturedAt);
 
 public sealed class DiskScanner
 {

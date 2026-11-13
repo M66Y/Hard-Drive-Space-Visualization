@@ -9,11 +9,15 @@ namespace DiskAtlas.NtfsPrototype;
 internal readonly record struct NtfsSnapshotNamespaceIo(bool Success, int Error);
 internal sealed record NtfsSnapshotNamespaceEntry(int Index, int ParentIndex, string Name, FileIdentity Identity,
     FileAttributes Attributes, bool Reparse)
-{ internal bool Directory => (Attributes & FileAttributes.Directory) != 0; }
+{
+    internal bool Directory => (Attributes & FileAttributes.Directory) != 0;
+    internal DateTime? Modified { get; init; }
+}
 internal sealed record NtfsSnapshotNamespaceReport(string Revision, int Entries, int FileEntries, int Directories,
     int UniqueFileObjects, int ReparseEntries, int OpenedDirectories, int Pages, int Queries, int NameCharacters,
     int CompletedDirectories, bool CompleteWithinBoundary);
-internal sealed record NtfsSnapshotNamespacePageEntry(string Name, ulong Low, ulong High, FileAttributes Attributes);
+internal sealed record NtfsSnapshotNamespacePageEntry(string Name, ulong Low, ulong High, FileAttributes Attributes)
+{ internal DateTime? Modified { get; init; } }
 internal sealed class NtfsSnapshotNamespaceResult(NtfsSnapshotNamespaceReport report,
     IReadOnlyList<NtfsSnapshotNamespaceEntry> entries, IReadOnlyList<string> paths, FileIdentity rootIdentity)
 {
@@ -38,6 +42,7 @@ internal static class NtfsSnapshotNamespace
     internal interface IBackend
     {
         FileIdentity RootIdentity { get; }
+        DateTime? RootModified => null;
         ICursor OpenDirectory(NtfsSnapshotNamespaceEntry directory, string relativePath, CancellationToken token);
     }
     internal interface ICursor : IDisposable
@@ -55,8 +60,9 @@ internal static class NtfsSnapshotNamespace
         catch (Exception) { token.ThrowIfCancellationRequested(); throw new NtfsSnapshotNamespaceException("NamespaceInput"); }
         token.ThrowIfCancellationRequested(); return value;
     }
-    private static bool IdentityValid(FileIdentity identity) => identity.High == 0 && identity.Low >> 48 != 0 &&
-        (identity.Low & NtfsRecordDecoder.MaximumRecordNumber) < MaximumEntries;
+    // Namespace count is bounded independently of the 48-bit on-disk slot ID.
+    // A small selected folder can live at a high slot in a large personal MFT.
+    private static bool IdentityValid(FileIdentity identity) => identity.High == 0 && identity.Low >> 48 != 0;
     private static bool NameValid(string name) => name.Length is >= 1 and <= 255 &&
         !name.Any(character => char.IsControl(character) || character is '/' or '\\' or ':');
 
@@ -89,7 +95,14 @@ internal static class NtfsSnapshotNamespace
             ulong low = BinaryPrimitives.ReadUInt64LittleEndian(page[(offset + 72)..]);
             ulong high = BinaryPrimitives.ReadUInt64LittleEndian(page[(offset + 80)..]);
             Require(IdentityValid(new(0, low, high)), "NamespaceIdentity");
-            result.Add(new(name, low, high, attributes));
+            long modified = BinaryPrimitives.ReadInt64LittleEndian(page[(offset + 16)..]);
+            DateTime? observedTime = null;
+            if (modified > 0)
+            {
+                try { observedTime = DateTime.FromFileTimeUtc(modified).ToLocalTime(); }
+                catch (ArgumentOutOfRangeException) { throw new NtfsSnapshotNamespaceException("NamespaceModifiedTime"); }
+            }
+            result.Add(new(name, low, high, attributes) { Modified = observedTime });
             if (next == 0) break;
             offset = checked(offset + (int)next);
         }
@@ -101,7 +114,8 @@ internal static class NtfsSnapshotNamespace
         token.ThrowIfCancellationRequested(); Require(backend != null, "NamespaceInput");
         FileIdentity rootIdentity = External(() => backend.RootIdentity, token);
         Require(IdentityValid(rootIdentity), "NamespaceIdentity");
-        var root = new NtfsSnapshotNamespaceEntry(0, -1, "", rootIdentity, FileAttributes.Directory, false);
+        var root = new NtfsSnapshotNamespaceEntry(0, -1, "", rootIdentity, FileAttributes.Directory, false)
+            { Modified = External(() => backend.RootModified, token) };
         var entries = new List<NtfsSnapshotNamespaceEntry> { root };
         var paths = new List<string> { "" };
         var queue = new Queue<int>(); queue.Enqueue(0);
@@ -167,7 +181,7 @@ internal static class NtfsSnapshotNamespace
                         string path = prefix.Length == 0 ? row.Name : prefix + "/" + row.Name;
                         pathCharacters += path.Length;
                         int index = entries.Count;
-                        entries.Add(new(index, directoryIndex, row.Name, identity, row.Attributes, isReparse)); paths.Add(path);
+                        entries.Add(new(index, directoryIndex, row.Name, identity, row.Attributes, isReparse) { Modified = row.Modified }); paths.Add(path);
                         if (isReparse) reparse++;
                         if (isDirectory)
                         {

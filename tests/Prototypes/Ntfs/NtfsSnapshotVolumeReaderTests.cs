@@ -59,6 +59,26 @@ internal static class NtfsSnapshotVolumeReaderTests
             Check(reader.RequestedBytes == 256L * 1024 * 1024 + 65536, "scale consumes only its explicitly larger aggregate profile");
             Rejected(() => reader.ReadInto(0, new byte[512]), "VssRawRead", "scale cannot exceed 256 MiB plus 64 KiB");
         }
+        const long personalVolume = 4L * 1024 * 1024 * 1024 * 1024;
+        Fake Personal()
+        {
+            var value = new Fake(); W64(value.Metadata, 8, personalVolume / 512); W64(value.Metadata, 16, personalVolume / 4096);
+            W64(value.Metadata, 56, 2L * 1024 * 1024 * 1024); return value;
+        }
+        using (var reader = NtfsSnapshotVolumeReader.ForPersonalTests(Personal(), 41, personalVolume))
+        {
+            Check(reader.Facts().Geometry.MftValidDataLength == 2L * 1024 * 1024 * 1024, "personal profile accepts a large immutable MFT without reading its whole range");
+            byte[] block = new byte[65536]; for (int i = 0; i < 4112; i++) reader.ReadInto(personalVolume - 65536, block);
+            Check(reader.RequestedBytes == NtfsSnapshotVolumeReader.PersonalMaximumBytes && reader.ReadCalls == 4112, "personal raw data and bitmap share one nonresetting 257 MiB budget");
+            Rejected(() => reader.ReadInto(0, new byte[512]), "VssRawBudget", "personal profile cannot exceed its aggregate limit");
+        }
+        using (var reader = NtfsSnapshotVolumeReader.ForPersonalTests(Personal(), 41, personalVolume))
+        {
+            byte[] block = new byte[512]; for (int i = 0; i < 8192; i++) reader.ReadInto(0, block);
+            Rejected(() => reader.ReadInto(0, block), "VssRawBudget", "personal profile retains 8192 request cap");
+        }
+        using (var reader = NtfsSnapshotVolumeReader.ForTests(Personal(), 41, personalVolume, scale: true))
+            Rejected(() => reader.Facts(), "VssRawGeometry", "new personal geometry cannot expand fixture authorization");
         foreach (var alteration in new (int Offset, long Value, bool Wide)[] { (0, 42, true), (8, 999, true), (16, 0, true), (16, 9999999, true),
             (40, 4096, false), (44, 8192, false), (48, 2048, false), (56, 0, true), (56, 1025, true), (56, 2097152, true),
             (64, -1, true), (64, 256, true) })

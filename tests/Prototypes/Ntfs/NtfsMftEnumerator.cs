@@ -5,7 +5,6 @@ namespace DiskAtlas.NtfsPrototype;
 
 // The offset belongs to the validated MFT data stream, never to a volume. The
 // real source supplies a private token-bound callback; tests supply memory.
-internal delegate int NtfsMftReadInto(long mftOffset, Memory<byte> destination, CancellationToken token);
 internal sealed class NtfsMftEnumerationException(string code) : IOException(code)
 {
     internal string Code { get; } = code;

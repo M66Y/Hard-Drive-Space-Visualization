@@ -1,33 +1,41 @@
 # AsukaLens 开发检查点
 
-2026-11-12。C23已提交推送d8dbf2fcd44fd47fcc273e906e8f2a3eebbacab1，39文件/manifest38项已从committed blobs验证；C24基线此sha，归档iterations/2026-11-12-24-snapshot-scan。正式版仍v1.5.0，无打包/Release。
+2026-11-13。C25基线fd0639e8d3c4b217a376b50460ea261752c20179（C24已完成提交推送，manifest33项）；本轮提交/上传结果以Git实查为准。正式版仍v1.5.0，本轮无打包/Release。
 
-## 最新用户指令与暂停
+## 当前任务与授权
 
-用户要求十五分钟内推进，14:43:37–14:58:37 UTC，到点未完成部分暂停。当前只收尾，不再开新Native/构建/UI功能。C24测试后端已完成验证，个人卷/主窗/IPC仍未完成，不标整个用户目标完成。截止后等待用户新消息再执行。
+用户恢复开发：先完成真实磁盘支持，再接主窗；没有新的时间预算。先前15分钟暂停、VHD和metadata-only许可不自动延续。C25已完成代码与合成/本机IPC/控件验证，仍在执行必要收尾；个人卷raw/VSS实测和实际画面尚待确认，不能宣称整个用户目标完成。
 
-授权本轮新1GiB自有VHD，结合10k/100k VSS同源核验与性能对照；单独读取会话≤262144槽/raw256MiB+64KiB/8192calls，每owner一次reader预算不重置。六独立snapshot同静态数据，3×MFT/3×Directory，无warmup；总raw另列。个人卷仅明确指定的metadata预检(128B FSCTL)，不records/names/content或personal snapshot；具体值不入repo，私有结果已删除。后续不能自动沿用为个人原始读取许可。
+已提出修正版实测题，尚未收到答复：个人目录短时VSS、raw257MiB/8192次、262144入口；MFT页可能包含邻近对象及驻留小文件内容片段，仅解析选中元信息，不开数据流、不保存/上传raw与清单。旧“不读取正文”题被修正版取代。没有新VHD许可。实际画面需要可用桌面，未确认则保留待验收。
 
-## C24实际结果
+## 已实现的C25工作区
 
-Namespace batch19/20：完整IDs/游标/父链/预算，不信cached size。SizeIndex只解selected slots，不保全卷names，8worker/queue128/32768 Native unknown对象一次补，矛盾wholefail，所有worker退出后才cleanup。Owner/Reader真实source受新fixture-vss-scale Guard绑定，COM same-thread，失败cleanupflag保留。
+基线fd0639e，所有dirty均本任务：Core/MainForm/Program/双语README/AGENTS/docs、src/Scanning/Ntfs共享生产核、旧tests源搬移及新回归、iterations/2026-11-13-25-personal-ntfs。三位子Agent已封板，无并发写入。root统一构建/归档/提交。
 
-最终build0warn0error。pure：preflight64、namespace84、size46、NativeVssScale28；VSS79probe+20legacyguard+73reader+20scaleguard；PS newVssScale1027/driver266/ScaleGuards36通过，独审无阻塞。
+大MFT按选中slot读取bitmap最多512扇区，MFT最多4096页，源总257MiB/8192calls；scope262144/32MiUTF16，Native32768对象/8workers/queue128。只支持本地fixed NTFS3.1、512/4096/1024；ACL/reparse/属性扩展等整次回退，不能等同所有整盘支持。
 
-初始两Native在SnapshotCreate失败，均cleaned；主因同进程多session重复CoInitializeSecurity。已改本组件成功后进程复用，外部RPC_E_TOO_LATE仍拒，补4反例。Open不丢fixed typed.Code；wrapper保存安全stage/native_error。修后真实10k/100k各6sessions全部fingerprint一致，legacy小Probe重验过；所有ownedVHD/snapshots清理，active Native/UAC/exec为0。
+PersonalSource先固定live逐级身份及卷GUID，再同snapshot逐级复核；source.Create异常始终保留cleanup事实。共享VSS owner固定MTA线程，实际snapshot GUID/provider/清理保留，旧fixture守卫/预算不变。生产代码不依赖测试factory。
 
-10k fullwall median MFT562.5395ms / Directory1376.3029ms；100k3022.9848 /11072.2267ms（此受控数据约3.663x）。含Create/backend/cleanup；指纹在时钟外，WSS20ms采样非绝对peak，不等个人盘/Win10/WizTree。counts10000/100000objects，10010/100010entries，各100dirs；logical8234240/82250240，Nativeallocated32800000/328000000，unknown0。100k每raw102577664bytes/10000 NativeSupplementCalls，3raw累计另列。
+主窗默认关NTFS快扫：普通进程+同exe短时提权worker；父启动时间/path和双方OS PID、user SID ACL、首实例+remote-reject管道，路径/树仅内存。worker分支早于WinForms/日志初始化。完整树+cleanup确认才发布；用户cancel恢复旧树不fallback；支持失败仅cleaned=true后普通fallback；清理未知本进程latch禁再快扫。snapshot结果Source.CapturedAt且Checkpoint=null，不直接复用live刷新基线；定位前后台核当前完整ID。
 
-C23持锁对照未提速(1.079/10.309s vs0.913/9.149s)，锁卷缓存混杂保留全样本，不能拿它当新VSS路线速度。当前新结果仅自有固定普通混合夹具。
+Modified已补，同snapshot SI对象时间优先；硬链接用统一对象时间，不为目录陈旧缓存误报。快路不挂LiveSession partial，普通fallback session仍独立。
 
-## 当前文件/收尾
+## 已运行验证
 
-C24所有dirty均为本任务，Root负责Program/wrapper/driver/docs/archive/memory；attribute Owner/Reader/Guard/preflight，Source SizeIndex/NativeRunner，PSagent Namespace/PS门/driver tests。各作者已封板不再编辑/构建。旧kernel六样本8files9683B ignored保留不动。C24 7份结果已hash核对归档后删本机副本，private metadata不归档已删，owned目录0，无重复Preview。
+应用/测试--no-restore Release build零warning/error（最终微调后已统一复建）。core38/advanced25/journal16；新Wire117/Coordinator45/pipe44/PersonalSource45/PersonalIndex27；namespace84/size46；VSS79probe+20fixture+78reader+20scaleguard；Map199/bitmapPrefix94/vssScale28/prototype147/raw108/preflight64。
 
-Root正在作C24统一补丁/SHA/隐私检查与commit/push main；提交结果以Git为准。恢复补丁必须使用versioned baseline bytes及命令级core.autocrlf=false（global true/local false），避免换行转换；C23已用binary-safe patch逐字节恢复37payload。不要为小helper拆轮、不要force、不要新Release。
+主窗default与96DPI最终各60项通过，可选屏幕捕获不算visual；general UI default/96通过；DiskActivityMainForm58通过。截图内容并非应用实际画面，不能当visual证据、不能归档，root需删除本轮ignored截图。正常控件回归修了嵌套列自动宽度越界。受限桌面GDI失败已改交互桌面跑控件，不算实际观感通过。
 
-## 接续优先项
+PS ScaleGuards36/VssScale1027通过，ValidationDriver266通过，exec会话已收回。根构建restore因环境NuGet配置权限失败，已使用已有assets/no-restore通过；未修改用户NuGet配置。
 
-个人实际卷规模超过当前全MFT范围假设，具体值不存；需设计选中范围的高slot/位图寻址与预算，再评估个人来源。生产权限助手/受限IPC/普通权限MainForm可选入口尚未实现。当前代码仍tests/Prototypes/Ntfs，不宣称已上线快扫；先把共享代码/通用来源整理并以受控卷验收，实际个人snapshot/records另行明确范围。
+## 既有C24证据
 
-MainForm正常返回ScanResult会替换oldcomplete、Live.Attach只一次；快路partial/unknown不能正常return，cleanup确认后独立session常规fallback，用户cancel不重扫。snapshot结果不复用live journal checkpoint；当前个人元信息预检不意味着完整扫描支持。暂停时不继续路线图。
+C24同snapshot namespace+紧凑索引/Native后端，10k MFT562.5395ms/目录1376.3029；100k3022.9848/11072.2267（受控普通混合数据约3.66x），6独立session全部指纹/两大小一致并清理。含Create/backend/cleanup，非个人卷/Win10/WizTree保证。C23持锁路径无稳定收益，不能择样。详见iterations/2026-11-12-24-snapshot-scan。
+
+## 后续与收尾
+
+最终build/本机pipe和受影响UI回归已通过；等待修正版个人读取授权与实际画面条件，不擅自Native。若批准，真实source尝试必须全程严格预算并确认只清理本次snapshot，私有结果不落公共archive；格式失败如实回退再修范围内兼容。无许可则保留真实功能待验收。
+
+同步docs/证据、隐私核查、恢复patch和SHA、清理、自动提交推送main。本轮实现不等全部验收，提交也不等新Release。Git .git及memory references需平台允许写入；不force。补丁用versioned blob bytes、命令级core.autocrlf=false、binary-safe stdout，旧global autocrlf=true不能影响恢复验证。
+
+旧kernel六样本8files9683B ignored保留，不清理或上传；无本轮VHD/个人snapshot，个人预检旧私有文件已删。

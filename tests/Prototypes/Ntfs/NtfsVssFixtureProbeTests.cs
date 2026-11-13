@@ -12,18 +12,18 @@ internal static class NtfsVssFixtureProbeTests
         int passed = 0;
         void Check(bool condition, string name)
         { if (!condition) throw new InvalidOperationException("VSS probe check " + name); passed++; Console.WriteLine("PASS VSS probe " + name); }
-        Check(IntPtr.Size == 8 && Marshal.SizeOf<NtfsVssFixtureOwner.SnapshotProperties>() == 128, "x64 snapshot property ABI size");
+        Check(IntPtr.Size == 8 && Marshal.SizeOf<NtfsVssNativeSession.SnapshotProperties>() == 128, "x64 snapshot property ABI size");
         foreach (var pair in new (string Field, int Offset)[] { ("Snapshot", 0), ("Set", 16), ("Count", 32), ("Device", 40),
             ("Original", 48), ("OriginatingMachine", 56), ("ServiceMachine", 64), ("ExposedName", 72), ("ExposedPath", 80),
             ("Provider", 88), ("Attributes", 104), ("Created", 112), ("State", 120) })
-            Check(Marshal.OffsetOf<NtfsVssFixtureOwner.SnapshotProperties>(pair.Field).ToInt32() == pair.Offset, "snapshot property field offset");
-        Check(NtfsVssFixtureOwner.InitializeSlot == 5 && NtfsVssFixtureOwner.ContextSlot == 35 && NtfsVssFixtureOwner.StartSlot == 36 &&
-            NtfsVssFixtureOwner.AddSlot == 37 && NtfsVssFixtureOwner.SnapshotSlot == 38 && NtfsVssFixtureOwner.DeleteSlot == 39 &&
-            NtfsVssFixtureOwner.PropertiesSlot == 42 && NtfsVssFixtureOwner.SupportedSlot == 44, "SDK vtable positions include IUnknown");
-        var security = new NtfsVssFixtureOwner.SecurityOnce(); int securityCalls = 0;
+            Check(Marshal.OffsetOf<NtfsVssNativeSession.SnapshotProperties>(pair.Field).ToInt32() == pair.Offset, "snapshot property field offset");
+        Check(NtfsVssNativeSession.InitializeSlot == 5 && NtfsVssNativeSession.ContextSlot == 35 && NtfsVssNativeSession.StartSlot == 36 &&
+            NtfsVssNativeSession.AddSlot == 37 && NtfsVssNativeSession.SnapshotSlot == 38 && NtfsVssNativeSession.DeleteSlot == 39 &&
+            NtfsVssNativeSession.PropertiesSlot == 42 && NtfsVssNativeSession.SupportedSlot == 44, "SDK vtable positions include IUnknown");
+        var security = new NtfsVssNativeSession.SecurityOnce(); int securityCalls = 0;
         for (int owner = 0; owner < 6; owner++) security.Ensure(() => { securityCalls++; return securityCalls == 1 ? 0 : unchecked((int)0x80010119); });
         Check(securityCalls == 1, "six sequential owners share only this component successful process security initialization");
-        var foreignSecurity = new NtfsVssFixtureOwner.SecurityOnce(); int rejectedCalls = 0;
+        var foreignSecurity = new NtfsVssNativeSession.SecurityOnce(); int rejectedCalls = 0;
         for (int owner = 0; owner < 2; owner++)
         {
             bool rejected = false;
@@ -35,8 +35,8 @@ internal static class NtfsVssFixtureProbeTests
         Guid snapshot = Guid.Parse("01234567-89ab-cdef-0123-456789abcdef"), set = Guid.Parse("fedcba98-7654-3210-fedc-ba9876543210");
         string volume = @"\\?\Volume{00000000-0000-0000-0000-000000000001}\", device = @"\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy1";
         bool Binding(Guid? id = null, Guid? returnedSet = null, int count = 1, Guid? provider = null, int attributes = 0x10,
-            int state = 12, string? source = null, string? path = null) => NtfsVssFixtureOwner.BindingValid(snapshot, set,
-                id ?? snapshot, returnedSet ?? set, count, provider ?? NtfsVssFixtureOwner.SystemProvider, attributes, state,
+            int state = 12, string? source = null, string? path = null) => NtfsVssNativeSession.BindingValid(snapshot, set,
+                id ?? snapshot, returnedSet ?? set, count, provider ?? NtfsVssNativeSession.SystemProvider, attributes, state,
                 source ?? volume, volume, path ?? device);
         Check(Binding(), "one system-provider nonpersistent no-writer snapshot binds its exact source");
         Check(Binding(source: volume.ToUpperInvariant(), path: device.ToUpperInvariant()), "Windows device spelling is case insensitive");
@@ -47,11 +47,11 @@ internal static class NtfsVssFixtureProbeTests
         foreach (string path in new[] { @"C:\Synthetic", @"\\.\PhysicalDrive7", device + "\\outside", device + ":stream", device + "\nprivate", "" })
             Check(!Binding(path: path), "only returned global shadow device namespace accepted");
         Check(!Binding(source: @"\\?\Volume{00000000-0000-0000-0000-000000000002}\"), "source volume cannot be exchanged");
-        Check(NtfsVssFixtureOwner.AdoptGuid(0, snapshot, "VssAddVolume") == snapshot, "successful returned identifier becomes owned");
+        Check(NtfsVssNativeSession.AdoptGuid(0, snapshot, "VssAddVolume") == snapshot, "successful returned identifier becomes owned");
         foreach (var tuple in new[] { (unchecked((int)0x80004005), snapshot), (0, Guid.Empty) })
         {
             bool rejected = false;
-            try { _ = NtfsVssFixtureOwner.AdoptGuid(tuple.Item1, tuple.Item2, "VssAddVolume"); }
+            try { _ = NtfsVssNativeSession.AdoptGuid(tuple.Item1, tuple.Item2, "VssAddVolume"); }
             catch (NtfsVssProbeException error) { rejected = error.Code == "VssAddVolume" && error.Message == error.Code && error.InnerException == null; }
             Check(rejected, "failed HRESULT out identifier never becomes cleanup authority");
         }
@@ -70,14 +70,14 @@ internal static class NtfsVssFixtureProbeTests
             using var session = NtfsVssFixtureOwner.NativeSession.ForTests(fake.Backup, IntPtr.Zero, snapshot);
             Check(!session.Cleanup() && fake.Events.Last() == "backup-release", "query failure releases resources but never confirms cleanup");
         }
-        foreach (int state in new[] { NtfsVssFixtureOwner.AsyncFinished, NtfsVssFixtureOwner.AsyncCancelled, unchecked((int)0x80004005) })
+        foreach (int state in new[] { NtfsVssNativeSession.AsyncFinished, NtfsVssNativeSession.AsyncCancelled, unchecked((int)0x80004005) })
         {
             using var fake = new Tables(snapshot) { AsyncState = state };
             using var session = NtfsVssFixtureOwner.NativeSession.ForTests(fake.Backup, fake.Async, snapshot, creating: true);
             Check(session.Cleanup(), "cancelled operation settles its actual terminal state before cleanup");
             Check(string.Join(',', fake.Events) == "cancel,wait,query,delete,properties,async-release,backup-release", "async cancellation settles before owned delete and release");
         }
-        foreach (int state in new[] { 0, 1, int.MaxValue, NtfsVssFixtureOwner.AsyncPending })
+        foreach (int state in new[] { 0, 1, int.MaxValue, NtfsVssNativeSession.AsyncPending })
         {
             using var fake = new Tables(snapshot) { AsyncState = state };
             using var session = NtfsVssFixtureOwner.NativeSession.ForTests(fake.Backup, fake.Async, snapshot, creating: true);
@@ -150,7 +150,7 @@ internal static class NtfsVssFixtureProbeTests
         internal readonly List<string> Events = new();
         internal Guid Deleted, Queried;
         internal int DeleteType, Force;
-        internal int AsyncState = NtfsVssFixtureOwner.AsyncFinished, QueryResult, PropertyResult = NtfsVssFixtureOwner.ObjectNotFound;
+        internal int AsyncState = NtfsVssNativeSession.AsyncFinished, QueryResult, PropertyResult = NtfsVssNativeSession.ObjectNotFound;
         internal Tables(Guid expected)
         {
             backupTable = Marshal.AllocHGlobal(45 * IntPtr.Size); asyncTable = Marshal.AllocHGlobal(6 * IntPtr.Size);
@@ -158,17 +158,17 @@ internal static class NtfsVssFixtureProbeTests
             for (int i = 0; i < 45; i++) Marshal.WriteIntPtr(backupTable, i * IntPtr.Size, IntPtr.Zero);
             for (int i = 0; i < 6; i++) Marshal.WriteIntPtr(asyncTable, i * IntPtr.Size, IntPtr.Zero);
             Marshal.WriteIntPtr(Backup, backupTable); Marshal.WriteIntPtr(Async, asyncTable);
-            Set(backupTable, 2, new NtfsVssFixtureOwner.NativeSession.Release(self => { Events.Add("backup-release"); return 0; }));
-            Set(asyncTable, 2, new NtfsVssFixtureOwner.NativeSession.Release(self => { Events.Add("async-release"); return 0; }));
-            Set(asyncTable, 3, new NtfsVssFixtureOwner.NativeSession.NoArgs(self => { Events.Add("cancel"); return 0; }));
-            Set(asyncTable, 4, new NtfsVssFixtureOwner.NativeSession.Wait((self, milliseconds) => { Events.Add("wait"); return 0; }));
-            Set(asyncTable, 5, new NtfsVssFixtureOwner.NativeSession.QueryAsync((IntPtr self, out int status, IntPtr reserved) =>
+            Set(backupTable, 2, new NtfsVssNativeSession.Release(self => { Events.Add("backup-release"); return 0; }));
+            Set(asyncTable, 2, new NtfsVssNativeSession.Release(self => { Events.Add("async-release"); return 0; }));
+            Set(asyncTable, 3, new NtfsVssNativeSession.NoArgs(self => { Events.Add("cancel"); return 0; }));
+            Set(asyncTable, 4, new NtfsVssNativeSession.Wait((self, milliseconds) => { Events.Add("wait"); return 0; }));
+            Set(asyncTable, 5, new NtfsVssNativeSession.QueryAsync((IntPtr self, out int status, IntPtr reserved) =>
             { Events.Add("query"); status = AsyncState; return QueryResult; }));
-            Set(backupTable, NtfsVssFixtureOwner.DeleteSlot, new NtfsVssFixtureOwner.NativeSession.Delete(
+            Set(backupTable, NtfsVssNativeSession.DeleteSlot, new NtfsVssNativeSession.Delete(
                 (IntPtr self, Guid id, int type, int force, out int count, out Guid remaining) =>
                 { Events.Add("delete"); Deleted = id; DeleteType = type; Force = force; count = id == expected ? 1 : 0; remaining = Guid.Empty; return 0; }));
-            Set(backupTable, NtfsVssFixtureOwner.PropertiesSlot, new NtfsVssFixtureOwner.NativeSession.Properties(
-                (IntPtr self, Guid id, out NtfsVssFixtureOwner.SnapshotProperties properties) =>
+            Set(backupTable, NtfsVssNativeSession.PropertiesSlot, new NtfsVssNativeSession.Properties(
+                (IntPtr self, Guid id, out NtfsVssNativeSession.SnapshotProperties properties) =>
                 { Events.Add("properties"); Queried = id; properties = default; return PropertyResult; }));
         }
         private void Set(IntPtr table, int slot, Delegate callback)

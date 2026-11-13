@@ -1,0 +1,25 @@
+{
+  "revision": "personal-ntfs-acceptance-v1",
+  "baseline": "fd0639e8d3c4b217a376b50460ea261752c20179",
+  "build": { "app": "passed", "tests": "passed", "warnings": 0, "restore": false },
+  "synthetic": {
+    "personal_index": 27, "personal_source": 45,
+    "wire": 117, "coordinator": 45, "local_pipe": 44,
+    "namespace": 84, "size_index": 46,
+    "vss_probe": 79, "fixture_guards": 20, "snapshot_reader": 78, "scale_guards": 20,
+    "mft_map": 199, "bitmap_prefix": 94, "vss_scale": 28,
+    "ntfs_prototype": 147, "raw_volume": 108, "preflight": 64,
+    "core": 38, "advanced": 25, "journal": 16
+  },
+  "ui": {
+    "mainform_default_dpi": 60, "mainform_96_dpi": 60,
+    "general_default_dpi": "passed", "general_96_dpi": "passed", "disk_activity_mainform": 58,
+    "visual_observation": "pending"
+  },
+  "personal_volume": "not_executed_pending_permission",
+  "powershell": { "fixture_scale_guards": 36, "vss_scale_evidence": 1027, "validation_driver": 266 },
+  "new_vhd": "not_created",
+  "performance": "not_measured",
+  "windows10_new_backend": "pending",
+  "formal_release": false
+}

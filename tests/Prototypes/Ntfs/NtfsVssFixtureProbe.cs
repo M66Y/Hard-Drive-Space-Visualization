@@ -6,8 +6,6 @@ using Microsoft.Win32.SafeHandles;
 
 namespace DiskAtlas.NtfsPrototype;
 
-internal sealed class NtfsVssProbeException(string code, int error = 0) : IOException(code)
-{ internal string Code { get; } = code; internal int Error { get; } = error; }
 internal sealed record NtfsVssFixtureEvidence(string Revision, string Stage, int CreatedSnapshots, int DeletedSnapshots,
     int FilesCompared, int RawRecordsCompared, int RawReadCalls, long RawRequestedBytes, bool PropertiesBound,
     bool SnapshotFilesStable, bool LiveChangesObserved, bool GeometryVerified, bool RawRecordsMatched, bool CleanupConfirmed);

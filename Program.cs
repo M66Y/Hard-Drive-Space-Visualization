@@ -8,6 +8,11 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (FastScanBridge.IsWorkerRequest(args))
+        {
+            Environment.ExitCode = FastScanBridge.RunWorker(args);
+            return;
+        }
         try
         {
             // Process lifetime, including error dialogs and diagnostic shutdown. Multiple windows remain supported.

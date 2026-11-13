@@ -7,6 +7,10 @@ internal sealed class MainForm : Form
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     internal Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult>? ScanRunner { get; init; }
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    internal Func<string, IProgress<ScanProgress>?, CancellationToken, ScanResult>? FastScanRunner { get; init; }
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    internal bool NtfsFastEnabled { get => ntfsFast.Checked; set => ntfsFast.Checked = value; }
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     internal Func<Action<DiskActivityUpdate>, DiskActivityMonitor>? ActivityMonitorFactory { get; set; }
     internal readonly WallpaperRaster WallpaperRaster = new();
     internal BackgroundView BackgroundCrop { get; private set; } = BackgroundView.Default;
@@ -20,6 +24,7 @@ internal sealed class MainForm : Form
     private readonly ScanCoordinator coordinator = new();
     private readonly ComboBox strategyCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
     private readonly ComboBox metricCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
+    private readonly CheckBox ntfsFast = new() { Text = "NTFS 快扫（实验）", AutoSize = true, BackColor = Color.Transparent, Margin = Padding.Empty };
     private readonly Label refreshInfo = LabelOf("首次完整扫描，刷新时自动检查变化", 8, false, true);
     private readonly ToolTip scanTip = new() { AutoPopDelay = 20000, InitialDelay = 300 };
     private SizeMetric metric;
@@ -124,6 +129,8 @@ internal sealed class MainForm : Form
         scanTip.SetToolTip(totalCard, "统计卡始终包含当前目录及全部子目录，不随搜索、类型筛选或列表分页改变。\n实际占用按整个扫描范围去重；共享路径不重复计入，不等于删除后释放空间。");
         strategyCombo.Items.AddRange(["自动", "低占用", "高速"]); strategyCombo.SelectedIndex = 0;
         strategyCombo.SelectedIndexChanged += (_, _) => { if (scanCancellation == null) UpdateStrategyHint(); };
+        ntfsFast.CheckedChanged += (_, _) => { if (scanCancellation == null) UpdateStrategyHint(); };
+        scanTip.SetToolTip(ntfsFast, "可选实验后端：每次扫描会申请管理员授权并创建短时只读快照，完成后清理。\n读取本地 NTFS 记录（其中可能含小文件内嵌内容），仅提取大小等元信息，不保存原始记录。\n结果为快照时点。未支持或超限时转普通目录扫描，所选扫描策略用于回退。\n快照期间系统写入可能产生临时磁盘占用；文件和清单不会上传。");
         UpdateStrategyHint();
         metricCombo.Items.AddRange(["文件大小", "实际占用"]); metricCombo.SelectedIndex = 0;
         metricCombo.SelectedIndexChanged += (_, _) => { if (!changingMetric) { metric = (SizeMetric)metricCombo.SelectedIndex; UpdateView(true); } };
@@ -134,7 +141,7 @@ internal sealed class MainForm : Form
         refreshInfo.Click += (_, _) => { if (scanCancellation == null) ShowRefreshDetails(); };
         choose.Click += async (_, _) => await ChooseFolder();
         refresh.Click += async (_, _) => { if (scan != null) await ScanFolder(scan.Root.Path); };
-        cancel.Click += (_, _) => { scanCancellation?.Cancel(); cancel.Enabled = false; status.Text = "正在取消扫描…"; };
+        cancel.Click += (_, _) => { scanCancellation?.Cancel(); cancel.Enabled = false; status.Text = ntfsFast.Checked ? "正在取消 · 等待本次快照清理后恢复旧结果…" : "正在取消扫描…"; };
         up.Click += (_, _) => { if (current?.Parent != null) OpenDirectory(current.Parent); };
         home.Click += (_, _) =>
         {
@@ -196,6 +203,12 @@ internal sealed class MainForm : Form
     private string StrategyName => strategyCombo.SelectedIndex switch { 1 => "低占用", 2 => "高速", _ => "自动" };
     private void UpdateStrategyHint()
     {
+        if (ntfsFast.Checked)
+        {
+            refreshInfo.Text = "快照扫描 · 需要本次管理员授权";
+            scanTip.SetToolTip(refreshInfo, "NTFS 快扫使用同一只读快照核对目录、大小与硬链接。取消时恢复旧结果；未支持且确认清理后转普通扫描。");
+            return;
+        }
         var mode = (ScanMode)Math.Max(0, strategyCombo.SelectedIndex);
         string explanation = ScanPolicy.Explain(mode);
         refreshInfo.Text = mode == ScanMode.Automatic ? "自动 · 按设备选择目录并发" :
@@ -270,7 +283,7 @@ internal sealed class MainForm : Form
         var main = Table(1, 9);
         main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         main.Padding = new Padding(28, 22, 28, 12);
-        foreach (float height in new float[] { 85, 46, 124, 62 }) main.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+        foreach (float height in new float[] { 85, 60, 124, 62 }) main.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
         main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
         activityRow = new RowStyle(SizeType.Absolute, 32);
@@ -305,7 +318,12 @@ internal sealed class MainForm : Form
         settings.ColumnCount = 7;
         settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
         settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
-        settings.Controls.Add(refreshInfo, 4, 0);
+        var scanInfo = Table(1, 2); scanInfo.Margin = Padding.Empty;
+        scanInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        scanInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        scanInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        scanInfo.Controls.Add(ntfsFast, 0, 0); scanInfo.Controls.Add(refreshInfo, 0, 1);
+        settings.Controls.Add(scanInfo, 4, 0);
         settings.Controls.Add(backgroundSettings, 5, 0);
         settings.Controls.Add(diagnosticsButton, 6, 0);
         main.Controls.Add(settings, 0, 1);
@@ -485,6 +503,7 @@ internal sealed class MainForm : Form
         bool previousAscending = sortAscending;
         var previousMetric = metric;
         var options = new ScanOptions((ScanMode)strategyCombo.SelectedIndex);
+        bool useFast = ntfsFast.Checked;
         long? diagnosticScan = diagnostics?.NextScan();
         diagnostics?.Record(new() { Kind = DiagnosticKind.ScanStarted, Scan = diagnosticScan, Mode = options.Mode });
         var diagnosticWatch = Stopwatch.StartNew();
@@ -499,7 +518,7 @@ internal sealed class MainForm : Form
         viewCancellation?.Cancel(); viewCancellation = null;
         previewTimer.Start();
         choose.Enabled = refresh.Enabled = false;
-        strategyCombo.Enabled = metricCombo.Enabled = false;
+        strategyCombo.Enabled = metricCombo.Enabled = ntfsFast.Enabled = false;
         cancel.Visible = cancel.Enabled = true;
         progressBar.BeginScan();
         map.Scanning = scan == null;
@@ -536,7 +555,8 @@ internal sealed class MainForm : Form
         try
         {
             var result = await Task.Run(() => ScanRunner != null ? ScanRunner(path, progress, cancellation.Token, session) :
-                coordinator.Scan(path, previousScan, options, progress, cancellation.Token, session, forceFull), cancellation.Token);
+                useFast ? FastScanCoordinator.Scan(path, previousScan, options, progress, cancellation.Token, session, forceFull, FastScanRunner) :
+                coordinator.Scan(path, previousScan?.Source == null ? previousScan : null, options, progress, cancellation.Token, session, forceFull), cancellation.Token);
             if (IsDisposed || Disposing) return;
             cancellation.Token.ThrowIfCancellationRequested();
             diagnostics?.Record(new()
@@ -569,9 +589,15 @@ internal sealed class MainForm : Form
                 refreshInfo.Text = $"{RefreshPresentation.MethodName(stats.Method)} · 重扫 {stats.ReadDirectories:N0} 目录 · 复用 {stats.ReusedFiles:N0} 文件 · 点击详情";
                 scanTip.SetToolTip(refreshInfo, "点击查看最近完成的扫描详情\n" + RefreshPresentation.Details(stats));
             }
-            else refreshInfo.Text = IsIncomplete(scan) ? "扫描结束 · 结果不完整" : "扫描完成";
+            else refreshInfo.Text = scan.Source is { } source ? $"NTFS 快扫 · 快照 {source.CapturedAt.LocalDateTime:HH:mm:ss}" : IsIncomplete(scan) ? "扫描结束 · 结果不完整" : "扫描完成";
             status.Text = $"{(IsIncomplete(scan) ? "扫描结束 · 结果不完整" : "扫描完成")} · {SizeFormat.Number(scan.Root.FileCount)} 个文件" + (scan.Statistics is { } finished ? " · " + finished.Reason : "") +
                 (scan.Skipped > 0 ? $" · {scan.Skipped:N0} 项已跳过" : "") + (scan.Root.UnknownAllocationFiles > 0 ? $" · {scan.Root.UnknownAllocationFiles:N0} 项占用未知" : "");
+            if (scan.Source is { } snapshot) status.Text += $" · 只读快照 {snapshot.CapturedAt.LocalDateTime:HH:mm:ss}";
+            if (scan.FastScanFallback is { } fallback)
+            {
+                status.Text += " · 已转普通扫描：" + FastScanCoordinator.Reason(fallback);
+                scanTip.SetToolTip(refreshInfo, "NTFS 快扫已转普通扫描：" + FastScanCoordinator.Reason(fallback));
+            }
             progressBar.Finish(IsIncomplete(scan) ? ScanDisplayState.Incomplete : ScanDisplayState.Completed);
         }
         catch (OperationCanceledException)
@@ -605,7 +631,7 @@ internal sealed class MainForm : Form
             if (!IsDisposed)
             {
                 choose.Enabled = true; refresh.Enabled = scan != null; cancel.Visible = false;
-                strategyCombo.Enabled = metricCombo.Enabled = true;
+                strategyCombo.Enabled = metricCombo.Enabled = ntfsFast.Enabled = true;
                 refreshInfo.Cursor = scan?.Statistics != null ? Cursors.Hand : Cursors.Default;
                 map.Scanning = false; map.Invalidate();
                 if (cancellation.IsCancellationRequested || scan == previousScan) UpdateStrategyHint();
@@ -801,17 +827,19 @@ internal sealed class MainForm : Form
         subtitle.Text = "统计卡含当前目录全部子目录，不受筛选影响" +
             (current.Incomplete ? " · 当前目录未读全" : "") +
             (current.UnknownAllocationFiles > 0 ? $" · {current.UnknownAllocationFiles:N0} 项占用未知" : "") +
-            (typeFilter != null ? $" · 筛选 {typeFilter}" : "");
+            (typeFilter != null ? $" · 筛选 {typeFilter}" : "") +
+            (scan.Source is { } source ? $" · 快照 {source.CapturedAt.LocalDateTime:HH:mm:ss}（非实时）" : "");
         clearType.Visible = typeFilter != null;
         if (filterColumn != null) filterColumn.Width = typeFilter != null ? 142 * DeviceDpi / 96f : 0;
-        totalCard.Value = SizeFormat.Bytes(current.Bytes(metric)) + (metric == SizeMetric.Allocated && current.UnknownAllocationFiles > 0 ? " + 未知" : "");
+        totalCard.Value = SizeFormat.Bytes(directory.Bytes(metric)) + (metric == SizeMetric.Allocated && directory.UnknownAllocationFiles > 0 ? " + 未知" : "");
         totalCard.Title = metric == SizeMetric.Allocated ? "实际占用空间" : "当前目录大小";
         totalCard.Caption = (metric == SizeMetric.Allocated ? "已知分配量 · 硬链接去重" : "文件逻辑大小 · 1024 进制") +
             (current.Incomplete ? " · 未读全" : "");
         filesCard.Value = SizeFormat.Number(current.FileCount);
         foldersCard.Value = SizeFormat.Number(current.FolderCount);
         timeCard.Value = scan.Elapsed.TotalSeconds < .01 ? "< 0.01 s" : scan.Elapsed.TotalSeconds < 1 ? $"{scan.Elapsed.TotalSeconds:0.00} s" : $"{scan.Elapsed.TotalSeconds:0.0} s";
-        timeCard.Caption = IsIncomplete(scan) ? "结果不完整 · 查看未读取项" : "扫描完成 · 可随时重新扫描";
+        timeCard.Caption = IsIncomplete(scan) ? "结果不完整 · 查看未读取项" : scan.Source != null ? "含授权等待、扫描与快照清理" :
+            scan.FastScanFallback != null ? "含快扫尝试和普通扫描" : "扫描完成 · 可随时重新扫描";
         foreach (var card in new[] { totalCard, filesCard, foldersCard, timeCard }) card.Invalidate();
         up.Enabled = current.Parent != null; home.Enabled = current != scan.Root;
         updating = true;
@@ -990,9 +1018,33 @@ internal sealed class MainForm : Form
         else if (item.Entry != null) { selection = item; RevealSelection(); }
     }
 
-    private void RevealSelection()
+    private async void RevealSelection()
     {
         if (selection?.Entry is not { } entry) return;
+        var observedScan = scan;
+        if (observedScan?.Source != null)
+        {
+            reveal.Enabled = false;
+            try
+            {
+                bool matches = await Task.Run(() =>
+                {
+                    try
+                    {
+                        return entry.Storage != null && NativeStorage.TryRead(entry.Path, entry.IsDirectory,
+                            File.GetAttributes(entry.Path), out var live, out _) && live?.Identity == entry.Storage.Identity;
+                    }
+                    catch { return false; }
+                });
+                if (IsDisposed || Disposing || !ReferenceEquals(scan, observedScan)) return;
+                if (!matches)
+                {
+                    MessageBox.Show(this, "该路径已变化或无法核对身份，请重新扫描后再定位。", "快照项目已变化", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+            }
+            finally { if (!IsDisposed && !Disposing) reveal.Enabled = selection?.Entry != null; }
+        }
         TryAction(() =>
         {
             if (!File.Exists(entry.Path) && !Directory.Exists(entry.Path)) throw new IOException("该项目已移动或删除，请重新扫描。" );

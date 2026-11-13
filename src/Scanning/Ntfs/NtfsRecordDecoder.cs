@@ -3,7 +3,7 @@ using System.Text;
 
 namespace DiskAtlas.NtfsPrototype;
 
-// Offline prototype only. No handles, disk I/O, UI, or production scanner references.
+// Pure strict record decoding. No handles, disk I/O or source authority.
 internal enum NtfsDecodeStatus { Decoded, Free, Invalid, Unsupported }
 [Flags]
 internal enum NtfsLookupReason
@@ -14,7 +14,8 @@ internal enum NtfsLookupReason
 }
 internal sealed record NtfsName(ulong ParentReference, string Name, byte Namespace);
 internal sealed record NtfsRecord(ulong Reference, ulong BaseReference, bool IsDirectory, ushort LinkCount,
-    IReadOnlyList<NtfsName> Names, long? LogicalBytes, long? AllocatedBytes, NtfsLookupReason LookupReasons);
+    IReadOnlyList<NtfsName> Names, long? LogicalBytes, long? AllocatedBytes, NtfsLookupReason LookupReasons)
+{ internal DateTime? Modified { get; init; } }
 internal sealed record NtfsDecodeResult(NtfsDecodeStatus Status, NtfsRecord? Record, string Code);
 
 internal static class NtfsRecordDecoder
@@ -84,7 +85,7 @@ internal static class NtfsRecordDecoder
         var reasons = baseReference != 0 ? NtfsLookupReason.ExtensionRecord : NtfsLookupReason.None;
         var names = new List<NtfsName>();
         var ids = new HashSet<ushort>();
-        long? logical = null, allocation = null;
+        long? logical = null, allocation = null; DateTime? modified = null;
         bool sawData = false, sawStandard = false, sawEnd = false, geometryMismatch = false;
         for (int offset = attributes, count = 0; offset < record.Length;)
         {
@@ -128,6 +129,13 @@ internal static class NtfsRecordDecoder
             {
                 if (sawStandard || form != 0 || nameLength != 0 || value.Length < 48) return Invalid("StandardInformation");
                 sawStandard = true; reasons |= FileFlags(U32(value, 32));
+                long fileTime = I64(value, 8);
+                if (fileTime < 0) return Invalid("StandardInformation");
+                if (fileTime > 0)
+                {
+                    try { modified = DateTime.FromFileTimeUtc(fileTime).ToLocalTime(); }
+                    catch (ArgumentOutOfRangeException) { return Invalid("StandardInformation"); }
+                }
             }
             else if (type == 0x20) reasons |= NtfsLookupReason.AttributeList;
             else if (type == 0x30)
@@ -181,7 +189,8 @@ internal static class NtfsRecordDecoder
             NtfsLookupReason.MissingStandardInformation | NtfsLookupReason.ReparsePoint | NtfsLookupReason.Encrypted)) != 0) logical = allocation = null;
         if ((reasons & (NtfsLookupReason.Compressed | NtfsLookupReason.Sparse)) != 0) allocation = null;
         token.ThrowIfCancellationRequested();
-        return new(NtfsDecodeStatus.Decoded, new(reference, baseReference, directory, links, names.AsReadOnly(), logical, allocation, reasons), "Decoded");
+        return new(NtfsDecodeStatus.Decoded, new(reference, baseReference, directory, links, names.AsReadOnly(), logical, allocation, reasons)
+            { Modified = modified }, "Decoded");
     }
 
     private static NtfsLookupReason FileFlags(uint flags) =>

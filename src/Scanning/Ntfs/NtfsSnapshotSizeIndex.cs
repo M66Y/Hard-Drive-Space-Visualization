@@ -8,7 +8,8 @@ namespace DiskAtlas.NtfsPrototype;
 
 internal sealed record NtfsSnapshotSizeRequest(int EntryIndex,FileIdentity Identity,bool Directory,long? ExpectedLogicalBytes);
 internal sealed record NtfsSnapshotNativeSize(FileStorageInfo Storage,bool Directory,bool DeletePending=false);
-internal readonly record struct NtfsSnapshotObjectSize(FileIdentity Identity,bool Directory,long LogicalBytes,long AllocatedBytes,uint Links,bool Native);
+internal readonly record struct NtfsSnapshotObjectSize(FileIdentity Identity,bool Directory,long LogicalBytes,long AllocatedBytes,uint Links,bool Native)
+{ internal DateTime? Modified { get; init; } }
 internal sealed record NtfsSnapshotSizeIndexReport(string Revision,int ScopeObjects,int FileObjects,int DirectoryObjects,int FileEntries,
     int RawResolvedObjects,int NativeResolvedObjects,int NativeCalls,int PeakNativeWorkers,int PeakQueuedNative,int DecodedScopeRecords,
     int RawPagesRead,int UnknownObjects,long LogicalBytes,long AllocatedBytes,double RawReadMilliseconds,double ParseMilliseconds,
@@ -27,14 +28,15 @@ internal sealed class NtfsSnapshotSizeException(string code):IOException(code){i
 // No full-volume names or parsed NtfsRecord instances survive decoding.
 internal static class NtfsSnapshotSizeIndex
 {
-    internal const int MaximumEntries=262144,MaximumNativeObjects=32768,NativeWorkers=8,NativeQueueCapacity=128;
+    internal const int MaximumEntries=262144,MaximumNativeObjects=32768,NativeWorkers=8,NativeQueueCapacity=128,MaximumRawPages=4096;
     private sealed class Item(FileIdentity identity,bool directory,int entry)
     {
         internal readonly FileIdentity Identity=identity;
         internal readonly bool Directory=directory;
         internal readonly int EntryIndex=entry;
         internal int Aliases=1;
-        internal bool RawSeen,Decoded,NeedsNative;
+        internal bool RawSeen,Decoded,NeedsNative,ModifiedConflict;
+        internal DateTime? Modified;
         internal long? Logical,Allocated;
         internal uint? Links;
         internal NtfsSnapshotObjectSize Final;
@@ -57,7 +59,7 @@ internal static class NtfsSnapshotSizeIndex
         int entryCount=External(()=>scope.Entries.Count,token,"SnapshotSizeInput");
         Require(entryCount is >=1 and <=MaximumEntries&&scope.Report.Revision=="snapshot-namespace-v1"&&scope.Report.CompleteWithinBoundary&&scope.Report.Entries==entryCount,"SnapshotSizeNamespaceIncomplete");
         var geometry=map.Geometry;long valid=geometry.MftValidDataLength;
-        Require(geometry is {SectorBytes:512,ClusterBytes:4096,RecordBytes:1024}&&valid>=1024&&valid%1024==0&&valid/1024<=262144&&
+        Require(geometry is {SectorBytes:512,ClusterBytes:4096,RecordBytes:1024}&&valid>=1024&&valid%1024==0&&
             valid<=map.DataBytes&&valid<=map.InitializedBytes&&valid<=map.AllocatedBytes,"SnapshotSizeMap");
         var root=scope.RootIdentity;
         Require(root.High==0&&root.Low>>48!=0,"SnapshotSizeIdentity");
@@ -83,10 +85,12 @@ internal static class NtfsSnapshotSizeIndex
             if(items.TryGetValue(entry.Identity,out var existing))
             {
                 Require(!entry.Directory&&!existing.Directory,"SnapshotSizeDirectoryAlias");existing.Aliases++;
+                existing.ModifiedConflict|=existing.Modified.HasValue&&entry.Modified.HasValue&&existing.Modified.Value!=entry.Modified.Value;
+                existing.Modified??=entry.Modified;
             }
             else
             {
-                var item=new Item(entry.Identity,entry.Directory,i);Require(bySlot.TryAdd(slot,item),"SnapshotSizeSlotReused");
+                var item=new Item(entry.Identity,entry.Directory,i){Modified=entry.Modified};Require(bySlot.TryAdd(slot,item),"SnapshotSizeSlotReused");
                 Require(External(()=>allocated(slot),token,"SnapshotSizeAllocationRead"),"SourceConsistencyFailed");items.Add(entry.Identity,item);
             }
             if(i!=0){if(entry.Directory)directories++;else files++;}
@@ -98,7 +102,9 @@ internal static class NtfsSnapshotSizeIndex
         byte[] page=new byte[65536];
         // Membership comes from complete same-snapshot namespace enumeration.
         // Unselected slots are neither decoded nor reported as free/valid.
-        foreach(var batch in bySlot.OrderBy(pair=>pair.Key).GroupBy(pair=>pair.Key/64))
+        var selectedPages=bySlot.OrderBy(pair=>pair.Key).GroupBy(pair=>pair.Key/64).ToArray();
+        Require(selectedPages.Length<=MaximumRawPages,"SnapshotSizeRawBudget");
+        foreach(var batch in selectedPages)
         {
             token.ThrowIfCancellationRequested();long offset=checked((long)batch.Key*65536);int length=checked((int)Math.Min(65536,valid-offset));
             long before=Stopwatch.GetTimestamp();int received=External(()=>read(offset,page.AsMemory(0,length),token),token,"SnapshotSizeRead");
@@ -136,11 +142,13 @@ internal static class NtfsSnapshotSizeIndex
                         !record.LookupReasons.HasFlag(NtfsLookupReason.LinkNamesIncomplete);
                     item.Links=item.Directory?1u:completeNames?(uint)visible:null;
                     if(item.Links.HasValue)Require(item.Links.Value>=item.Aliases,"SourceConsistencyFailed");
-                    item.NeedsNative=record.BaseReference!=0||!item.Logical.HasValue||!item.Allocated.HasValue||!item.Links.HasValue;
+                    item.NeedsNative=record.BaseReference!=0||!item.Logical.HasValue||!item.Allocated.HasValue||!item.Links.HasValue||
+                        record.Modified==null&&item.ModifiedConflict;
                     if(!item.NeedsNative)
                     {
                         Require(item.Logical>=0&&item.Allocated>=0,"SnapshotSizeNegative");
-                        item.Final=new(item.Identity,item.Directory,item.Directory?0:item.Logical.GetValueOrDefault(),item.Directory?0:item.Allocated.GetValueOrDefault(),item.Links.GetValueOrDefault(),false);
+                        item.Final=new(item.Identity,item.Directory,item.Directory?0:item.Logical.GetValueOrDefault(),item.Directory?0:item.Allocated.GetValueOrDefault(),item.Links.GetValueOrDefault(),false)
+                            {Modified=record.Modified??item.Modified};
                     }
                 }
                 else if(result.Status==NtfsDecodeStatus.Unsupported)item.NeedsNative=true;
@@ -183,7 +191,8 @@ internal static class NtfsSnapshotSizeIndex
                             Require(item.Directory?storage.LogicalBytes==-1&&storage.AllocatedBytes==0:storage.LogicalBytes>=0,"SnapshotSizeNativeSize");
                             Require(!item.Logical.HasValue||logical==item.Logical.Value,"SnapshotSizeNativeLogical");
                             Require(!item.Allocated.HasValue||storage.AllocatedBytes==item.Allocated.Value,"SnapshotSizeNativeAllocation");
-                            linked.Token.ThrowIfCancellationRequested();item.Final=new(item.Identity,item.Directory,logical,storage.AllocatedBytes,storage.LinkCount,true);
+                            linked.Token.ThrowIfCancellationRequested();item.Final=new(item.Identity,item.Directory,logical,storage.AllocatedBytes,storage.LinkCount,true)
+                                { Modified = storage.Modified };
                         }
                         finally{Interlocked.Decrement(ref active);}
                     }
@@ -227,7 +236,7 @@ internal static class NtfsSnapshotSizeIndex
 
     // Pure UI-tree projection. The display root is never opened, and a scalar
     // size table never creates a native snapshot or product source proof.
-    internal static DiskEntry Materialize(NtfsSnapshotSizeIndexResult index,string rootPath,CancellationToken token=default)
+    internal static DiskEntry Materialize(NtfsSnapshotSizeIndexResult index,string rootPath,CancellationToken token=default,bool requireModified=false)
     {
         token.ThrowIfCancellationRequested();Require(index!=null&&rootPath!=null&&index.Report.Complete&&index.Report.UnknownObjects==0,"SnapshotSizeProjectionInput");
         var entries=index.Namespace.Entries;int count=entries.Count;
@@ -245,7 +254,10 @@ internal static class NtfsSnapshotSizeIndex
                 Require(item.ParentIndex>=0&&item.ParentIndex<i&&nodes[item.ParentIndex].IsDirectory,"SnapshotSizeProjectionBinding");
                 var parent=nodes[item.ParentIndex];node=DiskEntry.FromName(item.Name,item.Directory,parent,item.Directory?"文件夹":DiskEntry.ExtensionOf(item.Name));parent.MutableChildren.Add(node);
             }
-            node.Storage=new(size.Identity,size.AllocatedBytes,size.Links,false,item.Directory?-1:size.LogicalBytes);
+            var modified=size.Modified??item.Modified;
+            Require(!requireModified||modified.HasValue&&modified.Value> DateTime.MinValue,"SnapshotSizeModifiedUnknown");
+            node.Modified=modified.GetValueOrDefault();
+            node.Storage=new(size.Identity,size.AllocatedBytes,size.Links,false,item.Directory?-1:size.LogicalBytes,modified);
             if(!item.Directory){node.Size=size.LogicalBytes;node.FileCount=1;}nodes[i]=node;
         }
         for(int i=nodes.Length-1;i>0;i--)

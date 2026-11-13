@@ -34,3 +34,5 @@
 - 2026-11-12：C23合并扩容、端到端速度与自有VSS验证，旧profile不扩；10k/100k统计一致但MFT中位1.079/10.309s、目录0.913/9.149s，保留缓存波动，不为名义快扫直接产品化。驻留分配按Native实测，修正transport错误零假设；锁卷缓存混杂未独立量化，后续改同snapshot对照。依据archive23及docs/ntfs-scale-and-product-plan.md。
 - 2026-11-12：真实VSS小探针已证同source Native/内容/raw可读，选择不带writer、自动释放单snapshot；仅按成功返回并绑定的owned GUID清理，未知async不确认，失败保留私有恢复标识/镜像，不枚举删除他人。此证明不覆盖个人namespace完整性。依据archive23/vss-native.json、NtfsVssFixtureProbe与PS完整envelope门。
 - 2026-11-12：用户确定后续合并snapshot namespace/compact sizes/parallel Native及条件式主窗；完整目录入口作为scope authority，以避免strictDecoded缺失导致漏算，不按系统slot编号跳过。用户另允许指定个人卷metadata-only预检，具体值仅本机；没有个人snapshot/原始记录许可。理由是先保证完整范围和真实收益，再开放可选产品入口，不将测试完整性标签直接移给用户目录。
+
+- 2026-11-13：用户恢复C25，先真实卷后主窗，不沿用旧15分钟/VHD/个人metadata-only授权。选择按selected bitmap页/高slot支持大MFT，以明确预算保护资源；通用VSS源和普通权限主窗通过同exe短时助手连接。清理事实先于结果发布，取消不fallback，未知清理本进程锁止；理由是避免部分快结果或残余source污染旧完整结果。快照结果不带live USN checkpoint，修改时间以对象SI为准以避硬链接目录缓存陈旧。MFT物理页可能含邻近记录/驻留内容片段，个人实测必须据准确边界确认，不再用“不读取正文”概括raw。实现及合成/IPC/控件通过不等真实卷/视觉验收；合同docs/ntfs-personal-scan.md，归档iterations/2026-11-13-25-personal-ntfs。

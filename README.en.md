@@ -42,6 +42,8 @@ Get the SDK or runtime from [Microsoft](https://dotnet.microsoft.com/en-us/downl
 
 Also includes Automatic / Low-impact / High-speed strategies, live partial previews, cancellation and result recovery, NTFS journal-assisted refresh, local background cropping and accent colors, and [local diagnostics and problem notes](docs/diagnostics.md) (Chinese).
 
+The development source now has an opt-in **NTFS 快扫（实验）** (experimental fast scan) checkbox. A short-lived elevated helper and read-only snapshot backend are implemented; synthetic indexing, IPC and MainForm flows are tested. Personal-volume and visible-window acceptance remain pending. Unsupported formats, permissions, reparse points or resource limits fall back to directory scanning; this is not a whole-drive speed guarantee. See [scope and limitations](docs/ntfs-personal-scan.md) (Chinese). Published v1.5.0 assets do not include this feature.
+
 ## Quick start
 
 **New in the current development build: [disk activity panel](docs/disk-activity.md)** (Chinese guide). Expand it above scan progress to view the physical disk's last 60 seconds, activity, read/write throughput and response time. It follows the scan folder or a manually selected disk, pauses when collapsed or minimized, and keeps samples only in memory. Metrics cover the whole disk, including other processes. The published v1.5.0 assets do not include it.
