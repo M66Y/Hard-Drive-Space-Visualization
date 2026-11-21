@@ -1,6 +1,106 @@
 using DiskAtlas;
 using System.Drawing;
 
+if(args.Length==1 && args[0]=="--desktop-rendering-tests")return DesktopRenderingTests.Run();
+if(args.Length is 1 or 2 && args[0]=="--desktop-default-tests")return CompositionMainFormTests.Run(args.Contains("--dpi-96"),true);
+
+if(args.Length is 1 or 2 && args[0]=="--composition-mainform-tests")
+    return CompositionMainFormTests.Run(args.Contains("--dpi-96"));
+
+if(args.Length is 1 or 2 && args[0] is "--composition-backdrop-tests" or "--composition-backdrop-preview")
+    return CompositionBackdropTests.Run(args.Contains("--dpi-96"),args[0]=="--composition-backdrop-preview");
+
+while(args.Length>1 && args[0] is "--opaque-tests" or "--dib-tests" or "--composition-tests")
+{
+    AppContext.SetSwitch(args[0] switch { "--opaque-tests" => "AsukaLens.TestOpaqueRedirect", "--composition-tests" => "AsukaLens.TestComposition", _ => "AsukaLens.TestDib" },true);
+    args=args.Skip(1).ToArray();
+}
+
+if(args.Length is 1 or 2 && args[0]=="--opaque-redirect-tests")
+    return OpaqueRedirectTests.Run(args.Contains("--dpi-96"));
+
+if(args.Length is 2 or 3 && args[0]=="--early-client-probe")
+    return EarlyClientProbe.Run(args[1],args.Contains("--dpi-96"));
+
+if(args.Length is 1 or 2 && args[0]=="--resize-composition-tests")
+    return ResizeCompositionTests.Run(args.Contains("--dpi-96"));
+
+if(args.Length is >=1 and <=3 && args[0]=="--transparent-restore-tests")
+    return TransparentRestoreProbe.Run(args.Contains("--dpi-96"),true,true,args.Contains("--custom"));
+if(args.Length is 1 or 2 && args[0]=="--native-window-clip-tests")
+    return NativeWindowClipProbe.Run(args.Contains("--dpi-96"),true);
+
+if(args.Length is 1 or 2 && args[0]=="--native-window-clip-probe")
+    return NativeWindowClipProbe.Run(args.Contains("--dpi-96"));
+
+if(args.Length is 1 or 2 && args[0]=="--transparent-restore-probe")
+    return TransparentRestoreProbe.Run(args.Contains("--dpi-96"),true);
+if(args.Length is 1 or 2 && args[0]=="--transparent-restore-probe-off")
+    return TransparentRestoreProbe.Run(args.Contains("--dpi-96"),false);
+
+if(args.Length is 1 or 2 && args[0]=="--root-composite-tests")
+    return RootCompositeTests.Run(args.Contains("--dpi-96"));
+
+if(args.Length is >=2 and <=6 && args[0]=="--resize-pipeline-probe")
+    return ResizePipelineProbe.Run(args[1],args.Contains("--dpi-96"),args.Contains("--slow"),args.Contains("--pixels"),args.Contains("--c54"),args.Contains("--c55"),args.Contains("--c56"),args.Contains("--c57"));
+
+if(args.Contains("--dib-integration-tests")) return DibMainFormTests.Run(args.Contains("--dpi-96"),args.Contains("--cache-only"));
+
+// A clearly named, copied test apphost can be opened directly on the desktop.
+// The ordinary test apphost keeps its existing no-argument core-test behavior.
+if (args.Length == 0 && string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath),
+    "AsukaLens.NativeFramePrototype", StringComparison.OrdinalIgnoreCase))
+    return DiskAtlas.ResizePrototype.LiveResizePreview.Run(["--live-resize-preview", "canvas", "--coverage-candidate", "--dib-frame"]);
+
+if (args.Length == 0 && string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath),
+    "AsukaLens.ResizeCandidate", StringComparison.OrdinalIgnoreCase))
+    return StageOnePreview.Run(["--stage-one-preview", "b", "--reading-fixture", "--resize-candidate"]);
+
+if (args.Length == 0 && string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath),
+    "AsukaLens.ResizeCoverage", StringComparison.OrdinalIgnoreCase))
+    return DiskAtlas.ResizePrototype.LiveResizePreview.Run(["--live-resize-preview", "canvas", "--coverage-candidate"]);
+
+if (args.Length == 0 && string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath),
+    "AsukaLens.ResizePrototype", StringComparison.OrdinalIgnoreCase))
+    return DiskAtlas.ResizePrototype.LiveResizePreview.Run(["--live-resize-preview", "canvas"]);
+
+if (args.Length > 0 && args[0] == "--live-resize-preview")
+    return DiskAtlas.ResizePrototype.LiveResizePreview.Run(args);
+if (args.Length is 1 or 2 && args[0] == "--live-resize-prototype-tests" &&
+    (args.Length == 1 || args[1] == "--dpi-96"))
+    return DiskAtlas.ResizePrototype.ResizePrototypeTests.Run(args.Length == 2);
+
+if (args.Length is 1 or 2 && args[0] == "--split-panel-background-tests" &&
+    (args.Length == 1 || args[1] == "--dpi-96"))
+    return SplitPanelBackgroundExperimentTests.Run(args.Length == 2);
+
+if (args.Length is >= 1 and <= 3 && args[0] == "--resize-coverage-tests" &&
+    args.Skip(1).All(value => value is "--dpi-96" or "--dib-frame") &&
+    args.Skip(1).Distinct(StringComparer.Ordinal).Count() == args.Length - 1)
+    return DiskAtlas.ResizePrototype.ResizeCoverageTests.Run(args.Contains("--dpi-96"), args.Contains("--dib-frame"));
+
+if (args.Length is 1 or 2 && args[0] == "--resize-scene-cache-tests" &&
+    (args.Length == 1 || args[1] == "--dpi-96"))
+    return DiskAtlas.ResizePrototype.ResizeSceneCacheTests.Run(args.Length == 2);
+
+if (args.Length == 1 && args[0] == "--native-resize-frame-tests")
+    return DiskAtlas.ResizePrototype.NativeResizeFrameTests.Run();
+
+if (args.Length is 1 or 2 && args[0] == "--native-resize-host-tests" &&
+    (args.Length == 1 || args[1] == "--dpi-96"))
+    return DiskAtlas.ResizePrototype.NativeResizeHostLifecycleTests.Run(args.Length == 2);
+
+
+if (args.Length is 1 or 2 && args[0] == "--wallpaper-background-erase-tests" &&
+    (args.Length == 1 || args[1] == "--dpi-96"))
+    return WallpaperBackgroundEraseTests.Run(args.Length == 2);
+
+if (args.Length == 1 && args[0] == "--resize-pixel-policy-tests")
+{
+    try { int n = ResizePixelPolicyTests.Run(); Console.WriteLine($"PASS resize pixel policy: {n}; synthetic buffers only; visual acceptance separate"); return 0; }
+    catch { Console.Error.WriteLine("FAIL resize pixel policy; no private details emitted"); return 1; }
+}
+
 if (args.Length == 1 && args[0] == "--ntfs-reparse-policy-tests")
 {
     try { int n = DiskAtlas.NtfsPrototype.NtfsReparsePolicyTests.Run(); Console.WriteLine($"PASS reparse policy: {n}; synthetic only"); return 0; }
@@ -369,10 +469,39 @@ if (args.Contains("--disk-activity-tests"))
 }
 if (args.Contains("--disk-activity-panel-tests")) return DiskActivityPanelTests.Run(args.Contains("--dpi-96"));
 if (args.Contains("--disk-activity-mainform-tests")) return DiskActivityMainFormTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--navigation-activity-layout-tests")) return NavigationActivityLayoutTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--action-button-state-tests")) return ActionButtonStateTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--treemap-state-tests")) return TreemapStateTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--wallpaper-scroll-tests")) return WallpaperScrollRegression.Run(args.Contains("--dpi-96"));
+if (args.Contains("--wallpaper-cell-clip-tests")) return WallpaperCellClipTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--wallpaper-scroll-probe")) return WallpaperScrollPresentationProbe.Run(args.Contains("--dpi-96"));
+if (args.Contains("--wallpaper-grid-cache-tests")) return WallpaperGridCacheTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--workspace-layout-tests")) return WorkspaceLayoutTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--large-file-row-tests")) return LargeFileRowPresentationTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--hover-popup-policy-tests")) return HoverPopupPolicyTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--treemap-density-tests"))
+{
+    try { int checks = TreemapDensityLayoutTests.Run(); Console.WriteLine($"PASS treemap density checks={checks}; synthetic inputs only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL treemap density; no private details emitted"); return 1; }
+}
+if (args.Contains("--input-frame-surface-tests")) return InputFrameSurfaceTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--progress-marker-tests")) return ProgressMarkerRenderingTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--scrollbar-surface-tests")) return ScrollbarSurfaceTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--backdrop-stability-tests")) return BackdropStabilityTests.Run(args.Contains("--dpi-96"));
+if (args.Contains("--layout-transition-tests")) return LayoutTransitionRegression.Run(args.Contains("--dpi-96"));
+if (args.Contains("--layout-transition-preview")) return LayoutTransitionPreview.Run(args.Contains("--dpi-96"));
+#if !LAYOUT_BASELINE
+if (args.Contains("--layout-presentation-tests")) return LayoutPresentationPolicyTests.Run(args.Contains("--dpi-96"));
+#endif
+if (args.Contains("--wallpaper-drawing-probe")) return WallpaperDrawingProbe.Run();
 if (args.Contains("--disk-activity-live")) return DiskActivityLiveChecks.Run();
 if (args.Contains("--disk-activity-resource-probe")) return DiskActivityResourceProbe.Run();
 if (args.Contains("--disk-activity-scan-probe")) return DiskActivityScanProbe.Run();
-if (args.Contains("--disk-activity-layout-preview")) return DiskActivityLayoutPreview.Run(args.Last(), args.Contains("--minimum"));
+if (args.Contains("--disk-activity-layout-preview"))
+{
+    Console.Error.WriteLine("布局预览旧入口已退役；请使用 --stage-one-preview a|b [--expanded] [--details]。");
+    return 2;
+}
 if (args.Contains("--ntfs-prototype-tests")) return DiskAtlas.NtfsPrototype.NtfsPrototypeTests.Run();
 if (args.Contains("--ntfs-resident-lease-tests"))
 {
@@ -422,6 +551,7 @@ if (args.Contains("--readme-preview")) return ReadmePreview.Run(args.Last());
 if (args.Length > 0 && args[0] == "--stage-one-preview") return StageOnePreview.Run(args);
 if (args.Contains("--result-info-preview")) return ResultInformationRegression.Preview();
 if (args.Contains("--ui-regression")) return UiRegression.Run(args.Contains("--dpi-96"));
+if (args.Contains("--ui-functional-tests")) return UiRegression.Run(args.Contains("--dpi-96"), includeRenderCache: false);
 if (args.Contains("--visual-surface-tests")) return VisualSurfaceRegression.Run(args.Contains("--dpi-96"));
 if (args.Contains("--advanced-tests")) return AdvancedFeatures.Run();
 if (args.Contains("--journal-tests")) return JournalRegression.Run();

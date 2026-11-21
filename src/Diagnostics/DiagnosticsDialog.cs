@@ -248,7 +248,7 @@ internal sealed class DiagnosticsDialog : Form
     {
         Name = name, Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
         AllowUserToResizeRows = false, RowHeadersVisible = false, MultiSelect = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-        AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, BorderStyle = BorderStyle.None
+        AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, BorderStyle = BorderStyle.None, ShowCellToolTips = false
     };
     private static void AddColumn(DataGridView grid, string name, string title, float weight) => grid.Columns.Add(new DataGridViewTextBoxColumn
     { Name = name, HeaderText = title, ReadOnly = true, FillWeight = weight, SortMode = DataGridViewColumnSortMode.NotSortable });

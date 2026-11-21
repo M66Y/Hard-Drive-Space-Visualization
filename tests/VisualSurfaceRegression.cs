@@ -1,11 +1,22 @@
 using DiskAtlas;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 // In-process rendering checks on a real MainForm and a nonce-owned directory.
 // Bitmaps are assertions only; they are not desktop screenshots or visual sign-off.
 internal static class VisualSurfaceRegression
 {
     private const BindingFlags Fields = BindingFlags.Instance | BindingFlags.NonPublic;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRegionBox { internal int Left, Top, Right, Bottom; }
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
+    [DllImport("user32.dll")] private static extern int GetWindowRgn(IntPtr window, IntPtr region);
+    [DllImport("gdi32.dll")] private static extern int GetRgnBox(IntPtr region, out NativeRegionBox bounds);
+    [DllImport("gdi32.dll")] [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool PtInRegion(IntPtr region, int x, int y);
+    [DllImport("gdi32.dll")] [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteObject(IntPtr value);
 
     public static int Run(bool virtualized96Dpi = false)
     {
@@ -50,10 +61,14 @@ internal static class VisualSurfaceRegression
                         var grid = Field<DataGridView>(form, "grid");
                         Check(grid.RowCount == 3 && grid.Enabled, "OwnedDirectoryScan");
                         grid.ClearSelection(); grid.CurrentCell = null;
+                        form.PerformLayout(); form.Refresh(); await Task.Delay(30);
+                        Check(!form.HasCustomBackground, "DefaultIllustrationProbeUsesEmbeddedBackground");
+                        CheckGridSurface(grid, requireWallpaper: true);
+                        CheckRoundedModuleCorners(form);
                         for (int background = 0; background < 3; background++)
                         {
                             var image = Background(background);
-                            try { Invoke(form, "ApplyBackground", image, BackgroundView.Default, Theme.DefaultAccent, true); }
+                            try { Invoke(form, "ApplyBackground", image, BackgroundView.Default, Theme.DefaultAccent, false); }
                             catch { image.Dispose(); throw; }
                             // ApplyBackground now owns image and releases the previous one.
                             form.PerformLayout(); form.Refresh();
@@ -84,30 +99,95 @@ internal static class VisualSurfaceRegression
                 passed++;
             }
 
-            void CheckGridSurface(DataGridView grid)
+            void CheckGridSurface(DataGridView grid, bool requireWallpaper = false)
             {
                 Check(grid.ClientSize.Width > 30 && grid.ClientSize.Height > 30, "GridViewportAvailable");
                 var last = grid.GetRowDisplayRectangle(grid.RowCount - 1, true);
                 Check(last.Height > 0 && last.Bottom + 8 < grid.ClientSize.Height, "GridBlankRegionAvailable");
                 using var pixels = Draw(grid);
+                using var expected = new Bitmap(grid.Width, grid.Height);
+                // The independent reference is a GDI+ image, not a window DC.
+                // Native copies into its keyed GetHdc surface cannot establish
+                // source alpha; compare the real grid with source-over paint.
+                using (var graphics = Graphics.FromImage(expected)) Wallpaper.Paint(grid, graphics, surface: WallpaperSurface.Data, nativeCopy: false);
                 int emptyY = (last.Bottom + grid.ClientSize.Height - 8) / 2;
                 foreach (int x in new[] { grid.ClientSize.Width / 4, grid.ClientSize.Width * 3 / 4 })
-                    Check(Same(pixels.GetPixel(x, emptyY), grid.BackgroundColor), "GridBlankSurfaceStable");
+                {
+                    var background = pixels.GetPixel(x, emptyY);
+                    Check(Same(background, expected.GetPixel(x, emptyY)), "GridBlankSurfaceUsesSingleWindowAlignedComposite");
+                    Check(Contrast(Theme.Text, background) >= 4.5, "GridBlankSurfaceTextContrast");
+                }
 
                 var cell = grid.GetCellDisplayRectangle(0, 0, true);
                 int inset = Math.Max(3, (int)(3 * grid.DeviceDpi / 96f));
                 var actual = pixels.GetPixel(cell.Left + inset, cell.Top + cell.Height / 2);
-                Check(Same(actual, grid.Rows[0].InheritedStyle.BackColor), "GridRowSurfaceStable");
+                Check(Same(actual, expected.GetPixel(cell.Left + inset, cell.Top + cell.Height / 2)), "GridRowUsesSameWindowAlignedCompositeAsBlankArea");
+                Check(Contrast(Theme.Text, actual) >= 4.5, "GridRowTextContrast");
+                if (requireWallpaper)
+                {
+                    bool visibleIllustration = false;
+                    for (int y = last.Bottom + 4; y < grid.ClientSize.Height - 5; y += Math.Max(1, (grid.ClientSize.Height - last.Bottom) / 8))
+                    for (int x = 8; x < grid.ClientSize.Width - 8; x += Math.Max(1, grid.ClientSize.Width / 9))
+                    {
+                        var expectedColor = expected.GetPixel(x, y);
+                        if (Math.Abs(expectedColor.R - Theme.Surface.R) + Math.Abs(expectedColor.G - Theme.Surface.G) +
+                            Math.Abs(expectedColor.B - Theme.Surface.B) <= 24) continue;
+                        Check(Same(pixels.GetPixel(x, y), expectedColor), "EmbeddedIllustrationVisibleInActualGridPixels");
+                        visibleIllustration = true;
+                    }
+                    Check(visibleIllustration, "DefaultGridIsVisiblyTranslucentInsteadOfSolidWhite");
+                }
+            }
+
+            void CheckRoundedModuleCorners(MainForm form)
+            {
+                var modules = Descendants(form).OfType<WallpaperTable>().Where(control => control.Framed && control.Visible &&
+                    control.Width > 20 && control.Height > 20 && control.Parent != null).ToArray();
+                Check(modules.Length >= 3, "RoundedMainModulesAvailable");
+                foreach (var module in modules)
+                {
+                    Check(module.Region != null && !module.Region.IsVisible(0, 0) &&
+                        module.Region.IsVisible(module.Width / 2, module.Height / 2), "RoundedModuleClipsChildrenAndInteriorTogether");
+                    var parent = module.Parent!;
+                    using var actual = Draw(parent);
+                    using var expected = new Bitmap(parent.Width, parent.Height);
+                    using (var graphics = Graphics.FromImage(expected))
+                    {
+                        if (parent is WallpaperTable table) Wallpaper.Paint(parent, graphics, table.Wash, table.Surface, nativeCopy: false);
+                        else Wallpaper.Paint(parent, graphics, nativeCopy: false);
+                    }
+                    var corner = actual.GetPixel(module.Left, module.Top);
+                    var expectedCorner = expected.GetPixel(module.Left, module.Top);
+                    // WM_PRINT ignores child HWND regions; a printed square
+                    // corner is diagnostic, not a desktop clipping assertion.
+                    if (!Same(corner, expectedCorner))
+                        Console.WriteLine("OBSERVE rounded-corner print differs from parent; native region verified separately");
+                    IntPtr nativeRegion = CreateRectRgn(0, 0, 0, 0);
+                    Check(nativeRegion != IntPtr.Zero, "NativeModuleRegionHandleAvailable");
+                    try
+                    {
+                        Check(GetWindowRgn(module.Handle, nativeRegion) > 1 && GetRgnBox(nativeRegion, out var bounds) > 1 &&
+                            bounds.Left >= 0 && bounds.Top >= 0 && bounds.Right <= module.Width && bounds.Bottom <= module.Height &&
+                            bounds.Right - bounds.Left >= module.Width - 2 && bounds.Bottom - bounds.Top >= module.Height - 2,
+                            "RoundedModuleHasFullSizeNativeClippingRegion");
+                        Check(!PtInRegion(nativeRegion, 0, 0) && !PtInRegion(nativeRegion, module.Width - 1, 0) &&
+                            !PtInRegion(nativeRegion, 0, module.Height - 1) && !PtInRegion(nativeRegion, module.Width - 1, module.Height - 1) &&
+                            PtInRegion(nativeRegion, module.Width / 2, module.Height / 2),
+                            "NativeModuleRegionExcludesAllFourCornersAndContainsCenter");
+                    }
+                    finally { Check(DeleteObject(nativeRegion), "NativeModuleRegionProbeReleased"); }
+                }
             }
 
             void CheckTextSurfaces(MainForm form)
             {
+                Check(form.HasCustomBackground, "CustomSurfaceProbeUsesCustomBackground");
                 foreach (var chrome in Descendants(form).OfType<WallpaperTable>()
                     .Where(control => control.Visible && control.Width > 0 && control.Height > 0 && control.Surface == WallpaperSurface.Chrome))
                 {
                     using var finalSurface = new Bitmap(chrome.Width, chrome.Height);
                     using (var graphics = Graphics.FromImage(finalSurface))
-                        Wallpaper.Paint(chrome, graphics, chrome.Wash, chrome.Surface);
+                        Wallpaper.Paint(chrome, graphics, chrome.Wash, chrome.Surface, nativeCopy: false);
                     double captionMinimum = double.MaxValue, bodyMinimum = double.MaxValue;
                     for (int y = 0; y < finalSurface.Height; y += Math.Max(1, finalSurface.Height / 7))
                     for (int x = 0; x < finalSurface.Width; x += Math.Max(1, finalSurface.Width / 9))
@@ -124,25 +204,74 @@ internal static class VisualSurfaceRegression
                     using var rendered = Draw(card);
                     float scale = card.DeviceDpi / 96f;
                     int x = Math.Clamp((int)(8 * scale), 1, rendered.Width - 2);
-                    double minimum = double.MaxValue;
+                    double smallMinimum = double.MaxValue, valueMinimum = double.MaxValue;
+                    using var textGraphics = card.CreateGraphics();
+                    // Bold values at >=14 pt qualify as large text; narrow-card
+                    // font fallback must retain the normal 4.5:1 requirement.
+                    double valueRequired = card.ValueFontSize(textGraphics) >= 14 ? 3 : 4.5;
                     for (int y = Math.Max(2, (int)(16 * scale)); y < rendered.Height - 16 * scale; y += Math.Max(1, (int)(8 * scale)))
-                        minimum = Math.Min(minimum, Contrast(Theme.Muted, rendered.GetPixel(x, y)));
-                    Check(minimum != double.MaxValue && minimum >= 4.5, "CardCaptionCompositedContrast");
+                    {
+                        var background = rendered.GetPixel(x, y);
+                        smallMinimum = Math.Min(smallMinimum, Contrast(Theme.Text, background));
+                        if (card.ShowCaption) smallMinimum = Math.Min(smallMinimum, Contrast(Theme.Muted, background));
+                        valueMinimum = Math.Min(valueMinimum, Contrast(card.Highlight ? Theme.Accent : Theme.Text, background));
+                    }
+                    Check(smallMinimum != double.MaxValue && smallMinimum >= 4.5 && valueMinimum >= valueRequired,
+                        "CardVisibleTextCompositedContrast");
+                }
+
+                var subtleButtons = Descendants(form).OfType<ActionButton>().Where(button => button.Visible && button.Subtle).ToArray();
+                Check(subtleButtons.Length > 0, "SubtleButtonsAvailableForSurfaceProbe");
+                foreach (var button in subtleButtons)
+                {
+                    // Reset a possible pointer hover/press left by the desktop;
+                    // this probe must exercise the normal translucent surface.
+                    bool enabled = button.Enabled;
+                    button.Enabled = false; button.Enabled = enabled;
+                    using var rendered = Draw(button);
+                    int inset = Math.Max(4, (int)Math.Round(8 * button.DeviceDpi / 96f));
+                    var textSize = TextRenderer.MeasureText(button.Text, button.Font, new Size(int.MaxValue, int.MaxValue),
+                        TextFormatFlags.SingleLine | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+                    Check(button.TextAlign == ContentAlignment.MiddleCenter && (button.Width - textSize.Width) / 2 > inset + 1 &&
+                        rendered.Height > 4 && rendered.Width > inset * 2 + 2, "SubtleButtonBlankSampleArea");
+                    // These center-height edge samples are inside the rounded
+                    // surface, outside centered glyphs, borders and corner arcs.
+                    foreach (int x in new[] { inset, rendered.Width - 1 - inset })
+                    {
+                        var background = rendered.GetPixel(x, rendered.Height / 2);
+                        double bodyContrast = Contrast(Theme.Text, background), mutedContrast = Contrast(Theme.Muted, background);
+                        if (bodyContrast < 4.5 || mutedContrast < 4.5)
+                        {
+                            string slot = ReferenceEquals(button, Field<ActionButton>(form, "backgroundSettings")) ? "BackgroundSettings"
+                                : ReferenceEquals(button, Field<ActionButton>(form, "diagnosticsButton")) ? "Diagnostics" : "OtherSubtle";
+                            Console.WriteLine("OBSERVE subtle-surface button=" + slot + "; sample_x=" + x +
+                                "; background_rgb=" + background.R + "," + background.G + "," + background.B +
+                                "; text_rgb=" + Theme.Text.R + "," + Theme.Text.G + "," + Theme.Text.B +
+                                "; muted_rgb=" + Theme.Muted.R + "," + Theme.Muted.G + "," + Theme.Muted.B +
+                                "; enabled=" + button.Enabled + "; custom_background=" + form.HasCustomBackground +
+                                "; text_contrast=" + bodyContrast.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) +
+                                "; muted_contrast=" + mutedContrast.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture));
+                        }
+                        Check(bodyContrast >= 4.5 && mutedContrast >= 4.5, "SubtleButtonCompositedContrast");
+                    }
                 }
             }
 
             void CheckReadableGeometry(MainForm form)
             {
-                foreach (string name in new[] { "title", "mapTitle", "listTitle" })
+                CheckTopCommands(form);
+                foreach (string name in new[] { "mapTitle", "listTitle" })
                 {
                     var label = Field<Label>(form, name);
+                    if (label.FindForm() != form || !label.Visible || label.Text.Length == 0) continue;
                     var desired = TextRenderer.MeasureText(label.Text, label.Font, new Size(int.MaxValue, int.MaxValue),
                         TextFormatFlags.SingleLine | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
                     Check(label.ClientSize.Height >= desired.Height && label.ClientSize.Width >= desired.Width, "PrimaryTitleFits");
                 }
-                foreach (string name in new[] { "subtitle", "mapCaption", "listCaption", "status", "detailTitle", "detailPath" })
+                foreach (string name in new[] { "mapCaption", "listCaption", "status", "detailTitle", "detailPath" })
                 {
                     var label = Field<Label>(form, name);
+                    if (label.FindForm() != form || !label.Visible || label.Text.Length == 0) continue;
                     Check(label.ClientSize.Height >= label.Font.GetHeight(), "BodyTextVerticalFit");
                 }
                 foreach (var input in new Control[] { Field<ComboBox>(form, "strategyCombo"), Field<ComboBox>(form, "metricCombo"),
@@ -158,10 +287,41 @@ internal static class VisualSurfaceRegression
                 var headerFont = grid.ColumnHeadersDefaultCellStyle.Font ?? grid.Font;
                 Check(grid.Rows[0].Height >= rowFont.GetHeight() + 16 * scale, "ComfortableRowVerticalSpace");
                 Check(grid.ColumnHeadersHeight >= headerFont.GetHeight() + 12 * scale, "ReadableHeaderVerticalSpace");
+                foreach (var card in Descendants(form).OfType<StatCard>().Where(control => control.Visible))
+                    CheckCardTextBands(form, card);
+            }
+
+            void CheckCardTextBands(MainForm form, StatCard card)
+            {
+                string slot = new[] { "totalCard", "filesCard", "foldersCard", "timeCard" }
+                    .FirstOrDefault(name => ReferenceEquals(Field<StatCard>(form, name), card)) ?? "Other";
+                var bands = card.TextBands;
+                Check(bands.Title.Bottom <= bands.Value.Top && (!card.ShowCaption || bands.Value.Bottom <= bands.Caption.Top),
+                    "CardTextBandsDoNotOverlap");
+                var visibleBands = card.ShowCaption ? new[] { bands.Title, bands.Value, bands.Caption } : new[] { bands.Title, bands.Value };
+                foreach (var band in visibleBands)
+                    Check(band.Width > 0 && band.Height > 0 && card.ClientRectangle.Contains(band), "CardTextBandInsideSurface");
+                if (!card.ShowCaption) Check(bands.Caption.IsEmpty, "HiddenCardCaptionReservesNoBand");
+                using var graphics = card.CreateGraphics();
+                using var titleFont = Theme.Font(StatCard.TitleFontSize, FontStyle.Bold);
+                using var valueFont = Theme.Font(card.ValueFontSize(graphics), FontStyle.Bold);
+                using var captionFont = Theme.Font(Theme.CaptionFontSize);
+                foreach (var item in new[] { ("Title", card.Title, titleFont, bands.Title), ("Value", card.Value, valueFont, bands.Value), ("Caption", card.Caption, captionFont, bands.Caption) })
+                {
+                    if (item.Item1 == "Caption" && !card.ShowCaption) continue;
+                    var measured = TextRenderer.MeasureText(graphics, item.Item2, item.Item3,
+                        new Size(int.MaxValue, int.MaxValue), TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
+                    Check(measured.Width <= item.Item4.Width && measured.Height <= item.Item4.Height,
+                        "CardCompleteTextFitsBand_" + slot + "_" + item.Item1 +
+                        "_Measured" + measured.Width + "x" + measured.Height +
+                        "_Available" + item.Item4.Width + "x" + item.Item4.Height +
+                        "_Font" + item.Item3.SizeInPoints.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
+                }
             }
 
             void CheckMinimumWidth(MainForm form, DataGridView grid)
             {
+                CheckTopCommands(form);
                 Check(grid.Parent != null && grid.Left >= 0 && grid.Right <= grid.Parent.ClientSize.Width + 1,
                     "MinimumGridContainedByParent");
                 int scrollbarWidth = grid.Controls.OfType<VScrollBar>().Where(bar => bar.Visible).Sum(bar => bar.Width);
@@ -176,24 +336,69 @@ internal static class VisualSurfaceRegression
                 }
                 foreach (var card in Descendants(form).OfType<StatCard>().Where(control => control.Visible))
                 {
+                    CheckCardTextBands(form, card);
                     string original = card.Value;
                     try
                     {
                         using var graphics = card.CreateGraphics();
-                        // The painted value area has the card's 18-DIP inset on
-                        // each side; assertions use actual DPI and live width.
-                        int inset = (int)(18 * card.DeviceDpi / 96f);
-                        int available = card.ClientSize.Width - 2 * inset;
+                        var available = card.TextBands.Value;
                         foreach (string value in new[] { "27.55 MB", "102.45 GB + 未知", "1,048,576" })
                         {
                             card.Value = value;
                             using var font = Theme.Font(card.ValueFontSize(graphics), FontStyle.Bold);
                             var measured = TextRenderer.MeasureText(graphics, value, font, new Size(int.MaxValue, int.MaxValue),
                                 TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
-                            Check(available > 0 && measured.Width <= available, "MinimumCardValueAndUnitFit");
+                            Check(available.Width > 0 && available.Height > 0 && measured.Width <= available.Width &&
+                                measured.Height <= available.Height, "MinimumCardValueAndUnitFit");
                         }
                     }
                     finally { card.Value = original; }
+                }
+            }
+
+            void CheckTopCommands(MainForm form)
+            {
+                string[] names = ["choose", "refresh", "backgroundSettings", "diagnosticsButton"];
+                var buttons = names.Select(name => Field<ActionButton>(form, name)).ToArray();
+                Rectangle Bounds(Control control) => form.RectangleToClient(control.RectangleToScreen(control.ClientRectangle));
+                var rectangles = buttons.Select(Bounds).ToArray();
+                int tolerance = Math.Max(1, (int)Math.Round(form.DeviceDpi / 96f));
+                Check(buttons.All(button => button.Visible) && rectangles.All(bounds => bounds.Width > 0 && bounds.Height > 0 && form.ClientRectangle.Contains(bounds)) &&
+                    rectangles.Max(bounds => bounds.Top) - rectangles.Min(bounds => bounds.Top) <= tolerance &&
+                    rectangles.Max(bounds => bounds.Bottom) - rectangles.Min(bounds => bounds.Bottom) <= tolerance,
+                    "PrimaryAndUtilityCommandsShareVisibleTopBand");
+                for (int i = 0; i < rectangles.Length; i++)
+                for (int j = i + 1; j < rectangles.Length; j++)
+                    Check(!rectangles[i].IntersectsWith(rectangles[j]), "TopCommandsDoNotOverlap");
+
+                var commandHost = Ancestors(buttons[0]).First(parent => buttons.Skip(1).All(button => Ancestors(button).Contains(parent)));
+                var strategy = Field<ComboBox>(form, "strategyCombo");
+                var metric = Field<ComboBox>(form, "metricCombo");
+                var settingsHost = Ancestors(strategy).First(parent => Ancestors(metric).Contains(parent));
+                var main = Ancestors(commandHost).First(parent => Ancestors(settingsHost).Contains(parent));
+                int contentTop = form.PointToClient(main.PointToScreen(main.DisplayRectangle.Location)).Y;
+                var commandBounds = Bounds(commandHost);
+                var settingsBounds = Bounds(settingsHost);
+                Check(Math.Abs(commandBounds.Top - contentTop) <= tolerance && settingsBounds.Top >= commandBounds.Bottom &&
+                    settingsBounds.Top - rectangles.Max(bounds => bounds.Bottom) <= commandHost.Padding.Bottom + settingsHost.Margin.Top + tolerance,
+                    "TopCommandsUseFirstContentBandWithoutHeroGap");
+
+                var refresh = Field<ActionButton>(form, "refresh");
+                var cancel = Field<ActionButton>(form, "cancel");
+                bool wasCancelVisible = cancel.Visible, wasRefreshVisible = refresh.Visible;
+                var refreshBounds = Bounds(refresh);
+                try
+                {
+                    cancel.Visible = true;
+                    form.PerformLayout(); cancel.Parent!.PerformLayout();
+                    Check(ReferenceEquals(refresh.Parent, cancel.Parent) && cancel.Visible && !refresh.Visible &&
+                        Bounds(cancel) == refreshBounds, "CancelReplacesRefreshInSameCommandSlot");
+                }
+                finally
+                {
+                    cancel.Visible = wasCancelVisible;
+                    refresh.Visible = wasRefreshVisible;
+                    form.PerformLayout();
                 }
             }
         }
@@ -227,6 +432,10 @@ internal static class VisualSurfaceRegression
             yield return control;
             foreach (var child in Descendants(control)) yield return child;
         }
+    }
+    private static IEnumerable<Control> Ancestors(Control child)
+    {
+        for (Control? parent = child.Parent; parent != null; parent = parent.Parent) yield return parent;
     }
     private static Bitmap Draw(Control control)
     {

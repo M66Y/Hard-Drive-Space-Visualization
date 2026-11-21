@@ -64,7 +64,7 @@ internal static class DiagnosticsUiRegression
                         var identity = Control<TextBox>(dialog, "developmentInfo");
                         string expectedVersion = "v" + typeof(MainForm).Assembly.GetName().Version!.ToString(3);
                         string expectedBuild = typeof(MainForm).Module.ModuleVersionId.ToString("N")[..12];
-                        Check(main.Text.Contains(expectedVersion) && identity.ReadOnly && identity.AccessibleName == "当前程序与开发记录" && identity.Text.Contains(expectedVersion) &&
+                        Check(main.Text == AppInfo.WindowTitle && main.Text == "AsukaLens" && identity.ReadOnly && identity.AccessibleName == "当前程序与开发记录" && identity.Text.Contains(expectedVersion) &&
                             identity.Text.Contains(expectedBuild) && !identity.Text.Contains(AppContext.BaseDirectory),
                             "Product identification is missing, editable, or exposes local build paths");
                         Field<ActionButton>(main, "diagnosticsButton").PerformClick();
@@ -80,6 +80,8 @@ internal static class DiagnosticsUiRegression
                             snapshot.Records.Any(r => r.Method is RefreshMethod.MetadataVerification or RefreshMethod.ChangeJournal), "Refresh method/reason not captured");
                         Check(!string.Join('\n', snapshot.Records.Select(DiagnosticCodec.Encode)).Contains("private"), "Scan paths leaked");
                         var grid = Control<DataGridView>(dialog, "diagnosticRecords");
+                        Check(!grid.ShowCellToolTips && !Control<DataGridView>(dialog, "problemNotes").ShowCellToolTips,
+                            "Diagnostic grids must not open hover text popups");
                         Check(grid.Rows.Count > 0 && grid.Rows.Cast<DataGridViewRow>().All(r => r.Cells[0].Value is false) && dialog.SelectedPreview() == null, "Default export selection not empty");
                         grid.Rows[0].Cells[0].Value = true;
                         string preview = dialog.SelectedPreview()!;

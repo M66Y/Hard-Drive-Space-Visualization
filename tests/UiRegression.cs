@@ -1,20 +1,83 @@
 using DiskAtlas;
+using System.Diagnostics;
+using System.Drawing.Imaging;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 // In-process WinForms integration tests. No external app, Windows settings or user files are controlled.
 internal static class UiRegression
 {
-    public static int Run(bool virtualized96Dpi = false)
+    private enum UiPhase
+    {
+        Starting, Startup, FirstPreview, CompletedBaseline, RefreshPreview, FinalHandoff,
+        ProductCoordinator, ParallelClose, ResultInformation, Interactions, RenderCache,
+        LongPath, DpiMenu, BackgroundSettings, Completed
+    }
+    private readonly record struct UiTiming(UiPhase Phase, int Step, double ElapsedMilliseconds,
+        double TotalMilliseconds, int Assertion, bool Passed);
+
+    public static int Run(bool virtualized96Dpi = false, bool includeRenderCache = true)
     {
         string root = Path.Combine(Path.GetTempPath(), "DiskAtlas-ui-regression-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(root, "A-child"));
         Exception? failure = null;
+        using var stop = new CancellationTokenSource();
+        CancellationToken stopToken = stop.Token;
+        Action? requestStop = null;
+        bool workerStarted = false, workerFinished = false;
+        int assertionNumber = 0;
+        int phase = (int)UiPhase.Starting;
+        long started = Stopwatch.GetTimestamp(), phaseStarted = started;
+        long resultCheckpoint = started;
+        int resultStep = 0;
+        var timings = new List<UiTiming>(64);
+        object timingGate = new();
+        bool timingClosed = false, timingOverflow = false;
+        void RecordTiming(UiPhase current, int step, long from, long now, int assertion = 0, bool passed = true)
+        {
+            var record = new UiTiming(current, step, Stopwatch.GetElapsedTime(from, now).TotalMilliseconds,
+                Stopwatch.GetElapsedTime(started, now).TotalMilliseconds, assertion, passed);
+            lock (timingGate)
+            {
+                if (timingClosed) return;
+                if (timings.Count < 64) timings.Add(record);
+                else timingOverflow = true;
+            }
+        }
+        void FlushTimings()
+        {
+            UiTiming[] recorded;
+            bool overflow;
+            lock (timingGate)
+            {
+                timingClosed = true;
+                recorded = timings.ToArray();
+                overflow = timingOverflow;
+            }
+            foreach (var item in recorded)
+                Console.WriteLine(item.Step == 0
+                    ? $"TIMING UI phase={item.Phase}; elapsed_ms={item.ElapsedMilliseconds:0}; total_ms={item.TotalMilliseconds:0}"
+                    : $"TIMING UI phase={item.Phase}; step={item.Step:00}; elapsed_ms={item.ElapsedMilliseconds:0}; assertion={item.Assertion}; passed={item.Passed}");
+            if (overflow) Console.WriteLine("OBSERVE UI timing_limit_reached=True");
+        }
+        void Phase(UiPhase next)
+        {
+            stopToken.ThrowIfCancellationRequested();
+            long now = Stopwatch.GetTimestamp();
+            var previous = (UiPhase)Volatile.Read(ref phase);
+            RecordTiming(previous, 0, Volatile.Read(ref phaseStarted), now);
+            Volatile.Write(ref phaseStarted, now);
+            Volatile.Write(ref phase, (int)next);
+            if (next == UiPhase.ResultInformation) { resultCheckpoint = now; resultStep = 0; }
+        }
         try
         {
             for (int f = 0; f < 1105; f++) File.WriteAllBytes(Path.Combine(root, $"file-{f:0000}.txt"), new byte[17]);
             File.WriteAllBytes(Path.Combine(root, "A-child", "leaf.txt"), new byte[31]);
             var thread = new Thread(() =>
             {
+                try
+                {
                 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
                 Application.SetHighDpiMode(virtualized96Dpi ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2); Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
@@ -28,11 +91,56 @@ internal static class UiRegression
                     var deadline = DateTime.UtcNow.AddSeconds(8);
                     while (!ready())
                     {
+                        stopToken.ThrowIfCancellationRequested();
                         if (DateTime.UtcNow > deadline) throw new Exception(message);
                         await Task.Delay(25);
                     }
                 }
-                void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
+                void Check(bool condition, string message)
+                {
+                    stopToken.ThrowIfCancellationRequested();
+                    int ordinal = Interlocked.Increment(ref assertionNumber);
+                    if ((UiPhase)Volatile.Read(ref phase) == UiPhase.ResultInformation)
+                    {
+                        long now = Stopwatch.GetTimestamp();
+                        if (++resultStep <= 32)
+                            RecordTiming(UiPhase.ResultInformation, resultStep, resultCheckpoint, now, ordinal, condition);
+                        resultCheckpoint = now;
+                    }
+                    if (!condition) throw new UiAssertionFailure(ordinal, message);
+                }
+                Volatile.Write(ref requestStop, (Action)(() =>
+                {
+                    try { gate.Release.Set(); } catch (ObjectDisposedException) { }
+                    if (form.IsDisposed || !form.IsHandleCreated) return;
+                    try
+                    {
+                        form.BeginInvoke((Action)(() =>
+                        {
+                            foreach (var window in Application.OpenForms.Cast<Form>().ToArray())
+                            {
+                                if (window is MainForm)
+                                {
+                                    try
+                                    {
+                                        (typeof(MainForm).GetField("scanCancellation", BindingFlags.Instance | BindingFlags.NonPublic)!
+                                            .GetValue(window) as CancellationTokenSource)?.Cancel();
+                                    }
+                                    catch (ObjectDisposedException) { }
+                                }
+                                else if (window.Modal) window.Close();
+                            }
+                        }));
+                    }
+                    catch (InvalidOperationException) { }
+                }));
+                Rectangle AnalysisBounds()
+                {
+                    for (Control? node = Field<TreemapControl>("map"); node != null; node = node.Parent)
+                        if (node is WallpaperSplitContainer)
+                            return form.RectangleToClient(node.RectangleToScreen(node.ClientRectangle));
+                    throw new InvalidOperationException("Analysis container unavailable");
+                }
                 Size firstClientSize = Size.Empty;
                 Point firstLocation = Point.Empty;
                 Bitmap? firstBackground = null;
@@ -46,6 +154,7 @@ internal static class UiRegression
                 {
                     try
                     {
+                        Phase(UiPhase.Startup);
                         Check(firstClientSize == form.ClientSize && firstLocation == form.Location,
                             "Window layout moved between Load and Shown");
                         Check(firstBackground != null && ReferenceEquals(firstBackground,
@@ -64,13 +173,18 @@ internal static class UiRegression
                         }
                         Console.WriteLine("PASS UI startup layout ready at Load and one reusable bounded wallpaper raster");
 
+                        Phase(UiPhase.FirstPreview);
                         gate.Pause = true;
+                        Rectangle analysisBounds = AnalysisBounds();
                         var first = Scan();
                         await Wait(() => Field<bool>("showingPreview"), "First scan never displayed a preview");
                         Check(Field<ScanResult?>("scan") == null && Field<DiskEntry>("current").FileCount < 1106, "First preview was presented as a complete result");
                         Check(Field<List<MapItem>>("sortedRows").Count is > 0 and <= 1000, "Preview has no rows or exceeds its limit");
                         Check(!Field<TextBox>("search").Enabled && !Field<NavigationPanel>("navigation").Enabled, "Full queries enabled during preview");
-                        Check(Field<Label>("subtitle").Text.Contains("尚未完成"), "Partial statistics label missing");
+                        string previewFacts = Field<string>("scopeDetails");
+                        Check((previewFacts.Contains("未完成") || previewFacts.Contains("非最终")) &&
+                            Field<ScanProgressControl>("progressBar").AccessibleDescription!.Contains(previewFacts) && AnalysisBounds() == analysisBounds,
+                            "Nonfinal facts must remain accessible without moving analysis");
                         var meter = Field<ScanProgressControl>("progressBar");
                         Check(meter.State == ScanDisplayState.Running && meter.Percent is >= 0 and <= 99, "Preview has no honest live progress");
                         var previewGrid = Field<DataGridView>("grid");
@@ -82,17 +196,24 @@ internal static class UiRegression
                         Field<ActionButton>("cancel").PerformClick(); await first;
                         Check(meter.State == ScanDisplayState.Cancelled && meter.Percent == null && !meter.PulseRunning, "Cancelled scan left successful progress/animation");
                         Check(Field<DiskEntry?>("current") == null && Field<List<MapItem>>("sortedRows").Count == 0 && Field<TextBox>("search").Enabled, "First cancellation left a partial result behind");
+                        Check(AnalysisBounds() == analysisBounds, "First cancellation inserted an explanation row");
                         Console.WriteLine("PASS UI first preview, bounded rows, partial labels and first-scan cancellation");
 
+                        Phase(UiPhase.CompletedBaseline);
                         gate.Pause = false; await Scan();
                         await Wait(() => Field<DataGridView>("grid").Enabled && Field<List<MapItem>>("sortedRows").Count == 1106, "Completed scan did not restore all rows");
                         var baseline = Field<ScanResult>("scan");
                         Check(meter.State == ScanDisplayState.Completed && meter.Percent == 100 && !meter.PulseRunning, "Success did not publish terminal 100%");
                         Check(baseline.Root.FileCount == 1106 && baseline.Root.Size == 18816, "Completed totals mismatch");
+                        Check(Field<string>("scopeDetails").Length == 0 && AnalysisBounds() == analysisBounds,
+                            "Completed view must clear preview facts without inserting explanation space");
                         Invoke("SetMode", 2); Field<TextBox>("search").Text = "txt";
                         await Wait(() => Field<List<MapItem>>("sortedRows").Count == 1 && Field<List<MapItem>>("sortedRows")[0].Name == ".txt", "Type query did not settle");
+                        Phase(UiPhase.RefreshPreview);
                         gate.Pause = true; var second = Scan();
-                        await Wait(() => Field<bool>("showingPreview"), "Refresh never displayed a preview");
+                        await Wait(() => Field<bool>("showingPreview") &&
+                            Field<DiskEntry>("current").Children.Any(entry => entry.Name == "A-child"),
+                            "Refresh never displayed the discovered child in its live preview");
                         Check(ReferenceEquals(Field<ScanResult>("scan"), baseline), "Preview replaced the completed snapshot");
                         var child = Field<DiskEntry>("current").Children.Single(e => e.Name == "A-child");
                         Invoke("OpenDirectory", child);
@@ -103,21 +224,26 @@ internal static class UiRegression
                         Field<ActionButton>("cancel").PerformClick(); await second;
                         await Wait(() => Field<List<MapItem>>("sortedRows").Count == 1 && Field<List<MapItem>>("sortedRows")[0].Name == ".txt", "Cancel did not restore the type query");
                         Check(ReferenceEquals(Field<ScanResult>("scan"), baseline) && Field<int>("mode") == 2 && Field<TextBox>("search").Text == "txt", "Cancel lost completed scan/context");
+                        Check(AnalysisBounds() == analysisBounds, "Refresh cancellation facts moved the analysis area");
                         Console.WriteLine("PASS UI live child/root browsing, cancel restores completed scan and filtered type view");
 
+                        Phase(UiPhase.FinalHandoff);
                         var third = Scan();
                         await Wait(() => Field<bool>("showingPreview"), "Final refresh never displayed a preview");
                         gate.Release.Set(); await third;
                         await Wait(() => Field<DataGridView>("grid").Enabled && Field<List<MapItem>>("sortedRows").Count == 1, "Final view did not settle");
                         Check(!Field<bool>("showingPreview") && Field<TextBox>("search").Enabled && Field<NavigationPanel>("navigation").Enabled, "Preview did not end cleanly");
                         Check(!ReferenceEquals(Field<ScanResult>("scan"), baseline) && Field<ScanResult>("scan").Root.FileCount == 1106, "Completed snapshot was not published");
-                        Check(Field<Label>("status").Text.Contains("扫描完成") && !Field<StatCard>("totalCard").Caption.Contains("非最终"), "Stale preview labels after completion");
+                        Check(Field<Label>("status").Text.Contains("扫描完成") && !Field<StatCard>("totalCard").Caption.Contains("非最终") &&
+                            !Field<string>("scopeDetails").Contains("未完成") && !Field<string>("scopeDetails").Contains("非最终") &&
+                            AnalysisBounds() == analysisBounds, "Stale preview facts or explanation layout after completion");
                         Check(Field<int>("mode") == 2 && Field<TextBox>("search").Text == "txt", "Successful refresh lost query context");
                         await Task.Delay(700);
                         Check(!Field<bool>("showingPreview") && Field<Label>("status").Text.Contains("扫描完成"), "Late preview overwrote the completed view");
                         Check(meter.State == ScanDisplayState.Completed && meter.Percent == 100, "Late progress overwrote completion");
                         Console.WriteLine("PASS UI final handoff, controls restored, no stale preview, refresh context preserved");
 
+                        Phase(UiPhase.ProductCoordinator);
                         // Exercise the shipped coordinator (without the deterministic scan gate).
                         using var product = new MainForm(null); product.Show();
                         T Product<T>(string name) => (T)typeof(MainForm).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(product)!;
@@ -135,7 +261,13 @@ internal static class UiRegression
                         await ProductScan();
                         await Wait(() => Product<DataGridView>("grid").Enabled, "Product refresh did not settle");
                         Check(Product<ScanResult>("scan").Root.FileCount == 1107 && Product<ScanResult>("scan").Statistics is { Incremental: true, ReusedFiles: > 1000 }, "UI did not use incremental refresh");
-                        Check((Product<ScanResult>("scan").Statistics!.Method is RefreshMethod.MetadataVerification or RefreshMethod.ChangeJournal) && Product<Label>("refreshInfo").Text.Contains("详情"), "Actual refresh method/details missing");
+                        var refreshStatistics = Product<ScanResult>("scan").Statistics!;
+                        string refreshDetails = Product<ToolTip>("scanTip").GetToolTip(Product<Label>("refreshInfo")) ?? "";
+                        Check((refreshStatistics.Method is RefreshMethod.MetadataVerification or RefreshMethod.ChangeJournal) &&
+                            Product<Label>("refreshInfo").Text == RefreshPresentation.MethodName(refreshStatistics.Method) &&
+                            refreshDetails.Contains("点击查看最近完成的扫描详情") && refreshDetails.Contains("核验目录") &&
+                            refreshDetails.Contains("重扫目录") && refreshDetails.Contains($"复用文件 {refreshStatistics.ReusedFiles:N0}"),
+                            "Actual refresh method or discoverable detail statistics missing");
                         Check(Product<ComboBox>("metricCombo").SelectedIndex == 1 && Product<StatCard>("totalCard").Title == "实际占用空间", "Refresh lost the size metric");
                         Product<ComboBox>("strategyCombo").SelectedIndex = 2; await ProductScan("ForceRefresh");
                         Check(Product<ScanResult>("scan").Statistics is { Incremental: false, Mode: ScanMode.HighSpeed, Workers: 8 }, "Force full / high-speed UI path failed");
@@ -159,31 +291,71 @@ internal static class UiRegression
                         Check(detailsRead, "Refresh details dialog is missing the actual method/counts/reason");
                         product.Close();
                         Console.WriteLine("PASS UI actual coordinator, low/high strategy selection, allocated metric, incremental refresh and force-full action");
+                        Phase(UiPhase.ParallelClose);
                         await CheckParallelClose(root, Check);
 
+                        Phase(UiPhase.ResultInformation);
                         await ResultInformationRegression.Check(form, root, Check);
+                        Phase(UiPhase.Interactions);
                         await CheckInteractions(form, Check);
-                        CheckRenderCache(form, Check);
+                        Phase(UiPhase.RenderCache);
+                        if (includeRenderCache) CheckRenderCache(form, Check, stopToken);
+                        Phase(UiPhase.LongPath);
                         await CheckLongPath(form, root, Check);
+                        Phase(UiPhase.DpiMenu);
                         CheckDpiAndMenu(form, virtualized96Dpi, Check);
+                        Phase(UiPhase.BackgroundSettings);
                         CheckBackgroundSettings(form, root, Check);
+                        Phase(UiPhase.Completed);
                     }
                     catch (Exception ex) { failure = ex; }
                     finally { gate.Release.Set(); form.Close(); }
                 };
                 Application.Run(form);
-            });
-            thread.SetApartmentState(ApartmentState.STA); thread.Start();
-            if (!thread.Join(TimeSpan.FromSeconds(45))) throw new Exception("UI regression timed out");
+                }
+                catch (Exception ex) { failure = ex; }
+                finally { Volatile.Write(ref requestStop, null); }
+            }) { IsBackground = true };
+            thread.SetApartmentState(ApartmentState.STA);
+            started = Stopwatch.GetTimestamp();
+            Volatile.Write(ref phaseStarted, started);
+            thread.Start();
+            workerStarted = true;
+            workerFinished = thread.Join(TimeSpan.FromSeconds(45));
+            if (!workerFinished)
+            {
+                Console.Error.WriteLine($"FAIL UI total_budget_exceeded=True; phase={(UiPhase)Volatile.Read(ref phase)}; phase_ms={Stopwatch.GetElapsedTime(Volatile.Read(ref phaseStarted)).TotalMilliseconds:0}; total_ms={Stopwatch.GetElapsedTime(started).TotalMilliseconds:0}");
+                stop.Cancel();
+                Volatile.Read(ref requestStop)?.Invoke();
+                // This grace period is for cancellation only. Exceeding the
+                // original budget remains a failure even if teardown succeeds.
+                workerFinished = thread.Join(TimeSpan.FromSeconds(10));
+                Console.Error.WriteLine($"STOP UI worker_finished={workerFinished}; fixture_cleanup_deferred={!workerFinished}");
+                return 1;
+            }
             if (failure != null) throw new Exception("UI regression failed", failure);
-            Console.WriteLine("All UI regression checks passed."); return 0;
+            Console.WriteLine(includeRenderCache ? "All UI regression checks passed." :
+                "PASS UI functional subset; cached/direct rendering comparison excluded; full UI suite remains separate."); return 0;
         }
-        catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
+        catch (Exception ex)
+        {
+            Exception detail = ex.InnerException ?? ex;
+            string code = detail is UiAssertionFailure ? "Assertion" : detail is OperationCanceledException ? "Cancelled" :
+                detail is TimeoutException ? "ConditionTimeout" : "Unexpected";
+            int assertion = detail is UiAssertionFailure check ? check.Ordinal : 0;
+            Console.Error.WriteLine($"FAIL UI code={code}; phase={(UiPhase)Volatile.Read(ref phase)}; assertion={assertion}; hresult=0x{detail.HResult:X8}");
+            return 1;
+        }
         finally
         {
+            // The worker never emits these new diagnostics from its hot path.
+            // Freeze even on failed teardown so an unresponsive worker cannot
+            // append records after the caller starts publishing its snapshot.
+            FlushTimings();
             string prefix = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar + "DiskAtlas-ui-regression-";
             if (!Path.GetFullPath(root).StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) throw new Exception("Unsafe UI regression cleanup path");
-            Directory.Delete(root, true);
+            if (!workerStarted || workerFinished) Directory.Delete(root, true);
+            else Console.Error.WriteLine("CLEANUP UI fixture deferred=True; worker may still own its files");
         }
     }
 
@@ -362,7 +534,7 @@ internal static class UiRegression
         Input("OnMouseClick", point); check(hit == first.Item && map.MotionRunning, "Animated hit target changed");
         using (var bitmap = new Bitmap(map.Width, map.Height)) map.DrawToBitmap(bitmap, map.ClientRectangle);
         await Task.Delay(TreemapControl.MotionDurationMilliseconds + 100);
-        check(!map.MotionRunning && before.SequenceEqual(Tiles().Select(t => t.Bounds)), "Animation moved area/hit rectangles or did not stop");
+        check(map.OrbitRunning && before.SequenceEqual(Tiles().Select(t => t.Bounds)), "Selected orbit stopped or moved area/hit rectangles");
         Input("OnMouseClick", point); map.AnimationsEnabled = false;
         check(!map.MotionRunning, "Reduced motion retained tile animation");
         Input("OnMouseClick", point); check(hit == first.Item && !map.MotionRunning, "Static interaction regressed");
@@ -394,8 +566,29 @@ internal static class UiRegression
         Console.WriteLine("PASS UI honest progress states, phase reset, reduced motion, stable animated hits/area, bounded animation and resizing");
     }
 
-    private static void CheckRenderCache(Form owner, Action<bool, string> check)
+    private static void CheckRenderCache(Form owner, Action<bool, string> check, CancellationToken stopToken)
     {
+        int cacheCheck = 0;
+        var originalCheck = check;
+        check = (passed, message) =>
+        {
+            cacheCheck++;
+            if (!passed) Console.WriteLine($"CACHE failed_step={cacheCheck}");
+            originalCheck(passed, message);
+        };
+        using (var reference = new Bitmap(4, 2))
+        using (var varied = new Bitmap(4, 2))
+        {
+            using (var graphics = Graphics.FromImage(reference)) graphics.Clear(Color.FromArgb(255, 50, 60, 70));
+            using (var graphics = Graphics.FromImage(varied)) graphics.Clear(Color.FromArgb(255, 50, 60, 70));
+            varied.SetPixel(0, 0, Color.FromArgb(255, 62, 60, 70)); // RGB delta 12: retained.
+            varied.SetPixel(1, 0, Color.FromArgb(255, 63, 60, 70)); // RGB delta 13: counted.
+            varied.SetPixel(2, 0, Color.FromArgb(80, 50, 60, 70)); // Alpha is not compared.
+            varied.SetPixel(3, 0, Color.FromArgb(255, 53, 64, 76)); // Sum, not per-channel threshold.
+            varied.SetPixel(1, 1, Color.FromArgb(255, 37, 60, 70)); // A different row and negative delta.
+            check(CountDifferentPixels(reference, varied, stopToken) == 3,
+                "Buffered cache comparison changed its RGB threshold, channel/row order or alpha behavior");
+        }
         using var fixture = new Form { ClientSize = new Size(1000, 700), Text = "AsukaLens render cache checks", BackgroundImage = Wallpaper.Load() };
         using var map = new TreemapControl { Dock = DockStyle.Fill, AnimationsEnabled = false };
         fixture.Controls.Add(map); fixture.Show(owner); map.SetItems(TreemapBenchmark.CreateItems(true));
@@ -407,6 +600,7 @@ internal static class UiRegression
             var image = new Bitmap(map.Width, map.Height); image.SetResolution(map.DeviceDpi, map.DeviceDpi);
             map.DrawToBitmap(image, map.ClientRectangle); return image;
         }
+        CacheTextProbe.Run(fixture);
         using var initial = Capture();
         int builds = map.StaticLayerBuilds;
         check(builds > 0 && map.StaticLayerBytes == (long)map.Width * map.Height * 4 && map.StaticLayerBytes <= TreemapControl.MaxCachePixels * 4, "Static cache is missing or unbounded");
@@ -427,12 +621,10 @@ internal static class UiRegression
         Call("ReleaseStaticLayer");
         typeof(TreemapControl).GetField("rejectedKey", flags)!.SetValue(map, Call("CurrentCacheKey"));
         using var direct = Capture();
-        long different = 0;
-        for (int y = 0; y < cached.Height; y++) for (int x = 0; x < cached.Width; x++)
-        {
-            var a = cached.GetPixel(x, y); var b = direct.GetPixel(x, y);
-            if (Math.Abs(a.R - b.R) + Math.Abs(a.G - b.G) + Math.Abs(a.B - b.B) > 12) different++;
-        }
+        long different = CountDifferentPixels(cached, direct, stopToken);
+        Console.WriteLine($"CACHE different_pixels={different}; pixels={map.Width * map.Height}; native={map.FindForm() is MainForm { Rendering: not null }}");
+        if (Environment.GetEnvironmentVariable("ASUKALENS_CACHE_AUDIT") is { } audit)
+        { Directory.CreateDirectory(audit); cached.Save(Path.Combine(audit, "cached.png")); direct.Save(Path.Combine(audit, "direct.png")); }
         check(different < (long)map.Width * map.Height / 100, "Cached and direct drawing differ materially");
         Call("ReleaseStaticLayer"); using (var frame = Capture()) { }
         builds = map.StaticLayerBuilds;
@@ -469,6 +661,37 @@ internal static class UiRegression
         Console.WriteLine("PASS UI avatar transparency/reuse, partial hover invalidation, cache reuse/cap/disposal and layout/background/metric invalidation");
     }
 
+    private static long CountDifferentPixels(Bitmap first, Bitmap second, CancellationToken stopToken)
+    {
+        stopToken.ThrowIfCancellationRequested();
+        if (first.Size != second.Size) throw new ArgumentException("Owned comparison buffers differ in size.");
+        var bounds = new Rectangle(Point.Empty, first.Size);
+        var left = first.LockBits(bounds, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+        try
+        {
+            var right = second.LockBits(bounds, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                var leftRow = new byte[checked(first.Width * 4)];
+                var rightRow = new byte[leftRow.Length];
+                long different = 0;
+                for (int y = 0; y < first.Height; y++)
+                {
+                    stopToken.ThrowIfCancellationRequested();
+                    Marshal.Copy(IntPtr.Add(left.Scan0, y * left.Stride), leftRow, 0, leftRow.Length);
+                    Marshal.Copy(IntPtr.Add(right.Scan0, y * right.Stride), rightRow, 0, rightRow.Length);
+                    if (leftRow.AsSpan().SequenceEqual(rightRow)) continue;
+                    for (int x = 0; x < leftRow.Length; x += 4)
+                        if (Math.Abs(leftRow[x] - rightRow[x]) + Math.Abs(leftRow[x + 1] - rightRow[x + 1]) +
+                            Math.Abs(leftRow[x + 2] - rightRow[x + 2]) > 12) different++;
+                }
+                return different;
+            }
+            finally { second.UnlockBits(right); }
+        }
+        finally { first.UnlockBits(left); }
+    }
+
     private static async Task CheckParallelClose(string root, Action<bool, string> check)
     {
         using var release = new ManualResetEventSlim();
@@ -498,6 +721,11 @@ internal static class UiRegression
         Console.WriteLine("PASS UI closing during a high-speed file batch cancels, joins readers and ignores late results");
     }
 
+    private sealed class UiAssertionFailure(int ordinal, string message) : Exception(message)
+    {
+        internal int Ordinal { get; } = ordinal;
+    }
+
     private sealed class ScanGate : IDisposable
     {
         public bool Pause;
@@ -510,7 +738,11 @@ internal static class UiRegression
                 progress.Report(p);
                 if (!Pause) return;
                 if (p.Files == 0 && p.Folders == 0) Thread.Sleep(120);
-                else if (Interlocked.Exchange(ref paused, 1) == 0) Release.Wait(token);
+                // Pause at the fixture state that child-browsing assertions
+                // actually require, rather than at an unrelated first counter.
+                // Capture is an in-memory snapshot, with no extra file I/O.
+                else if (live.Capture(path, token)?.Directory.Children.Any(entry => entry.Name == "A-child") == true &&
+                    Interlocked.Exchange(ref paused, 1) == 0) Release.Wait(token);
             }), token, live);
         }
         public void Dispose() => Release.Dispose();

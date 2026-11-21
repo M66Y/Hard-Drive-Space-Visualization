@@ -1,0 +1,380 @@
+using System.ComponentModel;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+
+namespace DiskAtlas;
+
+// Thread-owned shared CPU/GDI storage. The Bitmap and its Graphics
+// wrap the actual top-down DIB bits; the persistent source DC selects that DIB.
+// No GDI+ temporary source HDC, screenshot, scaling, or borrowed native object.
+internal sealed class NativeResizeFrame : IDisposable
+{
+    internal enum CopyFailure
+    {
+        None, State, Area, TargetGraphicsState, GraphicsTransform, GraphicsPageScale, GraphicsUnit,
+        ManagedClip, AcquireTargetDc, TargetDcKind, TargetMapMode, TargetLayout, TargetOrigin,
+        TargetWorldTransform, SaveTargetDc, SelectTargetClip, GraphicsFlush, GdiFlush, BitBlt,
+        RestoreTargetDc, ReleaseTargetDc
+    }
+    internal const long DefaultMaxBytes = 128L * 1024 * 1024;
+    private const uint Srccopy = 0x00CC0020;
+    private readonly int ownerThread = Environment.CurrentManagedThreadId;
+    private readonly long storageBytes;
+    private IntPtr memoryDc, dib, previousBitmap;
+    private Bitmap? bitmap;
+    private Graphics? graphics;
+    private bool disposed;
+
+    internal Size Capacity { get; }
+    internal int Dpi { get; }
+    internal bool IsDisposed => disposed;
+    internal CopyFailure LastCopyFailure { get; private set; }
+    // Pixel storage only; the small DC/GDI+ object overhead is not claimed as
+    // measured process memory. The host also budgets its other frame caches.
+    internal long OwnedBytes => disposed || dib == IntPtr.Zero ? 0 : storageBytes;
+    internal Bitmap Bitmap { get { EnsureOwner(); return bitmap!; } }
+    internal Graphics Graphics { get { EnsureOwner(); return graphics!; } }
+
+    internal NativeResizeFrame(Size capacity, int dpi, long maxBytes = DefaultMaxBytes)
+    {
+        if (capacity.Width is <= 0 or > 32768 || capacity.Height is <= 0 or > 32768)
+            throw new ArgumentOutOfRangeException(nameof(capacity));
+        if (dpi is < 48 or > 768) throw new ArgumentOutOfRangeException(nameof(dpi));
+        if (maxBytes is <= 0 or > DefaultMaxBytes) throw new ArgumentOutOfRangeException(nameof(maxBytes));
+        long bytes = checked((long)capacity.Width * capacity.Height * 4);
+        if (bytes > maxBytes) throw new InvalidOperationException("NativeFrameBudget");
+        Capacity = capacity;
+        Dpi = dpi;
+        storageBytes = bytes;
+        try
+        {
+            memoryDc = CreateCompatibleDC(IntPtr.Zero);
+            if (memoryDc == IntPtr.Zero) throw NativeFailure("NativeFrameCreateDc");
+            var info = new BitmapInfo
+            {
+                Header = new BitmapInfoHeader
+                {
+                    Size = (uint)Marshal.SizeOf<BitmapInfoHeader>(), Width = capacity.Width,
+                    Height = -capacity.Height, Planes = 1, BitCount = 32, Compression = 0,
+                    SizeImage = checked((uint)bytes),
+                    XPelsPerMeter = (int)Math.Round(dpi / .0254), YPelsPerMeter = (int)Math.Round(dpi / .0254)
+                }
+            };
+            dib = CreateDIBSection(memoryDc, ref info, 0, out IntPtr bits, IntPtr.Zero, 0);
+            if (dib == IntPtr.Zero || bits == IntPtr.Zero) throw NativeFailure("NativeFrameCreateDib");
+            previousBitmap = SelectObject(memoryDc, dib);
+            if (!ValidObject(previousBitmap)) throw NativeFailure("NativeFrameSelectDib");
+            bitmap = new Bitmap(capacity.Width, capacity.Height, checked(capacity.Width * 4),
+                PixelFormat.Format32bppPArgb, bits);
+            bitmap.SetResolution(dpi, dpi);
+            graphics = System.Drawing.Graphics.FromImage(bitmap);
+            graphics.Clear(Color.Transparent);
+            graphics.Flush(FlushIntention.Sync);
+        }
+        catch
+        {
+            Release();
+            throw;
+        }
+    }
+
+    // Only publishes this owned DIB to the candidate's cloaked source HWND.
+    // There is no borrowed window capture or additional application bitmap.
+    internal bool TryPublishLayered(IntPtr window)
+    {
+        EnsureOwner();
+        if (disposed || window == IntPtr.Zero) return false;
+        graphics!.Flush(FlushIntention.Sync);
+        if (!GdiFlush()) return false;
+        var destination = new NativePoint { X = -32000, Y = -32000 };
+        var source = new NativePoint();
+        var size = new NativeSize { Width = Capacity.Width, Height = Capacity.Height };
+        var blend = new Blend { Alpha = 255, Format = 1 };
+        return UpdateLayeredWindow(window, IntPtr.Zero, ref destination, ref size,
+            memoryDc, ref source, 0, ref blend, 2);
+    }
+
+    // Existing callers retain the strict, zero-origin contract. A translated
+    // print target must explicitly declare its viewport and destination; source
+    // pixels remain in frame coordinates, never inferred from a borrowed DC.
+    internal bool TryCopyTo(IntPtr targetDc, Rectangle area) =>
+        TryCopyTo(targetDc, area, area.Location, Point.Empty);
+
+    internal bool TryCopyTo(IntPtr targetDc, Rectangle area, Point destination, Point expectedViewport)
+    {
+        LastCopyFailure = CopyFailure.None;
+        if (!CanCopy(area) || !ValidDestination(area.Size, destination, expectedViewport) ||
+            !SupportedTarget(targetDc, expectedViewport)) return false;
+        try
+        {
+            LastCopyFailure = CopyFailure.GraphicsFlush;
+            graphics!.Flush(FlushIntention.Sync);
+            LastCopyFailure = CopyFailure.GdiFlush;
+            if (!GdiFlush()) return false;
+            LastCopyFailure = CopyFailure.BitBlt;
+            if (!BitBlt(targetDc, destination.X, destination.Y, area.Width, area.Height,
+                memoryDc, area.X, area.Y, Srccopy)) return false;
+            LastCopyFailure = CopyFailure.GdiFlush;
+            if (!GdiFlush()) return false;
+            LastCopyFailure = CopyFailure.None;
+            return true;
+        }
+        catch (Exception error) when (error is ArgumentException or ExternalException or InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    // GetHdc is used exclusively for the DESTINATION. GDI+ managed clipping
+    // is materialized and intersected with its pre-existing native DC clip;
+    // SaveDC/RestoreDC preserve the caller's selected objects and state.
+    internal bool TryCopyTo(Graphics target, Rectangle area) =>
+        TryCopyTo(target, area, area.Location, Point.Empty);
+
+    internal bool TryCopyTo(Graphics target, Rectangle area, Point destination, Point expectedViewport)
+    {
+        LastCopyFailure = CopyFailure.None;
+        if (!CanCopy(area) || !ValidDestination(area.Size, destination, expectedViewport)) return false;
+        if (target == null || ReferenceEquals(target, graphics)) return Reject(CopyFailure.TargetGraphicsState);
+        IntPtr clip = IntPtr.Zero, targetDc = IntPtr.Zero;
+        int saved = 0;
+        bool copied = false;
+        try
+        {
+            LastCopyFailure = CopyFailure.GraphicsTransform;
+            using var transform = target.Transform;
+            if (!transform.IsIdentity) return false;
+            LastCopyFailure = CopyFailure.GraphicsPageScale;
+            if (target.PageScale != 1) return false;
+            LastCopyFailure = CopyFailure.GraphicsUnit;
+            if (target.PageUnit is not (GraphicsUnit.Pixel or GraphicsUnit.Display)) return false;
+            LastCopyFailure = CopyFailure.ManagedClip;
+            using var managedClip = target.Clip;
+            // An infinite managed region has no finite HRGN. In WinForms the
+            // real paint/update clip may live exclusively in the native DC;
+            // leave that clip intact instead of treating infinity as failure.
+            if (!managedClip.IsInfinite(target))
+            {
+                clip = managedClip.GetHrgn(target);
+                if (clip == IntPtr.Zero) return false;
+            }
+            LastCopyFailure = CopyFailure.AcquireTargetDc;
+            targetDc = target.GetHdc();
+            if (!SupportedTarget(targetDc, expectedViewport)) return false;
+            LastCopyFailure = CopyFailure.SaveTargetDc;
+            saved = SaveDC(targetDc);
+            if (saved == 0) return false;
+            LastCopyFailure = CopyFailure.SelectTargetClip;
+            // GetHrgn(target) already accounts for this Graphics' native DC
+            // viewport. ExtSelectClipRgn consumes device coordinates: applying
+            // the offset a second time would clip a different part of the frame.
+            if (clip != IntPtr.Zero && ExtSelectClipRgn(targetDc, clip, 1) == 0) return false;
+            copied = TryCopyTo(targetDc, area, destination, expectedViewport);
+        }
+        catch (Exception error) when (error is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException)
+        {
+            return false;
+        }
+        finally
+        {
+            try
+            {
+                if (saved != 0 && !RestoreDC(targetDc, saved))
+                { LastCopyFailure = CopyFailure.RestoreTargetDc; copied = false; }
+                if (targetDc != IntPtr.Zero) target.ReleaseHdc(targetDc);
+            }
+            catch (Exception error) when (error is ArgumentException or ExternalException or InvalidOperationException)
+            {
+                LastCopyFailure = CopyFailure.ReleaseTargetDc;
+                copied = false;
+            }
+            finally { if (clip != IntPtr.Zero) DeleteObject(clip); }
+        }
+        if (copied) LastCopyFailure = CopyFailure.None;
+        return copied;
+    }
+
+    private bool Reject(CopyFailure reason) { LastCopyFailure = reason; return false; }
+    private bool CanCopy(Rectangle area)
+    {
+        if (disposed || Environment.CurrentManagedThreadId != ownerThread || memoryDc == IntPtr.Zero || graphics == null)
+            return Reject(CopyFailure.State);
+        if (area.X < 0 || area.Y < 0 || area.Width <= 0 || area.Height <= 0 ||
+            (long)area.X + area.Width > Capacity.Width || (long)area.Y + area.Height > Capacity.Height)
+            return Reject(CopyFailure.Area);
+        return true;
+    }
+
+    private bool ValidDestination(Size size, Point destination, Point viewport)
+    {
+        // Keep device/logical coordinates bounded before any GDI arithmetic.
+        bool valid = Math.Abs((long)viewport.X) <= 32768 && Math.Abs((long)viewport.Y) <= 32768 &&
+            Math.Abs((long)destination.X) <= 32768 && Math.Abs((long)destination.Y) <= 32768 &&
+            Math.Abs((long)destination.X + viewport.X + size.Width) <= 65536 &&
+            Math.Abs((long)destination.Y + viewport.Y + size.Height) <= 65536;
+        return valid || Reject(CopyFailure.Area);
+    }
+
+    private bool SupportedTarget(IntPtr dc, Point expectedViewport)
+    {
+        if (dc == IntPtr.Zero || GetObjectType(dc) is not (3 or 10)) return Reject(CopyFailure.TargetDcKind);
+        if (GetMapMode(dc) != 1) return Reject(CopyFailure.TargetMapMode);
+        if (GetLayout(dc) != 0) return Reject(CopyFailure.TargetLayout);
+        if (!GetWindowOrgEx(dc, out var window) || !GetViewportOrgEx(dc, out var viewport) ||
+            window.X != 0 || window.Y != 0 || viewport.X != expectedViewport.X || viewport.Y != expectedViewport.Y)
+            return Reject(CopyFailure.TargetOrigin);
+        int mode = GetGraphicsMode(dc);
+        bool supported = mode == 1 || mode == 2 && GetWorldTransform(dc, out var transform) &&
+            transform.M11 == 1 && transform.M12 == 0 && transform.M21 == 0 && transform.M22 == 1 &&
+            transform.Dx == 0 && transform.Dy == 0;
+        return supported || Reject(CopyFailure.TargetWorldTransform);
+    }
+    private void EnsureOwner()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (Environment.CurrentManagedThreadId != ownerThread) throw new InvalidOperationException("NativeFrameThread");
+    }
+
+    // TextRenderer requires the actual background pixels for antialiasing.
+    // Graphics.FromImage.GetHdc supplies a temporary keyed surface instead.
+    // Render an opaque retained layer through the DC selecting these SAME bits.
+    internal void RenderOpaque(Action<Graphics> paint)
+    {
+        EnsureOwner(); ArgumentNullException.ThrowIfNull(paint);
+        if(storageBytes + Math.Min(Capacity.Width,1024)*4 > DefaultMaxBytes)
+            throw new InvalidOperationException("NativeOpaqueWorkspaceBudget");
+        graphics!.Flush(FlushIntention.Sync);
+        if (!GdiFlush()) throw new InvalidOperationException("NativeSourceFlush");
+        int saved = SaveDC(memoryDc);
+        if (saved == 0) throw new InvalidOperationException("NativeSourceSave");
+        try
+        {
+            using var target = System.Drawing.Graphics.FromHdc(memoryDc);
+            target.PageUnit = GraphicsUnit.Pixel;
+            paint(target);
+            target.Flush(FlushIntention.Sync);
+            if (!GdiFlush()) throw new InvalidOperationException("NativeSourceFlush");
+        }
+        finally { if(!RestoreDC(memoryDc,saved))throw new InvalidOperationException("NativeSourceRestore"); }
+        // GDI text does not maintain the alpha byte. This layer is deliberately
+        // opaque: retain every RGB byte and seal alpha once, before publication.
+        var bounds = new Rectangle(Point.Empty,Capacity);
+        var data = bitmap!.LockBits(bounds,ImageLockMode.ReadWrite,PixelFormat.Format32bppPArgb);
+        try
+        {
+            var row = new int[Math.Min(Capacity.Width,1024)];
+            for(int y=0;y<Capacity.Height;y++)
+            {
+                for(int left=0;left<Capacity.Width;left+=row.Length)
+                {
+                    int count=Math.Min(row.Length,Capacity.Width-left);
+                    IntPtr address = data.Scan0 + y * data.Stride + left*4;
+                    Marshal.Copy(address,row,0,count);
+                    for(int x=0;x<count;x++)row[x] |= unchecked((int)0xff000000);
+                    Marshal.Copy(row,0,address,count);
+                }
+            }
+        }
+        finally { bitmap.UnlockBits(data); }
+    }
+    private static bool ValidObject(IntPtr value) => value != IntPtr.Zero && value != new IntPtr(-1);
+    private static Win32Exception NativeFailure(string code) => new(Marshal.GetLastWin32Error(), code);
+
+    public void Dispose()
+    {
+        if (disposed) return;
+        EnsureOwner();
+        disposed = true;
+        Release();
+    }
+    private void Release()
+    {
+        // Wrappers must be gone before their external pixel allocation. Always
+        // continue native cleanup even if a wrapper's disposal were to fail.
+        try { graphics?.Dispose(); }
+        finally
+        {
+            graphics = null;
+            try { bitmap?.Dispose(); }
+            finally
+            {
+                bitmap = null;
+                if (memoryDc != IntPtr.Zero && ValidObject(previousBitmap)) SelectObject(memoryDc, previousBitmap);
+                previousBitmap = IntPtr.Zero;
+                if (dib != IntPtr.Zero) { DeleteObject(dib); dib = IntPtr.Zero; }
+                if (memoryDc != IntPtr.Zero) { DeleteDC(memoryDc); memoryDc = IntPtr.Zero; }
+            }
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct BitmapInfoHeader
+    {
+        internal uint Size;
+        internal int Width, Height;
+        internal ushort Planes, BitCount;
+        internal uint Compression, SizeImage;
+        internal int XPelsPerMeter, YPelsPerMeter;
+        internal uint ClrUsed, ClrImportant;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct BitmapInfo { internal BitmapInfoHeader Header; internal uint Colors; }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint { internal int X, Y; }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeSize { internal int Width, Height; }
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    private struct Blend { internal byte Operation, Flags, Alpha, Format; }
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool UpdateLayeredWindow(IntPtr window, IntPtr destinationDc,
+        ref NativePoint destination, ref NativeSize size, IntPtr sourceDc,
+        ref NativePoint source, uint key, ref Blend blend, uint flags);
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeTransform { internal float M11, M12, M21, M22, Dx, Dy; }
+
+    [DllImport("gdi32.dll", SetLastError = true)]
+    private static extern IntPtr CreateCompatibleDC(IntPtr dc);
+    [DllImport("gdi32.dll", SetLastError = true)]
+    private static extern IntPtr CreateDIBSection(IntPtr dc, ref BitmapInfo info, uint usage, out IntPtr bits, IntPtr section, uint offset);
+    [DllImport("gdi32.dll", SetLastError = true)]
+    private static extern IntPtr SelectObject(IntPtr dc, IntPtr value);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteObject(IntPtr value);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteDC(IntPtr dc);
+    [DllImport("gdi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool BitBlt(IntPtr target, int x, int y, int width, int height, IntPtr source, int sourceX, int sourceY, uint operation);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GdiFlush();
+    [DllImport("gdi32.dll")]
+    private static extern uint GetObjectType(IntPtr value);
+    [DllImport("gdi32.dll")]
+    private static extern int GetMapMode(IntPtr dc);
+    [DllImport("gdi32.dll")]
+    private static extern uint GetLayout(IntPtr dc);
+    [DllImport("gdi32.dll")]
+    private static extern int GetGraphicsMode(IntPtr dc);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWorldTransform(IntPtr dc, out NativeTransform transform);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowOrgEx(IntPtr dc, out NativePoint point);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetViewportOrgEx(IntPtr dc, out NativePoint point);
+    [DllImport("gdi32.dll")]
+    private static extern int SaveDC(IntPtr dc);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool RestoreDC(IntPtr dc, int saved);
+    [DllImport("gdi32.dll")]
+    private static extern int ExtSelectClipRgn(IntPtr dc, IntPtr region, int mode);
+}

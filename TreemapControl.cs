@@ -12,27 +12,39 @@ internal sealed class TreemapControl : Control
     private readonly Dictionary<MapItem, List<MapTile>> nestedLayouts = [];
     private readonly Dictionary<MapItem, MapTile> tileLookup = [];
     private Bitmap? staticLayer;
+    private PixelSurface? staticPixels;
     private CacheKey? cacheKey, rejectedKey;
     internal const long MaxCachePixels = 8_000_000;
+    // Retained as an observation interval for existing UI probes, not a limit
+    // on hover motion. Both selected and hovered outlines now orbit continuously.
     internal const int MotionDurationMilliseconds = 620;
+    internal const double OrbitPeriodMilliseconds = 2800d / 1.15d;
     internal int StaticLayerBuilds { get; private set; }
     internal long StaticLayerBytes => staticLayer == null ? 0 : (long)staticLayer.Width * staticLayer.Height * 4;
-    private readonly record struct CacheKey(Size ViewSize, Size WindowSize, Point Offset, Image? Wallpaper, int Dpi);
+    private readonly record struct CacheKey(Size ViewSize, Size WindowSize, Point Offset, Image? Wallpaper, int Dpi, bool CustomBackground);
     private MapItem? hovered;
     private MapItem? selected;
-    private readonly System.Windows.Forms.Timer motionTimer = new() { Interval = 16 };
+    private bool pointerFocus;
+    private readonly System.Windows.Forms.Timer motionTimer = new() { Interval = 33 };
     private readonly Stopwatch motionClock = new();
-    private MapItem? motionItem;
-    private RectangleF motionBounds;
+    private MapItem? motionItem, secondaryMotionItem;
+    private RectangleF motionBounds, secondaryMotionBounds;
+    private readonly Dictionary<MapItem, GlowContour> glowContours = [];
+    private bool resourcesDisposed;
     private bool animationsEnabled = true;
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool AnimationsEnabled
     {
         get => animationsEnabled;
-        set { animationsEnabled = value; if (!value) StopMotion(); }
+        set
+        {
+            if (animationsEnabled == value) return;
+            animationsEnabled = value; ClearHover(); SyncMotion(); InvalidateItem(selected);
+        }
     }
-    internal bool MotionRunning => motionTimer.Enabled;
-    private readonly ToolTip tip = new() { InitialDelay = 300, ReshowDelay = 100, AutoPopDelay = 20000 };
+    internal bool MotionRunning => !resourcesDisposed && motionTimer.Enabled;
+    internal bool OrbitRunning => MotionRunning;
+    internal bool KeyboardFocusVisible => Focused && ShowFocusCues && !pointerFocus;
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public long TotalSize { get; set; }
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -58,19 +70,20 @@ internal sealed class TreemapControl : Control
         Cursor = Cursors.Hand;
         motionTimer.Tick += (_, _) =>
         {
-            if (motionClock.ElapsedMilliseconds >= MotionDurationMilliseconds || !Visible || !Enabled) StopMotion();
+            if (!CanAnimate) { ClearHover(); StopMotion(); }
             else InvalidateMotion();
         };
     }
     public void SetItems(IReadOnlyList<MapItem> value)
     {
-        items = value; hovered = selected = null; tip.SetToolTip(this, null);
+        items = value; hovered = selected = null;
         LayoutTiles(); Invalidate();
     }
     public void SelectItem(MapItem? value)
     {
         if (selected == value) return;
         var previous = selected; selected = value; InvalidateItem(previous); InvalidateItem(value);
+        SyncMotion();
     }
     protected override void OnPaintBackground(PaintEventArgs e)
     {
@@ -80,11 +93,15 @@ internal sealed class TreemapControl : Control
     protected override void OnResize(EventArgs e) { base.OnResize(e); LayoutTiles(); }
     private void LayoutTiles()
     {
-        StopMotion(); ReleaseStaticLayer();
+        StopMotion(); ClearHover(); ReleaseGlowContours(); ReleaseStaticLayer();
         float pad = 10 * DeviceDpi / 96f;
-        tiles = TreemapLayout.Build(items, new RectangleF(pad, pad, Math.Max(0, Width - 2 * pad), Math.Max(0, Height - 2 * pad)));
+        var layout = TreemapDensityLayout.Build(items,
+            new RectangleF(pad, pad, Math.Max(0, Width - 2 * pad), Math.Max(0, Height - 2 * pad)), DeviceDpi);
+        tiles = layout.Tiles;
         nestedLayouts.Clear(); tileLookup.Clear();
-        foreach (var tile in tiles) tileLookup[tile.Item] = tile;
+        // Original list selections retain their identity, while an entry folded
+        // into the remainder uses that displayed tile's outline and bounds.
+        foreach (var pair in layout.TileLookup) tileLookup[pair.Key] = pair.Value;
         float s = DeviceDpi / 96f;
         if (!ShowNested) return;
         foreach (var tile in tiles)
@@ -123,21 +140,48 @@ internal sealed class TreemapControl : Control
         var clip = Rectangle.Intersect(ClientRectangle, e.ClipRectangle);
         if (clip.IsEmpty) return;
         if (EnsureStaticLayer())
-            g.DrawImage(staticLayer!, clip, clip, GraphicsUnit.Pixel);
+        {
+            var state = g.Save();
+            try
+            {
+                g.SetClip(clip, CombineMode.Intersect);
+                g.SmoothingMode = SmoothingMode.None;
+                g.PixelOffsetMode = PixelOffsetMode.Half;
+                g.InterpolationMode = InterpolationMode.NearestNeighbor;
+                g.CompositingMode = CompositingMode.SourceCopy;
+                if (staticPixels?.TryCopy(g, ClientRectangle, Point.Empty, this) != true)
+                    g.DrawImageUnscaled(staticLayer!, 0, 0);
+            }
+            finally { g.Restore(state); }
+        }
         else
         {
             Wallpaper.Paint(this, g, 215);
             DrawStaticTiles(g, clip);
         }
-        DrawInteraction(g, hovered, false);
-        if (selected != hovered) DrawInteraction(g, selected, true);
-        if (motionItem != null && tileLookup.TryGetValue(motionItem, out var moving)) DrawJelly(g, moving.Bounds);
+        // Restoration after minimising or a layout generation resumes only a
+        // still-valid selection; there is no worker or secondary timer.
+        if ((selected != null || hovered != null) && !MotionRunning) SyncMotion();
+        var selectedTile = DisplayItem(selected); var hoveredTile = DisplayItem(hovered);
+        foreach (var stale in glowContours.Keys.Where(item => item != selectedTile && item != hoveredTile).ToArray())
+        { glowContours[stale].Dispose(); glowContours.Remove(stale); }
+        DrawInteraction(g, hoveredTile);
+        if (selectedTile != hoveredTile) DrawInteraction(g, selectedTile);
+        if (MotionRunning)
+        {
+            float phase = (float)((motionClock.Elapsed.TotalMilliseconds % OrbitPeriodMilliseconds) / OrbitPeriodMilliseconds);
+            DrawMovingEdge(g, motionItem, motionBounds, phase);
+            DrawMovingEdge(g, secondaryMotionItem, secondaryMotionBounds, phase);
+        }
         DrawFocusCue(g, s);
     }
 
     private void DrawStaticTiles(Graphics g, Rectangle clip)
     {
         float s = DeviceDpi / 96f;
+        // Keep the approved light default; arbitrary user images receive a
+        // stronger local tile backing instead of whitening the entire canvas.
+        int fillAlpha = FindForm() is MainForm { HasCustomBackground: true } ? 224 : 184;
         g.SmoothingMode = SmoothingMode.AntiAlias;
         using var nameFont = Theme.Font(11, FontStyle.Bold);
         using var sizeFont = Theme.Font(9.5f);
@@ -146,12 +190,11 @@ internal sealed class TreemapControl : Control
         foreach (var tile in tiles)
         {
             if (!clip.IntersectsWith(Rectangle.Ceiling(tile.Bounds))) continue;
-            RectangleF rect = tile.Bounds;
-            rect.Inflate(-2 * s, -2 * s);
+            RectangleF rect = GlowBounds(tile.Bounds, s);
             if (rect.Width < 1 || rect.Height < 1) continue;
             Color baseColor = Theme.CategoryColor(tile.Item.Category);
-            using var fill = new SolidBrush(baseColor);
-            using var path = Theme.Round(rect, Math.Min(5 * s, Math.Min(rect.Width, rect.Height) / 4));
+            using var fill = new SolidBrush(Color.FromArgb(fillAlpha, baseColor));
+            using var path = TileOutline(rect, s);
             g.FillPath(fill, path);
             if (nestedLayouts.TryGetValue(tile.Item, out var nested))
             {
@@ -163,8 +206,9 @@ internal sealed class TreemapControl : Control
                     // Stay within the parent category's tone without making small labels too dark to read.
                     int shade = 8 + index % 3 * 3;
                     var dark = Color.FromArgb(Math.Max(0, baseColor.R - shade), Math.Max(0, baseColor.G - shade), Math.Max(0, baseColor.B - shade));
-                    using var b = new SolidBrush(dark);
-                    g.FillRectangle(b, inner);
+                    using var b = new SolidBrush(Color.FromArgb(fillAlpha, dark));
+                    using var innerPath = Theme.Round(inner, Math.Min(4 * s, Math.Min(inner.Width, inner.Height) / 4));
+                    g.FillPath(b, innerPath);
                     var childLabel = Rectangle.Round(RectangleF.Inflate(inner, -5 * s, -2 * s));
                     DrawLabel(g, child.Item.Name, miniFont, Theme.Text, childLabel, miniHeight);
                     index++;
@@ -186,7 +230,7 @@ internal sealed class TreemapControl : Control
     {
         if (bounds.Width <= 0 || bounds.Height < height || text.Length == 0) return;
         // A truncated size can hide its unit. Small tiles keep the full value
-        // in their tooltip instead of presenting an ambiguous partial number.
+        // in the list and selected details instead of an ambiguous partial number.
         if (requireFullText && TextRenderer.MeasureText(g, text, font, Size.Empty, LabelFlags).Width > bounds.Width) return;
         // A short meaningful prefix must fit before we draw an ellipsized label.
         // Text elements keep surrogate pairs and combining marks intact.
@@ -201,86 +245,211 @@ internal sealed class TreemapControl : Control
         Theme.TextAt(g, text, font, color, bounds, LabelFlags);
     }
 
-    private void DrawInteraction(Graphics g, MapItem? item, bool isSelected)
+    private void DrawInteraction(Graphics g, MapItem? item)
     {
         if (item == null || !tileLookup.TryGetValue(item, out var tile)) return;
-        float s = DeviceDpi / 96f;
-        bool chosen = isSelected || item == selected;
-        float shortest = Math.Min(tile.Bounds.Width, tile.Bounds.Height);
-        float inset = Math.Min((chosen ? 4.5f : 3) * s, Math.Max(2.25f * s, shortest / 3));
-        var rect = RectangleF.Inflate(tile.Bounds, -inset, -inset);
-        if (rect.Width < 1 || rect.Height < 1) return;
-        using var path = Theme.Round(rect, Math.Min(5 * s, Math.Min(rect.Width, rect.Height) / 4));
-        if (item == hovered)
+        var contour = GetGlowContour(item, tile.Bounds);
+        if (contour == null || !g.IsVisible(tile.Bounds)) return;
+        var state = g.Save();
+        try
         {
-            using var wash = new SolidBrush(Color.FromArgb(22, Color.White)); g.FillPath(wash, path);
+            ClipGlowToEdge(g, tile.Bounds, contour.Scale);
+            contour.DrawBase(g, !AnimationsEnabled);
         }
-        if (chosen && inset >= 4.5f * s && rect.Width > 6 * s && rect.Height > 6 * s)
+        finally { g.Restore(state); }
+    }
+
+    private MapItem? DisplayItem(MapItem? item) =>
+        item != null && tileLookup.TryGetValue(item, out var tile) ? tile.Item : null;
+
+    private static void ClipGlowToEdge(Graphics graphics, RectangleF tile, float scale)
+    {
+        graphics.SetClip(tile, CombineMode.Intersect);
+        // Keep the soft halo on the edge ring. At rounded corners even a very
+        // faint blur tail must not recolour cached body pixels or text.
+        var body = RectangleF.Inflate(tile, -8 * scale, -8 * scale);
+        if (body.Width > 0 && body.Height > 0) graphics.SetClip(body, CombineMode.Exclude);
+    }
+
+    internal static RectangleF GlowBounds(RectangleF bounds, float scale)
+    {
+        if (!float.IsFinite(scale) || scale <= 0 || !float.IsFinite(bounds.X) || !float.IsFinite(bounds.Y) ||
+            !float.IsFinite(bounds.Width) || !float.IsFinite(bounds.Height)) return RectangleF.Empty;
+        var fill = RectangleF.Inflate(bounds, -2 * scale, -2 * scale);
+        if (fill.Width < 1 || fill.Height < 1) return RectangleF.Empty;
+        return fill;
+    }
+
+    private static GraphicsPath TileOutline(RectangleF fill, float scale) =>
+        Theme.Round(fill, Math.Min(8 * scale, Math.Min(fill.Width, fill.Height) / 4));
+
+    private GlowContour? GetGlowContour(MapItem item, RectangleF bounds)
+    {
+        float scale = DeviceDpi / 96f;
+        var fill = GlowBounds(bounds, scale);
+        if (fill.IsEmpty) return null;
+        int accent = Theme.Accent.ToArgb();
+        if (glowContours.TryGetValue(item, out var existing))
         {
-            using var separation = new Pen(Theme.Surface, 5 * s);
-            g.DrawPath(separation, path);
+            if (existing.Bounds == fill && existing.Accent == accent && existing.Scale == scale) return existing;
+            existing.Dispose(); glowContours.Remove(item);
         }
-        float stroke = Math.Min((chosen ? 2.25f : 1.25f) * s, Math.Max(.5f * s, 2 * (inset - 2 * s)));
-        using var pen = new Pen(chosen ? Theme.Accent : Theme.Muted, stroke);
-        g.DrawPath(pen, path);
+        var result = new GlowContour(fill, scale, accent);
+        glowContours[item] = result;
+        return result;
+    }
+
+    private sealed class GlowContour : IDisposable
+    {
+        public RectangleF Bounds { get; }
+        public float Scale { get; }
+        public int Accent { get; }
+        public GraphicsPath Path { get; }
+        private readonly Pen edgeBase, travel, reducedTravel;
+        private readonly Pen[] movingHalo, reducedHalo;
+        private readonly float perimeter;
+        public GlowContour(RectangleF bounds, float scale, int accent)
+        {
+            Bounds = bounds; Scale = scale; Accent = accent;
+            // The approved SVG inset its 1.5px base stroke by .75px and reduced
+            // the radius by that same amount. Keep the fill and light centred
+            // on the same rounded corners rather than drawing a second box.
+            float inset = Math.Min(.75f * scale, Math.Min(bounds.Width, bounds.Height) / 4);
+            var lineBounds = RectangleF.Inflate(bounds, -inset, -inset);
+            float radius = Math.Max(.01f, Math.Min(8 * scale, Math.Min(bounds.Width, bounds.Height) / 4) - inset);
+            Path = Theme.Round(lineBounds, radius);
+            var color = Color.FromArgb(accent);
+            Color Adapt(Color reference) => accent == Theme.DefaultAccent.ToArgb()
+                ? reference : Theme.Mix(color, reference, .85f);
+            perimeter = 2 * (lineBounds.Width + lineBounds.Height - 4 * radius) + 2 * MathF.PI * radius;
+            edgeBase = Stroke(1.5f * scale, Color.FromArgb(117, Adapt(Color.FromArgb(255, 233, 201))));
+            travel = Stroke(2 * scale, Color.FromArgb(242, Adapt(Color.FromArgb(255, 249, 232))), .24f);
+            reducedTravel = Stroke(2 * scale, Color.FromArgb(121, Adapt(Color.FromArgb(255, 249, 232))));
+            var haloColor = Adapt(Color.FromArgb(255, 219, 178));
+            movingHalo = BlurredStroke(haloColor, .60f, .29f);
+            reducedHalo = BlurredStroke(haloColor, .30f, 0);
+
+            Pen Stroke(float width, Color stroke, float fraction = 0)
+            {
+                var pen = new Pen(stroke, width) { DashCap = DashCap.Round, LineJoin = LineJoin.Round };
+                if (fraction > 0)
+                    pen.DashPattern = [fraction * perimeter / width, (1 - fraction) * perimeter / width];
+                return pen;
+            }
+            Pen[] BlurredStroke(Color stroke, float opacity, float fraction)
+            {
+                // Approximate the preview's 5px stroke blurred by 1px using
+                // cached concentric coverage bands. No per-frame bitmap blur,
+                // large intermediate surface, or new animation source is used.
+                float[] widths = [9, 7, 5, 3, 1];
+                float[] coverage = [.0668f, .3085f, .6915f, .9330f, .9876f];
+                var pens = new Pen[widths.Length];
+                float previous = 0;
+                for (int index = 0; index < pens.Length; index++)
+                {
+                    float target = opacity * coverage[index];
+                    int alpha = (int)Math.Round(255 * (target - previous) / (1 - previous));
+                    pens[index] = Stroke(widths[index] * scale, Color.FromArgb(alpha, stroke), fraction);
+                    previous = target;
+                }
+                return pens;
+            }
+        }
+        public void DrawBase(Graphics graphics, bool reduced)
+        {
+            graphics.DrawPath(edgeBase, Path);
+            if (!reduced) return;
+            // In the original reduced-motion preview both travelling layers
+            // become complete half-opacity strokes; selection stays visible.
+            foreach (var pen in reducedHalo) graphics.DrawPath(pen, Path);
+            graphics.DrawPath(reducedTravel, Path);
+        }
+        public void DrawMovingHighlight(Graphics graphics, float phase)
+        {
+            foreach (var pen in movingHalo)
+            {
+                pen.DashOffset = -phase * perimeter / pen.Width;
+                graphics.DrawPath(pen, Path);
+            }
+            travel.DashOffset = -phase * perimeter / travel.Width;
+            graphics.DrawPath(travel, Path);
+        }
+        public void Dispose()
+        {
+            Path.Dispose(); edgeBase.Dispose(); travel.Dispose(); reducedTravel.Dispose();
+            foreach (var pen in movingHalo) pen.Dispose();
+            foreach (var pen in reducedHalo) pen.Dispose();
+        }
+    }
+
+    private void ReleaseGlowContours()
+    {
+        foreach (var contour in glowContours.Values) contour.Dispose();
+        glowContours.Clear();
     }
 
     private void DrawFocusCue(Graphics g, float scale)
     {
-        if (!Focused || !ShowFocusCues) return;
+        if (!KeyboardFocusVisible) return;
         int inset = Math.Max(2, (int)Math.Ceiling(3 * scale));
         var bounds = Rectangle.Inflate(ClientRectangle, -inset, -inset);
         if (bounds.Width > 0 && bounds.Height > 0) ControlPaint.DrawFocusRectangle(g, bounds, Theme.Accent, Theme.Surface);
     }
 
-    private void DrawJelly(Graphics g, RectangleF bounds)
+    private void DrawMovingEdge(Graphics g, MapItem? item, RectangleF bounds, float phase)
     {
-        float s = DeviceDpi / 96f;
-        var rect = RectangleF.Inflate(bounds, -2 * s, -2 * s);
-        if (rect.Width < 12 * s || rect.Height < 12 * s) return;
-        float t = Math.Clamp(motionClock.ElapsedMilliseconds / (float)MotionDurationMilliseconds, 0, 1);
-        float spring = (float)(Math.Sin(3 * Math.PI * t) * Math.Exp(-4 * t) * (1 - t));
-        // A clearly visible squash/stretch of the internal sheen, never the area-bearing fill.
-        float dx = Math.Clamp(Math.Min(8 * s, rect.Width * .16f) + 9 * s * spring, 2 * s, rect.Width * .28f);
-        float dy = Math.Clamp(Math.Min(8 * s, rect.Height * .16f) - 7 * s * spring, 2 * s, rect.Height * .28f);
-        var inner = RectangleF.Inflate(rect, -dx, -dy);
-        using var contour = Theme.Round(inner, Math.Min(12 * s, Math.Min(inner.Width, inner.Height) / 3));
-        using var glow = new LinearGradientBrush(inner, Color.FromArgb((int)(62 * (1 - t)), Color.White), Color.FromArgb(0, Color.White), LinearGradientMode.Vertical);
-        g.FillPath(glow, contour);
-        using var shine = new Pen(Color.FromArgb((int)(220 * (1 - t)), Color.White), 2.5f * s);
-        g.DrawPath(shine, contour);
+        if (item == null || !g.IsVisible(bounds)) return;
+        var contour = GetGlowContour(item, bounds);
+        if (contour == null) return;
+        var state = g.Save();
+        try
+        {
+            ClipGlowToEdge(g, bounds, contour.Scale);
+            contour.DrawMovingHighlight(g, phase);
+        }
+        finally { g.Restore(state); }
     }
 
     private CacheKey CurrentCacheKey()
     {
         var form = FindForm(); var offset = Point.Empty;
         for (Control? node = this; node != null && node != form; node = node.Parent) offset.Offset(node.Left, node.Top);
-        return new(ClientSize, form?.ClientSize ?? Size.Empty, offset, form?.BackgroundImage, DeviceDpi);
+        return new(ClientSize, form?.ClientSize ?? Size.Empty, offset, form?.BackgroundImage, DeviceDpi, form is MainForm { HasCustomBackground: true });
     }
     private bool EnsureStaticLayer()
     {
         var key = CurrentCacheKey();
         if (staticLayer != null && cacheKey == key) return true;
         if (rejectedKey == key) return false;
+        using var resizeWork = ResizeWorkProbe.Measure(ResizeWorkProbe.Work.TreemapBuild);
         ReleaseStaticLayer();
         // One 32-bit viewport bitmap, capped at about 30.5 MiB. Oversized views use clipped direct drawing.
         if (Width <= 0 || Height <= 0 || (long)Width * Height > MaxCachePixels) { rejectedKey = key; return false; }
-        Bitmap? next = null;
+        PixelSurface? next = null;
         try
         {
-            next = new Bitmap(Width, Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
-            next.SetResolution(DeviceDpi, DeviceDpi);
-            using (var graphics = Graphics.FromImage(next)) { Wallpaper.Paint(this, graphics, 215); DrawStaticTiles(graphics, ClientRectangle); }
-            staticLayer = next; cacheKey = key; StaticLayerBuilds++; return true;
+            next = PixelSurface.Create(ClientSize, DeviceDpi, (FindForm() as MainForm)?.Rendering, gdiText: true);
+            if (next == null) { rejectedKey = key; return false; }
+            next.RenderOpaque(graphics =>
+            {
+                // The retained layer must be opaque even at antialiased
+                // wallpaper edges; partial source-over paints must not build
+                // up transparency into seams over successive frames.
+                graphics.Clear(Theme.Background);
+                Wallpaper.Paint(this, graphics, 215, nativeCopy: false);
+                DrawStaticTiles(graphics, ClientRectangle);
+            });
+            staticPixels = next; staticLayer = next.Bitmap; cacheKey = key; StaticLayerBuilds++; return true;
         }
-        catch (Exception ex) when (ex is OutOfMemoryException or System.Runtime.InteropServices.ExternalException)
+        catch (Exception ex) when (ex is OutOfMemoryException or System.Runtime.InteropServices.ExternalException or InvalidOperationException or ArgumentException)
         {
+            (FindForm() as MainForm)?.Rendering?.Failed();
             next?.Dispose(); rejectedKey = key; return false;
         }
     }
     private void ReleaseStaticLayer()
     {
-        staticLayer?.Dispose(); staticLayer = null; cacheKey = rejectedKey = null;
+        staticPixels?.Dispose(); staticPixels = null; staticLayer = null; cacheKey = rejectedKey = null;
     }
     private void InvalidateItem(MapItem? item)
     {
@@ -293,21 +462,29 @@ internal sealed class TreemapControl : Control
         var item = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
         if (item == hovered) return;
         var previous = hovered; hovered = item;
-        InvalidateItem(previous); InvalidateItem(item); StartMotion(item);
-        string? text = item == null ? null : $"{item.Name}\n{SizeFormat.Bytes(item.Size)}  ·  {SizeFormat.Percent(item.Size, TotalSize)}\n{item.Entry?.Path ?? (item.IsAggregate ? $"合并 {SizeFormat.Number(item.Count)} 项，请查看右侧列表" : $"共 {SizeFormat.Number(item.Count)} 个文件")}\n{(item.Entry?.IsDirectory == true ? "双击进入文件夹" : item.Entry != null ? "双击在资源管理器中定位" : item.IsAggregate ? "" : "双击查看该类型文件")} ";
-        tip.SetToolTip(this, text);
+        InvalidateItem(previous); InvalidateItem(item); SyncMotion();
+    }
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left) pointerFocus = true;
+        base.OnMouseDown(e);
+        Invalidate();
+    }
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        pointerFocus = false;
+        base.OnKeyDown(e);
+        Invalidate();
     }
     protected override void OnMouseLeave(EventArgs e)
     {
-        base.OnMouseLeave(e); var previous = hovered; hovered = null; StopMotion(); InvalidateItem(previous);
-        tip.SetToolTip(this, null);
+        base.OnMouseLeave(e); ClearHover(); SyncMotion();
     }
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
         SelectItem(tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item);
         ItemSelected?.Invoke(selected);
-        StartMotion(selected);
     }
     protected override void OnMouseDoubleClick(MouseEventArgs e)
     {
@@ -315,27 +492,56 @@ internal sealed class TreemapControl : Control
         var item = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
         if (item != null) ItemActivated?.Invoke(item);
     }
-    private void StartMotion(MapItem? item)
+    private void ClearHover()
     {
-        StopMotion();
-        if (!AnimationsEnabled || !Visible || !Enabled || item == null) return;
-        if (!tileLookup.TryGetValue(item, out var tile) || tile.Bounds.Width < 20 || tile.Bounds.Height < 20) return;
-        // One tile; 16 ms target ticks for a 620 ms damped response. Scheduling can run slower.
-        motionItem = item; motionBounds = tile.Bounds;
-        motionClock.Restart(); motionTimer.Start(); InvalidateMotion();
+        var previous = hovered; hovered = null; InvalidateItem(previous);
     }
-    private void InvalidateMotion() => Invalidate(Rectangle.Ceiling(RectangleF.Inflate(motionBounds, 2, 2)));
+    private void SyncMotion()
+    {
+        if (!CanAnimate) { StopMotion(); return; }
+        bool Eligible(MapItem? item) => item != null && tileLookup.TryGetValue(item, out var tile) &&
+            tile.Bounds.Width >= 20 && tile.Bounds.Height >= 20;
+        var selectedTile = DisplayItem(selected); var hoveredTile = DisplayItem(hovered);
+        MapItem? primary = Eligible(selectedTile) ? selectedTile : Eligible(hoveredTile) ? hoveredTile : null;
+        MapItem? secondary = hoveredTile != primary && Eligible(hoveredTile) ? hoveredTile : null;
+        if (primary == null) { StopMotion(); return; }
+        if (MotionRunning && motionItem == primary && secondaryMotionItem == secondary) return;
+        InvalidateMotion();
+        motionItem = primary; motionBounds = tileLookup[primary].Bounds;
+        secondaryMotionItem = secondary;
+        secondaryMotionBounds = secondary == null ? RectangleF.Empty : tileLookup[secondary].Bounds;
+        // Both outlines share one clock and one 33 ms timer. Moving between
+        // tiles or clearing one state never restarts another active outline.
+        if (!MotionRunning) { motionClock.Restart(); motionTimer.Start(); }
+        InvalidateMotion();
+    }
+    private bool CanAnimate => !resourcesDisposed && AnimationsEnabled && Visible && Enabled && FindForm()?.WindowState != FormWindowState.Minimized;
+    private void InvalidateMotion()
+    {
+        if (motionItem != null) Invalidate(Rectangle.Ceiling(RectangleF.Inflate(motionBounds, 2, 2)));
+        if (secondaryMotionItem != null) Invalidate(Rectangle.Ceiling(RectangleF.Inflate(secondaryMotionBounds, 2, 2)));
+    }
     private void StopMotion()
     {
+        if (resourcesDisposed) return;
         motionTimer.Stop();
-        if (motionItem != null) InvalidateMotion();
-        motionItem = null; motionClock.Reset();
+        InvalidateMotion();
+        motionItem = secondaryMotionItem = null; motionBounds = secondaryMotionBounds = RectangleF.Empty; motionClock.Reset();
     }
-    protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (!Visible) { StopMotion(); ReleaseStaticLayer(); } }
-    protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); if (!Enabled) StopMotion(); }
+    protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (!Visible) { ClearHover(); StopMotion(); ReleaseGlowContours(); ReleaseStaticLayer(); } else SyncMotion(); }
+    protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); ClearHover(); SyncMotion(); }
     protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); Invalidate(); }
-    protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); Invalidate(); }
+    protected override void OnLostFocus(EventArgs e) { pointerFocus = false; base.OnLostFocus(e); Invalidate(); }
+    protected override void OnChangeUICues(UICuesEventArgs e) { base.OnChangeUICues(e); Invalidate(); }
     protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); LayoutTiles(); Invalidate(); }
-    protected override void OnParentChanged(EventArgs e) { base.OnParentChanged(e); ReleaseStaticLayer(); }
-    protected override void Dispose(bool disposing) { if (disposing) { motionTimer.Dispose(); tip.Dispose(); ReleaseStaticLayer(); } base.Dispose(disposing); }
+    protected override void OnParentChanged(EventArgs e) { base.OnParentChanged(e); ClearHover(); StopMotion(); ReleaseGlowContours(); ReleaseStaticLayer(); }
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && !resourcesDisposed)
+        {
+            StopMotion(); resourcesDisposed = true;
+            motionTimer.Dispose(); ReleaseGlowContours(); ReleaseStaticLayer();
+        }
+        base.Dispose(disposing);
+    }
 }

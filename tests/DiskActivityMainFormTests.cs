@@ -51,11 +51,25 @@ internal static class DiskActivityMainFormTests
                 T Field<T>(string name) => (T)typeof(MainForm).GetField(name, flags)!.GetValue(form)!;
                 var panel = Field<DiskActivityPanel>("activityPanel");
                 var progress = Field<ScanProgressControl>("progressBar");
-                var main = (TableLayoutPanel)panel.Parent!;
-                var toggle = panel.Controls.OfType<Button>().Single();
-                var selection = panel.Controls.OfType<ComboBox>().Single();
-                DiskActivitySample? Current() => (DiskActivitySample?)typeof(DiskActivityPanel).GetField("current", flags)!.GetValue(panel);
-                int HistoryCount() => (int)typeof(DiskActivityPanel).GetField("historyCount", flags)!.GetValue(panel)!;
+                var grid = Field<DataGridView>("grid");
+                var primary = Ancestors(grid).OfType<SplitContainer>().First();
+                var main = Ancestors(primary).OfType<TableLayoutPanel>().First(table => Ancestors(progress).Contains(table));
+                var navigation = Field<NavigationPanel>("navigation");
+                var toggle = panel.ToggleButton;
+                var detailsButton = panel.DetailsButton!;
+                var selection = panel.TargetSelector;
+                DiskActivitySample? Current() => panel.GetViewSnapshot().Current;
+                int HistoryCount() => panel.GetViewSnapshot().History.Count;
+                DiskActivityDetailsDialog? Details() => typeof(MainForm).GetField("activityDetails", flags)!.GetValue(form) as DiskActivityDetailsDialog;
+                async Task<DiskActivityDetailsDialog> OpenDetails()
+                {
+                    detailsButton.PerformClick();
+                    await PumpUntil(() => Details() is { Visible: true, IsDisposed: false }, "DETAILS_OPEN_TIMEOUT");
+                    return Details()!;
+                }
+                bool DisplayingAvailableAfter(long revision, int disk = 0) =>
+                    Current() is { Status: DiskActivityStatus.Available } sample && sample.DiskNumber == disk &&
+                    state.Updates.Any(update => update.Revision > revision && update.Sample == sample);
                 void Check(bool condition, string code)
                 {
                     if (!condition) throw new CheckFailure(code);
@@ -79,20 +93,23 @@ internal static class DiskActivityMainFormTests
                     var mainBounds = main.RectangleToScreen(main.ClientRectangle);
                     var panelBounds = panel.RectangleToScreen(panel.ClientRectangle);
                     var progressBounds = progress.RectangleToScreen(progress.ClientRectangle);
-                    var primary = main.GetControlFromPosition(0, 4)!;
                     var primaryBounds = primary.RectangleToScreen(primary.ClientRectangle);
-                    Check(main.RowCount == 9 && main.GetRow(panel) == 6 && main.GetRow(progress) == 7 &&
-                        main.GetControlFromPosition(0, 8) != null, label + "_ROW_CONTRACT");
-                    Check(Math.Abs(main.RowStyles[6].Height - (panel.Expanded ? 110 : 32) * form.DeviceDpi / 96f) <= 1,
-                        label + "_DPI_ROW_HEIGHT");
-                    Check(client.Contains(panelBounds) && mainBounds.Contains(panelBounds) && panel.Height > 0,
-                        label + "_PANEL_VISIBLE");
+                    var status = Field<Label>("status");
+                    Check(Ancestors(primary).Contains(main) && Ancestors(progress).Contains(main) &&
+                        !Ancestors(panel).Contains(main) && !status.Visible &&
+                        !primaryBounds.IntersectsWith(progressBounds) && client.Contains(progressBounds),
+                        label + "_MAIN_ANALYSIS_SEPARATE_FROM_VISIBLE_PROGRESS_AND_MONITOR");
+                    Check(panel.SidebarMode && ReferenceEquals(panel.Parent, navigation) &&
+                        navigation.ActivityBounds.Contains(panel.Bounds) && panel.Top >= navigation.LegendBounds.Bottom,
+                        label + "_SIDEBAR_STAYS_BELOW_LEGEND");
+                    Check(client.Contains(panelBounds) && navigation.RectangleToScreen(navigation.ClientRectangle).Contains(panelBounds) &&
+                        panel.Visible && panel.Height > 0, label + "_SIDEBAR_MONITOR_VISIBLE");
                     Check(primary.Height > 0 && !panelBounds.IntersectsWith(primaryBounds) &&
                         !panelBounds.IntersectsWith(progressBounds) && progress.Height > 0,
                         label + "_CONTENT_PROGRESS_SEPARATE");
-                    foreach (Control child in panel.Controls)
+                    foreach (Control child in panel.Controls.Cast<Control>().Where(child => child.Visible))
                         Check(child.Width > 0 && child.Height > 0 && panel.ClientRectangle.Contains(child.Bounds),
-                            label + (child is ComboBox ? "_SELECTOR_VISIBLE" : "_TOGGLE_VISIBLE"));
+                            label + "_SIDEBAR_COMMAND_VISIBLE");
                     foreach (string name in new[] { "choose", "refresh", "cancel" })
                     {
                         var button = Field<Button>(name);
@@ -100,7 +117,11 @@ internal static class DiskActivityMainFormTests
                         Check(button.Width > 0 && button.Height > 0 && client.Contains(bounds) && mainBounds.Contains(bounds),
                             label + "_HEADER_" + name.ToUpperInvariant());
                     }
-                    Check(selection.Right <= toggle.Left, label + "_HEADER_NO_OVERLAP");
+                    Check(detailsButton.Visible && toggle.Visible && !detailsButton.Bounds.IntersectsWith(toggle.Bounds),
+                        label + "_SIDEBAR_COMMANDS_DO_NOT_OVERLAP");
+                    Check(grid.Rows.Count > 0 && grid.ClientSize.Height >= grid.ColumnHeadersHeight + grid.RowTemplate.Height &&
+                        grid.GetRowDisplayRectangle(0, true).Height >= grid.Rows[0].Height,
+                        label + "_ANALYSIS_RETAINS_A_FULL_RESULT_ROW");
                 }
 
                 form.Shown += async (_, _) =>
@@ -109,10 +130,19 @@ internal static class DiskActivityMainFormTests
                     await Task.Yield();
                     try
                     {
-                        Check(!panel.Expanded && factories == 0 && monitor == null,
-                            "INITIAL_COLLAPSED_HAS_NO_WORKER");
+                        Check(panel.SidebarMode && !panel.Expanded && factories == 0 && monitor == null,
+                            "INITIAL_DISABLED_HAS_NO_WORKER");
                         await (Task)typeof(MainForm).GetMethod("ScanFolder", flags)!.Invoke(form, [root.Path])!;
-                        Check(factories == 0, "COLLAPSED_SCAN_DOES_NOT_CREATE_WORKER");
+                        Check(factories == 0, "DISABLED_SCAN_DOES_NOT_CREATE_WORKER");
+                        await CheckLayout("COMMON_DISABLED");
+                        var disabledAnalysis = primary.Bounds;
+                        var disabledDetail = await OpenDetails();
+                        Check(!panel.Expanded && factories == 0 && monitor == null && HistoryCount() == 0 &&
+                            disabledDetail.ViewPanel.GetViewSnapshot().Current == null,
+                            "OPENING_DISABLED_DETAILS_DOES_NOT_ENABLE_OR_SAMPLE");
+                        disabledDetail.Close();
+                        await PumpUntil(() => disabledDetail.IsDisposed || !disabledDetail.Visible, "DISABLED_DETAILS_CLOSE_TIMEOUT");
+                        Check(!panel.IsDisposed && factories == 0, "DISABLED_DETAILS_CLOSE_KEEPS_CANONICAL_PANEL");
                         toggle.PerformClick();
                         await PumpUntil(() => Current()?.Status == DiskActivityStatus.Available, "EXPAND_PIPELINE_TIMEOUT");
                         Check(panel.Expanded && factories == 1 && state.Created == 1 && Current()?.DiskNumber == 0,
@@ -120,29 +150,68 @@ internal static class DiskActivityMainFormTests
                         Check(state.Updates.First(update => update.Sample != null).Sample!.Status == DiskActivityStatus.Waiting,
                             "NEW_SOURCE_STARTS_WITH_WAITING");
                         Check(HistoryCount() is > 0 and <= 60, "PANEL_HISTORY_REMAINS_BOUNDED");
+                        await CheckLayout("COMMON_ENABLED");
+                        Check(primary.Bounds == disabledAnalysis, "ENABLING_SIDEBAR_DOES_NOT_SHRINK_ANALYSIS");
+                        state.BlockOneCollection();
+                        await PumpUntil(() => state.BlockEntered.IsSet, "DETAILS_PROVIDER_DID_NOT_BLOCK");
+                        var sharedBeforeDetails = panel.GetViewSnapshot();
+                        int sharedCreated = state.Created;
+                        long sharedRevision = state.Updates.Last().Revision;
+                        var sharedDetail = await OpenDetails();
+                        Check(factories == 1 && state.Created == sharedCreated && monitor!.IsCurrent(sharedRevision),
+                            "DETAILS_REUSES_SINGLE_SAMPLING_OWNER");
+                        Check(sharedDetail.ViewPanel.GetViewSnapshot().Current == sharedBeforeDetails.Current &&
+                            sharedDetail.ViewPanel.GetViewSnapshot().History.SequenceEqual(sharedBeforeDetails.History),
+                            "DETAILS_MIRRORS_CANONICAL_SAMPLE_AND_HISTORY");
+                        sharedDetail.Close();
+                        await PumpUntil(() => sharedDetail.IsDisposed || !sharedDetail.Visible, "ACTIVE_DETAILS_CLOSE_TIMEOUT");
+                        Check(!panel.IsDisposed && panel.Expanded && state.Created == sharedCreated && monitor!.IsCurrent(sharedRevision) &&
+                            panel.GetViewSnapshot().History.SequenceEqual(sharedBeforeDetails.History),
+                            "CLOSING_DETAILS_PRESERVES_ACTIVE_SOURCE_AND_HISTORY");
+                        int beforeDetailsResume = state.Collected;
+                        state.ReleaseBlockedCollection();
+                        await PumpUntil(() => state.Collected > beforeDetailsResume, "SOURCE_DID_NOT_CONTINUE_AFTER_DETAILS_CLOSE");
                         var area = Screen.FromControl(form).WorkingArea;
                         form.WindowState = FormWindowState.Normal;
                         form.Location = area.Location;
                         form.Size = form.MinimumSize;
                         var cancel = Field<Button>("cancel");
                         cancel.Visible = true;
-                        await CheckLayout("MINIMUM_EXPANDED");
+                        await CheckLayout("MINIMUM_ENABLED");
+                        var minimumAnalysis = primary.Bounds;
+                        var originalRows = Field<List<MapItem>>("sortedRows");
+                        typeof(MainForm).GetField("sortedRows", flags)!.SetValue(form,
+                            Enumerable.Repeat(originalRows[0], PageSlice.Size + 1).ToList());
+                        typeof(MainForm).GetMethod("PopulatePage", flags)!.Invoke(form, [0]);
+                        await CheckLayout("MINIMUM_ENABLED_PAGED");
+                        Check(primary.Bounds == minimumAnalysis && Field<Button>("nextPage").Enabled && Field<Button>("nextPage").Visible &&
+                            grid.Parent!.ClientRectangle.Contains(Field<Button>("nextPage").Parent!.Bounds),
+                            "PAGING_RETAINS_ANALYSIS_AND_NAVIGATION_CONTROLS");
+                        typeof(MainForm).GetField("sortedRows", flags)!.SetValue(form, originalRows);
+                        typeof(MainForm).GetMethod("PopulatePage", flags)!.Invoke(form, [0]);
                         toggle.PerformClick();
                         await PumpUntil(() => state.Released == state.Created && HistoryCount() == 0, "COLLAPSE_RELEASE_TIMEOUT");
-                        await CheckLayout("MINIMUM_COLLAPSED");
+                        await CheckLayout("MINIMUM_DISABLED");
+                        Check(primary.Bounds == minimumAnalysis, "DISABLING_SIDEBAR_DOES_NOT_RESIZE_ANALYSIS");
                         int pausedCalls = state.Collected;
                         await Task.Delay(65);
                         Check(state.Collected == pausedCalls, "COLLAPSED_MONITOR_DOES_NOT_COLLECT");
                         int beforeCreate = state.Created;
                         long beforeRevision = state.Updates.Last().Revision;
                         toggle.PerformClick();
-                        await PumpUntil(() => state.Created == beforeCreate + 1 && Current()?.Status == DiskActivityStatus.Available,
+                        await PumpUntil(() => state.Created == beforeCreate + 1 && DisplayingAvailableAfter(beforeRevision),
                             "REEXPAND_PIPELINE_TIMEOUT");
                         Check(state.Updates.First(update => update.Revision > beforeRevision && update.Sample != null).Sample!.Status == DiskActivityStatus.Waiting,
                             "REEXPAND_CREATES_FRESH_BASELINE");
                         float scale = form.DeviceDpi / 96f;
                         form.Size = new Size(Math.Min((int)(1440 * scale), area.Width), Math.Min((int)(940 * scale), area.Height));
-                        await CheckLayout("COMMON_EXPANDED");
+                        await CheckLayout("COMMON_REENABLED");
+                        beforeCreate = state.Created;
+                        beforeRevision = state.Updates.Last().Revision;
+                        form.Width -= (int)(20 * scale);
+                        await Task.Delay(40);
+                        Check(state.Created == beforeCreate && state.Updates.Last().Revision == beforeRevision && HistoryCount() > 0,
+                            "RESIZE_RETAINS_SOURCE_REVISION_AND_HISTORY");
                         beforeCreate = state.Created;
                         form.WindowState = FormWindowState.Minimized;
                         await PumpUntil(() => state.Released == state.Created && HistoryCount() == 0, "MINIMIZE_RELEASE_TIMEOUT");
@@ -151,17 +220,21 @@ internal static class DiskActivityMainFormTests
                         Check(state.Collected == pausedCalls && state.Created == beforeCreate, "MINIMIZED_MONITOR_STAYS_PAUSED");
                         beforeRevision = state.Updates.Last().Revision;
                         form.WindowState = FormWindowState.Normal;
-                        await PumpUntil(() => state.Created == beforeCreate + 1 && Current()?.Status == DiskActivityStatus.Available,
+                        await PumpUntil(() => state.Created == beforeCreate + 1 && DisplayingAvailableAfter(beforeRevision),
                             "RESTORE_PIPELINE_TIMEOUT");
                         Check(state.Updates.First(update => update.Revision > beforeRevision && update.Sample != null).Sample!.Status == DiskActivityStatus.Waiting,
                             "RESTORE_CREATES_FRESH_BASELINE");
                         beforeCreate = state.Created;
-                        selection.SelectedIndex = 2; // Follow, synthetic disk 0, synthetic disk 1.
-                        await PumpUntil(() => state.Created == beforeCreate + 1 && Current()?.DiskNumber == 1 &&
-                            Current()?.Status == DiskActivityStatus.Available, "MANUAL_DISK_PIPELINE_TIMEOUT");
-                        Check(panel.SelectedDiskNumber == 1 && Current()?.DiskNumber == 1, "MANUAL_DISK_REACHES_PANEL");
+                        beforeRevision = state.Updates.Last().Revision;
+                        var diskDetails = await OpenDetails();
+                        diskDetails.TargetSelector.SelectedIndex = 2; // Follow, synthetic disk 0, synthetic disk 1.
+                        await PumpUntil(() => state.Created == beforeCreate + 1 && DisplayingAvailableAfter(beforeRevision, 1),
+                            "MANUAL_DISK_PIPELINE_TIMEOUT");
+                        Check(panel.SelectedDiskNumber == 1 && selection.SelectedIndex == 2 && Current()?.DiskNumber == 1,
+                            "DETAILS_DISK_SELECTION_REACHES_CANONICAL_PANEL");
                         Check(state.Released == state.Created - 1, "SWITCH_RELEASES_PREVIOUS_SOURCE");
                         await CheckLayout("COMMON_MANUAL_DISK");
+                        diskDetails.Close();
                         var systemEvent = typeof(MainForm).GetMethod("HandleMonitoringSystemEvent", flags)!;
                         systemEvent.Invoke(form, [0x0218, 4L]);
                         await PumpUntil(() => state.Released == state.Created, "POWER_SUSPEND_RELEASE_TIMEOUT");
@@ -171,32 +244,34 @@ internal static class DiskActivityMainFormTests
                         beforeCreate = state.Created;
                         beforeRevision = state.Updates.Last().Revision;
                         systemEvent.Invoke(form, [0x0218, 18L]);
-                        await PumpUntil(() => state.Created == beforeCreate + 1 && Current()?.Status == DiskActivityStatus.Available,
+                        await PumpUntil(() => state.Created == beforeCreate + 1 && DisplayingAvailableAfter(beforeRevision, 1),
                             "POWER_RESUME_PIPELINE_TIMEOUT");
                         Check(state.Updates.First(update => update.Revision > beforeRevision && update.Sample != null).Sample!.Status == DiskActivityStatus.Waiting,
                             "POWER_RESUME_STARTS_NEW_BASELINE");
                         beforeCreate = state.Created;
                         beforeRevision = state.Updates.Last().Revision;
                         systemEvent.Invoke(form, [0x0219, 0x8004L]);
-                        await PumpUntil(() => state.Created == beforeCreate + 1 && Current()?.Status == DiskActivityStatus.Available,
+                        await PumpUntil(() => state.Created == beforeCreate + 1 && DisplayingAvailableAfter(beforeRevision, 1),
                             "DEVICE_CHANGE_PIPELINE_TIMEOUT");
                         Check(state.Updates.First(update => update.Revision > beforeRevision && update.Sample != null).Sample!.Status == DiskActivityStatus.Waiting,
                             "DEVICE_CHANGE_REVALIDATES_AND_REPRIMES");
                         beforeCreate = state.Created;
                         beforeRevision = state.Updates.Last().Revision;
                         systemEvent.Invoke(form, [0x0218, 7L]);
-                        await PumpUntil(() => state.Created == beforeCreate + 1 && Current()?.Status == DiskActivityStatus.Available,
+                        await PumpUntil(() => state.Created == beforeCreate + 1 && DisplayingAvailableAfter(beforeRevision, 1),
                             "RESUME_WITHOUT_SUSPEND_PIPELINE_TIMEOUT");
                         Check(state.Updates.First(update => update.Revision > beforeRevision && update.Sample != null).Sample!.Status == DiskActivityStatus.Waiting,
                             "RESUME_WITHOUT_PRIOR_SUSPEND_REPRIMES");
                         state.BlockOneCollection();
                         await PumpUntil(() => state.BlockEntered.IsSet, "DELAYED_PROVIDER_DID_NOT_ENTER");
+                        var closingDetails = await OpenDetails();
                         long oldRevision = state.Updates.Last().Revision;
                         form.Close();
                         string? description = panel.AccessibleDescription;
                         deliver!(new(oldRevision, new(DateTimeOffset.UtcNow, 99, 99, 99, 99, 99, DiskActivityStatus.Available), "late"));
                         Check(panel.IsDisposed && panel.AccessibleDescription == description,
                             "CLOSE_IGNORES_DELAYED_UI_CALLBACK");
+                        Check(closingDetails.IsDisposed, "MAIN_CLOSE_DISPOSES_OWNED_DETAILS");
                         state.ReleaseBlockedCollection();
                         await PumpUntil(() => monitor!.Completion.IsCompleted, "CLOSE_WORKER_COMPLETION_TIMEOUT");
                         Check(monitor!.Completion.IsCompletedSuccessfully && state.Released == state.Created,
@@ -234,6 +309,11 @@ internal static class DiskActivityMainFormTests
     private sealed class CheckFailure(string code) : Exception
     {
         internal string Code { get; } = code;
+    }
+
+    private static IEnumerable<Control> Ancestors(Control child)
+    {
+        for (Control? parent = child.Parent; parent != null; parent = parent.Parent) yield return parent;
     }
 
     private sealed class FakeState : IDisposable

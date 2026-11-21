@@ -17,7 +17,7 @@
     <Description>本地硬盘空间可视化工具</Description>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="tests\**;artifacts\**" />
+    <Compile Remove="tests\**;artifacts\**;iterations\**" />
     <EmbeddedResource Include="assets\background.png" LogicalName="DiskAtlas.Background" />
     <EmbeddedResource Include="assets\app.ico" LogicalName="DiskAtlas.AppIcon" />
   </ItemGroup>

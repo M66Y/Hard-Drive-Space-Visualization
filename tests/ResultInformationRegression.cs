@@ -10,6 +10,33 @@ internal static class ResultInformationRegression
         typeof(MainForm).GetMethod(name, Private)!.Invoke(form, args);
     private static Task Scan(MainForm form, string path) => (Task)Invoke(form, "ScanFolder", path)!;
     private static Task View(MainForm form) => (Task)Invoke(form, "UpdateViewAsync", false)!;
+    private static bool ScopeFactsAvailable(MainForm form)
+    {
+        string facts = Field<string>(form, "scopeDetails");
+        return facts.Length > 0 && Field<ScanProgressControl>(form, "progressBar").AccessibleDescription!.Contains(facts) &&
+            Field<DataGridView>(form, "grid").AccessibleDescription == facts &&
+            Field<TreemapControl>(form, "map").AccessibleDescription == facts;
+    }
+    private static Rectangle AnalysisBounds(MainForm form)
+    {
+        for (Control? node = Field<TreemapControl>(form, "map"); node != null; node = node.Parent)
+            if (node is WallpaperSplitContainer)
+                return form.RectangleToClient(node.RectangleToScreen(node.ClientRectangle));
+        throw new InvalidOperationException("Analysis container unavailable");
+    }
+    private static IEnumerable<Control> Descendants(Control root)
+    {
+        foreach (Control child in root.Controls)
+        {
+            yield return child;
+            foreach (var descendant in Descendants(child)) yield return descendant;
+        }
+    }
+    private static bool HasNoVisibleExplanation(MainForm form)
+    {
+        string facts = Field<string>(form, "scopeDetails");
+        return facts.Length == 0 || !Descendants(form).OfType<Label>().Any(label => label.Visible && label.Text == facts);
+    }
 
     private static ScanResult Snapshot(string path, int kind)
     {
@@ -45,25 +72,35 @@ internal static class ResultInformationRegression
         var search = Field<TextBox>(form, "search");
         var grid = Field<DataGridView>(form, "grid");
         var total = Field<StatCard>(form, "totalCard");
+        Rectangle completeAnalysis = AnalysisBounds(form);
         string originalTotal = total.Value;
+        check(!Field<Label>(form, "status").Visible && Field<RowStyle>(form, "footerActionRow").Height == 0 &&
+            Field<RowStyle>(form, "footerShellRow").Height == 0 &&
+            Field<ScanProgressControl>(form, "progressBar").AccessibleDescription!.Contains("扫描完成"),
+            "Ordinary result retains detail without a duplicate footer row");
         check(grid.RowCount == 1000 && Field<List<MapItem>>(form, "sortedRows").Count == 1101, "Full list pagination incorrect");
         Field<ActionButton>(form, "nextPage").PerformClick();
         check(grid.RowCount == 101 && total.Value == originalTotal, "Page altered totals");
         search.Text = "sample-0000"; await View(form);
         check(grid.RowCount == 1 && total.Value == originalTotal &&
-            Field<Label>(form, "subtitle").Text.Contains("不受筛选影响") &&
-            Field<Label>(form, "mapCaption").Text.Contains("已搜索"), "Filtered view hides unfiltered scope");
+            ScopeFactsAvailable(form) && Field<string>(form, "scopeDetails").Contains("目录总量") &&
+            Field<string>(form, "scopeDetails").Contains("已搜索") && HasNoVisibleExplanation(form) && AnalysisBounds(form) == completeAnalysis,
+            "Filtered view loses scope facts or inserts an explanation row");
         search.Text = "no-such-name"; await View(form);
         check(grid.RowCount == 0 && Field<TreemapControl>(form, "map").EmptyTitle.Contains("没有找到") && total.Value == originalTotal,
             "Empty search claimed empty directory or changed totals");
         Invoke(form, "SetMode", 1); await View(form);
-        check(grid.RowCount == 500 && Field<Label>(form, "mapCaption").Text.Contains("1,101") &&
+        check(grid.RowCount == 500 && Field<string>(form, "scopeDetails").Length == 0 &&
+            Field<Label>(form, "listCaption").AccessibleDescription!.Contains("1,101") &&
+            Field<Label>(form, "listCaption").AccessibleDescription!.Contains("500") &&
+            Field<Label>(form, "mapCaption").Text.Contains("含子目录") &&
             search.PlaceholderText.Contains("所有子目录"), "Largest-file limit or recursive search scope missing");
         Invoke(form, "SetMode", 2); await View(form);
         var type = Field<List<MapItem>>(form, "sortedRows").Single(i => i.Name == ".jpg");
         Invoke(form, "ActivateItem", type); await View(form);
         check(grid.RowCount == 1 && total.Value == originalTotal && Field<ActionButton>(form, "clearType").Visible &&
-            Field<Label>(form, "subtitle").Text.Contains("筛选 .jpg"), "Type filter lost scope or totals");
+            ScopeFactsAvailable(form) && Field<string>(form, "scopeDetails").Contains("筛选 .jpg") &&
+            HasNoVisibleExplanation(form) && AnalysisBounds(form) == completeAnalysis, "Type filter lost facts or totals or moved analysis");
         Field<ActionButton>(form, "clearType").PerformClick(); await View(form);
         check(grid.RowCount == 500, "Cannot clear type filter");
         Console.WriteLine("PASS UI result scope, search, no matches, recursive top-500, type filter and pagination");
@@ -73,8 +110,13 @@ internal static class ResultInformationRegression
             kind = incompleteKind; await Scan(form, path); await View(form);
             check(Field<ScanProgressControl>(form, "progressBar").State == ScanDisplayState.Incomplete &&
                 Field<Label>(form, "status").Text.Contains("结果不完整") &&
-                Field<StatCard>(form, "timeCard").Caption.Contains("结果不完整") && Field<ActionButton>(form, "issues").Visible,
+                Field<StatCard>(form, "timeCard").Caption.Contains("结果不完整") && Field<ActionButton>(form, "issues").Visible &&
+                ScopeFactsAvailable(form) && Field<string>(form, "scopeDetails").Contains(incompleteKind == 2 ? "占用未知" : "未读全") &&
+                HasNoVisibleExplanation(form),
                 "Incomplete scan presented as successful or has no details entry");
+            check(!Field<Label>(form, "status").Visible && Field<RowStyle>(form, "footerActionRow").Height > 0 &&
+                Field<ActionButton>(form, "issues").Height > 0,
+                "Incomplete result keeps actions without restoring duplicate text");
             bool inspected = false;
             using var closer = new System.Windows.Forms.Timer { Interval = 30 };
             closer.Tick += (_, _) =>
@@ -91,16 +133,19 @@ internal static class ResultInformationRegression
             if (kind == 2)
             {
                 Field<ComboBox>(form, "metricCombo").SelectedIndex = 1; await View(form);
-                check(total.Value.Contains("未知") && Field<Label>(form, "subtitle").Text.Contains("1 项占用未知") &&
+                check(total.Value.Contains("未知") && ScopeFactsAvailable(form) && Field<string>(form, "scopeDetails").Contains("1 项占用未知") &&
                     Field<ComboBox>(form, "metricCombo").AccessibleDescription!.Contains("不等于删除后释放"),
                     "Unknown allocation or reclaimable-space caveat missing");
             }
         }
+        Rectangle partialAnalysis = AnalysisBounds(form);
         kind = 4; var cancelled = Scan(form, path);
-        check(Field<Label>(form, "subtitle").Text.Contains("上一次扫描结果"), "Preparing scan does not identify old results");
+        check(ScopeFactsAvailable(form) && Field<string>(form, "scopeDetails").Contains("上一次扫描结果") &&
+            HasNoVisibleExplanation(form) && AnalysisBounds(form) == partialAnalysis, "Preparing scan loses old-result facts or moves analysis");
         Field<ActionButton>(form, "cancel").PerformClick(); await cancelled; await View(form);
         check(Field<Label>(form, "status").Text.Contains("上一次扫描结果") &&
-            Field<ActionButton>(form, "issues").Visible && Field<StatCard>(form, "timeCard").Caption.Contains("不完整"),
+            Field<ActionButton>(form, "issues").Visible && Field<StatCard>(form, "timeCard").Caption.Contains("不完整") &&
+            AnalysisBounds(form) == partialAnalysis,
             "Cancellation lost incomplete state of retained snapshot");
         kind = 0; await Scan(form, path); await View(form);
         check(!Field<ActionButton>(form, "issues").Visible && Field<Label>(form, "status").Text.Contains("扫描完成") &&
@@ -122,7 +167,18 @@ internal static class ResultInformationRegression
             Field<ComboBox>(form, "metricCombo").AccessibleName == "统计口径", "Core inputs lack accessible names");
         form.Size = form.MinimumSize;
         using var frame = new Bitmap(form.Width, form.Height); form.DrawToBitmap(frame, new Rectangle(Point.Empty, frame.Size));
-        check(Field<Label>(form, "subtitle").Width > 0 && Field<ActionButton>(form, "issues").Width > 0, "Minimum layout collapsed");
+        check(grid.Width > 0 && grid.Height > grid.ColumnHeadersHeight && Field<TextBox>(form, "pathBox").Visible &&
+            Field<ActionButton>(form, "choose").Visible && HasNoVisibleExplanation(form),
+            "Minimum layout collapsed or restored a visible scope explanation");
+        Rectangle minimumAnalysis = AnalysisBounds(form);
+        Invoke(form, "SetMode", 1);
+        typeof(MainForm).GetField("typeFilter", Private)!.SetValue(form, "." + new string('类', 220));
+        search.Text = "sample"; await View(form);
+        string scopeFacts = Field<string>(form, "scopeDetails");
+        check(ScopeFactsAvailable(form) && scopeFacts.Contains(new string('类', 220)) && scopeFacts.Contains("已搜索") &&
+            HasNoVisibleExplanation(form) && AnalysisBounds(form) == minimumAnalysis &&
+            Field<Label>(form, "listCaption").AccessibleDescription!.Contains("显示最大") && grid.Height > grid.ColumnHeadersHeight,
+            "Long type filter loses facts or inserts explanation space into analysis");
         form.Close();
         Console.WriteLine($"PASS UI keyboard search/clear/open/parent, accessible input names and minimum layout at {owner.DeviceDpi} DPI");
     }

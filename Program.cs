@@ -33,8 +33,11 @@ internal static class Program
             ApplicationConfiguration.Initialize();
             Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
             Application.ThreadException += async (_, e) => await ReportErrorAsync(e.Exception, true);
+            var rendering = DesktopRendering.Resolve(args, Environment.ProcessPath);
             using var form = new MainForm(args.FirstOrDefault(a => !a.StartsWith("--")), loadSavedBackground: true,
-                backgroundSettingsPath: data.BackgroundPath, diagnostics: diagnostics);
+                backgroundSettingsPath: data.BackgroundPath, diagnostics: diagnostics,
+                dibCandidate: rendering.Dib, opaqueRedirectCandidate: rendering.Opaque,
+                compositionCandidate: rendering.Composition, showCandidateLabel: rendering.CandidateLabel);
             if (data.IsIsolated) form.Text += " · 隔离数据";
             Application.Run(form);
         }

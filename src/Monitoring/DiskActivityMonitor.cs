@@ -106,7 +106,7 @@ internal sealed class DiskActivityMonitor : IDisposable
                         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
                         catch { Publish(request, null, "磁盘监测不可用"); }
                     }
-                    else Publish(request, null, "已暂停 · 展开面板后采样");
+                    else Publish(request, null, "已暂停 · 启用磁盘活动后采样");
                 }
                 if (source != null && request.Enabled && IsCurrent(request.Revision))
                 {
@@ -124,7 +124,7 @@ internal sealed class DiskActivityMonitor : IDisposable
                     catch
                     {
                         source.Dispose(); source = null;
-                        Publish(request, null, "磁盘监测不可用 · 收起再展开可重试");
+                        Publish(request, null, "磁盘监测不可用 · 暂停后重新启用可重试");
                     }
                 }
                 if (!IsCurrent(request.Revision)) continue;

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace DiskAtlas;
 
@@ -11,8 +12,24 @@ internal sealed class MainForm : Form
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     internal bool NtfsFastEnabled { get => ntfsFast.Checked; set => ntfsFast.Checked = value; }
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    internal Func<bool>? FastScanConfirmation { get; init; }
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    internal bool NativeLayoutHoldEnabled
+    {
+        get => layoutPresentation?.NativeLayoutHoldEnabled ?? true;
+        set { if (layoutPresentation != null) layoutPresentation.NativeLayoutHoldEnabled = value; }
+    }
+    private bool changingFastChoice;
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     internal Func<Action<DiskActivityUpdate>, DiskActivityMonitor>? ActivityMonitorFactory { get; set; }
     internal readonly WallpaperRaster WallpaperRaster = new();
+    internal RenderSession? Rendering { get; private set; }
+    private DibWindowCoverage? dibCoverage;
+    private OpaqueWindowRedirect? opaqueRedirect;
+    private CompositionBackdrop? compositionBackdrop;
+    private bool compositionReady, compositionShown;
+    internal CompositionBackdrop? CompositionBackdrop => compositionBackdrop;
+    internal OpaqueWindowRedirect? OpaqueRedirect => opaqueRedirect;
     internal MainSurfaceStyle SurfaceStyle { get; private set; } = MainSurfaceStyle.Airy;
     internal void ApplyStageOnePreview(string variant)
     {
@@ -24,15 +41,16 @@ internal sealed class MainForm : Form
     private readonly string backgroundSettingsPath;
     private readonly DiagnosticService? diagnostics;
     private DiagnosticsDialog? diagnosticsWindow;
-    private readonly ActionButton diagnosticsButton = new("诊断") { Dock = DockStyle.Fill };
+    private readonly ActionButton diagnosticsButton = new("诊断") { Dock = DockStyle.Fill, Subtle = true };
     private Color automaticBackgroundAccent = Theme.DefaultAccent;
-    private readonly ActionButton backgroundSettings = new("背景设置") { Dock = DockStyle.Fill };
+    private readonly ActionButton backgroundSettings = new("背景设置") { Dock = DockStyle.Fill, Subtle = true };
     private readonly ScanCoordinator coordinator = new();
     private readonly ComboBox strategyCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
     private readonly ComboBox metricCombo = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Surface, ForeColor = Theme.Text };
-    private readonly CheckBox ntfsFast = new() { Text = "NTFS 快扫（实验）", AutoSize = true, BackColor = Color.Transparent, Margin = Padding.Empty };
+    private readonly RoundedToggle ntfsFast = new() { Text = "NTFS 快扫", AccessibleName = "NTFS 快扫（实验）", AutoSize = false, Dock = DockStyle.Fill, Font = Theme.Font(Theme.BodyFontSize), Margin = Padding.Empty };
     private readonly Label refreshInfo = LabelOf("首次完整扫描，刷新时自动检查变化", Theme.CaptionFontSize, false, true);
-    private readonly ToolTip scanTip = new() { AutoPopDelay = 20000, InitialDelay = 300 };
+    private readonly ToolTip scanTip = AppToolTips.Create();
+    private readonly Font filePathFont = Theme.Font(Theme.CaptionFontSize);
     private SizeMetric metric;
     private bool changingMetric, forceFullNext;
     private readonly NavigationPanel navigation = new() { Dock = DockStyle.Fill };
@@ -46,6 +64,10 @@ internal sealed class MainForm : Form
     private readonly ActionButton issues = new("查看未读取项") { Width = 115, Dock = DockStyle.Fill, Visible = false };
     private readonly ActionButton restoreComplete = new("恢复上次完整结果") { Dock = DockStyle.Fill, Visible = false };
     private ColumnStyle? restoreCompleteColumn;
+    private RowStyle? footerActionRow, footerShellRow;
+    private bool updatingFooterLayout;
+    private WallpaperTable? contentLayoutRoot, footerLayoutRoot;
+    private LayoutPresentation? layoutPresentation;
     private readonly ActionButton clearType = new("清除类型筛选") { Dock = DockStyle.Fill, Visible = false, Margin = new Padding(0, 14, 12, 12) };
     private ColumnStyle? filterColumn;
     private readonly ActionButton previousPage = new("上一页") { Dock = DockStyle.Fill, Enabled = false };
@@ -53,30 +75,32 @@ internal sealed class MainForm : Form
     private readonly Label pageInfo = LabelOf("", Theme.CaptionFontSize, false, true);
     private RowStyle? pagingRow;
     private int pageIndex;
-    private readonly Label title = LabelOf("文件夹空间，一目了然", 21, true);
-    private readonly Label subtitle = LabelOf("选择一个文件夹，发现每一份空间的去向。", Theme.BodyFontSize, false, true);
+    private string scopeDetails = "";
+    private bool displayingPreviousResult;
+    private bool wasMinimized;
+    private bool restoreRepaintQueued;
     private readonly Label mapTitle = LabelOf("空间分布", 12, true);
-    private readonly Label mapCaption = LabelOf("矩形面积代表文件大小", Theme.CaptionFontSize, false, true);
+    private readonly Label mapCaption = LabelOf("", Theme.CaptionFontSize, false, true);
     private readonly Label listTitle = LabelOf("文件与文件夹", 12, true);
-    private readonly Label listCaption = LabelOf("按大小排序", Theme.CaptionFontSize, false, true);
-    private readonly Label detailTitle = LabelOf("选择矩形或列表项目，查看详情", Theme.BodyFontSize, true);
-    private readonly Label detailPath = LabelOf("双击文件夹进入 · 双击文件在资源管理器中定位", Theme.CaptionFontSize, false, true);
-    private readonly Label status = LabelOf("就绪  ·  仅扫描本地文件，文件不会上传", Theme.CaptionFontSize, false, true);
+    private readonly Label listCaption = LabelOf("", Theme.CaptionFontSize, false, true);
+    private readonly Label detailTitle = LabelOf("未选择项目", Theme.BodyFontSize, true);
+    private readonly Label detailPath = LabelOf("", Theme.CaptionFontSize, false, true);
+    private readonly Label status = LabelOf("就绪", Theme.CaptionFontSize, false, true);
     private readonly TextBox pathBox = new() { ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = Theme.Surface, ForeColor = Theme.Text, Dock = DockStyle.Fill };
     private readonly TextBox search = new() { PlaceholderText = "搜索名称或扩展名…", BorderStyle = BorderStyle.None, BackColor = Theme.Surface, ForeColor = Theme.Text, Dock = DockStyle.Fill };
     private readonly ScanProgressControl progressBar = new() { Dock = DockStyle.Fill };
-    private readonly DiskActivityPanel activityPanel = new() { Dock = DockStyle.Fill, Margin = Padding.Empty };
-    private RowStyle? activityRow;
+    private readonly DiskActivityPanel activityPanel = new() { Margin = Padding.Empty, SidebarMode = true };
+    private DiskActivityDetailsDialog? activityDetails;
     private DiskActivityMonitor? activityMonitor;
     private string? activityPath;
     private bool activitySuspended;
     private readonly System.Windows.Forms.Timer activityClock = new() { Interval = 1000 };
     private readonly CheckBox reduceMotion = new() { Text = "减弱动效", AutoSize = true, Anchor = AnchorStyles.Right, BackColor = Color.Transparent };
     private readonly DataGridView grid = new WallpaperGrid();
-    private readonly StatCard totalCard = new() { Title = "当前目录大小", Caption = "文件逻辑大小 · 1024 进制", Highlight = true, Dock = DockStyle.Fill };
-    private readonly StatCard filesCard = new() { Title = "文件数量", Caption = "包含所有子文件夹", Dock = DockStyle.Fill };
-    private readonly StatCard foldersCard = new() { Title = "子文件夹", Caption = "可双击逐层探索", Dock = DockStyle.Fill };
-    private readonly StatCard timeCard = new() { Title = "扫描用时", Caption = "后台扫描，不阻塞操作", Dock = DockStyle.Fill };
+    private readonly StatCard totalCard = new() { Title = "当前目录大小", Caption = "文件逻辑大小 · 1024 进制", Highlight = true, Dock = DockStyle.Fill, ShowCaption = false };
+    private readonly StatCard filesCard = new() { Title = "文件数量", Caption = "包含所有子文件夹", Dock = DockStyle.Fill, ShowCaption = false };
+    private readonly StatCard foldersCard = new() { Title = "子文件夹", Dock = DockStyle.Fill, ShowCaption = false };
+    private readonly StatCard timeCard = new() { Title = "扫描用时", Dock = DockStyle.Fill, ShowCaption = false };
     private readonly System.Windows.Forms.Timer searchTimer = new() { Interval = 220 };
     private readonly System.Windows.Forms.Timer previewTimer = new() { Interval = 500 };
     private LiveScanSession? liveSession;
@@ -99,11 +123,27 @@ internal sealed class MainForm : Form
     private bool sortAscending;
     private bool updating;
 
-    public MainForm(string? initialPath, bool loadSavedBackground = false, string? backgroundSettingsPath = null, DiagnosticService? diagnostics = null)
+    public MainForm(string? initialPath, bool loadSavedBackground = false, string? backgroundSettingsPath = null, DiagnosticService? diagnostics = null, bool dibCandidate = false, bool opaqueRedirectCandidate = false, bool compositionCandidate = false, bool showCandidateLabel = true)
     {
+        bool useComposition = compositionCandidate || AppContext.TryGetSwitch("AsukaLens.TestComposition", out bool testComposition) && testComposition;
+        if (dibCandidate || opaqueRedirectCandidate || useComposition || AppContext.TryGetSwitch("AsukaLens.TestDib", out bool testDib) && testDib)
+        {
+            Rendering = new RenderSession(true);
+            WallpaperRaster.Session = Rendering;
+            dibCoverage = new DibWindowCoverage(this);
+            if (useComposition) compositionBackdrop = new CompositionBackdrop(this);
+            if(!useComposition && (opaqueRedirectCandidate || AppContext.TryGetSwitch("AsukaLens.TestOpaqueRedirect",out bool testRedirect) && testRedirect))
+                opaqueRedirect = new OpaqueWindowRedirect(this,postCreateHost:true);
+        }
         this.diagnostics = diagnostics;
         this.backgroundSettingsPath = backgroundSettingsPath ?? BackgroundSettings.PathForUser;
         Text = AppInfo.WindowTitle;
+        if (showCandidateLabel)
+        {
+            if (Rendering != null) Text += " · DIB 候选";
+            if (opaqueRedirect != null) Text += " · C56";
+            if (compositionBackdrop != null) Text += " · C57";
+        }
         if (Environment.ProcessPath is { } executable) Icon = Icon.ExtractAssociatedIcon(executable);
         Size = new Size(1440, 940);
         MinimumSize = new Size(1120, 780);
@@ -119,17 +159,19 @@ internal sealed class MainForm : Form
         BuildInterface();
         activityPanel.ExpansionChanged += (_, _) =>
         {
-            if (activityRow != null) activityRow.Height = (activityPanel.Expanded ? 110 : 32) * DeviceDpi / 96f;
+            navigation.PerformLayout();
             activityPanel.ResetHistory();
             RefreshDiskActivity();
         };
+        activityPanel.DetailsRequested += (_, _) => OpenActivityDetails();
+        activityPanel.VisibleChanged += (_, _) => RefreshDiskActivity();
         activityPanel.TargetChanged += (_, _) => RefreshDiskActivity();
-        activityPanel.SetMessage("已暂停 · 展开面板后采样");
+        activityPanel.SetMessage("已暂停 · 启用磁盘活动后采样");
         activityClock.Tick += (_, _) => activityPanel.AdvanceClock(DateTimeOffset.UtcNow);
         reduceMotion.Checked = false;
         reduceMotion.CheckedChanged += (_, _) => ApplyMotionPreference();
         ApplyMotionPreference();
-        scanTip.SetToolTip(reduceMotion, "关闭图块回弹和进度往返动画；保留真实进度与静态高亮。本次运行有效。");
+        scanTip.SetToolTip(reduceMotion, "减弱按钮、沿边柔光和进度图标动画，保留静态选中状态。本次运行有效。");
         ConfigureGrid();
         metricCombo.AccessibleName = "统计口径";
         metricCombo.AccessibleDescription = "文件大小按路径计数；实际占用按扫描范围内硬链接去重，不等于删除后释放空间。未知占用不按零计算。";
@@ -137,13 +179,36 @@ internal sealed class MainForm : Form
         search.AccessibleName = "搜索当前视图";
         pathBox.AccessibleName = "当前目录路径";
         grid.AccessibleName = "当前视图结果列表";
-        foreach (var label in new[] { subtitle, mapCaption, listCaption, status })
+        foreach (var label in new[] { mapCaption, listCaption, status })
             label.TextChanged += (_, _) => scanTip.SetToolTip(label, label.Text);
+        status.TextChanged += (_, _) => UpdateProgressDetails();
+        UpdateProgressDetails();
         scanTip.SetToolTip(totalCard, "统计卡始终包含当前目录及全部子目录，不随搜索、类型筛选或列表分页改变。\n实际占用按整个扫描范围去重；共享路径不重复计入，不等于删除后释放空间。");
+        scanTip.SetToolTip(filesCard, "包含当前目录及所有子目录中的文件。");
+        scanTip.SetToolTip(foldersCard, "包含所有子文件夹；可在空间图或列表中双击进入。");
+        scanTip.SetToolTip(timeCard, "扫描总用时。快扫包含授权等待和本次快照清理；详细阶段见扫描详情。");
         strategyCombo.Items.AddRange(["自动", "低占用", "高速"]); strategyCombo.SelectedIndex = 0;
         strategyCombo.SelectedIndexChanged += (_, _) => { if (scanCancellation == null) UpdateStrategyHint(); };
-        ntfsFast.CheckedChanged += (_, _) => { if (scanCancellation == null) UpdateStrategyHint(); };
-        scanTip.SetToolTip(ntfsFast, "可选实验后端：每次扫描会申请管理员授权并创建短时只读快照，完成后清理。\n读取本地 NTFS 记录（其中可能含小文件内嵌内容），仅提取大小等元信息，不保存原始记录。\n结果为快照时点。未支持或超限时转普通目录扫描，所选扫描策略用于回退。\n快照期间系统写入可能产生临时磁盘占用；文件和清单不会上传。");
+        ntfsFast.CheckedChanged += (_, _) =>
+        {
+            if (changingFastChoice) return;
+            if (ntfsFast.Checked)
+            {
+                bool accepted = false;
+                try { accepted = FastScanConfirmation?.Invoke() ?? FastScanOptIn.Request(this); }
+                finally
+                {
+                    if (!accepted)
+                    {
+                        changingFastChoice = true;
+                        try { ntfsFast.Checked = false; } finally { changingFastChoice = false; }
+                    }
+                }
+            }
+            if (scanCancellation == null) UpdateStrategyHint();
+        };
+        ntfsFast.AccessibleDescription = FastScanOptIn.Explanation;
+        scanTip.SetToolTip(ntfsFast, FastScanOptIn.Explanation);
         UpdateStrategyHint();
         metricCombo.Items.AddRange(["文件大小", "实际占用"]); metricCombo.SelectedIndex = 0;
         metricCombo.SelectedIndexChanged += (_, _) => { if (!changingMetric) { metric = (SizeMetric)metricCombo.SelectedIndex; UpdateView(true); } };
@@ -154,7 +219,12 @@ internal sealed class MainForm : Form
         refreshInfo.Click += (_, _) => { if (scanCancellation == null) ShowRefreshDetails(); };
         choose.Click += async (_, _) => await ChooseFolder();
         refresh.Click += async (_, _) => { if (scan != null) await ScanFolder(scan.Root.Path); };
-        cancel.Click += (_, _) => { scanCancellation?.Cancel(); cancel.Enabled = false; status.Text = ntfsFast.Checked ? "正在取消 · 等待本次快照清理后恢复旧结果…" : "正在取消扫描…"; };
+        cancel.Click += (_, _) =>
+        {
+            scanCancellation?.Cancel(); cancel.Enabled = false;
+            status.Text = ntfsFast.Checked ? "正在取消 · 等待本次快照清理后恢复旧结果…" : "正在取消扫描…";
+            refreshInfo.Text = ntfsFast.Checked ? "正在取消 · 等待快照清理" : "正在取消扫描…";
+        };
         up.Click += (_, _) => { if (current?.Parent != null) OpenDirectory(current.Parent); };
         home.Click += (_, _) =>
         {
@@ -179,7 +249,7 @@ internal sealed class MainForm : Form
         KeyDown += HandleKeys;
         DragEnter += (_, e) => { if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1 && Directory.Exists(paths[0])) e.Effect = DragDropEffects.Copy; };
         DragDrop += async (_, e) => { if (scanCancellation == null && e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1) await ScanFolder(paths[0]); };
-        FormClosing += (_, _) => { scanCancellation?.Cancel(); viewCancellation?.Cancel(); activityMonitor?.Dispose(); };
+        FormClosing += (_, _) => { scanCancellation?.Cancel(); viewCancellation?.Cancel(); activityMonitor?.Dispose(); activityDetails?.Close(); };
         backgroundSettings.Click += (_, _) => EditBackground();
         diagnosticsButton.Enabled = diagnostics != null;
         diagnosticsButton.Click += (_, _) => OpenDiagnostics();
@@ -201,7 +271,7 @@ internal sealed class MainForm : Form
         if (Math.Abs(scale - 1) > .01f) Scale(new SizeF(scale, scale));
         // DataGridView rows and header heights are not Control bounds and do
         // not follow the form's explicit Scale call.
-        grid.RowTemplate.Height = (int)Math.Round(44 * scale);
+        grid.RowTemplate.Height = FileListPresentation.RowHeight(DeviceDpi, mode == 1);
         grid.ColumnHeadersHeight = (int)Math.Round(38 * scale);
         foreach (var (column, width) in new[] { ("name", 100), ("size", 105), ("percent", 78), ("count", 80), ("location", 140) })
             grid.Columns[column]!.MinimumWidth = (int)Math.Round(width * scale);
@@ -212,27 +282,78 @@ internal sealed class MainForm : Form
         WallpaperRaster.Get(BackgroundImage, ClientSize, BackgroundCrop);
     }
 
-    private static Label LabelOf(string text, float size, bool bold = false, bool muted = false) => new()
+    private void SetScopeDetails(string value)
+    {
+        if (scopeDetails == value) return;
+        scopeDetails = value;
+        // Keep facts available without adding a visible label, popup or row.
+        map.AccessibleDescription = grid.AccessibleDescription = value;
+        UpdateProgressDetails();
+    }
+
+    private void UpdateProgressDetails() => progressBar.SetDetailText(
+        scopeDetails.Length == 0 ? status.Text : scopeDetails + "\n" + status.Text);
+
+    private static Label LabelOf(string text, float size, bool bold = false, bool muted = false) => new NoHoverLabel()
     {
         Text = text, Font = Theme.Font(size, bold ? FontStyle.Bold : FontStyle.Regular), ForeColor = muted ? Theme.Muted : Theme.Text,
-        Dock = DockStyle.Fill, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleLeft, Margin = Padding.Empty
+        Dock = DockStyle.Fill, AutoEllipsis = false, TextAlign = ContentAlignment.MiddleLeft, Margin = Padding.Empty, BackColor = Color.Transparent
     };
 
-    protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics);
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        opaqueRedirect?.HandleReady();
+        if (compositionShown) ScheduleCompositionBackdrop();
+    }
+    protected override void OnHandleDestroyed(EventArgs e)
+    {
+        compositionReady = false;
+        base.OnHandleDestroyed(e);
+    }
+    protected override void OnShown(EventArgs e)
+    {
+        base.OnShown(e);
+        compositionShown = true;
+        ScheduleCompositionBackdrop();
+    }
+    private void ScheduleCompositionBackdrop()
+    {
+        if (compositionBackdrop == null || !IsHandleCreated) return;
+        IntPtr generation = Handle;
+        // Source creation must not re-enter the root's first SHOW/WINDOWPOS
+        // transaction. Start after that native transaction has returned.
+        BeginInvoke((Action)(() =>
+        {
+            if (IsDisposed || Disposing || !IsHandleCreated || Handle != generation) return;
+            compositionReady = true;
+            PublishCompositionBackdrop(dibCoverage?.RootFrame(ClientSize));
+        }));
+    }
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        if (compositionBackdrop != null) PublishCompositionBackdrop(dibCoverage?.RootFrame(ClientSize));
+        Wallpaper.Paint(this, e.Graphics);
+    }
+    internal void PublishCompositionBackdrop(PixelSurface? frame)
+    {
+        if (compositionReady) compositionBackdrop?.Publish(frame);
+    }
+    internal bool TryPaintCachedRoot(Control control, Graphics graphics, Size size, Point offset, int wash) =>
+        dibCoverage?.TryPaintCachedRoot(control,graphics,size,offset,wash) == true;
 
     private string StrategyName => strategyCombo.SelectedIndex switch { 1 => "低占用", 2 => "高速", _ => "自动" };
     private void UpdateStrategyHint()
     {
         if (ntfsFast.Checked)
         {
-            refreshInfo.Text = "快照扫描 · 需要本次管理员授权";
+            refreshInfo.Text = scan == null ? "需要授权" : scan.Source == null ? "普通扫描" : "NTFS 快扫";
             scanTip.SetToolTip(refreshInfo, "NTFS 快扫使用同一只读快照核对目录、大小与硬链接。取消时恢复旧结果；未支持且确认清理后转普通扫描。");
             return;
         }
         var mode = (ScanMode)Math.Max(0, strategyCombo.SelectedIndex);
         string explanation = ScanPolicy.Explain(mode);
-        refreshInfo.Text = mode == ScanMode.Automatic ? "自动 · 按设备选择目录并发" :
-            $"{StrategyName} · 目录并发上限 {ScanPolicy.Resolve(mode, DiskKind.Unknown).Workers}";
+        refreshInfo.Text = scan?.Statistics is { } latest ? RefreshPresentation.MethodName(latest.Method) : scan == null ? "" : "扫描完成";
         scanTip.SetToolTip(strategyCombo, explanation);
         scanTip.SetToolTip(refreshInfo, explanation);
     }
@@ -240,15 +361,51 @@ internal sealed class MainForm : Form
     protected override void OnResize(EventArgs e)
     {
         base.OnResize(e);
-        // Repaint unchanged child bounds too: all surfaces share window coordinates.
-        Invalidate(true);
+        if (WindowState == FormWindowState.Minimized)
+        {
+            wasMinimized = true;
+            RefreshDiskActivity();
+            return;
+        }
         RefreshDiskActivity();
+        if (wasMinimized)
+        {
+            // Keep restore asynchronous; the deferred black-flash issue is
+            // not handled by the ordinary geometry presentation boundary.
+            Invalidate(true);
+            wasMinimized = false;
+            QueueRestoreRepaint();
+        }
+        else if (!restoreRepaintQueued)
+        {
+            Invalidate();
+            layoutPresentation?.WindowResized();
+        }
+    }
+
+    private void QueueRestoreRepaint()
+    {
+        if (restoreRepaintQueued || !IsHandleCreated || IsDisposed || Disposing) return;
+        restoreRepaintQueued = true;
+        BeginInvoke((Action)(() =>
+        {
+            try
+            {
+                if (IsDisposed || Disposing || !Visible || WindowState == FormWindowState.Minimized) return;
+                // Restore completes child positioning after WM_SIZE. Re-measure
+                // and invalidate from the final geometry, including unchanged children.
+                PerformLayout();
+                WallpaperRaster.Get(BackgroundImage, ClientSize, BackgroundCrop);
+                Invalidate(true);
+            }
+            finally { restoreRepaintQueued = false; }
+        }));
     }
 
     private void RefreshDiskActivity()
     {
         if (activityPanel == null || !IsHandleCreated || IsDisposed || Disposing) return;
-        bool enabled = activityPanel.Expanded && WindowState != FormWindowState.Minimized && Visible && !activitySuspended;
+        bool enabled = activityPanel.Expanded && activityPanel.Visible && WindowState != FormWindowState.Minimized && Visible && !activitySuspended;
         if (enabled) activityClock.Start(); else activityClock.Stop();
         if (activityMonitor == null && !enabled) return;
         activityMonitor ??= (ActivityMonitorFactory ?? (callback => new DiskActivityMonitor(callback)))(update =>
@@ -269,11 +426,70 @@ internal sealed class MainForm : Form
         activityMonitor.Update(activityPath ?? scan?.Root.Path, activityPanel.SelectedDiskNumber, enabled);
     }
 
+    private void OpenActivityDetails()
+    {
+        if (IsDisposed || Disposing) return;
+        if (activityDetails is { IsDisposed: false }) { activityDetails.Activate(); return; }
+        var window = new DiskActivityDetailsDialog(activityPanel);
+        activityDetails = window;
+        window.FormClosed += (_, _) => { if (ReferenceEquals(activityDetails, window)) activityDetails = null; };
+        window.Show(this);
+    }
+
     protected override void WndProc(ref Message message)
     {
-        base.WndProc(ref message);
+        using var resizeWork = ResizeWorkProbe.Measure(message.Msg switch
+        {
+            0x0046 => ResizeWorkProbe.Work.PositionChanging, 0x0047 => ResizeWorkProbe.Work.PositionChanged,
+            0x0005 => ResizeWorkProbe.Work.Size, 0x0085 => ResizeWorkProbe.Work.NonClient,
+            0x0014 => ResizeWorkProbe.Work.Erase, _ => ResizeWorkProbe.Work.None
+        });
+        dibCoverage?.Before(ref message);
+        ResizePixelPolicy.Prepare(this, ref message);
+        // WinForms updates managed bounds after DefWindowProc has sent its
+        // nested WM_SIZE, so the outer WM_WINDOWPOSCHANGED owns the boundary.
+        // Keep direct WM_SIZE compatible; nested scopes share the same batch.
+        try
+        {
+        using (message.Msg == 0x0047 || message.Msg == 0x0005 && message.WParam.ToInt64() != 1
+            ? layoutPresentation?.BeginGeometry(logicalOnly: ShouldHoldGeometryRedraw(ref message)) : null)
+            base.WndProc(ref message);
         HandleMonitoringSystemEvent(message.Msg, message.WParam.ToInt64());
+        }
+        finally { dibCoverage?.After(ref message); }
     }
+
+    private bool ShouldHoldGeometryRedraw(ref Message message)
+    {
+        if (!IsHandleCreated || WindowState == FormWindowState.Minimized || wasMinimized || IsIconic(Handle)) return false;
+        if (message.Msg == 0x0047 && message.LParam != IntPtr.Zero)
+        {
+            var position = Marshal.PtrToStructure<GeometryWindowPosition>(message.LParam);
+            return (position.Flags & 0x0001) == 0 && (position.Width != Width || position.Height != Height);
+        }
+        if (message.Msg == 0x0005 && message.WParam.ToInt64() != 1)
+        {
+            long packed = message.LParam.ToInt64();
+            var size = new Size((int)(packed & 0xffff), (int)((packed >> 16) & 0xffff));
+            return size.Width > 0 && size.Height > 0 && size != ClientSize;
+        }
+        return false;
+    }
+
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    internal bool IsGeometryPresentationPaused => layoutPresentation?.IsLogicalGeometryActive == true;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct GeometryWindowPosition
+    {
+        public IntPtr Handle, InsertAfter;
+        public int X, Y, Width, Height;
+        public uint Flags;
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsIconic(IntPtr handle);
 
     private void HandleMonitoringSystemEvent(int message, long value)
     {
@@ -301,60 +517,60 @@ internal sealed class MainForm : Form
         shell.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 232));
         shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         shell.Controls.Add(navigation, 0, 0);
-        var main = Table(1, 9);
-        main.Padding = new Padding(28, 22, 28, 12);
-        foreach (float height in new float[] { 85, 60, 124, 62 }) main.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+        navigation.AttachActivity(activityPanel, () => activityPanel.Expanded);
+        var main = Table(1, 8);
+        contentLayoutRoot = main;
+        main.Padding = new Padding(28, 18, 28, 12);
+        foreach (float height in new float[] { 50, 52, 80, 52 }) main.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
         main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        main.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
-        activityRow = new RowStyle(SizeType.Absolute, 32);
-        main.RowStyles.Add(activityRow);
+        main.RowStyles.Add(new RowStyle(SizeType.Absolute, 66));
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-        main.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+        footerShellRow = new RowStyle(SizeType.Absolute, 0);
+        main.RowStyles.Add(footerShellRow);
         shell.Controls.Add(main, 1, 0);
         Controls.Add(shell);
 
-        var header = Table(2, 1);
+        var header = Table(5, 1);
+        header.Padding = new Padding(0, 4, 0, 10);
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 142));
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 118));
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112));
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 394));
-        var heading = Table(1, 2); heading.Surface = WallpaperSurface.Chrome;
-        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 41));
-        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        heading.Controls.Add(title, 0, 0); heading.Controls.Add(subtitle, 0, 1);
-        header.Controls.Add(heading, 0, 0);
-        var actions = Table(3, 1);
-        actions.Padding = new Padding(0, 13, 0, 29);
-        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
-        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
-        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        actions.Controls.Add(cancel, 0, 0); actions.Controls.Add(refresh, 1, 0); actions.Controls.Add(choose, 2, 0);
-        header.Controls.Add(actions, 1, 0);
+        choose.Margin = new Padding(0, 0, 8, 0); refresh.Margin = cancel.Margin = Padding.Empty;
+        var refreshSlot = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 8, 0), BackColor = Color.Transparent };
+        refreshSlot.Controls.Add(refresh); refreshSlot.Controls.Add(cancel);
+        cancel.VisibleChanged += (_, _) =>
+        {
+            if (IsDisposed || Disposing) return;
+            refresh.Visible = !cancel.Visible;
+            if (cancel.Visible) cancel.BringToFront();
+        };
+        header.Controls.Add(choose, 0, 0); header.Controls.Add(refreshSlot, 1, 0);
+        backgroundSettings.Margin = new Padding(0, 0, 8, 0); diagnosticsButton.Margin = Padding.Empty;
+        header.Controls.Add(backgroundSettings, 2, 0); header.Controls.Add(diagnosticsButton, 3, 0);
         main.Controls.Add(header, 0, 0);
 
-        var settings = Table(5, 1); settings.Surface = WallpaperSurface.Chrome; settings.Padding = new Padding(0, 2, 0, 8);
-        foreach (float width in new float[] { 68, 138, 82, 148 }) settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, width));
+        var settings = Table(4, 1); settings.Padding = new Padding(0, 0, 0, 14);
+        settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220));
+        settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 236));
+        settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
         settings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        settings.Controls.Add(LabelOf("扫描策略", Theme.ControlFontSize), 0, 0); settings.Controls.Add(new InputFrame(strategyCombo) { Margin = new Padding(0, 0, 20, 0) }, 1, 0);
-        settings.Controls.Add(LabelOf("统计口径", Theme.ControlFontSize), 2, 0); settings.Controls.Add(new InputFrame(metricCombo) { Margin = new Padding(0, 0, 15, 0) }, 3, 0);
-        settings.ColumnCount = 7;
-        settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
-        settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
-        var scanInfo = Table(1, 2); scanInfo.Surface = WallpaperSurface.Chrome; scanInfo.Margin = Padding.Empty;
-        scanInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
-        scanInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        scanInfo.Controls.Add(ntfsFast, 0, 0); scanInfo.Controls.Add(refreshInfo, 0, 1);
-        settings.Controls.Add(scanInfo, 4, 0);
-        settings.Controls.Add(backgroundSettings, 5, 0);
-        settings.Controls.Add(diagnosticsButton, 6, 0);
+        settings.Controls.Add(new InputFrame(strategyCombo, "扫描策略") { Margin = new Padding(0, 0, 16, 0) }, 0, 0);
+        settings.Controls.Add(new InputFrame(metricCombo, "统计口径") { Margin = new Padding(0, 0, 16, 0) }, 1, 0);
+        ntfsFast.Margin = new Padding(0, 0, 10, 0);
+        refreshInfo.TextAlign = ContentAlignment.MiddleRight;
+        settings.Controls.Add(ntfsFast, 2, 0); settings.Controls.Add(refreshInfo, 3, 0);
         main.Controls.Add(settings, 0, 1);
 
         var cards = Table(4, 1);
         for (int i = 0; i < 4; i++) cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
         StatCard[] stats = [totalCard, filesCard, foldersCard, timeCard];
-        for (int i = 0; i < stats.Length; i++) { stats[i].Margin = new Padding(0, 0, i == 3 ? 0 : 14, 8); cards.Controls.Add(stats[i], i, 0); }
+        for (int i = 0; i < stats.Length; i++) { stats[i].Margin = new Padding(0, 0, i == 3 ? 0 : 8, 8); cards.Controls.Add(stats[i], i, 0); }
         main.Controls.Add(cards, 0, 2);
 
-        var toolbar = Table(4, 1); toolbar.Surface = WallpaperSurface.Chrome;
-        toolbar.Padding = new Padding(0, 8, 0, 12);
+        var toolbar = Table(4, 1);
+        toolbar.Padding = new Padding(0, 6, 0, 6);
         toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
         toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 116));
         toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -365,28 +581,29 @@ internal sealed class MainForm : Form
         pathBox.Text = "未选择文件夹（支持拖入文件夹）";
         main.Controls.Add(toolbar, 0, 3);
 
-        var split = new SplitContainer { Size = new Size(1100, 480), Dock = DockStyle.Fill, BackColor = Theme.Background, SplitterWidth = 14, Panel1MinSize = 300, Panel2MinSize = 290, Margin = Padding.Empty };
+        var split = new WallpaperSplitContainer { Size = new Size(1100, 480), Dock = DockStyle.Fill, BackColor = Theme.Background, SplitterWidth = 14, Panel1MinSize = 300, Panel2MinSize = 290, Margin = Padding.Empty };
+        if (Rendering != null) split.ConfigurePanelBackgroundExperiment(WallpaperSplitContainer.PanelBackgroundMode.DirectWallpaper);
         // Set a valid size before setting the splitter distance and minimums at runtime.
         split.Size = new Size(1100, 480);
         split.SplitterDistance = 650;
-        var mapPanel = Table(1, 2);
+        var mapPanel = Table(1, 2); mapPanel.Padding = new Padding(1); mapPanel.Framed = true;
         mapPanel.Surface = WallpaperSurface.Canvas;
-        mapPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
+        mapPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
         mapPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        var mapHeading = Table(3, 1); mapHeading.Surface = WallpaperSurface.Chrome;
+        var mapHeading = Table(3, 1); mapHeading.Surface = WallpaperSurface.Canvas;
         mapHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         filterColumn = new ColumnStyle(SizeType.Absolute, 0);
         mapHeading.ColumnStyles.Add(filterColumn);
         mapHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
-        mapHeading.Controls.Add(PanelHeader(mapTitle, mapCaption), 0, 0);
+        mapHeading.Controls.Add(PanelHeader(mapTitle, mapCaption, WallpaperSurface.Canvas), 0, 0);
         mapHeading.Controls.Add(clearType, 1, 0);
         mapHeading.Controls.Add(reduceMotion, 2, 0);
         mapPanel.Controls.Add(mapHeading, 0, 0);
         mapPanel.Controls.Add(map, 0, 1);
         split.Panel1.Controls.Add(mapPanel);
-        var listPanel = Table(1, 3);
+        var listPanel = Table(1, 3); listPanel.Padding = new Padding(1); listPanel.Framed = true;
         listPanel.Surface = WallpaperSurface.Data;
-        listPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
+        listPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
         listPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         pagingRow = new RowStyle(SizeType.Absolute, 0);
         listPanel.RowStyles.Add(pagingRow);
@@ -403,9 +620,16 @@ internal sealed class MainForm : Form
         split.Panel2.Controls.Add(listPanel);
         main.Controls.Add(split, 0, 4);
 
+        var bottom = Table(1, 3); bottom.Surface = WallpaperSurface.Chrome; bottom.Framed = true;
+        footerLayoutRoot = bottom;
+        bottom.Padding = new Padding(1); bottom.Margin = new Padding(0, 8, 0, 0);
+        bottom.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
+        bottom.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        footerActionRow = new RowStyle(SizeType.Absolute, 0);
+        bottom.RowStyles.Add(footerActionRow);
         var detail = Table(2, 1);
-        detail.Padding = new Padding(14, 12, 10, 8);
-        detail.Margin = new Padding(0, 12, 0, 0);
+        detail.Padding = new Padding(14, 8, 10, 8);
+        detail.Margin = Padding.Empty;
         detail.Surface = WallpaperSurface.Chrome;
         detail.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         detail.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
@@ -414,24 +638,60 @@ internal sealed class MainForm : Form
         detailText.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         detailText.Controls.Add(detailTitle, 0, 0); detailText.Controls.Add(detailPath, 0, 1);
         detail.Controls.Add(detailText, 0, 0); detail.Controls.Add(reveal, 1, 0);
-        main.Controls.Add(detail, 0, 5);
-        main.Controls.Add(activityPanel, 0, 6);
-        main.Controls.Add(progressBar, 0, 7);
+        bottom.Controls.Add(detail, 0, 0);
+        bottom.Controls.Add(progressBar, 0, 1);
         var footer = Table(3, 1); footer.Surface = WallpaperSurface.Chrome;
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         restoreCompleteColumn = new ColumnStyle(SizeType.Absolute, 0);
         footer.ColumnStyles.Add(restoreCompleteColumn);
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 122));
+        status.Visible = false;
         footer.Controls.Add(status, 0, 0); footer.Controls.Add(restoreComplete, 1, 0); footer.Controls.Add(issues, 2, 0);
-        main.Controls.Add(footer, 0, 8);
+        footer.Padding = new Padding(14, 0, 10, 0);
+        bottom.Controls.Add(footer, 0, 2);
+        main.Controls.Add(bottom, 0, 5); main.SetRowSpan(bottom, 3);
+        issues.VisibleChanged += (_, _) => UpdateFooterLayout();
+        restoreComplete.VisibleChanged += (_, _) => UpdateFooterLayout();
+        footer.SizeChanged += (_, _) => UpdateFooterLayout();
+        Shown += (_, _) => UpdateFooterLayout();
+        layoutPresentation = new LayoutPresentation(this, () => wasMinimized || restoreRepaintQueued,
+            ReconcileSurfaceClips, main, listPanel, navigation);
+    }
+
+    private static void ReconcileSurfaceClips(Control root)
+    {
+        if (root.IsDisposed || root.Disposing) return;
+        if (root is WallpaperTable table) table.ReconcileContentClips();
+        foreach (Control child in root.Controls.Cast<Control>().ToArray()) ReconcileSurfaceClips(child);
+    }
+    internal IDisposable? BeginLayoutPresentation(Control root) => layoutPresentation?.BeginLayout(root);
+
+    private void UpdateFooterLayout()
+    {
+        if (updatingFooterLayout || footerActionRow == null || footerShellRow == null || IsDisposed || Disposing) return;
+        updatingFooterLayout = true;
+        try
+        {
+            bool hasActions = issues.Visible || restoreComplete.Visible;
+            float scale = DeviceDpi / 96f;
+            float height = hasActions ? 30 * scale : 0;
+            if (Math.Abs(footerActionRow.Height - height) <= .5f && Math.Abs(footerShellRow.Height - height) <= .5f) return;
+            using var presentation = contentLayoutRoot == null ? null : layoutPresentation?.BeginLayout(contentLayoutRoot);
+            contentLayoutRoot?.SuspendLayout();
+            footerLayoutRoot?.SuspendLayout();
+            try { footerActionRow.Height = height; footerShellRow.Height = height; }
+            finally { footerLayoutRoot?.ResumeLayout(true); contentLayoutRoot?.ResumeLayout(true); }
+        }
+        finally { updatingFooterLayout = false; }
     }
 
     private static Control PanelHeader(Label heading, Label caption, WallpaperSurface surface = WallpaperSurface.Chrome)
     {
-        var panel = Table(1, 2); panel.Surface = surface; panel.Padding = new Padding(16, 10, 12, 4);
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        panel.Controls.Add(heading, 0, 0); panel.Controls.Add(caption, 0, 1);
+        var panel = Table(2, 1); panel.Surface = surface; panel.Padding = new Padding(16, 6, 12, 6);
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 63));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 37));
+        caption.TextAlign = ContentAlignment.MiddleRight;
+        panel.Controls.Add(heading, 0, 0); panel.Controls.Add(caption, 1, 0);
         return panel;
     }
 
@@ -481,19 +741,49 @@ internal sealed class MainForm : Form
             sortColumn = next;
             UpdateView(true);
         };
+        var nameSortMenu = Theme.CreateContextMenu();
+        var byName = nameSortMenu.Items.Add("按名称排序", null, (_, _) => SortNames("name"));
+        var byLocation = nameSortMenu.Items.Add("按所在位置排序", null, (_, _) => SortNames("location"));
+        nameSortMenu.Opening += (_, _) => byLocation.Enabled = mode == 1;
+        grid.Columns["name"]!.HeaderCell.ContextMenuStrip = nameSortMenu;
+        grid.Columns["name"]!.ToolTipText = "右键名称表头可按名称或所在位置排序；选中文件查看详情，右键可复制完整路径。";
+        grid.Disposed += (_, _) => nameSortMenu.Dispose();
+        void SortNames(string column)
+        {
+            if (column == "location" && mode != 1) return;
+            sortAscending = sortColumn == column ? !sortAscending : true;
+            sortColumn = column;
+            UpdateView(true);
+        }
         grid.CellPainting += (_, e) =>
         {
             if (e.RowIndex < 0 || e.ColumnIndex != 0 || RowItem(e.RowIndex) is not { } item) return;
-            e.PaintBackground(e.ClipBounds, true);
-            float s = DeviceDpi / 96f;
-            using var brush = new SolidBrush(Theme.CategoryColor(item.Category));
-            var dot = new Rectangle(e.CellBounds.X + (int)(12 * s), e.CellBounds.Y + e.CellBounds.Height / 2 - (int)(4 * s), (int)(8 * s), (int)(8 * s));
-            e.Graphics!.FillRectangle(brush, dot);
-            Theme.TextAt(e.Graphics, item.Name, e.CellStyle!.Font ?? grid.Font, Theme.Text, new Rectangle(dot.Right + (int)(8 * s), e.CellBounds.Y, Math.Max(0, e.CellBounds.Right - dot.Right - (int)(14 * s)), e.CellBounds.Height));
-            if ((e.State & DataGridViewElementStates.Selected) != 0 && grid.Focused &&
-                grid.CurrentCellAddress == new Point(e.ColumnIndex, e.RowIndex))
-                e.Paint(e.ClipBounds, DataGridViewPaintParts.Focus);
-            e.Handled = true;
+            if (e.Graphics is not { } graphics) return;
+            var saved = graphics.Save();
+            try
+            {
+                graphics.SetClip(Rectangle.Intersect(e.CellBounds, e.ClipBounds), System.Drawing.Drawing2D.CombineMode.Intersect);
+                ((WallpaperGrid)grid).PaintCellSurface(e);
+                bool detailed = mode == 1 && item.Entry != null;
+                var bands = FileListPresentation.Bands(e.CellBounds, grid.DeviceDpi, detailed);
+                using var brush = new SolidBrush(Theme.CategoryColor(item.Category));
+                graphics.FillRectangle(brush, bands.Dot);
+                Color foreground = SystemInformation.HighContrast
+                    ? (e.State & DataGridViewElementStates.Selected) != 0 ? SystemColors.HighlightText : SystemColors.WindowText
+                    : Theme.Text;
+                const TextFormatFlags flags = TextFormatFlags.SingleLine | TextFormatFlags.PreserveGraphicsClipping;
+                if (bands.Name.Width > 0 && bands.Name.Height > 0)
+                    Theme.TextAt(graphics, item.Name, e.CellStyle!.Font ?? grid.Font, foreground, bands.Name, flags);
+                if (detailed && bands.Path.Width > 0 && bands.Path.Height > 0)
+                    TextRenderer.DrawText(graphics, FileListPresentation.RelativeLocation(item, current), filePathFont,
+                        bands.Path, SystemInformation.HighContrast ? foreground : Theme.Muted,
+                        flags | TextFormatFlags.PathEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter);
+                if ((e.State & DataGridViewElementStates.Selected) != 0 && grid.Focused &&
+                    grid.CurrentCellAddress == new Point(e.ColumnIndex, e.RowIndex))
+                    e.Paint(e.ClipBounds, DataGridViewPaintParts.Focus);
+                e.Handled = true;
+            }
+            finally { graphics.Restore(saved); }
         };
         var menu = Theme.CreateContextMenu();
         menu.Items.Add("进入文件夹 / 定位文件", null, (_, _) => { if (selection != null) ActivateItem(selection); });
@@ -502,6 +792,49 @@ internal sealed class MainForm : Form
         menu.Opening += (_, e) => e.Cancel = selection?.Entry == null;
         grid.ContextMenuStrip = menu;
         grid.CellMouseDown += (_, e) => { if (e.Button == MouseButtons.Right && e.RowIndex >= 0) { grid.ClearSelection(); grid.Rows[e.RowIndex].Selected = true; } };
+    }
+
+    private void ApplyGridPresentation(int requestedMode)
+    {
+        grid.Columns["count"]!.Visible = requestedMode == 2;
+        // The parent path is now the second line of the name cell. Retain the
+        // hidden value column and location sort for existing query/context state.
+        grid.Columns["location"]!.Visible = false;
+        grid.RowTemplate.Height = FileListPresentation.RowHeight(grid.DeviceDpi, requestedMode == 1);
+        grid.Columns["name"]!.FillWeight = requestedMode == 1 ? 70 : 50;
+        grid.Columns["size"]!.FillWeight = requestedMode == 1 ? 18 : 28;
+        grid.Columns["percent"]!.FillWeight = requestedMode == 1 ? 12 : 22;
+        if (requestedMode != 1)
+        {
+            grid.Columns["size"]!.MinimumWidth = (int)Math.Round(105 * grid.DeviceDpi / 96d);
+            grid.Columns["percent"]!.MinimumWidth = (int)Math.Round(78 * grid.DeviceDpi / 96d);
+        }
+    }
+
+    private string SizeText(MapItem item) => item.UnknownFiles > 0
+        ? item.Size == 0 ? "未知" : SizeFormat.Bytes(item.Size) + " + 未知"
+        : metric == SizeMetric.Allocated && item.Entry?.SharedAllocation == true ? "共享" : SizeFormat.Bytes(item.Size);
+
+    private void FitDetailedNumericColumns(List<MapItem> rows)
+    {
+        // Largest-files rows are bounded to 500 by ViewQuery. Measure their
+        // distinct display strings once per query, never from a paint callback.
+        if (mode != 1 || !grid.IsHandleCreated) return;
+        using var graphics = grid.CreateGraphics();
+        float scale = grid.DeviceDpi / 96f;
+        foreach (string key in new[] { "size", "percent" })
+        {
+            var column = grid.Columns[key]!;
+            var font = column.InheritedStyle?.Font ?? grid.DefaultCellStyle.Font ?? grid.Font;
+            var values = rows.Select(item => key == "size" ? SizeText(item) : SizeFormat.Percent(item.Size, current?.Bytes(metric) ?? 0))
+                .Append(key == "size" ? metric == SizeMetric.Allocated ? "占用 ↓" : "大小 ↓" : "占比").Distinct(StringComparer.Ordinal);
+            int width = (int)Math.Ceiling((key == "size" ? 58 : 52) * scale);
+            foreach (string value in values)
+                width = Math.Max(width, TextRenderer.MeasureText(graphics, value, font,
+                    new Size(int.MaxValue, int.MaxValue), TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding).Width +
+                    (int)Math.Ceiling(16 * scale));
+            column.MinimumWidth = width;
+        }
     }
 
     private async Task ChooseFolder()
@@ -546,11 +879,15 @@ internal sealed class MainForm : Form
         map.Scanning = scan == null;
         map.Invalidate();
         status.Text = $"开始扫描：{path}";
-        if (scan != null) subtitle.Text = "正在准备新结果 · 以下暂为上一次扫描结果";
+        displayingPreviousResult = scan != null;
+        if (scan != null)
+        {
+            SetScopeDetails("正在准备新结果 · 以下暂为上一次扫描结果");
+            mapTitle.Text = (mode == 0 ? "空间分布" : mode == 1 ? "大文件分布" : "文件类型分布") + " · 旧结果";
+        }
         refreshInfo.Text = $"{StrategyName} · 准备扫描";
         refreshInfo.Cursor = Cursors.Default;
         scanTip.SetToolTip(refreshInfo, ScanPolicy.Explain(options.Mode));
-        RefreshMethod? activeRefreshMethod = null;
         FastScanWireError? activeFastFallback = null;
         FastScanFailureContext? activeFastFallbackContext = null;
         var progress = new Progress<ScanProgress>(p =>
@@ -565,17 +902,15 @@ internal sealed class MainForm : Form
             }
             progressBar.Report(p);
             string stage = ScanProgressControl.PhaseName(p.Phase);
-            if (p.Method is { } selectedMethod) activeRefreshMethod = selectedMethod;
             if (p.FastScanFallback is { } fallbackCode) activeFastFallback = fallbackCode;
             if (p.FastScanFallbackContext is { } fallbackContext) activeFastFallbackContext = fallbackContext;
             if (p.Message != null || activeFastFallback.HasValue)
                 scanTip.SetToolTip(refreshInfo, (activeFastFallback is { } reason ? "NTFS 快扫已转普通扫描：" + FastScanCoordinator.Reason(reason, activeFastFallbackContext) + "\n" : "") + p.Message);
             status.Text = $"{stage} · {SizeFormat.Number(p.Files)} 个文件 · {(p.Phase == ScanPhase.Verifying ? p.CurrentPath : SizeFormat.Bytes(p.Bytes) + " · " + p.CurrentPath)}";
-            refreshInfo.Text = $"{(activeRefreshMethod is { } method ? RefreshPresentation.MethodName(method) : StrategyName)} · {stage}" +
-                (p.WorkerLimit > 0 ? $" · 并发上限 {p.WorkerLimit}" : "");
+            refreshInfo.Text = stage;
             if (activeFastFallback.HasValue)
             {
-                refreshInfo.Text = "普通扫描（快扫已回退） · " + stage;
+                refreshInfo.Text = "快扫已回退 · " + stage;
                 status.Text += " · 快扫回退：" + FastScanCoordinator.Reason(activeFastFallback.Value, activeFastFallbackContext);
             }
             if (scan == null && !showingPreview)
@@ -615,6 +950,7 @@ internal sealed class MainForm : Form
             }
             else completeRecovery = null;
             scan = result;
+            displayingPreviousResult = false;
             current = restored ?? result.Root;
             navigation.RootName = scan.Root.Name; navigation.RootPath = scan.Root.Path; navigation.Invalidate();
             if (isRefresh)
@@ -625,7 +961,7 @@ internal sealed class MainForm : Form
             issues.Visible = IsIncomplete(scan);
             if (scan.Statistics is { } stats)
             {
-                refreshInfo.Text = $"{RefreshPresentation.MethodName(stats.Method)} · 重扫 {stats.ReadDirectories:N0} 目录 · 复用 {stats.ReusedFiles:N0} 文件 · 点击详情";
+                refreshInfo.Text = RefreshPresentation.MethodName(stats.Method);
                 scanTip.SetToolTip(refreshInfo, "点击查看最近完成的扫描详情\n" + RefreshPresentation.Details(stats));
             }
             else refreshInfo.Text = scan.Source is { } source ? $"{(source.ExcludedReparseEntries > 0 ? "部分快扫完成" : "NTFS 快扫")} · 快照 {source.CapturedAt.LocalDateTime:HH:mm:ss}" : IsIncomplete(scan) ? "扫描结束 · 结果不完整" : "扫描完成";
@@ -676,7 +1012,7 @@ internal sealed class MainForm : Form
             {
                 choose.Enabled = true; refresh.Enabled = scan != null; cancel.Visible = false;
                 strategyCombo.Enabled = metricCombo.Enabled = ntfsFast.Enabled = true;
-                refreshInfo.Cursor = scan?.Statistics != null ? Cursors.Hand : Cursors.Default;
+                refreshInfo.Cursor = scan != null ? Cursors.Hand : Cursors.Default;
                 map.Scanning = false; map.Invalidate();
                 if (cancellation.IsCancellationRequested || scan == previousScan) UpdateStrategyHint();
                 UpdateRecoveryAvailability();
@@ -695,6 +1031,7 @@ internal sealed class MainForm : Form
         void RestorePrevious()
         {
             EndPreview(); current = previousDirectory; RestoreQuery();
+            displayingPreviousResult = scan != null;
             if (scan != null)
             {
                 navigation.RootName = scan.Root.Name; navigation.RootPath = scan.Root.Path; navigation.Invalidate(); UpdateView();
@@ -706,8 +1043,8 @@ internal sealed class MainForm : Form
                 totalCard.Caption = "文件逻辑大小 · 1024 进制"; timeCard.Caption = "后台扫描，不阻塞操作";
                 map.EmptyTitle = "扫描尚未完成"; map.EmptyCaption = "选择文件夹可重新开始";
                 pathBox.Text = "未选择文件夹（支持拖入文件夹）";
-                title.Text = "文件夹空间，一目了然"; subtitle.Text = "选择一个文件夹，发现每一份空间的去向。";
-                mapCaption.Text = "矩形面积代表文件大小"; listCaption.Text = "按大小排序";
+                SetScopeDetails("");
+                mapCaption.Text = ""; listCaption.Text = "";
                 navigation.RootName = "尚未选择文件夹"; navigation.RootPath = "从一个文件夹，开始探索"; navigation.Invalidate();
                 up.Enabled = home.Enabled = false;
             }
@@ -729,7 +1066,7 @@ internal sealed class MainForm : Form
     {
         if (scanCancellation != null || completeRecovery is not { } saved) return;
         EndPreview(); searchTimer.Stop(); viewCancellation?.Cancel();
-        scan = saved.Result; completeRecovery = null;
+        scan = saved.Result; completeRecovery = null; displayingPreviousResult = true;
         current = saved.Directory == null ? scan.Root : scan.Root.FindDirectory(saved.Directory) ?? scan.Root;
         mode = saved.Mode; typeFilter = saved.Type; sortColumn = saved.Sort; sortAscending = saved.Ascending;
         clearingSearch = true;
@@ -753,6 +1090,15 @@ internal sealed class MainForm : Form
     private void ApplyMotionPreference()
     {
         map.AnimationsEnabled = progressBar.AnimationsEnabled = !reduceMotion.Checked;
+        Apply(this);
+        void Apply(Control parent)
+        {
+            foreach (Control child in parent.Controls)
+            {
+                if (child is ActionButton button) button.MotionEnabled = !reduceMotion.Checked;
+                if (child.HasChildren) Apply(child);
+            }
+        }
     }
 
     private void OpenDiagnostics()
@@ -815,8 +1161,11 @@ internal sealed class MainForm : Form
             navigation.SelectedIndex = 0; navigation.Enabled = search.Enabled = false;
             navigation.RootName = preview.Root.Name; navigation.RootPath = preview.Root.Path; navigation.Invalidate();
             clearType.Visible = false; if (filterColumn != null) filterColumn.Width = 0;
-            title.Text = "正在扫描 · 实时预览";
-            subtitle.Text = $"{current.Name}  /  统计尚未完成，大小会持续更新 · 可双击进入已发现的文件夹";
+            // Publish one complete scope string: two assignments would briefly
+            // shrink then grow this row on every truncated preview refresh.
+            displayingPreviousResult = false;
+            SetScopeDetails("实时预览 · 非最终统计 · 大小持续更新" + (scan != null ? " · 已保留上次扫描结果" : "") +
+                (preview.Truncated ? $" · 暂显前 {LiveScanSession.PreviewLimit:N0} 项" : ""));
             pathBox.Text = current.Path;
             totalCard.Value = SizeFormat.Bytes(current.Size); filesCard.Value = SizeFormat.Number(current.FileCount); foldersCard.Value = SizeFormat.Number(current.FolderCount);
             timeCard.Value = $"{preview.Elapsed.TotalSeconds:0.0} s";
@@ -826,16 +1175,17 @@ internal sealed class MainForm : Form
             foreach (var card in new[] { totalCard, filesCard, foldersCard, timeCard }) card.Invalidate();
             up.Enabled = current.Parent != null; home.Enabled = current != preview.Root;
             mapTitle.Text = "空间分布 · 扫描中"; listTitle.Text = "已发现的文件与文件夹";
-            mapCaption.Text = "预览按文件大小展示 · 实际占用将在完成后去重";
-            listCaption.Text = preview.Truncated ? $"已发现 {preview.DiscoveredChildren:N0} 项 · 预览前 {LiveScanSession.PreviewLimit:N0} 项，完成后可查看全部" : $"已发现 {preview.DiscoveredChildren:N0} 项 · 非最终统计";
-            grid.Columns["count"]!.Visible = grid.Columns["location"]!.Visible = false;
+            mapCaption.Text = "文件大小预览";
+            listCaption.Text = $"{preview.DiscoveredChildren:N0} 项已发现";
+            ApplyGridPresentation(0);
             map.LoadingView = map.Scanning = false; map.ShowNested = false; map.TotalSize = current.Size;
             map.EmptyTitle = view.Rows.Count == 0 ? "这个目录还在读取中" : "已发现项目的大小暂为 0 B";
             map.EmptyCaption = "预览会自动更新；扫描完成后恢复搜索、大文件与文件类型视图";
             map.SetItems(view.MapItems); PopulateGrid(view.Rows);
             var selected = selectedName == null ? null : view.Rows.FirstOrDefault(i => i.Name == selectedName);
             if (selected != null) SelectItem(selected, true);
-            if (firstVisibleRow >= 0 && grid.RowCount > 0) grid.FirstDisplayedScrollingRowIndex = Math.Min(firstVisibleRow, grid.RowCount - 1);
+            if (firstVisibleRow >= 0 && grid.RowCount > 0)
+                ((WallpaperGrid)grid).PerformBufferedScroll(() => grid.FirstDisplayedScrollingRowIndex = Math.Min(firstVisibleRow, grid.RowCount - 1));
             previewDisplayedPath = current.Path;
             issues.Visible = false;
             map.Enabled = grid.Enabled = true;
@@ -894,12 +1244,19 @@ internal sealed class MainForm : Form
         var sort = sortColumn switch { "name" => ViewSort.Name, "count" => ViewSort.Count, "location" => ViewSort.Location, _ => ViewSort.Size };
         var request = new ViewRequest(directory, (ViewMode)requestedMode, search.Text, sort, sortAscending, typeFilter, metric);
         pathBox.Text = current.Path;
-        title.Text = mode switch { 1 => "找到空间里的大块头", 2 => "按文件类型，理解空间", _ => "文件夹空间，一目了然" };
-        subtitle.Text = "统计卡含当前目录全部子目录，不受筛选影响" +
-            (current.Incomplete ? " · 当前目录未读全" : "") +
-            (current.UnknownAllocationFiles > 0 ? $" · {current.UnknownAllocationFiles:N0} 项占用未知" : "") +
-            (typeFilter != null ? $" · 筛选 {typeFilter}" : "") +
-            (scan.Source is { } source ? $" · 快照 {source.CapturedAt.LocalDateTime:HH:mm:ss}（非实时）" : "");
+        var scopeFacts = new List<string>();
+        if (displayingPreviousResult) scopeFacts.Add("当前显示上一次扫描结果");
+        if (directory.Incomplete) scopeFacts.Add("部分结果 · 当前目录未读全");
+        if (directory.UnknownAllocationFiles > 0) scopeFacts.Add($"{directory.UnknownAllocationFiles:N0} 项占用未知");
+        if (request.ExtensionFilter != null) scopeFacts.Add($"筛选 {request.ExtensionFilter}");
+        if (request.Search.Trim().Length > 0) scopeFacts.Add("已搜索 · 统计卡仍为目录总量");
+        if (scan.FastScanFallback != null) scopeFacts.Add("快扫已回退普通扫描");
+        if (scan.Source is { } source)
+        {
+            scopeFacts.Add($"快照 {source.CapturedAt.LocalDateTime:HH:mm:ss}（非实时）");
+            if (source.ExcludedReparseEntries > 0) scopeFacts.Add($"跳过 {source.ExcludedReparseEntries:N0} 个链接，目标未纳入");
+        }
+        SetScopeDetails(string.Join(" · ", scopeFacts));
         clearType.Visible = typeFilter != null;
         if (filterColumn != null) filterColumn.Width = typeFilter != null ? 142 * DeviceDpi / 96f : 0;
         totalCard.Value = SizeFormat.Bytes(directory.Bytes(metric)) + (metric == SizeMetric.Allocated && directory.UnknownAllocationFiles > 0 ? " + 未知" : "");
@@ -919,8 +1276,7 @@ internal sealed class MainForm : Form
             grid.RowCount = 0; sortedRows = []; grid.Enabled = false;
             previousPage.Enabled = nextPage.Enabled = false;
             if (pagingRow != null) pagingRow.Height = 0;
-            grid.Columns["count"]!.Visible = requestedMode == 2;
-            grid.Columns["location"]!.Visible = requestedMode == 1;
+            ApplyGridPresentation(requestedMode);
         }
         finally { updating = false; }
         SelectItem(null, false);
@@ -933,19 +1289,21 @@ internal sealed class MainForm : Form
             if (requestedMode == 2)
             {
                 mapTitle.Text = "类型分布"; listTitle.Text = "文件类型";
-                mapCaption.Text = $"含子目录 · {result.Rows.Count:N0} 种类型 · 双击筛选";
+                mapCaption.Text = "含子目录";
             }
             else
             {
                 mapTitle.Text = requestedMode == 1 ? "大文件分布" : "空间分布";
                 listTitle.Text = requestedMode == 1 ? request.ExtensionFilter != null ? $"{request.ExtensionFilter} 文件" : "最大的 500 个文件" : "文件与文件夹";
-                mapCaption.Text = requestedMode == 1 ? $"含子目录 · 匹配 {result.MatchedCount:N0} 个，显示最大 {result.Rows.Count:N0} 个" : "当前层级 · 双击进入 · 小矩形合并";
+                mapCaption.Text = requestedMode == 1 ? "含子目录" : "";
             }
+            if (displayingPreviousResult) mapTitle.Text += " · 旧结果";
             search.PlaceholderText = requestedMode switch { 1 => "搜索所有子目录的文件名…", 2 => "搜索扩展名或类型…", _ => "搜索当前层级名称…" };
             search.AccessibleDescription = search.PlaceholderText;
-            if (request.Search.Trim().Length > 0) mapCaption.Text += " · 已搜索";
-            listCaption.Text = $"{result.Rows.Count:N0} 项 · {(request.Metric == SizeMetric.Allocated ? "实际占用" : "文件大小")} · 占目录 {SizeFormat.Percent(result.VisibleBytes, directory.Bytes(request.Metric))}" + (request.Metric == SizeMetric.Allocated && directory.UnknownAllocationFiles > 0 ? " · 含未知" : "");
-            listCaption.AccessibleDescription = "当前视图所列项目的数量与大小占比（大文件最多 500 个），分页只改变列表显示；分母为当前目录未筛选的大小。" +
+            SetScopeDetails(string.Join(" · ", scopeFacts));
+            listCaption.Text = $"{result.Rows.Count:N0} 项";
+            listCaption.AccessibleDescription = (requestedMode == 1 ? $"含子目录 · 匹配 {result.MatchedCount:N0} 个，显示最大 {result.Rows.Count:N0} 个。" : "") +
+                "当前视图所列项目的数量与大小占比（大文件最多 500 个），分页只改变列表显示；分母为当前目录未筛选的大小。" +
                 (request.Metric == SizeMetric.Allocated ? "占比仅按已知分配量计算，未知不计为零。" : "");
             scanTip.SetToolTip(listCaption, listCaption.Text + "\n" + listCaption.AccessibleDescription);
             grid.Columns["percent"]!.ToolTipText = listCaption.AccessibleDescription;
@@ -987,10 +1345,13 @@ internal sealed class MainForm : Form
         {
             // Virtual mode avoids creating one WinForms row for every entry in huge folders.
             sortedRows = rows;
+            ApplyGridPresentation(mode);
+            FitDetailedNumericColumns(rows);
             grid.VirtualMode = true;
             PopulatePage(0);
             foreach (DataGridViewColumn col in grid.Columns)
-                col.HeaderText = (col.Name switch { "name" => mode == 2 ? "类型" : "名称", "size" => metric == SizeMetric.Allocated ? "占用" : "大小", "count" => "文件数", "location" => "所在位置", _ => "占比" }) + (col.Name == sortColumn ? sortAscending ? " ↑" : " ↓" : "");
+                col.HeaderText = (col.Name switch { "name" => mode == 2 ? "类型" : mode == 1 && sortColumn == "location" ? "名称 · 按位置" : "名称", "size" => metric == SizeMetric.Allocated ? "占用" : "大小", "count" => "文件数", "location" => "所在位置", _ => "占比" }) +
+                    (col.Name == sortColumn || col.Name == "name" && mode == 1 && sortColumn == "location" ? sortAscending ? " ↑" : " ↓" : "");
         }
         finally { grid.ResumeLayout(); updating = false; }
         SelectItem(null, false);
@@ -1032,9 +1393,9 @@ internal sealed class MainForm : Form
             if (RowItem(args.RowIndex) is not { } item) return;
             args.Value = grid.Columns[args.ColumnIndex].Name switch
             {
-                "name" => item.Name, "size" => item.UnknownFiles > 0 ? item.Size == 0 ? "未知" : SizeFormat.Bytes(item.Size) + " + 未知" : metric == SizeMetric.Allocated && item.Entry?.SharedAllocation == true ? "共享" : SizeFormat.Bytes(item.Size),
+                "name" => mode == 1 && item.Entry != null ? item.Name + "\n" + FileListPresentation.RelativeLocation(item, current) : item.Name, "size" => SizeText(item),
                 "count" => SizeFormat.Number(item.Count),
-                "location" => item.Entry?.Parent is { } parent && current is { } scope ? parent == scope ? "当前目录" : Path.GetRelativePath(scope.Path, parent.Path) : "",
+                "location" => FileListPresentation.RelativeLocation(item, current),
                 _ => SizeFormat.Percent(item.Size, current?.Bytes(metric) ?? 0)
             };
         };
@@ -1050,20 +1411,28 @@ internal sealed class MainForm : Form
         selection = item; map.SelectItem(item); reveal.Enabled = item?.Entry != null;
         if (syncGrid)
         {
-            updating = true; grid.ClearSelection();
-            int index = item == null ? -1 : sortedRows.IndexOf(item);
-            if (index >= 0)
+            bool previousUpdating = updating;
+            updating = true;
+            try
             {
-                if (index / PageSlice.Size != pageIndex) PopulatePage(index / PageSlice.Size);
-                int row = index % PageSlice.Size;
-                grid.Rows[row].Selected = true; grid.FirstDisplayedScrollingRowIndex = row;
+                grid.ClearSelection();
+                int index = item == null ? -1 : sortedRows.IndexOf(item);
+                if (index >= 0)
+                {
+                    if (index / PageSlice.Size != pageIndex) PopulatePage(index / PageSlice.Size);
+                    int row = index % PageSlice.Size;
+                    ((WallpaperGrid)grid).PerformBufferedScroll(() =>
+                    {
+                        grid.Rows[row].Selected = true; grid.FirstDisplayedScrollingRowIndex = row;
+                    });
+                }
             }
-            updating = false;
+            finally { updating = previousUpdating; }
         }
         if (item == null)
         {
-            detailTitle.Text = "选择矩形或列表项目，查看详情";
-            detailPath.Text = "双击文件夹进入 · 双击文件在资源管理器中定位";
+            detailTitle.Text = "未选择项目";
+            detailPath.Text = "";
             return;
         }
         detailTitle.Text = $"{item.Name} · {(item.UnknownFiles > 0 ? item.Size == 0 ? "占用未知" : SizeFormat.Bytes(item.Size) + " + 未知" : SizeFormat.Bytes(item.Size))} · {SizeFormat.Percent(item.Size, current?.Bytes(metric) ?? 0)}";
@@ -1132,12 +1501,19 @@ internal sealed class MainForm : Form
 
     private void ShowRefreshDetails()
     {
-        if (scan?.Statistics is not { } stats) return;
+        if (scan == null) return;
         using var dialog = new Form { Text = "最近完成的扫描 · 刷新详情", Size = new Size(780, 520), StartPosition = FormStartPosition.CenterParent,
             BackColor = Theme.Surface, ForeColor = Theme.Text, MinimizeBox = false, Font = Theme.Font(9), Padding = new Padding(18) };
         var text = new TextBox { Multiline = true, ReadOnly = true, Dock = DockStyle.Fill, ScrollBars = ScrollBars.Vertical, WordWrap = true,
             BackColor = Theme.Surface, ForeColor = Theme.Text, BorderStyle = BorderStyle.None, Font = Theme.Font(10) };
-        text.Text = (RefreshPresentation.Details(stats) + "\n\n" + ScanPolicy.Explain(stats.Mode)).Replace("\n", "\r\n");
+        var sections = new List<string>();
+        if (scan.Statistics is { } stats) sections.Add(RefreshPresentation.Details(stats) + "\n\n" + ScanPolicy.Explain(stats.Mode));
+        if (scan.Source is { } source)
+            sections.Add($"只读快照：{source.CapturedAt.LocalDateTime:yyyy-MM-dd HH:mm:ss}（非实时）\n" +
+                $"链接及目标未纳入：{source.ExcludedReparseEntries:N0} 项");
+        if (scopeDetails.Length > 0) sections.Add(scopeDetails);
+        sections.Add($"跳过：{scan.Skipped:N0} 项；占用未知：{scan.Root.UnknownAllocationFiles:N0} 项");
+        text.Text = string.Join("\n\n", sections).Replace("\n", "\r\n");
         dialog.Controls.Add(text); dialog.ShowDialog(this);
     }
 
@@ -1165,7 +1541,11 @@ internal sealed class MainForm : Form
         {
             diagnostics?.Failure(DiagnosticKind.BackgroundReadFailed, error);
             if (!IsDisposed && !Disposing && scanCancellation == null)
+            {
                 status.Text = "自定义背景无法读取，已使用默认背景。";
+                refreshInfo.Text = "已使用默认背景";
+                scanTip.SetToolTip(refreshInfo, status.Text);
+            }
         }
         finally { if (!IsDisposed && !Disposing) backgroundSettings.Enabled = true; }
     }
@@ -1189,12 +1569,16 @@ internal sealed class MainForm : Form
         automaticBackgroundAccent = automatic;
         Theme.SetAccent(useDefault ? null : view.AccentArgb is int argb ? Color.FromArgb(argb) : automatic);
         if (diagnosticsWindow is { IsDisposed: false }) diagnosticsWindow.ApplyTheme();
+        if (activityDetails is { IsDisposed: false }) activityDetails.ApplyTheme();
         WallpaperRaster.Dispose();
         BackgroundImage = image;
         grid.DefaultCellStyle.SelectionBackColor = Theme.Selection;
         grid.GridColor = useDefault ? Color.FromArgb(239, 224, 217) : Theme.Mix(Theme.Border, Theme.Surface, .55f);
         previous?.Dispose();
         UpdateTextSurfaces(this);
+        // A fully covered root may receive no GDI paint after invalidation.
+        // Retire the old compositor image at the background commit itself.
+        if (compositionReady) PublishCompositionBackdrop(dibCoverage?.RootFrame(ClientSize));
         Invalidate(true);
 
         void UpdateTextSurfaces(Control parent)
@@ -1202,7 +1586,7 @@ internal sealed class MainForm : Form
             foreach (Control child in parent.Controls)
             {
                 if (child is Label or CheckBox)
-                    child.BackColor = HasCustomBackground ? Theme.Surface : Color.Transparent;
+                    child.BackColor = Color.Transparent;
                 UpdateTextSurfaces(child);
             }
         }
@@ -1221,9 +1605,14 @@ internal sealed class MainForm : Form
     {
         if (disposing)
         {
+            compositionBackdrop?.Dispose(); compositionBackdrop = null;
+            opaqueRedirect?.Dispose();opaqueRedirect=null;
+            dibCoverage?.Dispose(); dibCoverage = null;
+            layoutPresentation?.Dispose();
             completeRecovery = null;
-            searchTimer.Dispose(); previewTimer.Dispose(); scanTip.Dispose(); scanCancellation?.Cancel(); viewCancellation?.Cancel();
+            searchTimer.Dispose(); previewTimer.Dispose(); scanTip.Dispose(); filePathFont.Dispose(); scanCancellation?.Cancel(); viewCancellation?.Cancel();
             activityMonitor?.Dispose();
+            activityDetails?.Dispose();
             activityClock.Dispose();
             WallpaperRaster.Dispose();
             var image = BackgroundImage; BackgroundImage = null; image?.Dispose();

@@ -20,13 +20,20 @@ internal static class FastScanMainFormTests
                 Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
                 Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
                 Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
-                int scans = 0, monitorFactories = 0, block = 0, partial = 0;
+                int scans = 0, monitorFactories = 0, block = 0, partial = 0, confirmationRequests = 0;
+                bool confirmationAccepted = false, confirmationThrows = false;
                 using var entered = new ManualResetEventSlim();
                 IProgress<ScanProgress>? late = null;
                 const string rootPath = @"X:\AsukaLens-Fast-Synthetic";
                 var captured = new DateTimeOffset(2026, 1, 1, 12, 34, 56, TimeSpan.Zero);
                 using var form = new MainForm(null)
                 {
+                    FastScanConfirmation = () =>
+                    {
+                        confirmationRequests++;
+                        if (confirmationThrows) throw new ConfirmationFailure();
+                        return confirmationAccepted;
+                    },
                     FastScanRunner = (path, progress, token) =>
                     {
                         int round = Interlocked.Increment(ref scans);
@@ -55,6 +62,16 @@ internal static class FastScanMainFormTests
                 object? Invoke(string name, params object[] args) => typeof(MainForm).GetMethod(name, Private)!.Invoke(form, args);
                 Task Scan(string path) => (Task)Invoke("ScanFolder", path)!;
                 Task View() => (Task)Invoke("UpdateViewAsync", false)!;
+                Rectangle AnalysisBounds()
+                {
+                    for (Control? node = Field<TreemapControl>("map"); node != null; node = node.Parent)
+                        if (node is WallpaperSplitContainer)
+                            return form.RectangleToClient(node.RectangleToScreen(node.ClientRectangle));
+                    throw new CheckFailure("ANALYSIS_CONTAINER_UNAVAILABLE");
+                }
+                bool NoScanStarted() => scans == 0 && monitorFactories == 0 &&
+                    typeof(MainForm).GetField("scanCancellation", Private)!.GetValue(form) == null &&
+                    typeof(MainForm).GetField("scan", Private)!.GetValue(form) == null;
                 void Check(bool condition, string code)
                 {
                     if (!condition) throw new CheckFailure(code);
@@ -103,7 +120,17 @@ internal static class FastScanMainFormTests
                         var metric = Field<ComboBox>("metricCombo");
                         Check(checkbox.Visible && checkbox.Enabled && !checkbox.Checked && !form.NtfsFastEnabled, "EXPERIMENTAL_ENTRY_DEFAULT_OFF");
                         string entryTip = Field<ToolTip>("scanTip").GetToolTip(checkbox) ?? "";
-                        Check(entryTip.Contains("管理员授权") && entryTip.Contains("文件和清单不会上传"), "ENTRY_EXPLAINS_SOURCE_PRIVILEGE_AND_LOCAL_SCOPE");
+                        bool entryTipExact = entryTip == FastScanOptIn.Explanation;
+                        bool accessibleExact = checkbox.AccessibleDescription == FastScanOptIn.Explanation;
+                        Check(entryTip.Contains("管理员授权"), "ENTRY_EXPLAINS_ADMINISTRATOR_AUTHORIZATION");
+                        Check(entryTip.Contains("短时只读快照"), "ENTRY_EXPLAINS_SHORT_LIVED_READ_ONLY_SNAPSHOT");
+                        Check(entryTip.Contains("相邻对象记录"), "ENTRY_EXPLAINS_ADJACENT_RECORD_SCOPE");
+                        Check(entryTip.Contains("驻留小文件内容片段"), "ENTRY_EXPLAINS_RESIDENT_CONTENT_FRAGMENTS");
+                        Check(entryTip.Contains("不保存或上传原始页、文件或清单"), "ENTRY_EXPLAINS_LOCAL_ONLY_HANDLING");
+                        Check(entryTip.Contains("未支持或超限且确认清理后，转普通扫描"), "ENTRY_EXPLAINS_ORDINARY_SCAN_FALLBACK");
+                        Check(accessibleExact, "ENTRY_ACCESSIBLE_METADATA_MATCHES_CANONICAL_EXPLANATION");
+                        Check(entryTipExact, "ENTRY_TOOLTIP_METADATA_MATCHES_CANONICAL_EXPLANATION");
+                        Check(confirmationRequests == 0 && NoScanStarted(), "DEFAULT_OFF_NEVER_REQUESTS_CONFIRMATION_OR_STARTS_SCAN");
                         Check(Field<ActionButton>("choose").Enabled && Field<ComboBox>("strategyCombo").Items.Count == 3 && metric.Items.Count == 2, "PICKER_STRATEGIES_AND_METRICS_RETAINED");
                         var area = Screen.FromControl(form).WorkingArea;
                         form.WindowState = FormWindowState.Normal; form.Location = area.Location; form.Size = form.MinimumSize;
@@ -113,14 +140,40 @@ internal static class FastScanMainFormTests
                         await Layout("COMMON_DEFAULT");
 
                         form.NtfsFastEnabled = true;
-                        Check(Field<Label>("refreshInfo").Text.Contains("快照扫描"), "SELECTED_ENTRY_EXPLAINS_SNAPSHOT");
+                        Check(confirmationRequests == 1 && !checkbox.Checked && !form.NtfsFastEnabled && checkbox.Enabled && NoScanStarted(),
+                            "DECLINED_CONFIRMATION_LEAVES_FAST_SCAN_OFF_WITHOUT_SCANNING");
+                        confirmationThrows = true;
+                        bool confirmationFailed = false;
+                        try { form.NtfsFastEnabled = true; }
+                        catch (ConfirmationFailure) { confirmationFailed = true; }
+                        Check(confirmationFailed && confirmationRequests == 2 && !checkbox.Checked && !form.NtfsFastEnabled && checkbox.Enabled && NoScanStarted(),
+                            "FAILED_CONFIRMATION_FAILS_CLOSED_WITHOUT_SCANNING");
+                        confirmationThrows = false; confirmationAccepted = true;
+                        form.NtfsFastEnabled = true;
+                        Check(confirmationRequests == 3 && checkbox.Checked && form.NtfsFastEnabled && NoScanStarted(),
+                            "ACCEPTED_CONFIRMATION_ONLY_ENABLES_FAST_SCAN");
+                        form.NtfsFastEnabled = true;
+                        Check(confirmationRequests == 3 && checkbox.Checked && NoScanStarted(), "UNCHANGED_ENABLED_CHOICE_DOES_NOT_CONFIRM_AGAIN");
+                        form.NtfsFastEnabled = false;
+                        Check(confirmationRequests == 3 && !checkbox.Checked && NoScanStarted(), "DISABLING_NEEDS_NO_CONFIRMATION_OR_SCAN");
+                        confirmationAccepted = false; form.NtfsFastEnabled = true;
+                        Check(confirmationRequests == 4 && !checkbox.Checked && !form.NtfsFastEnabled && NoScanStarted(),
+                            "REOPENED_ENTRY_REQUESTS_FRESH_CONFIRMATION_AND_HONORS_DECLINE");
+                        confirmationAccepted = true; form.NtfsFastEnabled = true;
+                        Check(confirmationRequests == 5 && checkbox.Checked && form.NtfsFastEnabled && NoScanStarted(),
+                            "REOPENED_ENTRY_CAN_BE_ACCEPTED_WITHOUT_STARTING_SCAN");
+                        string selectedTip = Field<ToolTip>("scanTip").GetToolTip(Field<Label>("refreshInfo")) ?? "";
+                        Check(Field<Label>("refreshInfo").Text == "需要授权" && selectedTip.Contains("只读快照") &&
+                            entryTip.Contains("管理员授权"), "SELECTED_ENTRY_EXPLAINS_SNAPSHOT");
                         await Scan(rootPath); await View();
                         var baseline = Field<ScanResult>("scan");
                         Check(scans == 1 && baseline.Source?.CapturedAt == captured.AddSeconds(1) && baseline.Checkpoint == null, "SUCCESS_USES_FAST_COORDINATOR_AND_NO_LIVE_CHECKPOINT");
                         Check(baseline.Root.FileCount == 5 && baseline.Root.FolderCount == 1 && baseline.Root.Size == 13352 && baseline.Root.AllocatedSize == 20512, "LOGICAL_AND_DEDUPLICATED_TOTALS_RETAINED");
                         Check(meter.State == ScanDisplayState.Completed && meter.Percent == 100 && !meter.PulseRunning && grid.RowCount == 4, "COMPLETE_TREE_REACHES_TREEMAP_AND_LIST");
                         Check(Field<TreemapControl>("map").Enabled && Field<TreemapControl>("map").TotalSize == baseline.Root.Size && Field<Label>("mapTitle").Text == "空间分布", "SPATIAL_VIEW_USES_SELECTED_METRIC");
-                        Check(Field<Label>("refreshInfo").Text.Contains("快照") && Field<Label>("status").Text.Contains("只读快照") && Field<Label>("subtitle").Text.Contains("非实时"), "AS_OF_SOURCE_VISIBLE_IN_RESULT");
+                        Check(Field<Label>("refreshInfo").Text.Contains("快照") && Field<Label>("status").Text.Contains("只读快照") &&
+                            Field<string>("scopeDetails").Contains("非实时") && meter.AccessibleDescription!.Contains("非实时"),
+                            "AS_OF_SOURCE_FACTS_RETAINED_WITHOUT_EXPLANATION_ROW");
                         if (screenshotPath != null)
                         {
                             form.BringToFront(); form.Activate(); await Task.Delay(150);
@@ -132,7 +185,10 @@ internal static class FastScanMainFormTests
                         }
 
                         Invoke("SetMode", 1); await View();
-                        Check(grid.RowCount == 5 && Field<Label>("mapTitle").Text == "大文件分布" && grid.Columns["location"]!.Visible, "LARGE_FILES_VIEW_INCLUDES_CHILD_FILES");
+                        Check(grid.RowCount == 5 && Field<Label>("mapTitle").Text == "大文件分布" &&
+                            !grid.Columns["location"]!.Visible && grid.Rows[0].Height == FileListPresentation.RowHeight(grid.DeviceDpi, true) &&
+                            grid.Rows[0].Cells["name"].Value is string nameAndPath && nameAndPath.Contains('\n'),
+                            "LARGE_FILES_VIEW_INCLUDES_CHILD_FILES_AND_PATH_LINE");
                         Invoke("SetMode", 2); await View();
                         var types = Field<List<MapItem>>("sortedRows");
                         Check(types.Count == 4 && types.Single(row => row.Name == ".txt").Count == 2 && grid.Columns["count"]!.Visible, "FILE_TYPE_VIEW_RETAINS_HARDLINK_ENTRY_COUNTS");
@@ -152,6 +208,7 @@ internal static class FastScanMainFormTests
                         Invoke("SetMode", 1); search.Text = "archive"; await View();
                         Check(grid.RowCount == 1 && Field<List<MapItem>>("sortedRows")[0].Name == "archive.zip" && Field<StatCard>("totalCard").Value == SizeFormat.Bytes(20512), "RECURSIVE_SEARCH_PRESERVES_UNFILTERED_TOTAL");
 
+                        Rectangle beforePreparing = AnalysisBounds();
                         Volatile.Write(ref block, 1); var pending = Scan(rootPath + "-next");
                         await Until(() => entered.IsSet, "CANCEL_RUN_DID_NOT_START");
                         await Until(() => Field<Label>("refreshInfo").Text.Contains("快扫已回退"), "FALLBACK_DID_NOT_REACH_UI");
@@ -159,14 +216,17 @@ internal static class FastScanMainFormTests
                             Field<Label>("status").Text.Contains("快扫回退"), "FALLBACK_REASON_VISIBLE_BEFORE_ORDINARY_COMPLETION");
                         Check(!checkbox.Enabled && !metric.Enabled && !Field<ActionButton>("choose").Enabled && Field<ActionButton>("cancel").Visible &&
                             meter.State == ScanDisplayState.Running && meter.Percent != 100 && ReferenceEquals(Field<ScanResult>("scan"), baseline), "IN_FLIGHT_OPTION_LOCK_AND_OLD_TREE_ISOLATION");
-                        Check(Field<Label>("subtitle").Text.Contains("上一次扫描结果"), "IN_FLIGHT_OLD_RESULT_IDENTIFIED");
+                        Check(Field<string>("scopeDetails").Contains("上一次扫描结果") && AnalysisBounds() == beforePreparing &&
+                            Field<Label>("mapTitle").Text.Contains("旧结果"), "IN_FLIGHT_OLD_RESULT_IDENTIFIED_WITHOUT_REFLOW");
                         form.Size = form.MinimumSize; await Layout("MINIMUM_SCANNING");
                         form.Size = new Size(Math.Min((int)(1440 * scale), area.Width), Math.Min((int)(940 * scale), area.Height)); await Layout("COMMON_SCANNING");
+                        Rectangle beforeCancel = AnalysisBounds();
                         Field<ActionButton>("cancel").PerformClick(); await pending; await View();
                         Check(ReferenceEquals(Field<ScanResult>("scan"), baseline) && Field<DiskEntry>("current").Path == rootPath && meter.State == ScanDisplayState.Cancelled && meter.Percent == null,
                             "CANCEL_RESTORES_PREVIOUS_COMPLETE_TREE");
                         Check(checkbox.Enabled && checkbox.Checked && metric.Enabled && metric.SelectedIndex == 1 && Field<int>("mode") == 1 && search.Text == "archive" && grid.RowCount == 1,
                             "CANCEL_RESTORES_QUERY_METRIC_AND_CONTROLS");
+                        Check(AnalysisBounds() == beforeCancel, "CANCELLED_FACTS_DO_NOT_INSERT_EXPLANATION_ROW");
                         late?.Report(new(999, 999, 999, "过期合成回调", ScanPhase.Finalizing)); await Task.Delay(40);
                         Check(meter.State == ScanDisplayState.Cancelled && !Field<Label>("status").Text.Contains("过期"), "LATE_PROGRESS_CANNOT_OVERWRITE_CANCELLATION");
                         Volatile.Write(ref block, 0); await Scan(rootPath); await View();
@@ -240,6 +300,7 @@ internal static class FastScanMainFormTests
         StorageMetrics.Calculate(root, default);
         return new(root, TimeSpan.FromMilliseconds(25), 0, []) { Source = new(captured) };
     }
+    private sealed class ConfirmationFailure : Exception { }
     private sealed class CheckFailure(string code) : Exception { internal string Code { get; } = code; }
     private sealed class SyntheticActivity : IDiskActivitySource
     {
