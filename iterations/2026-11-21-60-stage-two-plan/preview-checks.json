@@ -1,0 +1,103 @@
+{
+  "interactive_preview_only": true,
+  "production_source_changed": false,
+  "interaction_checks": {
+    "checks": [
+      {
+        "name": "nested-keeps-overview",
+        "passed": true
+      },
+      {
+        "name": "nested-details-match",
+        "passed": true
+      },
+      {
+        "name": "containing-row-is-not-file-selection",
+        "passed": true
+      },
+      {
+        "name": "explicit-list-action",
+        "passed": true
+      },
+      {
+        "name": "explicit-directory-and-file",
+        "passed": true
+      },
+      {
+        "name": "list-to-map",
+        "passed": true
+      },
+      {
+        "name": "cross-page",
+        "passed": true
+      },
+      {
+        "name": "duplicate-project-path",
+        "passed": true
+      },
+      {
+        "name": "duplicate-app-path",
+        "passed": true
+      },
+      {
+        "name": "unknown-is-not-zero",
+        "passed": true
+      },
+      {
+        "name": "metric-keeps-selection-visible",
+        "passed": true
+      },
+      {
+        "name": "shared-native-allocation-and-accounting",
+        "passed": true
+      },
+      {
+        "name": "aggregate-not-file-action",
+        "passed": true
+      },
+      {
+        "name": "aggregate-copy-and-file-action-disabled",
+        "passed": true
+      },
+      {
+        "name": "full-long-path-on-demand",
+        "passed": true
+      },
+      {
+        "name": "empty-search-state",
+        "passed": true
+      },
+      {
+        "name": "default-restored",
+        "passed": true
+      }
+    ],
+    "total": 17,
+    "passed": 17,
+    "appRatio": 1.5319169045884307
+  },
+  "additional_checks": {
+    "detail_opens": true,
+    "dialog_keyboard_wrap": true,
+    "escape_closes": true,
+    "reduced_glow_stops": true,
+    "viewport_width": 1414,
+    "app_ratio": 1.5319263516071853,
+    "default_restored": true
+  },
+  "layout_observations": [
+    {
+      "width": 1024,
+      "no_horizontal_overflow": true,
+      "map_marks_within_parent": true,
+      "detail_height": 63
+    },
+    {
+      "width": 454,
+      "no_horizontal_overflow": true,
+      "panels_stacked": true
+    }
+  ],
+  "native_UI_acceptance": false,
+  "personal_file_access": false
+}

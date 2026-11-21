@@ -1,0 +1,21 @@
+{
+  "base": "bb864b6b348cde71aea2f918fc67e039240593a7",
+  "phase_one_user_accepted": true,
+  "phase_two_implementation_authorized": false,
+  "normal_binary_unchanged": true,
+  "normal_dll_sha256": "C4E79B17D89F5F5F420254175C6769CAF617064CBBDF88DA53CE3D4AF3BAC9FD",
+  "C55_unchanged": true,
+  "document_link_checks": true,
+  "document_files_replayed": 8,
+  "patch_byte_exact": true,
+  "preview_name": "asukalens-stage-two-linkage.html",
+  "preview_sha256": "FB37B1C158F055015C078B46D047157CD035589F855B9B3E27E45A93ED79BA2C",
+  "preview_bytes": 508100,
+  "preview_native_acceptance": false,
+  "preview_script_syntax": true,
+  "preview_console_errors": 0,
+  "program_builds_run": 0,
+  "recording": false,
+  "system_settings_changed": false,
+  "formal_release": false
+}

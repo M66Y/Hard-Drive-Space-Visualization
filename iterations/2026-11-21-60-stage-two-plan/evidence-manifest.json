@@ -1,0 +1,25 @@
+{
+  "base": "bb864b6b348cde71aea2f918fc67e039240593a7",
+  "files": [
+    {
+      "path": "changes.patch",
+      "bytes": 24169,
+      "sha256": "9FDE82EFBDFB3CECEA10820727F94DEDCE6B539C1992E9B9BEBCF13A2F1038E2"
+    },
+    {
+      "path": "preview-checks.json",
+      "bytes": 2192,
+      "sha256": "FE2C0AD09DFD8D0B58CCCBD2A116B64D1F64290965BB0DF7B0F3A9D8AA7FC0E3"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3715,
+      "sha256": "2E37225E6478421582E27CF57AFEBFBBD82DB69B8138685D725A737FFEAA954B"
+    },
+    {
+      "path": "verification-summary.json",
+      "bytes": 787,
+      "sha256": "B81FC35F89F22A27326361A1F0D743E5F16524F6855BF74FDF27B12F1EC22078"
+    }
+  ]
+}
