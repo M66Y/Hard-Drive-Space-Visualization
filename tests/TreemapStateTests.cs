@@ -284,11 +284,16 @@ internal static class TreemapStateTests
                 form.WindowState = FormWindowState.Minimized; Pump(90);
                 Check(!map.MotionRunning && !clock.IsRunning && State("hovered") == null, "minimising the owner stops the orbit timer and clears hover");
                 Console.WriteLine("OBSERVE glow restore setter entering");
+                int restoreMouseMoves = 0;
+                MouseEventHandler observeRestoreMove = (_, _) => restoreMouseMoves++;
+                map.MouseMove += observeRestoreMove;
                 form.WindowState = FormWindowState.Normal;
                 Console.WriteLine("OBSERVE glow restore setter returned; entering event drain");
                 Application.DoEvents();
                 Console.WriteLine("OBSERVE glow restore event drain returned");
                 using var unminimised = Capture();
+                map.MouseMove -= observeRestoreMove;
+                Console.WriteLine($"OBSERVE glow restore orbit={map.OrbitRunning}; outlines={ActiveOutlines()}; hover_present={State("hovered")!=null}; cursor_inside={map.ClientRectangle.Contains(map.PointToClient(Cursor.Position))}; mouse_moves={restoreMouseMoves}");
                 Check(map.OrbitRunning && ActiveOutlines() == 1 && State("hovered") == null, "restoring the owner resumes a valid selection without stale hover");
                 map.SetItems([new("Replacement", 1, null, "其他")]);
                 Check(!map.MotionRunning && !clock.IsRunning && contours.Count == 0, "a new source clears selection motion and contour generation");

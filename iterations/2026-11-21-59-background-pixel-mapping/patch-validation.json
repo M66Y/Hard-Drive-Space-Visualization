@@ -1,0 +1,9 @@
+{
+  "base": "48c8397981ec16955b8d2b6235e742768053ba34",
+  "scope": "necessary current text files; excludes recursive iterations and binary screenshot",
+  "text_files_verified": 10,
+  "git_apply_check": true,
+  "byte_exact_to_index": true,
+  "replay_removed": true,
+  "patch_sha256": "DBCA7CBF820FC4362FF155C8F9DE01A07008D53D055B53FC5D2F51FFDD166475"
+}

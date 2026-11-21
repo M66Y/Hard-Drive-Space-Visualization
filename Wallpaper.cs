@@ -133,7 +133,11 @@ internal static class Wallpaper
             var source = Rectangle.Intersect(new Rectangle(offset, nativeSize ?? control.ClientSize), new Rectangle(Point.Empty, raster.Size));
             var destination = new Point(source.X - offset.X, source.Y - offset.Y);
             if (!nativeCopy || main.Rendering == null || !main.WallpaperRaster.TryCopy(graphics, source, destination, control))
-                graphics.DrawImageUnscaled(raster, -offset.X, -offset.Y);
+                // The cache is already sized in window pixels. DrawImageUnscaled
+                // uses physical inches and enlarges a 96-DPI cache again on a
+                // high-DPI surface. Keep the full image/clip and map pixels 1:1.
+                graphics.DrawImage(raster, new Rectangle(-offset.X, -offset.Y, raster.Width, raster.Height),
+                    0, 0, raster.Width, raster.Height, GraphicsUnit.Pixel);
         }
         else
             graphics.DrawImage(image, CoverBounds(image, windowSize, offset, (form as MainForm)?.BackgroundCrop));

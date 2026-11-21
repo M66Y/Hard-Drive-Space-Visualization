@@ -1,0 +1,142 @@
+{
+  "pixel_cases": 8,
+  "rgba_pixels": 252800,
+  "zero_tolerance": true,
+  "source_dpi": 96,
+  "target_dpi": [
+    96,
+    120,
+    144,
+    192
+  ],
+  "before_high_dpi_failed_cases": 6,
+  "final_cases": [
+    {
+      "name": "mapping",
+      "args": [
+        "--background-pixel-mapping-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "ui-144",
+      "args": [
+        "--composition-tests",
+        "--ui-regression"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "root-144",
+      "args": [
+        "--composition-tests",
+        "--root-composite-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "background-144",
+      "args": [
+        "--composition-tests",
+        "--background-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "scroll-144",
+      "args": [
+        "--composition-tests",
+        "--wallpaper-scroll-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "glow-144",
+      "args": [
+        "--composition-tests",
+        "--treemap-state-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "restore-144",
+      "args": [
+        "--composition-tests",
+        "--transparent-restore-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "restore-custom-144",
+      "args": [
+        "--composition-tests",
+        "--transparent-restore-tests",
+        "--custom"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "ui-96",
+      "args": [
+        "--composition-tests",
+        "--ui-regression",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "root-96",
+      "args": [
+        "--composition-tests",
+        "--root-composite-tests",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "background-96",
+      "args": [
+        "--composition-tests",
+        "--background-tests",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "scroll-96",
+      "args": [
+        "--composition-tests",
+        "--wallpaper-scroll-tests",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "restore-96",
+      "exit": 0
+    },
+    {
+      "name": "restore-custom-96",
+      "exit": 0
+    },
+    {
+      "name": "glow-96-observed",
+      "exit": 0,
+      "observation_only": true,
+      "assertions_unchanged": true
+    }
+  ],
+  "preserved_failures": {
+    "independent_restore_96": 2,
+    "unchanged_baseline_once": "passed",
+    "observed_revision": "99 original checks passed",
+    "cause": "not-confirmed",
+    "production_animation_unchanged": true
+  },
+  "normal_window_observed": true,
+  "user_feedback": "符合预期，保留这次修复",
+  "preview_fixture_cleanup": true,
+  "windows10": "not-tested",
+  "cross_monitor": "not-tested",
+  "recording": false
+}

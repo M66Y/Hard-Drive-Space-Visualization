@@ -11,6 +11,8 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll
 
 ## 当前默认绘制检查
 
+`--background-pixel-mapping-tests`独立核对已裁切背景缓存到96/120/144/192 DPI目标的像素映射，8例252800像素零容差；同时记录API的物理尺寸对照，防止高DPI重复放大。该检查不读取用户图片或配置。
+
 `--desktop-rendering-tests`核对普通启动和显式开发入口；`--desktop-default-tests`及`--dpi-96`用与Program相同的选择规则验证普通标题、真实合成目录扫描、背景切换和故障退回C55。`--composition-backdrop-tests`检查合成源、句柄代际和关闭资源；完整UI用`--composition-tests --ui-regression`及`--dpi-96`。主窗测试构造保留旧参照，不把全部像素比较的两侧偷偷切为同一路径。
 
 ## 文档预览

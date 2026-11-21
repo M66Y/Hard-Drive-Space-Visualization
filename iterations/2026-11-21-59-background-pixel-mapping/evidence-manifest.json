@@ -1,0 +1,50 @@
+{
+  "base": "48c8397981ec16955b8d2b6235e742768053ba34",
+  "files": [
+    {
+      "path": "before/tests__Program.cs",
+      "bytes": 73609,
+      "sha256": "23C4755C8DF552C4A281CE58361749F5CF098DB5D7F50752573850166752C6E4"
+    },
+    {
+      "path": "before/tests__TreemapStateTests.cs",
+      "bytes": 32033,
+      "sha256": "F02CC38E0691A111EC17BEDCB3086676F90E34BA0B71886DD4CBA0CBCAFF1A32"
+    },
+    {
+      "path": "before/Wallpaper.cs",
+      "bytes": 38340,
+      "sha256": "3A47EDE2887B5DBD8E799B43286CFF2DB9D4FDEA94740C73B43382E09D2851DD"
+    },
+    {
+      "path": "build-manifest.json",
+      "bytes": 617,
+      "sha256": "E6474F29DD505D01E4614ADA6AE4244746ADEE464B93D1BBCEB7A78CB9E919C0"
+    },
+    {
+      "path": "changes.patch",
+      "bytes": 23417,
+      "sha256": "DBCA7CBF820FC4362FF155C8F9DE01A07008D53D055B53FC5D2F51FFDD166475"
+    },
+    {
+      "path": "cleanup-summary.json",
+      "bytes": 251,
+      "sha256": "4FCF9B69C790B4182A6386EA9DC79FBCE8F1D052F33CE526224B895FF80F9617"
+    },
+    {
+      "path": "patch-validation.json",
+      "bytes": 361,
+      "sha256": "92AEB2A090747FB8240EF27A68617006CEF51F2BE6E32A26844B49B36767FC0B"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2861,
+      "sha256": "E0BDE27BC079F5A3697A3460A19D639321D0C2B2EBF8D124BECC025D329D9F9B"
+    },
+    {
+      "path": "verification-summary.json",
+      "bytes": 2864,
+      "sha256": "B87CD3E45EFB91B38D8BB1B8B40C1CE01BE574E7256786B6EC0C47092D9469A0"
+    }
+  ]
+}

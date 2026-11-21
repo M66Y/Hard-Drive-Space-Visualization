@@ -1,0 +1,222 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index 5197e71..14dd11e 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,18 +1,12 @@
+ # AsukaLens 开发检查点
+ 
+-## 当前：C58第一阶段收尾交付，待用户最终复审（2026-11-21）
++## 当前：C59背景构图修复获用户通过（2026-11-21）
+ 
+-用户已批准docs/ui-stage-one-closeout-plan.md：普通默认C57、C55回退，必要本机验收、历史代码整合提交推送、双语文档/截图和冗余清理，完成打开正常版；不打包发布、不自动进入阶段二。用户明确跳过本轮Win10验证，不准备VM测试包，不将旧许可延续为本轮卷/VSS或系统设置授权。
++用户确认“符合预期，保留这次修复”。不是改焦点：独立反例定位96DPI已裁切缓存用DrawImageUnscaled在144DPI目标再放大1.5倍。Wallpaper.Paint仅改为完整缓存显式像素矩形1:1发布；默认/自定义焦点、Zoom、图片、配置、布局及C57动效不变，C55保留。旧高DPI6例失配，新96/120/144/192DPI共8例252800像素零差异；两档UI/根缓存/背景/滚动/还原完成，真实正常版脸可见，README正确比例实际截图已同步。原始日志只在ignored artifacts，证据iterations/2026-11-21-59-background-pixel-mapping。
+ 
+-DesktopRendering统一生产启动和显式对照入口；普通标题仅AsukaLens。MainForm测试构造仍保留旧像素参照，开发C55/C56/C57入口语义未偷改。C57的自有cloaked源窗口在原生子窗口后合成背景；初始化/提交失败撤树后C55仍显示扫描结果。布局/背景/字体及1.15倍动效不变，快扫默认关闭。
++96DPI柔光在独立普通Form恢复阶段两次失败，尚未到MainForm；旧提交基线一次通过。仅加布尔/计数观察后99项按原断言/时限通过，观察到一条选中边、无悬停、鼠标不在图内；失败当时具体值未取到，原因仍未确认，保留失败，不误称排除或修改动画。应用/测试零警告。无录屏/系统/个人卷/Win10操作，不正式发布。
+ 
+-本机24组检查通过：启动选择36、默认主窗144/96各83（含故障回退）、两档完整UI/背景/滚动/柔光/布局/侧栏等；DIB核心608/6513984像素。还原检查第一次因已有报告触发防覆盖而退出，改为隔离本轮输出后通过，未覆盖旧报告或放宽阈值。预览工具过时的反射构造查找已修正，真实自建目录预览完成、关闭夹具清理确认。
+-
+-Git基线9ac1f0b，历史C30–C57已验收实现/测试与本轮默认选择整合为87文件提交8efdf112ffed2b6ea35896378256d22588848cac，已核推送main。从该提交独立提取源码成功还原/构建应用与测试、启动选择检查通过，无工作区隐藏依赖。其余历史暂存未清空，文档/证据随本次收尾提交同步，最终HEAD/远程一致性以Git核对；不再把“依赖未整合”当长期未上传理由。
+-
+-正常构建入口bin/Release/net10.0-windows/DiskAtlas.exe或run.cmd；C55保留artifacts/dib-mainform-C55/app/AsukaLens.DibCandidate.exe。当前README为真实Windows主窗JPEG截图，全部自建演示文件，公开路径别名；没有录屏/个人目录/原始卷操作。中英README修正侧栏位置、C28正确性和当前默认状态。
+-
+-本轮清理旧C40/C41自有临时视频约207MiB及独立源码验证目录约46MiB；历史关键源码/补丁/精选图片、C55、当前程序、正式release快照及发布依赖缓存保留。原始检查日志仅本机ignored artifacts，公开归档只摘要和相对路径。证据iterations/2026-11-21-58-stage-one-closeout。
++本轮基线main/origin 48c8397981ec16955b8d2b6235e742768053ba34；C58代码8efdf11、文档48c8397均已推送，本轮源码/记录随修复提交同步，最终HEAD及远程一致性按Git核对。正常入口bin/Release/net10.0-windows/AsukaLens.exe或run.cmd，C55在artifacts/dib-mainform-C55/app。C58已完成默认C57/C55回退、历史依赖整合、24组检查、独立源码构建及约253MiB清理。本次只修新背景反馈；第一阶段整体结束和下一阶段仍不自动确认。
+ 
+ ## 已获用户反馈与未验收边界
+ 
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index 9acf440..e41c46e 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,5 +1,7 @@
+ # 影响后续开发的决定
+ 
++- 2026-11-21 C59：用户确认背景比例修正版符合预期并保留。高DPI脸部裁失源于缓存按物理尺寸再次放大，修发布像素映射而非改焦点/Zoom；8例252800像素零差异，真实主窗脸可见。背景相关回归通过，旧独立Form柔光96DPI两次失败保留，观察版原断言通过但原因未确认，不改产品动画。C55保留，不录屏/改系统/测Win10或发布；见iterations/2026-11-21-59-background-pixel-mapping。
++
+ - 2026-11-21 C58：用户批准第一阶段收尾、默认C57/C55回退及历史提交推送，并明确本轮不做Win10验证。合并必要本机检查后整合87个实现/测试文件为8efdf11并推送；独立取出该提交构建通过。使用真实主窗/自建文件更新双语README，清理旧临时视频和验证构建，保留C55、关键证据及正式资产。仅交付开发版，阶段一整体和阶段二仍待用户复审；不把本轮跳过验证当永久支持声明。见iterations/2026-11-21-58-stage-one-closeout/README.md。
+ 
+ - 2026-11-21用户验收更新：反馈“C57没问题了”，本机缩放体验通过，停止重复确认同一故障。反馈不自动批准默认/阶段一结束/阶段二开发或发布；先整理下一步建议。C55保留，Win10新绘制路径与真实跨屏另记未验。C57交付快照不重写，补充见iterations/2026-11-21-57-resize-exposure/user-feedback.md；C28同快照统计对照已完成，不重复列为待做。
+diff --git a/AGENTS.md b/AGENTS.md
+index a958b48..21bbb8b 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -121,6 +121,7 @@
+ - 表面、字体或尺寸修改可运行 `--visual-surface-tests` 及 `--dpi-96`：自有小目录真实扫描后用合成背景检查底板、合成对比和最小窗口排版；程序位图断言不替代实际桌面观察。`--stage-one-preview a|b [--minimum] [--dpi-96] [--expanded]` 为测试 apphost 的真实合成目录预览，隔离配置、显示路径使用公开别名，关闭后核归属清理；A/B 的磁盘活动使用明确标记的纯合成源，收起不采样。`baseline` 需预先保留的旧开发程序集，不支持展开，不以其名称当 Git 冻结证明。交互预览使用保持 stdin 的终端会话，精确 `close` 会先退自有弹窗再关主窗；EOF 不会自动关闭。工具细节见 [C29 记录](iterations/2026-11-13-29-visual-polish/README.md)与[C30 比例修正](iterations/2026-11-13-30-visual-proportions/README.md)。
+ - 布局/圆角裁切/原生移动重绘改动另运行 `--layout-transition-tests`、`--layout-presentation-tests`，分别加 `--dpi-96`。前者观测范围行、扫描切换/取消、partial/分页及祖先移动的自然消息顺序，后者验证合并、重入、暂停恢复与句柄生命周期；它们不代表真实屏幕像素无残影。`--layout-transition-preview [--dpi-96]` 使用自建合成目录与真实扫描器，第二次扫描起受控暂停；stdin命令 `scan`、`release`、`cancel`、`scope`、`clear-scope`、`minimum`、`common`、`close` 仅作用于自有窗口，暂停不作为性能证据。关闭后等待任务退出再核归属清理，不在观测前强制刷新以掩盖瞬态，实际动态效果仍需桌面观察与用户反馈。
+ - DIB根背景缓存修改另运行 `--root-composite-tests` 及 `--dpi-96`，核对完整像素、局部/带孔裁切、尺寸/图片/聚焦失效、预算和关闭后释放。`--resize-pipeline-probe off1|on1|on2|off2 [--dpi-96] [--slow] [--pixels]` 只扫描自建临时目录，输出至ignored artifacts并拒绝覆盖；固定12步、最多256条尺寸事件，阶段耗时可嵌套不可相加。性能与离散GDI取点分开测，均不能代表真实帧率或连续屏幕无闪黑；默认程序不启用该内存探针。方案见 [C53缩放排查](docs/ui-resize-pipeline-plan.md)。
++- 已按窗口像素准备的背景缓存必须显式按像素源/目标矩形发布，不能用按物理尺寸随DPI缩放的`DrawImageUnscaled`再次放大。修改此链路运行`--background-pixel-mapping-tests`：用独立像素参照覆盖96/120/144/192 DPI，不能只对比两条共享同一错误缩放的绘制路径。保留原焦点、Zoom及用户配置，不以改参数掩盖映射错误。
+ - 原生透明控件/布局后局部补画修改另运行 `--transparent-restore-tests`，分别加 `--dpi-96`、`--custom`（四组）；它在自然最大化/还原后先核真实控件及父空白区像素，再做明确标记的局部/父失效对照，不在取证前强刷。`--native-window-clip-tests` 两档验证普通HWND的简单/带孔裁切。两者需可交互桌面，只用自有窗口/合成背景、拒绝覆盖报告，不代替连续闪黑的人工验收。C54性能复验可在原管线探针增加 `--c54`，隔离输出至本轮目录。见[还原残留方案](docs/ui-restore-background-plan.md)。
+ - 缩放中的缓存发布或分隔面板擦背景修改另运行 `--resize-composition-tests` 及 `--dpi-96`，在自然尺寸事务后核父面板可见像素、最终补画、重绘所有权及资源释放。C55管线探针使用 `--c55` 隔离输出，默认关闭的诊断仅记录固定表面类别、透明度及计数；两档根合成回归覆盖整数位移/带孔裁切，并保持非整数、比例和旋转变换回退。中间擦背景跳过次数、同步尺寸耗时及离散GDI取点均不能直接宣布连续闪黑消失。
+ - C56整窗重定向仅由显式`--opaque-redirect-candidate`或`AsukaLens.OpaqueDibCandidate.exe`启用；普通与旧DIB入口不启用。修改该模式运行`--opaque-redirect-tests`两档，核实际LWA_ALPHA=255、无色键/点击穿透、句柄代际/失败回退、原生交互及关闭资源；完整UI使用`--opaque-tests --dib-tests --ui-regression`两档，显式DIB专项可只加`--opaque-tests`保留其普通参考路径。管线`--c56`的off/on只比较重定向，双方均保留C55根缓存。系统额外窗口图像不算入应用128MiB预算，GDI存储像素、句柄稳定或后台检查通过均不等于真实屏幕无闪黑；Win10/跨屏等未验范围单列，不沿用旧发行包结论。
+diff --git a/Wallpaper.cs b/Wallpaper.cs
+index 2a33dcc..c0eaa4e 100644
+--- a/Wallpaper.cs
++++ b/Wallpaper.cs
+@@ -133,7 +133,11 @@ internal static class Wallpaper
+             var source = Rectangle.Intersect(new Rectangle(offset, nativeSize ?? control.ClientSize), new Rectangle(Point.Empty, raster.Size));
+             var destination = new Point(source.X - offset.X, source.Y - offset.Y);
+             if (!nativeCopy || main.Rendering == null || !main.WallpaperRaster.TryCopy(graphics, source, destination, control))
+-                graphics.DrawImageUnscaled(raster, -offset.X, -offset.Y);
++                // The cache is already sized in window pixels. DrawImageUnscaled
++                // uses physical inches and enlarges a 96-DPI cache again on a
++                // high-DPI surface. Keep the full image/clip and map pixels 1:1.
++                graphics.DrawImage(raster, new Rectangle(-offset.X, -offset.Y, raster.Width, raster.Height),
++                    0, 0, raster.Width, raster.Height, GraphicsUnit.Pixel);
+         }
+         else
+             graphics.DrawImage(image, CoverBounds(image, windowSize, offset, (form as MainForm)?.BackgroundCrop));
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 216f724..8fb64de 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,5 +1,11 @@
+ # 后续开发计划
+ 
++## C59背景构图已修复并获用户通过（2026-11-21）
++
++用户反馈人物脸部不可见；独立反例定位为96DPI背景缓存经DrawImageUnscaled在高DPI表面再次按物理尺寸放大。改为完整缓存显式像素矩形1:1发布，保留焦点、Zoom、图片、用户设置和C57动效。旧实现高DPI六例失配，新实现96/120/144/192DPI共8例252800像素零差异；两档UI/根缓存/背景/滚动/还原等检查完成，正常版真实画面已恢复脸部。用户确认“符合预期，保留这次修复”，README截图已同步。
++
++96DPI独立普通Form的柔光恢复断言两次失败被保留；旧基线一次通过，增加状态观察后原99断言及原时限通过，失败时原因尚未确认，未改产品动效。此项不被复验成功抹除。Windows10、真实跨屏仍不作外推。本轮无录屏、系统设置、个人卷或正式发布操作，C55独立版保持。源码、证据按本轮提交同步，详见[C59](../iterations/2026-11-21-59-background-pixel-mapping/README.md)。
++
+ ## 第一阶段收尾交付：默认采用 C57（2026-11-21）
+ 
+ 用户已批准并完成[收尾方案](ui-stage-one-closeout-plan.md)的本机工作。普通启动默认使用已获用户认可的C57背景合成和DIB，标题仅AsukaLens；合成失败撤下自有对象、继续C55绘制，C55独立版本保留。布局、背景、字体、1.15倍沿边柔光及七项核心功能保持，NTFS快扫仍默认关闭。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index b052f6f..6152be5 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,11 @@
+ # AsukaLens 项目现状
+ 
++## C59背景构图已修复并获用户通过（2026-11-21）
++
++用户反馈人物脸部不可见；独立反例定位为96DPI背景缓存经DrawImageUnscaled在高DPI表面再次按物理尺寸放大。改为完整缓存显式像素矩形1:1发布，保留焦点、Zoom、图片、用户设置和C57动效。旧实现高DPI六例失配，新实现96/120/144/192DPI共8例252800像素零差异；两档UI/根缓存/背景/滚动/还原等检查完成，正常版真实画面已恢复脸部。用户确认“符合预期，保留这次修复”，README截图已同步。
++
++96DPI独立普通Form的柔光恢复断言两次失败被保留；旧基线一次通过，增加状态观察后原99断言及原时限通过，失败时原因尚未确认，未改产品动效。此项不被复验成功抹除。Windows10、真实跨屏仍不作外推。本轮无录屏、系统设置、个人卷或正式发布操作，C55独立版保持。源码、证据按本轮提交同步，详见[C59](../iterations/2026-11-21-59-background-pixel-mapping/README.md)。
++
+ ## 第一阶段收尾交付：默认采用 C57（2026-11-21）
+ 
+ 用户已批准并完成[收尾方案](ui-stage-one-closeout-plan.md)的本机工作。普通启动默认使用已获用户认可的C57背景合成和DIB，标题仅AsukaLens；合成失败撤下自有对象、继续C55绘制，C55独立版本保留。布局、背景、字体、1.15倍沿边柔光及七项核心功能保持，NTFS快扫仍默认关闭。
+diff --git a/docs/testing.md b/docs/testing.md
+index f1f4d8f..25bfc0a 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -11,6 +11,8 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll
+ 
+ ## 当前默认绘制检查
+ 
++`--background-pixel-mapping-tests`独立核对已裁切背景缓存到96/120/144/192 DPI目标的像素映射，8例252800像素零容差；同时记录API的物理尺寸对照，防止高DPI重复放大。该检查不读取用户图片或配置。
++
+ `--desktop-rendering-tests`核对普通启动和显式开发入口；`--desktop-default-tests`及`--dpi-96`用与Program相同的选择规则验证普通标题、真实合成目录扫描、背景切换和故障退回C55。`--composition-backdrop-tests`检查合成源、句柄代际和关闭资源；完整UI用`--composition-tests --ui-regression`及`--dpi-96`。主窗测试构造保留旧参照，不把全部像素比较的两侧偷偷切为同一路径。
+ 
+ ## 文档预览
+diff --git a/tests/BackgroundPixelMappingTests.cs b/tests/BackgroundPixelMappingTests.cs
+new file mode 100644
+index 0000000..64c8470
+--- /dev/null
++++ b/tests/BackgroundPixelMappingTests.cs
+@@ -0,0 +1,69 @@
++using DiskAtlas;
++using System.Drawing;
++using System.Drawing.Imaging;
++
++internal static class BackgroundPixelMappingTests
++{
++    internal static int Run()
++    {
++        int cases=0,failedCases=0;long pixels=0;string? failure=null;
++        var thread=new Thread(()=>
++        {
++            try
++            {
++                Application.SetHighDpiMode(HighDpiMode.DpiUnaware);
++                Application.EnableVisualStyles();
++                // First demonstrate the independent API contract: physical size
++                // is different from our already-sized cache's pixel contract.
++                using(var marker=new Bitmap(64,64,PixelFormat.Format32bppPArgb))
++                using(var physical=new Bitmap(128,128,PixelFormat.Format32bppPArgb))
++                {
++                    marker.SetResolution(96,96);physical.SetResolution(144,144);
++                    using(var g=Graphics.FromImage(marker))g.Clear(Color.Red);
++                    using(var g=Graphics.FromImage(physical)){g.Clear(Color.White);g.DrawImageUnscaled(marker,0,0);}
++                    int extent=0;for(int x=0;x<128;x++)if(physical.GetPixel(x,32).R>200&&physical.GetPixel(x,32).G<80)extent=x+1;
++                    Console.WriteLine($"OBSERVE physical_size_copy source_px=64 source_dpi=96 target_dpi=144 visible_width={extent}");
++                    // The filtered outer edge need not be fully red. Probe well
++                    // inside/outside the 96px footprint, beyond the 64px source.
++                    if(physical.GetPixel(80,32).G>=80 || physical.GetPixel(110,32).G!=255)
++                        throw new Failure("IndependentPhysicalSizeContract");
++                }
++                using var form=new MainForm(null,dibCandidate:true);
++                form.BackgroundImage?.Dispose();
++                var image=new Bitmap(256,128,PixelFormat.Format32bppPArgb);image.SetResolution(96,96);
++                for(int y=0;y<image.Height;y++)for(int x=0;x<image.Width;x++)image.SetPixel(x,y,Color.FromArgb((x*7+y*3)%256,(x+y*11)%256,(x*13+y*5)%256));
++                form.BackgroundImage=image;
++                foreach(int dpi in new[]{96,120,144,192})
++                foreach(var size in new[]{new Size(180,120),new Size(260,160)})
++                {
++                    using var actual=new Bitmap(size.Width,size.Height,PixelFormat.Format32bppPArgb);
++                    using var expected=new Bitmap(size.Width,size.Height,PixelFormat.Format32bppPArgb);
++                    actual.SetResolution(dpi,dpi);expected.SetResolution(dpi,dpi);
++                    var raster=form.WallpaperRaster.Get(image,size,form.BackgroundCrop)!;
++                    using(var g=Graphics.FromImage(expected))
++                    {
++                        g.Clear(Theme.Background);
++                        var area=new Rectangle(Point.Empty,size);
++                        g.DrawImage(raster,area,area,GraphicsUnit.Pixel);
++                        using var wash=new SolidBrush(Color.FromArgb(Wallpaper.SurfaceAlpha(form,WallpaperSurface.Ambient,42),Theme.Surface));
++                        g.FillRectangle(wash,area);
++                    }
++                    using(var g=Graphics.FromImage(actual))Wallpaper.Paint(form,g,nativeSize:size,nativeCopy:false);
++                    int different=0;
++                    for(int y=0;y<size.Height;y++)for(int x=0;x<size.Width;x++)
++                    {pixels++;if(actual.GetPixel(x,y).ToArgb()!=expected.GetPixel(x,y).ToArgb())different++;}
++                    cases++;
++                    Console.WriteLine($"BACKGROUND_PIXEL_MAPPING dpi={dpi} width={size.Width} height={size.Height} different={different}");
++                    if(different!=0)failedCases++;
++                }
++                if(failedCases!=0)throw new Failure("BackgroundCacheDpiRescaled");
++            }
++            catch(Exception e){failure=e is Failure f?f.Code:"UnexpectedBackgroundPixelMapping";}
++        }){IsBackground=true};
++        thread.SetApartmentState(ApartmentState.STA);thread.Start();
++        if(!thread.Join(TimeSpan.FromSeconds(30))){Console.Error.WriteLine("FAIL BackgroundPixelMappingDeadline");return 1;}
++        if(failure!=null){Console.Error.WriteLine("FAIL "+failure);return 1;}
++        Console.WriteLine($"PASS background pixel mapping cases={cases} pixels={pixels} zero_tolerance=True");return 0;
++    }
++    private sealed class Failure(string code):Exception { internal string Code=>code; }
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 4ba9dfa..175a1bc 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -1,6 +1,8 @@
+ using DiskAtlas;
+ using System.Drawing;
+ 
++if(args.Length==1 && args[0]=="--background-pixel-mapping-tests")return BackgroundPixelMappingTests.Run();
++
+ if(args.Length==1 && args[0]=="--desktop-rendering-tests")return DesktopRenderingTests.Run();
+ if(args.Length is 1 or 2 && args[0]=="--desktop-default-tests")return CompositionMainFormTests.Run(args.Contains("--dpi-96"),true);
+ 
+diff --git a/tests/TreemapStateTests.cs b/tests/TreemapStateTests.cs
+index 1b53885..eae2b36 100644
+--- a/tests/TreemapStateTests.cs
++++ b/tests/TreemapStateTests.cs
+@@ -284,11 +284,16 @@ internal static class TreemapStateTests
+                 form.WindowState = FormWindowState.Minimized; Pump(90);
+                 Check(!map.MotionRunning && !clock.IsRunning && State("hovered") == null, "minimising the owner stops the orbit timer and clears hover");
+                 Console.WriteLine("OBSERVE glow restore setter entering");
++                int restoreMouseMoves = 0;
++                MouseEventHandler observeRestoreMove = (_, _) => restoreMouseMoves++;
++                map.MouseMove += observeRestoreMove;
+                 form.WindowState = FormWindowState.Normal;
+                 Console.WriteLine("OBSERVE glow restore setter returned; entering event drain");
+                 Application.DoEvents();
+                 Console.WriteLine("OBSERVE glow restore event drain returned");
+                 using var unminimised = Capture();
++                map.MouseMove -= observeRestoreMove;
++                Console.WriteLine($"OBSERVE glow restore orbit={map.OrbitRunning}; outlines={ActiveOutlines()}; hover_present={State("hovered")!=null}; cursor_inside={map.ClientRectangle.Contains(map.PointToClient(Cursor.Position))}; mouse_moves={restoreMouseMoves}");
+                 Check(map.OrbitRunning && ActiveOutlines() == 1 && State("hovered") == null, "restoring the owner resumes a valid selection without stale hover");
+                 map.SetItems([new("Replacement", 1, null, "其他")]);
+                 Check(!map.MotionRunning && !clock.IsRunning && contours.Count == 0, "a new source clears selection motion and contour generation");

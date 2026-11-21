@@ -1,6 +1,8 @@
 using DiskAtlas;
 using System.Drawing;
 
+if(args.Length==1 && args[0]=="--background-pixel-mapping-tests")return BackgroundPixelMappingTests.Run();
+
 if(args.Length==1 && args[0]=="--desktop-rendering-tests")return DesktopRenderingTests.Run();
 if(args.Length is 1 or 2 && args[0]=="--desktop-default-tests")return CompositionMainFormTests.Run(args.Contains("--dpi-96"),true);
 
