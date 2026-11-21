@@ -1,0 +1,52 @@
+{
+  "revision": 1,
+  "baseline": "9ac1f0b30f31a4f00a4f55048409b1999cabbaf0",
+  "snapshot_kind": "test-diagnostic-final-working-tree; not-complete-HEAD-patch",
+  "files": [
+    {
+      "source": "tests/Prototypes/Resize/ResizeDiagnosticTrace.cs",
+      "sha256": "B1AEE137CC836F851585110CAFB7BBFF80C24D9D35405DA6322353EE5B029C4E",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeDiagnosticTrace.cs.txt"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeDiagnosticReplay.cs",
+      "sha256": "7DA3E13FB03782F8F3A3C6AEE0621C1046BCAC47FFCD2C96C29684A5F13A9FF4",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeDiagnosticReplay.cs.txt"
+    },
+    {
+      "source": "tests/Prototypes/Resize/LiveResizePrototypeForm.cs",
+      "sha256": "129394D86DEE2CDD3595852F93A6D2C838DA531C5CD2D58160E4BBB1B4DEB2D6",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\LiveResizePrototypeForm.cs.txt"
+    },
+    {
+      "source": "tests/Prototypes/Resize/LiveResizePreview.cs",
+      "sha256": "D39C938F1146A60F0A4ED80CECEA1D2BEA168C85211290F4E29E2BCAEF22A31D",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\LiveResizePreview.cs.txt"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeSceneRenderer.cs",
+      "sha256": "04500F1323B944BDA23067403F8D396E01802D734CA03B546908AB422005810C",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeSceneRenderer.cs.txt"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeScene.cs",
+      "sha256": "C0F82A243DDB58BD12EA363E1E36E4867579A253E451927E79F804908F9ADC80",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeScene.cs.txt"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizePrototypeTests.cs",
+      "sha256": "0F0BF789DCDAA08E8DF60829062990283BCD067F56811DE89448B0C2ADF4E1E9",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizePrototypeTests.cs.txt"
+    },
+    {
+      "source": "tests/StageOnePreview.cs",
+      "sha256": "E941C00582397C9E215EA118D4C1FBDE080DB6B3BD62245E7E6AD8C8BA76ACC4",
+      "snapshot": "key-files\\tests\\StageOnePreview.cs.txt"
+    },
+    {
+      "source": "tests/Program.cs",
+      "sha256": "3E962C22EAE7AE41DC0A1D0B636EDE23DAD433AD9DB7308F87C51A1E8B1D7603",
+      "snapshot": "key-files\\tests\\Program.cs.txt"
+    }
+  ]
+}

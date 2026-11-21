@@ -1,0 +1,300 @@
+--- a/tests/Prototypes/Resize/LiveResizePrototypeForm.cs
++++ b/tests/Prototypes/Resize/LiveResizePrototypeForm.cs
+@@ -62,6 +62,8 @@
+     internal bool? DragFullWindows { get; }
+     internal ResizeDiagnosticTrace? DiagnosticTrace { get; private set; }
+     internal bool UsesNativeFrame => nativeDibEnabled;
++    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
++    internal bool MappingAuditEnabled { get; set; }
+ 
+     internal void EnableCoverageCandidate(bool nativeDib = false)
+     {
+@@ -118,6 +120,7 @@
+         finally { RecordPublish(publishBegan, area, actual); }
+         PresentedLayout = layout; preparedCommitted = true; preparedPresents++; FrameCount++;
+         DiagnosticTrace?.Mark("FrameCopied", frame, new Rectangle(Point.Empty, actual), actual);
++        AuditRoot("PreparedCopied");
+         return true;
+     }
+ 
+@@ -125,6 +128,7 @@
+     {
+         if (DiagnosticTrace != null) throw new InvalidOperationException("DiagnosticAlreadyEnabled");
+         DiagnosticTrace = new ResizeDiagnosticTrace(this, pixels, coverageHook != null);
++        DiagnosticTrace.MappingAuditEnabled = MappingAuditEnabled;
+         UpdateCaption();
+     }
+ 
+@@ -326,11 +330,15 @@
+         // This is the geometry stage, outside painting. OnPaint never moves a
+         // child HWND, which could re-enter rendering with half-updated bounds.
+         if (nativeSearch != null) nativeSearch.Bounds = Inset(layout.Search, 12, 10);
++        AuditRoot("AfterTextBounds");
+         if (nativeStrategy != null) nativeStrategy.Bounds = ComboBounds(layout.Strategy);
++        AuditRoot("AfterStrategyBounds");
+         if (nativeMetric != null) nativeMetric.Bounds = ComboBounds(layout.Metric);
++        AuditRoot("AfterMetricBounds");
+         if (nativeGrid != null)
+         {
+             nativeGrid.Bounds = Rectangle.Union(layout.ListHeader, layout.ListBody);
++            AuditRoot("AfterGridBounds");
+             int rowHeight = FileListPresentation.RowHeight(DeviceDpi, SceneState.View == 1);
+             nativeGrid.RowTemplate.Height = rowHeight;
+             nativeGrid.ColumnHeadersHeight = Math.Max(20, layout.ListHeader.Height);
+@@ -391,9 +399,11 @@
+         base.OnResize(e);
+         if (!ready || closing || WindowState == FormWindowState.Minimized || ClientSize.Width <= 0 || ClientSize.Height <= 0) return;
+         DiagnosticTrace?.Mark("GeometryBeforeChildren");
++        AuditRoot("BeforeChildren");
+         pendingLayout = null; PrepareLayout();
+         Size valid = PresentedLayout?.PixelSize ?? Size.Empty;
+         DiagnosticTrace?.Mark("GeometryAfterChildren", frame, null, valid);
++        AuditRoot("AfterChildren");
+         Invalidate(true);
+         DiagnosticTrace?.Mark("GeometryEnd");
+     }
+@@ -449,6 +459,8 @@
+                     if (nativeFrame?.TryCopyTo(e.Graphics, area) == true) nativePublishes++;
+                     else
+                     {
++                        if (MappingAuditEnabled && nativeFrame != null)
++                            DiagnosticTrace?.AuditMapping(e.Graphics, nativeFrame.LastCopyFailure);
+                         if (nativeDibEnabled) RecordCopyFallback();
+                         e.Graphics.DrawImage(frame!, area, area, GraphicsUnit.Pixel);
+                     }
+@@ -459,6 +471,7 @@
+             PresentedLayout = layout; FrameCount++; frameFailure = null;
+             preparedLayout = null; preparedCommitted = false;
+             DiagnosticTrace?.Mark("FrameCopied", frame, e.ClipRectangle, layout.PixelSize);
++            AuditRoot("PaintCopied");
+         }
+         catch (Exception failure) when (failure is OutOfMemoryException or ArgumentException or ExternalException or InvalidOperationException)
+         {
+@@ -477,6 +490,10 @@
+     }
+ 
+     private Bitmap? iconBitmap;
++    private void AuditRoot(string phase)
++    {
++        if (MappingAuditEnabled) DiagnosticTrace?.AuditRoot(phase, frame);
++    }
+     private Bitmap GetIconBitmap() => iconBitmap ??= appIcon.ToBitmap();
+ 
+     private void RecordPublish(long began, Rectangle area, Size content)
+--- a/tests/Prototypes/Resize/LiveResizePreview.cs
++++ b/tests/Prototypes/Resize/LiveResizePreview.cs
+@@ -4,12 +4,13 @@
+ {
+     internal static int Run(string[] args)
+     {
+-        if (args.Length > 8 || args.Length == 0 || args[0] != "--live-resize-preview" ||
+-            args.Skip(1).Any(value => value is not ("canvas" or "text" or "combo" or "grid" or "all" or "--minimum" or "--dpi-96" or "--trace" or "--trace-pixels" or "--replay-30" or "--replay-100" or "--coverage-candidate" or "--dib-frame")) ||
++        if (args.Length > 9 || args.Length == 0 || args[0] != "--live-resize-preview" ||
++            args.Skip(1).Any(value => value is not ("canvas" or "text" or "combo" or "grid" or "all" or "--minimum" or "--dpi-96" or "--trace" or "--trace-pixels" or "--replay-30" or "--replay-100" or "--coverage-candidate" or "--dib-frame" or "--mapping-audit")) ||
+             args.Skip(1).Distinct(StringComparer.Ordinal).Count() != args.Length - 1 ||
+             args.Contains("--trace") && args.Contains("--trace-pixels") ||
+             args.Contains("--replay-30") && args.Contains("--replay-100") ||
+             args.Contains("--dib-frame") && !args.Contains("--coverage-candidate") ||
++            args.Contains("--mapping-audit") && !args.Contains("--trace-pixels") ||
+             args.Any(value => value.StartsWith("--replay-", StringComparison.Ordinal)) && !args.Contains("--trace") && !args.Contains("--trace-pixels") ||
+             args.Skip(1).Count(value => !value.StartsWith("--", StringComparison.Ordinal)) > 1)
+         { Console.Error.WriteLine("FAIL resize-prototype invocation"); return 2; }
+@@ -24,6 +25,7 @@
+                 Application.SetHighDpiMode(args.Contains("--dpi-96") ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
+                 Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
+                 using var form = new LiveResizePrototypeForm(mode);
++                form.MappingAuditEnabled = args.Contains("--mapping-audit");
+                 if (args.Contains("--coverage-candidate")) form.EnableCoverageCandidate(args.Contains("--dib-frame"));
+                 if (args.Contains("--trace") || args.Contains("--trace-pixels"))
+                     form.EnableDiagnostics(args.Contains("--trace-pixels"));
+--- a/tests/Prototypes/Resize/ResizeDiagnosticTrace.cs
++++ b/tests/Prototypes/Resize/ResizeDiagnosticTrace.cs
+@@ -33,6 +33,84 @@
+     private long diagnosticTicks;
+     private bool disposed, recording = true, observing, hooksLimited;
+     private int rejectedStages, wrongThreadCalls, observationFailures;
++    internal bool MappingAuditEnabled { get; set; }
++    private readonly List<object> mappingAudit = [];
++    private readonly List<object> rootAudit = [];
++    private int auditDropped;
++
++    // C49 opt-in, fixed geometry-only fields for this owned synthetic window.
++    // No repaint/flush, selected-object changes, stack strings or raw handles.
++    internal void AuditMapping(Graphics graphics, NativeResizeFrame.CopyFailure failure)
++    {
++        if (!MappingAuditEnabled || !Allowed()) return;
++        if (mappingAudit.Count >= 128) { auditDropped++; return; }
++        IntPtr dc = IntPtr.Zero;
++        try
++        {
++            var methods = new StackTrace(false).GetFrames().Select(f => f.GetMethod()).ToArray();
++            bool transparentParent = methods.Any(m => m?.Name == "PaintTransparentBackground" && m.DeclaringType == typeof(Control));
++            bool invokeParentPaint = methods.Any(m => m?.Name == "InvokePaint" && m.DeclaringType == typeof(Control));
++            dc = graphics.GetHdc();
++            bool originsValid = GetWindowOrgEx(dc, out var window);
++            originsValid &= GetViewportOrgEx(dc, out var viewport);
++            int clipKind = GetClipBox(dc, out var clip);
++            IntPtr target = WindowFromDC(dc);
++            Control? targetControl = Control.FromHandle(target);
++            mappingAudit.Add(new { sequence, geometry, failure = failure.ToString(), transparentParent, invokeParentPaint,
++                dc_kind = GetObjectType(dc), map_mode = GetMapMode(dc), originsValid,
++                window_x = window.X, window_y = window.Y, viewport_x = viewport.X, viewport_y = viewport.Y,
++                clip_kind = clipKind, clip = Rect(clip), target_owned = Owned(target), target_kind = PixelKind(target).ToString(),
++                target_control_kind = targetControl == null ? "Unknown" : Kind(targetControl).ToString(),
++                target_control_bounds = targetControl?.Bounds,
++                printClient = methods.Any(m => m?.Name == "WmPrintClient" && m.DeclaringType == typeof(Control)),
++                onPrint = methods.Any(m => m?.Name == "OnPrint" && m.DeclaringType == typeof(Control)),
++                comboMessage = methods.Any(m => m?.Name == "WndProc" && m.DeclaringType == typeof(ComboBox)),
++                child_bounds = owner.Controls.Cast<Control>().Select(c => new { kind = Kind(c).ToString(), bounds = c.Bounds }).ToArray() });
++        }
++        catch { observationFailures++; }
++        finally
++        {
++            if (dc != IntPtr.Zero)
++            { try { graphics.ReleaseHdc(dc); } catch { observationFailures++; } }
++        }
++    }
++
++    internal void AuditRoot(string phase, Bitmap? frame)
++    {
++        if (!MappingAuditEnabled || !Allowed() || !owner.IsHandleCreated || frame == null) return;
++        if (phase is not ("PreparedCopied" or "BeforeChildren" or "AfterTextBounds" or "AfterStrategyBounds" or
++            "AfterMetricBounds" or "AfterGridBounds" or "AfterChildren" or "PaintCopied")) { rejectedStages++; return; }
++        if (rootAudit.Count >= 1024) { auditDropped++; return; }
++        IntPtr root = owner.Handle;
++        if (!GetClientRect(root, out var rect) || rect.Right < 4 || rect.Bottom < 4) return;
++        // Same second right-edge witness that failed six times in C48.
++        var point = new Point(rect.Right - 2, rect.Bottom * 2 / 3);
++        IntPtr child = DeepestChild(root, point), dc = GetDC(root);
++        if (dc == IntPtr.Zero) return;
++        uint pixel;
++        try { pixel = PtVisible(dc, point.X, point.Y) ? GetPixel(dc, point.X, point.Y) : uint.MaxValue; }
++        finally { ReleaseDC(root, dc); }
++        uint? expected = point.X < frame.Width && point.Y < frame.Height ? Rgb(frame.GetPixel(point.X, point.Y)) : null;
++        uint? childPixel = null;
++        if (child != root)
++        {
++            var local = new NativePoint { X = point.X, Y = point.Y };
++            if (ClientToScreen(root, ref local) && ScreenToClient(child, ref local))
++            {
++                IntPtr childDc = GetDC(child);
++                if (childDc != IntPtr.Zero)
++                { try { childPixel = PtVisible(childDc, local.X, local.Y) ? GetPixel(childDc, local.X, local.Y) : uint.MaxValue; }
++                  finally { ReleaseDC(child, childDc); } }
++            }
++        }
++        bool printClient = new StackTrace(false).GetFrames().Any(f => f.GetMethod() is { Name: "WmPrintClient" } m && m.DeclaringType == typeof(Control));
++        rootAudit.Add(new { sequence, geometry, phase, printClient, dpi = owner.DeviceDpi,
++            width = rect.Right, height = rect.Bottom, x = point.X, y = point.Y,
++            valid = pixel != uint.MaxValue, pixel, expected, matches = expected == pixel, childPixel,
++            owner_kind = child == root ? "Root" : PixelKind(child).ToString(),
++            grid_bounds = owner.Controls.OfType<DataGridView>().Select(c => c.Bounds).ToArray() });
++        static uint Rgb(Color c) => (uint)(c.R | c.G << 8 | c.B << 16);
++    }
+     private static readonly HashSet<string> Stages = new(StringComparer.Ordinal)
+     {
+         "Constructor", "Shown", "GeometryBegin", "GeometryBeforeChildren", "GeometryAfterChildren",
+@@ -432,7 +510,7 @@
+         recording = false;
+         var report = new
+         {
+-            schema = "resize-diagnostic-trace-v3", pixels_enabled = pixels,
++            schema = MappingAuditEnabled ? "resize-diagnostic-trace-v4-mapping-audit" : "resize-diagnostic-trace-v3", pixels_enabled = pixels,
+             root_coverage_candidate = coverageCandidate, split_panel_candidate = splitCandidate,
+             native_dib_frame = owner is LiveResizePrototypeForm { UsesNativeFrame: true },
+             coverage_strategy = !coverageCandidate ? "off" : owner is LiveResizePrototypeForm ? "prepared-scene-with-background-fallback" : "background-only",
+@@ -457,6 +535,8 @@
+             region_attribution = "window-region-not-queried-pixel-dc-visibility-recorded",
+             geometry_ticket = "actual-root-getclientrect-size-change",
+             baseline_frame_boundary = "non-prototype-framecopied-is-root-wmpaint-exit-not-all-children",
++            mapping_audit = new { enabled = MappingAuditEnabled, mapping_limit = 128, root_limit = 1024, dropped = auditDropped,
++                mapping = mappingAudit, root_witness = rootAudit },
+             records
+         };
+         var options = new JsonSerializerOptions { WriteIndented = false };
+@@ -534,4 +614,10 @@
+     [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr handle, IntPtr dc);
+     [DllImport("gdi32.dll")] private static extern uint GetPixel(IntPtr dc, int x, int y);
+     [DllImport("gdi32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool PtVisible(IntPtr dc, int x, int y);
++    [DllImport("gdi32.dll")] private static extern bool GetWindowOrgEx(IntPtr dc, out NativePoint point);
++    [DllImport("gdi32.dll")] private static extern bool GetViewportOrgEx(IntPtr dc, out NativePoint point);
++    [DllImport("gdi32.dll")] private static extern int GetClipBox(IntPtr dc, out NativeRect rect);
++    [DllImport("gdi32.dll")] private static extern uint GetObjectType(IntPtr dc);
++    [DllImport("gdi32.dll")] private static extern int GetMapMode(IntPtr dc);
++    [DllImport("user32.dll")] private static extern IntPtr WindowFromDC(IntPtr dc);
+ }
+--- /dev/null
++++ b/tests/ResizeMappingEvidence.Tests.ps1
+@@ -0,0 +1,72 @@
++param(
++    [Parameter(Mandatory=$true)][string[]]$TracePath,
++    [Parameter(Mandatory=$true)][string]$OutputPath
++)
++$ErrorActionPreference = 'Stop'
++function Require([bool]$condition, [string]$code) {
++    if (-not $condition) { throw $code }
++}
++$summaries = @(foreach ($path in $TracePath) {
++    $report = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
++    Require ($report.schema -eq 'resize-diagnostic-trace-v4-mapping-audit') 'WrongAuditSchema'
++    Require ($report.mapping_audit.enabled -and $report.pixels_enabled -and $report.native_dib_frame) 'AuditNotEnabled'
++    Require (-not $report.truncated -and -not $report.hooks_limited -and $report.observation_failures -eq 0 -and
++        $report.mapping_audit.dropped -eq 0 -and $report.rejected_stages -eq 0) 'IncompleteObservation'
++    $mapping = @($report.mapping_audit.mapping)
++    $root = @($report.mapping_audit.root_witness)
++    $mode = $report.records[-1].Mode
++    Require ($mode -in @('All','Combo','Grid')) 'UnexpectedMode'
++    foreach ($entry in $mapping) {
++        Require ($entry.failure -eq 'TargetOrigin' -and $entry.target_owned -and
++            $entry.target_control_kind -eq 'Combo' -and $entry.printClient -and $entry.onPrint -and $entry.comboMessage) 'FallbackNotComboPrintClient'
++        Require ($entry.originsValid -and $entry.window_x -eq 0 -and $entry.window_y -eq 0 -and
++            $entry.map_mode -eq 1 -and $entry.dc_kind -eq 3) 'UnexpectedTargetMap'
++        Require ($entry.viewport_x -eq -$entry.target_control_bounds.X -and
++            $entry.viewport_y -eq -$entry.target_control_bounds.Y) 'OffsetNotChildTranslation'
++        Require ($entry.clip_kind -in @(2,3) -and $entry.clip.X -ge $entry.target_control_bounds.X -and
++            $entry.clip.Y -ge $entry.target_control_bounds.Y -and
++            $entry.clip.Right -le $entry.target_control_bounds.Right -and
++            $entry.clip.Bottom -le $entry.target_control_bounds.Bottom) 'ClipOutsideCombo'
++    }
++    $wrong = @($root | Where-Object { $_.phase -eq 'AfterChildren' -and $_.valid -and
++        $_.owner_kind -eq 'Root' -and -not $_.matches })
++    $explained = 0
++    foreach ($point in $wrong) {
++        $same = @($root | Where-Object { $_.geometry -eq $point.geometry })
++        $before = @($same | Where-Object phase -eq 'BeforeChildren')
++        $afterGrid = @($same | Where-Object phase -eq 'AfterGridBounds')
++        $later = @($same | Where-Object { $_.phase -eq 'PaintCopied' -and -not $_.printClient -and $_.valid -and $_.owner_kind -eq 'Root' })
++        Require ($before.Count -eq 1 -and $afterGrid.Count -eq 1 -and $later.Count -gt 0) 'MissingWitnessPhase'
++        Require ($before[0].owner_kind -eq 'Grid' -and -not $before[0].valid -and
++            $null -ne $before[0].childPixel -and $before[0].childPixel -ne 4294967295) 'MissingOldGridPixel'
++        Require ($point.pixel -eq $before[0].childPixel -and $point.pixel -ne $point.expected -and
++            $point.expected -eq $before[0].expected) 'NotOldGridResidual'
++        Require ($afterGrid[0].valid -and $afterGrid[0].owner_kind -eq 'Root' -and
++            $afterGrid[0].pixel -eq $point.pixel -and -not $afterGrid[0].matches) 'NoGridMoveTransition'
++        Require ($before[0].grid_bounds[0].X -le $point.x -and $before[0].grid_bounds[0].Right -gt $point.x -and
++            $before[0].grid_bounds[0].Y -le $point.y -and $before[0].grid_bounds[0].Bottom -gt $point.y -and
++            $afterGrid[0].grid_bounds[0].Right -le $point.x) 'GridCoverageNotMovedOffWitness'
++        Require ($later[0].matches -and $later[0].expected -eq $point.expected) 'NaturalRootPaintNotRestored'
++        $explained++
++    }
++    if ($mode -eq 'Combo') { Require ($wrong.Count -eq 0 -and $mapping.Count -eq 26) 'ComboControlMismatch' }
++    elseif ($mode -eq 'Grid') { Require ($wrong.Count -eq 6 -and $mapping.Count -eq 0) 'GridControlMismatch' }
++    else { Require ($wrong.Count -eq 6 -and $mapping.Count -eq 26) 'AllMismatchNotReproduced' }
++    $mappingGroups = @($mapping | Group-Object viewport_x,viewport_y)
++    if ($mapping.Count -gt 0) { Require ($mappingGroups.Count -eq 2 -and @($mappingGroups | Where-Object Count -ne 13).Count -eq 0) 'UnexpectedComboCounts' }
++    [ordered]@{
++        trace = Split-Path $path -Leaf; sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
++        mode = $mode; dpi = $root[0].dpi
++        mapping_rejections = $mapping.Count; combo_printclient_attributed = $mapping.Count
++        child_offset_and_clip_verified = $true; geometry_root_mismatches = $wrong.Count
++        old_grid_residual_explained = $explained; later_natural_root_paint_restored = $explained
++        truncated = $false; observation_failures = 0
++    }
++})
++[ordered]@{ revision=1; scope='C49-owned-synthetic-GDI-root-witness-and-target-mapping';
++    diagnosis_only=$true; pixel_guard_relaxed=$false; normal_app_modified=$false;
++    screen_no_flash_proven=$false; runs=$summaries } | ConvertTo-Json -Depth 10 |
++    Set-Content -LiteralPath $OutputPath -Encoding utf8
++Write-Output ('PASS mapping evidence: reports={0}; mapping_rejections={1}; old_grid_residuals={2}' -f
++    $summaries.Count, ($summaries.mapping_rejections | Measure-Object -Sum).Sum,
++    ($summaries.old_grid_residual_explained | Measure-Object -Sum).Sum)

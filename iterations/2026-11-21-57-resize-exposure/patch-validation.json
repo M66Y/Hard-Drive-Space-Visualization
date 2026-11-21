@@ -1,0 +1,8 @@
+{
+  "base": "reviewed C56 working-tree preimages",
+  "scope_files": 18,
+  "byte_exact": true,
+  "git_apply_check_and_replay": true,
+  "temporary_replay_tree_removed": true,
+  "patch_sha256": "EA5260A323C2A7EEB8DD08EB0F818A58E8457C6E4F71943FC897E8983F87EEB0"
+}

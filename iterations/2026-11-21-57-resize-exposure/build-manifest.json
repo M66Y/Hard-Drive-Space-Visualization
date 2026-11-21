@@ -1,0 +1,30 @@
+{
+  "head": "9ac1f0b30f31a4f00a4f55048409b1999cabbaf0",
+  "index_sha256": "1CE31C64CE28513E8CE6B4FF511EB1223A80E01A40DD102BFBCB567D20F65CA6",
+  "candidate": {
+    "entry": "artifacts/dib-mainform-C57/app/AsukaLens.CompositionDibCandidate.exe",
+    "dll_sha256": "4B6141834737F764A800CDBF1CFFDFBDD5183590D473CEA19FBD61FFC33F8AC5",
+    "test_dll_sha256": "BBC8CB7FBE692859C7700084A269E05D9B408FE472B3D17D0A19752F68B9DF37"
+  },
+  "preserved": {
+    "ordinary": {
+      "path": "bin/Release/net10.0-windows/DiskAtlas.dll",
+      "sha256": "8690F5F5A1CC9160A698CAA0E355966D87B9ED1F5E1C27659AD6DD5B865886B1",
+      "unchanged": true
+    },
+    "C55": {
+      "path": "artifacts/dib-mainform-C55/app/DiskAtlas.dll",
+      "sha256": "D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498",
+      "unchanged": true
+    },
+    "C56": {
+      "path": "artifacts/dib-mainform-C56/app/DiskAtlas.dll",
+      "sha256": "5237AEE9F4A954B6839B5D12B4504D9C589932F7536B6C6F7711F0FB79B9B273",
+      "unchanged": true
+    }
+  },
+  "default_changed": false,
+  "release_created": false,
+  "commit_created": false,
+  "pushed": false
+}

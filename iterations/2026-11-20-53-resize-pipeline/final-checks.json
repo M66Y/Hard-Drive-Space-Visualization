@@ -1,0 +1,20 @@
+{
+  "scope_hashes_verified": 16,
+  "binary_hashes_verified": 4,
+  "byte_exact_patch": true,
+  "local_zip_entries": 55,
+  "local_zip_bytes": 65673,
+  "local_zip_sha256": "6D9AC13455F9E67237932E868F5D73D35A615122BA6011EE56212C8EA76775EA",
+  "diagnostic_copies_removed": true,
+  "duplicate_apphost_removed": true,
+  "candidate_demo_and_isolated_state_preserved": true,
+  "actual_window_review": "completed with persistent checkbox background defect",
+  "continuous_display_acceptance": false,
+  "default_changed": false,
+  "committed": false,
+  "pushed": false,
+  "published": false,
+  "final_document_patch_replayed": true,
+  "review_patch_byte_exact": true,
+  "pending_user_choice": true
+}

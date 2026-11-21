@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "baseline": "9ac1f0b",
+  "baseline_context": "Four-file geometry hold follow-up; all selected working-tree preimages included, not a HEAD-only delta",
+  "state": "candidate-final-regression-and-desktop-review-pending",
+  "patch_replay": {
+    "files": 4,
+    "sha256_all_matched": true
+  },
+  "files": [
+    {
+      "source": "MainForm.cs",
+      "snapshot": "key-files/MainForm.cs.txt",
+      "sha256": "FAC28478C0C433AA893EEA177C38325C0F505E7EC8EC99ADA58227CA0A5A5519",
+      "bytes": 94427,
+      "preimage": "preimages/MainForm.cs.txt",
+      "preimage_sha256": "EB509E4A267861865E9C251F2E33322C94DCD5365E4868636FF85343253BC83D"
+    },
+    {
+      "source": "src/UI/LayoutPresentation.cs",
+      "snapshot": "key-files/src_UI_LayoutPresentation.cs.txt",
+      "sha256": "9B66E3BD01B1F396A62DA9D43E5F220B1F64EAD061799E6C6E9740341AE1BBF8",
+      "bytes": 21326,
+      "preimage": "preimages/src_UI_LayoutPresentation.cs.txt",
+      "preimage_sha256": "27139CD95E18D8D6EECF268C514075B9B712EDB88E032DDC0D1C9973ED53DE5F"
+    },
+    {
+      "source": "tests/LayoutPresentationPolicyTests.cs",
+      "snapshot": "key-files/tests_LayoutPresentationPolicyTests.cs.txt",
+      "sha256": "E408D2CC1C10098135ABBA2EACD55438511D659BC7B72A05BB89017A1ACF0B12",
+      "bytes": 53487,
+      "preimage": "preimages/tests_LayoutPresentationPolicyTests.cs.txt",
+      "preimage_sha256": "F25550B36A59B640673A5BCD5317E52A3A16DDE16AAAC7638AF66CB49421467E"
+    },
+    {
+      "source": "tests/LayoutTransitionRegression.cs",
+      "snapshot": "key-files/tests_LayoutTransitionRegression.cs.txt",
+      "sha256": "1D1FF28D6B9D6B28E1E378B10101FCF8EFF2212676FC60112288ACBBDF6305F6",
+      "bytes": 27269,
+      "preimage": "preimages/tests_LayoutTransitionRegression.cs.txt",
+      "preimage_sha256": "EEE9ED4152014F69219DB47FBD43FA70867BB4A700F375C0B6E89B464D2885D1"
+    }
+  ]
+}

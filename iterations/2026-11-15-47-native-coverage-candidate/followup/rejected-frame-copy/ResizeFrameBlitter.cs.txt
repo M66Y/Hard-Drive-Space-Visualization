@@ -1,0 +1,126 @@
+using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
+
+namespace DiskAtlas.ResizePrototype;
+
+// Test-preview only. The caller owns a distinct source frame/Graphics and the
+// destination window surface. This is a pixel copy, never a scaled old frame.
+internal static class ResizeFrameBlitter
+{
+    internal static bool TryCopy(Bitmap source, Graphics sourceGraphics, Graphics target, Rectangle area)
+    {
+        if (source == null || sourceGraphics == null || target == null || ReferenceEquals(sourceGraphics, target)) return false;
+        IntPtr targetDc = IntPtr.Zero, managedClip = IntPtr.Zero;
+        Region? clip = null;
+        bool copied = false;
+        try
+        {
+            if (!ValidArea(source, area) || !IdentityGraphics(sourceGraphics) || !IdentityGraphics(target)) return false;
+            // Capture the managed clip BEFORE GetHdc: GDI+ clipping is not
+            // automatically the same region as the borrowed native DC clip.
+            clip = target.Clip;
+            if (!clip.IsInfinite(target))
+            {
+                managedClip = clip.GetHrgn(target);
+                if (managedClip == IntPtr.Zero) return false;
+            }
+            targetDc = target.GetHdc();
+            copied = CopyCore(sourceGraphics, targetDc, area, managedClip);
+        }
+        catch (Exception error) when (Recoverable(error)) { copied = false; }
+        finally
+        {
+            if (targetDc != IntPtr.Zero)
+            {
+                try { target.ReleaseHdc(targetDc); }
+                catch (Exception error) when (Recoverable(error)) { copied = false; }
+            }
+            if (managedClip != IntPtr.Zero) DeleteObject(managedClip);
+            clip?.Dispose();
+        }
+        return copied;
+    }
+
+    internal static bool TryCopy(Bitmap source, Graphics sourceGraphics, IntPtr targetDc, Rectangle area)
+    {
+        if (source == null || sourceGraphics == null || targetDc == IntPtr.Zero) return false;
+        try
+        {
+            if (!ValidArea(source, area) || !IdentityGraphics(sourceGraphics)) return false;
+            return CopyCore(sourceGraphics, targetDc, area, IntPtr.Zero);
+        }
+        catch (Exception error) when (Recoverable(error)) { return false; }
+    }
+
+    private static bool CopyCore(Graphics sourceGraphics, IntPtr targetDc, Rectangle area, IntPtr managedClip)
+    {
+        IntPtr sourceDc = IntPtr.Zero;
+        int saved = 0;
+        bool copied = false;
+        try
+        {
+            if (!IdentityDc(targetDc)) return false;
+            sourceDc = sourceGraphics.GetHdc();
+            if (sourceDc == IntPtr.Zero || sourceDc == targetDc || !IdentityDc(sourceDc)) return false;
+            IntPtr sourceBitmap = GetCurrentObject(sourceDc, 7), targetBitmap = GetCurrentObject(targetDc, 7);
+            if (sourceBitmap != IntPtr.Zero && sourceBitmap == targetBitmap) return false;
+            saved = SaveDC(targetDc);
+            if (saved == 0) return false;
+            if (managedClip != IntPtr.Zero && ExtSelectClipRgn(targetDc, managedClip, 1) == 0) return false;
+            // Destination and source use the SAME physical pixel coordinates.
+            copied = BitBlt(targetDc, area.X, area.Y, area.Width, area.Height,
+                sourceDc, area.X, area.Y, 0x00CC0020);
+        }
+        finally
+        {
+            if (saved != 0 && !RestoreDC(targetDc, saved)) copied = false;
+            if (sourceDc != IntPtr.Zero)
+            {
+                try { sourceGraphics.ReleaseHdc(sourceDc); }
+                catch (Exception error) when (Recoverable(error)) { copied = false; }
+            }
+        }
+        return copied;
+    }
+
+    private static bool ValidArea(Bitmap source, Rectangle area) => area.X >= 0 && area.Y >= 0 &&
+        area.Width > 0 && area.Height > 0 && (long)area.X + area.Width <= source.Width &&
+        (long)area.Y + area.Height <= source.Height;
+
+    private static bool IdentityGraphics(Graphics graphics)
+    {
+        using var transform = graphics.Transform;
+        return transform.IsIdentity && graphics.PageScale == 1 && graphics.PageUnit is GraphicsUnit.Pixel or GraphicsUnit.Display;
+    }
+
+    private static bool IdentityDc(IntPtr dc)
+    {
+        if (dc == IntPtr.Zero || GetMapMode(dc) != 1 || GetLayout(dc) != 0 ||
+            !GetViewportOrgEx(dc, out var viewport) || viewport.X != 0 || viewport.Y != 0 ||
+            !GetWindowOrgEx(dc, out var window) || window.X != 0 || window.Y != 0) return false;
+        int mode = GetGraphicsMode(dc);
+        if (mode == 1) return true;
+        return mode == 2 && GetWorldTransform(dc, out var transform) &&
+            transform.M11 == 1 && transform.M12 == 0 && transform.M21 == 0 && transform.M22 == 1 &&
+            transform.Dx == 0 && transform.Dy == 0;
+    }
+
+    private static bool Recoverable(Exception error) => error is ArgumentException or ExternalException or
+        InvalidOperationException or OutOfMemoryException or OverflowException;
+
+    [StructLayout(LayoutKind.Sequential)] private struct NativePoint { internal int X, Y; }
+    [StructLayout(LayoutKind.Sequential)] private struct XForm { internal float M11, M12, M21, M22, Dx, Dy; }
+    [DllImport("gdi32.dll")] private static extern int GetMapMode(IntPtr dc);
+    [DllImport("gdi32.dll")] private static extern uint GetLayout(IntPtr dc);
+    [DllImport("gdi32.dll")] private static extern int GetGraphicsMode(IntPtr dc);
+    [DllImport("gdi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetViewportOrgEx(IntPtr dc, out NativePoint point);
+    [DllImport("gdi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetWindowOrgEx(IntPtr dc, out NativePoint point);
+    [DllImport("gdi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetWorldTransform(IntPtr dc, out XForm transform);
+    [DllImport("gdi32.dll")] private static extern IntPtr GetCurrentObject(IntPtr dc, uint kind);
+    [DllImport("gdi32.dll")] private static extern int SaveDC(IntPtr dc);
+    [DllImport("gdi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool RestoreDC(IntPtr dc, int state);
+    [DllImport("gdi32.dll")] private static extern int ExtSelectClipRgn(IntPtr dc, IntPtr region, int mode);
+    [DllImport("gdi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool DeleteObject(IntPtr value);
+    [DllImport("gdi32.dll", SetLastError = true)][return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool BitBlt(IntPtr target, int x, int y, int width, int height, IntPtr source, int sourceX, int sourceY, uint operation);
+}

@@ -1,0 +1,36 @@
+{
+  "revision": 1,
+  "date": "2026-11-15",
+  "kind": "framework-dependent-test-prototype",
+  "formal_release": false,
+  "products": [
+    {
+      "path": "artifacts/resize-prototype/app/AsukaLens.ResizePrototype.exe",
+      "sha256": "CA765BF93DCC93464615FF831CDEF6D2806F796A4D363A14F6B18BBBCBB89754",
+      "bytes": 162304
+    },
+    {
+      "path": "artifacts/resize-prototype/app/DiskAtlas.Tests.dll",
+      "sha256": "238853C6E1BDF1E9F46FBAAE690DBE5327BFE8B30943AACE6F9A3A146EEB3779",
+      "bytes": 5875712
+    },
+    {
+      "path": "artifacts/resize-prototype/app/DiskAtlas.Tests.deps.json",
+      "sha256": "F4365858C6878F5331C0E9A4BEB0D28B658EAC14720A6C4341A6C5126A8B3BE3",
+      "bytes": 439
+    },
+    {
+      "path": "artifacts/resize-prototype/app/DiskAtlas.Tests.runtimeconfig.json",
+      "sha256": "96BC2946DFF8790400D652EC7F8DE7BB043E954980D59470C112788B68A1FBD3",
+      "bytes": 519
+    },
+    {
+      "path": "artifacts/resize-prototype/host-build/DiskAtlas.dll",
+      "sha256": "8690F5F5A1CC9160A698CAA0E355966D87B9ED1F5E1C27659AD6DD5B865886B1",
+      "bytes": 3488256
+    }
+  ],
+  "observed_native_failure_assembly_sha256": "3347AB9890DE3A661EA96BE38B08253612AE627D7E7009601219A678EB575699",
+  "ui_regression_assembly_sha256": "3347AB9890DE3A661EA96BE38B08253612AE627D7E7009601219A678EB575699",
+  "followup_changes": "prototype-only stat measurement and alpha assertion; production UI source unchanged"
+}

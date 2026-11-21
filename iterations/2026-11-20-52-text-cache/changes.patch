@@ -1,0 +1,486 @@
+diff --git a/TreemapControl.cs b/TreemapControl.cs
+--- a/TreemapControl.cs
++++ b/TreemapControl.cs
+@@ -427,9 +427,9 @@
+         PixelSurface? next = null;
+         try
+         {
+-            next = PixelSurface.Create(ClientSize, DeviceDpi, (FindForm() as MainForm)?.Rendering);
++            next = PixelSurface.Create(ClientSize, DeviceDpi, (FindForm() as MainForm)?.Rendering, gdiText: true);
+             if (next == null) { rejectedKey = key; return false; }
+-            using (var graphics = Graphics.FromImage(next.Bitmap))
++            next.RenderOpaque(graphics =>
+             {
+                 // The retained layer must be opaque even at antialiased
+                 // wallpaper edges; partial source-over paints must not build
+@@ -437,11 +437,12 @@
+                 graphics.Clear(Theme.Background);
+                 Wallpaper.Paint(this, graphics, 215, nativeCopy: false);
+                 DrawStaticTiles(graphics, ClientRectangle);
+-            }
++            });
+             staticPixels = next; staticLayer = next.Bitmap; cacheKey = key; StaticLayerBuilds++; return true;
+         }
+-        catch (Exception ex) when (ex is OutOfMemoryException or System.Runtime.InteropServices.ExternalException)
+-        {
++        catch (Exception ex) when (ex is OutOfMemoryException or System.Runtime.InteropServices.ExternalException or InvalidOperationException or ArgumentException)
++        {
++            (FindForm() as MainForm)?.Rendering?.Failed();
+             next?.Dispose(); rejectedKey = key; return false;
+         }
+     }
+diff --git a/src/UI/Rendering/NativeResizeFrame.cs b/src/UI/Rendering/NativeResizeFrame.cs
+--- a/src/UI/Rendering/NativeResizeFrame.cs
++++ b/src/UI/Rendering/NativeResizeFrame.cs
+@@ -220,6 +220,49 @@
+         ObjectDisposedException.ThrowIf(disposed, this);
+         if (Environment.CurrentManagedThreadId != ownerThread) throw new InvalidOperationException("NativeFrameThread");
+     }
++
++    // TextRenderer requires the actual background pixels for antialiasing.
++    // Graphics.FromImage.GetHdc supplies a temporary keyed surface instead.
++    // Render an opaque retained layer through the DC selecting these SAME bits.
++    internal void RenderOpaque(Action<Graphics> paint)
++    {
++        EnsureOwner(); ArgumentNullException.ThrowIfNull(paint);
++        if(storageBytes + Math.Min(Capacity.Width,1024)*4 > DefaultMaxBytes)
++            throw new InvalidOperationException("NativeOpaqueWorkspaceBudget");
++        graphics!.Flush(FlushIntention.Sync);
++        if (!GdiFlush()) throw new InvalidOperationException("NativeSourceFlush");
++        int saved = SaveDC(memoryDc);
++        if (saved == 0) throw new InvalidOperationException("NativeSourceSave");
++        try
++        {
++            using var target = System.Drawing.Graphics.FromHdc(memoryDc);
++            target.PageUnit = GraphicsUnit.Pixel;
++            paint(target);
++            target.Flush(FlushIntention.Sync);
++            if (!GdiFlush()) throw new InvalidOperationException("NativeSourceFlush");
++        }
++        finally { if(!RestoreDC(memoryDc,saved))throw new InvalidOperationException("NativeSourceRestore"); }
++        // GDI text does not maintain the alpha byte. This layer is deliberately
++        // opaque: retain every RGB byte and seal alpha once, before publication.
++        var bounds = new Rectangle(Point.Empty,Capacity);
++        var data = bitmap!.LockBits(bounds,ImageLockMode.ReadWrite,PixelFormat.Format32bppPArgb);
++        try
++        {
++            var row = new int[Math.Min(Capacity.Width,1024)];
++            for(int y=0;y<Capacity.Height;y++)
++            {
++                for(int left=0;left<Capacity.Width;left+=row.Length)
++                {
++                    int count=Math.Min(row.Length,Capacity.Width-left);
++                    IntPtr address = data.Scan0 + y * data.Stride + left*4;
++                    Marshal.Copy(address,row,0,count);
++                    for(int x=0;x<count;x++)row[x] |= unchecked((int)0xff000000);
++                    Marshal.Copy(row,0,address,count);
++                }
++            }
++        }
++        finally { bitmap.UnlockBits(data); }
++    }
+     private static bool ValidObject(IntPtr value) => value != IntPtr.Zero && value != new IntPtr(-1);
+     private static Win32Exception NativeFailure(string code) => new(Marshal.GetLastWin32Error(), code);
+ 
+diff --git a/src/UI/Rendering/RenderSession.cs b/src/UI/Rendering/RenderSession.cs
+--- a/src/UI/Rendering/RenderSession.cs
++++ b/src/UI/Rendering/RenderSession.cs
+@@ -42,29 +42,37 @@
+     private readonly long bytes;
+     internal Bitmap Bitmap => bitmap ?? throw new ObjectDisposedException(nameof(PixelSurface));
+     internal bool Native => native != null;
+-    private PixelSurface(Size size, int dpi, RenderSession? owner)
++    private PixelSurface(Size size, int dpi, RenderSession? owner, bool gdiText)
+     {
+-        bytes = checked((long)size.Width * size.Height * 4);
++        // GDI text sealing uses one bounded 4KiB workspace; include its peak
++        // reservation rather than temporarily exceeding the window budget.
++        bytes = checked((long)size.Width * size.Height * 4 + (gdiText ? Math.Min(size.Width,1024)*4 : 0));
+         if (owner != null && !owner.Reserve(bytes)) throw new InvalidOperationException("PixelBudget");
+         session = owner;
+         try
+         {
+-            if (owner?.Active == true)
++            if (owner?.Active == true || gdiText)
+             {
+                 try { native = new NativeResizeFrame(size, dpi); bitmap = native.Bitmap; return; }
+                 catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException)
+-                { owner.Failed(); }
++                { owner?.Failed(); if(gdiText) throw; }
+             }
+             bitmap = new Bitmap(size.Width, size.Height, PixelFormat.Format32bppPArgb);
+             bitmap.SetResolution(dpi, dpi);
+         }
+         catch { owner?.Release(bytes); session = null; throw; }
+     }
+-    internal static PixelSurface? Create(Size size, int dpi, RenderSession? owner)
++    internal static PixelSurface? Create(Size size, int dpi, RenderSession? owner, bool gdiText = false)
+     {
+         if (size.Width <= 0 || size.Height <= 0) return null;
+-        try { return new PixelSurface(size, dpi, owner); }
++        if (gdiText && owner is { Requested: true, Active: false }) return null;
++        try { return new PixelSurface(size, dpi, owner, gdiText); }
+         catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException) { return null; }
++    }
++    internal void RenderOpaque(Action<Graphics> paint)
++    {
++        if(native == null)throw new InvalidOperationException("NativeTextSurfaceRequired");
++        native.RenderOpaque(paint);
+     }
+ 
+     internal bool TryCopy(Graphics target, Rectangle source, Point destination, Control? paintedControl = null)
+diff --git a/tests/UiRegression.cs b/tests/UiRegression.cs
+--- a/tests/UiRegression.cs
++++ b/tests/UiRegression.cs
+@@ -600,6 +600,7 @@
+             var image = new Bitmap(map.Width, map.Height); image.SetResolution(map.DeviceDpi, map.DeviceDpi);
+             map.DrawToBitmap(image, map.ClientRectangle); return image;
+         }
++        CacheTextProbe.Run(fixture);
+         using var initial = Capture();
+         int builds = map.StaticLayerBuilds;
+         check(builds > 0 && map.StaticLayerBytes == (long)map.Width * map.Height * 4 && map.StaticLayerBytes <= TreemapControl.MaxCachePixels * 4, "Static cache is missing or unbounded");
+@@ -622,7 +623,7 @@
+         using var direct = Capture();
+         long different = CountDifferentPixels(cached, direct, stopToken);
+         Console.WriteLine($"CACHE different_pixels={different}; pixels={map.Width * map.Height}; native={map.FindForm() is MainForm { Rendering: not null }}");
+-        if (different >= (long)map.Width * map.Height / 100 && Environment.GetEnvironmentVariable("ASUKALENS_CACHE_AUDIT") is { } audit)
++        if (Environment.GetEnvironmentVariable("ASUKALENS_CACHE_AUDIT") is { } audit)
+         { Directory.CreateDirectory(audit); cached.Save(Path.Combine(audit, "cached.png")); direct.Save(Path.Combine(audit, "direct.png")); }
+         check(different < (long)map.Width * map.Height / 100, "Cached and direct drawing differ materially");
+         Call("ReleaseStaticLayer"); using (var frame = Capture()) { }
+diff --git a/tests/CacheTextProbe.cs b/tests/CacheTextProbe.cs
+new file mode 100644
+--- /dev/null
++++ b/tests/CacheTextProbe.cs
+@@ -0,0 +1,119 @@
++using DiskAtlas;
++using System.Drawing.Drawing2D;
++
++internal static class CacheTextProbe
++{
++    internal static void Run(Form owner)
++    {
++        using var form = new Form { ClientSize = new Size(700, 210), ShowInTaskbar = false };
++        using var surface = new Surface { Dock = DockStyle.Fill };
++        form.Controls.Add(surface); form.Show(owner);
++        long compared=0;
++        for(int background=0;background<3;background++)
++        foreach(bool clipped in new[]{false,true})
++        {
++            surface.BackgroundCase=background;surface.Clipped=clipped;surface.Cached=false;
++            using var direct=Capture();
++            surface.Cached=true;
++            using var cached=Capture();
++            long diff=0;
++            for(int y=0;y<surface.Height;y++)for(int x=0;x<surface.Width;x++)
++            {
++                if(direct.GetPixel(x,y).ToArgb()!=cached.GetPixel(x,y).ToArgb())diff++;
++                compared++;
++            }
++            if(diff!=0)throw new InvalidOperationException($"OpaqueTextCachePixelMismatch:{background}:{clipped}:{diff}");
++        }
++        CheckLifetime(surface.DeviceDpi);
++        Console.WriteLine($"PASS opaque text cache: cases=6; differing=0; pixels={compared}; dpi={surface.DeviceDpi}; lifetime=true");
++        form.Close();
++
++        Bitmap Capture()
++        {
++            var bitmap=new Bitmap(surface.Width,surface.Height);
++            bitmap.SetResolution(surface.DeviceDpi,surface.DeviceDpi);
++            surface.DrawToBitmap(bitmap,surface.ClientRectangle);
++            return bitmap;
++        }
++    }
++    private static void CheckLifetime(int dpi)
++    {
++        using var frame=new NativeResizeFrame(new Size(80,48),dpi);
++        bool threw=false;
++        try
++        {
++            frame.RenderOpaque(g=>
++            {
++                g.SetClip(new Rectangle(4,4,9,9));g.TranslateTransform(11,13);
++                throw new InvalidOperationException("SyntheticPaintFailure");
++            });
++        }
++        catch(InvalidOperationException e)when(e.Message=="SyntheticPaintFailure"){threw=true;}
++        if(!threw)throw new InvalidOperationException("OpaquePaintFailureLost");
++        frame.RenderOpaque(g=>g.Clear(Color.Coral));
++        for(int y=0;y<48;y++)for(int x=0;x<80;x++)
++            if(frame.Bitmap.GetPixel(x,y).ToArgb()!=Color.Coral.ToArgb())
++                throw new InvalidOperationException("OpaqueStateOrAlphaNotRestored");
++        bool wrongThread=Task.Run(()=>
++        {
++            try{frame.RenderOpaque(_=>{});return false;}
++            catch(InvalidOperationException e)when(e.Message=="NativeFrameThread"){return true;}
++        }).GetAwaiter().GetResult();
++        if(!wrongThread)throw new InvalidOperationException("OpaqueThreadOwnershipLost");
++        frame.Dispose();
++        try{frame.RenderOpaque(_=>{});}
++        catch(ObjectDisposedException){return;}
++        throw new InvalidOperationException("OpaqueDisposedFrameAccepted");
++    }
++    private sealed class Surface : Control
++    {
++        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
++        internal bool Cached {get;set;}
++        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
++        internal int BackgroundCase {get;set;}
++        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
++        internal bool Clipped {get;set;}
++        protected override void OnPaint(PaintEventArgs e)
++        {
++            if(!Cached) Draw(e.Graphics);
++            else
++            {
++                using var surface=PixelSurface.Create(ClientSize,DeviceDpi,null,gdiText:true)
++                    ?? throw new InvalidOperationException("OpaqueTextCacheUnavailable");
++                surface.RenderOpaque(Draw);
++                e.Graphics.DrawImageUnscaled(surface.Bitmap,0,0);
++            }
++        }
++        private void Draw(Graphics graphics)
++        {
++            graphics.Clear(BackgroundCase==1?Color.FromArgb(73,54,51):Theme.Background);
++            if(BackgroundCase!=1)
++            {
++                using var brush=new LinearGradientBrush(ClientRectangle,
++                    BackgroundCase==0?Color.PeachPuff:Color.LightSteelBlue,Color.White,30f);
++                graphics.FillRectangle(brush,ClientRectangle);
++                if(BackgroundCase==2)
++                {
++                    using var tint=new SolidBrush(Color.FromArgb(70,Color.Salmon));
++                    graphics.FillRectangle(tint,new Rectangle(33,0,103,Height));
++                }
++            }
++            var state=graphics.Save();
++            try
++            {
++                if(Clipped)
++                {
++                    using var clip=new Region(new Rectangle(28,16,241,84));
++                    clip.Exclude(new Rectangle(71,23,12,16));
++                    graphics.SetClip(clip,CombineMode.Intersect);
++                }
++                using var font=Theme.Font(11,FontStyle.Bold);
++                using var size=Theme.Font(9.5f);
++                var text=BackgroundCase==1?Color.WhiteSmoke:Theme.Text;
++                Theme.TextAt(graphics,"合成 sample-000",font,text,new Rectangle(20,20,500,40),TextFormatFlags.SingleLine|TextFormatFlags.PreserveGraphicsClipping);
++                Theme.TextAt(graphics,"3.52 KB",size,text,new Rectangle(20,70,500,40),TextFormatFlags.SingleLine|TextFormatFlags.PreserveGraphicsClipping);
++            }
++            finally{graphics.Restore(state);}
++        }
++    }
++}
+diff --git a/tests/VisualSurfaceRegression.cs b/tests/VisualSurfaceRegression.cs
+--- a/tests/VisualSurfaceRegression.cs
++++ b/tests/VisualSurfaceRegression.cs
+@@ -106,7 +106,10 @@
+                 Check(last.Height > 0 && last.Bottom + 8 < grid.ClientSize.Height, "GridBlankRegionAvailable");
+                 using var pixels = Draw(grid);
+                 using var expected = new Bitmap(grid.Width, grid.Height);
+-                using (var graphics = Graphics.FromImage(expected)) Wallpaper.Paint(grid, graphics, surface: WallpaperSurface.Data);
++                // The independent reference is a GDI+ image, not a window DC.
++                // Native copies into its keyed GetHdc surface cannot establish
++                // source alpha; compare the real grid with source-over paint.
++                using (var graphics = Graphics.FromImage(expected)) Wallpaper.Paint(grid, graphics, surface: WallpaperSurface.Data, nativeCopy: false);
+                 int emptyY = (last.Bottom + grid.ClientSize.Height - 8) / 2;
+                 foreach (int x in new[] { grid.ClientSize.Width / 4, grid.ClientSize.Width * 3 / 4 })
+                 {
+@@ -150,8 +153,8 @@
+                     using var expected = new Bitmap(parent.Width, parent.Height);
+                     using (var graphics = Graphics.FromImage(expected))
+                     {
+-                        if (parent is WallpaperTable table) Wallpaper.Paint(parent, graphics, table.Wash, table.Surface);
+-                        else Wallpaper.Paint(parent, graphics);
++                        if (parent is WallpaperTable table) Wallpaper.Paint(parent, graphics, table.Wash, table.Surface, nativeCopy: false);
++                        else Wallpaper.Paint(parent, graphics, nativeCopy: false);
+                     }
+                     var corner = actual.GetPixel(module.Left, module.Top);
+                     var expectedCorner = expected.GetPixel(module.Left, module.Top);
+@@ -184,7 +187,7 @@
+                 {
+                     using var finalSurface = new Bitmap(chrome.Width, chrome.Height);
+                     using (var graphics = Graphics.FromImage(finalSurface))
+-                        Wallpaper.Paint(chrome, graphics, chrome.Wash, chrome.Surface);
++                        Wallpaper.Paint(chrome, graphics, chrome.Wash, chrome.Surface, nativeCopy: false);
+                     double captionMinimum = double.MaxValue, bodyMinimum = double.MaxValue;
+                     for (int y = 0; y < finalSurface.Height; y += Math.Max(1, finalSurface.Height / 7))
+                     for (int x = 0; x < finalSurface.Width; x += Math.Max(1, finalSurface.Width / 9))
+diff --git a/docs/project-status.md b/docs/project-status.md
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,4 +1,12 @@
+ # AsukaLens 项目现状
++
++## 最新：C52文字缓存修正，完整UI回归恢复通过（2026-11-20）
++
++按用户选定范围，保持布局、背景、字号和动效，先修缓存与直接文字绘制的差异。最小对照发现`Graphics.FromImage.GetHdc`提供的是临时占位底色，TextRenderer的字边抗锯齿因此与直接绘制不同。Treemap不透明静态层改用选择了实际DIB底图的持久DC绘制文字，发布前封好alpha；文字缓存继续保留，额外工作区最多4KiB且计入窗口预算。普通入口仍保留原发布路径，未默认启用DIB候选。
++
++普通/DIB两条路径在144/96DPI的完整`--ui-regression`四组通过，不再以功能子集代替。六种底色/裁切组合各882,000像素逐RGBA零差异，失败后复用、线程与释放边界通过；原Treemap比较从13,452降至1,000/700,000，残余仅最顶部一行，原1%阈值不改。DIB核心608、两档集成各26及柔光各99通过。额外表面检查的参考图曾错误向GDI+离屏HDC原生复制；修正独立参考为source-over绘制，实际Grid和像素阈值未改，失败证据保留。
++
++独立C52候选已打开，自建52文件真实扫描约8.97MiB，空间分布选中/柔光、大文件双行列表及滚动已实际观察。用户反馈“正常，保留C52候选”，据此保留，不设默认。C51和普通输出未覆盖。表面普通/DIB两档各688/658项通过，详见[C52](../iterations/2026-11-20-52-text-cache/README.md)。剩余缩放早期黑点、长尾、恢复瞬态和跨屏未由本轮解决；不自动进入下一阶段或发布。历史C51完整UI失败是当时事实，由本次结果更新当前状态。
+ 
+ ## 最新：C51正常功能DIB候选用户确认改善明显（2026-11-20）
+ 
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,4 +1,10 @@
+ # 后续开发计划
++
++## 最新：C52先修文字缓存与完整回归（2026-11-20）
++
++用户已选择本轮先修文字缓存，保持布局、背景、字号和动效。实际底图DC的文字缓存修正已实现，普通/DIB两档完整UI四组恢复通过；不放宽原阈值、不移除缓存。必要表面对照与实际候选展示已完成，用户反馈“正常，保留C52候选”；保留本版，不顺带继续缩放调优或设为默认。证据见[C52](../iterations/2026-11-20-52-text-cache/README.md)。
++
++下一候选范围仍是剩余缩放呈现与长尾的针对性排查，需结合用户对C52的反馈决定；本轮不宣称NcPaintEntering黑点、最小化恢复或跨屏问题解决。继承暂存/未提交代码的可构建提交边界仍单列待处理，不能混提历史改动。
+ 
+ ## 最新：C51完整功能候选用户确认改善明显（2026-11-20）
+ 
+diff --git a/docs/ui-rendering-defects-handoff.md b/docs/ui-rendering-defects-handoff.md
+--- a/docs/ui-rendering-defects-handoff.md
++++ b/docs/ui-rendering-defects-handoff.md
+@@ -1,4 +1,12 @@
+ # 主界面绘制缺陷交接
++
++## C52文字缓存根因与修正（2026-11-20）
++
++本轮按用户选择先关闭缓存/直接文字差异，未继续调缩放参数。合成最小窗口中，直接DC读到真实底色，而`Graphics.FromImage.GetHdc`读到占位COLORREF；字体质量/像素格式变体未消除差异，alpha原本一致。用选择实际DIB的持久DC完成不透明静态层，并在GDI文字完成后保留RGB、封alpha，六种底色/裁切组合在144/96DPI均逐RGBA零差异。
++
++原700,000像素比较从13,452差异降为1,000，剩余只在y=0的一条整宽边缘；原阈值保持。普通/DIB四组完整UI通过；DIB核心608、集成各26及沿边柔光各99通过。额外表面检查出现的离屏参考图原生复制问题仅修正参考绘制方式，实际列表绘制和断言不改，保留首次失败日志。详见[C52](../iterations/2026-11-20-52-text-cache/README.md)。
++
++普通输出与C51候选不覆盖。C52已实际展示，用户反馈“正常，保留C52候选”，保留本版、不设默认；此前缩放进入阶段黑点、长尾与恢复瞬态仍开放，文字对照通过不能关闭它们。
+ 
+ ## C51真实主窗DIB接入，局部改善与剩余问题（2026-11-20）
+ 
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,4 +1,14 @@
+ # AsukaLens 开发检查点
++
++## 最新：2026-11-20 C52文字缓存与完整UI回归通过
++
++用户选择先修文字缓存和完整回归，保留布局/背景/字号/动效。最小控件证明Graphics.FromImage.GetHdc读到占位底色，TextRenderer与直接DC的真实背景不同；字体质量/格式变体不解决，alpha原本无差异。NativeResizeFrame.RenderOpaque在实际DIB持久源DC绘制不透明缓存并封alpha，PixelSurface额外计最多4KiB工作区，128MiB总限额不变；普通发布仍旧路径，不默认启用DIB。
++
++普通/DIB各144/96DPI四组完整UI通过；新增6种底色/裁切各882000 RGBA零差异，失败后恢复/线程/释放通过。原700000像素差异从13452降1000，仅y=0整行，原1%阈值不改。DIB608项/6513984像素、集成各26/合计1698575像素、柔光各99通过；表面四组688/658通过。首次表面失败是独立离屏参考错误请求Native复制，参考改source-over后原断言通过；实际Grid不改，失败日志保留。
++
++C52完整候选 artifacts/dib-mainform-C52/app/AsukaLens.DibCandidate.exe 已打开；自建52文件实际扫描约8.97MiB，空间分布选中/柔光、大文件双行及滚动已观察，用户反馈“正常，保留C52候选”，保留本版、不设默认。首次脚本漏建隔离目录导致Argument错误，补建后正常；锁屏期间停止输入，用户解锁后才继续。普通bin哈希8690F5F5A1CC9160A698CAA0E355966D87B9ED1F5E1C27659AD6DD5B865886B1与C51候选哈希72F1180FA6FF1DB7DAEAC7253E75F91ECE14D7945EF5EAFBFD5A8D864B3B81FA不变。
++
++记录 iterations/2026-11-20-52-text-cache/README.md，保存前像/关键文件/本轮补丁及验证摘要；原始自有图与日志仅ignored artifacts。未录屏、改系统/OBS、访问个人卷或raw/VSS。未继续缩放调优：早期黑点/长尾/恢复瞬态/跨屏仍开放。Git仍9ac1f0b，继承暂存和C31–C51工作区不混提，未提交/推送/发布。下一步由用户候选反馈决定，不自动开启第二阶段。
+ 
+ ## 最新：2026-11-20 C51完整功能DIB候选用户确认改善明显
+ 
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,13 +1,15 @@
+ # 影响后续开发的决定
++
++- 2026-11-20：用户选择C52先修文字缓存、恢复完整UI，暂缓继续缩放调优。真实DC底图文字缓存解决抗锯齿差异，保留缓存/字号/动效及原阈值；普通/DIB两档完整UI通过。候选已展示，用户反馈“正常，保留C52候选”，保留本版、不设默认。最早闪黑与长尾不由文字修正关闭；额外表面参考图错误独立保留失败证据。见 iterations/2026-11-20-52-text-cache/README.md。
+ 
+ - 2026-11-20：用户明确批准C50接入正常功能候选并合并缩放排查；C51已接入真实背景/图表/列表，保留离屏GDI+透明合成与严格DIB发布，统一128MiB像素预算；客户DC标志与暴露区补绘修正。真实候选已打开，用户反馈“改善明显，保留候选”；保留本版，不设默认。更早黑点、长尾及继承UI缓存比较失败保留，不把零差异表面对照扩大为完整视觉验收。证据 iterations/2026-11-20-51-dib-mainform/README.md。
+ 
+ - 2026-11-19：按用户最新范围实施C50两项定点修复；采用显式视口合同、打印与根呈现隔离、布局结束前补旧子窗口暴露区，保留早期DIB发布。四组旧回退与残留已修复，但NcPaintEntering仍有黑点，不关闭所有闪黑。已展示独立候选，用户反馈“改善比较明显”；保留候选且不设默认，正常功能接入未完成。证据 iterations/2026-11-19-50-native-mapping-repair/README.md。
+ 
+-- 2026-11-19：用户已同意DIB接入方案，但当前轮只指定第一步定位、30分钟预算。C49证明Combo的WM_PRINTCLIENT负视口映射和旧Grid移走暴露像素是两独立问题；保留零原点守卫和现有绘制，不用原因查清代替修复通过。后续按明确目标映射/呈现用途及布局后暴露区补绘推进；默认启用仍须用户实际反馈。证据 iterations/2026-11-19-49-mapping-audit/README.md。
+-
+-- 2026-11-15：C48显式DIB候选实际体验后用户确认“明显改善，先保留这版候选”。保留候选，不等于批准正常版集成或关闭闪黑；发布路径局部收益与新尺寸准备／原生All回退和6点差异分别记录。最终生命周期保护版重开，两档检查完成；接入须另给具体方案。证据 iterations/2026-11-15-48-native-frame/README.md。
+-
++- 2026-11-19：用户已同意DIB接入方案，但当前轮只指定第一步定位、30分钟预算。C49证明Combo的WM_PRINTCLIENT负视口映射和旧Grid移走暴露像素是两独立问题；保留零原点守卫和现有绘制，不用原因查清代替修复通过。后续按明确目标映射/呈现用途及布局后暴露区补绘推进；默认启用仍须用户实际反馈。证据 iterations/2026-11-19-49-mapping-audit/README.md。
++
++- 2026-11-15：C48显式DIB候选实际体验后用户确认“明显改善，先保留这版候选”。保留候选，不等于批准正常版集成或关闭闪黑；发布路径局部收益与新尺寸准备／原生All回退和6点差异分别记录。最终生命周期保护版重开，两档检查完成；接入须另给具体方案。证据 iterations/2026-11-15-48-native-frame/README.md。
++
+ - 2026-11-15：C46修复方案获用户确认后实施C47独立/受限候选；用户反馈“比之前好点，问题还在”，C47真实复审仍未通过。保留GDI局部收益，但不以0黑点关闭缺陷、不接入普通版、不自动迁移。预备完整帧成本单列，原生All6早期点不匹配待查，见 iterations/2026-11-15-47-native-coverage-candidate/README.md。
+ - 2026-11-15：用户要求先定位黑区表面和绘制阶段，再给针对性方案；外部助手A快速缩放失败与用户持续可见反馈均有效，不再询问是否肉眼看到。C46只添加默认关闭的测试诊断，主窗新暴露根客户区铺底空档及透明SplitterPanel重复擦背景已有证据；修复待用户确认，保持布局和背景，不录屏/改系统或直接迁移。方案 docs/ui-resize-root-cause-and-fix-plan.md，证据 iterations/2026-11-15-46-resize-root-cause/README.md。
+ 
+@@ -24,9 +26,9 @@
+ - 2026-11-12：磁盘活动面板布局经用户确认，首版每秒采样、60秒仅内存、整块物理盘口径；不代表本软件专属I/O。其他系统/设备边界见 docs/disk-activity.md。
+ - 2026-11-12：用户要求维护项目记忆Skill。选择70%/85%检查点，为压缩与交接留余量；百分比不可观测时按20次工具调用或30分钟回退，并在阶段/关键决定落盘。不能承诺仅靠Skill精确监听平台token阈值。
+ 
+-本页项目路径均相对仓库根目录；按需打开对应事实文件，不默认加载全部历史。新增决定只记影响取舍的原因与证据，已有长期规则回链AGENTS.md，不复制正文。
++本页项目路径均相对仓库根目录；按需打开对应事实文件，不默认加载全部历史。新增决定只记影响取舍的原因与证据，已有长期规则回链AGENTS.md，不复制正文。
+ 
+-- 2026-11-12：固定21对象/63请求已稳定重现27次严格USA失败；保留最终6条原始失败正文仅本机供后续研究。以collected与all_decoded区分收集和解码，重放匹配不等于修复。理由是此前缺少原始字节无法可靠研究；继续严格拒绝，下一步依据可重放证据另提读取策略。依据 iterations/2026-11-12-13-kernel-matrix/README.md。
++- 2026-11-12：固定21对象/63请求已稳定重现27次严格USA失败；保留最终6条原始失败正文仅本机供后续研究。以collected与all_decoded区分收集和解码，重放匹配不等于修复。理由是此前缺少原始字节无法可靠研究；继续严格拒绝，下一步依据可重放证据另提读取策略。依据 iterations/2026-11-12-13-kernel-matrix/README.md。
+ 
+ - 2026-11-12：不放宽复杂USA失败，改为在自有静态VHD内成功锁卷后经同一只读句柄读取严格原始记录。三次22条/21对象对照通过，证明受限替代来源可用，不能解释内核缓存根因或推广到个人活跃卷；旧6条kernel样本不扩容。随后用户确认先做无I/O的读取会话契约，避免在来源一致性未明确时直接扩展整卷吞吐。依据 iterations/2026-11-12-14-raw-records/README.md 与 docs/ntfs-read-session-plan.md。
+ 
+@@ -34,44 +36,44 @@
+ 
+ - 2026-11-12：真实来源先选自有固定VHD的短生命周期owner，准备阶段也先守卫真实归属/无父链，读者不可凭caller bool/裸句柄/旧token复用map。固定Native后验与Dispose分开，关闭期间取消必须复查；VSS只读研究不当现成来源。理由是先建立可核查真实绑定，再扩大批量范围；第16轮仍22目标，扩大4096槽另需确认。依据 iterations/2026-11-12-16-fixture-source/README.md 与 docs/ntfs-fixture-source-plan.md。
+ 
+-- 2026-11-12：用户另行批准本窗口内读取新建测试VHD的MFT有效范围；独立mft-range与固定4096槽/4MiB+bootstrap/256次预算，不扩大旧22目标模式。第17轮256真实槽读完而183 invalid、6 unsupported仍如实保留，范围完成不等于格式支持或完整占用；原因是先建立可核验的批量覆盖与失败语义，避免把未知数据当零来制造速度。下一步先做受控分类原因诊断，再决定格式/建树/性能范围，不放松严格decoder。依据 iterations/2026-11-12-17-bounded-mft/README.md 与 docs/ntfs-bounded-mft-plan.md。
++- 2026-11-12：用户另行批准本窗口内读取新建测试VHD的MFT有效范围；独立mft-range与固定4096槽/4MiB+bootstrap/256次预算，不扩大旧22目标模式。第17轮256真实槽读完而183 invalid、6 unsupported仍如实保留，范围完成不等于格式支持或完整占用；原因是先建立可核验的批量覆盖与失败语义，避免把未知数据当零来制造速度。下一步先做受控分类原因诊断，再决定格式/建树/性能范围，不放松严格decoder。依据 iterations/2026-11-12-17-bounded-mft/README.md 与 docs/ntfs-bounded-mft-plan.md。
+ 
+-- 2026-11-12：第18轮只加固定聚合原因诊断，保持严格decoder/分类/预算。真实183 Invalid分解为182全零Signature与1 SparseMappingFlags，6 Unsupported为RecordFlags；不凭全零改成Free，也不凭错误码宣布损坏。理由是字节形态与记录分配是两种证据，下一步先设计纯合成位图模型，真实来源后续单独验证。依据 iterations/2026-11-12-18-mft-classification/README.md 与 docs/ntfs-classification-diagnostics-plan.md。
++- 2026-11-12：第18轮只加固定聚合原因诊断，保持严格decoder/分类/预算。真实183 Invalid分解为182全零Signature与1 SparseMappingFlags，6 Unsupported为RecordFlags；不凭全零改成Free，也不凭错误码宣布损坏。理由是字节形态与记录分配是两种证据，下一步先设计纯合成位图模型，真实来源后续单独验证。依据 iterations/2026-11-12-18-mft-classification/README.md 与 docs/ntfs-classification-diagnostics-plan.md。
+ 
+-- 2026-11-12：第19轮先实现无I/O位图模型，位图三态声明与四类decode交叉统计，不将全零推断成Free。模拟对象绑定只比引用，所有结果Synthetic，不自动提升为真实位图验证。Count/Memory/indexer视作不可信输入边界，即便外部伪装受控异常也统一净化；理由是异常类型不能证明来源。真实BITMAP解析/同来源读取/后验仍需另行方案。依据 iterations/2026-11-12-19-bitmap-model/README.md 与 docs/ntfs-bitmap-model-plan.md。
++- 2026-11-12：第19轮先实现无I/O位图模型，位图三态声明与四类decode交叉统计，不将全零推断成Free。模拟对象绑定只比引用，所有结果Synthetic，不自动提升为真实位图验证。Count/Memory/indexer视作不可信输入边界，即便外部伪装受控异常也统一净化；理由是异常类型不能证明来源。真实BITMAP解析/同来源读取/后验仍需另行方案。依据 iterations/2026-11-12-19-bitmap-model/README.md 与 docs/ntfs-bitmap-model-plan.md。
+ 
+-- 2026-11-12：第20轮仅在严格Map/USA后的私有record0提取普通驻留BITMAP，非驻留只Deferred元数据、无读取地址。ResidentComplete仅指字节容量，不证明bit值/位序/来源/分配；不把Synthetic定位器改标签提升为Native。下一轮先观察同owner真实bootstrap的属性形态，再决定非驻留映射/预算；实际Deferred就停，不为通过临时扩读。理由是当前合成布局未证明实际卷形式，来源真实与解释正确需要分别验收。依据 iterations/2026-11-12-20-bitmap-attribute/README.md、docs/ntfs-bitmap-attribute-plan.md、docs/ntfs-bitmap-source-plan.md。
++- 2026-11-12：第20轮仅在严格Map/USA后的私有record0提取普通驻留BITMAP，非驻留只Deferred元数据、无读取地址。ResidentComplete仅指字节容量，不证明bit值/位序/来源/分配；不把Synthetic定位器改标签提升为Native。下一轮先观察同owner真实bootstrap的属性形态，再决定非驻留映射/预算；实际Deferred就停，不为通过临时扩读。理由是当前合成布局未证明实际卷形式，来源真实与解释正确需要分别验收。依据 iterations/2026-11-12-20-bitmap-attribute/README.md、docs/ntfs-bitmap-attribute-plan.md、docs/ntfs-bitmap-source-plan.md。
+ 
+ - 2026-11-12：用户明确要求提速、减少小轮，当前观察任务扩大并合并为自有VHD端到端NTFS流程，一个C22归档与提交。新增授权只含MFT4096槽/4195840字节/256次、位图512字节前缀及2自建释放文件，不含个人/活跃卷或发行。原位图文件超过512也只映射并读取必要前缀，不能扩大为整文件读取。理由是以可运行链路和统一验收交付，减少重复收尾，同时保留权限/数据边界。
+-- 2026-11-12：按微软记录头文档，sequence在segment释放时递增，witness限定旧seq1..65534并核同slot+1/bitmap0/strictFree，拒绝猜测wrap。实际21正例+2释放槽及目录两大小对照通过；14对象用Native补值，不把请求数或正确性当性能收益。依据 iterations/2026-11-12-22-ntfs-fast-scan/README.md、docs/ntfs-fixture-fast-scan-plan.md。
++- 2026-11-12：按微软记录头文档，sequence在segment释放时递增，witness限定旧seq1..65534并核同slot+1/bitmap0/strictFree，拒绝猜测wrap。实际21正例+2释放槽及目录两大小对照通过；14对象用Native补值，不把请求数或正确性当性能收益。依据 iterations/2026-11-12-22-ntfs-fast-scan/README.md、docs/ntfs-fixture-fast-scan-plan.md。
+ 
+ - 2026-11-12：C23合并扩容、端到端速度与自有VSS验证，旧profile不扩；10k/100k统计一致但MFT中位1.079/10.309s、目录0.913/9.149s，保留缓存波动，不为名义快扫直接产品化。驻留分配按Native实测，修正transport错误零假设；锁卷缓存混杂未独立量化，后续改同snapshot对照。依据archive23及docs/ntfs-scale-and-product-plan.md。
+ - 2026-11-12：真实VSS小探针已证同source Native/内容/raw可读，选择不带writer、自动释放单snapshot；仅按成功返回并绑定的owned GUID清理，未知async不确认，失败保留私有恢复标识/镜像，不枚举删除他人。此证明不覆盖个人namespace完整性。依据archive23/vss-native.json、NtfsVssFixtureProbe与PS完整envelope门。
+ - 2026-11-12：用户确定后续合并snapshot namespace/compact sizes/parallel Native及条件式主窗；完整目录入口作为scope authority，以避免strictDecoded缺失导致漏算，不按系统slot编号跳过。用户另允许指定个人卷metadata-only预检，具体值仅本机；没有个人snapshot/原始记录许可。理由是先保证完整范围和真实收益，再开放可选产品入口，不将测试完整性标签直接移给用户目录。
+ 
+-- 2026-11-13：用户恢复C25，先真实卷后主窗，不沿用旧15分钟/VHD/个人metadata-only授权。选择按selected bitmap页/高slot支持大MFT，以明确预算保护资源；通用VSS源和普通权限主窗通过同exe短时助手连接。清理事实先于结果发布，取消不fallback，未知清理本进程锁止；理由是避免部分快结果或残余source污染旧完整结果。快照结果不带live USN checkpoint，修改时间以对象SI为准以避硬链接目录缓存陈旧。MFT物理页可能含邻近记录/驻留内容片段，个人实测必须据准确边界确认，不再用“不读取正文”概括raw。实现及合成/IPC/控件通过不等真实卷/视觉验收；合同docs/ntfs-personal-scan.md，归档iterations/2026-11-13-25-personal-ntfs。
++- 2026-11-13：用户恢复C25，先真实卷后主窗，不沿用旧15分钟/VHD/个人metadata-only授权。选择按selected bitmap页/高slot支持大MFT，以明确预算保护资源；通用VSS源和普通权限主窗通过同exe短时助手连接。清理事实先于结果发布，取消不fallback，未知清理本进程锁止；理由是避免部分快结果或残余source污染旧完整结果。快照结果不带live USN checkpoint，修改时间以对象SI为准以避硬链接目录缓存陈旧。MFT物理页可能含邻近记录/驻留内容片段，个人实测必须据准确边界确认，不再用“不读取正文”概括raw。实现及合成/IPC/控件通过不等真实卷/视觉验收；合同docs/ntfs-personal-scan.md，归档iterations/2026-11-13-25-personal-ntfs。
+ 
+-- 2026-11-13：C26个人真实范围依次暴露旧规模、MFT属性列表及reparse边界；用户批准固定Large与显式partial策略。保留严格解析，支持受限扩展而不猜地址；只允许声明的重解析跳过形成部分结果，独立同snapshot核保留对象，Unknown/矛盾仍失败。理由是普通扫描同样不跟随链接，回退不能解决范围本来包含链接这一事实；用明确范围与可恢复旧完整树保证可用性。Wire v3有界描述和固定原因，详情截断保守标全部目录未读全。真实passed-partial/Namespace取消cleanup通过不等整个范围完整/性能/视觉/Win10通过。证据iterations/2026-11-13-26-personal-ntfs-compatibility，合同docs/ntfs-personal-scan.md。
+-
+-- 2026-11-13：C27 保留严格 COM 安全检查，进程入口 MTA 分派、桌面显式 STA，避免等待 STA 的 COM 初始化副作用。COM-only 6/6 机制对照与修后真实主窗快扫通过；旧生产 HRESULT 未取得，不宣称所有失败同因。计时测试独立无额外 Native 审计，仍含生产 Coordinator 发布校验且禁止自动回退混入样本；紧凑私有差异仅输出固定布尔类别。本次完整 FO 存在文件逻辑/占用差异和晚于快照的修改时间，不因耗时较短宣称提速；用户确定本轮收尾、下轮同快照逐项对照。理由是先排除活跃来源时点变化，再判断算法正确性，避免重复非同源扫描。证据 iterations/2026-11-13-27-personal-ntfs-ui-timing/。
++- 2026-11-13：C26个人真实范围依次暴露旧规模、MFT属性列表及reparse边界；用户批准固定Large与显式partial策略。保留严格解析，支持受限扩展而不猜地址；只允许声明的重解析跳过形成部分结果，独立同snapshot核保留对象，Unknown/矛盾仍失败。理由是普通扫描同样不跟随链接，回退不能解决范围本来包含链接这一事实；用明确范围与可恢复旧完整树保证可用性。Wire v3有界描述和固定原因，详情截断保守标全部目录未读全。真实passed-partial/Namespace取消cleanup通过不等整个范围完整/性能/视觉/Win10通过。证据iterations/2026-11-13-26-personal-ntfs-compatibility，合同docs/ntfs-personal-scan.md。
+ 
+-- 2026-11-13：C28 用同一自持VSS给原NTFS后端和原DiskScanner供源，保持原元信息分支独立，避免跨时点变化误判统计；测试专用有界遍历和固定字段私有摘要不改产品默认扫描。真实Matched且来源／预算／清理确认，两种大小与根汇总、排除集合一致，无需差异补查，因此关闭该核查项，不再重复扫描。C27旧差异不全部回溯归因，正确性不当作产品提速；之后按用户选择先改善主界面可读性。证据 iterations/2026-11-13-28-same-snapshot-comparison/，范围 docs/ntfs-same-snapshot-comparison-plan.md。首次仅UAC等待超时、未建来源，重启完成本轮唯一实际会话；许可不沿用未来。
++- 2026-11-13：C27 保留严格 COM 安全检查，进程入口 MTA 分派、桌面显式 STA，避免等待 STA 的 COM 初始化副作用。COM-only 6/6 机制对照与修后真实主窗快扫通过；旧生产 HRESULT 未取得，不宣称所有失败同因。计时测试独立无额外 Native 审计，仍含生产 Coordinator 发布校验且禁止自动回退混入样本；紧凑私有差异仅输出固定布尔类别。本次完整 FO 存在文件逻辑/占用差异和晚于快照的修改时间，不因耗时较短宣称提速；用户确定本轮收尾、下轮同快照逐项对照。理由是先排除活跃来源时点变化，再判断算法正确性，避免重复非同源扫描。证据 iterations/2026-11-13-27-personal-ntfs-ui-timing/。
+ 
+-- 2026-11-13：界面路线综合用户提供的优化提示词与三阶段观点，先视觉精修、再交互、后高级分析／个性化；按视觉／行为／可选能力归类，不机械映射P0/P1/P2。用户选择舒适大字留白、真实背景A/B、第二阶段图表定位优先。已有交互以改善为主，背景强度／密度／工作区后置，理由是先稳定默认体验和数据语义再增加选项。用户明确要求每阶段先审方案／预览后实施、完成后审效果再继续；路线可调整且不自动授权开发。规则AGENTS.md，具体判断docs/ui-design-roadmap.md。当前纯文档，未改界面、未制作效果或发布。
++- 2026-11-13：C28 用同一自持VSS给原NTFS后端和原DiskScanner供源，保持原元信息分支独立，避免跨时点变化误判统计；测试专用有界遍历和固定字段私有摘要不改产品默认扫描。真实Matched且来源／预算／清理确认，两种大小与根汇总、排除集合一致，无需差异补查，因此关闭该核查项，不再重复扫描。C27旧差异不全部回溯归因，正确性不当作产品提速；之后按用户选择先改善主界面可读性。证据 iterations/2026-11-13-28-same-snapshot-comparison/，范围 docs/ntfs-same-snapshot-comparison-plan.md。首次仅UAC等待超时、未建来源，重启完成本轮唯一实际会话；许可不沿用未来。
+ 
+-- 2026-11-13：C29用户明确启动第一阶段并限4小时，看真实A/B后选择B轻透氛围。保持布局，稳定数据／文字底板，舒适字号和控件状态；实际150%最小窗口暴露DPI行高／表头／列宽、单列AutoSize溢出与单位省略，选择修尺寸和数值适配以保证关键数据完整，不缩普通正文。图块数值单位不完整时整条隐藏而非省略误导，原Tooltip保留。理由是先统一默认设计规则并保护阅读和数据含义；高级配置后置。检查234各两档及UI／背景／监测通过，真实桌面另观察；阶段效果仍等用户审阅，不自动第二阶段。证据iterations/2026-11-13-29-visual-polish/，路线docs/ui-design-roadmap.md。
++- 2026-11-13：界面路线综合用户提供的优化提示词与三阶段观点，先视觉精修、再交互、后高级分析／个性化；按视觉／行为／可选能力归类，不机械映射P0/P1/P2。用户选择舒适大字留白、真实背景A/B、第二阶段图表定位优先。已有交互以改善为主，背景强度／密度／工作区后置，理由是先稳定默认体验和数据语义再增加选项。用户明确要求每阶段先审方案／预览后实施、完成后审效果再继续；路线可调整且不自动授权开发。规则AGENTS.md，具体判断docs/ui-design-roadmap.md。当前纯文档，未改界面、未制作效果或发布。
+ 
+-- 2026-11-13：C30根据用户复审继续第一阶段，不以C29技术回归通过代替观感接受。用户确认保留舒适字号/信息而压缩固定留白，底部单行摘要、常用展开大曲线与2×2；小窗口用112–180有界高度、较矮单排指标，纳入分页且不自动折叠或偷藏控件。理由是收起时把空间还给分析、展开时让监测有可读价值，同时保留原布局与采样语义。最小展开+分页只能部分行的限制如实保留，96卡片宽差通过外间距14→8解决，不缩普通字号。真实截图与458/50/77两档检查见iterations/2026-11-13-30-visual-proportions/；用户最终评价和第二阶段确认仍待完成。
+-
+-## 2026-11-13：按背景明显与完整沿边柔光重做第一阶段
+-
+-用户实际查看新交互方案后明确授权原生实施，选择NTFS开关在扫描设置行；真实效果后再决定阶段收尾。背景明显为前提，采用单层局部承载与深色文字；外轮廓和内部底色统一圆角，辅助按钮保留浅底，不能用厚白板/ghost文字或半边框替代。图块选中从顶部短标记改为沿固定完整圆角路径的持续柔光；几何不弹、只有亮峰移动，减弱与隐藏/最小化等边界必须停表。原因与已测范围见docs/ui-clear-background-preview-plan.md；此决定不批准第二阶段、个人卷操作、归档提交或Release。
+-
+-- 2026-11-14：用户要求柔光与最初沿边预览一致，明确选中及悬停均持续流动；三层奶油底线、24%细光带与29%暖晕保持共用圆角，单计时源最多两轮廓，8DIP正文严格不改色。体验后再把周期从2.8秒改为2800/1.15毫秒（约2.435秒），只改变速度，不改光带样式。原因是用户觉得原流速偏慢；该调速不等于接受第一阶段收尾，黑块仍按用户决定暂缓。证据见 iterations/2026-11-14-31-rendering-checks/README.md。
+-
+-- 2026-11-14：C32列表滚动再次暴露“最终画面正确”不足以证明交互无割裂。用户选择保留背景，采用有上限的固定底图和内容独立绘制，局部同步完成滚动，保留原生键盘/选择/UIA；不以厚实底板遮背景。真实名称脏区反例先失败再修复，旧VirtualMode专项不代表名称路径已测。短事务隐藏时不强行恢复WS_VISIBLE，显式显示再释放hold；父窗最小化则不等待子VisibleChanged。原因是既要避免背景像素随行搬移，又不能引入冻结或擅自显示。自动/真实窗口操作通过后，用户确认“这次滚动正常了”，本项验收关闭，黑块继续暂缓；证据见 iterations/2026-11-14-32-list-scroll/README.md。
+-
+-- 2026-11-14：C33五项细节按用户要求保留背景和原生交互，只接管滚动条外观并用固定底图呈现透明；补两条交点灰块。模块边框用共心内裁切保护，避免子画布盖掉笔画，嵌套更新和移除均恢复正确区域。路径/搜索统一暖白，放弃按位置采均色造成的粉色块；焦点只框线。正常大文件范围说明迁移到现有标题/提示，使三工作区分析区固定，异常范围仍明示；未知进度仅图标暖晕，不以短条暗示百分比。理由是统一层次、消除布局位移和机制样式，不遮背景或替换原生输入。双DPI与实景预览已检查，仍待用户观感；黑块继续暂缓，1.15x柔光不变。证据iterations/2026-11-14-33-ui-details/README.md。
++- 2026-11-13：C29用户明确启动第一阶段并限4小时，看真实A/B后选择B轻透氛围。保持布局，稳定数据／文字底板，舒适字号和控件状态；实际150%最小窗口暴露DPI行高／表头／列宽、单列AutoSize溢出与单位省略，选择修尺寸和数值适配以保证关键数据完整，不缩普通正文。图块数值单位不完整时整条隐藏而非省略误导，原Tooltip保留。理由是先统一默认设计规则并保护阅读和数据含义；高级配置后置。检查234各两档及UI／背景／监测通过，真实桌面另观察；阶段效果仍等用户审阅，不自动第二阶段。证据iterations/2026-11-13-29-visual-polish/，路线docs/ui-design-roadmap.md。
++
++- 2026-11-13：C30根据用户复审继续第一阶段，不以C29技术回归通过代替观感接受。用户确认保留舒适字号/信息而压缩固定留白，底部单行摘要、常用展开大曲线与2×2；小窗口用112–180有界高度、较矮单排指标，纳入分页且不自动折叠或偷藏控件。理由是收起时把空间还给分析、展开时让监测有可读价值，同时保留原布局与采样语义。最小展开+分页只能部分行的限制如实保留，96卡片宽差通过外间距14→8解决，不缩普通字号。真实截图与458/50/77两档检查见iterations/2026-11-13-30-visual-proportions/；用户最终评价和第二阶段确认仍待完成。
++
++## 2026-11-13：按背景明显与完整沿边柔光重做第一阶段
++
++用户实际查看新交互方案后明确授权原生实施，选择NTFS开关在扫描设置行；真实效果后再决定阶段收尾。背景明显为前提，采用单层局部承载与深色文字；外轮廓和内部底色统一圆角，辅助按钮保留浅底，不能用厚白板/ghost文字或半边框替代。图块选中从顶部短标记改为沿固定完整圆角路径的持续柔光；几何不弹、只有亮峰移动，减弱与隐藏/最小化等边界必须停表。原因与已测范围见docs/ui-clear-background-preview-plan.md；此决定不批准第二阶段、个人卷操作、归档提交或Release。
++
++- 2026-11-14：用户要求柔光与最初沿边预览一致，明确选中及悬停均持续流动；三层奶油底线、24%细光带与29%暖晕保持共用圆角，单计时源最多两轮廓，8DIP正文严格不改色。体验后再把周期从2.8秒改为2800/1.15毫秒（约2.435秒），只改变速度，不改光带样式。原因是用户觉得原流速偏慢；该调速不等于接受第一阶段收尾，黑块仍按用户决定暂缓。证据见 iterations/2026-11-14-31-rendering-checks/README.md。
++
++- 2026-11-14：C32列表滚动再次暴露“最终画面正确”不足以证明交互无割裂。用户选择保留背景，采用有上限的固定底图和内容独立绘制，局部同步完成滚动，保留原生键盘/选择/UIA；不以厚实底板遮背景。真实名称脏区反例先失败再修复，旧VirtualMode专项不代表名称路径已测。短事务隐藏时不强行恢复WS_VISIBLE，显式显示再释放hold；父窗最小化则不等待子VisibleChanged。原因是既要避免背景像素随行搬移，又不能引入冻结或擅自显示。自动/真实窗口操作通过后，用户确认“这次滚动正常了”，本项验收关闭，黑块继续暂缓；证据见 iterations/2026-11-14-32-list-scroll/README.md。
++
++- 2026-11-14：C33五项细节按用户要求保留背景和原生交互，只接管滚动条外观并用固定底图呈现透明；补两条交点灰块。模块边框用共心内裁切保护，避免子画布盖掉笔画，嵌套更新和移除均恢复正确区域。路径/搜索统一暖白，放弃按位置采均色造成的粉色块；焦点只框线。正常大文件范围说明迁移到现有标题/提示，使三工作区分析区固定，异常范围仍明示；未知进度仅图标暖晕，不以短条暗示百分比。理由是统一层次、消除布局位移和机制样式，不遮背景或替换原生输入。双DPI与实景预览已检查，仍待用户观感；黑块继续暂缓，1.15x柔光不变。证据iterations/2026-11-14-33-ui-details/README.md。
+ 
+ - 2026-11-14：新的外观评审先核实现有能力，再按用户选择准备大文件名称/图块密度/卡片比例两版设计预览，未授权原生实施。因用户已确认明显背景、精简说明、持续沿边柔光和具体入口位置，不按外部P0标签全套覆盖；优先单行文件名与双行路径对照、面积聚合及缩卡高。多尺寸图标/主题滚动条/完整路径提示/定位禁用已有，不当作新缺口；跨DPI与图块无障碍需分开验证。详情docs/ui-readability-preview-plan.md；真实程序验收与第一阶段整体接受仍待用户意见。
+ - 2026-11-14：用户否定首版预览观感，要求两张与软件相同比例的静态图。原因是窄高HTML容器的cover裁切使人物被放大；后续外观候选必须用软件常用外框/客户端、侧栏、分栏和统一背景锚点比较，不用流式重排后的比例代替原生布局。已生成两张1440×940合成设计图待评价，未批准原生实施；详情docs/ui-readability-preview-plan.md。
+@@ -80,7 +82,7 @@
+ - 2026-11-14：用户体验延迟提示后明确取消全部鼠标悬停文字，保留柔光、点击详情与完整路径；重要的NTFS权限/快照/原始页说明改为主动开启时确认。拒绝/失败保持关闭、再次开启重新询问，同意选项不启动扫描。理由是即使缩短和延迟提示仍会挡视野；C35成为历史候选。依据docs/ui-quiet-hints-plan.md，第一阶段仍须实景反馈，不自动收尾。
+ 
+ - 2026-11-14：用户批准保留布局处理标题残影。仅排队候选虽自动通过，真实点击仍有瞬态，故改明确注册子树的同步局部布局持有/最终呈现，保持原背景和动态行高；自动消息测试不冒充屏幕无残影。连续鼠标缩放和交互响应须用户复审，恢复黑块仍单独延期。依据docs/ui-layout-transition-repair-plan.md与iterations/2026-11-14-37-layout-transitions/README.md。
+-- 2026-11-14：C37复审失败后，用户明确“不想要说明”，决定删除图表/列表上方自动范围说明框，不迁往底部或设置行。理由是动态说明既占视野又推挤分析区；主布局取消该行，范围事实只留既有主动详情和可访问描述，必要阶段/百分比/旧结果与不完整短状态仍保留。该决定不取消主动开启NTFS快扫时的权限说明与确认。C38真实合成目录预览后用户回复“可以了”，仅关闭删除说明框这一项；连续缩放半截标题/背景割裂/黑边及最小化恢复黑块仍分别待修，不当作阶段整体接受。证据iterations/2026-11-14-38-remove-explanation/README.md。
++- 2026-11-14：C37复审失败后，用户明确“不想要说明”，决定删除图表/列表上方自动范围说明框，不迁往底部或设置行。理由是动态说明既占视野又推挤分析区；主布局取消该行，范围事实只留既有主动详情和可访问描述，必要阶段/百分比/旧结果与不完整短状态仍保留。该决定不取消主动开启NTFS快扫时的权限说明与确认。C38真实合成目录预览后用户回复“可以了”，仅关闭删除说明框这一项；连续缩放半截标题/背景割裂/黑边及最小化恢复黑块仍分别待修，不当作阶段整体接受。证据iterations/2026-11-14-38-remove-explanation/README.md。
+ 
+ ## 2026-11-14：直接绘制也遵守祖先重绘归属
+ 

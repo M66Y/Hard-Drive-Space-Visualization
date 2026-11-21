@@ -1,0 +1,119 @@
+diff --git a/docs/project-status.md b/docs/project-status.md
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,6 +1,10 @@
+ # AsukaLens 项目现状
+ 
+ ## 进行中：C53缩放根背景合成与卡顿排查（2026-11-20）
++
++解锁后实际检查已发现**还原残留**：最大化画面完整，返回常用窗口后“减弱动效”的背景出现矩形底图错位，等待后仍在；C53视觉验收尚未通过。正在核查透明原生控件移动后的像素保留/背景失效，不提前认定根因，不通过强制刷新掩盖。见[实际复审](../iterations/2026-11-20-53-resize-pipeline/visual-review.md)。下方“锁屏待复审”是首次冻结时的状态，由本段更新。
++
++大文件双行列表滚动、空间分布切换、图块选择/详情联动和柔光已实际观察正常；矩形残留在工作区切换后仍保留。已给用户反馈及[局部对照建议](ui-restore-background-plan.md)，等待选择先修该处还是先自行体验；尚未更改生产代码，不设默认。
+ 
+ 用户已批准合并定位、针对性修正和回归，保持布局、背景、字号、动效，不录屏/改系统，不设默认。默认关闭的有界内存探针排除壁纸尺寸反复重建；11次尺寸变化只重建11次，实际热点是44次根窗口半透明补画。根背景与原遮罩在匹配尺寸的DIB预合成一次，相同Ambient表面只在完整缓存键匹配时复用，仍按目标原生裁切发布，预算不足/失效/不支持复制走原绘制。
+ 
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,6 +1,10 @@
+ # 后续开发计划
+ 
+ ## 进行中：C53已批准缩放排查与针对性优化（2026-11-20）
++
++实际复审更新：用户已解锁，真实最大化→还原捕捉到“减弱动效”背景矩形残留，C53暂不通过。先完成该残留的针对性复现/因果对照并核对列表与柔光，保留原布局及背景；不因性能数字改善而跳过视觉缺口，不重复把静态正常当连续闪黑已解决。
++
++列表/双行/选择联动/柔光的实际检查已完成，未见本次异常；局部残留仍在。已准备[对照及修正建议](ui-restore-background-plan.md)并询问用户下一步安排，当前等反馈，未开始新绘制改动。
+ 
+ 本轮按[合并方案](ui-resize-pipeline-plan.md)处理根背景重复合成热点，固定序列已观察到耗时下降。匹配像素/裁切/预算/失效回退、两档相关回归及最终构建已完成，补丁/证据已归档，本轮重复诊断文件已压缩清理。最终C53已启动，等待用户解锁后实际窗口复审；最早闪黑仍保留，不能因卡顿改善自动关闭。普通默认/Release不改，用户效果复审后再决定下一范围；不在本轮扩大到全界面架构迁移。
+ 
+diff --git a/docs/ui-rendering-defects-handoff.md b/docs/ui-rendering-defects-handoff.md
+--- a/docs/ui-rendering-defects-handoff.md
++++ b/docs/ui-rendering-defects-handoff.md
+@@ -1,6 +1,8 @@
+ # 主界面绘制缺陷交接
+ 
+ ## C53根合成热点改善，最早黑点仍开放（2026-11-20）
++
++实际复审更新：用户已解锁，最大化标题/背景完整，还原后“减弱动效”出现矩形背景错位并在等待、切换工作区后保留；C53视觉未通过。双行列表滚动、选中/详情联动与柔光正常。未确认该缺陷是否由C53引入，下一步[局部因果对照建议](ui-restore-background-plan.md)等待用户安排，不先换控件或强制刷新掩盖。见[真实复审](../iterations/2026-11-20-53-resize-pipeline/visual-review.md)。
+ 
+ 用户已批准合并排查/修正/回归及候选展示。12步真实主窗探针排除“壁纸尺寸来回重建”：11次变化仅11次重建；44次根半透明补画合计约3061ms，是已测热点。根壁纸与原遮罩预合成为有界DIB，并在尺寸、图片、聚焦、DPI、颜色/alpha完全匹配时复用，保留目标原生裁切与原回退。进一步在PositionChanging完成准备，使RootCover累计降到约81ms；这部分成本移到早期准备，不从总计时中删去。
+ 
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,12 +1,12 @@
+ # AsukaLens 开发检查点
+ 
+-## 进行中：2026-11-20 C53候选待解锁复审
++## 进行中：2026-11-20 C53实际还原发现局部底图残留
+ 
+ 用户批准合并缩放闪黑/卡顿定位、针对性修正和回归，保留布局/背景/字号/动效，不录屏、改系统或设默认。C52工作区前像在iterations/2026-11-20-53-resize-pipeline/before；方案docs/ui-resize-pipeline-plan.md。ResizeWorkProbe默认关闭、12步/256事件，排除尺寸来回重建(11变化/11重建)。已测热点44次根半透明合成3061ms；新增精确键/有界根DIB预合成及同Ambient复用，严格映射/失效回退，仍归128MiB预算，额外约11MiB。最终把准备移到PositionChanging，RootCover约81ms；不是凭空消除成本。
+ 
+ 同构建off/on/on/off144DPI Size同步p50为842/401/376/797ms；96 off/on404/251ms；最终提前准备版144约441ms。都是暖UI程序序列/外部负载未控，不是帧率。最终NcEntering 8/10黑、Returned及之后0黑，真实闪黑/长尾不关闭。根两档各31项/126958RGBA零差异；DIB608、两档集成26/表面688或658/布局35/呈现98/背景7组/滚动16，普通/DIB四组完整UI通过。柔光首次30秒超时发生在独立普通Form恢复，原因未明，同构建两档99复验通过，保留失败。最终提前准备版另外复验根/集成/完整DIB UI两档通过。
+ 
+-C53最终应用/测试构建0警告，入口artifacts/dib-mainform-C53/app/AsukaLens.DibCandidate.exe，独立数据目录已预建，自建52文件约8.97MiB。已启动；当前桌面锁屏，停止CUA并已问用户解锁，实际画面/反馈尚未检查，不擅自标通过。先前本轮未体验的实例仅为最终补准备而替换，C52和普通bin保持。本轮16文件补丁已逐字节重放，源码/二进制哈希与隐私核查完成；55份自有原始证据压缩为ignored候选目录owned-validation.zip约64KiB后清散文件，重复apphost已删除。接下来仅待用户解锁后实际展示/反馈，不自动切默认或迁移架构。
++C53最终应用/测试构建0警告，入口artifacts/dib-mainform-C53/app/AsukaLens.DibCandidate.exe，独立数据目录已预建，自建52文件约8.97MiB。用户已解锁，当前C53真实显示52文件扫描完成。窗口菜单实际最大化1707x1067再还原1428x934；还原后减弱动效背景矩形错位，等待后仍在，已向用户反馈，视觉未通过。鼠标拖边没确认尺寸变化不记通过；桌宠覆盖窗口按钮被工具阻止，改用菜单，不改其设置。记录visual-review.md；正在核透明原生控件移动像素保留/背景失效，未提前认定成因。先前本轮未体验的实例仅为最终补准备而替换，C52和普通bin保持。本轮16文件补丁已逐字节重放，源码/二进制哈希与隐私核查完成；55份自有原始证据压缩为ignored候选目录owned-validation.zip约64KiB后清散文件，重复apphost已删除。列表双行滚动、工作区切换、选择/详情联动及柔光已实际检查正常；背景残留等待/切换后仍在。已准备docs/ui-restore-background-plan.md，问用户先修该处还是先体验C53，等待反馈。未改生产代码、不强制刷新掩盖；保持C52和当前候选，不设默认或迁移架构。
+ 
+ 记录iterations/2026-11-20-53-resize-pipeline/README.md及performance-summary.json；本机原始探针/检查输出ignored artifacts/resize-pipeline-C53。无个人卷/raw/VSS/系统或OBS操作。Git仍9ac1f0b，继承C30 index和C31–C52依赖不混提，未提交/推送/发布。
+ 
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,4 +1,6 @@
+ # 影响后续开发的决定
++
++- 2026-11-20：用户解锁后允许C53实际检查；最大化/还原真实捕捉到减弱动效背景矩形残留，等待及切视图后仍在，视觉未通过。列表滚动/双行/选择联动/柔光正常。先记录实测缺口、保留候选和C52，不以性能数字或稳定截图关闭问题；局部因果对照建议已给，等待用户决定先修还是体验，尚未改生产源码。证据 iterations/2026-11-20-53-resize-pipeline/visual-review.md。
+ 
+ - 2026-11-20：用户批准C53合并缩放排查/修正/回归。依据真实计时预合成精确匹配的根DIB，复用Ambient并将准备提前，保持布局/背景/字号/动效及128MiB预算；同步尺寸成本下降，最早黑点仍在，不据后期0黑或取点减少关闭闪黑。候选已启动，锁屏期间停止输入，待解锁复审，不设默认或自动扩大架构。证据 iterations/2026-11-20-53-resize-pipeline/README.md。
+ 
+diff --git a/docs/ui-restore-background-plan.md b/docs/ui-restore-background-plan.md
+new file mode 100644
+--- /dev/null
++++ b/docs/ui-restore-background-plan.md
+@@ -0,0 +1,18 @@
++# C53实际还原背景残留：对照与修正建议
++
++2026-11-20，当前仅为实际复审后的下一步建议，等待用户选择；尚未改生产绘制。C53布局、默认/自定义背景、字号、1.15倍柔光及原生交互保持，普通默认不变。
++
++## 已观察到的事实
++
++真实候选最大化画面完整；还原后“减弱动效”旁出现与周边不同的矩形背景，等待和切换工作区后仍存在。双行列表滚动、图块选择与详情联动正常。鼠标拖边未确认有效尺寸变化；静态画面没有黑块不能证明连续瞬态通过。证据见[C53实际复审](../iterations/2026-11-20-53-resize-pipeline/visual-review.md)。
++
++`reduceMotion`是透明背景的普通CheckBox，右侧锚定。现有移动像素策略只在若干自绘控件中接入；透明子控件与新根缓存的父背景请求都需要核查。Windows文档说明[窗口移动可保存和搬用旧客户区像素](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos)，WinForms的[透明背景由父控件代绘](https://learn.microsoft.com/en-us/dotnet/desktop/winforms/controls/how-to-give-your-control-a-transparent-background)。这些只能支持调查方向，尚不证明本缺陷的成因，也未确认是否C53新引入。
++
++## 建议合并完成的范围
++
++1. 在自建目录/隔离窗口中固定“初始→最大化→还原→等待”的真实消息顺序，同构建分别启用/关闭根缓存，对照普通透明控件的移动标志、实际背景像素和父绘制目标坐标；先取证，不在取证前Refresh/Update。
++2. 取证后单独测试控件局部失效是否消除残留。如果有效，再处理移动时的像素保留/背景失效；如果无效，继续核父背景请求的视口、裁切和缓存键。不先更换控件或盲调透明度，不把局部刷新试验冒充正式修复。
++3. 只修有证据的分支，保留原生勾选、键盘焦点、可访问性、字体与最终像素。新增控件/背景相关回归覆盖两档DPI、常用/最小窗口、默认与合成自定义背景、最大化/还原及工作区切换；检查原性能收益和资源边界不退化。
++4. 构建明确标识的修正候选再展示。保留C52和当前C53供对照，不强关用户正在使用的实例；用户反馈后再决定保留/默认。更大的呈现架构或界面方向改变另给方案。
++
++不录屏、不改系统/桌宠设置、不访问个人卷、不扩展日志采集，不将本局部修正预先等同于全部闪黑或第一阶段收尾。
+diff --git a/iterations/2026-11-20-53-resize-pipeline/visual-review.md b/iterations/2026-11-20-53-resize-pipeline/visual-review.md
+new file mode 100644
+--- /dev/null
++++ b/iterations/2026-11-20-53-resize-pipeline/visual-review.md
+@@ -0,0 +1,13 @@
++# C53解锁后的实际检查
++
++2026-11-20，用户已解锁并允许检查。候选DLL SHA256为`3B3AD11C34AADE4AF0004B99DFC3774F382639BBEE13EC278A09BEDD3BACE177`。自建52文件扫描约8.97MiB完成，初始窗口标题、背景与数据完整。
++
++一次鼠标拖边未产生可确认的尺寸变化，不记鼠标实时缩放通过。桌宠覆盖右上窗口按钮，一次点击被工具正确拦截；没有改桌宠/系统设置，改用原生窗口菜单最大化。实际捕获逻辑截图尺寸由1428×934变为1707×1067，再还原1428×934；最大化画面标题与布局完整，取样截图没有黑区，不能据此排除连续瞬态。
++
++**还原后存在真实缺口**：空间分布标题栏“减弱动效”控件背景出现矩形底图错位，等待自然重绘后仍保留。已向用户反馈，C53不能据此判视觉验收通过。没有强制刷新/截图覆盖来掩盖，没有录屏。正在核查透明原生控件移动后的像素保留/背景失效；这是待验证方向，不预先认定根因。
++
++初版归档与性能数据保持，实际复审是后续证据；原“锁屏待复审”描述为冻结当时状态，由此记录更新。
++
++已继续检查：大文件双行列表滚动后未见割裂，切回空间分布和选择图块后，列表/详情联动及沿边柔光显示正常。背景错位在工作区切换后仍保留。未对问题控件执行强制刷新或改变动效开关；没有保存带桌宠覆盖的原始截图。连续鼠标缩放和瞬间闪黑仍未由这些静态观察关闭。
++
++已给用户实际结果，并建议下一步先做该局部残留的因果对照，再作针对性修正；用户可先体验C53再决定，当前等待反馈。建议见[局部还原残留方案](../../docs/ui-restore-background-plan.md)。
+diff --git a/iterations/2026-11-20-53-resize-pipeline/README.md b/iterations/2026-11-20-53-resize-pipeline/README.md
+--- a/iterations/2026-11-20-53-resize-pipeline/README.md
++++ b/iterations/2026-11-20-53-resize-pipeline/README.md
+@@ -1,4 +1,6 @@
+ # C53：缩放背景重复合成与卡顿
++
++**实际复审更新：用户已解锁，真实最大化→还原发现“减弱动效”背景矩形残留，C53视觉验收未通过。** 列表/双行/选择联动/柔光已实际观察正常；连续闪黑仍未关闭。见[解锁后复审](visual-review.md)。以下“锁屏待检查”保留首次冻结时事实，后续文档变更以`review.patch`记录，原构建/性能证据不改；生产源码和候选二进制没有因本次检查变化。
+ 
+ 2026-11-20，用户批准合并定位、针对性修正和回归，完成后打开正常功能C53候选；保持布局、背景、字号和动效，不录屏、不改系统设置、不设默认。基线是C52工作区及Git `9ac1f0b`，继承暂存和C31–C52文件不混提。
+ 

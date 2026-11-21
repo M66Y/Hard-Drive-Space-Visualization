@@ -1,0 +1,73 @@
+{
+  "revision": 1,
+  "scope": "C50-owned-synthetic-GDI-mapping-and-vacated-region-repair",
+  "normal_app_modified": false,
+  "default_enabled": false,
+  "screen_no_flash_proven": false,
+  "runs": [
+    {
+      "trace": "resize-0bca4830ad034475bb054eee60200121.json",
+      "sha256": "56D8BE62EAF2D95B2186982639D10748367949056419750EB7423C9D3C3A4858",
+      "mode": "All",
+      "dpi": 144,
+      "mapped_combo_copies": 26,
+      "mapping_rejections": 0,
+      "post_geometry_witnesses": 11,
+      "mismatches": 0,
+      "old_grid_witnesses_repaired_before_paint": 6,
+      "original_geometry_root_samples": 44,
+      "root_matches": 44,
+      "print_as_root_presentations": 0,
+      "observation_failures": 0,
+      "truncated": false
+    },
+    {
+      "trace": "resize-2ace35a6038b46b6a04b665625f3f682.json",
+      "sha256": "B4D52E81643DF91AE2374700A0A350D7934DCC3ADE2606AD5E73912E4DA53508",
+      "mode": "Combo",
+      "dpi": 144,
+      "mapped_combo_copies": 26,
+      "mapping_rejections": 0,
+      "post_geometry_witnesses": 11,
+      "mismatches": 0,
+      "old_grid_witnesses_repaired_before_paint": 0,
+      "original_geometry_root_samples": 44,
+      "root_matches": 44,
+      "print_as_root_presentations": 0,
+      "observation_failures": 0,
+      "truncated": false
+    },
+    {
+      "trace": "resize-afaa26c8a12b4d94ac29c1dd137a7b53.json",
+      "sha256": "283391DD5032A3DB1D5540F094BB9C1267797BC5FE21FBFB1F4FD6C796F4435A",
+      "mode": "Grid",
+      "dpi": 144,
+      "mapped_combo_copies": 0,
+      "mapping_rejections": 0,
+      "post_geometry_witnesses": 11,
+      "mismatches": 0,
+      "old_grid_witnesses_repaired_before_paint": 6,
+      "original_geometry_root_samples": 44,
+      "root_matches": 44,
+      "print_as_root_presentations": 0,
+      "observation_failures": 0,
+      "truncated": false
+    },
+    {
+      "trace": "resize-c9daef8da96f4b6c8f82ce11dd3f1c99.json",
+      "sha256": "587E0A1DAD29C8279BE001F071790C8D3FDC69540707BF51408932CC9AF64AED",
+      "mode": "All",
+      "dpi": 96,
+      "mapped_combo_copies": 26,
+      "mapping_rejections": 0,
+      "post_geometry_witnesses": 11,
+      "mismatches": 0,
+      "old_grid_witnesses_repaired_before_paint": 6,
+      "original_geometry_root_samples": 44,
+      "root_matches": 44,
+      "print_as_root_presentations": 0,
+      "observation_failures": 0,
+      "truncated": false
+    }
+  ]
+}

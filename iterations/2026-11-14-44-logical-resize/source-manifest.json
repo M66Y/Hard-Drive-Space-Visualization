@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "baseline": "9ac1f0b",
+  "baseline_context": "Selected five-file working-tree delta; public preimages included, not a HEAD-only patch",
+  "state": "user-review-failed-resize-flash",
+  "patch_replay": {
+    "files": 5,
+    "sha256_all_matched": true
+  },
+  "files": [
+    {
+      "source": "MainForm.cs",
+      "snapshot": "key-files/MainForm.cs.txt",
+      "sha256": "CC09168CAEB25AD0043E093F3AFEE2A2030321D0FDB5CD74D7FFA32C7722250F",
+      "bytes": 94669,
+      "preimage": "preimages/MainForm.cs.txt",
+      "preimage_sha256": "FAC28478C0C433AA893EEA177C38325C0F505E7EC8EC99ADA58227CA0A5A5519"
+    },
+    {
+      "source": "src/UI/LayoutPresentation.cs",
+      "snapshot": "key-files/src_UI_LayoutPresentation.cs.txt",
+      "sha256": "2AA7B9FC4310615F96123CEB78BDD3B7396E9F49C96BE874C279859573F4191A",
+      "bytes": 21693,
+      "preimage": "preimages/src_UI_LayoutPresentation.cs.txt",
+      "preimage_sha256": "9B66E3BD01B1F396A62DA9D43E5F220B1F64EAD061799E6C6E9740341AE1BBF8"
+    },
+    {
+      "source": "Wallpaper.cs",
+      "snapshot": "key-files/Wallpaper.cs.txt",
+      "sha256": "9A5E3161440D4783AF366C50E2DE82BD4F8FECFDE08C1DAFF35A846F20E868A1",
+      "bytes": 28867,
+      "preimage": "preimages/Wallpaper.cs.txt",
+      "preimage_sha256": "09BCAE089BB337C11F507080DD22992E9A0CEE025E93855AADE0EC467764DAAF"
+    },
+    {
+      "source": "tests/LayoutPresentationPolicyTests.cs",
+      "snapshot": "key-files/tests_LayoutPresentationPolicyTests.cs.txt",
+      "sha256": "65FBECAE25356F66D92D1FF40BE011EB9CAFACFAF8C408643D81741533696078",
+      "bytes": 56358,
+      "preimage": "preimages/tests_LayoutPresentationPolicyTests.cs.txt",
+      "preimage_sha256": "E408D2CC1C10098135ABBA2EACD55438511D659BC7B72A05BB89017A1ACF0B12"
+    },
+    {
+      "source": "tests/LayoutTransitionRegression.cs",
+      "snapshot": "key-files/tests_LayoutTransitionRegression.cs.txt",
+      "sha256": "603CDB160FD3BB47361737BE0EB33A94B6A915F5E17ECC8240F0825357EB7A23",
+      "bytes": 27601,
+      "preimage": "preimages/tests_LayoutTransitionRegression.cs.txt",
+      "preimage_sha256": "1D1FF28D6B9D6B28E1E378B10101FCF8EFF2212676FC60112288ACBBDF6305F6"
+    }
+  ]
+}

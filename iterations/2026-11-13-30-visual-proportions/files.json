@@ -1,0 +1,96 @@
+{
+  "revision": "c30-recovery-v1",
+  "baseline": "9ac1f0b30f31a4f00a4f55048409b1999cabbaf0",
+  "payload_bytes": "versioned-index-bytes",
+  "restore_apply_checked": true,
+  "restore_hash_checked": true,
+  "payload": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "6426ee28587bc0bf3b278718402558d438dc9aa0e1fe4019ab77aa8b397f1622",
+      "bytes": 45266
+    },
+    {
+      "path": "MainForm.cs",
+      "sha256": "32f1530edeaf997a72f474a9f716730b18bed544c6c63b0278fe9116942db607",
+      "bytes": 81936
+    },
+    {
+      "path": "Theme.cs",
+      "sha256": "e13185747f5a30ac8116f61d9b8a33b37ccff90527913048d7a6350328b67c24",
+      "bytes": 22504
+    },
+    {
+      "path": "src/Monitoring/DiskActivityPanel.cs",
+      "sha256": "3a8c1f62b04dafa143f12d3dd2d8c81e20516c475ca6d362b618ff9be3fd7eba",
+      "bytes": 17958
+    },
+    {
+      "path": "tests/DiskActivityPanelTests.cs",
+      "sha256": "1b8bb45035583fe351babab6483b481292a25eb9a26daa0f9dd066a5c02a8896",
+      "bytes": 11119
+    },
+    {
+      "path": "tests/DiskActivityMainFormTests.cs",
+      "sha256": "31af681d801b172e4ac69fff733921723cfef0888170720dfc4be60c2b81a7f6",
+      "bytes": 20686
+    },
+    {
+      "path": "tests/StageOnePreview.cs",
+      "sha256": "06feb956fc3c43803dfdd6a437d81e4c4ccbdf0d58075cbf904117ad8c607b24",
+      "bytes": 27679
+    },
+    {
+      "path": "tests/VisualSurfaceRegression.cs",
+      "sha256": "dac230057df20c7df7d5c6db02e0337d2c7d0c3512f31a025dda21aa7250f47e",
+      "bytes": 18865
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "da2c7392bfe20fab8c05334f65d31e936b8c9ed56e57372f3ba22eab2e75b6c3",
+      "bytes": 44660
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "49e04621dd360eac82f6831939f76a0edac74b3b9f8dedc3cda9cc865b9ec580",
+      "bytes": 42570
+    },
+    {
+      "path": "docs/ui-design-roadmap.md",
+      "sha256": "afefa91b3d8a14915562e859a083ca8d3ed86ca7642933c5f4376187a06b4db0",
+      "bytes": 12255
+    },
+    {
+      "path": "docs/disk-activity.md",
+      "sha256": "4cfdb54ece0c16d63aa07ea3299148d962673d5e582ebce7d755c745d37c7884",
+      "bytes": 5101
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "d664bf35ca0c3a3f2782832d068a3c3ce9a5a525dc00bc106e3d90a6b5926522",
+      "bytes": 4086
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "0d15987b10e054080384784c84976cb8c51a37c02214780c8aca00cb752316f0",
+      "bytes": 13909
+    }
+  ],
+  "media": [
+    {
+      "path": "collapsed-final.jpg",
+      "sha256": "15b810222bf522872d8a66647be450fa62d8fa6e30124ac6b89b6015c99cf0de",
+      "bytes": 160334
+    },
+    {
+      "path": "expanded-final.jpg",
+      "sha256": "8fcdbf0f9a6b7bb246a40214774e9de109590f273f1c55c2f83e9635a78b2df7",
+      "bytes": 165525
+    },
+    {
+      "path": "minimum-expanded.jpg",
+      "sha256": "1c4640fafd3252b77361f857d0a1216ed3874460358a568d3425fac15bd9948c",
+      "bytes": 132480
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "private_zip": "artifacts/dib-mainform-C56/owned-validation.zip",
+  "zip_entries": 49,
+  "zip_bytes": 46977,
+  "zip_sha256": "E91C6E2B130FDC1B0F7C7CD0D0384C62A2E2C70FC9B9307DAC4A2926C8994645",
+  "zip_crc_and_each_entry_sha256_verified": true,
+  "original_evidence_bytes": 268638,
+  "removed_duplicate_apphost_bytes": 319488,
+  "unchanged_C55_coverage_sha256": "A923B02B82B72E08EE071361FE4AA49BD4A2678E5147D104C026C46FD681EA21",
+  "prior_diagnostics_zip_retained": "artifacts/early-client-C56/owned-diagnostics.zip",
+  "ordinary_C55_candidate_data_and_demo_retained": true,
+  "user_files_deleted": false
+}

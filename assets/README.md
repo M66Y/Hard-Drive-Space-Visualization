@@ -9,7 +9,7 @@
 | `background.png` | M66Y 使用 AI 工具生成的默认水彩背景；首次纳入项目基线 `67b831a` | CC BY-NC 4.0 |
 | `app-icon.png` | M66Y 使用 AI 工具生成的头像；图标迭代 `4814d20` | CC BY-NC 4.0 |
 | `app.ico` | 由 `app-icon.png` 经 `scripts/Update-AppIcon.ps1` 保留比例和透明度转换的多尺寸图标，亦用于进度头像 | CC BY-NC 4.0 |
-| `../docs/images/overview.png` | 生产 MainForm 使用内存合成目录绘制的界面预览，含上述主题；文件名、大小及用时均为演示数据 | CC BY-NC 4.0 |
+| `../docs/images/overview.jpg` | 当前真实 Windows 主窗截图，使用隔离配置及自建演示文件、公开路径别名；含上述主题，名称、大小及用时不代表性能基准 | CC BY-NC 4.0 |
 
 推荐署名：“AsukaLens 背景与头像，由 M66Y 使用 AI 工具生成；CC BY-NC 4.0；图标由原头像转换。”保留项目及[许可链接](https://creativecommons.org/licenses/by-nc/4.0/)，修改时标明。完整条款见[本地许可原文](../licenses/CC-BY-NC-4.0.txt)与[许可范围](../NOTICE.md)。不主张或授权第三方角色和商标权利。
 

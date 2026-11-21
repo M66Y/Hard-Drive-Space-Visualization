@@ -1,0 +1,276 @@
+{
+  "logs": [
+    {
+      "name": "background-144.log",
+      "results": [
+        "All 7 background regression groups passed."
+      ],
+      "timeout": false
+    },
+    {
+      "name": "background-96.log",
+      "results": [
+        "All 7 background regression groups passed."
+      ],
+      "timeout": false
+    },
+    {
+      "name": "final_--pixels.log",
+      "results": [
+        "PASS resize pipeline label=final; dpi=144; steps=12; pixel_sampling=True; dropped=0"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "final_--slow.log",
+      "results": [
+        "PASS resize pipeline label=final; dpi=144; steps=12; pixel_sampling=False; dropped=0"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "glow-144-retry.log",
+      "results": [
+        "PASS treemap state checks: 99"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "glow-144.log",
+      "results": [],
+      "timeout": true
+    },
+    {
+      "name": "glow-96.log",
+      "results": [
+        "PASS treemap state checks: 99"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "integration-144.log",
+      "results": [
+        "PASS DIB integration checks=26; code=None; screen_acceptance=separate"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "integration-96.log",
+      "results": [
+        "PASS DIB integration checks=26; code=None; screen_acceptance=separate"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "layout-144.log",
+      "results": [
+        "PASS layout transition checks=35; worker_finished=True; natural_message_order_only=True; desktop_pixels_verified=False"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "layout-96.log",
+      "results": [
+        "PASS layout transition checks=35; worker_finished=True; natural_message_order_only=True; desktop_pixels_verified=False"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "native.log",
+      "results": [
+        "PASS native resize frame: 608; pixels_compared=6513984; zero_tolerance=true; scene_comparisons=2; memory_only=true"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "off1.log",
+      "results": [
+        "PASS resize pipeline label=off1; dpi=144; steps=12; pixel_sampling=False; dropped=0"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "off1_--dpi-96.log",
+      "results": [
+        "PASS resize pipeline label=off1; dpi=96; steps=12; pixel_sampling=False; dropped=0"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "off2.log",
+      "results": [
+        "PASS resize pipeline label=off2; dpi=144; steps=12; pixel_sampling=False; dropped=0"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "on1.log",
+      "results": [
+        "PASS resize pipeline label=on1; dpi=144; steps=12; pixel_sampling=False; dropped=0"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "on1_--dpi-96.log",
+      "results": [
+        "PASS resize pipeline label=on1; dpi=96; steps=12; pixel_sampling=False; dropped=0"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "on2.log",
+      "results": [
+        "PASS resize pipeline label=on2; dpi=144; steps=12; pixel_sampling=False; dropped=0"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "presentation-144.log",
+      "results": [
+        "PASS layout presentation policy checks=98; owned_windows_closed=True; no_screen_capture=True"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "presentation-96.log",
+      "results": [
+        "PASS layout presentation policy checks=98; owned_windows_closed=True; no_screen_capture=True"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "ready-integration-144.log",
+      "results": [
+        "PASS DIB integration checks=26; code=None; screen_acceptance=separate"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "ready-integration-96.log",
+      "results": [
+        "PASS DIB integration checks=26; code=None; screen_acceptance=separate"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "ready-pixels.log",
+      "results": [
+        "PASS resize pipeline label=final-ready; dpi=144; steps=12; pixel_sampling=True; dropped=0"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "ready-probe.log",
+      "results": [
+        "PASS resize pipeline label=final-ready; dpi=144; steps=12; pixel_sampling=False; dropped=0"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "ready-root-144.log",
+      "results": [
+        "PASS root composite checks=31; rgba_pixels=126958; code=None; zero_tolerance=true"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "ready-root-96.log",
+      "results": [
+        "PASS root composite checks=31; rgba_pixels=126958; code=None; zero_tolerance=true"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "ready-ui-144.log",
+      "results": [
+        "All UI regression checks passed."
+      ],
+      "timeout": false
+    },
+    {
+      "name": "ready-ui-96.log",
+      "results": [
+        "All UI regression checks passed."
+      ],
+      "timeout": false
+    },
+    {
+      "name": "root-144.log",
+      "results": [
+        "PASS root composite checks=31; rgba_pixels=126958; code=None; zero_tolerance=true"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "root-96.log",
+      "results": [
+        "PASS root composite checks=31; rgba_pixels=126958; code=None; zero_tolerance=true"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "scroll-144.log",
+      "results": [
+        "PASS wallpaper scroll checks=16; native repaint contract, desktop pixels reviewed separately"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "scroll-96.log",
+      "results": [
+        "PASS wallpaper scroll checks=16; native repaint contract, desktop pixels reviewed separately"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "surface-144.log",
+      "results": [
+        "PASS visual surface checks=688; composited assertions only, desktop review separate"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "surface-96.log",
+      "results": [
+        "PASS visual surface checks=658; composited assertions only, desktop review separate"
+      ],
+      "timeout": false
+    },
+    {
+      "name": "ui-dib-144.log",
+      "results": [
+        "All UI regression checks passed."
+      ],
+      "timeout": false
+    },
+    {
+      "name": "ui-dib-96.log",
+      "results": [
+        "All UI regression checks passed."
+      ],
+      "timeout": false
+    },
+    {
+      "name": "ui-old-144.log",
+      "results": [
+        "All UI regression checks passed."
+      ],
+      "timeout": false
+    },
+    {
+      "name": "ui-old-96.log",
+      "results": [
+        "All UI regression checks passed."
+      ],
+      "timeout": false
+    }
+  ],
+  "first_glow_timeout_retained": true,
+  "actual_window": "reviewed; maximized and restored; persistent reduce-motion background rectangle",
+  "default_changed": false,
+  "continuous_resize_visual_passed": false,
+  "published": false,
+  "visual_passed": false,
+  "list_scroll_and_selection_glow_observed": true,
+  "mouse_resize_verified": false
+}

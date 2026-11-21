@@ -1,0 +1,32 @@
+[
+  {
+    "source": "MainForm.cs",
+    "snapshot": "MainForm.cs.txt",
+    "sha256": "b75e80d3e72bfdd0efd0196bf62d9bcf7a8b9cd80a7fc3ea5c9eb48c4e0738ab"
+  },
+  {
+    "source": "Wallpaper.cs",
+    "snapshot": "Wallpaper.cs.txt",
+    "sha256": "bd8829250a8db10dca2390867c6dfb84114026571339b8f96bb1df9b77fb8799"
+  },
+  {
+    "source": "tests/Program.cs",
+    "snapshot": "tests__Program.cs.txt",
+    "sha256": "2d3058ac81d6cc8644a89364d68458ee92b0e701efbb63421f80e139b770bdc2"
+  },
+  {
+    "source": "tests/WallpaperCellClipTests.cs",
+    "snapshot": "tests__WallpaperCellClipTests.cs.txt",
+    "sha256": "e4fe3ce9ddf8b53a389a7861da3eabcff1d90d340f8d09cc1fc0288f64d22f0e"
+  },
+  {
+    "source": "tests/WallpaperGridCacheTests.cs",
+    "snapshot": "tests__WallpaperGridCacheTests.cs.txt",
+    "sha256": "ef0cffeca5076b8551210c6c65d507c4f533e14dea603484d785b81922d89165"
+  },
+  {
+    "source": "tests/WallpaperScrollPresentationProbe.cs",
+    "snapshot": "tests__WallpaperScrollPresentationProbe.cs.txt",
+    "sha256": "1ea9e2cda65aa287ec4c1913ec929abd67b1f0bd29e6940bc87405f9c433b7d7"
+  }
+]

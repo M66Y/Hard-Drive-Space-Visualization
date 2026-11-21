@@ -1,0 +1,15 @@
+{
+  "byte_exact_patch_files": 11,
+  "source_hashes_verified": 11,
+  "normal_binary_unchanged": true,
+  "C51_binary_unchanged": true,
+  "local_evidence_zip_entries": 25,
+  "local_evidence_zip_bytes": 4829923,
+  "diagnostic_copies_removed": true,
+  "candidate_and_demo_preserved": true,
+  "user_feedback": "accepted; preserve C52; not default",
+  "remaining_resize_issues_open": true,
+  "commit_and_push": "not performed; inherited unclosed dependency boundary",
+  "whitespace_check_cr_at_eol": true,
+  "archive_hashes_verified": 22
+}

@@ -1,0 +1,387 @@
+using DiskAtlas;
+using System.Globalization;
+using System.Reflection;
+
+// Owned bitmaps and sequential small forms on one STA. No scanner, counter provider,
+// settings load, personal paths, screenshots, or filesystem fixtures.
+internal static class QuietToolTipTests
+{
+    private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
+    private const TextFormatFlags MeasureFlags = TextFormatFlags.SingleLine |
+        TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsClipping;
+
+    public static int Run(bool dpi96 = false)
+    {
+        int passed = 0;
+        string? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                CheckLayout();
+                CheckOwnedControls();
+                CheckGridHoverLifecycle();
+            }
+            catch (Failure error) { failure = error.Code; }
+            catch { failure = "UnexpectedQuietHintFailure"; }
+        }) { IsBackground = true };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        if (!thread.Join(TimeSpan.FromSeconds(25))) failure = "QuietHintWorkerStillActive";
+        if (failure != null)
+        {
+            Console.Error.WriteLine("FAIL quiet tooltips code=" + failure + "; no private details emitted");
+            return 1;
+        }
+        Console.WriteLine("PASS quiet tooltip checks=" + passed + "; synthetic layout and owned controls only");
+        return 0;
+
+        void Check(bool condition, string code)
+        {
+            if (!condition) throw new Failure(code);
+            passed++;
+        }
+
+        void CheckLayout()
+        {
+            string chinese = string.Concat(Enumerable.Repeat("中文目录与文件大小说明", 8));
+            string path = "D:\\Synthetic\\中文目录\\" +
+                string.Concat(Enumerable.Repeat("NoSpaces中e\u0301👩‍💻📦", 10)) + ".data";
+            string excessive = string.Concat(Enumerable.Repeat("长路径说明👩‍💻e\u0301", 180));
+            foreach (int dpi in new[] { 96, 144, 192 })
+            {
+                using var bitmap = new Bitmap(800, 600);
+                bitmap.SetResolution(dpi, dpi);
+                using var graphics = Graphics.FromImage(bitmap);
+                using var font = new Font("Microsoft YaHei UI", 9F);
+                var desktop = new Size(1920, 1080);
+                foreach (var item in new[] { (Text: chinese, Code: "Chinese"), (Text: path, Code: "UnspacedMixedPath") })
+                {
+                    var layout = AppToolTips.Layout(item.Text, graphics, font, dpi, desktop);
+                    CheckBounds(layout, graphics, font, dpi, desktop, item.Code);
+                    Check(!layout.Truncated && layout.Lines.Count > 1, item.Code + "WrapsWithoutTruncation" + dpi);
+                    Check(string.Concat(layout.Lines) == item.Text, item.Code + "PreservesVisibleText" + dpi);
+                    CheckTextElements(item.Text, layout.Lines, item.Code + dpi);
+                }
+
+                var truncated = AppToolTips.Layout(excessive, graphics, font, dpi, desktop);
+                CheckBounds(truncated, graphics, font, dpi, desktop, "LongText");
+                Check(truncated.Truncated && truncated.Lines.Count > 0 &&
+                    truncated.Lines[^1].EndsWith('…'), "LongTextHasVisibleEllipsis" + dpi);
+                string prefix = string.Concat(truncated.Lines)[..^1];
+                Check(prefix.Length <= 600 && excessive.StartsWith(prefix, StringComparison.Ordinal),
+                    "LongTextKeepsBoundedSourcePrefix" + dpi);
+                CheckTextElements(excessive, truncated.Lines, "LongText" + dpi);
+
+                string narrowText = new('i', 640);
+                // Isolate the character budget from the independent height
+                // budget. GDI text metrics on a bitmap can follow desktop DPI.
+                using var narrowFont = new Font("Microsoft YaHei UI", 4F, FontStyle.Regular, GraphicsUnit.Pixel);
+                var characterLimited = AppToolTips.Layout(narrowText, graphics, narrowFont, dpi, desktop);
+                CheckBounds(characterLimited, graphics, narrowFont, dpi, desktop, "CharacterLimit");
+                Check(characterLimited.Truncated && string.Concat(characterLimited.Lines) == new string('i', 600) + "…",
+                    "CharacterLimitRetainsExactlySixHundredSourceUnits" + dpi);
+                string boundaryText = new string('i', 598) + "👩‍💻tail";
+                var boundaryLimited = AppToolTips.Layout(boundaryText, graphics, narrowFont, dpi, desktop);
+                CheckBounds(boundaryLimited, graphics, narrowFont, dpi, desktop, "CharacterGraphemeLimit");
+                Check(boundaryLimited.Truncated && string.Concat(boundaryLimited.Lines) == new string('i', 598) + "…",
+                    "CharacterLimitNeverSplitsEmojiGrapheme" + dpi);
+
+                var constrainedArea = new Size(220, 160);
+                var constrained = AppToolTips.Layout(excessive, graphics, font, dpi, constrainedArea);
+                CheckBounds(constrained, graphics, font, dpi, constrainedArea, "SmallWorkingArea");
+                Check(constrained.Truncated && constrained.Lines.Count > 0 &&
+                    constrained.Lines[^1].EndsWith('…'), "SmallWorkingAreaMarksTruncation" + dpi);
+                CheckTextElements(excessive, constrained.Lines, "SmallWorkingArea" + dpi);
+
+                var tinyArea = new Size(48, 40);
+                var tiny = AppToolTips.Layout(excessive, graphics, font, dpi, tinyArea);
+                CheckBounds(tiny, graphics, font, dpi, tinyArea, "TinyWorkingArea");
+                Check(tiny.Truncated, "TinyWorkingAreaDoesNotClaimCompleteText" + dpi);
+
+                var empty = AppToolTips.Layout("", graphics, font, dpi, desktop);
+                CheckBounds(empty, graphics, font, dpi, desktop, "Empty");
+                Check(!empty.Truncated && empty.Lines.All(string.IsNullOrEmpty), "EmptyHasNoInventedText" + dpi);
+            }
+        }
+
+        void CheckBounds(HintTextLayout layout, Graphics graphics, Font font, int dpi, Size area, string code)
+        {
+            int maxWidth = (int)Math.Ceiling(AppToolTips.MaximumWidthDip * dpi / 96d);
+            int maxHeight = (int)Math.Ceiling(AppToolTips.MaximumHeightDip * dpi / 96d);
+            Check(layout.Size.Width >= 0 && layout.Size.Height >= 0 &&
+                layout.Size.Width <= Math.Min(maxWidth, area.Width) &&
+                layout.Size.Height <= Math.Min(maxHeight, area.Height), code + "SizeIsBounded" + dpi);
+            Check(layout.Padding >= 0 && layout.LineHeight >= 0 &&
+                layout.Lines.Count * layout.LineHeight + 2 * layout.Padding <= layout.Size.Height,
+                code + "AllLinesFitHeight" + dpi);
+            int innerWidth = Math.Max(0, layout.Size.Width - 2 * layout.Padding);
+            Check(layout.Lines.All(line => line.Length == 0 ||
+                TextRenderer.MeasureText(graphics, line, font,
+                    new Size(int.MaxValue, int.MaxValue), MeasureFlags).Width <= innerWidth),
+                code + "EveryLineFitsWidth" + dpi);
+        }
+
+        void CheckTextElements(string source, IReadOnlyList<string> lines, string code)
+        {
+            var boundaries = StringInfo.ParseCombiningCharacters(source).ToHashSet();
+            boundaries.Add(source.Length);
+            int consumed = 0;
+            for (int index = 0; index < lines.Count; index++)
+            {
+                string line = lines[index];
+                if (index == lines.Count - 1 && line.EndsWith('…')) line = line[..^1];
+                Check(consumed + line.Length <= source.Length &&
+                    source.AsSpan(consumed, line.Length).SequenceEqual(line.AsSpan()), code + "SourceOrder" + index);
+                consumed += line.Length;
+                Check(boundaries.Contains(consumed), code + "GraphemeBoundary" + index);
+            }
+        }
+
+        void CheckOwnedControls()
+        {
+            using var form = new Form
+            {
+                Text = "Synthetic quiet tooltip check", AutoScaleMode = AutoScaleMode.None,
+                ClientSize = new Size(540, 260), ShowInTaskbar = false
+            };
+            using var registered = new Label { Bounds = new Rectangle(15, 15, 480, 28), Text = "合成提示测试" };
+            using var activity = new DiskActivityPanel { SidebarMode = true, Bounds = new Rectangle(15, 55, 250, 125) };
+            using var progress = new ScanProgressControl
+            {
+                AnimationsEnabled = false, Bounds = new Rectangle(15, 190, 500, 50)
+            };
+            using var tip = AppToolTips.Create();
+            form.Controls.AddRange([registered, activity, progress]);
+            form.Show();
+            Application.DoEvents();
+            try
+            {
+                Check(tip.InitialDelay == AppToolTips.InitialDelayMilliseconds && tip.InitialDelay == 1000,
+                    "FactoryUsesQuietInitialDelay");
+                Check(tip.AutoPopDelay == AppToolTips.DisplayMilliseconds && tip.AutoPopDelay == 5000 && tip.OwnerDraw,
+                    "FactoryUsesBoundedOwnerDrawHints");
+                string original = string.Concat(Enumerable.Repeat("D:\\Synthetic\\完整文本👩‍💻e\u0301\\", 50));
+                tip.SetToolTip(registered, original);
+                using (var bitmap = new Bitmap(400, 300))
+                using (var graphics = Graphics.FromImage(bitmap))
+                using (var font = new Font("Microsoft YaHei UI", 9F))
+                {
+                    var shortened = AppToolTips.Layout(original, graphics, font, 96, new Size(300, 160));
+                    Check(shortened.Truncated && tip.GetToolTip(registered) == original,
+                        "DrawingLayoutDoesNotMutateRegisteredOriginal");
+                }
+                bool popupObserved = false, drawObserved = false;
+                Size popupSize = Size.Empty;
+                tip.Popup += (_, args) => { popupObserved = true; popupSize = args.ToolTipSize; };
+                tip.Draw += (_, _) => drawObserved = true;
+                try
+                {
+                    AppToolTips.Show(tip, registered, original, new Point(10, registered.Height));
+                    Application.DoEvents();
+                    Check(popupObserved && drawObserved, "ManualHintUsesActualPopupAndDrawPipeline");
+                    Check(popupSize.Width > 0 && popupSize.Height > 0 &&
+                        popupSize.Width <= (int)Math.Ceiling(AppToolTips.MaximumWidthDip * registered.DeviceDpi / 96d) &&
+                        popupSize.Height <= (int)Math.Ceiling(AppToolTips.MaximumHeightDip * registered.DeviceDpi / 96d),
+                        "ManualHintPopupSizeFollowsOwnerDpiLimits");
+                }
+                finally { AppToolTips.Hide(tip, registered); }
+                Check(tip.GetToolTip(registered) == original, "ManualHintHidePreservesRegisteredOriginal");
+
+                var activityTip = (ToolTip)typeof(DiskActivityPanel).GetField("sidebarTip", Hidden)!.GetValue(activity)!;
+                var details = activity.DetailsButton!;
+                string detailsText = activityTip.GetToolTip(details) ?? "";
+                Check(!string.IsNullOrWhiteSpace(detailsText) && detailsText.Length <= 80,
+                    "ActivityDetailsKeepsShortExplicitHint");
+                int detailRequests = 0;
+                activity.DetailsRequested += (_, _) => detailRequests++;
+                details.PerformClick();
+                Check(detailRequests == 1 && !activity.Expanded, "ActivityDetailsRemainsAvailableWithoutEnablingSampling");
+                CheckCardHasNoHint();
+
+                DateTimeOffset at = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+                activity.SetSample(new(at, 0, 37, 2 * 1024 * 1024, 3 * 1024 * 1024, .5, DiskActivityStatus.Available));
+                CheckCardHasNoHint();
+                string description = activity.AccessibleDescription!;
+                Check(description.Contains("整块磁盘，包含其他进程", StringComparison.Ordinal) &&
+                    description.Contains("活动时间 37%", StringComparison.Ordinal) &&
+                    description.Contains("读取速度", StringComparison.Ordinal) && description.Contains("写入速度", StringComparison.Ordinal) &&
+                    description.Contains("平均响应", StringComparison.Ordinal) &&
+                    description.Contains("2" + CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator + "0 MiB/s", StringComparison.Ordinal) &&
+                    description.Contains("3" + CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator + "0 MiB/s", StringComparison.Ordinal) &&
+                    description.Contains("0" + CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator + "5 毫秒", StringComparison.Ordinal),
+                    "ActivityAccessibilityRetainsAllCurrentMetrics");
+                activity.AdvanceClock(at.AddSeconds(2));
+                CheckCardHasNoHint();
+                Check(activity.AccessibleDescription == description && activityTip.GetToolTip(details) == detailsText,
+                    "ActivityClockDoesNotPopulateCardOrRewriteDetailHint");
+                activity.AdvanceClock(at.AddSeconds(6));
+                CheckCardHasNoHint();
+                Check(activity.AccessibleDescription!.Contains("采样延迟", StringComparison.Ordinal) &&
+                    activity.AccessibleDescription.Contains("活动时间 —", StringComparison.Ordinal),
+                    "ActivityDelayedStateRemainsAccessible");
+
+                var progressTip = (ToolTip)typeof(ScanProgressControl).GetField("tip", Hidden)!.GetValue(progress)!;
+                string stableHint = progressTip.GetToolTip(progress) ?? "";
+                Check(!string.IsNullOrWhiteSpace(stableHint) && stableHint.Length <= 160,
+                    "ProgressHasShortExplanationHint");
+                const string firstPath = "D:\\Synthetic\\第一份目录\\ExampleFile.data";
+                const string secondPath = "D:\\Synthetic\\另一份目录\\DifferentFile.data";
+                string firstDetail = "读取目录 · 12 个文件\n当前路径 " + firstPath;
+                string secondDetail = "核验元信息 · 28 个文件\n当前路径 " + secondPath;
+                progress.BeginScan();
+                progress.Report(new(12, 3, 4096, firstPath, CompletedDirectories: 1, DiscoveredDirectories: 3));
+                progress.SetDetailText(firstDetail);
+                Check(progress.AccessibleDescription!.Contains(ScanProgressControl.Explanation, StringComparison.Ordinal) &&
+                    progress.AccessibleDescription.Contains(firstDetail, StringComparison.Ordinal),
+                    "ProgressKeepsFullExplanationAndFirstDynamicDetail");
+                Check(progressTip.GetToolTip(progress) == stableHint && !stableHint.Contains(firstPath, StringComparison.Ordinal),
+                    "ProgressDetailDoesNotBecomeHoverHint");
+                progress.Report(new(28, 7, 8192, secondPath, ScanPhase.Verifying,
+                    CompletedDirectories: 2, DiscoveredDirectories: 7));
+                progress.SetDetailText(secondDetail);
+                Check(progress.AccessibleDescription!.Contains(secondDetail, StringComparison.Ordinal) &&
+                    !progress.AccessibleDescription.Contains(firstPath, StringComparison.Ordinal),
+                    "ProgressDynamicDetailTracksLatestSample");
+                Check(progressTip.GetToolTip(progress) == stableHint && !stableHint.Contains(secondPath, StringComparison.Ordinal),
+                    "ProgressHintRemainsFixedAcrossSamples");
+                progress.Finish(ScanDisplayState.Completed);
+                Check(progressTip.GetToolTip(progress) == stableHint &&
+                    progress.AccessibleDescription!.Contains(secondDetail, StringComparison.Ordinal),
+                    "ProgressCompletionPreservesFixedHintAndFullDescription");
+
+                void CheckCardHasNoHint() => Check(string.IsNullOrEmpty(activityTip.GetToolTip(activity)) &&
+                    string.IsNullOrEmpty(activityTip.GetToolTip(activity.ToggleButton)) &&
+                    string.IsNullOrEmpty(activityTip.GetToolTip(activity.TargetSelector)), "ActivityCardHasNoAutomaticMetricHint");
+            }
+            finally { form.Close(); Application.DoEvents(); }
+        }
+
+        void CheckGridHoverLifecycle()
+        {
+            // Test controller transitions with an explicit active-policy input,
+            // independently of whoever owns desktop focus. Production keeps
+            // Form.ActiveForm; real hover timing/appearance is reviewed separately.
+            // Never move the pointer, wait for dwell, or force TimerTick here.
+            using var form = new Form
+            {
+                Text = "Synthetic grid hint lifecycle", AutoScaleMode = AutoScaleMode.None,
+                ClientSize = new Size(520, 280), ShowInTaskbar = false
+            };
+            using var grid = new DataGridView
+            {
+                Bounds = new Rectangle(15, 15, 480, 240), AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false, RowHeadersVisible = false, ReadOnly = true,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
+                AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect
+            };
+            grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "name", HeaderText = "名称", Width = 330 });
+            grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "size", HeaderText = "大小", Width = 110 });
+            grid.RowTemplate.Height = 26;
+            AddRows();
+            form.Controls.Add(grid);
+            bool activePolicy = true;
+            using var hints = new GridHoverHints(grid, _ => activePolicy);
+            form.Show();
+            form.Activate();
+            grid.Focus();
+            Application.DoEvents();
+            try
+            {
+                Check(grid.IsHandleCreated && grid.Visible && grid.Enabled, "GridHintFixtureIsOwnedVisibleForm");
+                Check(!grid.ShowCellToolTips, "GridHintsDisableEagerNativeCellTooltips");
+                CheckCancelled("GridHintsStartEmpty");
+
+                MoveToName("GridNameCellStartsPendingHint");
+                Point numberPoint = CellPoint(1);
+                Raise("OnMouseMove", new MouseEventArgs(MouseButtons.None, 0, numberPoint.X, numberPoint.Y, 0));
+                CheckCancelled("GridNumericCellDoesNotBecomeHintTarget");
+
+                MoveToName("GridHintCanRearmBeforeScroll");
+                int beforeScroll = grid.FirstDisplayedScrollingRowIndex;
+                grid.FirstDisplayedScrollingRowIndex = beforeScroll + 2;
+                Check(grid.FirstDisplayedScrollingRowIndex != beforeScroll, "GridHintFixtureActuallyScrolls");
+                CheckCancelled("GridScrollCancelsPendingHint");
+
+                MoveToName("GridHintCanRearmBeforeMouseDown");
+                Point namePoint = CellPoint(0);
+                Raise("OnMouseDown", new MouseEventArgs(MouseButtons.Left, 1, namePoint.X, namePoint.Y, 0));
+                CheckCancelled("GridMouseDownCancelsPendingHint");
+                Raise("OnMouseUp", new MouseEventArgs(MouseButtons.Left, 1, namePoint.X, namePoint.Y, 0));
+                grid.Capture = false;
+
+                MoveToName("GridHintCanRearmBeforeKeyDown");
+                Raise("OnKeyDown", new KeyEventArgs(Keys.Escape));
+                CheckCancelled("GridKeyDownCancelsPendingHint");
+
+                MoveToName("GridHintCanRearmBeforeDisabled");
+                grid.Enabled = false;
+                CheckCancelled("GridDisabledCancelsPendingHint");
+                grid.Enabled = true;
+
+                MoveToName("GridHintCanRearmBeforeMouseLeave");
+                Raise("OnMouseLeave", EventArgs.Empty);
+                CheckCancelled("GridMouseLeaveCancelsPendingHint");
+
+                MoveToName("GridHintCanRearmBeforeRowsClear");
+                grid.Rows.Clear();
+                CheckCancelled("GridRowsClearCancelsPendingHint");
+                AddRows();
+                CheckCancelled("GridAddedRowsDoNotReviveOldHint");
+
+                MoveToName("GridHintCanRearmBeforeDisposal");
+                activePolicy = false;
+                Raise("OnMouseMove", new MouseEventArgs(MouseButtons.None, 0, namePoint.X, namePoint.Y, 0));
+                CheckCancelled("InactivePolicyCancelsPendingHint");
+                grid.Dispose();
+                hints.Dispose();
+                Check(!hints.PendingHint && !hints.HintVisible && hints.CurrentCell == null,
+                    "GridDisposalReleasesPendingHintAndTarget");
+            }
+            finally { form.Close(); Application.DoEvents(); }
+
+            void AddRows()
+            {
+                for (int index = 0; index < 20; index++)
+                {
+                    int row = grid.Rows.Add("Synthetic item " + index, "1 KiB");
+                    grid.Rows[row].Cells[0].ToolTipText = "D:\\Synthetic\\GridHints\\item-" + index + ".data";
+                    // Even an explicit numeric-cell value must not opt that
+                    // column into the name/path hover presentation.
+                    grid.Rows[row].Cells[1].ToolTipText = "Synthetic numeric hint";
+                }
+            }
+
+            Point CellPoint(int column)
+            {
+                int row = Math.Max(0, grid.FirstDisplayedScrollingRowIndex);
+                Rectangle bounds = grid.GetCellDisplayRectangle(column, row, true);
+                Check(bounds.Width > 4 && bounds.Height > 4, "GridHintTargetCellIsVisible");
+                return new Point(bounds.Left + bounds.Width / 2, bounds.Top + bounds.Height / 2);
+            }
+
+            void MoveToName(string code)
+            {
+                int row = Math.Max(0, grid.FirstDisplayedScrollingRowIndex);
+                Point point = CellPoint(0);
+                Raise("OnMouseMove", new MouseEventArgs(MouseButtons.None, 0, point.X, point.Y, 0));
+                Check(hints.PendingHint && !hints.HintVisible && hints.CurrentCell == (row, 0), code);
+            }
+
+            void CheckCancelled(string code) => Check(!hints.PendingHint && !hints.HintVisible && hints.CurrentCell == null, code);
+
+            void Raise(string method, EventArgs args) => typeof(DataGridView)
+                .GetMethod(method, Hidden)!.Invoke(grid, [args]);
+        }
+    }
+
+    private sealed class Failure(string code) : Exception("QuietToolTip")
+    {
+        internal string Code { get; } = code;
+    }
+}

@@ -1,0 +1,43 @@
+{
+  "removed": [
+    {
+      "path": "artifacts/resize-c40/video/c39-before-silent.mp4",
+      "bytes": 68970270,
+      "sha256": "71CED78224570B42C35A9550CC9E1FC4DD125DB97F5EE0CAE9855CAA42ECC264",
+      "reason": "obsolete owned C40/C41 resize recording; code, summaries and selected still evidence retained"
+    },
+    {
+      "path": "artifacts/resize-c40/video/native-observation.mp4",
+      "bytes": 29989023,
+      "sha256": "8621A3F551266A7F2BBDE6DDC064850B2361E1F7AAEA726C97488737E014724C",
+      "reason": "obsolete owned C40/C41 resize recording; code, summaries and selected still evidence retained"
+    },
+    {
+      "path": "artifacts/resize-c41/video/after-resize.mp4",
+      "bytes": 59051588,
+      "sha256": "5A3D55D3CF6DC9B665CE4FFC19BE9A67DD1302F3630D11E3F0DB8E2B7C778270",
+      "reason": "obsolete owned C40/C41 resize recording; code, summaries and selected still evidence retained"
+    },
+    {
+      "path": "artifacts/resize-c41/video/before-resize.mp4",
+      "bytes": 59051573,
+      "sha256": "18B6E1076DA7057E9C07B452591D53D549F513D736590C67FCEC8B848D6D8FEE",
+      "reason": "obsolete owned C40/C41 resize recording; code, summaries and selected still evidence retained"
+    }
+  ],
+  "obsolete_recording_bytes": 217062454,
+  "temporary_committed_build_bytes": 47987528,
+  "committed_source_removed_after_successful_build": true,
+  "source_commit": "8efdf112ffed2b6ea35896378256d22588848cac",
+  "preserved": [
+    "C55 binary",
+    "C57 candidate",
+    "current normal build",
+    "shared synthetic demo",
+    "historical key sources, patches, summaries and selected stills",
+    "published release snapshots",
+    "release dependency cache"
+  ],
+  "system_settings_changed": false,
+  "new_recordings": 0
+}

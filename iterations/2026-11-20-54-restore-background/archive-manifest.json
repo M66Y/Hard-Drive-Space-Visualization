@@ -1,0 +1,130 @@
+{
+  "files": [
+    {
+      "file": "before/.agents__skills__asukalens-project-memory__references__checkpoint.md.txt",
+      "bytes": 15865,
+      "sha256": "0D8E81E816D9FC25FF35B836ECF613D7D6CA8D3B79963E4DC8FB882587A342FD"
+    },
+    {
+      "file": "before/.agents__skills__asukalens-project-memory__references__decisions.md.txt",
+      "bytes": 26843,
+      "sha256": "EB1E33C972D45ADAA435F70F5855E7EF6F56E1B6264C3CB964563FB7FB50D746"
+    },
+    {
+      "file": "before/AGENTS.md.txt",
+      "bytes": 46638,
+      "sha256": "06F8C37BBEE6EEB416F8CBD747DF090E7B3E6C0A6F9506D0E12F762028C2698D"
+    },
+    {
+      "file": "before/docs__development-plan.md.txt",
+      "bytes": 69053,
+      "sha256": "50B84C45EE5682FCF0C5B56E3B65613CD49CC2D6CFD04DE84CBD06EE27554698"
+    },
+    {
+      "file": "before/docs__project-status.md.txt",
+      "bytes": 80983,
+      "sha256": "BEECC926222D39C0A94828914EC595401E0617CF44542022FB33B6179CCBE798"
+    },
+    {
+      "file": "before/docs__ui-rendering-defects-handoff.md.txt",
+      "bytes": 18815,
+      "sha256": "7EFC2B55866401E0638DA9DA3E7899312F9EE38BFEAC06AA63A25C20C4FDC64D"
+    },
+    {
+      "file": "before/docs__ui-restore-background-plan.md.txt",
+      "bytes": 2564,
+      "sha256": "2E627FB73ACEA0C6D39FAF878E41881765C8C83247796C54E0D541241A070822"
+    },
+    {
+      "file": "before/tests__Program.cs.txt",
+      "bytes": 71606,
+      "sha256": "46687FF25C6B14C2262F69A54022B34039215983D4406183A80B88E2DAED7EA7"
+    },
+    {
+      "file": "before/tests__ResizePipelineProbe.cs.txt",
+      "bytes": 7212,
+      "sha256": "17B1FFD1AEEF9EACB9A383425AEB17C0B6519E50C3208C17C356AB322FD0E31A"
+    },
+    {
+      "file": "before/Wallpaper.cs.txt",
+      "bytes": 37355,
+      "sha256": "6CAEC58482FDE5C2BF8BBF75EF592B65A729F3549E8BE098E39A5C027A4A1952"
+    },
+    {
+      "file": "build-manifest.json",
+      "bytes": 4535,
+      "sha256": "CB6A2BC7738295C477C26F9E26A29A2EDA1C6F411F440F6B65E3EE3F00D8B470"
+    },
+    {
+      "file": "changes.patch",
+      "bytes": 182196,
+      "sha256": "669782B71F1A0335E8A6FF9EE42F3C8D0F1A78EA85127B6FACD128D9DFB926B1"
+    },
+    {
+      "file": "cleanup-summary.json",
+      "bytes": 1695,
+      "sha256": "B80D39DC6E0063C97F548AA32114F50307D1DFF1ED4518927A7A065497E1F0C7"
+    },
+    {
+      "file": "comparison-summary.json",
+      "bytes": 1069,
+      "sha256": "A3448AD0A3B801487082F12E2F4F74488CDD8C92D689B0A09B9FC5E62487557B"
+    },
+    {
+      "file": "final-checks.json",
+      "bytes": 730,
+      "sha256": "27075DBBB4613716C5B28E2CDB5D26395E6A6B704279B9704AFEC96975CF003A"
+    },
+    {
+      "file": "key-files/tests__NativeWindowClipProbe.cs.txt",
+      "bytes": 4461,
+      "sha256": "214C5F4529BFD537D5F2D9FEE1EA5E7E7845B6300C9E73E4B73FC336545910E2"
+    },
+    {
+      "file": "key-files/tests__Program.cs.txt",
+      "bytes": 72375,
+      "sha256": "E35659F8ED57493A0BA8D3DBF1E5649FE88E4EEA3C5721D35C6B3F42295E5845"
+    },
+    {
+      "file": "key-files/tests__ResizePipelineProbe.cs.txt",
+      "bytes": 7254,
+      "sha256": "19BC5B41A946A7E78984593FE305A2B6FC9717885B4486A7323943138466933C"
+    },
+    {
+      "file": "key-files/tests__TransparentRestoreProbe.cs.txt",
+      "bytes": 9690,
+      "sha256": "06FEC9DBE8B0D0F782752E18D09D1BC5F354841D7C8422F256BDF7434C97C5B4"
+    },
+    {
+      "file": "key-files/Wallpaper.cs.txt",
+      "bytes": 37529,
+      "sha256": "898BD4F3DE1E247C3D995F64565A85D26AF58305BF2272217F77ECC75EB0F67E"
+    },
+    {
+      "file": "negative-check.json",
+      "bytes": 383,
+      "sha256": "0EC2924986E7E1C966FB5F6E8EE2351442326E3A7EAEE6CD9A2B5995CF69F325"
+    },
+    {
+      "file": "patch-validation.json",
+      "bytes": 314,
+      "sha256": "8CA20DEC3FA1B0CA659341CF7969479D7DAFD584263039FF2F284EBE4C82F3EF"
+    },
+    {
+      "file": "performance-summary.json",
+      "bytes": 1166,
+      "sha256": "DE445274E77388D20C37021B3DC81D6F8A62426507A7EACD54065D82876AAABB"
+    },
+    {
+      "file": "README.md",
+      "bytes": 3927,
+      "sha256": "0745C1BC77298D8888B50EC896B34F47B87A5DCBBAB972F3EDCF5A0365A80B01"
+    },
+    {
+      "file": "verification-summary.json",
+      "bytes": 6773,
+      "sha256": "9E95CA043B0A589AAA693BC9BE99E4FD09F8FDFDAE307BE41EE2F1DFD33D4285"
+    }
+  ],
+  "self_excluded": true
+}

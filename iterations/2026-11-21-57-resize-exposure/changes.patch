@@ -1,0 +1,955 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index f022ec5..e7a4425 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,5 +1,12 @@
+ # AsukaLens 开发检查点
+ 
++## C57已打开，等用户连续缩放反馈（2026-11-21）
++
++用户确认C56仍闪黑，已按确认的docs/ui-background-composition-plan.md实现自有cloaked源窗口＋behind-children DirectComposition背景。保留C55、布局/背景/字体/1.15倍动效，root不依赖C56layered；仅AsukaLens.CompositionDibCandidate或显式参数开启，不录屏、不改系统、不设默认。首次创建移至主窗显示后；未来客户区用NCCALCSIZE精确修正；句柄退役保护及背景提交立即更新，失败撤树回退C55。
++
++两档原型各182、主窗各79通过，六关闭周期GDI/USER稳定；12次新区域绘制前背景就绪/尺寸一致。28组兼容通过，后补保护与背景同步后再验专项、完整UI两档及DIB核心608/6513984像素。off/on/on/off同步p50约283/271/277/290ms，应用像素峰值27873396字节；非帧率，系统/GPU额外内存未测。GDI取点不包含合成层，不证明无闪黑。真实自建52文件扫描、最大化/还原已观察，窗口留给用户；连续缩放、Win10后端及真实跨屏待验。
++
++入口artifacts/dib-mainform-C57/app/AsukaLens.CompositionDibCandidate.exe，当前启动隔离配置。主DLL4B6141834737F764A800CDBF1CFFDFBDD5183590D473CEA19FBD61FFC33F8AC5。证据iterations/2026-11-21-57-resize-exposure，前像/关键源码/精确补丁保留；普通、C55/C56哈希不变。Git仍main9ac1f0b，继承暂存/前序依赖未整合，不混提，本轮未提交/推送/Release。下一步先收用户反馈，不自动设默认或开展新后端。
+ ## 最新：2026-11-21 C56已打开，等待连续缩放反馈
+ 
+ 用户批准完全不透明整窗离屏重定向，保留C55、布局/背景/字体/1.15倍动效，不录屏、不设默认。OpaqueWindowRedirect仅显式参数或AsukaLens.OpaqueDibCandidate apphost启用；普通和旧DIB入口不启用。同步公开AllowTransparency意图（Opacity仍1、无色键）防止Form.CreateHandle末尾UpdateStyles撤销Native样式；Active核真实属性，按句柄代际/失败分类回退，只清自有设置。
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index 2311cc4..db9ffd4 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,5 +1,7 @@
+ # 影响后续开发的决定
+ 
++- 2026-11-21：C57按用户批准完成并打开，独立背景合成在原生子控件后，保留C55和原有视觉；不再依赖C56整窗layered。源初始化延后主窗显示、准确未来客户区/句柄退役/背景立即发布均已查，失败撤树回退C55。各182/79专项及完整回归、真实自建扫描/最大化还原已查；GDI不见合成层，连续闪黑是否改善仍待用户反馈。保留C55/C56，不默认、不录屏/改系统，不混提前序依赖。见iterations/2026-11-21-57-resize-exposure/README.md。
++
+ - 2026-11-21交付C56：用户批准的opaque重定向已完成并展示，保留C55与普通、不设默认。原生/资源和完整兼容检查完成，仍保留两次普通Form柔光还原超时及其未明原因；不以阶段复验通过关闭该记录。GDI存储早期黑点不代表DWM最终呈现，因此真实连续缩放等待用户判断；系统额外图像内存和Win10/跨屏范围不作未经测量的承诺。证据iterations/2026-11-21-56-early-client/README.md。
+ 
+ - 2026-11-21：用户批准C56完整不透明整窗重定向候选，保留C55/普通、不设默认。针对Form.CreateHandle末尾样式重置，同步公开AllowTransparency管理意图且Opacity保持1，以真实Native alpha255/no-key/无穿透作验收；不依赖内部Active布尔或99%透明度。系统额外图像存储不假算进应用128MiB；只有兼容/资源通过并实际展示后才收用户结论。方案docs/ui-opaque-redirect-plan.md。
+diff --git a/AGENTS.md b/AGENTS.md
+index 11fff33..600d9bb 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -126,6 +126,7 @@
+ - C56整窗重定向仅由显式`--opaque-redirect-candidate`或`AsukaLens.OpaqueDibCandidate.exe`启用；普通与旧DIB入口不启用。修改该模式运行`--opaque-redirect-tests`两档，核实际LWA_ALPHA=255、无色键/点击穿透、句柄代际/失败回退、原生交互及关闭资源；完整UI使用`--opaque-tests --dib-tests --ui-regression`两档，显式DIB专项可只加`--opaque-tests`保留其普通参考路径。管线`--c56`的off/on只比较重定向，双方均保留C55根缓存。系统额外窗口图像不算入应用128MiB预算，GDI存储像素、句柄稳定或后台检查通过均不等于真实屏幕无闪黑；Win10/跨屏等未验范围单列，不沿用旧发行包结论。
+ - 开发 SDK 由 `global.json` 固定到已验证的 .NET 10 feature band，允许补丁升级，不使用预览 SDK。运行需要 .NET 10 Windows Desktop Runtime；SDK 已包含它。
+ - 当前普通构建入口：`dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。
++- C57是显式候选：`--composition-dib-candidate`或`AsukaLens.CompositionDibCandidate.exe`启用自有cloaked窗口的behind-children背景合成，不依赖C56 root-layered；默认入口不启用。修改该路径运行`--composition-backdrop-tests`、`--composition-mainform-tests`两档，并以`--composition-tests`前缀运行受影响UI/布局/背景检查。`--resize-pipeline-probe off1|on1|on2|off2 --c57`比较同构建C55与C57，输出独立ignored目录；GDI取点不包含合成层，Commit完成及后台断言不能替代真实屏幕反馈，不擅自设默认。方案见[独立背景层](docs/ui-background-composition-plan.md)。
+ - 先构建测试项目：`dotnet build tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。测试 DLL 为 `tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll`，用 `dotnet` 运行，按下表选范围。
+ 
+ | 改动范围 | 必要检查 |
+diff --git a/MainForm.cs b/MainForm.cs
+index eac8ef9..9398f43 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -26,6 +26,9 @@ internal sealed class MainForm : Form
+     internal RenderSession? Rendering { get; private set; }
+     private DibWindowCoverage? dibCoverage;
+     private OpaqueWindowRedirect? opaqueRedirect;
++    private CompositionBackdrop? compositionBackdrop;
++    private bool compositionReady, compositionShown;
++    internal CompositionBackdrop? CompositionBackdrop => compositionBackdrop;
+     internal OpaqueWindowRedirect? OpaqueRedirect => opaqueRedirect;
+     internal MainSurfaceStyle SurfaceStyle { get; private set; } = MainSurfaceStyle.Airy;
+     internal void ApplyStageOnePreview(string variant)
+@@ -120,14 +123,16 @@ internal sealed class MainForm : Form
+     private bool sortAscending;
+     private bool updating;
+ 
+-    public MainForm(string? initialPath, bool loadSavedBackground = false, string? backgroundSettingsPath = null, DiagnosticService? diagnostics = null, bool dibCandidate = false, bool opaqueRedirectCandidate = false)
++    public MainForm(string? initialPath, bool loadSavedBackground = false, string? backgroundSettingsPath = null, DiagnosticService? diagnostics = null, bool dibCandidate = false, bool opaqueRedirectCandidate = false, bool compositionCandidate = false)
+     {
+-        if (dibCandidate || opaqueRedirectCandidate || AppContext.TryGetSwitch("AsukaLens.TestDib", out bool testDib) && testDib)
++        bool useComposition = compositionCandidate || AppContext.TryGetSwitch("AsukaLens.TestComposition", out bool testComposition) && testComposition;
++        if (dibCandidate || opaqueRedirectCandidate || useComposition || AppContext.TryGetSwitch("AsukaLens.TestDib", out bool testDib) && testDib)
+         {
+             Rendering = new RenderSession(true);
+             WallpaperRaster.Session = Rendering;
+             dibCoverage = new DibWindowCoverage(this);
+-            if(opaqueRedirectCandidate || AppContext.TryGetSwitch("AsukaLens.TestOpaqueRedirect",out bool testRedirect) && testRedirect)
++            if (useComposition) compositionBackdrop = new CompositionBackdrop(this);
++            if(!useComposition && (opaqueRedirectCandidate || AppContext.TryGetSwitch("AsukaLens.TestOpaqueRedirect",out bool testRedirect) && testRedirect))
+                 opaqueRedirect = new OpaqueWindowRedirect(this,postCreateHost:true);
+         }
+         this.diagnostics = diagnostics;
+@@ -135,6 +140,7 @@ internal sealed class MainForm : Form
+         Text = AppInfo.WindowTitle;
+         if (Rendering != null) Text += " · DIB 候选";
+         if (opaqueRedirect != null) Text += " · C56";
++        if (compositionBackdrop != null) Text += " · C57";
+         if (Environment.ProcessPath is { } executable) Icon = Icon.ExtractAssociatedIcon(executable);
+         Size = new Size(1440, 940);
+         MinimumSize = new Size(1120, 780);
+@@ -295,8 +301,41 @@ internal sealed class MainForm : Form
+     {
+         base.OnHandleCreated(e);
+         opaqueRedirect?.HandleReady();
++        if (compositionShown) ScheduleCompositionBackdrop();
++    }
++    protected override void OnHandleDestroyed(EventArgs e)
++    {
++        compositionReady = false;
++        base.OnHandleDestroyed(e);
++    }
++    protected override void OnShown(EventArgs e)
++    {
++        base.OnShown(e);
++        compositionShown = true;
++        ScheduleCompositionBackdrop();
++    }
++    private void ScheduleCompositionBackdrop()
++    {
++        if (compositionBackdrop == null || !IsHandleCreated) return;
++        IntPtr generation = Handle;
++        // Source creation must not re-enter the root's first SHOW/WINDOWPOS
++        // transaction. Start after that native transaction has returned.
++        BeginInvoke((Action)(() =>
++        {
++            if (IsDisposed || Disposing || !IsHandleCreated || Handle != generation) return;
++            compositionReady = true;
++            PublishCompositionBackdrop(dibCoverage?.RootFrame(ClientSize));
++        }));
++    }
++    protected override void OnPaintBackground(PaintEventArgs e)
++    {
++        if (compositionBackdrop != null) PublishCompositionBackdrop(dibCoverage?.RootFrame(ClientSize));
++        Wallpaper.Paint(this, e.Graphics);
++    }
++    internal void PublishCompositionBackdrop(PixelSurface? frame)
++    {
++        if (compositionReady) compositionBackdrop?.Publish(frame);
+     }
+-    protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics);
+     internal bool TryPaintCachedRoot(Control control, Graphics graphics, Size size, Point offset, int wash) =>
+         dibCoverage?.TryPaintCachedRoot(control,graphics,size,offset,wash) == true;
+ 
+@@ -1534,6 +1573,9 @@ internal sealed class MainForm : Form
+         grid.GridColor = useDefault ? Color.FromArgb(239, 224, 217) : Theme.Mix(Theme.Border, Theme.Surface, .55f);
+         previous?.Dispose();
+         UpdateTextSurfaces(this);
++        // A fully covered root may receive no GDI paint after invalidation.
++        // Retire the old compositor image at the background commit itself.
++        if (compositionReady) PublishCompositionBackdrop(dibCoverage?.RootFrame(ClientSize));
+         Invalidate(true);
+ 
+         void UpdateTextSurfaces(Control parent)
+@@ -1560,6 +1602,7 @@ internal sealed class MainForm : Form
+     {
+         if (disposing)
+         {
++            compositionBackdrop?.Dispose(); compositionBackdrop = null;
+             opaqueRedirect?.Dispose();opaqueRedirect=null;
+             dibCoverage?.Dispose(); dibCoverage = null;
+             layoutPresentation?.Dispose();
+diff --git a/Program.cs b/Program.cs
+index dcae6b3..5e7ec8c 100644
+--- a/Program.cs
++++ b/Program.cs
+@@ -38,7 +38,9 @@ internal static class Program
+                 dibCandidate: args.Contains("--dib-candidate", StringComparer.Ordinal) ||
+                     string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath), "AsukaLens.DibCandidate", StringComparison.OrdinalIgnoreCase),
+                 opaqueRedirectCandidate: args.Contains("--opaque-redirect-candidate", StringComparer.Ordinal) ||
+-                    string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath), "AsukaLens.OpaqueDibCandidate", StringComparison.OrdinalIgnoreCase));
++                    string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath), "AsukaLens.OpaqueDibCandidate", StringComparison.OrdinalIgnoreCase),
++                compositionCandidate: args.Contains("--composition-dib-candidate", StringComparer.Ordinal) ||
++                    string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath), "AsukaLens.CompositionDibCandidate", StringComparison.OrdinalIgnoreCase));
+             if (data.IsIsolated) form.Text += " · 隔离数据";
+             Application.Run(form);
+         }
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 4f61963..96a4e4e 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,6 +1,17 @@
+ # 后续开发计划
+-
+-## C56候选已打开：完全不透明整窗重定向待用户体验（2026-11-21）
++
++## C57已打开：独立背景合成候选待用户缩放反馈（2026-11-21）
++
++用户确认C56仍闪黑后，已批准并完成[独立背景合成层方案](ui-background-composition-plan.md)。C57保留布局、背景、字体、1.15倍动效、原生控件及C55快路；自有cloaked源窗口提供准确裁切的背景，DirectComposition目标明确位于原生子控件之后。普通主窗不加C56的layered样式，仅独立apphost或显式参数启用；失败撤下本轮合成对象并回退C55，不默认或发布。
++
++背景先按预计尺寸准备，再用WM_NCCALCSIZE返回的准确客户区修正边框变化，避免最大化尺寸失配。源窗口初次创建安排在主窗显示事务返回后；按句柄代际阻止旧提交回写，背景应用时立即替换合成图像，即使根GDI表面没有收到重绘也不留旧背景。应用像素预算仍128MiB，系统/GPU额外存储未测。
++
++原型两档最终各182项、主窗各79项通过；六关闭周期GDI/USER稳定。固定尺寸序列每档12次新区域绘制前背景就绪且尺寸匹配。28组兼容组合通过，包含普通/C57两档完整UI、根像素/布局/还原/滚动/柔光等；最后补齐代际与背景立即更新后，再完成专项、两档完整UI和DIB核心608项/6513984像素。程序两档不代表真实跨屏或Win10新后端验收。
++
++同构建off/on/on/off同步尺寸p50约283/271/277/290ms，应用像素峰值均27873396字节，不能当作帧率或普遍提速保证。GDI取点不包含合成层，Commit完成不能证明最终无闪黑。正常功能候选已用隔离配置扫描自建52文件，并实际检查常用尺寸、最大化和还原；当前等待用户连续缩放反馈，未宣称闪黑根治。入口`artifacts/dib-mainform-C57/app/AsukaLens.CompositionDibCandidate.exe`，C55/C56及普通二进制保留。见[C57证据](../iterations/2026-11-21-57-resize-exposure/README.md)。不录屏、不改系统、不扫描个人卷。
++
++Git仍main 9ac1f0b；继承的C30暂存及C31–C56未提交依赖不混提。本轮保留前像、关键文件及逐字节补丁，未提交/推送或正式发布；不将候选或后台检查等同默认版完成。
++## C56历史候选：用户已确认仍闪黑（2026-11-21）
+ 
+ 已按用户确认的[方案](ui-opaque-redirect-plan.md)完成显式C56模式、兼容性及资源检查，并打开正常扫描软件。窗口仍完全不透明（实际alpha255、无色键/无穿透），布局/背景/字体/1.15倍动效及C55优化保留；普通与旧DIB入口不启用。`AsukaLens.OpaqueDibCandidate.exe`或显式参数才启用，C55与普通二进制未覆盖。
+ 
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 2e83c33..e887723 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,6 +1,17 @@
+ # AsukaLens 项目现状
+-
+-## C56候选已打开：完全不透明整窗重定向待用户体验（2026-11-21）
++
++## C57已打开：独立背景合成候选待用户缩放反馈（2026-11-21）
++
++用户确认C56仍闪黑后，已批准并完成[独立背景合成层方案](ui-background-composition-plan.md)。C57保留布局、背景、字体、1.15倍动效、原生控件及C55快路；自有cloaked源窗口提供准确裁切的背景，DirectComposition目标明确位于原生子控件之后。普通主窗不加C56的layered样式，仅独立apphost或显式参数启用；失败撤下本轮合成对象并回退C55，不默认或发布。
++
++背景先按预计尺寸准备，再用WM_NCCALCSIZE返回的准确客户区修正边框变化，避免最大化尺寸失配。源窗口初次创建安排在主窗显示事务返回后；按句柄代际阻止旧提交回写，背景应用时立即替换合成图像，即使根GDI表面没有收到重绘也不留旧背景。应用像素预算仍128MiB，系统/GPU额外存储未测。
++
++原型两档最终各182项、主窗各79项通过；六关闭周期GDI/USER稳定。固定尺寸序列每档12次新区域绘制前背景就绪且尺寸匹配。28组兼容组合通过，包含普通/C57两档完整UI、根像素/布局/还原/滚动/柔光等；最后补齐代际与背景立即更新后，再完成专项、两档完整UI和DIB核心608项/6513984像素。程序两档不代表真实跨屏或Win10新后端验收。
++
++同构建off/on/on/off同步尺寸p50约283/271/277/290ms，应用像素峰值均27873396字节，不能当作帧率或普遍提速保证。GDI取点不包含合成层，Commit完成不能证明最终无闪黑。正常功能候选已用隔离配置扫描自建52文件，并实际检查常用尺寸、最大化和还原；当前等待用户连续缩放反馈，未宣称闪黑根治。入口`artifacts/dib-mainform-C57/app/AsukaLens.CompositionDibCandidate.exe`，C55/C56及普通二进制保留。见[C57证据](../iterations/2026-11-21-57-resize-exposure/README.md)。不录屏、不改系统、不扫描个人卷。
++
++Git仍main 9ac1f0b；继承的C30暂存及C31–C56未提交依赖不混提。本轮保留前像、关键文件及逐字节补丁，未提交/推送或正式发布；不将候选或后台检查等同默认版完成。
++## C56历史候选：用户已确认仍闪黑（2026-11-21）
+ 
+ 已按用户确认的[方案](ui-opaque-redirect-plan.md)完成显式C56模式、兼容性及资源检查，并打开正常扫描软件。窗口仍完全不透明（实际alpha255、无色键/无穿透），布局/背景/字体/1.15倍动效及C55优化保留；普通与旧DIB入口不启用。`AsukaLens.OpaqueDibCandidate.exe`或显式参数才启用，C55与普通二进制未覆盖。
+ 
+diff --git a/after/docs/ui-background-composition-plan.md b/docs/ui-background-composition-plan.md
+new file mode 100644
+index 0000000..f3ad911
+--- /dev/null
++++ b/docs/ui-background-composition-plan.md
+@@ -0,0 +1,44 @@
++# C57：独立背景合成层原型与候选方案
++
++2026-11-21。用户确认C56连续缩放仍闪黑，要求继续修复、保留布局/背景/动效，不录屏，保留C55、不默认启用。C56策略的失败结论保留，不在其上反复调透明度或重绘标志。
++
++## 新证据与边界
++
++C57自有窗口观测补上了原生窗口尺寸：一次放大序列中，WM_NCCALCSIZE返回时窗口仍1680×1170、客户区仍1658×1114；首次WM_NCPAINT进入时窗口已2160×1410、客户区2138×1354，右边缘已有黑像素。计算返回至回调约67ms是两个观测的间隔，不代表全程都黑；首次覆盖后该点恢复。
++
++这表明普通客户DC无法在前一计算回调中覆盖尚不存在的新窗口范围。当前已确认根表面早期空档，尚不能断言所有剩余黑块均同因。C56完全不透明重定向仍未在用户实测中消除问题，因此不设默认。WVR_REDRAW、SWP_NOREDRAW的失败记录不删除。
++
++## 建议的最小后台变化
++
++保留WinForms、全部原生控件和C55 DIB优化，仅增加一个**独立的背景DirectComposition层**，位于主窗口GDI内容之上、全部子控件之后。背景继续来自原始图片和现有准确裁切的DIB壁纸缓存；不采集窗口截图，不复制整页UI，也不冻结拖动。字体、布局、图块及按钮动画、列表、搜索和扫描代码保持。
++
++优先验证系统支持的窗口位图互操作：自有、不可交互且被遮蔽的源窗口持有准备好的完整背景位图，系统合成目标绑定到主窗口并明确使用behind-children层。源窗口、COM对象及图像均由本候选持有和清理，不操作其他软件窗口或系统设置。尝试先发布下一尺寸的背景，再允许主窗口尺寸变化，让新区域出现时有独立合成内容可用；具体提交顺序和是否存在背景提前变化必须实测，不能预先判定通过。
++
++先做自有窗口兼容原型；若这种窗口位图互操作不可用或表现不符合要求，停止并反馈，不擅自扩大到完整UI或Direct3D迁移。无需新增NuGet包、安装驱动或修改Windows设置，使用系统已有的DirectComposition/DWM接口。C56的root-layered方式不作为新候选默认前提，C55普通DIB路径是回退基线。
++
++## 正确性与失败回退
++
++- 为合成对象、源窗口和图像标记当前句柄代际及背景/尺寸/DPI键，完整准备后才发布；失效、创建/提交失败、源窗口退出、背景变更、DPI不匹配不得展示已失效缓存。
++- 不遮挡子窗口、焦点、下拉菜单或命中区域；源窗口不可见、不可交互、不进任务栏，初始化失败立即回退C55，不用不明空白层盖住现有画面。
++- 明确应用缓存和系统额外图像存储；沿用128MiB应用像素上限，不把系统/GPU内存冒算成已测量零开销。关闭、重建和反复缩放后所有自有窗口、COM及图像均释放。
++- 同时检查顶部/左边拖动、右边/底部拖动、最大化/还原，以及背景提前变化/裁切接缝；不为消除黑色而接受错误背景范围或遮住数据。
++
++## 验收与交付
++
++原型先验证behind-children顺序、输入与下拉、精确背景像素、原生控件兼容、失败注入和资源归属。通过后再整合进显式正常功能C57候选，运行两档完整UI、图表/列表/布局/背景恢复/滚动/柔光及资源检查，同条件比较C55缩放成本。
++
++真实软件中展示常用/最小窗口，打开供用户连续缩放。GDI取点不包含独立合成内容，不能拿其黑/非黑计数代替最终屏幕结果；后台成功、Commit完成或无句柄增长均不是无闪黑证明。保留C55与C56，不设默认、不发布；新后端及本方案需用户先确认。
++
++## 官方依据
++
++- [CreateTargetForHwnd](https://learn.microsoft.com/windows/win32/api/dcomp/nf-dcomp-idcompositiondesktopdevice-createtargetforhwnd)：窗口有独立于GDI的合成层，topmost=false将视觉树放在子窗口之后。
++- [Bitmap surfaces](https://learn.microsoft.com/windows/win32/directcomp/bitmap-surfaces)：窗口位图与视频内存位图的互操作机制。
++- [Layered child window example](https://learn.microsoft.com/windows/win32/directcomp/how-to--animate-the-bitmap-of-a-layered-child-window)：展示CreateSurfaceFromHwnd及仅遮蔽自有源窗口的互操作流程。采用相同API契约，不照搬示例或增加其缩放动画。
++
++这些说明仅支持方案可研究，不保证AsukaLens现有多窗口界面实测无闪黑。
++
++## 实施授权
++用户已于2026-11-21确认按本方案验证并制作C57候选；不默认启用，完成后先展示真实效果。
++
++## 当前结果
++C57已完成实现与必要回归并打开正常功能候选；实际连续缩放反馈待收，不设默认。准确尺寸采用NCCALCSIZE结果，首次源创建延后到主窗显示后，背景提交立即更新且句柄退役保护已验证。详见iterations/2026-11-21-57-resize-exposure/README.md。
+diff --git a/docs/ui-rendering-defects-handoff.md b/docs/ui-rendering-defects-handoff.md
+index 0cf9074..37704bb 100644
+--- a/docs/ui-rendering-defects-handoff.md
++++ b/docs/ui-rendering-defects-handoff.md
+@@ -1,6 +1,17 @@
+ # 主界面绘制缺陷交接
+-
+-## C56候选已打开：完全不透明整窗重定向待用户体验（2026-11-21）
++
++## C57已打开：独立背景合成候选待用户缩放反馈（2026-11-21）
++
++用户确认C56仍闪黑后，已批准并完成[独立背景合成层方案](ui-background-composition-plan.md)。C57保留布局、背景、字体、1.15倍动效、原生控件及C55快路；自有cloaked源窗口提供准确裁切的背景，DirectComposition目标明确位于原生子控件之后。普通主窗不加C56的layered样式，仅独立apphost或显式参数启用；失败撤下本轮合成对象并回退C55，不默认或发布。
++
++背景先按预计尺寸准备，再用WM_NCCALCSIZE返回的准确客户区修正边框变化，避免最大化尺寸失配。源窗口初次创建安排在主窗显示事务返回后；按句柄代际阻止旧提交回写，背景应用时立即替换合成图像，即使根GDI表面没有收到重绘也不留旧背景。应用像素预算仍128MiB，系统/GPU额外存储未测。
++
++原型两档最终各182项、主窗各79项通过；六关闭周期GDI/USER稳定。固定尺寸序列每档12次新区域绘制前背景就绪且尺寸匹配。28组兼容组合通过，包含普通/C57两档完整UI、根像素/布局/还原/滚动/柔光等；最后补齐代际与背景立即更新后，再完成专项、两档完整UI和DIB核心608项/6513984像素。程序两档不代表真实跨屏或Win10新后端验收。
++
++同构建off/on/on/off同步尺寸p50约283/271/277/290ms，应用像素峰值均27873396字节，不能当作帧率或普遍提速保证。GDI取点不包含合成层，Commit完成不能证明最终无闪黑。正常功能候选已用隔离配置扫描自建52文件，并实际检查常用尺寸、最大化和还原；当前等待用户连续缩放反馈，未宣称闪黑根治。入口`artifacts/dib-mainform-C57/app/AsukaLens.CompositionDibCandidate.exe`，C55/C56及普通二进制保留。见[C57证据](../iterations/2026-11-21-57-resize-exposure/README.md)。不录屏、不改系统、不扫描个人卷。
++
++Git仍main 9ac1f0b；继承的C30暂存及C31–C56未提交依赖不混提。本轮保留前像、关键文件及逐字节补丁，未提交/推送或正式发布；不将候选或后台检查等同默认版完成。
++## C56历史候选：用户已确认仍闪黑（2026-11-21）
+ 
+ 已按用户确认的[方案](ui-opaque-redirect-plan.md)完成显式C56模式、兼容性及资源检查，并打开正常扫描软件。窗口仍完全不透明（实际alpha255、无色键/无穿透），布局/背景/字体/1.15倍动效及C55优化保留；普通与旧DIB入口不启用。`AsukaLens.OpaqueDibCandidate.exe`或显式参数才启用，C55与普通二进制未覆盖。
+ 
+diff --git a/after/src/UI/Rendering/CompositionBackdrop.cs b/src/UI/Rendering/CompositionBackdrop.cs
+new file mode 100644
+index 0000000..13f54f2
+--- /dev/null
++++ b/src/UI/Rendering/CompositionBackdrop.cs
+@@ -0,0 +1,180 @@
++using System.Runtime.InteropServices;
++
++namespace DiskAtlas;
++
++// Explicit candidate only. Retains wallpaper in the compositor, behind every
++// child HWND. It never captures UI, changes root styles, or owns input.
++internal sealed class CompositionBackdrop : IDisposable
++{
++    internal enum State { Waiting, Active, Failed, Disposed }
++    private readonly Form owner;
++    private readonly int thread = Environment.CurrentManagedThreadId;
++    private IntPtr root, device, target, visual, content;
++    private Source? source;
++    private PixelSurface? published;
++    private bool disposed, publishing;
++    internal State Status { get; private set; }
++    internal bool Active => Status == State.Active;
++    internal int Publications { get; private set; }
++    internal int Generation { get; private set; }
++    internal Size PublishedSize { get; private set; }
++    internal IntPtr SourceHandle => source?.Handle ?? IntPtr.Zero;
++    internal int FailureCode { get; private set; }
++    internal Action<string>? TestFault { get; set; }
++
++    internal CompositionBackdrop(Form owner)
++    {
++        this.owner = owner;
++        owner.HandleDestroyed += Destroyed;
++    }
++
++    internal bool Publish(PixelSurface? frame)
++    {
++        if (disposed || publishing || Environment.CurrentManagedThreadId != thread || owner.IsDisposed || owner.Disposing) return false;
++        if (frame == null || !frame.Native || !owner.IsHandleCreated)
++        {
++            // An invalid frame cannot leave an old image attached to the root.
++            Detach(); return false;
++        }
++        if (Status == State.Failed) return false;
++        publishing = true;
++        IntPtr expectedRoot = owner.Handle;
++        int expectedGeneration = 0;
++        try
++        {
++            Trace("begin");
++            if (root != expectedRoot) { Detach(); root = expectedRoot; Generation++; }
++            expectedGeneration = Generation;
++            if (device == IntPtr.Zero) Initialize(expectedRoot, expectedGeneration);
++            Trace("initialized");
++            if (ReferenceEquals(frame, published)) return Active;
++            var size = frame.Bitmap.Size;
++            TestFault?.Invoke("publish");
++            Guard(expectedRoot, expectedGeneration);
++            if (!frame.TryPublishLayered(source!.Handle)) throw new COMException("BackdropUpload", Marshal.GetHRForLastWin32Error());
++            Trace("uploaded");
++            if (!IsWindowVisible(source.Handle)) ShowWindow(source.Handle, 4); // stays cloaked
++            Check(DwmGetWindowAttribute(source.Handle, 14, out int cloaked, sizeof(int)));
++            if (cloaked == 0) throw new COMException("BackdropCloakLost");
++            TestFault?.Invoke("commit");
++            Guard(expectedRoot, expectedGeneration);
++            Check(Call<NoArgs>(device, 3)(device));
++            Trace("committed");
++            Check(Call<NoArgs>(device, 4)(device));
++            Guard(expectedRoot, expectedGeneration);
++            Trace("ready");
++            published = frame;
++            PublishedSize = size;
++            Publications++;
++            Status = State.Active;
++            return true;
++        }
++        catch (RetiredPublication)
++        {
++            Detach();
++            Status = disposed ? State.Disposed : State.Waiting;
++            return false;
++        }
++        catch (Exception e) when (e is ExternalException or InvalidOperationException or ArgumentException or OutOfMemoryException or DllNotFoundException or EntryPointNotFoundException)
++        {
++            FailureCode = e.HResult;
++            Detach(); Status = State.Failed;
++            return false;
++        }
++        finally { publishing = false; }
++    }
++    private static void Trace(string stage)
++    {
++        if (AppContext.TryGetSwitch("AsukaLens.TraceComposition", out bool trace) && trace)
++            Console.WriteLine("COMPOSITION_STAGE " + stage);
++    }
++
++    private sealed class RetiredPublication : Exception { }
++    private void Guard(IntPtr expectedRoot, int expectedGeneration)
++    {
++        if (disposed || root != expectedRoot || Generation != expectedGeneration ||
++            !owner.IsHandleCreated || owner.Handle != expectedRoot)
++            throw new RetiredPublication();
++    }
++    private void Initialize(IntPtr expectedRoot, int expectedGeneration)
++    {
++        TestFault?.Invoke("device");
++        Guard(expectedRoot, expectedGeneration);
++        Guid iid = new("C37EA93A-E7AA-450D-B16F-9746CB0407F3");
++        Check(DCompositionCreateDevice(IntPtr.Zero, ref iid, out device));
++        source = new Source(root);
++        Guard(expectedRoot, expectedGeneration);
++        int cloak = 1;
++        Check(DwmSetWindowAttribute(source.Handle, 13, ref cloak, sizeof(int)));
++        TestFault?.Invoke("target");
++        Guard(expectedRoot, expectedGeneration);
++        Check(Call<CreateTarget>(device, 6)(device, root, 0, out target)); // below children
++        Check(Call<CreateObject>(device, 7)(device, out visual));
++        Check(Call<CreateWindowSurface>(device, 11)(device, source.Handle, out content));
++        Check(Call<SetObject>(visual, 15)(visual, content));
++        Check(Call<SetObject>(target, 3)(target, visual));
++    }
++
++    private void Destroyed(object? sender, EventArgs e)
++    {
++        Detach();
++        if (!disposed) Status = State.Waiting;
++    }
++    private void Detach()
++    {
++        Generation++;
++        if (target != IntPtr.Zero)
++        {
++            // Best effort on device loss; release our exact tree either way.
++            _ = Call<SetObject>(target, 3)(target, IntPtr.Zero);
++            if (device != IntPtr.Zero) _ = Call<NoArgs>(device, 3)(device);
++        }
++        Release(ref content); Release(ref visual); Release(ref target); Release(ref device);
++        source?.DestroyHandle(); source = null;
++        root = IntPtr.Zero; published = null; PublishedSize = Size.Empty;
++        if (!disposed && Status != State.Failed) Status = State.Waiting;
++    }
++    public void Dispose()
++    {
++        if (disposed) return;
++        if (Environment.CurrentManagedThreadId != thread) throw new InvalidOperationException("BackdropThread");
++        disposed = true;
++        owner.HandleDestroyed -= Destroyed;
++        Detach(); Status = State.Disposed;
++    }
++    private static void Release(ref IntPtr value)
++    {
++        var owned = value; value = IntPtr.Zero;
++        if (owned != IntPtr.Zero) Marshal.Release(owned);
++    }
++    private static void Check(int result) { if (result < 0) Marshal.ThrowExceptionForHR(result); }
++    // Slots follow the Windows SDK IDCompositionDevice/Target/Visual vtables.
++    private static T Call<T>(IntPtr instance, int slot) where T : Delegate =>
++        Marshal.GetDelegateForFunctionPointer<T>(Marshal.ReadIntPtr(Marshal.ReadIntPtr(instance), slot * IntPtr.Size));
++    [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int NoArgs(IntPtr self);
++    [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int CreateObject(IntPtr self, out IntPtr value);
++    [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int CreateTarget(IntPtr self, IntPtr hwnd, int topmost, out IntPtr value);
++    [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int CreateWindowSurface(IntPtr self, IntPtr hwnd, out IntPtr value);
++    [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int SetObject(IntPtr self, IntPtr value);
++
++    private sealed class Source : NativeWindow
++    {
++        internal Source(IntPtr root)
++        {
++            CreateHandle(new CreateParams { Caption = "AsukaLens owned backdrop", Parent = root,
++                Style = unchecked((int)0x80000000), ExStyle = 0x80000 | 0x80 | 0x8000000,
++                X = -32000, Y = -32000, Width = 1, Height = 1 });
++        }
++        protected override void WndProc(ref Message m)
++        {
++            if (m.Msg == 0x84) { m.Result = new IntPtr(-1); return; }
++            if (m.Msg == 0x21) { m.Result = new IntPtr(3); return; }
++            base.WndProc(ref m);
++        }
++    }
++    [DllImport("dcomp.dll")] private static extern int DCompositionCreateDevice(IntPtr dxgi, ref Guid iid, out IntPtr device);
++    [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
++    [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out int value, int size);
++    [DllImport("user32.dll")] private static extern bool ShowWindow(IntPtr hwnd, int command);
++    [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hwnd);
++}
+diff --git a/src/UI/Rendering/DibWindowCoverage.cs b/src/UI/Rendering/DibWindowCoverage.cs
+index 9a41877..9896b7d 100644
+--- a/src/UI/Rendering/DibWindowCoverage.cs
++++ b/src/UI/Rendering/DibWindowCoverage.cs
+@@ -47,7 +47,7 @@ internal sealed class DibWindowCoverage : IDisposable
+                 // Prepare the already measured opaque composite BEFORE Windows
+                 // exposes the new client area. Early coverage then only copies;
+                 // its cost has moved, not disappeared from the resize total.
+-                RootFrame(next);
++                owner.PublishCompositionBackdrop(RootFrame(next));
+             }
+         }
+         if (m.Msg is 0x0085 or 0x0014 or 0x0047 or 0x0005) CoverRoot();
+@@ -59,6 +59,15 @@ internal sealed class DibWindowCoverage : IDisposable
+ 
+     internal void After(ref Message m)
+     {
++        if (m.Msg == 0x83 && m.LParam != IntPtr.Zero && owner.CompositionBackdrop?.Active == true)
++        {
++            // WINDOWPOS's estimate uses the old non-client thickness. Windows
++            // returns the exact future client RECT here (including maximise /
++            // DPI border changes), before that destination area exists in GDI.
++            var client = Marshal.PtrToStructure<Rect>(m.LParam);
++            var exact = new Size(client.Right-client.Left, client.Bottom-client.Top);
++            if (exact.Width>0 && exact.Height>0) owner.PublishCompositionBackdrop(RootFrame(exact));
++        }
+         if (m.Msg is not (0x0047 or 0x0005) || depth == 0) return;
+         if (--depth != 0) return;
+         using var resizeWork = ResizeWorkProbe.Measure(ResizeWorkProbe.Work.ExposedCover);
+diff --git a/src/UI/Rendering/NativeResizeFrame.cs b/src/UI/Rendering/NativeResizeFrame.cs
+index 07e656d..c6d6320 100644
+--- a/src/UI/Rendering/NativeResizeFrame.cs
++++ b/src/UI/Rendering/NativeResizeFrame.cs
+@@ -80,6 +80,22 @@ internal sealed class NativeResizeFrame : IDisposable
+         }
+     }
+ 
++    // Only publishes this owned DIB to the candidate's cloaked source HWND.
++    // There is no borrowed window capture or additional application bitmap.
++    internal bool TryPublishLayered(IntPtr window)
++    {
++        EnsureOwner();
++        if (disposed || window == IntPtr.Zero) return false;
++        graphics!.Flush(FlushIntention.Sync);
++        if (!GdiFlush()) return false;
++        var destination = new NativePoint { X = -32000, Y = -32000 };
++        var source = new NativePoint();
++        var size = new NativeSize { Width = Capacity.Width, Height = Capacity.Height };
++        var blend = new Blend { Alpha = 255, Format = 1 };
++        return UpdateLayeredWindow(window, IntPtr.Zero, ref destination, ref size,
++            memoryDc, ref source, 0, ref blend, 2);
++    }
++
+     // Existing callers retain the strict, zero-origin contract. A translated
+     // print target must explicitly declare its viewport and destination; source
+     // pixels remain in frame coordinates, never inferred from a borrowed DC.
+@@ -308,6 +324,15 @@ internal sealed class NativeResizeFrame : IDisposable
+     [StructLayout(LayoutKind.Sequential)]
+     private struct NativePoint { internal int X, Y; }
+     [StructLayout(LayoutKind.Sequential)]
++    private struct NativeSize { internal int Width, Height; }
++    [StructLayout(LayoutKind.Sequential, Pack = 1)]
++    private struct Blend { internal byte Operation, Flags, Alpha, Format; }
++    [DllImport("user32.dll", SetLastError = true)]
++    [return: MarshalAs(UnmanagedType.Bool)]
++    private static extern bool UpdateLayeredWindow(IntPtr window, IntPtr destinationDc,
++        ref NativePoint destination, ref NativeSize size, IntPtr sourceDc,
++        ref NativePoint source, uint key, ref Blend blend, uint flags);
++    [StructLayout(LayoutKind.Sequential)]
+     private struct NativeTransform { internal float M11, M12, M21, M22, Dx, Dy; }
+ 
+     [DllImport("gdi32.dll", SetLastError = true)]
+diff --git a/src/UI/Rendering/RenderSession.cs b/src/UI/Rendering/RenderSession.cs
+index 6c4ea66..faf184f 100644
+--- a/src/UI/Rendering/RenderSession.cs
++++ b/src/UI/Rendering/RenderSession.cs
+@@ -74,6 +74,7 @@ internal sealed class PixelSurface : IDisposable
+         if(native == null)throw new InvalidOperationException("NativeTextSurfaceRequired");
+         native.RenderOpaque(paint);
+     }
++    internal bool TryPublishLayered(IntPtr ownedSource) => native?.TryPublishLayered(ownedSource) == true;
+ 
+     internal bool TryCopy(Graphics target, Rectangle source, Point destination, Control? paintedControl = null)
+     {
+diff --git a/after/tests/CompositionBackdropTests.cs b/tests/CompositionBackdropTests.cs
+new file mode 100644
+index 0000000..4c13ea1
+--- /dev/null
++++ b/tests/CompositionBackdropTests.cs
+@@ -0,0 +1,153 @@
++using DiskAtlas;
++using System.Diagnostics;
++using System.Runtime.InteropServices;
++
++internal static class CompositionBackdropTests
++{
++    internal static int Run(bool dpi96, bool preview = false)
++    {
++        int checks = 0; string? failure = null;
++        var thread = new Thread(() =>
++        {
++            try
++            {
++                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles();
++                Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9));
++                using var form = new Harness();
++                form.Shown += async (_, _) =>
++                {
++                    try
++                    {
++                        await Task.Delay(120);
++                        form.UpdateFrame();
++                        Verify(form);
++                        var common = form.Size;
++                        for (int i = 0; i < 10; i++)
++                        {
++                            form.Size = i % 2 == 0 ? new Size(850, 620) : common;
++                            await Task.Delay(20); Verify(form);
++                        }
++                        var source = form.Backdrop.SourceHandle;
++                        int pubs = form.Backdrop.Publications;
++                        form.UpdateFrame(); Verify(form);
++                        Check(form.Backdrop.Publications == pubs + 1, "NewImagePublishedAtSameSize");
++                        form.Combo.DroppedDown = true; await Task.Delay(30);
++                        Check(form.Combo.DroppedDown, "NativeDropDownOpens"); form.Combo.DroppedDown = false;
++                        form.Input.Focus(); form.Input.Text = "synthetic input";
++                        Check(form.Input.Focused && form.Input.Text == "synthetic input", "NativeFocusInputPreserved");
++                        form.Recreate(); await Task.Delay(60); form.UpdateFrame(); Verify(form);
++                        Check(!IsWindow(source) && form.Backdrop.SourceHandle != IntPtr.Zero, "OldSourceDestroyedOnHandleRecreate");
++                        if (preview) { Console.WriteLine("COMPOSITION_PREVIEW ready"); return; }
++                        form.Backdrop.TestFault = stage => { if (stage == "commit") throw new InvalidOperationException("SyntheticFault"); };
++                        source = form.Backdrop.SourceHandle; form.UpdateFrame();
++                        Check(!form.Backdrop.Active && form.Backdrop.Status == CompositionBackdrop.State.Failed && !IsWindow(source), "CommitFailureDetachesStaleTreeAndSource");
++                        Check(form.Visible && form.Input.Visible, "FailureRetainsNativeForm");
++                        form.Close();
++                    }
++                    catch (Exception e) { failure = e is TestFailure f ? f.Code : $"Unexpected_{e.GetType().Name}_{e.HResult:X8}"; form.Close(); }
++                };
++                Application.Run(form);
++                if (failure == null && !preview)
++                {
++                    foreach (string stage in new[] { "device", "target", "publish", "commit" })
++                    {
++                        using var f = new Harness();
++                        f.Backdrop.TestFault = at => { if (at == stage) throw new InvalidOperationException("SyntheticFault"); };
++                        _ = f.Handle; f.UpdateFrame();
++                        Check(f.Backdrop.Status == CompositionBackdrop.State.Failed && f.Backdrop.SourceHandle == IntPtr.Zero, "PartialSetupFailureClean_" + stage);
++                    }
++                    foreach (string stage in new[] { "device", "target", "publish", "commit" })
++                    {
++                        using var f = new Harness(); _ = f.Handle;
++                        f.Backdrop.TestFault = at => { if (at == stage) { f.Backdrop.TestFault=null; f.Recreate(); } };
++                        f.UpdateFrame();
++                        Check(!f.Backdrop.Active && f.Backdrop.SourceHandle == IntPtr.Zero && f.Backdrop.Status==CompositionBackdrop.State.Waiting,"RetiredSetupCannotPublish_"+stage);
++                        f.UpdateFrame(); Verify(f);
++                    }
++                    var gdi = new List<int>(); var user = new List<int>();
++                    for (int i = 0; i < 6; i++)
++                    {
++                        var f = new Harness(); _ = f.Handle; f.UpdateFrame(); Verify(f);
++                        IntPtr source = f.Backdrop.SourceHandle; var session = f.Session;
++                        f.Dispose();
++                        Check(!IsWindow(source) && session.Bytes == 0 && f.Backdrop.Status == CompositionBackdrop.State.Disposed, "OwnedResourcesReleased");
++                        using var p = Process.GetCurrentProcess();
++                        gdi.Add(GetGuiResources(p.Handle, 0)); user.Add(GetGuiResources(p.Handle, 1));
++                    }
++                    Check(gdi[^1] <= gdi[0] && user[^1] <= user[0], "ClosedCyclesNoHandleGrowth");
++                    Console.WriteLine($"COMPOSITION_RESOURCES gdi={string.Join(',',gdi)} user={string.Join(',',user)} system_bytes=not_measured");
++                }
++            }
++            catch (Exception e) { failure = e is TestFailure f ? f.Code : $"Unexpected_{e.GetType().Name}_{e.HResult:X8}"; }
++        }){IsBackground=true};
++        thread.SetApartmentState(ApartmentState.STA); thread.Start();
++        if (!thread.Join(preview ? TimeSpan.FromHours(2) : TimeSpan.FromSeconds(90))) { Console.Error.WriteLine("FAIL CompositionTimeout"); return 1; }
++        if (failure != null) { Console.Error.WriteLine("FAIL " + failure); return 1; }
++        Console.WriteLine($"PASS CompositionBackdrop checks={checks} dpi={(dpi96 ? 96 : 144)}"); return 0;
++
++        void Check(bool value, string code) { checks++; if (!value) throw new TestFailure(code); }
++        void Verify(Harness f)
++        {
++            var b = f.Backdrop;
++            Check(b.Active, "BackdropActive_" + b.FailureCode.ToString("X8"));
++            Check(b.PublishedSize == f.ClientSize, "ExactClientSizePublished");
++            Check((GetWindowLongPtr(f.Handle, -20).ToInt64() & 0x80000) == 0, "RootLayeredStyleUnchanged");
++            Check(b.SourceHandle != IntPtr.Zero && IsWindow(b.SourceHandle), "OwnedSourceAlive");
++            Check(DwmGetWindowAttribute(b.SourceHandle, 14, out int cloaked, 4) >= 0 && cloaked != 0, "SourceActuallyCloaked");
++            long ex = GetWindowLongPtr(b.SourceHandle, -20).ToInt64();
++            Check((ex & (0x80000 | 0x80 | 0x8000000)) == (0x80000 | 0x80 | 0x8000000), "SourceLayeredToolNoActivate");
++            Check(f.Session.Bytes <= RenderSession.MaxBytes, "ApplicationBudgetHeld");
++        }
++    }
++    private sealed class TestFailure(string code) : Exception { internal string Code => code; }
++    private sealed class Harness : Form
++    {
++        internal RenderSession Session { get; } = new(true);
++        internal CompositionBackdrop Backdrop { get; }
++        internal ComboBox Combo = new() { Location = new(50, 70), Width = 200, DropDownStyle = ComboBoxStyle.DropDownList };
++        internal TextBox Input = new() { Location = new(50, 125), Width = 270 };
++        private PixelSurface? frame;
++        internal Harness()
++        {
++            Text = "AsukaLens C57 · 自有背景合成验证"; Size = new(1100, 760);
++            Backdrop = new CompositionBackdrop(this);
++            Combo.Items.AddRange(["原生下拉框", "behind children"]); Combo.SelectedIndex = 0;
++            Controls.Add(Combo); Controls.Add(Input);
++            Controls.Add(new Button { Text = "原生按钮", Location = new(350, 70), Size = new(120, 36) });
++            SetStyle(ControlStyles.ResizeRedraw, true);
++        }
++        internal void Recreate() => RecreateHandle();
++        internal void UpdateFrame()
++        {
++            frame?.Dispose(); frame = PixelSurface.Create(ClientSize, DeviceDpi, Session);
++            frame!.RenderOpaque(g =>
++            {
++                g.Clear(Color.FromArgb(249, 232, 224));
++                using var brush = new SolidBrush(Color.FromArgb(175, 72, 65));
++                g.FillEllipse(brush, ClientSize.Width - 260, 30, 200, 200);
++                g.DrawString("C57 · 独立背景位于原生控件之后", Font, Brushes.Maroon, 50, 20);
++                g.DrawRectangle(Pens.Brown, 1, 1, ClientSize.Width - 3, ClientSize.Height - 3);
++            });
++            bool result = Backdrop.Publish(frame);
++            if (!result) Console.WriteLine($"BACKDROP_DIAGNOSTIC native={frame.Native} handle={IsHandleCreated} disposing={Disposing} state={Backdrop.Status} code={Backdrop.FailureCode:X8}");
++        }
++        protected override void OnResize(EventArgs e) { base.OnResize(e); if (IsHandleCreated && Backdrop != null && ClientSize.Width > 0 && ClientSize.Height > 0) UpdateFrame(); }
++        protected override void OnPaintBackground(PaintEventArgs e)
++        {
++            // Intentional contradictory GDI colour: the actual screen must show
++            // warm wallpaper, proving the compositor rather than a GDI probe.
++            e.Graphics.Clear(Color.Magenta);
++            if (!Backdrop.Active) e.Graphics.DrawString("C55 fallback (prototype)", Font, Brushes.Black, 30, 200);
++        }
++        protected override void Dispose(bool disposing)
++        {
++            if (disposing) { Backdrop?.Dispose(); frame?.Dispose(); frame = null; }
++            base.Dispose(disposing);
++        }
++    }
++    [DllImport("user32.dll")] private static extern bool IsWindow(IntPtr hwnd);
++    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] private static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
++    [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out int value, int bytes);
++    [DllImport("user32.dll")] private static extern int GetGuiResources(IntPtr process, int kind);
++}
+diff --git a/after/tests/CompositionMainFormTests.cs b/tests/CompositionMainFormTests.cs
+new file mode 100644
+index 0000000..23d63e2
+--- /dev/null
++++ b/tests/CompositionMainFormTests.cs
+@@ -0,0 +1,106 @@
++using DiskAtlas;
++using System.Reflection;
++using System.Runtime.InteropServices;
++
++internal static class CompositionMainFormTests
++{
++    internal static int Run(bool dpi96)
++    {
++        int checks=0; string? failure=null;
++        string data=Path.Combine(Path.GetTempPath(),"AsukaLens-C57-"+Guid.NewGuid().ToString("N"));
++        Directory.CreateDirectory(data);
++        var thread=new Thread(()=>
++        {
++            try
++            {
++                Application.SetHighDpiMode(dpi96?HighDpiMode.DpiUnaware:HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles(); Application.SetDefaultFont(new Font("Microsoft YaHei UI",9));
++                AppContext.SetSwitch("AsukaLens.TraceComposition",false);
++                using var form=new MainForm(null,backgroundSettingsPath:Path.Combine(data,"background.dat"),compositionCandidate:true);
++                form.Shown+=async(_,_)=>
++                {
++                    try
++                    {
++                        await Task.Delay(80); Verify();
++                        string scope=Path.Combine(data,"scope");Directory.CreateDirectory(scope);
++                        for(int i=0;i<4;i++)
++                        {
++                            string child=Path.Combine(scope,"group-"+i);Directory.CreateDirectory(child);
++                            for(int j=0;j<15;j++)File.WriteAllBytes(Path.Combine(child,$"sample-{j}.bin"),new byte[4096*(i+1)]);
++                        }
++                        await (Task)typeof(MainForm).GetMethod("ScanFolder",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(form,[scope])!;
++                        Verify();
++                        using var probe=new ReadyProbe(form);
++                        Size common=form.Size;
++                        for(int i=0;i<12;i++)
++                        {
++                            form.Size=i%2==0?form.MinimumSize:common;
++                            await Task.Delay(30); Verify();
++                        }
++                        Check(probe.Observed>0 && probe.Mismatched==0,"NextBackgroundCommittedBeforeExposedClientPaint");
++                        Console.WriteLine($"COMPOSITION_READINESS observed={probe.Observed} mismatched={probe.Mismatched} screen_acceptance=False");
++                        var combo=Field<ComboBox>("metricCombo");combo.DroppedDown=true;await Task.Delay(30);
++                        Check(combo.DroppedDown,"ProductionComboOpens");combo.DroppedDown=false;
++                        var search=Field<TextBox>("search");search.Focus();search.Text="sample";
++                        Check(search.Focused&&search.Text=="sample","ProductionInputFocus");search.Clear();
++                        Field<CheckBox>("reduceMotion").Checked=true;Check(!Field<TreemapControl>("map").AnimationsEnabled,"ReduceMotionPreserved");
++                        Field<CheckBox>("reduceMotion").Checked=false;Check(Field<TreemapControl>("map").AnimationsEnabled,"GlowPreserved");
++                        foreach(var state in new[]{FormWindowState.Maximized,FormWindowState.Normal,FormWindowState.Minimized,FormWindowState.Normal})
++                        {form.WindowState=state;await Task.Delay(80);if(state!=FormWindowState.Minimized)Verify();}
++                        int publications=form.CompositionBackdrop!.Publications;
++                        var image=new Bitmap(160,100);using(var g=Graphics.FromImage(image))g.Clear(Color.PeachPuff);
++                        typeof(MainForm).GetMethod("ApplyBackground",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(form,
++                            [image,new BackgroundView(.8f,.15f,1.3f,null),Color.Firebrick,false]);
++                        Check(form.CompositionBackdrop.Publications>publications,"BackgroundCommitPublishesEvenWithoutRootPaint");
++                        Verify();
++                        var backing=form.CompositionBackdrop!;var session=form.Rendering!;IntPtr source=backing.SourceHandle;
++                        form.Dispose();Check(!IsWindow(source)&&backing.Status==CompositionBackdrop.State.Disposed&&session.Bytes==0,"ProductionOwnerReleasesAllOwnedResources");
++                    }
++                    catch(Exception e){failure=e is Failure f?f.Code:$"Unexpected_{e.GetType().Name}_{e.HResult:X8}";}
++                    finally{form.Close();}
++                };
++                Application.Run(form);
++                void Verify()
++                {
++                    var b=form.CompositionBackdrop;
++                    Check(b?.Active==true,"ProductionBackdropActive");
++                    Check(b!.PublishedSize==form.ClientSize,"ProductionExactSize");
++                    Check(form.OpaqueRedirect==null && form.Opacity==1 && form.TransparencyKey==Color.Empty,"C56NotRequiredAndNoTransparency");
++                    Check(form.Rendering!.Bytes<=RenderSession.MaxBytes,"ProductionApplicationBudget");
++                }
++                T Field<T>(string name)=>(T)typeof(MainForm).GetField(name,BindingFlags.NonPublic|BindingFlags.Instance)!.GetValue(form)!;
++            }
++            catch(Exception e){failure=e is Failure f?f.Code:$"Unexpected_{e.GetType().Name}_{e.HResult:X8}";}
++        }){IsBackground=true};
++        thread.SetApartmentState(ApartmentState.STA);thread.Start();
++        if(!thread.Join(TimeSpan.FromSeconds(90))){Console.Error.WriteLine("FAIL CompositionMainFormTimeout");return 1;}
++        // Only the just-created random fixture is removed after the UI exited.
++        if(!Path.GetFullPath(data).StartsWith(Path.TrimEndingDirectorySeparator(Path.GetTempPath())+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase) ||
++            (File.GetAttributes(data)&FileAttributes.ReparsePoint)!=0)throw new InvalidOperationException("FixtureOwnershipLost");
++        Directory.Delete(data,true);
++        if(failure!=null){Console.Error.WriteLine("FAIL "+failure);return 1;}
++        Console.WriteLine($"PASS CompositionMainForm checks={checks} dpi={(dpi96?96:144)}");return 0;
++        void Check(bool value,string code){checks++;if(!value)throw new Failure(code);}
++    }
++    private sealed class Failure(string code):Exception{internal string Code=>code;}
++    private sealed class ReadyProbe:NativeWindow,IDisposable
++    {
++        private readonly MainForm form;
++        internal int Observed,Mismatched;
++        internal ReadyProbe(MainForm form){this.form=form;AssignHandle(form.Handle);}
++        protected override void WndProc(ref Message m)
++        {
++            if(m.Msg==0x85 && !IsIconic(Handle) && GetClientRect(Handle,out var client))
++            {
++                Observed++;
++                if(form.CompositionBackdrop is not {Active:true} b || b.PublishedSize!=new Size(client.Right,client.Bottom))Mismatched++;
++            }
++            base.WndProc(ref m);
++        }
++        public void Dispose()=>ReleaseHandle();
++    }
++    [StructLayout(LayoutKind.Sequential)]private struct Rect{internal int Left,Top,Right,Bottom;}
++    [DllImport("user32.dll")]private static extern bool GetClientRect(IntPtr hwnd,out Rect rect);
++    [DllImport("user32.dll")]private static extern bool IsWindow(IntPtr hwnd);
++    [DllImport("user32.dll")]private static extern bool IsIconic(IntPtr hwnd);
++}
+diff --git a/tests/EarlyClientProbe.cs b/tests/EarlyClientProbe.cs
+index 278d7ae..595bef2 100644
+--- a/tests/EarlyClientProbe.cs
++++ b/tests/EarlyClientProbe.cs
+@@ -9,8 +9,10 @@ internal static class EarlyClientProbe
+ {
+     internal static int Run(string mode,bool dpi96)
+     {
+-        if(mode is not ("baseline" or "redraw" or "layered" or "children"))return 2;
+-        string report=Path.Combine("artifacts","early-client-C56",$"{mode}-{(dpi96?96:144)}.json");
++        if(mode is not ("baseline" or "redraw" or "layered" or "children" or "geometry"))return 2;
++        bool opaqueProfile=AppContext.TryGetSwitch("AsukaLens.TestOpaqueRedirect",out bool opaqueSwitch)&&opaqueSwitch;
++        string label=mode=="geometry"&&opaqueProfile?"geometry-opaque":mode;
++        string report=Path.Combine("artifacts",mode=="geometry"?"early-client-C57":"early-client-C56",$"{label}-{(dpi96?96:144)}.json");
+         if(File.Exists(report)){Console.Error.WriteLine("FAIL early client report exists");return 2;}
+         string? failure=null;bool finished=false;Action? close=null;
+         var thread=new Thread(()=>
+@@ -38,7 +40,7 @@ internal static class EarlyClientProbe
+                         {await Task.Delay(30);watch.Step=step;form.Size=step%2==0?common:form.MinimumSize;}
+                         await Task.Delay(80);
+                         Directory.CreateDirectory(Path.GetDirectoryName(report)!);
+-                        File.WriteAllText(report,JsonSerializer.Serialize(new{mode,dpi=form.DeviceDpi,rows=watch.Rows,dropped=watch.Dropped,
++                        File.WriteAllText(report,JsonSerializer.Serialize(new{mode,opaque_requested=opaqueProfile,opaque_active=form.OpaqueRedirect?.Active==true,dpi=form.DeviceDpi,rows=watch.Rows,dropped=watch.Dropped,
+                             class_style=GetClassLong(form.Handle,-26),class_background_brush_is_null=GetClassLongPtr(form.Handle,-10)==IntPtr.Zero,
+                             scope="owned main window; discrete GDI observations; no visual acceptance"},new JsonSerializerOptions{WriteIndented=true}));
+                         Console.WriteLine($"PASS early client observation rows={watch.Rows.Count}; dropped={watch.Dropped}; screen_acceptance=separate");
+@@ -93,6 +95,7 @@ internal static class EarlyClientProbe
+             if(Step is <1 or >8)return;if(Rows.Count>=4096){Dropped++;return;}
+             IntPtr target=child?.Handle??Handle;
+             GetClientRect(target,out var r);
++            GetWindowRect(target,out var window);
+             object? position=null,calc=null;
+             if(m.Msg is 0x46 or 0x47 && m.LParam!=IntPtr.Zero)
+             {var p=Marshal.PtrToStructure<Position>(m.LParam);position=new{p.Width,p.Height,p.Flags};}
+@@ -128,7 +131,8 @@ internal static class EarlyClientProbe
+             }
+             Rows.Add(new{step=Step,depth,message=m.Msg,before,ms=clock.Elapsed.TotalMilliseconds,result=before?0:m.Result.ToInt64(),grid_valid=gridValid,grid_black=gridBlack,
+                 role=child switch{WallpaperTable=>"Table",WallpaperSplitContainer=>"Split",SplitterPanel=>"Panel",TreemapControl=>"Map",WallpaperGrid=>"Grid",_=>"Root"},child_id=childId,
+-                geometry_active=owner.IsGeometryPresentationPaused,native_width=r.Right,native_height=r.Bottom,managed_width=(child??owner).ClientSize.Width,managed_height=(child??owner).ClientSize.Height,position,calc,points});
++                geometry_active=owner.IsGeometryPresentationPaused,native_width=r.Right,native_height=r.Bottom,window_width=window.Right-window.Left,window_height=window.Bottom-window.Top,
++                managed_width=(child??owner).ClientSize.Width,managed_height=(child??owner).ClientSize.Height,position,calc,points});
+         }
+         private sealed class ChildObserver:NativeWindow,IDisposable
+         {
+@@ -148,6 +152,7 @@ internal static class EarlyClientProbe
+     [StructLayout(LayoutKind.Sequential)]private struct Position{internal IntPtr Window,After;internal int X,Y,Width,Height;internal uint Flags;}
+     [StructLayout(LayoutKind.Sequential)]private struct Calc{internal Rect New,OldWindow,OldClient;internal IntPtr Position;}
+     [DllImport("user32.dll")]private static extern bool GetClientRect(IntPtr h,out Rect r);
++    [DllImport("user32.dll")]private static extern bool GetWindowRect(IntPtr h,out Rect r);
+     [DllImport("user32.dll")]private static extern IntPtr GetDCEx(IntPtr h,IntPtr region,uint flags);
+     [DllImport("user32.dll")]private static extern int ReleaseDC(IntPtr h,IntPtr dc);
+     [DllImport("user32.dll",EntryPoint="GetClassLongW")]private static extern uint GetClassLong(IntPtr h,int index);
+diff --git a/tests/Program.cs b/tests/Program.cs
+index a33641b..f20ff05 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -1,9 +1,15 @@
+ using DiskAtlas;
+ using System.Drawing;
+ 
+-while(args.Length>1 && args[0] is "--opaque-tests" or "--dib-tests")
++if(args.Length is 1 or 2 && args[0]=="--composition-mainform-tests")
++    return CompositionMainFormTests.Run(args.Contains("--dpi-96"));
++
++if(args.Length is 1 or 2 && args[0] is "--composition-backdrop-tests" or "--composition-backdrop-preview")
++    return CompositionBackdropTests.Run(args.Contains("--dpi-96"),args[0]=="--composition-backdrop-preview");
++
++while(args.Length>1 && args[0] is "--opaque-tests" or "--dib-tests" or "--composition-tests")
+ {
+-    AppContext.SetSwitch(args[0]=="--opaque-tests"?"AsukaLens.TestOpaqueRedirect":"AsukaLens.TestDib",true);
++    AppContext.SetSwitch(args[0] switch { "--opaque-tests" => "AsukaLens.TestOpaqueRedirect", "--composition-tests" => "AsukaLens.TestComposition", _ => "AsukaLens.TestDib" },true);
+     args=args.Skip(1).ToArray();
+ }
+ 
+@@ -33,7 +39,7 @@ if(args.Length is 1 or 2 && args[0]=="--root-composite-tests")
+     return RootCompositeTests.Run(args.Contains("--dpi-96"));
+ 
+ if(args.Length is >=2 and <=6 && args[0]=="--resize-pipeline-probe")
+-    return ResizePipelineProbe.Run(args[1],args.Contains("--dpi-96"),args.Contains("--slow"),args.Contains("--pixels"),args.Contains("--c54"),args.Contains("--c55"),args.Contains("--c56"));
++    return ResizePipelineProbe.Run(args[1],args.Contains("--dpi-96"),args.Contains("--slow"),args.Contains("--pixels"),args.Contains("--c54"),args.Contains("--c55"),args.Contains("--c56"),args.Contains("--c57"));
+ 
+ if(args.Contains("--dib-integration-tests")) return DibMainFormTests.Run(args.Contains("--dpi-96"),args.Contains("--cache-only"));
+ 
+diff --git a/tests/ResizePipelineProbe.cs b/tests/ResizePipelineProbe.cs
+index 1bd14c6..2378f1e 100644
+--- a/tests/ResizePipelineProbe.cs
++++ b/tests/ResizePipelineProbe.cs
+@@ -7,11 +7,11 @@ using System.Text.Json;
+ 
+ internal static class ResizePipelineProbe
+ {
+-    internal static int Run(string label, bool dpi96, bool slow, bool pixels, bool c54=false, bool c55=false, bool c56=false)
++    internal static int Run(string label, bool dpi96, bool slow, bool pixels, bool c54=false, bool c55=false, bool c56=false, bool c57=false)
+     {
+         if(label is not ("before" or "after" or "after-reuse" or "final" or "final-ready" or "off1" or "on1" or "on2" or "off2"))return 2;
+         string directory=Path.Combine(Path.GetTempPath(),"AsukaLens-C53-"+Guid.NewGuid().ToString("N"));
+-        string report=Path.Combine("artifacts",c56?"resize-pipeline-C56":c55?"resize-pipeline-C55":c54?"resize-pipeline-C54":"resize-pipeline-C53",$"{label}-{(dpi96?96:144)}-{(slow?100:30)}-{(pixels?"pixels":"timing")}.json");
++        string report=Path.Combine("artifacts",c57?"resize-pipeline-C57":c56?"resize-pipeline-C56":c55?"resize-pipeline-C55":c54?"resize-pipeline-C54":"resize-pipeline-C53",$"{label}-{(dpi96?96:144)}-{(slow?100:30)}-{(pixels?"pixels":"timing")}.json");
+         if(File.Exists(report)){Console.Error.WriteLine("FAIL resize pipeline report exists");return 2;}
+         Directory.CreateDirectory(directory);int result=1;bool completed=false;
+         var thread=new Thread(()=>
+@@ -21,7 +21,8 @@ internal static class ResizePipelineProbe
+                 Application.SetHighDpiMode(dpi96?HighDpiMode.DpiUnaware:HighDpiMode.PerMonitorV2);
+                 Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
+                 bool opaque=c56 && label is "on1" or "on2";
+-                using var form=new MainForm(null,false,Path.Combine(directory,"background.dat"),dibCandidate:true,opaqueRedirectCandidate:opaque);
++                bool composed=c57 && label is "on1" or "on2";
++                using var form=new MainForm(null,false,Path.Combine(directory,"background.dat"),dibCandidate:true,opaqueRedirectCandidate:opaque,compositionCandidate:composed);
+                 form.Shown+=async(_,_)=>
+                 {
+                     try
+@@ -35,8 +36,9 @@ internal static class ResizePipelineProbe
+                         await (Task)typeof(MainForm).GetMethod("ScanFolder",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(form,[scope])!;
+                         await Task.Delay(200);
+                         var coverage=(DibWindowCoverage)typeof(MainForm).GetField("dibCoverage",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(form)!;
+-                        coverage.UseRootCache=c56 || label is not ("off1" or "off2");
++                        coverage.UseRootCache=c57 || c56 || label is not ("off1" or "off2");
+                         if(opaque && form.OpaqueRedirect?.Active!=true)throw new InvalidOperationException("OpaqueModeNotActive");
++                        if(composed && form.CompositionBackdrop?.Active!=true)throw new InvalidOperationException("CompositionModeNotActive");
+                         var work=new ResizeWorkProbe();ResizeWorkProbe.Current=work;
+                         using var root=pixels?new RootPixels(form):null;
+                         var common=form.Size;var sizes=ResizeDiagnosticReplay.Build(common,form.MinimumSize);
+@@ -56,7 +58,9 @@ internal static class ResizePipelineProbe
+                         File.WriteAllText(report,JsonSerializer.Serialize(new {label,dpi=form.DeviceDpi,requested_interval_ms=slow?100:30,
+                             program_driven=true,screen_acceptance=false,diagnostic_pixel_sampling=pixels,steps,work=work.Summary(),root=root?.Summary(),
+                             session_bytes=form.Rendering!.Bytes,session_peak_bytes=form.Rendering.PeakBytes,
+-                            copy_failures=form.Rendering.CopyFailureCounts,opaque_requested=opaque,opaque_active=form.OpaqueRedirect?.Active==true},new JsonSerializerOptions{WriteIndented=true}));
++                            copy_failures=form.Rendering.CopyFailureCounts,opaque_requested=opaque,opaque_active=form.OpaqueRedirect?.Active==true,
++                            composition_requested=composed,composition_active=form.CompositionBackdrop?.Active==true,
++                            composition_publications=form.CompositionBackdrop?.Publications},new JsonSerializerOptions{WriteIndented=true}));
+                         Console.WriteLine($"PASS resize pipeline label={label}; dpi={form.DeviceDpi}; steps=12; pixel_sampling={pixels}; dropped={work.Dropped}");result=0;
+                     }
+                     catch(Exception){Console.Error.WriteLine("FAIL resize pipeline fixed-code=ProbeFailed");}

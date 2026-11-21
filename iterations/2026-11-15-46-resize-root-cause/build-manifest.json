@@ -1,0 +1,19 @@
+{
+  "revision": 1,
+  "kind": "final-test-build; observed-trace-builds-not-individually-frozen",
+  "production_changed": false,
+  "files": [
+    {
+      "relative_path": "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll",
+      "sha256": "20A8CC1A22ED5943B2646D7CD02FF90608F3705C4B7E25B967C7CF480D140CE9"
+    },
+    {
+      "relative_path": "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.exe",
+      "sha256": "CA765BF93DCC93464615FF831CDEF6D2806F796A4D363A14F6B18BBBCBB89754"
+    },
+    {
+      "relative_path": "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.runtimeconfig.json",
+      "sha256": "96BC2946DFF8790400D652EC7F8DE7BB043E954980D59470C112788B68A1FBD3"
+    }
+  ]
+}

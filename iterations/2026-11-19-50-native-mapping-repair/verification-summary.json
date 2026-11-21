@@ -1,0 +1,21 @@
+{
+  "build_warnings": 0,
+  "build_errors": 0,
+  "native_frame_checks": 608,
+  "compared_pixels": 6513984,
+  "host_checks_per_dpi": 62,
+  "coverage_checks_per_dpi": 91,
+  "coverage_pixels_per_dpi": 1075200,
+  "prototype_checks_per_dpi": 199,
+  "dpi": [
+    144,
+    96
+  ],
+  "virtualized_96": true,
+  "repair_evidence_reports": 4,
+  "negative_evidence_checks": 4,
+  "actual_user_acceptance": "improvement-confirmed-not-complete-defect-acceptance",
+  "screen_no_flash_proven": false,
+  "normal_app_modified": false,
+  "user_feedback": "改善比较明显"
+}

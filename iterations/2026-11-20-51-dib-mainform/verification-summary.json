@@ -1,0 +1,34 @@
+{
+  "build_warnings": 0,
+  "build_errors": 0,
+  "native_frame_checks": 608,
+  "native_frame_compared_pixels": 6513984,
+  "real_mainform_integration_checks_per_dpi": 26,
+  "old_dib_surfaces_zero_tolerance_pixels": 1698575,
+  "dpi": [
+    144,
+    96
+  ],
+  "ui_functional_subset": "passed-both-dpi",
+  "full_ui_regression": "failed-inherited-render-cache-assert100",
+  "old_C50_binary_reproduces_failure": true,
+  "cache_different_pixels": 13452,
+  "cache_total_pixels": 700000,
+  "grid_cache_checks_per_dpi": 49,
+  "scroll_checks_per_dpi": 16,
+  "layout_checks_per_dpi": 35,
+  "presentation_checks_per_dpi": 98,
+  "background_groups_per_dpi": 7,
+  "glow_checks_per_dpi": 99,
+  "surface_checks": [
+    660,
+    658
+  ],
+  "user_acceptance": "improvement-confirmed-candidate-retained-not-full-defect-acceptance",
+  "mouse_drag_verified": false,
+  "all_flash_fixed": false,
+  "normal_binary_replaced": false,
+  "published": false,
+  "committed_or_pushed": false,
+  "user_feedback": "改善明显，保留候选"
+}

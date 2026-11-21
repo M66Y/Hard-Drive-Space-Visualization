@@ -1,0 +1,113 @@
+using System.Reflection;
+using DiskAtlas;
+
+internal static class WorkspaceLayoutTests
+{
+    private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
+    internal static int Run(bool dpi96 = false)
+    {
+        int passed = 0; string failure = "None";
+        var worker = new Thread(() =>
+        {
+            try
+            {
+                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
+                Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
+                using var form = new MainForm(null, false);
+                var root = new DiskEntry(Path.Combine(Path.GetTempPath(), "AsukaLens-synthetic-workspace"), true)
+                    { FileCount = 30, Size = 30 * 1024 };
+                for (int index = 0; index < 30; index++)
+                    root.MutableChildren.Add(new DiskEntry(Path.Combine(root.Path, "sample-" + index + ".txt"), false, root)
+                        { Size = 1024, FileCount = 1 });
+                typeof(MainForm).GetField("scan", Hidden)!.SetValue(form, new ScanResult(root, TimeSpan.FromSeconds(.1), 0, []));
+                typeof(MainForm).GetField("current", Hidden)!.SetValue(form, root);
+                T Field<T>(string name) => (T)typeof(MainForm).GetField(name, Hidden)!.GetValue(form)!;
+                void Check(bool condition, string code) { if (!condition) throw new CheckFailure(code); passed++; }
+                form.Shown += async (_, _) =>
+                {
+                    try
+                    {
+                        Field<CheckBox>("reduceMotion").Checked = true;
+                        var map = Field<TreemapControl>("map"); var grid = Field<DataGridView>("grid");
+                        Point Position(Control control)
+                        {
+                            var point = Point.Empty;
+                            for (Control? node = control; node != null && node != form; node = node.Parent) point.Offset(node.Left, node.Top);
+                            return point;
+                        }
+                        async Task View(int mode)
+                        {
+                            typeof(MainForm).GetMethod("SetMode", Hidden)!.Invoke(form, [mode]);
+                            await (Task)typeof(MainForm).GetMethod("UpdateViewAsync", Hidden)!.Invoke(form, [false])!;
+                            form.PerformLayout(); await Task.Delay(25);
+                        }
+                        foreach (bool minimum in new[] { false, true })
+                        {
+                            if (minimum) form.Size = form.MinimumSize;
+                            await View(0);
+                            var mapBounds = new Rectangle(Position(map), map.Size);
+                            var gridBounds = new Rectangle(Position(grid), grid.Size);
+                            var raster = form.WallpaperRaster.Get(form.BackgroundImage, form.ClientSize, form.BackgroundCrop);
+                            foreach (int mode in new[] { 1, 2, 0, 1, 0 })
+                            {
+                                await View(mode);
+                                Check(Field<RowStyle>("scopeRow").Height == 0 && !Field<WallpaperTable>("scopePanel").Visible,
+                                    "OrdinaryWorkspaceDoesNotInsertScopeRow");
+                                Check(new Rectangle(Position(map), map.Size) == mapBounds && new Rectangle(Position(grid), grid.Size) == gridBounds,
+                                    "WorkspaceSwitchKeepsAnalysisGeometry");
+                                Check(ReferenceEquals(raster, form.WallpaperRaster.Get(form.BackgroundImage, form.ClientSize, form.BackgroundCrop)),
+                                    "WorkspaceSwitchKeepsWallpaperRaster");
+                                if (mode == 1) Check(Field<Label>("listCaption").AccessibleDescription!.Contains("匹配 30") &&
+                                    Field<Label>("mapCaption").Text.Contains("含子目录"), "LargeFileScopeStillAvailableWithoutExtraRow");
+                            }
+                        }
+                        root.Incomplete = true; await View(1);
+                        Check(Field<WallpaperTable>("scopePanel").Visible && Field<Label>("subtitle").Text.Contains("未读全"),
+                            "ExceptionalScopeWarningRemainsVisible");
+                        using (var outer = new WallpaperTable { Framed = true, Size = new Size(160, 110) })
+                        using (var inner = new WallpaperTable { Framed = true, Dock = DockStyle.Fill, Margin = Padding.Empty })
+                        {
+                            outer.Controls.Add(inner); outer.PerformLayout();
+                            float x = outer.DeviceDpi / 96f, y = inner.Height / 2f;
+                            Check(inner.Region != null && !inner.Region.IsVisible(x, y), "NestedFrameKeepsParentStrokeClear");
+                            typeof(WallpaperTable).GetMethod("UpdateFrameRegion", Hidden)!.Invoke(inner, null);
+                            outer.PerformLayout();
+                            Check(inner.Region != null && !inner.Region.IsVisible(x, y), "ChildOwnFrameRebuildRestoresParentClip");
+                            inner.Framed = false; inner.Framed = true;
+                            Check(inner.Region != null && !inner.Region.IsVisible(x, y), "ChildFrameToggleKeepsParentStrokeClear");
+                            outer.Controls.Remove(inner);
+                            Check(inner.Region != null && inner.Region.IsVisible(x, y) && !inner.Region.IsVisible(0, 0),
+                                "RemovedNestedFrameRecoversItsOwnRoundedRegion");
+                        }
+                        foreach (var frame in Descendants(form).OfType<WallpaperTable>().Where(table => table.Framed && table.Visible))
+                        foreach (Control child in frame.Controls)
+                        {
+                            if (child is not (WallpaperTable or DataGridView or TreemapControl or Label) || child.Width <= 0 || child.Height <= 0) continue;
+                            Check(child.Region != null, "FramedContentHasInnerRoundedClip");
+                            float scale = frame.DeviceDpi / 96f, radius = Theme.CardRadius * scale;
+                            foreach (var point in new[] { new PointF(scale / 2, radius),
+                                new PointF(frame.ClientSize.Width - 1 - scale / 2, radius),
+                                new PointF(radius, scale / 2), new PointF(radius, frame.ClientSize.Height - 1 - scale / 2) })
+                                if (child.Bounds.Contains(Point.Round(point)))
+                                    Check(!child.Region!.IsVisible(point.X - child.Left, point.Y - child.Top), "ChildCannotOverpaintParentFrameStroke");
+                        }
+                    }
+                    catch (CheckFailure error) { failure = error.Code; }
+                    catch { failure = "OwnedWorkspaceFailure"; }
+                    finally { form.Close(); }
+                };
+                Application.Run(form);
+            }
+            catch { failure = "WorkerFailure"; }
+        }) { IsBackground = true };
+        worker.SetApartmentState(ApartmentState.STA); worker.Start();
+        if (!worker.Join(TimeSpan.FromSeconds(30))) failure = "WorkerTimeout";
+        Console.WriteLine((failure == "None" ? "PASS" : "FAIL") + " workspace layout checks=" + passed + "; code=" + failure);
+        return failure == "None" ? 0 : 1;
+    }
+    private static IEnumerable<Control> Descendants(Control parent)
+    {
+        foreach (Control child in parent.Controls) { yield return child; foreach (var nested in Descendants(child)) yield return nested; }
+    }
+    private sealed class CheckFailure(string code) : Exception("WorkspaceLayout") { internal string Code { get; } = code; }
+}

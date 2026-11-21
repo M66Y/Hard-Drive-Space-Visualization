@@ -1,0 +1,145 @@
+{
+  "files": [
+    {
+      "file": "before/.agents__skills__asukalens-project-memory__references__checkpoint.md.txt",
+      "bytes": 17112,
+      "sha256": "0A3C3FAD5DA5BAE039273C6F22C6A309A2225956F8BA170D74B125E7B2092B6F"
+    },
+    {
+      "file": "before/.agents__skills__asukalens-project-memory__references__decisions.md.txt",
+      "bytes": 27980,
+      "sha256": "30F88CA95996CC3269EE788456DBA00A3176FDC730F1E60C75576F1A0F033E2A"
+    },
+    {
+      "file": "before/AGENTS.md.txt",
+      "bytes": 47805,
+      "sha256": "343461D9B8949D541A19C6DBE93E3B5738179E2E9BC1EE44F8548F802E12EA51"
+    },
+    {
+      "file": "before/docs__development-plan.md.txt",
+      "bytes": 71562,
+      "sha256": "E67C6E105103D382F477795222311410E04309A0FA21464FAFF9DD3FC104E10C"
+    },
+    {
+      "file": "before/docs__project-status.md.txt",
+      "bytes": 84648,
+      "sha256": "76759AC276C257E96AF878BCDC777FC096D642C0B8279A3CCF96A44AB59795BD"
+    },
+    {
+      "file": "before/docs__ui-rendering-defects-handoff.md.txt",
+      "bytes": 21756,
+      "sha256": "6E071533C434E9F1F44478C5CE003942F106A08595E953C6D6454B5C99AF10B0"
+    },
+    {
+      "file": "before/MainForm.cs.txt",
+      "bytes": 96046,
+      "sha256": "6B5E5011F026161527E37187A094F591DF19FBCABC4EC64BA472D868B92C4D73"
+    },
+    {
+      "file": "before/Program.cs.txt",
+      "bytes": 2883,
+      "sha256": "926043C3D09D1E475C5B066FCB039048F00B334F29AF6CCD9B94E0F5D6F71B91"
+    },
+    {
+      "file": "before/tests__Program.cs.txt",
+      "bytes": 72535,
+      "sha256": "D5F9F107744FA81B362B4D0965E3D40722CE132B6CCA4720510D2FEDD7809E6E"
+    },
+    {
+      "file": "before/tests__ResizePipelineProbe.cs.txt",
+      "bytes": 7372,
+      "sha256": "BEE58B80A38485789E0E3075F85A54816B9A7E9182C16611566E1121BCEE3894"
+    },
+    {
+      "file": "before/tests__TreemapStateTests.cs.txt",
+      "bytes": 31749,
+      "sha256": "8D5C7E7246D03C87F888385B3F6D055030E4AA3DB5DAE1C0B11BF8252D6AA3E5"
+    },
+    {
+      "file": "build-manifest.json",
+      "bytes": 5088,
+      "sha256": "BC5700757CF8D8EBF8ABE444D94E5D00B4B3A78593E68E9EE407CBC59BBBCAD6"
+    },
+    {
+      "file": "changes.patch",
+      "bytes": 64397,
+      "sha256": "1658D42DBC63D98782D6AF79DC5A8170C111D3133A536AE93572504743A7AD70"
+    },
+    {
+      "file": "cleanup-summary.json",
+      "bytes": 622,
+      "sha256": "BBB5BB12CEBD64E4A9850D531BBA273879DB80545C9082D9867C6A4BF13A3DE9"
+    },
+    {
+      "file": "diagnostic-summary.json",
+      "bytes": 1403,
+      "sha256": "56D3BB01FD19350553C56DCEB2EBCE2DB1F2823D500ECEFF530B9247D15FBAF3"
+    },
+    {
+      "file": "final-checks.json",
+      "bytes": 652,
+      "sha256": "9EBC84CA1BD491B72A2AF4CD0B2E8F3720822520D5621AD8608572B87521233D"
+    },
+    {
+      "file": "key-files/MainForm.cs.txt",
+      "bytes": 96718,
+      "sha256": "BFE2A949F4710D65CE53C029961E6FC7A3145ABE6C916AECFD0F37AFF9A3777D"
+    },
+    {
+      "file": "key-files/Program.cs.txt",
+      "bytes": 3158,
+      "sha256": "0278EAEE608ED97FE0B7A0375E264619C4BBE8C6B79962A28F3D05B0A4EA38E9"
+    },
+    {
+      "file": "key-files/src__UI__Rendering__OpaqueWindowRedirect.cs.txt",
+      "bytes": 6458,
+      "sha256": "CF0453346793B8D24DB48C2ECF87569D52FC02C01715645BDB7AC52D03E74F1C"
+    },
+    {
+      "file": "key-files/tests__EarlyClientProbe.cs.txt",
+      "bytes": 9965,
+      "sha256": "AD5D142B60B259CCD602639D22D4188F4F618E59BF6C2BF0E2EF4523EBA215D4"
+    },
+    {
+      "file": "key-files/tests__OpaqueRedirectTests.cs.txt",
+      "bytes": 10575,
+      "sha256": "BFA205534C73A4DE5DF20C462E0C2F2789E34A5597B078A32FB92E919E1D9CA7"
+    },
+    {
+      "file": "key-files/tests__Program.cs.txt",
+      "bytes": 72896,
+      "sha256": "3ABCD7DD5EED84D7EFDD11E95ED79DCC510DA0EDF5990B05C2B633FE63B58C61"
+    },
+    {
+      "file": "key-files/tests__ResizePipelineProbe.cs.txt",
+      "bytes": 7715,
+      "sha256": "91C6D6219D0749ACE73676B7BE8F497D9CD7AA2E95B1EDA0549059E35AE555F4"
+    },
+    {
+      "file": "key-files/tests__TreemapStateTests.cs.txt",
+      "bytes": 32033,
+      "sha256": "F02CC38E0691A111EC17BEDCB3086676F90E34BA0B71886DD4CBA0CBCAFF1A32"
+    },
+    {
+      "file": "patch-validation.json",
+      "bytes": 320,
+      "sha256": "5096C216AFD9C869113BD70AB57DE20BFA4BD106A55157A8A23537D5AB378515"
+    },
+    {
+      "file": "performance-summary.json",
+      "bytes": 2473,
+      "sha256": "778F7EE4873DE8F6A1074072140EAAD4C621540BB9DE85577907402631ADB507"
+    },
+    {
+      "file": "README.md",
+      "bytes": 4487,
+      "sha256": "7A11AB6F4E0D19A79A8E570C223852573B60900D96E84C2FCDAE84833FFF682D"
+    },
+    {
+      "file": "verification-summary.json",
+      "bytes": 4930,
+      "sha256": "9ED737AA6689D5073EA76B31B99FEEF5F10958C63434C7233E483B2082950EF4"
+    }
+  ],
+  "self_excluded": true
+}

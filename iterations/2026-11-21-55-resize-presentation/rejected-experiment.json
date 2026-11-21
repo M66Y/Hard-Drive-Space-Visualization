@@ -1,0 +1,77 @@
+{
+  "scope": "candidate right/bottom SWP_NOREDRAW with explicit final repaint",
+  "retained": false,
+  "reason": "black witnesses shifted from NcEntering to PositionEntering; not eliminated",
+  "before": {
+    "evidence": "discrete GDI only",
+    "phases": [
+      {
+        "phase": "NcEntering",
+        "valid": 10,
+        "black": 8
+      },
+      {
+        "phase": "NcReturned",
+        "valid": 10,
+        "black": 0
+      },
+      {
+        "phase": "EraseEntering",
+        "valid": 10,
+        "black": 0
+      },
+      {
+        "phase": "EraseReturned",
+        "valid": 10,
+        "black": 0
+      },
+      {
+        "phase": "PositionEntering",
+        "valid": 10,
+        "black": 0
+      },
+      {
+        "phase": "PositionReturned",
+        "valid": 0,
+        "black": 0
+      }
+    ]
+  },
+  "experiment": {
+    "evidence": "discrete GDI only",
+    "phases": [
+      {
+        "phase": "NcEntering",
+        "valid": 0,
+        "black": 0
+      },
+      {
+        "phase": "NcReturned",
+        "valid": 0,
+        "black": 0
+      },
+      {
+        "phase": "EraseEntering",
+        "valid": 0,
+        "black": 0
+      },
+      {
+        "phase": "EraseReturned",
+        "valid": 0,
+        "black": 0
+      },
+      {
+        "phase": "PositionEntering",
+        "valid": 10,
+        "black": 9
+      },
+      {
+        "phase": "PositionReturned",
+        "valid": 0,
+        "black": 0
+      }
+    ]
+  },
+  "system_settings_changed": false,
+  "final_source_contains_experiment": false
+}

@@ -1,0 +1,111 @@
+{
+  "sequence": "12 requested steps, 11 actual size changes; requested 30ms cadence; program-driven",
+  "results": [
+    {
+      "label": "before",
+      "dpi": 144,
+      "geometry_changes": 11,
+      "sync_p50_ms": 465.4296,
+      "sync_p95_nearest_rank_ms": 594.4512,
+      "deferred_panel_erases": 0,
+      "raw_report_sha256": "B3A36E24146752FF0D39A39DAA9748A0BF4ACCAA5964488DDF69DB0897BBD17A"
+    },
+    {
+      "label": "after-reuse",
+      "dpi": 144,
+      "geometry_changes": 11,
+      "sync_p50_ms": 473.7538,
+      "sync_p95_nearest_rank_ms": 544.7321,
+      "deferred_panel_erases": 0,
+      "raw_report_sha256": "701372AA0BA80EFABDD7C2E5EF0ECDE60B1D514F8701CFAE1A3461DCD245C3AA"
+    },
+    {
+      "label": "after",
+      "dpi": 144,
+      "geometry_changes": 11,
+      "sync_p50_ms": 447.4476,
+      "sync_p95_nearest_rank_ms": 528.8292,
+      "deferred_panel_erases": 0,
+      "raw_report_sha256": "1B16E0600F620318D1916D8F024CFA267C5A727842CD8CA62CA2A8EAA4469E38"
+    },
+    {
+      "label": "final-ready",
+      "dpi": 144,
+      "geometry_changes": 11,
+      "sync_p50_ms": 334.1379,
+      "sync_p95_nearest_rank_ms": 383.6738,
+      "deferred_panel_erases": 155,
+      "raw_report_sha256": "31910D541B7796D32838D78214C6593C21315A9BAC41580E867D581F6079ABF4"
+    },
+    {
+      "label": "on1",
+      "dpi": 144,
+      "geometry_changes": 11,
+      "sync_p50_ms": 218.7224,
+      "sync_p95_nearest_rank_ms": 258.6205,
+      "deferred_panel_erases": 155,
+      "raw_report_sha256": "D5ACF96024990293D8EBEA87BCE737A1BC75A7087DE9A56480E550FB366EA241"
+    },
+    {
+      "label": "on2",
+      "dpi": 144,
+      "geometry_changes": 11,
+      "sync_p50_ms": 237.6902,
+      "sync_p95_nearest_rank_ms": 268.5494,
+      "deferred_panel_erases": 155,
+      "raw_report_sha256": "2B1D66EACFF8E9669F97B0645DC60EF5E827595BF690D07FDF2229F26A972E35"
+    },
+    {
+      "label": "on1",
+      "dpi": 96,
+      "geometry_changes": 11,
+      "sync_p50_ms": 175.0204,
+      "sync_p95_nearest_rank_ms": 200.6691,
+      "deferred_panel_erases": 155,
+      "raw_report_sha256": "C4B6B0DB70BA0C791BF4047D91C3D8D1D9D46FBB9ACAE5F1AD0215FF058523BB"
+    }
+  ],
+  "excluded_initial_unchanged_step": true,
+  "final_early_pixels": {
+    "evidence": "discrete GDI only",
+    "phases": [
+      {
+        "phase": "NcEntering",
+        "valid": 10,
+        "black": 9
+      },
+      {
+        "phase": "NcReturned",
+        "valid": 10,
+        "black": 0
+      },
+      {
+        "phase": "EraseEntering",
+        "valid": 10,
+        "black": 0
+      },
+      {
+        "phase": "EraseReturned",
+        "valid": 10,
+        "black": 0
+      },
+      {
+        "phase": "PositionEntering",
+        "valid": 10,
+        "black": 0
+      },
+      {
+        "phase": "PositionReturned",
+        "valid": 0,
+        "black": 0
+      }
+    ]
+  },
+  "limitations": [
+    "not real frame rate or mouse cadence",
+    "warm UI; outside load uncontrolled",
+    "one baseline and two final repetitions, not a universal speedup",
+    "96DPI final has no same-round matching baseline",
+    "early black witnesses remain; not a zero-flash claim"
+  ]
+}

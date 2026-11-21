@@ -1,0 +1,398 @@
+{
+  "application_build": "0 warnings, 0 errors",
+  "test_build": "0 warnings, 0 errors",
+  "prototype_checks_per_dpi": 182,
+  "production_checks_per_dpi": 79,
+  "process_dpi": [
+    144,
+    96
+  ],
+  "readiness_observed_per_dpi": 12,
+  "readiness_mismatched": 0,
+  "compatibility_phase": [
+    {
+      "name": "prototype",
+      "args": [
+        "--composition-backdrop-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "prototype-96",
+      "args": [
+        "--composition-backdrop-tests",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "mainform",
+      "args": [
+        "--composition-mainform-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "mainform-96",
+      "args": [
+        "--composition-mainform-tests",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "ui-composition-144",
+      "args": [
+        "--composition-tests",
+        "--ui-regression"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "ui-ordinary-144",
+      "args": [
+        "--ui-regression"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "root-144",
+      "args": [
+        "--composition-tests",
+        "--root-composite-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "natural-resize-144",
+      "args": [
+        "--composition-tests",
+        "--resize-composition-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "restore-144",
+      "args": [
+        "--composition-tests",
+        "--transparent-restore-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "layout-transition-144",
+      "args": [
+        "--composition-tests",
+        "--layout-transition-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "layout-presentation-144",
+      "args": [
+        "--composition-tests",
+        "--layout-presentation-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "scroll-144",
+      "args": [
+        "--composition-tests",
+        "--wallpaper-scroll-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "surface-144",
+      "args": [
+        "--composition-tests",
+        "--visual-surface-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "glow-144",
+      "args": [
+        "--composition-tests",
+        "--treemap-state-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "dib-144",
+      "args": [
+        "--composition-tests",
+        "--dib-integration-tests"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "restore-custom-144",
+      "args": [
+        "--composition-tests",
+        "--transparent-restore-tests",
+        "--custom"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "ui-composition-96",
+      "args": [
+        "--composition-tests",
+        "--ui-regression",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "ui-ordinary-96",
+      "args": [
+        "--ui-regression",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "root-96",
+      "args": [
+        "--composition-tests",
+        "--root-composite-tests",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "natural-resize-96",
+      "args": [
+        "--composition-tests",
+        "--resize-composition-tests",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "restore-96",
+      "args": [
+        "--composition-tests",
+        "--transparent-restore-tests",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "layout-transition-96",
+      "args": [
+        "--composition-tests",
+        "--layout-transition-tests",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "layout-presentation-96",
+      "args": [
+        "--composition-tests",
+        "--layout-presentation-tests",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "scroll-96",
+      "args": [
+        "--composition-tests",
+        "--wallpaper-scroll-tests",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "surface-96",
+      "args": [
+        "--composition-tests",
+        "--visual-surface-tests",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "glow-96",
+      "args": [
+        "--composition-tests",
+        "--treemap-state-tests",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "dib-96",
+      "args": [
+        "--composition-tests",
+        "--dib-integration-tests",
+        "--dpi-96"
+      ],
+      "exit": 0
+    },
+    {
+      "name": "restore-custom-96",
+      "args": [
+        "--composition-tests",
+        "--transparent-restore-tests",
+        "--custom",
+        "--dpi-96"
+      ],
+      "exit": 0
+    }
+  ],
+  "retirement_guard_phase": [
+    {
+      "args": [
+        "--composition-backdrop-tests"
+      ],
+      "exit": 0,
+      "name": "prototype"
+    },
+    {
+      "args": [
+        "--composition-backdrop-tests",
+        "--dpi-96"
+      ],
+      "exit": 0,
+      "name": "prototype-96"
+    },
+    {
+      "args": [
+        "--composition-mainform-tests"
+      ],
+      "exit": 0,
+      "name": "mainform"
+    },
+    {
+      "args": [
+        "--composition-mainform-tests",
+        "--dpi-96"
+      ],
+      "exit": 0,
+      "name": "mainform-96"
+    },
+    {
+      "args": [
+        "--composition-tests",
+        "--ui-regression"
+      ],
+      "exit": 0,
+      "name": "ui-composition"
+    },
+    {
+      "args": [
+        "--composition-tests",
+        "--ui-regression",
+        "--dpi-96"
+      ],
+      "exit": 0,
+      "name": "ui-composition-96"
+    },
+    {
+      "args": [
+        "--native-resize-frame-tests"
+      ],
+      "exit": 0,
+      "name": "native-frame"
+    },
+    {
+      "args": [
+        "--resize-pipeline-probe",
+        "off1",
+        "--c57"
+      ],
+      "exit": 0,
+      "name": "timing-off1"
+    },
+    {
+      "args": [
+        "--resize-pipeline-probe",
+        "on1",
+        "--c57"
+      ],
+      "exit": 0,
+      "name": "timing-on1"
+    },
+    {
+      "args": [
+        "--resize-pipeline-probe",
+        "on2",
+        "--c57"
+      ],
+      "exit": 0,
+      "name": "timing-on2"
+    },
+    {
+      "args": [
+        "--resize-pipeline-probe",
+        "off2",
+        "--c57"
+      ],
+      "exit": 0,
+      "name": "timing-off2"
+    }
+  ],
+  "background_commit_final": [
+    "mainform-144",
+    "ui-144",
+    "mainform-96",
+    "ui-96"
+  ],
+  "native_dib_checks": 608,
+  "native_dib_pixels": 6513984,
+  "prototype_resources": {
+    "gdi_144": [
+      103,
+      103,
+      103,
+      103,
+      103,
+      103
+    ],
+    "user_144": [
+      81,
+      81,
+      81,
+      81,
+      81,
+      81
+    ],
+    "gdi_96": [
+      95,
+      95,
+      95,
+      95,
+      95,
+      95
+    ],
+    "user_96": [
+      77,
+      77,
+      77,
+      77,
+      77,
+      77
+    ]
+  },
+  "phases_note": "Compatibility preceded explicit retirement guards; final guard phase repeated native/mainform/UI; background commit follow-up repeated both mainform and full UI. No visual threshold changed.",
+  "real_window": {
+    "synthetic_files": 52,
+    "scan_displayed": true,
+    "common_maximise_restore_observed": true,
+    "continuous_black_flash": "awaiting-user",
+    "other_overlay_partially_occluded_right_edge": true
+  },
+  "limitations": [
+    "no recording",
+    "no system settings changed",
+    "not real cross-monitor verification",
+    "new backend not tested on Windows 10",
+    "GDI probes exclude compositor content",
+    "system/GPU image memory not measured"
+  ]
+}

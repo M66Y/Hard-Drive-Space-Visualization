@@ -1,0 +1,763 @@
+diff --git a/MainForm.cs b/MainForm.cs
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -25,6 +25,8 @@
+     internal readonly WallpaperRaster WallpaperRaster = new();
+     internal RenderSession? Rendering { get; private set; }
+     private DibWindowCoverage? dibCoverage;
++    private OpaqueWindowRedirect? opaqueRedirect;
++    internal OpaqueWindowRedirect? OpaqueRedirect => opaqueRedirect;
+     internal MainSurfaceStyle SurfaceStyle { get; private set; } = MainSurfaceStyle.Airy;
+     internal void ApplyStageOnePreview(string variant)
+     {
+@@ -118,18 +120,21 @@
+     private bool sortAscending;
+     private bool updating;
+ 
+-    public MainForm(string? initialPath, bool loadSavedBackground = false, string? backgroundSettingsPath = null, DiagnosticService? diagnostics = null, bool dibCandidate = false)
+-    {
+-        if (dibCandidate || AppContext.TryGetSwitch("AsukaLens.TestDib", out bool testDib) && testDib)
++    public MainForm(string? initialPath, bool loadSavedBackground = false, string? backgroundSettingsPath = null, DiagnosticService? diagnostics = null, bool dibCandidate = false, bool opaqueRedirectCandidate = false)
++    {
++        if (dibCandidate || opaqueRedirectCandidate || AppContext.TryGetSwitch("AsukaLens.TestDib", out bool testDib) && testDib)
+         {
+             Rendering = new RenderSession(true);
+             WallpaperRaster.Session = Rendering;
+             dibCoverage = new DibWindowCoverage(this);
++            if(opaqueRedirectCandidate || AppContext.TryGetSwitch("AsukaLens.TestOpaqueRedirect",out bool testRedirect) && testRedirect)
++                opaqueRedirect = new OpaqueWindowRedirect(this,postCreateHost:true);
+         }
+         this.diagnostics = diagnostics;
+         this.backgroundSettingsPath = backgroundSettingsPath ?? BackgroundSettings.PathForUser;
+         Text = AppInfo.WindowTitle;
+         if (Rendering != null) Text += " · DIB 候选";
++        if (opaqueRedirect != null) Text += " · C56";
+         if (Environment.ProcessPath is { } executable) Icon = Icon.ExtractAssociatedIcon(executable);
+         Size = new Size(1440, 940);
+         MinimumSize = new Size(1120, 780);
+@@ -286,6 +291,11 @@
+         Dock = DockStyle.Fill, AutoEllipsis = false, TextAlign = ContentAlignment.MiddleLeft, Margin = Padding.Empty, BackColor = Color.Transparent
+     };
+ 
++    protected override void OnHandleCreated(EventArgs e)
++    {
++        base.OnHandleCreated(e);
++        opaqueRedirect?.HandleReady();
++    }
+     protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics);
+     internal bool TryPaintCachedRoot(Control control, Graphics graphics, Size size, Point offset, int wash) =>
+         dibCoverage?.TryPaintCachedRoot(control,graphics,size,offset,wash) == true;
+@@ -1550,6 +1560,7 @@
+     {
+         if (disposing)
+         {
++            opaqueRedirect?.Dispose();opaqueRedirect=null;
+             dibCoverage?.Dispose(); dibCoverage = null;
+             layoutPresentation?.Dispose();
+             completeRecovery = null;
+diff --git a/Program.cs b/Program.cs
+--- a/Program.cs
++++ b/Program.cs
+@@ -36,7 +36,9 @@
+             using var form = new MainForm(args.FirstOrDefault(a => !a.StartsWith("--")), loadSavedBackground: true,
+                 backgroundSettingsPath: data.BackgroundPath, diagnostics: diagnostics,
+                 dibCandidate: args.Contains("--dib-candidate", StringComparer.Ordinal) ||
+-                    string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath), "AsukaLens.DibCandidate", StringComparison.OrdinalIgnoreCase));
++                    string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath), "AsukaLens.DibCandidate", StringComparison.OrdinalIgnoreCase),
++                opaqueRedirectCandidate: args.Contains("--opaque-redirect-candidate", StringComparer.Ordinal) ||
++                    string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath), "AsukaLens.OpaqueDibCandidate", StringComparison.OrdinalIgnoreCase));
+             if (data.IsIsolated) form.Text += " · 隔离数据";
+             Application.Run(form);
+         }
+diff --git a/src/UI/Rendering/OpaqueWindowRedirect.cs b/src/UI/Rendering/OpaqueWindowRedirect.cs
+new file mode 100644
+--- /dev/null
++++ b/src/UI/Rendering/OpaqueWindowRedirect.cs
+@@ -0,0 +1,120 @@
++using System.Runtime.InteropServices;
++
++namespace DiskAtlas;
++
++// Explicit candidate only. Windows owns the redirected image; the application
++// keeps its existing DIB/control pipeline. No color key, opacity reduction,
++// click-through, screenshot layer, redraw hold or system-wide setting.
++internal sealed class OpaqueWindowRedirect : IDisposable
++{
++    internal const int Layered = 0x80000, Transparent = 0x20;
++    internal enum State { Waiting, Active, ForeignStyle, SetupFailed, VerifyFailed, RollbackFailed, Disposed }
++    internal interface INative
++    {
++        int Style(IntPtr handle);
++        bool SetStyle(IntPtr handle,int value);
++        bool SetOpaque(IntPtr handle);
++        bool IsOpaque(IntPtr handle);
++    }
++    private readonly Form owner;
++    private readonly INative native;
++    private readonly bool postCreateHost;
++    private bool ownsTransparencySetting;
++    private IntPtr ownedHandle;
++    private bool addedLayer, disposed;
++    private long generation;
++    internal State Status { get; private set; } = State.Waiting;
++    internal bool Active => Status==State.Active && Current(ownedHandle) && native.IsOpaque(ownedHandle) &&
++        (native.Style(ownedHandle)&(Layered|Transparent))==Layered;
++    internal int Attempts { get; private set; }
++    internal bool OwnsLayer => addedLayer;
++    internal OpaqueWindowRedirect(Form owner,INative? native=null,bool postCreateHost=false)
++    {
++        this.owner=owner;this.native=native??new Native();this.postCreateHost=postCreateHost;
++        // Form.CreateHandle finally re-applies CreateParams AFTER the public
++        // event and OnHandleCreated override. Register the same intent with
++        // its public API, so that later UpdateStyles keeps our layered bit.
++        // This does not lower Opacity or introduce a transparency color key.
++        if(postCreateHost && !owner.AllowTransparency && owner.Opacity==1d && owner.TransparencyKey==Color.Empty &&
++            (!owner.IsHandleCreated || (this.native.Style(owner.Handle)&(Layered|Transparent))==0))
++        { ownsTransparencySetting=true;owner.AllowTransparency=true; }
++        if(!postCreateHost)owner.HandleCreated+=Created;
++        owner.HandleDestroyed+=Destroyed;
++        if(owner.IsHandleCreated)Created(owner,EventArgs.Empty);
++    }
++    // MainForm calls this AFTER Form.OnHandleCreated returns. Form updates its
++    // opacity-related extended styles after the public HandleCreated event.
++    internal void HandleReady()=>Created(owner,EventArgs.Empty);
++    private bool Current(IntPtr handle)=>!disposed && handle!=IntPtr.Zero && !owner.IsDisposed &&
++        !owner.Disposing && owner.IsHandleCreated && owner.Handle==handle;
++    private void Created(object? sender,EventArgs args)
++    {
++        if(disposed || !owner.IsHandleCreated || owner.IsDisposed || owner.Disposing)return;
++        IntPtr handle=owner.Handle;
++        if(ownedHandle==handle)return;
++        ownedHandle=handle;addedLayer=false;Attempts++;long lease=++generation;
++        bool Valid()=>lease==generation && ownedHandle==handle && Current(handle);
++        int style=native.Style(handle);
++        if(!Valid())return;
++        if((style&Transparent)!=0 || (style&Layered)!=0&&!ownsTransparencySetting){Status=State.ForeignStyle;return;}
++        // Claim only the bit we add. Rollback preserves every other flag,
++        // including changes made by the framework since initialization.
++        addedLayer=true;
++        bool changed=native.SetStyle(handle,style|Layered);
++        if(!Valid())return;
++        if(!changed){Fail(State.SetupFailed);return;}
++        bool opaque=native.SetOpaque(handle);
++        if(!Valid())return;
++        if(!opaque){Fail(State.SetupFailed);return;}
++        bool verified=native.IsOpaque(handle);
++        if(!Valid())return;
++        int actualStyle=native.Style(handle);
++        if(!Valid())return;
++        if(!verified || (actualStyle&(Layered|Transparent))!=Layered)
++        { Fail(State.VerifyFailed);return; }
++        Status=State.Active;
++    }
++    private void Fail(State reason)
++    { Status=reason;if(!RemoveOwnedLayer())Status=State.RollbackFailed; }
++    private bool RemoveOwnedLayer()
++    {
++        if(ownsTransparencySetting)
++        {
++            ownsTransparencySetting=false;
++            // A later caller choosing real translucency owns that policy now.
++            if(owner.Opacity!=1d || owner.TransparencyKey!=Color.Empty){addedLayer=false;return true;}
++            if(!owner.IsDisposed&&!owner.Disposing)owner.AllowTransparency=false;
++        }
++        if(!addedLayer)return true;
++        IntPtr handle=ownedHandle;
++        long lease=generation;
++        if(!Current(handle)){addedLayer=false;return true;}
++        int style=native.Style(handle);
++        bool restored=(style&Layered)==0 || native.SetStyle(handle,style&~Layered);
++        if(lease!=generation || ownedHandle!=handle)return true;
++        if(!restored)return false;
++        addedLayer=false;return true;
++    }
++    private void Destroyed(object? sender,EventArgs args)
++    { generation++;ownedHandle=IntPtr.Zero;addedLayer=false;if(!disposed)Status=State.Waiting; }
++    public void Dispose()
++    {
++        if(disposed)return;
++        if(!postCreateHost)owner.HandleCreated-=Created;
++        owner.HandleDestroyed-=Destroyed;
++        bool restored=RemoveOwnedLayer();disposed=true;generation++;ownedHandle=IntPtr.Zero;
++        Status=restored?State.Disposed:State.RollbackFailed;
++    }
++    private sealed class Native:INative
++    {
++        public int Style(IntPtr h)=>GetWindowLong(h,-20);
++        public bool SetStyle(IntPtr h,int value)
++        { Marshal.SetLastPInvokeError(0);return SetWindowLong(h,-20,value)!=0 || Marshal.GetLastPInvokeError()==0; }
++        public bool SetOpaque(IntPtr h)=>SetLayeredWindowAttributes(h,0,255,2);
++        public bool IsOpaque(IntPtr h)=>GetLayeredWindowAttributes(h,out _,out byte alpha,out uint flags) && alpha==255 && flags==2;
++        [DllImport("user32.dll",EntryPoint="GetWindowLongW")]private static extern int GetWindowLong(IntPtr h,int index);
++        [DllImport("user32.dll",EntryPoint="SetWindowLongW",SetLastError=true)]private static extern int SetWindowLong(IntPtr h,int index,int value);
++        [DllImport("user32.dll",SetLastError=true)]private static extern bool SetLayeredWindowAttributes(IntPtr h,uint color,byte alpha,uint flags);
++        [DllImport("user32.dll")]private static extern bool GetLayeredWindowAttributes(IntPtr h,out uint color,out byte alpha,out uint flags);
++    }
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -1,5 +1,17 @@
+ using DiskAtlas;
+ using System.Drawing;
++
++while(args.Length>1 && args[0] is "--opaque-tests" or "--dib-tests")
++{
++    AppContext.SetSwitch(args[0]=="--opaque-tests"?"AsukaLens.TestOpaqueRedirect":"AsukaLens.TestDib",true);
++    args=args.Skip(1).ToArray();
++}
++
++if(args.Length is 1 or 2 && args[0]=="--opaque-redirect-tests")
++    return OpaqueRedirectTests.Run(args.Contains("--dpi-96"));
++
++if(args.Length is 2 or 3 && args[0]=="--early-client-probe")
++    return EarlyClientProbe.Run(args[1],args.Contains("--dpi-96"));
+ 
+ if(args.Length is 1 or 2 && args[0]=="--resize-composition-tests")
+     return ResizeCompositionTests.Run(args.Contains("--dpi-96"));
+@@ -21,15 +33,9 @@
+     return RootCompositeTests.Run(args.Contains("--dpi-96"));
+ 
+ if(args.Length is >=2 and <=6 && args[0]=="--resize-pipeline-probe")
+-    return ResizePipelineProbe.Run(args[1],args.Contains("--dpi-96"),args.Contains("--slow"),args.Contains("--pixels"),args.Contains("--c54"),args.Contains("--c55"));
++    return ResizePipelineProbe.Run(args[1],args.Contains("--dpi-96"),args.Contains("--slow"),args.Contains("--pixels"),args.Contains("--c54"),args.Contains("--c55"),args.Contains("--c56"));
+ 
+ if(args.Contains("--dib-integration-tests")) return DibMainFormTests.Run(args.Contains("--dpi-96"),args.Contains("--cache-only"));
+-
+-if (args.Length > 1 && args[0] == "--dib-tests")
+-{
+-    AppContext.SetSwitch("AsukaLens.TestDib", true);
+-    args = args.Skip(1).ToArray();
+-}
+ 
+ // A clearly named, copied test apphost can be opened directly on the desktop.
+ // The ordinary test apphost keeps its existing no-argument core-test behavior.
+diff --git a/tests/EarlyClientProbe.cs b/tests/EarlyClientProbe.cs
+new file mode 100644
+--- /dev/null
++++ b/tests/EarlyClientProbe.cs
+@@ -0,0 +1,160 @@
++using DiskAtlas;
++using System.Diagnostics;
++using System.Runtime.InteropServices;
++using System.Text.Json;
++
++// Owned window, fixed geometry and bounded integer message fields only.
++// No recordings, screenshots, arbitrary paths, titles or user file metadata.
++internal static class EarlyClientProbe
++{
++    internal static int Run(string mode,bool dpi96)
++    {
++        if(mode is not ("baseline" or "redraw" or "layered" or "children"))return 2;
++        string report=Path.Combine("artifacts","early-client-C56",$"{mode}-{(dpi96?96:144)}.json");
++        if(File.Exists(report)){Console.Error.WriteLine("FAIL early client report exists");return 2;}
++        string? failure=null;bool finished=false;Action? close=null;
++        var thread=new Thread(()=>
++        {
++            try
++            {
++                Application.SetHighDpiMode(dpi96?HighDpiMode.DpiUnaware:HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles();Application.SetDefaultFont(new Font("Microsoft YaHei UI",9));
++                using var form=new MainForm(null,dibCandidate:true);
++                close=()=>{if(form.IsHandleCreated&&!form.IsDisposed)form.BeginInvoke((Action)form.Close);};
++                form.Shown+=async(_,_)=>
++                {
++                    try
++                    {
++                        if(mode=="layered")
++                        {
++                            int style=GetWindowLong(form.Handle,-20);
++                            SetWindowLong(form.Handle,-20,style|0x80000);
++                            if(!SetLayeredWindowAttributes(form.Handle,0,255,2))throw new InvalidOperationException("LayeredSetup");
++                        }
++                        await Task.Delay(100);
++                        using var watch=new Observer(form,mode);
++                        var common=form.Size;
++                        for(int step=1;step<=8;step++)
++                        {await Task.Delay(30);watch.Step=step;form.Size=step%2==0?common:form.MinimumSize;}
++                        await Task.Delay(80);
++                        Directory.CreateDirectory(Path.GetDirectoryName(report)!);
++                        File.WriteAllText(report,JsonSerializer.Serialize(new{mode,dpi=form.DeviceDpi,rows=watch.Rows,dropped=watch.Dropped,
++                            class_style=GetClassLong(form.Handle,-26),class_background_brush_is_null=GetClassLongPtr(form.Handle,-10)==IntPtr.Zero,
++                            scope="owned main window; discrete GDI observations; no visual acceptance"},new JsonSerializerOptions{WriteIndented=true}));
++                        Console.WriteLine($"PASS early client observation rows={watch.Rows.Count}; dropped={watch.Dropped}; screen_acceptance=separate");
++                    }
++                    catch{failure="EarlyClientObservation";}
++                    finally{form.Close();}
++                };
++                Application.Run(form);finished=true;
++            }
++            catch{failure="EarlyClientWorker";}
++        }){IsBackground=true};thread.SetApartmentState(ApartmentState.STA);thread.Start();
++        if(!thread.Join(TimeSpan.FromSeconds(40))){close?.Invoke();thread.Join(3000);failure="EarlyClientDeadline";}
++        if(failure!=null||!finished){Console.Error.WriteLine("FAIL early client code="+failure);return 1;}return 0;
++    }
++    private sealed class Observer:NativeWindow,IDisposable
++    {
++        private readonly MainForm owner;private readonly string mode;private readonly Stopwatch clock=Stopwatch.StartNew();
++        private readonly List<ChildObserver> children=[];
++        private Size old;private int depth;
++        internal int Step, Dropped;
++        internal List<object> Rows{get;}=[];
++        internal Observer(MainForm form,string mode)
++        {
++            owner=form;this.mode=mode;AssignHandle(form.Handle);
++            if(mode=="children")Watch(form);
++        }
++        private void Watch(Control parent)
++        {
++            foreach(Control child in parent.Controls)
++            {
++                if(child.IsHandleCreated && child is WallpaperTable or WallpaperSplitContainer or SplitterPanel or TreemapControl or WallpaperGrid)
++                    children.Add(new ChildObserver(this,child,children.Count+1));
++                Watch(child);
++            }
++        }
++        protected override void WndProc(ref Message m)
++        {
++            bool observed=m.Msg is 0x46 or 0x47 or 0x83 or 0x85 or 0x14 or 0x5 or 0xf or 0x88;
++            if(!observed){base.WndProc(ref m);return;}
++            if(m.Msg==0x46&&GetClientRect(Handle,out var previous))old=new(previous.Right,previous.Bottom);
++            depth++;Record(ref m,true);
++            try
++            {
++                base.WndProc(ref m);
++                if(mode=="redraw" && m.Msg==0x83 && m.WParam!=IntPtr.Zero)
++                    m.Result=new IntPtr(0x300); // Preserve base rectangles/frame; WVR_REDRAW only.
++            }
++            finally{Record(ref m,false);depth--;}
++        }
++        private void Record(ref Message m,bool before,Control? child=null,int childId=0)
++        {
++            if(Step is <1 or >8)return;if(Rows.Count>=4096){Dropped++;return;}
++            IntPtr target=child?.Handle??Handle;
++            GetClientRect(target,out var r);
++            object? position=null,calc=null;
++            if(m.Msg is 0x46 or 0x47 && m.LParam!=IntPtr.Zero)
++            {var p=Marshal.PtrToStructure<Position>(m.LParam);position=new{p.Width,p.Height,p.Flags};}
++            if(m.Msg==0x83 && m.WParam!=IntPtr.Zero && m.LParam!=IntPtr.Zero)
++            {var p=Marshal.PtrToStructure<Calc>(m.LParam);calc=new{new_width=p.New.Right-p.New.Left,new_height=p.New.Bottom-p.New.Top,old_width=p.OldClient.Right-p.OldClient.Left,old_height=p.OldClient.Bottom-p.OldClient.Top};}
++            var points=new List<object>();int gridValid=0,gridBlack=0;
++            IntPtr dc=child==null?GetDCEx(target,IntPtr.Zero,0x2|0x8|0x10):IntPtr.Zero;
++            if(dc!=IntPtr.Zero)
++            {
++                try
++                {
++                    var sample=new List<Point>();
++                    if(r.Right>old.Width)sample.Add(new(r.Right-2,r.Bottom*2/3));
++                    if(r.Bottom>old.Height)sample.Add(new(r.Right*2/3,r.Bottom-2));
++                    foreach(var p in sample)
++                    {if(!PtVisible(dc,p.X,p.Y))continue;uint color=GetPixel(dc,p.X,p.Y);points.Add(new{x=p.X,y=p.Y,valid=color!=0xffffffff,black=(color&0xffffff)==0});}
++                }
++                finally{ReleaseDC(target,dc);}
++            }
++            IntPtr all=GetDCEx(target,IntPtr.Zero,0x2|0x10);
++            if(all!=IntPtr.Zero)
++            {
++                try
++                {
++                    for(int gy=1;gy<=5;gy++)for(int gx=1;gx<=7;gx++)
++                    {
++                        int x=r.Right*gx/8,y=r.Bottom*gy/6;
++                        if(!PtVisible(all,x,y))continue;uint pixel=GetPixel(all,x,y);
++                        if(pixel==0xffffffff)continue;gridValid++;if((pixel&0xffffff)==0)gridBlack++;
++                    }
++                }
++                finally{ReleaseDC(target,all);}
++            }
++            Rows.Add(new{step=Step,depth,message=m.Msg,before,ms=clock.Elapsed.TotalMilliseconds,result=before?0:m.Result.ToInt64(),grid_valid=gridValid,grid_black=gridBlack,
++                role=child switch{WallpaperTable=>"Table",WallpaperSplitContainer=>"Split",SplitterPanel=>"Panel",TreemapControl=>"Map",WallpaperGrid=>"Grid",_=>"Root"},child_id=childId,
++                geometry_active=owner.IsGeometryPresentationPaused,native_width=r.Right,native_height=r.Bottom,managed_width=(child??owner).ClientSize.Width,managed_height=(child??owner).ClientSize.Height,position,calc,points});
++        }
++        private sealed class ChildObserver:NativeWindow,IDisposable
++        {
++            private readonly Observer parent;private readonly Control control;private readonly int id;
++            internal ChildObserver(Observer parent,Control control,int id){this.parent=parent;this.control=control;this.id=id;AssignHandle(control.Handle);}
++            protected override void WndProc(ref Message m)
++            {
++                if(m.Msg is not (0x46 or 0x47 or 0x85 or 0x14 or 0xf)){base.WndProc(ref m);return;}
++                parent.Record(ref m,true,control,id);
++                try{base.WndProc(ref m);}finally{parent.Record(ref m,false,control,id);}
++            }
++            public void Dispose(){ReleaseHandle();GC.KeepAlive(control);}
++        }
++        public void Dispose(){foreach(var c in children)c.Dispose();ReleaseHandle();GC.KeepAlive(owner);}
++    }
++    [StructLayout(LayoutKind.Sequential)]private struct Rect{internal int Left,Top,Right,Bottom;}
++    [StructLayout(LayoutKind.Sequential)]private struct Position{internal IntPtr Window,After;internal int X,Y,Width,Height;internal uint Flags;}
++    [StructLayout(LayoutKind.Sequential)]private struct Calc{internal Rect New,OldWindow,OldClient;internal IntPtr Position;}
++    [DllImport("user32.dll")]private static extern bool GetClientRect(IntPtr h,out Rect r);
++    [DllImport("user32.dll")]private static extern IntPtr GetDCEx(IntPtr h,IntPtr region,uint flags);
++    [DllImport("user32.dll")]private static extern int ReleaseDC(IntPtr h,IntPtr dc);
++    [DllImport("user32.dll",EntryPoint="GetClassLongW")]private static extern uint GetClassLong(IntPtr h,int index);
++    [DllImport("user32.dll",EntryPoint="GetClassLongPtrW")]private static extern IntPtr GetClassLongPtr(IntPtr h,int index);
++    [DllImport("user32.dll",EntryPoint="GetWindowLongW")]private static extern int GetWindowLong(IntPtr h,int index);
++    [DllImport("user32.dll",EntryPoint="SetWindowLongW")]private static extern int SetWindowLong(IntPtr h,int index,int value);
++    [DllImport("user32.dll")]private static extern bool SetLayeredWindowAttributes(IntPtr h,uint color,byte alpha,uint flags);
++    [DllImport("gdi32.dll")]private static extern bool PtVisible(IntPtr dc,int x,int y);
++    [DllImport("gdi32.dll")]private static extern uint GetPixel(IntPtr dc,int x,int y);
++}
+diff --git a/tests/OpaqueRedirectTests.cs b/tests/OpaqueRedirectTests.cs
+new file mode 100644
+--- /dev/null
++++ b/tests/OpaqueRedirectTests.cs
+@@ -0,0 +1,133 @@
++using DiskAtlas;
++using System.Diagnostics;
++using System.Reflection;
++using System.Runtime.InteropServices;
++
++internal static class OpaqueRedirectTests
++{
++    internal static int Run(bool dpi96)
++    {
++        int checks=0;string? failure=null;bool finished=false;Action? close=null;
++        var thread=new Thread(()=>
++        {
++            try
++            {
++                Application.SetHighDpiMode(dpi96?HighDpiMode.DpiUnaware:HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles();Application.SetDefaultFont(new Font("Microsoft YaHei UI",9));
++                VerifyFailure(new Fake{FailAdd=true},OpaqueWindowRedirect.State.SetupFailed,false);
++                VerifyFailure(new Fake{FailOpaque=true},OpaqueWindowRedirect.State.SetupFailed,false);
++                VerifyFailure(new Fake{FailVerify=true},OpaqueWindowRedirect.State.VerifyFailed,false);
++                VerifyFailure(new Fake{FailOpaque=true,FailRemove=true},OpaqueWindowRedirect.State.RollbackFailed,true);
++                foreach(int foreign in new[]{OpaqueWindowRedirect.Layered,OpaqueWindowRedirect.Transparent})
++                {
++                    using var f=new Form();_ = f.Handle;
++                    var native=new Fake{Bits=foreign|0x40000};using var redirect=new OpaqueWindowRedirect(f,native);
++                    Check(redirect.Status==OpaqueWindowRedirect.State.ForeignStyle&&!redirect.Active&&!redirect.OwnsLayer,"ForeignPolicyNotClaimed");
++                    Check(native.SetCalls==0&&native.OpaqueCalls==0,"ForeignAttributesUntouched");
++                }
++                using(var f=new Harness())
++                {
++                    var native=new Fake();using var redirect=new OpaqueWindowRedirect(f,native);
++                    Check(!f.IsHandleCreated&&redirect.Status==OpaqueWindowRedirect.State.Waiting,"NoHandleForcedBySubscription");
++                    _ = f.Handle;Check(redirect.Active&&redirect.Attempts==1,"NewHandleInitialized");
++                    native.Bits|=0x4000;redirect.Dispose();
++                    Check(!redirect.OwnsLayer&&native.Bits==0x44000,"DisposePreservesUnrelatedStyleChanges");
++                    int calls=native.SetCalls;f.Recreate();Check(native.SetCalls==calls,"DisposedSubscriptionCannotReinitialize");
++                    redirect.Dispose();Check(native.SetCalls==calls,"DisposeIdempotent");
++                }
++                using(var f=new Harness())
++                {
++                    _ = f.Handle;var native=new Fake();
++                    native.OnOpaque=()=>{native.OnOpaque=null;native.Bits=0x40000;f.Recreate();};
++                    using var redirect=new OpaqueWindowRedirect(f,native);
++                    Check(redirect.Active&&redirect.Attempts>=2,"ReentrantOldSetupCannotUndoNewHandle");
++                }
++                using var form=new MainForm(null,dibCandidate:true,opaqueRedirectCandidate:true);
++                close=()=>{if(form.IsHandleCreated&&!form.IsDisposed)form.BeginInvoke((Action)form.Close);};
++                var image=form.BackgroundImage;
++                form.Shown+=async(_,_)=>
++                {
++                    try
++                    {
++                        await Task.Delay(80);
++                        var redirect=form.OpaqueRedirect!;var session=form.Rendering!;
++                        VerifyNative(form,redirect);
++                        using(var reference=new MainForm(null,dibCandidate:true))
++                        {
++                            reference.Show();await Task.Delay(30);
++                            Check(ReferenceEquals(image,form.BackgroundImage)&&reference.Font.Equals(form.Font)&&reference.Size==form.Size&&reference.MinimumSize==form.MinimumSize,"LayoutBackgroundFontMatchesOrdinaryDibAtSameDpi");
++                            reference.Close();form.Activate();
++                        }
++                        var common=form.Size;
++                        Check(form.Opacity==1d&&form.TransparencyKey==Color.Empty&&form.Visible,"WholeWindowRemainsFullyOpaqueAndVisible");
++                        var metric=Field<ComboBox>(form,"metricCombo");metric.DroppedDown=true;await Task.Delay(40);
++                        Check(metric.DroppedDown,"NativeDropDownOpens");metric.DroppedDown=false;
++                        var search=Field<TextBox>(form,"search");search.Focus();search.Text="synthetic";
++                        Check(search.Focused&&search.Text=="synthetic","NativeTextFocusPreserved");search.Clear();
++                        var map=Field<TreemapControl>(form,"map");Field<CheckBox>(form,"reduceMotion").Checked=true;Check(!map.AnimationsEnabled,"ReducedMotionPreserved");
++                        Field<CheckBox>(form,"reduceMotion").Checked=false;Check(map.AnimationsEnabled,"GlowMotionRestored");
++                        for(int i=0;i<8;i++)
++                        {form.Size=i%2==0?form.MinimumSize:common;await Task.Delay(30);VerifyNative(form,redirect);Check(session.Active&&session.Bytes<=RenderSession.MaxBytes,"ResizeRetainsApplicationBudget");}
++                        form.WindowState=FormWindowState.Minimized;await Task.Delay(60);form.WindowState=FormWindowState.Normal;await Task.Delay(100);
++                        VerifyNative(form,redirect);Check(form.Visible,"RestoreStillVisible");
++                        int attempts=redirect.Attempts;
++                        typeof(Control).GetMethod("RecreateHandle",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(form,null);
++                        await Task.Delay(80);VerifyNative(form,redirect);Check(redirect.Attempts>attempts,"RealHandleRecreatedAndReinitialized");
++                        form.Dispose();Check(session.Bytes==0&&!redirect.Active&&!redirect.OwnsLayer,"ClosedFormReleasesApplicationPixelsAndOwnership");
++                        var gdiCounts=new List<int>();var userCounts=new List<int>();
++                        for(int i=0;i<6;i++)
++                        {
++                            using var owned=new Harness();_=owned.Handle;
++                            using var redirectCycle=new OpaqueWindowRedirect(owned);
++                            Check(redirectCycle.Active,"RepeatedNativeSessionStarts");
++                            owned.Dispose();Check(!redirectCycle.Active&&!redirectCycle.OwnsLayer,"DestroyedNativeSessionRetiresOwnership");
++                            using var process=Process.GetCurrentProcess();gdiCounts.Add(GetGuiResources(process.Handle,0));userCounts.Add(GetGuiResources(process.Handle,1));
++                        }
++                        Check(gdiCounts.All(n=>n>0)&&gdiCounts[^1]<=gdiCounts[0],"NoGdiGrowthAcrossClosedNativeCycles");
++                        Check(userCounts.All(n=>n>0)&&userCounts[^1]<=userCounts[0],"NoUserHandleGrowthAcrossClosedNativeCycles");
++                        Console.WriteLine($"OPAQUE_RESOURCES closed_cycle_gdi={string.Join(',',gdiCounts)}; closed_cycle_user={string.Join(',',userCounts)}; system_redirect_bitmap_bytes=not_measured");
++                    }
++                    catch(Exception e){failure=e is Failure f?f.Code:"UnexpectedOpaqueRedirect";}
++                    finally{if(!form.IsDisposed)form.Close();}
++                };
++                Application.Run(form);finished=true;
++            }
++            catch(Exception e){failure=e is Failure f?f.Code:"OpaqueRedirectWorker";}
++        }){IsBackground=true};thread.SetApartmentState(ApartmentState.STA);thread.Start();
++        if(!thread.Join(TimeSpan.FromSeconds(45))){close?.Invoke();thread.Join(3000);failure="OpaqueRedirectDeadline";}
++        Console.WriteLine($"{(failure==null?"PASS":"FAIL")} opaque redirect checks={checks}; code={failure??"None"}; worker_finished={finished}; alpha=255; native_ui=true; system_image_memory_not_measured=true");
++        return failure==null?0:1;
++        void Check(bool value,string code){if(!value)throw new Failure(code);checks++;}
++        void VerifyFailure(Fake native,OpaqueWindowRedirect.State expected,bool owns)
++        {
++            using var f=new Form();_=f.Handle;using var redirect=new OpaqueWindowRedirect(f,native);
++            Check(redirect.Status==expected&&!redirect.Active&&redirect.OwnsLayer==owns,"NativeFailureReportedWithoutFalseActive");
++            if(!owns)Check((native.Bits&OpaqueWindowRedirect.Layered)==0,"SetupFailureRollsBackLayerBit");
++        }
++        void VerifyNative(Form form,OpaqueWindowRedirect redirect)
++        {
++            if(!redirect.Active)Console.WriteLine($"OBSERVE opaque state={redirect.Status}; attempts={redirect.Attempts}; owns={redirect.OwnsLayer}; layered={(GetWindowLong(form.Handle,-20)&OpaqueWindowRedirect.Layered)!=0}");
++            Check(redirect.Active&&redirect.Status==OpaqueWindowRedirect.State.Active,"OpaqueRedirectActuallyActive");
++            bool attributes=GetLayeredWindowAttributes(form.Handle,out _,out byte alpha,out uint flags);
++            if(!attributes||alpha!=255||flags!=2)Console.WriteLine($"OBSERVE opaque attributes_valid={attributes}; alpha={alpha}; flags={flags}; layered={(GetWindowLong(form.Handle,-20)&OpaqueWindowRedirect.Layered)!=0}");
++            Check(attributes&&alpha==255&&flags==2,"NativeAlpha255AndNoColorKey");
++            Check((GetWindowLong(form.Handle,-20)&(OpaqueWindowRedirect.Layered|OpaqueWindowRedirect.Transparent))==OpaqueWindowRedirect.Layered,"LayeredWithoutClickThrough");
++        }
++    }
++    private static T Field<T>(object value,string name)=>(T)value.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(value)!;
++    private sealed class Failure(string code):Exception{internal string Code{get;}=code;}
++    private sealed class Harness:Form{internal void Recreate()=>RecreateHandle();}
++    private sealed class Fake:OpaqueWindowRedirect.INative
++    {
++        internal int Bits=0x40000,SetCalls,OpaqueCalls;
++        internal bool FailAdd,FailOpaque,FailVerify,FailRemove;
++        internal Action? OnOpaque;
++        public int Style(IntPtr handle)=>Bits;
++        public bool SetStyle(IntPtr handle,int value){SetCalls++;if((value&OpaqueWindowRedirect.Layered)!=0?FailAdd:FailRemove)return false;Bits=value;return true;}
++        public bool SetOpaque(IntPtr handle){OpaqueCalls++;OnOpaque?.Invoke();return !FailOpaque;}
++        public bool IsOpaque(IntPtr handle)=>!FailVerify;
++    }
++    [DllImport("user32.dll",EntryPoint="GetWindowLongW")]private static extern int GetWindowLong(IntPtr h,int index);
++    [DllImport("user32.dll")]private static extern bool GetLayeredWindowAttributes(IntPtr h,out uint color,out byte alpha,out uint flags);
++    [DllImport("user32.dll")]private static extern int GetGuiResources(IntPtr process,uint flag);
++}
+diff --git a/tests/ResizePipelineProbe.cs b/tests/ResizePipelineProbe.cs
+--- a/tests/ResizePipelineProbe.cs
++++ b/tests/ResizePipelineProbe.cs
+@@ -7,11 +7,11 @@
+ 
+ internal static class ResizePipelineProbe
+ {
+-    internal static int Run(string label, bool dpi96, bool slow, bool pixels, bool c54=false, bool c55=false)
++    internal static int Run(string label, bool dpi96, bool slow, bool pixels, bool c54=false, bool c55=false, bool c56=false)
+     {
+         if(label is not ("before" or "after" or "after-reuse" or "final" or "final-ready" or "off1" or "on1" or "on2" or "off2"))return 2;
+         string directory=Path.Combine(Path.GetTempPath(),"AsukaLens-C53-"+Guid.NewGuid().ToString("N"));
+-        string report=Path.Combine("artifacts",c55?"resize-pipeline-C55":c54?"resize-pipeline-C54":"resize-pipeline-C53",$"{label}-{(dpi96?96:144)}-{(slow?100:30)}-{(pixels?"pixels":"timing")}.json");
++        string report=Path.Combine("artifacts",c56?"resize-pipeline-C56":c55?"resize-pipeline-C55":c54?"resize-pipeline-C54":"resize-pipeline-C53",$"{label}-{(dpi96?96:144)}-{(slow?100:30)}-{(pixels?"pixels":"timing")}.json");
+         if(File.Exists(report)){Console.Error.WriteLine("FAIL resize pipeline report exists");return 2;}
+         Directory.CreateDirectory(directory);int result=1;bool completed=false;
+         var thread=new Thread(()=>
+@@ -20,7 +20,8 @@
+             {
+                 Application.SetHighDpiMode(dpi96?HighDpiMode.DpiUnaware:HighDpiMode.PerMonitorV2);
+                 Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
+-                using var form=new MainForm(null,false,Path.Combine(directory,"background.dat"),dibCandidate:true);
++                bool opaque=c56 && label is "on1" or "on2";
++                using var form=new MainForm(null,false,Path.Combine(directory,"background.dat"),dibCandidate:true,opaqueRedirectCandidate:opaque);
+                 form.Shown+=async(_,_)=>
+                 {
+                     try
+@@ -34,7 +35,8 @@
+                         await (Task)typeof(MainForm).GetMethod("ScanFolder",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(form,[scope])!;
+                         await Task.Delay(200);
+                         var coverage=(DibWindowCoverage)typeof(MainForm).GetField("dibCoverage",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(form)!;
+-                        coverage.UseRootCache=label is not ("off1" or "off2");
++                        coverage.UseRootCache=c56 || label is not ("off1" or "off2");
++                        if(opaque && form.OpaqueRedirect?.Active!=true)throw new InvalidOperationException("OpaqueModeNotActive");
+                         var work=new ResizeWorkProbe();ResizeWorkProbe.Current=work;
+                         using var root=pixels?new RootPixels(form):null;
+                         var common=form.Size;var sizes=ResizeDiagnosticReplay.Build(common,form.MinimumSize);
+@@ -54,7 +56,7 @@
+                         File.WriteAllText(report,JsonSerializer.Serialize(new {label,dpi=form.DeviceDpi,requested_interval_ms=slow?100:30,
+                             program_driven=true,screen_acceptance=false,diagnostic_pixel_sampling=pixels,steps,work=work.Summary(),root=root?.Summary(),
+                             session_bytes=form.Rendering!.Bytes,session_peak_bytes=form.Rendering.PeakBytes,
+-                            copy_failures=form.Rendering.CopyFailureCounts},new JsonSerializerOptions{WriteIndented=true}));
++                            copy_failures=form.Rendering.CopyFailureCounts,opaque_requested=opaque,opaque_active=form.OpaqueRedirect?.Active==true},new JsonSerializerOptions{WriteIndented=true}));
+                         Console.WriteLine($"PASS resize pipeline label={label}; dpi={form.DeviceDpi}; steps=12; pixel_sampling={pixels}; dropped={work.Dropped}");result=0;
+                     }
+                     catch(Exception){Console.Error.WriteLine("FAIL resize pipeline fixed-code=ProbeFailed");}
+diff --git a/tests/TreemapStateTests.cs b/tests/TreemapStateTests.cs
+--- a/tests/TreemapStateTests.cs
++++ b/tests/TreemapStateTests.cs
+@@ -283,7 +283,12 @@
+                 Input("OnMouseMove", Center(second));
+                 form.WindowState = FormWindowState.Minimized; Pump(90);
+                 Check(!map.MotionRunning && !clock.IsRunning && State("hovered") == null, "minimising the owner stops the orbit timer and clears hover");
+-                form.WindowState = FormWindowState.Normal; Application.DoEvents(); using var unminimised = Capture();
++                Console.WriteLine("OBSERVE glow restore setter entering");
++                form.WindowState = FormWindowState.Normal;
++                Console.WriteLine("OBSERVE glow restore setter returned; entering event drain");
++                Application.DoEvents();
++                Console.WriteLine("OBSERVE glow restore event drain returned");
++                using var unminimised = Capture();
+                 Check(map.OrbitRunning && ActiveOutlines() == 1 && State("hovered") == null, "restoring the owner resumes a valid selection without stale hover");
+                 map.SetItems([new("Replacement", 1, null, "其他")]);
+                 Check(!map.MotionRunning && !clock.IsRunning && contours.Count == 0, "a new source clears selection motion and contour generation");
+diff --git a/AGENTS.md b/AGENTS.md
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -123,6 +123,7 @@
+ - DIB根背景缓存修改另运行 `--root-composite-tests` 及 `--dpi-96`，核对完整像素、局部/带孔裁切、尺寸/图片/聚焦失效、预算和关闭后释放。`--resize-pipeline-probe off1|on1|on2|off2 [--dpi-96] [--slow] [--pixels]` 只扫描自建临时目录，输出至ignored artifacts并拒绝覆盖；固定12步、最多256条尺寸事件，阶段耗时可嵌套不可相加。性能与离散GDI取点分开测，均不能代表真实帧率或连续屏幕无闪黑；默认程序不启用该内存探针。方案见 [C53缩放排查](docs/ui-resize-pipeline-plan.md)。
+ - 原生透明控件/布局后局部补画修改另运行 `--transparent-restore-tests`，分别加 `--dpi-96`、`--custom`（四组）；它在自然最大化/还原后先核真实控件及父空白区像素，再做明确标记的局部/父失效对照，不在取证前强刷。`--native-window-clip-tests` 两档验证普通HWND的简单/带孔裁切。两者需可交互桌面，只用自有窗口/合成背景、拒绝覆盖报告，不代替连续闪黑的人工验收。C54性能复验可在原管线探针增加 `--c54`，隔离输出至本轮目录。见[还原残留方案](docs/ui-restore-background-plan.md)。
+ - 缩放中的缓存发布或分隔面板擦背景修改另运行 `--resize-composition-tests` 及 `--dpi-96`，在自然尺寸事务后核父面板可见像素、最终补画、重绘所有权及资源释放。C55管线探针使用 `--c55` 隔离输出，默认关闭的诊断仅记录固定表面类别、透明度及计数；两档根合成回归覆盖整数位移/带孔裁切，并保持非整数、比例和旋转变换回退。中间擦背景跳过次数、同步尺寸耗时及离散GDI取点均不能直接宣布连续闪黑消失。
++- C56整窗重定向仅由显式`--opaque-redirect-candidate`或`AsukaLens.OpaqueDibCandidate.exe`启用；普通与旧DIB入口不启用。修改该模式运行`--opaque-redirect-tests`两档，核实际LWA_ALPHA=255、无色键/点击穿透、句柄代际/失败回退、原生交互及关闭资源；完整UI使用`--opaque-tests --dib-tests --ui-regression`两档，显式DIB专项可只加`--opaque-tests`保留其普通参考路径。管线`--c56`的off/on只比较重定向，双方均保留C55根缓存。系统额外窗口图像不算入应用128MiB预算，GDI存储像素、句柄稳定或后台检查通过均不等于真实屏幕无闪黑；Win10/跨屏等未验范围单列，不沿用旧发行包结论。
+ - 开发 SDK 由 `global.json` 固定到已验证的 .NET 10 feature band，允许补丁升级，不使用预览 SDK。运行需要 .NET 10 Windows Desktop Runtime；SDK 已包含它。
+ - 当前普通构建入口：`dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。
+ - 先构建测试项目：`dotnet build tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。测试 DLL 为 `tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll`，用 `dotnet` 运行，按下表选范围。
+diff --git a/docs/ui-opaque-redirect-plan.md b/docs/ui-opaque-redirect-plan.md
+new file mode 100644
+--- /dev/null
++++ b/docs/ui-opaque-redirect-plan.md
+@@ -0,0 +1,27 @@
++# C56：早期黑区与完全不透明整窗重定向候选
++
++2026-11-21，用户确认C55更顺滑但仍瞬间闪黑，要求继续定点修复、保持布局/背景/动效，不录屏，先展示新的DIB候选、不设默认。
++
++## 证据和判断
++
++自有主窗消息跟踪发现：WM_NCCALCSIZE返回时仍是旧客户区；到第一次WM_NCPAINT进入时，新客户区已扩大，右边缘及整窗采样有黑色。该次两回调间隔约28ms，不能据此声称整个间隔都为黑色；首次DIB覆盖后取点恢复。类样式只有CS_DBLCLKS，原计算返回0，排除了CS_HREDRAW/VREDRAW及caller SWP_NOCOPYBITS。子面板跟踪的前4096条中没有黑色样本，后续2576条超容量丢弃；不能据此证明所有子控件或后半段正常。
++
++独立WVR_REDRAW对照保留框架客户区计算，只要求整区重绘，仍有早期黑点且范围更大，拒绝接入。运行时全不透明layered对照完成，但其GDI存储表面仍可读到早期黑点；尚不能证明最终屏幕发布已消除闪黑。现阶段没有新的视觉通过结论。
++
++## 已批准实施范围（2026-11-21）
++
++保留现有DIB、原生控件及所有布局/背景/字体/动效，在**新的显式C56候选**中为主窗口启用Windows管理的整窗离屏重定向（WS_EX_LAYERED、LWA_ALPHA=255，无透明色键），让系统维护整窗图像后合成。完全不透明，不将软件Opacity改成99%，不使用截图遮盖、冻结拖动或系统设置调参。
++
++这改变根窗口呈现方式，不能仅凭后台取点通过就默认启用。先补足候选开关、句柄重建和失败回退，核实alpha确为255且无点击穿透；两档像素/完整UI、下拉框、输入、滚动、动效、窗口还原和资源检查。系统重定向有额外窗口图像存储，不能谎称已计入128MiB应用像素缓存或保证不增加内存。保留C55对照，不新增框架或依赖。
++
++通过必要检查后打开正常功能C56，人工看连续缩放是否仍闪黑；若仍有，不继续将同一策略默认化，保留失败并另给更换呈现后端的方案。用户已明确批准本候选范围；兼容性与资源检查通过后展示，仍不设为默认或发布。
++
++依据：[Layered Windows](https://learn.microsoft.com/windows/win32/winmsg/window-features#layered-windows)、[SetLayeredWindowAttributes](https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-setlayeredwindowattributes)。文档说明离屏重定向及alpha=255的不透明语义，并不保证AsukaLens实测无闪黑。
++
++## 原生兼容性进展
++
++两档各81项通过。实现协调WinForms的公开AllowTransparency意图，Opacity=1、原生alpha255；仅早设Native样式会被CreateHandle末尾UpdateStyles撤销。句柄重建、失败回退、外部样式归属、原生输入/下拉和动效已检查。六个关闭周期的GDI/USER句柄稳定；系统重定向图像内存未测。完整UI/像素与实际候选展示仍在进行，不提前宣称闪黑修复。
++
++## 交付检查点（2026-11-21）
++
++显式候选模式及回退/句柄代际管理完成。两档原生专项各81项、26个唯一兼容组合及DIB核心完成；保留两次柔光独立普通Form还原超时，原因未确认，原时限及全部断言的阶段标记版复验通过。C56正常功能软件已打开并检查最大化/还原，连续缩放效果等待用户反馈，不据后台存储像素宣布根治，也不设默认。系统额外图像内存未测；当前平台检查不等于Win10或跨屏验收。详见[C56](../iterations/2026-11-21-56-early-client/README.md)。
+diff --git a/docs/project-status.md b/docs/project-status.md
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,12 +1,20 @@
+ # AsukaLens 项目现状
+ 
+-## 进行中：C55缩放候选已展示，闪黑仍待用户实测（2026-11-21）
++## C56候选已打开：完全不透明整窗重定向待用户体验（2026-11-21）
++
++已按用户确认的[方案](ui-opaque-redirect-plan.md)完成显式C56模式、兼容性及资源检查，并打开正常扫描软件。窗口仍完全不透明（实际alpha255、无色键/无穿透），布局/背景/字体/1.15倍动效及C55优化保留；普通与旧DIB入口不启用。`AsukaLens.OpaqueDibCandidate.exe`或显式参数才启用，C55与普通二进制未覆盖。
++
++两档原生专项各81项通过，含失败回退/代际隔离、句柄重建、下拉/输入/动效和释放；六个关闭周期GDI/USER计数稳定。26个唯一兼容检查组合最终完成，含三条路径两档共六组完整UI、根/DIB像素、布局/还原/滚动/柔光；保留两次独立普通Form还原阶段的柔光超时，原因未确认，阶段标记版原时限/99断言通过，未用通过抹去失败。
++
++同构建off/on/on/off同步尺寸p50约250/228/227/247ms，应用像素峰值均27873396字节；非帧率或普遍提速结论，系统额外窗口图像内存未测。存储表面的早期黑色取点仍在，不冒充最终呈现验收。候选已用独立配置扫描自建52文件，实际最大化→还原布局/背景/标题完整；已交给用户体验连续缩放，当前待反馈、不宣称闪黑根治。入口`artifacts/dib-mainform-C56/app/AsukaLens.OpaqueDibCandidate.exe`，证据见[C56](../iterations/2026-11-21-56-early-client/README.md)。不录屏、不改系统，不设默认或发布；Win10模式/真实跨屏仍未验。
++
++## 前序C55：用户确认更顺滑但仍闪黑（2026-11-21）
+ 
+ 用户批准继续修复连续缩放闪黑和卡顿，保持布局/背景/字体/动效，先展示独立候选、不设默认。测量定位到整数位移导致原生缓存发布回退后重复合成，以及逻辑尺寸事务内分隔面板反复擦背景；仅修这两条候选路径。原生映射守卫不改，缓存改用同一已完成的不透明画面作GDI+整数位移发布；非整数/比例/旋转仍回退。只在候选的逻辑尺寸事务内省略中间面板擦背景，最终沿用现有呈现补全，不停用根/子窗口重绘。
+ 
+ 两档27份回归通过：根各43项/155872像素、自然尺寸事务各123项、普通/DIB四组完整UI、还原/布局/滚动/柔光/表面/DIB检查。最终同条件程序序列同步p50约219/238ms，本轮基线约465ms；非帧率，外部负载未控，不作普遍提速保证。早期NcEntering仍9/10黑色取点，后续返回0黑；不能宣称瞬间闪黑已消失。SWP_NOREDRAW尝试仅将黑点移到PositionEntering，已撤销并留证。
+ 
+-独立正常功能候选`artifacts/dib-mainform-C55/app/AsukaLens.DibCandidate.exe`已扫描自建52文件并打开；实际最大化/还原后未见半截标题或持续背景矩形，连续缩放效果已询问用户、尚待反馈。C52–C54与普通版保留，不设默认、不发布。见[C55记录](../iterations/2026-11-21-55-resize-presentation/README.md)及[本轮方案](ui-resize-presentation-plan.md)。
++独立正常功能候选`artifacts/dib-mainform-C55/app/AsukaLens.DibCandidate.exe`已扫描自建52文件并打开；实际最大化/还原后未见半截标题或持续背景矩形，用户已确认更顺滑但仍瞬间闪黑，由C56继续。C52–C54与普通版保留，不设默认、不发布。见[C55记录](../iterations/2026-11-21-55-resize-presentation/README.md)及[本轮方案](ui-resize-presentation-plan.md)。
+ 
+ ## 最新：C54标题栏还原背景残留已修复，用户确认保留（2026-11-20）
+ 
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,12 +1,20 @@
+ # 后续开发计划
+ 
+-## 进行中：C55缩放候选已展示，闪黑仍待用户实测（2026-11-21）
++## C56候选已打开：完全不透明整窗重定向待用户体验（2026-11-21）
++
++已按用户确认的[方案](ui-opaque-redirect-plan.md)完成显式C56模式、兼容性及资源检查，并打开正常扫描软件。窗口仍完全不透明（实际alpha255、无色键/无穿透），布局/背景/字体/1.15倍动效及C55优化保留；普通与旧DIB入口不启用。`AsukaLens.OpaqueDibCandidate.exe`或显式参数才启用，C55与普通二进制未覆盖。
++
++两档原生专项各81项通过，含失败回退/代际隔离、句柄重建、下拉/输入/动效和释放；六个关闭周期GDI/USER计数稳定。26个唯一兼容检查组合最终完成，含三条路径两档共六组完整UI、根/DIB像素、布局/还原/滚动/柔光；保留两次独立普通Form还原阶段的柔光超时，原因未确认，阶段标记版原时限/99断言通过，未用通过抹去失败。
++
++同构建off/on/on/off同步尺寸p50约250/228/227/247ms，应用像素峰值均27873396字节；非帧率或普遍提速结论，系统额外窗口图像内存未测。存储表面的早期黑色取点仍在，不冒充最终呈现验收。候选已用独立配置扫描自建52文件，实际最大化→还原布局/背景/标题完整；已交给用户体验连续缩放，当前待反馈、不宣称闪黑根治。入口`artifacts/dib-mainform-C56/app/AsukaLens.OpaqueDibCandidate.exe`，证据见[C56](../iterations/2026-11-21-56-early-client/README.md)。不录屏、不改系统，不设默认或发布；Win10模式/真实跨屏仍未验。
++
++## 前序C55：用户确认更顺滑但仍闪黑（2026-11-21）
+ 
+ 用户批准继续修复连续缩放闪黑和卡顿，保持布局/背景/字体/动效，先展示独立候选、不设默认。测量定位到整数位移导致原生缓存发布回退后重复合成，以及逻辑尺寸事务内分隔面板反复擦背景；仅修这两条候选路径。原生映射守卫不改，缓存改用同一已完成的不透明画面作GDI+整数位移发布；非整数/比例/旋转仍回退。只在候选的逻辑尺寸事务内省略中间面板擦背景，最终沿用现有呈现补全，不停用根/子窗口重绘。
+ 
+ 两档27份回归通过：根各43项/155872像素、自然尺寸事务各123项、普通/DIB四组完整UI、还原/布局/滚动/柔光/表面/DIB检查。最终同条件程序序列同步p50约219/238ms，本轮基线约465ms；非帧率，外部负载未控，不作普遍提速保证。早期NcEntering仍9/10黑色取点，后续返回0黑；不能宣称瞬间闪黑已消失。SWP_NOREDRAW尝试仅将黑点移到PositionEntering，已撤销并留证。
+ 
+-独立正常功能候选`artifacts/dib-mainform-C55/app/AsukaLens.DibCandidate.exe`已扫描自建52文件并打开；实际最大化/还原后未见半截标题或持续背景矩形，连续缩放效果已询问用户、尚待反馈。C52–C54与普通版保留，不设默认、不发布。见[C55记录](../iterations/2026-11-21-55-resize-presentation/README.md)及[本轮方案](ui-resize-presentation-plan.md)。
++独立正常功能候选`artifacts/dib-mainform-C55/app/AsukaLens.DibCandidate.exe`已扫描自建52文件并打开；实际最大化/还原后未见半截标题或持续背景矩形，用户已确认更顺滑但仍瞬间闪黑，由C56继续。C52–C54与普通版保留，不设默认、不发布。见[C55记录](../iterations/2026-11-21-55-resize-presentation/README.md)及[本轮方案](ui-resize-presentation-plan.md)。
+ 
+ ## 最新：C54局部还原残留验收通过并保留（2026-11-20）
+ 
+diff --git a/docs/ui-rendering-defects-handoff.md b/docs/ui-rendering-defects-handoff.md
+--- a/docs/ui-rendering-defects-handoff.md
++++ b/docs/ui-rendering-defects-handoff.md
+@@ -1,12 +1,20 @@
+ # 主界面绘制缺陷交接
+ 
+-## 进行中：C55缩放候选已展示，闪黑仍待用户实测（2026-11-21）
++## C56候选已打开：完全不透明整窗重定向待用户体验（2026-11-21）
++
++已按用户确认的[方案](ui-opaque-redirect-plan.md)完成显式C56模式、兼容性及资源检查，并打开正常扫描软件。窗口仍完全不透明（实际alpha255、无色键/无穿透），布局/背景/字体/1.15倍动效及C55优化保留；普通与旧DIB入口不启用。`AsukaLens.OpaqueDibCandidate.exe`或显式参数才启用，C55与普通二进制未覆盖。
++
++两档原生专项各81项通过，含失败回退/代际隔离、句柄重建、下拉/输入/动效和释放；六个关闭周期GDI/USER计数稳定。26个唯一兼容检查组合最终完成，含三条路径两档共六组完整UI、根/DIB像素、布局/还原/滚动/柔光；保留两次独立普通Form还原阶段的柔光超时，原因未确认，阶段标记版原时限/99断言通过，未用通过抹去失败。
++
++同构建off/on/on/off同步尺寸p50约250/228/227/247ms，应用像素峰值均27873396字节；非帧率或普遍提速结论，系统额外窗口图像内存未测。存储表面的早期黑色取点仍在，不冒充最终呈现验收。候选已用独立配置扫描自建52文件，实际最大化→还原布局/背景/标题完整；已交给用户体验连续缩放，当前待反馈、不宣称闪黑根治。入口`artifacts/dib-mainform-C56/app/AsukaLens.OpaqueDibCandidate.exe`，证据见[C56](../iterations/2026-11-21-56-early-client/README.md)。不录屏、不改系统，不设默认或发布；Win10模式/真实跨屏仍未验。
++
++## 前序C55：用户确认更顺滑但仍闪黑（2026-11-21）
+ 
+ 用户批准继续修复连续缩放闪黑和卡顿，保持布局/背景/字体/动效，先展示独立候选、不设默认。测量定位到整数位移导致原生缓存发布回退后重复合成，以及逻辑尺寸事务内分隔面板反复擦背景；仅修这两条候选路径。原生映射守卫不改，缓存改用同一已完成的不透明画面作GDI+整数位移发布；非整数/比例/旋转仍回退。只在候选的逻辑尺寸事务内省略中间面板擦背景，最终沿用现有呈现补全，不停用根/子窗口重绘。
+ 
+ 两档27份回归通过：根各43项/155872像素、自然尺寸事务各123项、普通/DIB四组完整UI、还原/布局/滚动/柔光/表面/DIB检查。最终同条件程序序列同步p50约219/238ms，本轮基线约465ms；非帧率，外部负载未控，不作普遍提速保证。早期NcEntering仍9/10黑色取点，后续返回0黑；不能宣称瞬间闪黑已消失。SWP_NOREDRAW尝试仅将黑点移到PositionEntering，已撤销并留证。
+ 
+-独立正常功能候选`artifacts/dib-mainform-C55/app/AsukaLens.DibCandidate.exe`已扫描自建52文件并打开；实际最大化/还原后未见半截标题或持续背景矩形，连续缩放效果已询问用户、尚待反馈。C52–C54与普通版保留，不设默认、不发布。见[C55记录](../iterations/2026-11-21-55-resize-presentation/README.md)及[本轮方案](ui-resize-presentation-plan.md)。
++独立正常功能候选`artifacts/dib-mainform-C55/app/AsukaLens.DibCandidate.exe`已扫描自建52文件并打开；实际最大化/还原后未见半截标题或持续背景矩形，用户已确认更顺滑但仍瞬间闪黑，由C56继续。C52–C54与普通版保留，不设默认、不发布。见[C55记录](../iterations/2026-11-21-55-resize-presentation/README.md)及[本轮方案](ui-resize-presentation-plan.md)。
+ 
+ ## C54局部还原残留修复，用户实际确认消失（2026-11-20）
+ 
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,12 +1,22 @@
+ # AsukaLens 开发检查点
+ 
+-## 进行中：2026-11-21 C55候选已展示，等待连续缩放反馈
++## 最新：2026-11-21 C56已打开，等待连续缩放反馈
++
++用户批准完全不透明整窗离屏重定向，保留C55、布局/背景/字体/1.15倍动效，不录屏、不设默认。OpaqueWindowRedirect仅显式参数或AsukaLens.OpaqueDibCandidate apphost启用；普通和旧DIB入口不启用。同步公开AllowTransparency意图（Opacity仍1、无色键）防止Form.CreateHandle末尾UpdateStyles撤销Native样式；Active核真实属性，按句柄代际/失败分类回退，只清自有设置。
++
++两档原生专项各81通过，alpha255、无穿透、下拉/输入/动效/重建/释放已查；六关闭周期GDI分别135/129、USER58/59稳定。26个唯一矩阵组合最终完成，含C56/普通/旧DIB六组完整UI。柔光独立普通Form还原两次30秒超时保留，原因未确认；只加阶段标记后原时限/99断言通过，96也通过，不说原因已排除。最终产品与测试构建零警告。
++
++off/on/on/off同构建同步p50约250/228/227/247ms；应用像素峰值27873396字节均同，非帧率。系统额外图像内存未测，不能算进应用128MiB。早期GDI存储仍9/10黑、返回0黑，不当最终屏幕结论。C56已扫描自建52文件约8.97MiB并实际最大化/还原，布局/背景/标题完整；连续缩放已请用户测试、待反馈，未宣称闪黑修复。
++
++入口artifacts/dib-mainform-C56/app/AsukaLens.OpaqueDibCandidate.exe，本次启动独立配置；C55和普通bin哈希保持。主DLL5237AEE9F4A954B6839B5D12B4504D9C589932F7536B6C6F7711F0FB79B9B273。证据iterations/2026-11-21-56-early-client，含诊断失败、前像、关键文件、逐字节补丁、构建/验证/资源摘要；原始证据仅本机ZIP。无录屏/系统/个人卷操作。Git仍main9ac1f0b，继承index/前序依赖不混提，未提交/推送/Release、不设默认。用户反馈前不继续新后端；Win10/真实跨屏/连续无闪黑待验。
++
++## C55用户反馈：更顺滑但仍闪黑（由C56继续）
+ 
+ 用户批准定点修复并打开正常功能DIB候选，布局/背景/字体/1.15倍动效不改，不设默认、不录屏或改系统。只修精确根缓存的整数位移GDI+发布回退和逻辑尺寸事务内中间SplitPanel擦背景；原生映射守卫、非整数/旋转/比例回退保留。主窗/RenderSession无修改。SWP_NOREDRAW仅把早期黑点从NcEntering移到PositionEntering，已撤销，不宣称有改善。
+ 
+ 最终应用/测试构建零警告，两档27份检查全通过，根各43项/155872像素、自然事务各123项、普通/DIB四组完整UI及还原/布局/滚动/柔光/表面/DIB均通过。最终固定序列同步p50约219/238ms，基线465ms；暖UI、负载未控、非帧率。NcEntering仍9/10黑、返回后0黑，连续闪黑未关闭。
+ 
+-候选artifacts/dib-mainform-C55/app/AsukaLens.DibCandidate.exe已打开，自建52文件约8.97MiB、独立配置；实际最大化/还原未见持续残留/半截标题，连续缩放已询问用户、待反馈。C52–C54和普通输出保持。证据iterations/2026-11-21-55-resize-presentation/README.md，含前像/关键文件/专用补丁、验证与失败对照、字节重放和私有ZIP。Git仍main 9ac1f0b，继承index/前序代码不混提，未提交/推送/发布。
++候选artifacts/dib-mainform-C55/app/AsukaLens.DibCandidate.exe已打开，自建52文件约8.97MiB、独立配置；实际最大化/还原未见持续残留/半截标题，用户已确认更顺滑但仍瞬间闪黑，由C56继续。C52–C54和普通输出保持。证据iterations/2026-11-21-55-resize-presentation/README.md，含前像/关键文件/专用补丁、验证与失败对照、字节重放和私有ZIP。Git仍main 9ac1f0b，继承index/前序代码不混提，未提交/推送/发布。
+ 
+ ## 最新：C54局部背景残留通过，2026-11-21完成接续收尾
+ 
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,4 +1,10 @@
+ # 影响后续开发的决定
++
++- 2026-11-21交付C56：用户批准的opaque重定向已完成并展示，保留C55与普通、不设默认。原生/资源和完整兼容检查完成，仍保留两次普通Form柔光还原超时及其未明原因；不以阶段复验通过关闭该记录。GDI存储早期黑点不代表DWM最终呈现，因此真实连续缩放等待用户判断；系统额外图像内存和Win10/跨屏范围不作未经测量的承诺。证据iterations/2026-11-21-56-early-client/README.md。
++
++- 2026-11-21：用户批准C56完整不透明整窗重定向候选，保留C55/普通、不设默认。针对Form.CreateHandle末尾样式重置，同步公开AllowTransparency管理意图且Opacity保持1，以真实Native alpha255/no-key/无穿透作验收；不依赖内部Active布尔或99%透明度。系统额外图像存储不假算进应用128MiB；只有兼容/资源通过并实际展示后才收用户结论。方案docs/ui-opaque-redirect-plan.md。
++
++- 2026-11-21：用户确认C55顺滑度改善但仍瞬间闪黑，保留优化而不关闭缺陷。C56跟踪区分根表面早期空档与后续绘制，WVR_REDRAW扩大黑区故拒绝；opaque layered的GDI存储取点仍黑，不视为显示改善。系统整窗重定向会改变根呈现及增加系统图像存储，已先给docs/ui-opaque-redirect-plan.md，等待用户选择，不擅自接入或默认启用。
+ 
+ - 2026-11-21：C55按用户范围只减少已测到的重复合成和中间擦背景，不改布局/背景/字体/动效。精确根缓存可在受限整数位移下GDI+发布，Native守卫不放宽；分隔面板只在候选逻辑事务内延迟中间擦背景，最终自然呈现仍须像素正确。SWP_NOREDRAW试验把黑点移到更后消息而未消除，拒绝保留；最终仍有早期黑点，不用耗时改善替代闪黑验收。新候选已打开，等用户反馈再决定后续，不默认启用。证据 iterations/2026-11-21-55-resize-presentation/README.md。
+ 

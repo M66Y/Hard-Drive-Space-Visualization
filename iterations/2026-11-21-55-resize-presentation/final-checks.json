@@ -1,0 +1,16 @@
+{
+  "source_and_binary_hashes_verified": true,
+  "public_privacy_pattern_scan_passed": true,
+  "scoped_patch_byte_replay_passed": true,
+  "new_archive_relative_links_checked": 10,
+  "private_evidence_zip_verified": true,
+  "tests_log_count": 27,
+  "actual_ui_shown": true,
+  "human_continuous_resize_feedback": "pending",
+  "early_flash_closed": false,
+  "default_changed": false,
+  "commit_pushed": false,
+  "formal_release_generated": false,
+  "scoped_whitespace_check_passed": true,
+  "inherited_git_index_unchanged": true
+}

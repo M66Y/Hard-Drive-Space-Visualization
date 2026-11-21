@@ -1,0 +1,43 @@
+{
+  "reports": {
+    "baseline-144.json": {
+      "rows": 112,
+      "dropped": 0,
+      "root_early_samples": 8,
+      "root_early_black": 7,
+      "raw_sha256": "AE5EC7DBC366142807AC58F0C5F4FFB8BC577A3C9AA03014D57D3921E1F9E160"
+    },
+    "children-144.json": {
+      "rows": 4096,
+      "dropped": 2576,
+      "root_early_samples": 4,
+      "root_early_black": 3,
+      "raw_sha256": "9D773DEAA4206ED1A7D3B0165FFEF297118D0EAD965658BD13FC177F81F11F94"
+    },
+    "layered-144.json": {
+      "rows": 112,
+      "dropped": 0,
+      "root_early_samples": 8,
+      "root_early_black": 7,
+      "raw_sha256": "C754E796D168AEA7136E6480176D0DE12EABCFF7B8CEA2C3457C1C9AFA15EA64"
+    },
+    "redraw-144.json": {
+      "rows": 128,
+      "dropped": 0,
+      "root_early_samples": 8,
+      "root_early_black": 8,
+      "raw_sha256": "771054C00516F574927D3979282CD792981C68A4A2AFAB01D7266C8D049C900E"
+    }
+  },
+  "production_unchanged": true,
+  "no_recording": true,
+  "pending": "approved candidate implemented and opened; human continuous-resize feedback pending",
+  "private_zip": {
+    "path": "artifacts/early-client-C56/owned-diagnostics.zip",
+    "entries": 4,
+    "bytes": 58494,
+    "sha256": "1EB0BB379E94F13C8C3A15599BF51BDB3B5F18827F57A220C809FEC135E6290B",
+    "verified": true
+  },
+  "phase": "initial C56 diagnosis before approved mode implementation"
+}

@@ -1,0 +1,66 @@
+{
+  "revision": 1,
+  "scope": "C49-owned-synthetic-GDI-root-witness-and-target-mapping",
+  "diagnosis_only": true,
+  "pixel_guard_relaxed": false,
+  "normal_app_modified": false,
+  "screen_no_flash_proven": false,
+  "runs": [
+    {
+      "trace": "resize-31333573cbcd4fa3b0c6a58976542e54.json",
+      "sha256": "39DE0375356CD6F9F374EF8B0E7AB21A65B245E3338FD5B4B28FA1A26343AEB5",
+      "mode": "Grid",
+      "dpi": 144,
+      "mapping_rejections": 0,
+      "combo_printclient_attributed": 0,
+      "child_offset_and_clip_verified": true,
+      "geometry_root_mismatches": 6,
+      "old_grid_residual_explained": 6,
+      "later_natural_root_paint_restored": 6,
+      "truncated": false,
+      "observation_failures": 0
+    },
+    {
+      "trace": "resize-377a5f0c56b949a2a64d789b4c254a7f.json",
+      "sha256": "FF96192117AE9F3AD521EB5B4227D8BDD36C81CBFE910DBA7D671A04C82F7AB7",
+      "mode": "Combo",
+      "dpi": 144,
+      "mapping_rejections": 26,
+      "combo_printclient_attributed": 26,
+      "child_offset_and_clip_verified": true,
+      "geometry_root_mismatches": 0,
+      "old_grid_residual_explained": 0,
+      "later_natural_root_paint_restored": 0,
+      "truncated": false,
+      "observation_failures": 0
+    },
+    {
+      "trace": "resize-52133fff15cf4ca1a4bff6dd573c8dd9.json",
+      "sha256": "E4F827EC7B1AA84A9128BAA27B2D5B46A3ADCC3C22B28627D582919250CAB499",
+      "mode": "All",
+      "dpi": 144,
+      "mapping_rejections": 26,
+      "combo_printclient_attributed": 26,
+      "child_offset_and_clip_verified": true,
+      "geometry_root_mismatches": 6,
+      "old_grid_residual_explained": 6,
+      "later_natural_root_paint_restored": 6,
+      "truncated": false,
+      "observation_failures": 0
+    },
+    {
+      "trace": "resize-88c75da8c5c1432ebdb8aafc19620a93.json",
+      "sha256": "4E3B6706DA13CBB244BA92C1A27F2817383382BA046A49DE78086183010F973A",
+      "mode": "All",
+      "dpi": 96,
+      "mapping_rejections": 26,
+      "combo_printclient_attributed": 26,
+      "child_offset_and_clip_verified": true,
+      "geometry_root_mismatches": 6,
+      "old_grid_residual_explained": 6,
+      "later_natural_root_paint_restored": 6,
+      "truncated": false,
+      "observation_failures": 0
+    }
+  ]
+}

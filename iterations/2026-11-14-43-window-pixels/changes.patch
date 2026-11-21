@@ -1,0 +1,40 @@
+diff --git a/src/UI/ResizePixelPolicy.cs b/src/UI/ResizePixelPolicy.cs
+index ad84804..46a0267 100644
+--- a/src/UI/ResizePixelPolicy.cs
++++ b/src/UI/ResizePixelPolicy.cs
+@@ -8,16 +8,17 @@ internal static class ResizePixelPolicy
+ {
+     internal static void Prepare(Control control, ref Message message)
+     {
+-        if (message.Msg != 0x0046 || message.LParam == IntPtr.Zero ||
++        // The top-level window must retain its last complete client pixels
++        // until the later geometry transaction presents the new surfaces.
++        // Never add or remove the caller's copy policy for that window.
++        if (control is Form || message.Msg != 0x0046 || message.LParam == IntPtr.Zero ||
+             control.FindForm()?.WindowState == FormWindowState.Minimized) return;
+         var position = Marshal.PtrToStructure<WindowPosition>(message.LParam);
+         bool moved = (position.Flags & 0x0002) == 0 &&
+             (position.X != control.Left || position.Y != control.Top);
+         bool resized = (position.Flags & 0x0001) == 0 &&
+             (position.Width != control.Width || position.Height != control.Height);
+-        // Moving the whole Form does not change its wallpaper coordinates.
+-        // Leave that already-correct path and minimize/restore behavior alone.
+-        if (!resized && (!moved || control is Form)) return;
++        if (!resized && !moved) return;
+         position.Flags |= 0x0100; // SWP_NOCOPYBITS: invalidate instead of blitting old pixels.
+         Marshal.StructureToPtr(position, message.LParam, false);
+     }
+diff --git a/tests/ResizePixelPolicyTests.cs b/tests/ResizePixelPolicyTests.cs
+index c4085cb..d4f961f 100644
+--- a/tests/ResizePixelPolicyTests.cs
++++ b/tests/ResizePixelPolicyTests.cs
+@@ -35,7 +35,8 @@ internal static class ResizePixelPolicyTests
+                 using var form = new Form();
+                 form.Bounds = new Rectangle(10, 20, 280, 180);
+                 Check(form, 0x0046, Position(11, 20, 280, 180), false);
+-                Check(form, 0x0046, Position(10, 20, 281, 180), true);
++                Check(form, 0x0046, Position(10, 20, 281, 180), false);
++                Check(form, 0x0046, Position(10, 20, 281, 180, 0x0100), false);
+                 form.Controls.Add(control);
+                 form.WindowState = FormWindowState.Minimized;
+                 Check(control, 0x0046, Position(11, 20, 80, 50), false);

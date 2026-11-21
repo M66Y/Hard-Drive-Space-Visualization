@@ -1,0 +1,416 @@
+﻿{
+    "revision":  1,
+    "investigation":  "C46",
+    "production_drawing_changed":  false,
+    "capture":  "owned-HWND-GDI-surface-only",
+    "native_mouse_drag":  false,
+    "system_settings_changed":  false,
+    "private_directory_scan":  false,
+    "timing_boundary":  "requested-cadence-is-not-actual-FPS; pixel-brackets-are-not-continuous-black-duration",
+    "runs":  [
+                 {
+                     "label":  "canvas30-timing",
+                     "trace_sha256":  "E602A253DF0998FE78CDAEF25CD92476B2E419C44534FBA741EDC98968C2E09E",
+                     "schema":  "resize-diagnostic-trace-v1",
+                     "pixels_enabled":  false,
+                     "records":  3826,
+                     "truncated":  false,
+                     "observation_failures":  0,
+                     "span_ms":  51904.959,
+                     "diagnostic_ms":  219.215,
+                     "diagnostic_fraction":  0.00422,
+                     "requested_interval_ms":  30,
+                     "replay_steps":  160,
+                     "actual_gap_p50_ms":  312.394,
+                     "actual_gap_p95_ms":  392.813,
+                     "valid_black_points":  0,
+                     "black_outside_old_layout":  0,
+                     "paired_later_nonblack":  0,
+                     "paired_matches_prototype_frame":  0,
+                     "black_stages":  [
+
+                                      ],
+                     "pre_to_post_sample_bracket":  null,
+                     "largest_tracked_message_exclusive":  [
+                                                               {
+                                                                   "surface_message":  "Root:0:15",
+                                                                   "count":  159,
+                                                                   "inclusive_ms":  50036.905,
+                                                                   "exclusive_tracked_ms":  50014
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:71",
+                                                                   "count":  160,
+                                                                   "inclusive_ms":  84.299,
+                                                                   "exclusive_tracked_ms":  62
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:133",
+                                                                   "count":  160,
+                                                                   "inclusive_ms":  57.582,
+                                                                   "exclusive_tracked_ms":  25
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:70",
+                                                                   "count":  161,
+                                                                   "inclusive_ms":  18.326,
+                                                                   "exclusive_tracked_ms":  5
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:20",
+                                                                   "count":  319,
+                                                                   "inclusive_ms":  35.476,
+                                                                   "exclusive_tracked_ms":  4
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:131",
+                                                                   "count":  158,
+                                                                   "inclusive_ms":  12.468,
+                                                                   "exclusive_tracked_ms":  0
+                                                               }
+                                                           ]
+                 },
+                 {
+                     "label":  "canvas30-pixels",
+                     "trace_sha256":  "F2730DBC0524E7B79911B679CDC1ED79EFB371CCF61CA16DA0D25E9CDD62B50E",
+                     "schema":  "resize-diagnostic-trace-v1",
+                     "pixels_enabled":  true,
+                     "records":  4623,
+                     "truncated":  false,
+                     "observation_failures":  0,
+                     "span_ms":  50752.546,
+                     "diagnostic_ms":  1227.596,
+                     "diagnostic_fraction":  0.02419,
+                     "requested_interval_ms":  30,
+                     "replay_steps":  160,
+                     "actual_gap_p50_ms":  320.476,
+                     "actual_gap_p95_ms":  420.434,
+                     "valid_black_points":  272,
+                     "black_outside_old_layout":  272,
+                     "paired_later_nonblack":  272,
+                     "paired_matches_prototype_frame":  272,
+                     "black_stages":  [
+                                          {
+                                              "count":  272,
+                                              "stage":  "GeometryAfterChildren"
+                                          }
+                                      ],
+                     "pre_to_post_sample_bracket":  {
+                                                        "count":  272,
+                                                        "p50_ms":  310.329,
+                                                        "p95_ms":  416.105,
+                                                        "max_ms":  484.056
+                                                    },
+                     "largest_tracked_message_exclusive":  [
+                                                               {
+                                                                   "surface_message":  "Root:0:15",
+                                                                   "count":  159,
+                                                                   "inclusive_ms":  48908.363,
+                                                                   "exclusive_tracked_ms":  48882
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:71",
+                                                                   "count":  160,
+                                                                   "inclusive_ms":  830.444,
+                                                                   "exclusive_tracked_ms":  822
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:133",
+                                                                   "count":  160,
+                                                                   "inclusive_ms":  57.599,
+                                                                   "exclusive_tracked_ms":  30
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:20",
+                                                                   "count":  319,
+                                                                   "inclusive_ms":  38.974,
+                                                                   "exclusive_tracked_ms":  13
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:70",
+                                                                   "count":  162,
+                                                                   "inclusive_ms":  14.37,
+                                                                   "exclusive_tracked_ms":  1
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:131",
+                                                                   "count":  158,
+                                                                   "inclusive_ms":  10.095,
+                                                                   "exclusive_tracked_ms":  0
+                                                               }
+                                                           ]
+                 },
+                 {
+                     "label":  "mainform30-truncated",
+                     "trace_sha256":  "B9990F95789E9F72993EDE0303F946BB30A1201AC55F4C1A395A1998F9EFD6C2",
+                     "schema":  "resize-diagnostic-trace-v1",
+                     "pixels_enabled":  true,
+                     "records":  16384,
+                     "truncated":  true,
+                     "observation_failures":  0,
+                     "span_ms":  13143.602,
+                     "diagnostic_ms":  774.447,
+                     "diagnostic_fraction":  0.05892,
+                     "requested_interval_ms":  30,
+                     "replay_steps":  160,
+                     "actual_gap_p50_ms":  497.917,
+                     "actual_gap_p95_ms":  717.369,
+                     "valid_black_points":  0,
+                     "black_outside_old_layout":  0,
+                     "paired_later_nonblack":  0,
+                     "paired_matches_prototype_frame":  0,
+                     "black_stages":  [
+
+                                      ],
+                     "pre_to_post_sample_bracket":  null,
+                     "largest_tracked_message_exclusive":  [
+                                                               {
+                                                                   "surface_message":  "Ancestor:17:20",
+                                                                   "count":  160,
+                                                                   "inclusive_ms":  3567.861,
+                                                                   "exclusive_tracked_ms":  3568
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Ancestor:21:20",
+                                                                   "count":  179,
+                                                                   "inclusive_ms":  2632.956,
+                                                                   "exclusive_tracked_ms":  2632
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:71",
+                                                                   "count":  25,
+                                                                   "inclusive_ms":  10554.548,
+                                                                   "exclusive_tracked_ms":  1348
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Ancestor:7:71",
+                                                                   "count":  20,
+                                                                   "inclusive_ms":  5285.103,
+                                                                   "exclusive_tracked_ms":  555
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Map:15:15",
+                                                                   "count":  58,
+                                                                   "inclusive_ms":  430.951,
+                                                                   "exclusive_tracked_ms":  423
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Ancestor:18:71",
+                                                                   "count":  20,
+                                                                   "inclusive_ms":  3797.228,
+                                                                   "exclusive_tracked_ms":  234
+                                                               }
+                                                           ]
+                 },
+                 {
+                     "label":  "mainform30-alternating",
+                     "trace_sha256":  "0E666D7624E121D6767558EF4FB4F116EBCA2F378D4DC7512FB6635F2572824E",
+                     "schema":  "resize-diagnostic-trace-v1",
+                     "pixels_enabled":  true,
+                     "records":  8687,
+                     "truncated":  false,
+                     "observation_failures":  0,
+                     "span_ms":  22757.643,
+                     "diagnostic_ms":  927.788,
+                     "diagnostic_fraction":  0.04077,
+                     "requested_interval_ms":  30,
+                     "replay_steps":  12,
+                     "actual_gap_p50_ms":  1679.644,
+                     "actual_gap_p95_ms":  2017.439,
+                     "valid_black_points":  20,
+                     "black_outside_old_layout":  20,
+                     "paired_later_nonblack":  20,
+                     "paired_matches_prototype_frame":  0,
+                     "black_stages":  [
+                                          {
+                                              "count":  20,
+                                              "stage":  "GeometryAfterChildren"
+                                          }
+                                      ],
+                     "pre_to_post_sample_bracket":  {
+                                                        "count":  20,
+                                                        "p50_ms":  1849.064,
+                                                        "p95_ms":  2044.268,
+                                                        "max_ms":  2044.268
+                                                    },
+                     "largest_tracked_message_exclusive":  [
+                                                               {
+                                                                   "surface_message":  "Ancestor:17:20",
+                                                                   "count":  83,
+                                                                   "inclusive_ms":  9036.292,
+                                                                   "exclusive_tracked_ms":  9040
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Ancestor:21:20",
+                                                                   "count":  94,
+                                                                   "inclusive_ms":  5991.313,
+                                                                   "exclusive_tracked_ms":  5991
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:71",
+                                                                   "count":  17,
+                                                                   "inclusive_ms":  19104.027,
+                                                                   "exclusive_tracked_ms":  1203
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Ancestor:7:71",
+                                                                   "count":  11,
+                                                                   "inclusive_ms":  10319.252,
+                                                                   "exclusive_tracked_ms":  502
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Map:15:15",
+                                                                   "count":  50,
+                                                                   "inclusive_ms":  385.249,
+                                                                   "exclusive_tracked_ms":  380
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Ancestor:3:71",
+                                                                   "count":  11,
+                                                                   "inclusive_ms":  12572.266,
+                                                                   "exclusive_tracked_ms":  208
+                                                               }
+                                                           ]
+                 },
+                 {
+                     "label":  "canvas100-alternating",
+                     "trace_sha256":  "5F5FA200C5BE49F923198BB525CA3E02D06FF6A221726811050F85C32019D978",
+                     "schema":  "resize-diagnostic-trace-v1",
+                     "pixels_enabled":  true,
+                     "records":  495,
+                     "truncated":  false,
+                     "observation_failures":  0,
+                     "span_ms":  11376.295,
+                     "diagnostic_ms":  173.814,
+                     "diagnostic_fraction":  0.01528,
+                     "requested_interval_ms":  100,
+                     "replay_steps":  12,
+                     "actual_gap_p50_ms":  793.381,
+                     "actual_gap_p95_ms":  1488.576,
+                     "valid_black_points":  20,
+                     "black_outside_old_layout":  20,
+                     "paired_later_nonblack":  20,
+                     "paired_matches_prototype_frame":  20,
+                     "black_stages":  [
+                                          {
+                                              "count":  20,
+                                              "stage":  "GeometryAfterChildren"
+                                          }
+                                      ],
+                     "pre_to_post_sample_bracket":  {
+                                                        "count":  20,
+                                                        "p50_ms":  474.131,
+                                                        "p95_ms":  493.626,
+                                                        "max_ms":  493.626
+                                                    },
+                     "largest_tracked_message_exclusive":  [
+                                                               {
+                                                                   "surface_message":  "Root:0:15",
+                                                                   "count":  25,
+                                                                   "inclusive_ms":  10486.918,
+                                                                   "exclusive_tracked_ms":  10488
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:71",
+                                                                   "count":  13,
+                                                                   "inclusive_ms":  54.63,
+                                                                   "exclusive_tracked_ms":  53
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:133",
+                                                                   "count":  13,
+                                                                   "inclusive_ms":  4.552,
+                                                                   "exclusive_tracked_ms":  3
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:70",
+                                                                   "count":  14,
+                                                                   "inclusive_ms":  2.236,
+                                                                   "exclusive_tracked_ms":  2
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:131",
+                                                                   "count":  11,
+                                                                   "inclusive_ms":  1.291,
+                                                                   "exclusive_tracked_ms":  1
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:20",
+                                                                   "count":  29,
+                                                                   "inclusive_ms":  1.653,
+                                                                   "exclusive_tracked_ms":  0
+                                                               }
+                                                           ]
+                 },
+                 {
+                     "label":  "mainform100-alternating",
+                     "trace_sha256":  "CF375AF7D7ABC933A45988ECB156C9E53690970C262DDC429821181F4D4987AE",
+                     "schema":  "resize-diagnostic-trace-v2",
+                     "pixels_enabled":  true,
+                     "records":  8699,
+                     "truncated":  false,
+                     "observation_failures":  0,
+                     "span_ms":  23174.519,
+                     "diagnostic_ms":  871.901,
+                     "diagnostic_fraction":  0.03762,
+                     "requested_interval_ms":  100,
+                     "replay_steps":  12,
+                     "actual_gap_p50_ms":  1649.548,
+                     "actual_gap_p95_ms":  2102.893,
+                     "valid_black_points":  20,
+                     "black_outside_old_layout":  20,
+                     "paired_later_nonblack":  20,
+                     "paired_matches_prototype_frame":  0,
+                     "black_stages":  [
+                                          {
+                                              "count":  20,
+                                              "stage":  "NativeSizeReturned"
+                                          }
+                                      ],
+                     "pre_to_post_sample_bracket":  {
+                                                        "count":  20,
+                                                        "p50_ms":  2031.508,
+                                                        "p95_ms":  2117.136,
+                                                        "max_ms":  2117.136
+                                                    },
+                     "largest_tracked_message_exclusive":  [
+                                                               {
+                                                                   "surface_message":  "Ancestor:17:20",
+                                                                   "count":  83,
+                                                                   "inclusive_ms":  9271.247,
+                                                                   "exclusive_tracked_ms":  9271
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Ancestor:21:20",
+                                                                   "count":  94,
+                                                                   "inclusive_ms":  6195.294,
+                                                                   "exclusive_tracked_ms":  6193
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Root:0:71",
+                                                                   "count":  17,
+                                                                   "inclusive_ms":  19549.994,
+                                                                   "exclusive_tracked_ms":  1167
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Ancestor:7:71",
+                                                                   "count":  11,
+                                                                   "inclusive_ms":  10630.459,
+                                                                   "exclusive_tracked_ms":  517
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Map:15:15",
+                                                                   "count":  53,
+                                                                   "inclusive_ms":  360.264,
+                                                                   "exclusive_tracked_ms":  353
+                                                               },
+                                                               {
+                                                                   "surface_message":  "Ancestor:3:71",
+                                                                   "count":  11,
+                                                                   "inclusive_ms":  12906.584,
+                                                                   "exclusive_tracked_ms":  224
+                                                               }
+                                                           ]
+                 }
+             ]
+}

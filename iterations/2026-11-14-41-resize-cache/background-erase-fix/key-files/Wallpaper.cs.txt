@@ -1,0 +1,622 @@
+using System.ComponentModel;
+using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
+
+namespace DiskAtlas;
+
+internal enum MainSurfaceStyle { Clear, Airy }
+internal enum WallpaperSurface { Ambient, Chrome, Data, Canvas, Card }
+
+// Each surface samples the same window-sized image, so panel boundaries do not
+// restart the wallpaper. Text and data can use a stronger white wash locally.
+internal static class Wallpaper
+{
+    private static readonly Dictionary<(WallpaperSurface, int, int, int, int), int> protectedAlphas = new();
+    private static readonly object alphaGate = new();
+    internal static int SurfaceAlpha(Control control, WallpaperSurface surface, int fallback = 42)
+    {
+        int alpha = surface switch
+        {
+            WallpaperSurface.Chrome => 142,
+            WallpaperSurface.Data => 122,
+            WallpaperSurface.Canvas => 44,
+            WallpaperSurface.Card => 122,
+            _ => fallback
+        };
+        // A user image may contain a black pixel exactly below a glyph. Keep
+        // that worst case readable locally, without bleaching the window or
+        // relying on sparse image samples to prove text contrast.
+        if (control.FindForm() is MainForm { HasCustomBackground: true } &&
+            surface is WallpaperSurface.Chrome or WallpaperSurface.Data or WallpaperSurface.Card)
+        {
+            var key = (surface, alpha, Theme.Text.ToArgb(), Theme.Muted.ToArgb(), Theme.Accent.ToArgb());
+            lock (alphaGate) if (protectedAlphas.TryGetValue(key, out int cached)) return cached;
+            while (alpha < 255)
+            {
+                var darkest = Composite(Color.Black, alpha);
+                if (Contrast(Theme.Text, darkest) >= 4.5 && Contrast(Theme.Muted, darkest) >= 4.5 &&
+                    (surface != WallpaperSurface.Card || Contrast(Theme.Accent, darkest) >= 4.5)) break;
+                alpha++;
+            }
+            lock (alphaGate)
+            {
+                if (protectedAlphas.Count >= 32) protectedAlphas.Clear();
+                protectedAlphas[key] = alpha;
+            }
+        }
+        return alpha;
+    }
+
+    internal static Color SampleSurfaceColor(Control control, Rectangle localArea, WallpaperSurface surface, int fallback = 42)
+    {
+        Rectangle area = Rectangle.Intersect(control.ClientRectangle, localArea);
+        if (area.Width <= 0 || area.Height <= 0) return Theme.Surface;
+        var form = control.FindForm();
+        var image = form?.BackgroundImage;
+        Bitmap? raster = form is MainForm main
+            ? main.WallpaperRaster.Get(image, form.ClientSize, main.BackgroundCrop) : null;
+        Point offset = WindowOffset(control, form);
+        int left = area.Left, right = area.Right - 1, top = area.Top, bottom = area.Bottom - 1;
+        Point[] samples = [new(left, top), new(right, top), new(left, bottom), new(right, bottom),
+            new(area.Left + area.Width / 2, area.Top + area.Height / 2)];
+        int red = 0, green = 0, blue = 0;
+        int alpha = SurfaceAlpha(control, surface, fallback);
+        foreach (var point in samples)
+        {
+            Color color = Theme.Background;
+            int x = point.X + offset.X, y = point.Y + offset.Y;
+            if (raster != null) color = raster.GetPixel(Math.Clamp(x, 0, raster.Width - 1), Math.Clamp(y, 0, raster.Height - 1));
+            else if (image is Bitmap bitmap && form != null)
+            {
+                var cover = CoverBounds(image, form.ClientSize, Point.Empty, (form as MainForm)?.BackgroundCrop);
+                if (cover.Width > 0 && cover.Height > 0)
+                    color = bitmap.GetPixel(Math.Clamp((int)((x - cover.Left) * bitmap.Width / cover.Width), 0, bitmap.Width - 1),
+                        Math.Clamp((int)((y - cover.Top) * bitmap.Height / cover.Height), 0, bitmap.Height - 1));
+            }
+            color = Composite(color, alpha);
+            red += color.R; green += color.G; blue += color.B;
+        }
+        return Color.FromArgb(red / samples.Length, green / samples.Length, blue / samples.Length);
+    }
+
+    private static Color Composite(Color background, int alpha) => Color.FromArgb(
+        (Theme.Surface.R * alpha + background.R * (255 - alpha) + 127) / 255,
+        (Theme.Surface.G * alpha + background.G * (255 - alpha) + 127) / 255,
+        (Theme.Surface.B * alpha + background.B * (255 - alpha) + 127) / 255);
+
+    private static double Contrast(Color first, Color second)
+    {
+        double a = Theme.Luminance(first), b = Theme.Luminance(second);
+        return (Math.Max(a, b) + .05) / (Math.Min(a, b) + .05);
+    }
+
+    private static Point WindowOffset(Control control, Form? form)
+    {
+        var offset = Point.Empty;
+        for (Control? node = control; node != null && node != form; node = node.Parent) offset.Offset(node.Left, node.Top);
+        return offset;
+    }
+
+    public static Bitmap Load()
+    {
+        using var stream = typeof(Wallpaper).Assembly.GetManifestResourceStream("DiskAtlas.Background")
+            ?? throw new InvalidOperationException("Missing embedded background image.");
+        using var image = Image.FromStream(stream);
+        return new Bitmap(image);
+    }
+
+    public static void Paint(Control control, Graphics graphics, int wash = 42, WallpaperSurface surface = WallpaperSurface.Ambient)
+    {
+        if (surface == WallpaperSurface.Ambient)
+        {
+            if (control is ScanProgressControl || control is TreemapControl && wash == 130) surface = WallpaperSurface.Chrome;
+            else if (control is TreemapControl && wash == 215) surface = WallpaperSurface.Canvas;
+        }
+        wash = SurfaceAlpha(control, surface, wash);
+        if (wash == 255)
+        {
+            using var solid = new SolidBrush(Theme.Surface);
+            graphics.FillRectangle(solid, control.ClientRectangle);
+            return;
+        }
+        var form = control.FindForm();
+        using var background = new SolidBrush(Theme.Background);
+        graphics.FillRectangle(background, control.ClientRectangle);
+        if (form?.BackgroundImage is not { } image || form.ClientSize.Width <= 0 || form.ClientSize.Height <= 0) return;
+        var offset = WindowOffset(control, form);
+        if (form is MainForm main && main.WallpaperRaster.Get(image, form.ClientSize, main.BackgroundCrop) is { } raster)
+            graphics.DrawImageUnscaled(raster, -offset.X, -offset.Y);
+        else
+            graphics.DrawImage(image, CoverBounds(image, form.ClientSize, offset, (form as MainForm)?.BackgroundCrop));
+        if (form is MainForm { HasCustomBackground: true } && control is NavigationPanel)
+            wash = Math.Max(wash, 235);
+        using var veil = new SolidBrush(Color.FromArgb(wash, Theme.Surface));
+        graphics.FillRectangle(veil, control.ClientRectangle);
+    }
+
+    internal static RectangleF CoverBounds(Image image, Size size, Point offset, BackgroundView? view = null)
+    {
+        var crop = view ?? BackgroundView.Default;
+        float scale = crop.Zoom * Math.Max((float)size.Width / image.Width, (float)size.Height / image.Height);
+        float width = image.Width * scale, height = image.Height * scale;
+        float left = Math.Clamp(size.Width / 2f - crop.X * width, Math.Min(0, size.Width - width), 0);
+        float top = Math.Clamp(size.Height / 2f - crop.Y * height, Math.Min(0, size.Height - height), 0);
+        return new RectangleF(left - offset.X, top - offset.Y, width, height);
+    }
+}
+
+internal sealed class WallpaperRaster : IDisposable
+{
+    internal const long MaxPixels = 8_000_000;
+    private Image? source;
+    private Size size;
+    private Bitmap? raster;
+    private BackgroundView? view;
+
+    public Bitmap? Get(Image? image, Size clientSize, BackgroundView? crop = null)
+    {
+        if (ReferenceEquals(image, source) && clientSize == size && view == crop) return raster;
+        Dispose();
+        source = image;
+        size = clientSize;
+        view = crop;
+        if (image == null || size.Width <= 0 || size.Height <= 0 || (long)size.Width * size.Height > MaxPixels)
+            return null;
+
+        Bitmap? candidate = null;
+        try
+        {
+            candidate = new Bitmap(size.Width, size.Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+            using var graphics = Graphics.FromImage(candidate);
+            graphics.Clear(Theme.Background);
+            graphics.DrawImage(image, Wallpaper.CoverBounds(image, size, Point.Empty, crop));
+            raster = candidate;
+            candidate = null;
+            return raster;
+        }
+        catch (Exception ex) when (ex is OutOfMemoryException or System.Runtime.InteropServices.ExternalException)
+        {
+            return null;
+        }
+        finally { candidate?.Dispose(); }
+    }
+
+    public void Dispose()
+    {
+        raster?.Dispose();
+        raster = null;
+        source = null;
+        size = Size.Empty;
+    }
+
+}
+
+internal sealed class WallpaperTable : TableLayoutPanel
+{
+    private bool framed;
+    private readonly Dictionary<Control, (Size Size, Rectangle Bounds, int Dpi, bool ChildFrame)> contentClips = [];
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public int Wash { get; set; } = 42;
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public WallpaperSurface Surface { get; set; } = WallpaperSurface.Ambient;
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool Framed
+    {
+        get => framed;
+        set { if (framed == value) return; framed = value; UpdateFrameRegion(); UpdateContentClips(); Invalidate(); }
+    }
+    public WallpaperTable()
+    {
+        DoubleBuffered = true;
+        SetStyle(ControlStyles.ResizeRedraw, true);
+    }
+    protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics, Wash, Surface);
+    protected override void WndProc(ref Message message)
+    {
+        ResizePixelPolicy.Prepare(this, ref message);
+        base.WndProc(ref message);
+    }
+    protected override void OnLocationChanged(EventArgs e)
+    {
+        base.OnLocationChanged(e);
+        // Moving a native child normally preserves its old pixels. Those
+        // pixels sampled a different window position, including descendants
+        // whose own local bounds did not change.
+        Invalidate(true);
+    }
+    private void UpdateFrameRegion()
+    {
+        Region? previous = Region;
+        if (framed && Width > 2 && Height > 2)
+        {
+            using var shape = Theme.Round(new RectangleF(0, 0, Width - 1, Height - 1), Theme.CardRadius * DeviceDpi / 96f);
+            Region = new Region(shape);
+        }
+        else Region = null;
+        previous?.Dispose();
+        if (Parent is WallpaperTable parent)
+        {
+            parent.contentClips?.Remove(this);
+            parent.UpdateContentClips();
+        }
+    }
+    // Native child windows paint after their parent. Keep their content inside
+    // the inner rounded surface so they cannot overpaint its corner strokes.
+    private void UpdateContentClips()
+    {
+        if (contentClips == null || IsDisposed || Disposing) return;
+        float scale = DeviceDpi / 96f, inset = 2 * scale;
+        foreach (Control child in Controls)
+        {
+            if (child is not (WallpaperTable or DataGridView or TreemapControl or Label)) continue;
+            bool childFrame = child is WallpaperTable { Framed: true };
+            var key = (ClientSize, child.Bounds, DeviceDpi, childFrame);
+            if (framed && contentClips.TryGetValue(child, out var previousKey) && previousKey == key) continue;
+            if (!framed && !contentClips.ContainsKey(child)) continue;
+            Region? clip = null;
+            if (framed)
+            {
+                using var inner = Theme.Round(new RectangleF(inset, inset,
+                    Math.Max(0, ClientSize.Width - 1 - 2 * inset), Math.Max(0, ClientSize.Height - 1 - 2 * inset)),
+                    Math.Max(0, Theme.CardRadius * scale - inset));
+                clip = new Region(inner);
+                clip.Translate(-child.Left, -child.Top);
+                clip.Intersect(child.ClientRectangle);
+            }
+            if (childFrame)
+            {
+                using var own = Theme.Round(new RectangleF(0, 0, Math.Max(0, child.Width - 1), Math.Max(0, child.Height - 1)),
+                    Theme.CardRadius * child.DeviceDpi / 96f);
+                if (clip == null) clip = new Region(own); else clip.Intersect(own);
+            }
+            var old = child.Region; child.Region = clip; old?.Dispose();
+            if (framed) contentClips[child] = key; else contentClips.Remove(child);
+        }
+    }
+    internal void ReconcileContentClips() => UpdateContentClips();
+    protected override void OnControlRemoved(ControlEventArgs e)
+    {
+        if (e.Control is { } child && contentClips != null && contentClips.Remove(child) && !child.IsDisposed && !Disposing)
+        {
+            if (child is WallpaperTable { Framed: true } table) table.UpdateFrameRegion();
+            else { var old = child.Region; child.Region = null; old?.Dispose(); }
+        }
+        base.OnControlRemoved(e);
+    }
+    protected override void OnLayout(LayoutEventArgs e)
+    {
+        using var presentation = (FindForm() as MainForm)?.BeginLayoutPresentation(this);
+        base.OnLayout(e);
+        UpdateContentClips();
+    }
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) contentClips?.Clear();
+        base.Dispose(disposing);
+    }
+    protected override void OnSizeChanged(EventArgs e)
+    {
+        // base triggers nested layout. Hold through the final Region updates,
+        // rather than presenting a layout whose corner clips are still old.
+        using var presentation = (FindForm() as MainForm)?.BeginLayoutPresentation(this);
+        base.OnSizeChanged(e);
+        if (framed) { UpdateFrameRegion(); UpdateContentClips(); }
+    }
+    protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); if (framed) { UpdateFrameRegion(); UpdateContentClips(); } }
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        if (!framed || Width < 3 || Height < 3) return;
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        float scale = DeviceDpi / 96f, lineWidth = Math.Max(1, scale), inset = lineWidth / 2;
+        using var shape = Theme.Round(new RectangleF(inset, inset, Width - 1 - lineWidth, Height - 1 - lineWidth),
+            Math.Max(1, Theme.CardRadius * scale - inset));
+        using var edge = new Pen(SystemInformation.HighContrast ? SystemColors.WindowText : Theme.Border, lineWidth);
+        e.Graphics.DrawPath(edge, shape);
+    }
+}
+
+internal sealed class WallpaperGrid : DataGridView
+{
+    private GridScrollbarSkin? scrollbarSkin;
+    internal int SkinnedScrollbarCount => scrollbarSkin?.Count ?? 0;
+    internal bool ScrollbarPaintingPaused => disposed || scrollDepth > 0 || redrawHeldHandle != IntPtr.Zero ||
+        !IsHandleCreated || GetProp(Handle, "SysSetRedraw") != IntPtr.Zero;
+    internal const long MaxBackdropPixels = 4_000_000;
+    internal int BackdropBuilds { get; private set; }
+    internal event EventHandler? PresentationResumed;
+    internal long BackdropBytes => backdrop == null ? 0 : (long)backdrop.Width * backdrop.Height * 4;
+    private Bitmap? backdrop;
+    private BackdropKey? backdropKey, rejectedBackdropKey;
+    private int scrollDepth;
+    private bool scrollChanged;
+    private IntPtr redrawHeldHandle;
+    private bool disposed;
+    private readonly record struct BackdropKey(Size Size, Size WindowSize, Point Offset, Image? Image,
+        BackgroundView? Crop, int Dpi, int Wash, int Surface, int Background);
+    [DllImport("user32.dll", EntryPoint = "SendMessageW")]
+    private static extern IntPtr SendMessage(IntPtr handle, uint message, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindowVisible(IntPtr handle);
+    [DllImport("user32.dll", EntryPoint = "GetPropW", CharSet = CharSet.Unicode)]
+    private static extern IntPtr GetProp(IntPtr handle, string name);
+
+    // Native cells/input/accessibility remain intact. The backdrop is composed
+    // once per generation, before any cells; cells never sample wallpaper.
+    public WallpaperGrid()
+    {
+        DoubleBuffered = true;
+        scrollbarSkin = new GridScrollbarSkin(this);
+        ShowCellToolTips = false;
+    }
+
+    internal void PaintScrollbarBackdrop(ScrollBar bar, Graphics graphics)
+    {
+        var saved = graphics.Save();
+        try
+        {
+            graphics.SetClip(bar.ClientRectangle, CombineMode.Intersect);
+            if (GetBackdrop() is { } image) graphics.DrawImageUnscaled(image, -bar.Left, -bar.Top);
+            else
+            {
+                graphics.TranslateTransform(-bar.Left, -bar.Top);
+                Wallpaper.Paint(this, graphics, surface: WallpaperSurface.Data);
+            }
+        }
+        finally { graphics.Restore(saved); }
+    }
+
+    protected override void OnScroll(ScrollEventArgs e)
+    {
+        base.OnScroll(e);
+        scrollChanged = true;
+        Invalidate();
+        // Direct native/programmatic scrolling outside a transaction must
+        // settle before returning, rather than leaving moved wallpaper queued.
+        if (scrollDepth == 0) PresentScroll();
+    }
+
+    internal void PerformBufferedScroll(Action operation)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        bool outermost = scrollDepth++ == 0;
+        if (outermost && !disposed && IsHandleCreated && Visible &&
+            FindForm()?.WindowState != FormWindowState.Minimized && IsWindowVisible(Handle) &&
+            GetProp(Handle, "SysSetRedraw") == IntPtr.Zero)
+        {
+            redrawHeldHandle = Handle;
+            SendMessage(redrawHeldHandle, 0x000B, IntPtr.Zero, IntPtr.Zero);
+        }
+        try { operation(); }
+        finally
+        {
+            scrollDepth--;
+            if (outermost) { RestoreRedraw(); PresentScroll(); }
+        }
+    }
+
+    private void RestoreRedraw()
+    {
+        if (redrawHeldHandle == IntPtr.Zero) return;
+        if (disposed || !IsHandleCreated || Handle != redrawHeldHandle) { redrawHeldHandle = IntPtr.Zero; return; }
+        // WM_SETREDRAW(TRUE) adds WS_VISIBLE. Leave a hidden control held
+        // until it is explicitly shown, rather than accidentally revealing it.
+        if (!Visible) return;
+        IntPtr held = redrawHeldHandle; redrawHeldHandle = IntPtr.Zero;
+        SendMessage(held, 0x000B, new IntPtr(1), IntPtr.Zero);
+        Invalidate(true);
+        PresentationResumed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void PresentScroll()
+    {
+        if (!scrollChanged || disposed || scrollDepth != 0 || redrawHeldHandle != IntPtr.Zero ||
+            !IsHandleCreated || !Visible || FindForm()?.WindowState == FormWindowState.Minimized ||
+            GetProp(Handle, "SysSetRedraw") != IntPtr.Zero) return;
+        scrollChanged = false;
+        Update();
+    }
+
+    protected override void OnMouseWheel(MouseEventArgs e) => PerformBufferedScroll(() => base.OnMouseWheel(e));
+    private static bool MayScroll(Keys key) => (key & Keys.KeyCode) is Keys.Up or Keys.Down or Keys.Left or Keys.Right
+        or Keys.PageUp or Keys.PageDown or Keys.Home or Keys.End or Keys.Tab or Keys.Enter;
+    protected override bool ProcessDataGridViewKey(KeyEventArgs e)
+    {
+        if (!MayScroll(e.KeyCode)) return base.ProcessDataGridViewKey(e);
+        bool handled = false;
+        PerformBufferedScroll(() => handled = base.ProcessDataGridViewKey(e));
+        return handled;
+    }
+    protected override bool ProcessDialogKey(Keys keyData)
+    {
+        if (!MayScroll(keyData)) return base.ProcessDialogKey(keyData);
+        bool handled = false;
+        PerformBufferedScroll(() => handled = base.ProcessDialogKey(keyData));
+        return handled;
+    }
+    protected override void WndProc(ref Message m)
+    {
+        ResizePixelPolicy.Prepare(this, ref m);
+        // Native child scrollbar messages reach the grid before ScrollWindow.
+        // Do not wrap WM_PAINT, ordinary movement or the entire main window.
+        if (m.Msg is 0x0114 or 0x0115)
+        {
+            var message = m;
+            PerformBufferedScroll(() => base.WndProc(ref message));
+            m = message;
+        }
+        else base.WndProc(ref m);
+    }
+
+    protected override void OnLocationChanged(EventArgs e)
+    {
+        base.OnLocationChanged(e);
+        ReleaseBackdrop();
+        Invalidate();
+    }
+
+    protected override void PaintBackground(Graphics graphics, Rectangle clipBounds, Rectangle gridBounds)
+    {
+        var saved = graphics.Save();
+        try
+        {
+            graphics.SetClip(clipBounds, CombineMode.Intersect);
+            if (GetBackdrop() is { } image)
+            {
+                graphics.CompositingMode = CompositingMode.SourceCopy;
+                graphics.DrawImageUnscaled(image, 0, 0);
+            }
+            else Wallpaper.Paint(this, graphics, surface: WallpaperSurface.Data);
+        }
+        finally { graphics.Restore(saved); }
+    }
+
+    internal Rectangle ScrollbarCornerBounds
+    {
+        get
+        {
+            var horizontal = Controls.OfType<HScrollBar>().FirstOrDefault(bar => bar.Visible);
+            var vertical = Controls.OfType<VScrollBar>().FirstOrDefault(bar => bar.Visible);
+            return horizontal == null || vertical == null ? Rectangle.Empty :
+                Rectangle.Intersect(ClientRectangle, Rectangle.FromLTRB(vertical.Left, horizontal.Top, vertical.Right, horizontal.Bottom));
+        }
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        if (disposed || SystemInformation.HighContrast) return;
+        // DataGridView paints the two-scrollbar intersection with the system
+        // Control brush after PaintBackground. It is not part of either child
+        // scrollbar, so restore only that fixed-background corner afterwards.
+        var corner = Rectangle.Intersect(ScrollbarCornerBounds, e.ClipRectangle);
+        if (!corner.IsEmpty) PaintBackground(e.Graphics, corner, corner);
+    }
+
+    private Bitmap? GetBackdrop()
+    {
+        var form = FindForm();
+        var offset = Point.Empty;
+        for (Control? node = this; node != null && node != form; node = node.Parent) offset.Offset(node.Left, node.Top);
+        var key = new BackdropKey(ClientSize, form?.ClientSize ?? Size.Empty, offset, form?.BackgroundImage,
+            (form as MainForm)?.BackgroundCrop, DeviceDpi, Wallpaper.SurfaceAlpha(this, WallpaperSurface.Data),
+            Theme.Surface.ToArgb(), Theme.Background.ToArgb());
+        if (backdropKey == key) return backdrop;
+        if (rejectedBackdropKey == key) return null;
+        ReleaseBackdrop();
+        if (ClientSize.Width <= 0 || ClientSize.Height <= 0 || (long)ClientSize.Width * ClientSize.Height > MaxBackdropPixels)
+        { rejectedBackdropKey = key; return null; }
+        Bitmap? candidate = null;
+        try
+        {
+            candidate = new Bitmap(ClientSize.Width, ClientSize.Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+            candidate.SetResolution(DeviceDpi, DeviceDpi);
+            using (var graphics = Graphics.FromImage(candidate))
+            {
+                graphics.Clear(Theme.Background);
+                Wallpaper.Paint(this, graphics, surface: WallpaperSurface.Data);
+            }
+            backdrop = candidate; candidate = null; backdropKey = key; BackdropBuilds++;
+            return backdrop;
+        }
+        catch (Exception error) when (error is OutOfMemoryException or ExternalException)
+        { rejectedBackdropKey = key; return null; }
+        finally { candidate?.Dispose(); }
+    }
+
+    private void ReleaseBackdrop()
+    {
+        backdrop?.Dispose(); backdrop = null; backdropKey = rejectedBackdropKey = null;
+    }
+
+    internal void PaintCellSurface(DataGridViewCellPaintingEventArgs e)
+    {
+        if (e.Graphics == null) return;
+        var saved = e.Graphics.Save();
+        try
+        {
+            e.Graphics.SetClip(Rectangle.Intersect(e.CellBounds, e.ClipBounds), CombineMode.Intersect);
+            if (e.RowIndex >= 0 && (e.State & DataGridViewElementStates.Selected) != 0)
+            {
+                using var selection = new SolidBrush(Color.FromArgb(96, Theme.Selection));
+                e.Graphics.FillRectangle(selection, e.CellBounds);
+            }
+        }
+        finally { e.Graphics.Restore(saved); }
+    }
+
+    protected override void OnCellPainting(DataGridViewCellPaintingEventArgs e)
+    {
+        base.OnCellPainting(e);
+        if (e.Handled) return;
+        PaintCellSurface(e);
+        e.Paint(e.ClipBounds, e.PaintParts & (DataGridViewPaintParts.Border | DataGridViewPaintParts.ContentForeground |
+            DataGridViewPaintParts.ErrorIcon | DataGridViewPaintParts.Focus));
+        e.Handled = true;
+    }
+
+    protected override void OnSizeChanged(EventArgs e)
+    {
+        // A SizeChanged callback can already paint the new geometry. Retire
+        // the previous surface first, so that valid new cache survives base.
+        ReleaseBackdrop();
+        base.OnSizeChanged(e);
+    }
+    protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); ReleaseBackdrop(); Invalidate(); }
+    protected override void OnParentChanged(EventArgs e) { base.OnParentChanged(e); ReleaseBackdrop(); }
+    protected override void OnHandleDestroyed(EventArgs e) { redrawHeldHandle = IntPtr.Zero; base.OnHandleDestroyed(e); ReleaseBackdrop(); }
+    protected override void OnVisibleChanged(EventArgs e)
+    {
+        base.OnVisibleChanged(e);
+        if (!Visible) ReleaseBackdrop();
+        else if (scrollDepth == 0) { RestoreRedraw(); PresentScroll(); }
+    }
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) { disposed = true; scrollbarSkin?.Dispose(); scrollbarSkin = null; ReleaseBackdrop(); }
+        base.Dispose(disposing);
+    }
+}
+
+internal sealed class WallpaperSplitContainer : SplitContainer
+{
+    protected override void WndProc(ref Message message)
+    {
+        ResizePixelPolicy.Prepare(this, ref message);
+        base.WndProc(ref message);
+    }
+    public WallpaperSplitContainer()
+    {
+        // Include AllPaintingInWmPaint so native background erases do not
+        // redraw the wallpaper before the buffered paint draws it again.
+        SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.ResizeRedraw, true);
+        Panel1.BackColor = Color.Transparent;
+        Panel2.BackColor = Color.Transparent;
+    }
+    protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics);
+    protected override void OnLocationChanged(EventArgs e)
+    {
+        base.OnLocationChanged(e);
+        Invalidate(true);
+    }
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        var saved = e.Graphics.Save();
+        try
+        {
+            e.Graphics.SetClip(SplitterRectangle, CombineMode.Intersect);
+            Wallpaper.Paint(this, e.Graphics);
+        }
+        finally { e.Graphics.Restore(saved); }
+        if (Focused && ShowFocusCues && !IsSplitterFixed)
+        {
+            var focus = SplitterRectangle;
+            focus.Inflate(-1, -1);
+            if (focus.Width > 0 && focus.Height > 0)
+                ControlPaint.DrawFocusRectangle(e.Graphics, focus,
+                    SystemInformation.HighContrast ? SystemColors.ControlText : Theme.Text, Color.Transparent);
+        }
+    }
+}

@@ -1,0 +1,602 @@
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index f655317..9025fed 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,5 +1,9 @@
+ # 后续开发计划
+ 
++## 最新：C50两项针对性修复已展示，先等候选反馈（2026-11-19）
++
++用户要求的下拉框映射与列表暴露区补绘已在独立DIB候选实施并验证，见[C50](../iterations/2026-11-19-50-native-mapping-repair/README.md)。当前停在真实效果复审，不自动设默认或扩展相邻优化。四组原回退／残留已消除，但更早的窗口边框绘制入口仍采到黑点；完整正常功能接入、新尺寸准备成本、连续屏幕观感和最小化恢复仍待后续。正常版接入总体方案已有授权，本轮最新边界是先展示这份候选、等用户意见。
++
+ ## 最新：接入方案已获准，第一步定位完成（2026-11-19）
+ 
+ 用户已同意整体接入方案并要求完成后先体验正常功能候选，再决定默认；本轮进一步限定为30分钟内第一步定位。C49已分别确认下拉框WM_PRINTCLIENT平移回退及旧列表移走暴露像素，见[证据](../iterations/2026-11-19-49-mapping-audit/README.md)。下一实施点是明确复制映射／呈现用途与布局后暴露区补绘，再继续真实表面接入，不重复申请已批准的内部步骤。普通启动默认仍需用户实际反馈后决定，架构扩大／个人卷权限不包含在授权中。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 21f2db4..e69eb28 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,11 @@
+ # AsukaLens 项目现状
+ 
++## 最新：C50修复DIB下拉框映射和列表暴露区，候选待复审（2026-11-19）
++
++本轮按用户指定范围修复C49的两项原因：支持显式源矩形／目标位置／预期视口平移，下拉框打印不再误记为根帧呈现；子控件布局与Region稳定后补画旧位置暴露的区域。布局、背景、动效及普通默认入口不改。四组独立对照中78次下拉框复制全部走DIB，18次旧列表残留在布局结束前恢复，原有176个几何后根取点均匹配。详见[C50记录](../iterations/2026-11-19-50-native-mapping-repair/README.md)。
++
++独立候选 `artifacts/resize-candidate-C50/app/AsukaLens.NativeFramePrototype.exe` 已打开，原生组合下拉展开／收起、F6连续尺寸演示与稳定画面已观察，最终体验待用户反馈。它仍使用合成数据，不是完整MainForm接入。更早的NcPaintEntering各组仍有20个黑色取点，连续屏幕闪黑、半截标题和最小化恢复不能据此关闭；未录屏、未改系统设置。C48与普通二进制哈希不变，未设默认、未发布。
++
+ ## 最新：C49定位映射回退与6次旧列表残留（2026-11-19）
+ 
+ 本轮仅实施用户指定的接入第一步。All两档DPI、Combo独立和Grid独立对照完成：26次回退均来自两个下拉框各13次WM_PRINTCLIENT背景请求，视口负偏移与控件位置匹配；6次差异均为缩小时旧列表移走后露出的旧像素，随后自然根Paint恢复。4份最终报告解释78次回退／18次同类残留，未放宽像素或映射检查。证据见[C49](../iterations/2026-11-19-49-mapping-audit/README.md)。
+diff --git a/docs/ui-dib-mainform-integration-plan.md b/docs/ui-dib-mainform-integration-plan.md
+index d6d6f6d..e2a696f 100644
+--- a/docs/ui-dib-mainform-integration-plan.md
++++ b/docs/ui-dib-mainform-integration-plan.md
+@@ -1,6 +1,6 @@
+-# DIB候选接入正常版：已确认，第一步定位完成
++# DIB候选接入正常版：已确认，第一步两项修正已展示
+ 
+-2026-11-15拟定，用户随后明确同意实施，完成后先体验正常功能候选、再决定默认。2026-11-19用户将本轮限定为30分钟内第一步定位；结果见[C49](../iterations/2026-11-19-49-mapping-audit/README.md)。具体差异已解释，修正和真实表面接入尚未实施。本方案不授权默认切换或更大的单画布迁移。
++2026-11-15拟定，用户随后明确同意实施，完成后先体验正常功能候选、再决定默认。2026-11-19先按30分钟范围完成[C49定位](../iterations/2026-11-19-49-mapping-audit/README.md)，随后用户明确要求修复这两项、先看DIB候选。现已完成[C50针对性修复](../iterations/2026-11-19-50-native-mapping-repair/README.md)并打开独立候选，等待实际反馈；真实MainForm表面接入仍未实施。本方案不授权默认切换或更大的单画布迁移。
+ 
+ ## 判断与交付目标
+ 
+diff --git a/docs/ui-rendering-defects-handoff.md b/docs/ui-rendering-defects-handoff.md
+index 69df1ba..381a503 100644
+--- a/docs/ui-rendering-defects-handoff.md
++++ b/docs/ui-rendering-defects-handoff.md
+@@ -1,5 +1,11 @@
+ # 主界面绘制缺陷交接
+ 
++## C50两项定点修复通过，独立候选已展示（2026-11-19）
++
++下拉框WM_PRINTCLIENT的负视口采用显式映射，保留严格零原点默认及未知变换拒绝；GetHrgn已经含目标Graphics的原生视口，不能重复平移裁切。根OnPrint作用域与根呈现分开，不能消耗prepared帧或递增根帧数。列表旧Region覆盖减去新Region覆盖后，在OnResize完成前发布匹配尺寸／DPI／状态的DIB；早期根复制仍保留，不用延后自然Paint代替修复。
++
++四组78次映射均成功，18次旧列表暴露残留立即恢复；两档窗口生命周期／打印隔离／同步暴露区检查各62项通过。C50真实候选已展示，用户最终反馈待收；普通功能软件未替换。NcPaintEntering仍每组20个黑点，返回阶段0黑；不将两项原因修复扩大为所有闪黑根因已清除。证据与限制见[C50](../iterations/2026-11-19-50-native-mapping-repair/README.md)。
++
+ ## C49已定位：下拉框打印目标偏移与旧列表暴露区（2026-11-19）
+ 
+ 两项不再标为原因未知：26次回退是下拉框通过WM_PRINTCLIENT让父窗口画局部背景，目标视口负原点恰为下拉框位置；6次根差异是缩小时旧列表遮住提前发布区域，移动后留下精确旧列表像素。All144／96、Combo和Grid独立组证明二者独立；详见[C49](../iterations/2026-11-19-49-mapping-audit/README.md)。这仅定位受控序列中的两项，不关闭所有闪黑／半截标题／最小化恢复。
+diff --git a/tests/Prototypes/Resize/LiveResizePrototypeForm.cs b/tests/Prototypes/Resize/LiveResizePrototypeForm.cs
+index 58bbca1..31d1e26 100644
+--- a/tests/Prototypes/Resize/LiveResizePrototypeForm.cs
++++ b/tests/Prototypes/Resize/LiveResizePrototypeForm.cs
+@@ -49,6 +49,7 @@ internal sealed class LiveResizePrototypeForm : Form
+     private bool preparedCommitted;
+     private int preparationCount, preparationFailures, preparedPresents;
+     private double preparationMilliseconds;
++    private int printDepth, childPrintCopies, exposedCopies, exposedCopyFailures;
+ 
+     internal ResizeSceneState SceneState { get; } = new();
+     internal ResizeSceneLayout? PresentedLayout { get; private set; }
+@@ -400,7 +401,15 @@ internal sealed class LiveResizePrototypeForm : Form
+         if (!ready || closing || WindowState == FormWindowState.Minimized || ClientSize.Width <= 0 || ClientSize.Height <= 0) return;
+         DiagnosticTrace?.Mark("GeometryBeforeChildren");
+         AuditRoot("BeforeChildren");
++        using var exposed = new Region();
++        exposed.MakeEmpty();
++        foreach (Control child in Controls)
++            if (child.Visible) IncludeChildSurface(exposed, child, exclude: false);
+         pendingLayout = null; PrepareLayout();
++        foreach (Control child in Controls)
++            if (child.Visible) IncludeChildSurface(exposed, child, exclude: true);
++        exposed.Intersect(ClientRectangle);
++        PublishExposedRoot(exposed);
+         Size valid = PresentedLayout?.PixelSize ?? Size.Empty;
+         DiagnosticTrace?.Mark("GeometryAfterChildren", frame, null, valid);
+         AuditRoot("AfterChildren");
+@@ -426,13 +435,80 @@ internal sealed class LiveResizePrototypeForm : Form
+ 
+     protected override void OnPaintBackground(PaintEventArgs e) { }
+ 
++    // Native ComboBox WM_PRINTCLIENT asks its parent to paint into the combo's
++    // translated DC. It is not a new root-window presentation or frame commit.
++    protected override void OnPrint(PaintEventArgs e)
++    {
++        printDepth++;
++        try { base.OnPrint(e); }
++        finally { printDepth--; }
++    }
++
++    private bool TryGetOwnedPrintViewport(Graphics graphics, out Point viewport)
++    {
++        viewport = Point.Empty;
++        if (printDepth == 0) return false;
++        IntPtr dc = graphics.GetHdc();
++        try
++        {
++            var control = Control.FromHandle(WindowFromDC(dc));
++            if (control == null || control.Parent != this || !control.Visible ||
++                control != nativeStrategy && control != nativeMetric) return false;
++            viewport = new Point(-control.Left, -control.Top);
++            return true;
++        }
++        finally { graphics.ReleaseHdc(dc); }
++    }
++
++    private void PublishExposedRoot(Region exposed)
++    {
++        if (!nativeDibEnabled || !IsHandleCreated || RecreatingHandle || frame == null ||
++            nativeFrame == null || renderedLayout is not { } layout) return;
++        // This is the already prepared, CURRENT geometry. An earlier root copy
++        // could not reach pixels hidden by the old child HWND. Publish only the
++        // vacated region after all children have moved, retaining native clips.
++        if (layout.PixelSize != ClientSize || layout.Dpi != DeviceDpi ||
++            layout.State != pendingLayout?.State || GetDpiForWindow(Handle) != DeviceDpi)
++        { Invalidate(exposed); return; }
++        IntPtr handle = Handle, dc = GetDC(handle);
++        if (dc == IntPtr.Zero) { exposedCopyFailures++; Invalidate(exposed); return; }
++        try
++        {
++            using var graphics = Graphics.FromHdc(dc);
++            if (exposed.IsEmpty(graphics)) return;
++            graphics.SetClip(exposed, CombineMode.Intersect);
++            if (nativeFrame.TryCopyTo(graphics, ClientRectangle)) exposedCopies++;
++            else
++            {
++                exposedCopyFailures++; RecordCopyFallback();
++                graphics.CompositingMode = CompositingMode.SourceCopy;
++                graphics.DrawImage(frame, ClientRectangle, ClientRectangle, GraphicsUnit.Pixel);
++            }
++        }
++        catch (Exception error) when (error is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException)
++        { exposedCopyFailures++; Invalidate(exposed); }
++        finally { ReleaseDC(handle, dc); }
++    }
++
++    private static void IncludeChildSurface(Region result, Control child, bool exclude)
++    {
++        // Region is owned by the control: clone it before intersect/translate.
++        // Include rounded holes as exposed pixels instead of treating every
++        // HWND as an opaque rectangle after a move or size-dependent clip.
++        using var surface = child.Region?.Clone() ?? new Region(new Rectangle(Point.Empty, child.Size));
++        surface.Intersect(new Rectangle(Point.Empty, child.Size));
++        surface.Translate(child.Left, child.Top);
++        if (exclude) result.Exclude(surface); else result.Union(surface);
++    }
++
+     protected override void OnPaint(PaintEventArgs e)
+     {
+         if (closing || ClientSize.Width <= 0 || ClientSize.Height <= 0 || nativeDibEnabled && (!IsHandleCreated || RecreatingHandle)) return;
+         long began = Stopwatch.GetTimestamp();
++        bool rootPresentation = printDepth == 0;
+         try
+         {
+-            DiagnosticTrace?.Mark("FrameBegin", frame, e.ClipRectangle, PresentedLayout?.PixelSize ?? Size.Empty);
++            if (rootPresentation) DiagnosticTrace?.Mark("FrameBegin", frame, e.ClipRectangle, PresentedLayout?.PixelSize ?? Size.Empty);
+             // Build only if a test changed SceneState directly; native bounds
+             // are already settled by the normal OnResize/Changed path.
+             var layout = pendingLayout;
+@@ -444,7 +520,7 @@ internal sealed class LiveResizePrototypeForm : Form
+             if (preparedLayout?.PixelSize != layout.PixelSize || preparedLayout.Dpi != layout.Dpi || preparedLayout.State != layout.State ||
+                 renderedLayout?.PixelSize != layout.PixelSize || renderedLayout.Dpi != layout.Dpi || renderedLayout.State != layout.State)
+                 ComposeScene(layout, animationDirty);
+-            DiagnosticTrace?.Mark("FrameRendered", frame, new Rectangle(Point.Empty, layout.PixelSize), layout.PixelSize);
++            if (rootPresentation) DiagnosticTrace?.Mark("FrameRendered", frame, new Rectangle(Point.Empty, layout.PixelSize), layout.PixelSize);
+             // No scaling of a previous frame: copy matching pixels only after
+             // this current-size scene has finished rendering.
+             var targetState = e.Graphics.Save();
+@@ -453,25 +529,36 @@ internal sealed class LiveResizePrototypeForm : Form
+                 e.Graphics.CompositingMode = CompositingMode.SourceCopy;
+                 var area = new Rectangle(Point.Empty, ClientSize);
+                 long publishBegan = Stopwatch.GetTimestamp();
+-                DiagnosticTrace?.Mark("PublishBegin", frame, area, ClientSize);
++                if (rootPresentation) DiagnosticTrace?.Mark("PublishBegin", frame, area, ClientSize);
+                 try
+                 {
+-                    if (nativeFrame?.TryCopyTo(e.Graphics, area) == true) nativePublishes++;
++                    bool mapped = TryGetOwnedPrintViewport(e.Graphics, out var viewport);
++                    bool copied = nativeFrame != null && (mapped
++                        ? nativeFrame.TryCopyTo(e.Graphics, area, area.Location, viewport)
++                        : nativeFrame.TryCopyTo(e.Graphics, area));
++                    if (MappingAuditEnabled && nativeFrame != null && (mapped || !copied))
++                        DiagnosticTrace?.AuditMapping(e.Graphics, nativeFrame.LastCopyFailure);
++                    if (copied)
++                    {
++                        nativePublishes++;
++                        if (!rootPresentation) childPrintCopies++;
++                    }
+                     else
+                     {
+-                        if (MappingAuditEnabled && nativeFrame != null)
+-                            DiagnosticTrace?.AuditMapping(e.Graphics, nativeFrame.LastCopyFailure);
+                         if (nativeDibEnabled) RecordCopyFallback();
+                         e.Graphics.DrawImage(frame!, area, area, GraphicsUnit.Pixel);
+                     }
+                 }
+-                finally { RecordPublish(publishBegan, area, ClientSize); }
++                finally { RecordPublish(publishBegan, area, ClientSize, rootPresentation); }
+             }
+             finally { e.Graphics.Restore(targetState); }
+-            PresentedLayout = layout; FrameCount++; frameFailure = null;
+-            preparedLayout = null; preparedCommitted = false;
+-            DiagnosticTrace?.Mark("FrameCopied", frame, e.ClipRectangle, layout.PixelSize);
+-            AuditRoot("PaintCopied");
++            if (rootPresentation)
++            {
++                PresentedLayout = layout; FrameCount++; frameFailure = null;
++                preparedLayout = null; preparedCommitted = false;
++                DiagnosticTrace?.Mark("FrameCopied", frame, e.ClipRectangle, layout.PixelSize);
++                AuditRoot("PaintCopied");
++            }
+         }
+         catch (Exception failure) when (failure is OutOfMemoryException or ArgumentException or ExternalException or InvalidOperationException)
+         {
+@@ -483,9 +570,12 @@ internal sealed class LiveResizePrototypeForm : Form
+         }
+         finally
+         {
+-            ClearAnimationDirty();
+-            paintMilliseconds[paintSamples++ % paintMilliseconds.Length] = Stopwatch.GetElapsedTime(began).TotalMilliseconds;
+-            paintTotal++;
++            if (rootPresentation)
++            {
++                ClearAnimationDirty();
++                paintMilliseconds[paintSamples++ % paintMilliseconds.Length] = Stopwatch.GetElapsedTime(began).TotalMilliseconds;
++                paintTotal++;
++            }
+         }
+     }
+ 
+@@ -496,10 +586,10 @@ internal sealed class LiveResizePrototypeForm : Form
+     }
+     private Bitmap GetIconBitmap() => iconBitmap ??= appIcon.ToBitmap();
+ 
+-    private void RecordPublish(long began, Rectangle area, Size content)
++    private void RecordPublish(long began, Rectangle area, Size content, bool rootPresentation = true)
+     {
+         publishMilliseconds[publishSamples++ % publishMilliseconds.Length] = Stopwatch.GetElapsedTime(began).TotalMilliseconds;
+-        DiagnosticTrace?.Mark("PublishEnd", frame, area, content);
++        if (rootPresentation) DiagnosticTrace?.Mark("PublishEnd", frame, area, content);
+     }
+     private void RecordCopyFallback()
+     {
+@@ -659,10 +749,14 @@ internal sealed class LiveResizePrototypeForm : Form
+             var copies = publishMilliseconds.Take(Math.Min(publishSamples, publishMilliseconds.Length)).Order().ToArray();
+             Console.WriteLine(FormattableString.Invariant($"PUBLISH dib={nativeDibEnabled}; samples={publishSamples}; native={nativePublishes}; fallback={nativePublishFallbacks}; p50_ms={(copies.Length == 0 ? 0 : copies[copies.Length / 2]):F3}; p95_ms={(copies.Length == 0 ? 0 : copies[(int)Math.Floor((copies.Length - 1) * .95)]):F3}; rejected_size={preparedSizeRejected}; rejected_dpi={preparedDpiRejected}; rejected_revision={preparedRevisionRejected}; scope=copy-path-not-total-frame"));
+             foreach (var failure in copyFailures.OrderBy(pair => pair.Key)) Console.WriteLine($"COPY fallback_code={failure.Key}; count={failure.Value}");
++            Console.WriteLine($"NATIVE_REPAIR child_print_copies={childPrintCopies}; exposed_copies={exposedCopies}; exposed_failures={exposedCopyFailures}; child_print_commits_root=false");
+         }
+     }
+ 
+     [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr handle);
++    [DllImport("user32.dll")] private static extern IntPtr WindowFromDC(IntPtr dc);
++    [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr handle);
++    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr handle, IntPtr dc);
+ 
+     protected override void Dispose(bool disposing)
+     {
+diff --git a/tests/Prototypes/Resize/NativeResizeFrame.cs b/tests/Prototypes/Resize/NativeResizeFrame.cs
+index 1ce41ee..2ceaed8 100644
+--- a/tests/Prototypes/Resize/NativeResizeFrame.cs
++++ b/tests/Prototypes/Resize/NativeResizeFrame.cs
+@@ -80,12 +80,17 @@ internal sealed class NativeResizeFrame : IDisposable
+         }
+     }
+ 
+-    // Only ordinary same-coordinate pixel DCs are accepted. Unknown mapping,
+-    // mirroring, transforms or invalid areas fail before modifying the target.
+-    internal bool TryCopyTo(IntPtr targetDc, Rectangle area)
++    // Existing callers retain the strict, zero-origin contract. A translated
++    // print target must explicitly declare its viewport and destination; source
++    // pixels remain in frame coordinates, never inferred from a borrowed DC.
++    internal bool TryCopyTo(IntPtr targetDc, Rectangle area) =>
++        TryCopyTo(targetDc, area, area.Location, Point.Empty);
++
++    internal bool TryCopyTo(IntPtr targetDc, Rectangle area, Point destination, Point expectedViewport)
+     {
+         LastCopyFailure = CopyFailure.None;
+-        if (!CanCopy(area) || !SupportedTarget(targetDc)) return false;
++        if (!CanCopy(area) || !ValidDestination(area.Size, destination, expectedViewport) ||
++            !SupportedTarget(targetDc, expectedViewport)) return false;
+         try
+         {
+             LastCopyFailure = CopyFailure.GraphicsFlush;
+@@ -93,7 +98,7 @@ internal sealed class NativeResizeFrame : IDisposable
+             LastCopyFailure = CopyFailure.GdiFlush;
+             if (!GdiFlush()) return false;
+             LastCopyFailure = CopyFailure.BitBlt;
+-            if (!BitBlt(targetDc, area.X, area.Y, area.Width, area.Height,
++            if (!BitBlt(targetDc, destination.X, destination.Y, area.Width, area.Height,
+                 memoryDc, area.X, area.Y, Srccopy)) return false;
+             LastCopyFailure = CopyFailure.GdiFlush;
+             if (!GdiFlush()) return false;
+@@ -109,10 +114,13 @@ internal sealed class NativeResizeFrame : IDisposable
+     // GetHdc is used exclusively for the DESTINATION. GDI+ managed clipping
+     // is materialized and intersected with its pre-existing native DC clip;
+     // SaveDC/RestoreDC preserve the caller's selected objects and state.
+-    internal bool TryCopyTo(Graphics target, Rectangle area)
++    internal bool TryCopyTo(Graphics target, Rectangle area) =>
++        TryCopyTo(target, area, area.Location, Point.Empty);
++
++    internal bool TryCopyTo(Graphics target, Rectangle area, Point destination, Point expectedViewport)
+     {
+         LastCopyFailure = CopyFailure.None;
+-        if (!CanCopy(area)) return false;
++        if (!CanCopy(area) || !ValidDestination(area.Size, destination, expectedViewport)) return false;
+         if (target == null || ReferenceEquals(target, graphics)) return Reject(CopyFailure.TargetGraphicsState);
+         IntPtr clip = IntPtr.Zero, targetDc = IntPtr.Zero;
+         int saved = 0;
+@@ -138,13 +146,16 @@ internal sealed class NativeResizeFrame : IDisposable
+             }
+             LastCopyFailure = CopyFailure.AcquireTargetDc;
+             targetDc = target.GetHdc();
+-            if (!SupportedTarget(targetDc)) return false;
++            if (!SupportedTarget(targetDc, expectedViewport)) return false;
+             LastCopyFailure = CopyFailure.SaveTargetDc;
+             saved = SaveDC(targetDc);
+             if (saved == 0) return false;
+             LastCopyFailure = CopyFailure.SelectTargetClip;
++            // GetHrgn(target) already accounts for this Graphics' native DC
++            // viewport. ExtSelectClipRgn consumes device coordinates: applying
++            // the offset a second time would clip a different part of the frame.
+             if (clip != IntPtr.Zero && ExtSelectClipRgn(targetDc, clip, 1) == 0) return false;
+-            copied = TryCopyTo(targetDc, area);
++            copied = TryCopyTo(targetDc, area, destination, expectedViewport);
+         }
+         catch (Exception error) when (error is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException)
+         {
+@@ -180,13 +191,24 @@ internal sealed class NativeResizeFrame : IDisposable
+         return true;
+     }
+ 
+-    private bool SupportedTarget(IntPtr dc)
++    private bool ValidDestination(Size size, Point destination, Point viewport)
++    {
++        // Keep device/logical coordinates bounded before any GDI arithmetic.
++        bool valid = Math.Abs((long)viewport.X) <= 32768 && Math.Abs((long)viewport.Y) <= 32768 &&
++            Math.Abs((long)destination.X) <= 32768 && Math.Abs((long)destination.Y) <= 32768 &&
++            Math.Abs((long)destination.X + viewport.X + size.Width) <= 65536 &&
++            Math.Abs((long)destination.Y + viewport.Y + size.Height) <= 65536;
++        return valid || Reject(CopyFailure.Area);
++    }
++
++    private bool SupportedTarget(IntPtr dc, Point expectedViewport)
+     {
+         if (dc == IntPtr.Zero || GetObjectType(dc) is not (3 or 10)) return Reject(CopyFailure.TargetDcKind);
+         if (GetMapMode(dc) != 1) return Reject(CopyFailure.TargetMapMode);
+         if (GetLayout(dc) != 0) return Reject(CopyFailure.TargetLayout);
+         if (!GetWindowOrgEx(dc, out var window) || !GetViewportOrgEx(dc, out var viewport) ||
+-            window.X != 0 || window.Y != 0 || viewport.X != 0 || viewport.Y != 0) return Reject(CopyFailure.TargetOrigin);
++            window.X != 0 || window.Y != 0 || viewport.X != expectedViewport.X || viewport.Y != expectedViewport.Y)
++            return Reject(CopyFailure.TargetOrigin);
+         int mode = GetGraphicsMode(dc);
+         bool supported = mode == 1 || mode == 2 && GetWorldTransform(dc, out var transform) &&
+             transform.M11 == 1 && transform.M12 == 0 && transform.M21 == 0 && transform.M22 == 1 &&
+diff --git a/tests/Prototypes/Resize/NativeResizeFrameTests.cs b/tests/Prototypes/Resize/NativeResizeFrameTests.cs
+index 414965e..df55ee2 100644
+--- a/tests/Prototypes/Resize/NativeResizeFrameTests.cs
++++ b/tests/Prototypes/Resize/NativeResizeFrameTests.cs
+@@ -55,6 +55,68 @@ internal static class NativeResizeFrameTests
+             Check(observed.Length == expected.Length && differences == 0, code);
+         }
+ 
++        void TranslatedCopies(NativeResizeFrame frame, int[] pattern, Size size)
++        {
++            var area = new Rectangle(17, 13, 151, 99);
++            foreach (var viewport in new[] { new Point(-31, -19), new Point(13, 7) })
++            foreach (int managedMode in new[] { 0, 1, 2 }) // native / infinite / finite
++            {
++                var destination = new Point(20 - viewport.X, 18 - viewport.Y);
++                using var target = new MemoryTarget(size);
++                using var native = new OwnedRegion(0, 0, 154, 120);
++                using var hole = new OwnedRegion(80, 40, 99, 60);
++                using var after = new OwnedRegion(0, 0, 0, 0);
++                CombineRgn(native.Handle, native.Handle, hole.Handle, 4);
++                Check(SelectClipRgn(target.Dc, native.Handle) != 0, "MappedNativeClipInstalled");
++                Check(SetViewportOrgEx(target.Dc, viewport.X, viewport.Y, IntPtr.Zero), "ExplicitViewportInstalled");
++                int saved = SaveDC(target.Dc);
++                Check(saved > 0 && RestoreDC(target.Dc, saved), "MappedStackBaseline");
++                var finite = new Rectangle(destination.X + 5, destination.Y + 3, 138, 88);
++                var finiteHole = new Rectangle(destination.X + 23, destination.Y + 27, 13, 19);
++                if (managedMode == 0)
++                    Check(frame.TryCopyTo(target.Dc, area, destination, viewport), "ExplicitNativeMappingAccepted");
++                else
++                {
++                    using var graphics = Graphics.FromHdc(target.Dc);
++                    graphics.PageUnit = GraphicsUnit.Pixel;
++                    graphics.ResetClip();
++                    if (managedMode == 2)
++                    {
++                        using var region = new Region(finite); region.Exclude(finiteHole);
++                        graphics.SetClip(region, CombineMode.Replace);
++                    }
++                    using var clipBefore = graphics.Clip;
++                    Check(frame.TryCopyTo(graphics, area, destination, viewport), "ExplicitManagedMappingAccepted");
++                    using var clipAfter = graphics.Clip;
++                    Check(clipBefore.Equals(clipAfter, graphics), "MappedManagedClipUnchanged");
++                }
++                Check(GetViewportOrgEx(target.Dc, out var current) && current.X == viewport.X && current.Y == viewport.Y,
++                    "MappedViewportUnchanged");
++                Check(GetClipRgn(target.Dc, after.Handle) == 1 && EqualRgn(native.Handle, after.Handle), "MappedNativeClipUnchanged");
++                int next = SaveDC(target.Dc);
++                Check(next == saved && RestoreDC(target.Dc, next), "MappedCopyBalancesDcState");
++                int[] actual = target.ReadRgb();
++                long differences = 0;
++                for (int y = 0; y < size.Height; y++)
++                for (int x = 0; x < size.Width; x++)
++                {
++                    var logical = new Point(x - viewport.X, y - viewport.Y);
++                    bool copied = new Rectangle(20, 18, area.Width, area.Height).Contains(x, y) &&
++                        x < 154 && y < 120 && !new Rectangle(80, 40, 19, 20).Contains(x, y) &&
++                        (managedMode != 2 || finite.Contains(logical) && !finiteHole.Contains(logical));
++                    int expected = copied ? pattern[(area.Y + y - 18) * size.Width + area.X + x - 20] & 0xffffff : Sentinel;
++                    if (actual[y * size.Width + x] != expected) differences++;
++                    comparedPixels++;
++                }
++                if (differences != 0) Console.WriteLine($"NATIVE_FRAME mapped_mode={managedMode}; rgb_mismatch_pixels={differences}");
++                Check(differences == 0, "ExplicitMappingEveryPixelMatchesSourceAndBothClips");
++                Check(!frame.TryCopyTo(target.Dc, area, destination, Point.Empty) &&
++                    frame.LastCopyFailure == NativeResizeFrame.CopyFailure.TargetOrigin, "UndeclaredTranslationStillRejected");
++                Check(!frame.TryCopyTo(target.Dc, area, new Point(int.MaxValue, 0), viewport), "MappedDestinationOverflowRejected");
++                Check(actual.SequenceEqual(target.ReadRgb()), "RejectedMappedCopyDoesNotWrite");
++            }
++        }
++
+         void Cases(int dpi)
+         {
+             var size = new Size(192, 128);
+@@ -233,6 +295,7 @@ internal static class NativeResizeFrameTests
+             }
+ 
+             ConstructorChecks(dpi);
++            TranslatedCopies(frame, pattern, size);
+             CompleteScene(dpi);
+             using (var target = new MemoryTarget(size))
+             {
+diff --git a/tests/Prototypes/Resize/NativeResizeHostLifecycleTests.cs b/tests/Prototypes/Resize/NativeResizeHostLifecycleTests.cs
+index 847ce8e..c949889 100644
+--- a/tests/Prototypes/Resize/NativeResizeHostLifecycleTests.cs
++++ b/tests/Prototypes/Resize/NativeResizeHostLifecycleTests.cs
+@@ -177,9 +177,61 @@ internal static class NativeResizeHostLifecycleTests
+         }
+         check(seenFrames.Count == 2 && seenFrames.All(frame => frame.IsDisposed && frame.OwnedBytes == 0),
+             "AllPreviousHostGenerationsRemainReleased");
++        CheckPrintIsolation(form, check);
++        CheckExposedPixels(form, check);
+         return CheckSynchronousCachedRefill(form, check);
+     }
+ 
++    private static void CheckPrintIsolation(LiveResizePrototypeForm form, Action<bool, string> check)
++    {
++        var prepare = typeof(LiveResizePrototypeForm).GetMethod("PrepareNextGeometryFrame", Hidden)!;
++        var print = typeof(LiveResizePrototypeForm).GetMethod("OnPrint", Hidden)!;
++        prepare.Invoke(form, [form.ClientSize]);
++        var prepared = Field<ResizeSceneLayout>(form, "preparedLayout");
++        check(prepared != null, "PrintIsolationHasPreparedRootFrame");
++        var presented = form.PresentedLayout;
++        int rootFrames = form.FrameCount;
++        object? committed = typeof(LiveResizePrototypeForm).GetField("preparedCommitted", Hidden)!.GetValue(form);
++        using var bitmap = new Bitmap(64, 64);
++        using var graphics = Graphics.FromImage(bitmap);
++        using var args = new PaintEventArgs(graphics, new Rectangle(0, 0, 64, 64));
++        print.Invoke(form, [args]);
++        check(form.FrameCount == rootFrames && ReferenceEquals(form.PresentedLayout, presented), "PrintingCannotCommitRootFrame");
++        check(ReferenceEquals(prepared, Field<ResizeSceneLayout>(form, "preparedLayout")) &&
++            Equals(committed, typeof(LiveResizePrototypeForm).GetField("preparedCommitted", Hidden)!.GetValue(form)),
++            "PrintingCannotConsumePendingRootPresentation");
++        check((int)typeof(LiveResizePrototypeForm).GetField("printDepth", Hidden)!.GetValue(form)! == 0,
++            "PrintScopeRestoresRootPaintPurpose");
++    }
++
++    private static void CheckExposedPixels(LiveResizePrototypeForm form, Action<bool, string> check)
++    {
++        // Synchronous geometry changes, no Refresh/Update/DoEvents between the
++        // HWND move and independent GDI readback. Natural later paint cannot
++        // accidentally satisfy this witness as it did in the C49 baseline.
++        for (int i = 0; i < 2; i++)
++        {
++            form.SetWindowSize(false);
++            var oldGrid = form.Controls.OfType<DataGridView>().Single().Bounds;
++            form.SetWindowSize(true);
++            var grid = form.Controls.OfType<DataGridView>().Single().Bounds;
++            var point = new Point(form.ClientSize.Width - 2, form.ClientSize.Height * 2 / 3);
++            check(oldGrid.Contains(point) && !grid.Contains(point), "ResizeWitnessWasExposedByOldGrid");
++            var frame = Field<NativeResizeFrame>(form, "nativeFrame")!;
++            var layout = Field<ResizeSceneLayout>(form, "renderedLayout");
++            check(layout?.PixelSize == form.ClientSize, "ExposedPixelUsesCurrentFrameSize");
++            IntPtr dc = GetDC(form.Handle);
++            try
++            {
++                check(dc != IntPtr.Zero && PtVisible(dc, point.X, point.Y), "ExposedWitnessBelongsToVisibleRoot");
++                Color expected = frame.Bitmap.GetPixel(point.X, point.Y);
++                uint rgb = (uint)(expected.R | expected.G << 8 | expected.B << 16);
++                check(GetPixel(dc, point.X, point.Y) == rgb, "ExposedWitnessRestoredBeforeNextNaturalPaint");
++            }
++            finally { if (dc != IntPtr.Zero) ReleaseDC(form.Handle, dc); }
++        }
++    }
++
+     private static NativeResizeFrame CheckSynchronousCachedRefill(LiveResizePrototypeForm form, Action<bool, string> check)
+     {
+         // No await, DoEvents, window invalidation or synchronous UI paint in
+@@ -260,4 +312,8 @@ internal static class NativeResizeHostLifecycleTests
+     private sealed class Failure(string code) : Exception { internal string Code { get; } = code; }
+     [DllImport("user32.dll")][return: MarshalAs(UnmanagedType.Bool)]
+     private static extern bool IsWindow(IntPtr handle);
++    [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr handle);
++    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr handle, IntPtr dc);
++    [DllImport("gdi32.dll")] private static extern uint GetPixel(IntPtr dc, int x, int y);
++    [DllImport("gdi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool PtVisible(IntPtr dc, int x, int y);
+ }
+diff --git a/tests/ResizeMappingRepairEvidence.Tests.ps1 b/tests/ResizeMappingRepairEvidence.Tests.ps1
+new file mode 100644
+index 0000000..0a0b0fe
+--- /dev/null
++++ b/tests/ResizeMappingRepairEvidence.Tests.ps1
+@@ -0,0 +1,75 @@
++param(
++    [Parameter(Mandatory=$true)][string[]]$TracePath,
++    [Parameter(Mandatory=$true)][string]$OutputPath
++)
++$ErrorActionPreference = 'Stop'
++function Require([bool]$condition, [string]$code) {
++    if (-not $condition) { throw $code }
++}
++$summaries = @(foreach ($path in $TracePath) {
++    $report = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
++    Require ($report.schema -eq 'resize-diagnostic-trace-v4-mapping-audit') 'WrongAuditSchema'
++    Require ($report.mapping_audit.enabled -and $report.pixels_enabled -and $report.native_dib_frame) 'AuditNotEnabled'
++    Require (-not $report.truncated -and -not $report.hooks_limited -and $report.observation_failures -eq 0 -and
++        $report.mapping_audit.dropped -eq 0 -and $report.rejected_stages -eq 0 -and
++        $report.wrong_thread_calls -eq 0) 'IncompleteObservation'
++    $mapping = @($report.mapping_audit.mapping)
++    $root = @($report.mapping_audit.root_witness)
++    $mode = $report.records[-1].Mode
++    Require ($mode -in @('All','Combo','Grid')) 'UnexpectedMode'
++    foreach ($entry in $mapping) {
++        Require ($entry.failure -eq 'None' -and $entry.target_owned -and $entry.target_control_kind -eq 'Combo' -and
++            $entry.printClient -and $entry.onPrint -and $entry.comboMessage) 'MappedPrintNotSuccessful'
++        Require ($entry.originsValid -and $entry.window_x -eq 0 -and $entry.window_y -eq 0 -and
++            $entry.map_mode -eq 1 -and $entry.dc_kind -eq 3) 'UnexpectedTargetMap'
++        Require ($entry.viewport_x -eq -$entry.target_control_bounds.X -and
++            $entry.viewport_y -eq -$entry.target_control_bounds.Y) 'OffsetNotChildTranslation'
++        Require ($entry.clip_kind -in @(2,3) -and $entry.clip.X -ge $entry.target_control_bounds.X -and
++            $entry.clip.Y -ge $entry.target_control_bounds.Y -and
++            $entry.clip.Right -le $entry.target_control_bounds.Right -and
++            $entry.clip.Bottom -le $entry.target_control_bounds.Bottom) 'ClipOutsideCombo'
++    }
++    Require (@($root | Where-Object { $_.phase -eq 'PaintCopied' -and $_.printClient }).Count -eq 0) 'PrintMisreportedAsRoot'
++    $post = @($root | Where-Object phase -eq 'AfterChildren')
++    Require ($post.Count -eq 11 -and @($post.geometry | Select-Object -Unique).Count -eq 11) 'MissingGeometryWitness'
++    Require (@($post | Where-Object { -not $_.valid -or $_.owner_kind -ne 'Root' -or -not $_.matches }).Count -eq 0) 'ExposedRootNotRestored'
++    $restored = 0
++    foreach ($point in $post) {
++        $same = @($root | Where-Object { $_.geometry -eq $point.geometry })
++        $before = @($same | Where-Object phase -eq 'BeforeChildren')
++        $moved = @($same | Where-Object phase -eq 'AfterGridBounds')
++        Require ($before.Count -eq 1) 'MissingBeforeChildren'
++        if ($before[0].owner_kind -ne 'Grid') { continue }
++        Require ($moved.Count -eq 1 -and -not $before[0].valid -and $null -ne $before[0].childPixel -and
++            $before[0].childPixel -ne 4294967295) 'MissingOldGridWitness'
++        Require ($moved[0].valid -and $moved[0].owner_kind -eq 'Root' -and
++            $moved[0].pixel -eq $before[0].childPixel -and -not $moved[0].matches) 'GridMoveNotObserved'
++        Require ($point.pixel -eq $point.expected -and $point.expected -eq $moved[0].expected -and
++            $point.pixel -ne $moved[0].pixel) 'NoRepairBetweenMoveAndGeometryEnd'
++        Require (@($same | Where-Object { $_.phase -eq 'PaintCopied' -and $_.sequence -gt $moved[0].sequence -and
++            $_.sequence -lt $point.sequence }).Count -eq 0) 'NaturalPaintMaskedRepair'
++        $restored++
++    }
++    if ($mode -eq 'Combo') { Require ($mapping.Count -eq 26 -and $restored -eq 0) 'ComboControlMismatch' }
++    elseif ($mode -eq 'Grid') { Require ($mapping.Count -eq 0 -and $restored -eq 6) 'GridControlMismatch' }
++    else { Require ($mapping.Count -eq 26 -and $restored -eq 6) 'AllControlMismatch' }
++    $groups = @($mapping | Group-Object viewport_x,viewport_y)
++    if ($mapping.Count -gt 0) { Require ($groups.Count -eq 2 -and @($groups | Where-Object Count -ne 13).Count -eq 0) 'UnexpectedComboCounts' }
++    $geometryPixels = @($report.records | Where-Object Stage -eq 'GeometryAfterChildren' |
++        ForEach-Object { $_.Pixels } | Where-Object Location -eq 'RootMinusChildren')
++    Require ($geometryPixels.Count -eq 44 -and @($geometryPixels | Where-Object {
++        -not $_.Valid -or $_.Black -or -not $_.MatchesFrame }).Count -eq 0) 'OriginalRootSampleCoverageFailed'
++    [ordered]@{
++        trace = Split-Path $path -Leaf; sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
++        mode = $mode; dpi = $root[0].dpi; mapped_combo_copies = $mapping.Count; mapping_rejections = 0
++        post_geometry_witnesses = $post.Count; mismatches = 0; old_grid_witnesses_repaired_before_paint = $restored
++        original_geometry_root_samples = $geometryPixels.Count; root_matches = $geometryPixels.Count
++        print_as_root_presentations = 0; observation_failures = 0; truncated = $false
++    }
++})
++[ordered]@{ revision=1; scope='C50-owned-synthetic-GDI-mapping-and-vacated-region-repair';
++    normal_app_modified=$false; default_enabled=$false; screen_no_flash_proven=$false;
++    runs=$summaries } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $OutputPath -Encoding utf8
++Write-Output ('PASS mapping repair evidence: reports={0}; mapped_copies={1}; repaired_grid_witnesses={2}' -f
++    $summaries.Count, ($summaries.mapped_combo_copies | Measure-Object -Sum).Sum,
++    ($summaries.old_grid_witnesses_repaired_before_paint | Measure-Object -Sum).Sum)

@@ -1,0 +1,27 @@
+{
+  "revision": 1,
+  "ordinary_bin_replaced": false,
+  "kind": "candidate-and-isolated-build",
+  "files": [
+    {
+      "path": "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll",
+      "sha256": "3D16FB72274D36C6A797F70B552842B84BB3373539BA28D8BD93F80BF059DD5C"
+    },
+    {
+      "path": "artifacts/resize-candidate-C47/app/AsukaLens.ResizeCoverage.exe",
+      "sha256": "CA765BF93DCC93464615FF831CDEF6D2806F796A4D363A14F6B18BBBCBB89754"
+    },
+    {
+      "path": "artifacts/resize-candidate-C47/app/AsukaLens.ResizeCandidate.exe",
+      "sha256": "CA765BF93DCC93464615FF831CDEF6D2806F796A4D363A14F6B18BBBCBB89754"
+    },
+    {
+      "path": "artifacts/resize-candidate-C47/app/DiskAtlas.Tests.dll",
+      "sha256": "3D16FB72274D36C6A797F70B552842B84BB3373539BA28D8BD93F80BF059DD5C"
+    },
+    {
+      "path": "artifacts/resize-production-check/DiskAtlas.dll",
+      "sha256": "F692D45703BD637266F66DFD8864F26D8996F9EEFE858795CED23E4F4145D7E0"
+    }
+  ]
+}

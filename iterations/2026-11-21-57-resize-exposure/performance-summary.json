@@ -1,0 +1,39 @@
+{
+  "rows": [
+    {
+      "label": "off1",
+      "sync_p50_ms": 283.42724999999996,
+      "application_pixel_peak_bytes": 27873396,
+      "composition_active": false,
+      "publications": null
+    },
+    {
+      "label": "on1",
+      "sync_p50_ms": 271.1874,
+      "application_pixel_peak_bytes": 27873396,
+      "composition_active": true,
+      "publications": 12
+    },
+    {
+      "label": "on2",
+      "sync_p50_ms": 277.09105,
+      "application_pixel_peak_bytes": 27873396,
+      "composition_active": true,
+      "publications": 12
+    },
+    {
+      "label": "off2",
+      "sync_p50_ms": 289.50969999999995,
+      "application_pixel_peak_bytes": 27873396,
+      "composition_active": false,
+      "publications": null
+    }
+  ],
+  "comparison": "same test binary; both retain C55 cache; off/on/on/off",
+  "measurement_phase": "after retirement guards, before background-apply-only follow-up",
+  "test_dll_sha256": "112DCB511E05F252BAE1873870B3C995A87BA49B48090BE543AC68427A0D2B0E",
+  "screen_fps": false,
+  "warm_ui": true,
+  "external_load_controlled": false,
+  "system_gpu_memory_bytes": "not_measured"
+}

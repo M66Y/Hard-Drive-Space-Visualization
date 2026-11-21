@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "baseline": "9ac1f0b",
+  "baseline_context": "Four-file follow-up to C41 frozen snapshots; selected preimages, not a HEAD-only delta",
+  "state": "improvement-measured-desktop-review-pending",
+  "patch_replay": {
+    "files": 4,
+    "sha256_all_matched": true
+  },
+  "files": [
+    {
+      "source": "Wallpaper.cs",
+      "snapshot": "key-files/Wallpaper.cs.txt",
+      "sha256": "4F3283BFF1C02E4AAED72DE915CBEDE4036A62CC2C0DC024B2D17EAB13E823BA",
+      "bytes": 28385,
+      "preimage": "iterations/2026-11-14-41-resize-cache/key-files/Wallpaper.cs.txt",
+      "preimage_sha256": "94CA0BB270F2D3F4900D7A8654E8AEDEE0E1D724E7B461DC61732E87B73B94C8"
+    },
+    {
+      "source": "tests/LayoutTransitionPreview.cs",
+      "snapshot": "key-files/tests_LayoutTransitionPreview.cs.txt",
+      "sha256": "D51C47CAC8E3B964552BB686ACAF41262D0279BEF111F51163E12381D27E103B",
+      "bytes": 33801,
+      "preimage": "iterations/2026-11-14-41-resize-cache/key-files/tests_LayoutTransitionPreview.cs.txt",
+      "preimage_sha256": "2EE3BBAE7B14AB5163CAE29A2466B0C4FB393854F7B11F7E29D3EF25222FA751"
+    },
+    {
+      "source": "tests/Program.cs",
+      "snapshot": "key-files/tests_Program.cs.txt",
+      "sha256": "CD53C952BDD4A551D221846BA7D2679935268717BC27D202EF697FA8EBA903AF",
+      "bytes": 68114,
+      "preimage": "iterations/2026-11-14-41-resize-cache/background-erase-fix/preimages/tests_Program.cs.txt",
+      "preimage_sha256": "A1BF69E1D6B5F4A783823AF1DC889E0C1DB281EC4877E5467B6FE216DF47A7DE"
+    },
+    {
+      "source": "tests/WallpaperBackgroundEraseTests.cs",
+      "snapshot": "key-files/tests_WallpaperBackgroundEraseTests.cs.txt",
+      "sha256": "B52A104C5B83C9BF5A592EC810C5580576D5E561A02D76DCCBF8FD54EC2716E1",
+      "bytes": 7088,
+      "preimage": null,
+      "preimage_sha256": null
+    }
+  ]
+}

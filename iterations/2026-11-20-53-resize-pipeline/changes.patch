@@ -1,0 +1,617 @@
+diff --git a/AGENTS.md b/AGENTS.md
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -120,6 +120,7 @@
+ - 界面改动验证实际使用流程、布局和状态；算法或性能改动核对结果正确性与同条件基准。检查通过后，无新改动或疑点不反复扩大测试。
+ - 表面、字体或尺寸修改可运行 `--visual-surface-tests` 及 `--dpi-96`：自有小目录真实扫描后用合成背景检查底板、合成对比和最小窗口排版；程序位图断言不替代实际桌面观察。`--stage-one-preview a|b [--minimum] [--dpi-96] [--expanded]` 为测试 apphost 的真实合成目录预览，隔离配置、显示路径使用公开别名，关闭后核归属清理；A/B 的磁盘活动使用明确标记的纯合成源，收起不采样。`baseline` 需预先保留的旧开发程序集，不支持展开，不以其名称当 Git 冻结证明。交互预览使用保持 stdin 的终端会话，精确 `close` 会先退自有弹窗再关主窗；EOF 不会自动关闭。工具细节见 [C29 记录](iterations/2026-11-13-29-visual-polish/README.md)与[C30 比例修正](iterations/2026-11-13-30-visual-proportions/README.md)。
+ - 布局/圆角裁切/原生移动重绘改动另运行 `--layout-transition-tests`、`--layout-presentation-tests`，分别加 `--dpi-96`。前者观测范围行、扫描切换/取消、partial/分页及祖先移动的自然消息顺序，后者验证合并、重入、暂停恢复与句柄生命周期；它们不代表真实屏幕像素无残影。`--layout-transition-preview [--dpi-96]` 使用自建合成目录与真实扫描器，第二次扫描起受控暂停；stdin命令 `scan`、`release`、`cancel`、`scope`、`clear-scope`、`minimum`、`common`、`close` 仅作用于自有窗口，暂停不作为性能证据。关闭后等待任务退出再核归属清理，不在观测前强制刷新以掩盖瞬态，实际动态效果仍需桌面观察与用户反馈。
++- DIB根背景缓存修改另运行 `--root-composite-tests` 及 `--dpi-96`，核对完整像素、局部/带孔裁切、尺寸/图片/聚焦失效、预算和关闭后释放。`--resize-pipeline-probe off1|on1|on2|off2 [--dpi-96] [--slow] [--pixels]` 只扫描自建临时目录，输出至ignored artifacts并拒绝覆盖；固定12步、最多256条尺寸事件，阶段耗时可嵌套不可相加。性能与离散GDI取点分开测，均不能代表真实帧率或连续屏幕无闪黑；默认程序不启用该内存探针。方案见 [C53缩放排查](docs/ui-resize-pipeline-plan.md)。
+ - 开发 SDK 由 `global.json` 固定到已验证的 .NET 10 feature band，允许补丁升级，不使用预览 SDK。运行需要 .NET 10 Windows Desktop Runtime；SDK 已包含它。
+ - 当前普通构建入口：`dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。
+ - 先构建测试项目：`dotnet build tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。测试 DLL 为 `tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll`，用 `dotnet` 运行，按下表选范围。
+diff --git a/MainForm.cs b/MainForm.cs
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -287,6 +287,8 @@
+     };
+ 
+     protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics);
++    internal bool TryPaintCachedRoot(Control control, Graphics graphics, Size size, Point offset, int wash) =>
++        dibCoverage?.TryPaintCachedRoot(control,graphics,size,offset,wash) == true;
+ 
+     private string StrategyName => strategyCombo.SelectedIndex switch { 1 => "低占用", 2 => "高速", _ => "自动" };
+     private void UpdateStrategyHint()
+@@ -384,6 +386,12 @@
+ 
+     protected override void WndProc(ref Message message)
+     {
++        using var resizeWork = ResizeWorkProbe.Measure(message.Msg switch
++        {
++            0x0046 => ResizeWorkProbe.Work.PositionChanging, 0x0047 => ResizeWorkProbe.Work.PositionChanged,
++            0x0005 => ResizeWorkProbe.Work.Size, 0x0085 => ResizeWorkProbe.Work.NonClient,
++            0x0014 => ResizeWorkProbe.Work.Erase, _ => ResizeWorkProbe.Work.None
++        });
+         dibCoverage?.Before(ref message);
+         ResizePixelPolicy.Prepare(this, ref message);
+         // WinForms updates managed bounds after DefWindowProc has sent its
+diff --git a/Wallpaper.cs b/Wallpaper.cs
+--- a/Wallpaper.cs
++++ b/Wallpaper.cs
+@@ -107,6 +107,7 @@
+ 
+     public static void Paint(Control control, Graphics graphics, int wash = 42, WallpaperSurface surface = WallpaperSurface.Ambient, Size? nativeSize = null, bool nativeCopy = true)
+     {
++        using var resizeWork = ResizeWorkProbe.Measure(ResizeWorkProbe.Work.Wallpaper);
+         if (surface == WallpaperSurface.Ambient)
+         {
+             if (control is ScanProgressControl || control is TreemapControl && wash == 130) surface = WallpaperSurface.Chrome;
+@@ -120,11 +121,12 @@
+             return;
+         }
+         var form = control.FindForm();
++        Size windowSize = nativeSize ?? form?.ClientSize ?? Size.Empty;
++        var offset = WindowOffset(control, form);
++        if(nativeCopy && nativeSize == null && form is MainForm root && root.TryPaintCachedRoot(control,graphics,windowSize,offset,wash))return;
+         using var background = new SolidBrush(Theme.Background);
+         graphics.FillRectangle(background, new Rectangle(Point.Empty, nativeSize ?? control.ClientSize));
+-        Size windowSize = nativeSize ?? form?.ClientSize ?? Size.Empty;
+         if (form?.BackgroundImage is not { } image || windowSize.Width <= 0 || windowSize.Height <= 0) return;
+-        var offset = WindowOffset(control, form);
+         if (form is MainForm main && main.WallpaperRaster.Get(image, windowSize, main.BackgroundCrop) is { } raster)
+         {
+             var source = Rectangle.Intersect(new Rectangle(offset, nativeSize ?? control.ClientSize), new Rectangle(Point.Empty, raster.Size));
+@@ -166,6 +168,8 @@
+     public Bitmap? Get(Image? image, Size clientSize, BackgroundView? crop = null)
+     {
+         if (ReferenceEquals(image, source) && clientSize == size && view == crop) return raster;
++        ResizeWorkProbe.RasterMiss(clientSize);
++        using var resizeWork = ResizeWorkProbe.Measure(ResizeWorkProbe.Work.RasterBuild);
+         Dispose();
+         source = image;
+         size = clientSize;
+@@ -541,6 +545,7 @@
+             Theme.Surface.ToArgb(), Theme.Background.ToArgb());
+         if (backdropKey == key) return backdrop;
+         if (rejectedBackdropKey == key) return null;
++        using var resizeWork = ResizeWorkProbe.Measure(ResizeWorkProbe.Work.GridBuild);
+         ReleaseBackdrop();
+         if (ClientSize.Width <= 0 || ClientSize.Height <= 0 || (long)ClientSize.Width * ClientSize.Height > MaxBackdropPixels)
+         { rejectedBackdropKey = key; return null; }
+diff --git a/TreemapControl.cs b/TreemapControl.cs
+--- a/TreemapControl.cs
++++ b/TreemapControl.cs
+@@ -421,6 +421,7 @@
+         var key = CurrentCacheKey();
+         if (staticLayer != null && cacheKey == key) return true;
+         if (rejectedKey == key) return false;
++        using var resizeWork = ResizeWorkProbe.Measure(ResizeWorkProbe.Work.TreemapBuild);
+         ReleaseStaticLayer();
+         // One 32-bit viewport bitmap, capped at about 30.5 MiB. Oversized views use clipped direct drawing.
+         if (Width <= 0 || Height <= 0 || (long)Width * Height > MaxCachePixels) { rejectedKey = key; return false; }
+diff --git a/src/UI/LayoutPresentation.cs b/src/UI/LayoutPresentation.cs
+--- a/src/UI/LayoutPresentation.cs
++++ b/src/UI/LayoutPresentation.cs
+@@ -193,6 +193,7 @@
+ 
+     private void Flush(long expected, IntPtr handle, bool layoutSettled = false, HashSet<Root>? settled = null)
+     {
++        using var resizeWork = ResizeWorkProbe.Measure(ResizeWorkProbe.Work.LayoutPresent);
+         if (disposed || expected != ticket) return;
+         queued = false;
+         if (geometryDepth != 0) return;
+diff --git a/src/UI/Rendering/DibWindowCoverage.cs b/src/UI/Rendering/DibWindowCoverage.cs
+--- a/src/UI/Rendering/DibWindowCoverage.cs
++++ b/src/UI/Rendering/DibWindowCoverage.cs
+@@ -10,17 +10,24 @@
+     private readonly MainForm owner;
+     private const uint ClientDcFlags = 0x2 | 0x8 | 0x10; // CACHE | CLIPCHILDREN | CLIPSIBLINGS; never WINDOW.
+     private int depth;
+-    private bool painting;
++    private bool painting, disposed;
++    private PixelSurface? rootFrame;
++    private RootKey? rootKey;
++    private readonly record struct RootKey(Size Size, Image? Image, BackgroundView Crop, int Dpi,
++        int Surface, int Background, int Wash);
+     private readonly Dictionary<Control, Region> previous = [];
+     internal int EarlyCopies { get; private set; }
+     internal int ExposedCopies { get; private set; }
+     internal int EarlyVisible { get; private set; }
+     internal int EarlyBlack { get; private set; }
+     internal bool ObservePixels { get; set; }
++    // Controlled test comparison only; ordinary candidates use the cache.
++    internal bool UseRootCache { get; set; } = true;
+     internal DibWindowCoverage(MainForm owner) => this.owner = owner;
+ 
+     internal void Before(ref Message m)
+     {
++        if(disposed)return;
+         try { Begin(ref m); }
+         catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException)
+         { depth = 0; Clear(); }
+@@ -35,7 +42,13 @@
+             var next = new Size(pos.Width - (window.Right - window.Left - client.Right),
+                 pos.Height - (window.Bottom - window.Top - client.Bottom));
+             if ((pos.Flags & 1) == 0 && next.Width > 0 && next.Height > 0 && next != new Size(client.Right, client.Bottom))
++            {
+                 owner.WallpaperRaster.Get(owner.BackgroundImage, next, owner.BackgroundCrop);
++                // Prepare the already measured opaque composite BEFORE Windows
++                // exposes the new client area. Early coverage then only copies;
++                // its cost has moved, not disappeared from the resize total.
++                RootFrame(next);
++            }
+         }
+         if (m.Msg is 0x0085 or 0x0014 or 0x0047 or 0x0005) CoverRoot();
+         if (m.Msg is 0x0047 or 0x0005)
+@@ -48,6 +61,7 @@
+     {
+         if (m.Msg is not (0x0047 or 0x0005) || depth == 0) return;
+         if (--depth != 0) return;
++        using var resizeWork = ResizeWorkProbe.Measure(ResizeWorkProbe.Work.ExposedCover);
+         try
+         {
+             foreach (var (control, region) in previous)
+@@ -78,6 +92,7 @@
+ 
+     private void CoverRoot()
+     {
++        using var resizeWork = ResizeWorkProbe.Measure(ResizeWorkProbe.Work.RootCover);
+         if (painting || !GetClientRect(owner.Handle, out var size) || size.Right <= 0 || size.Bottom <= 0) return;
+         IntPtr handle = owner.Handle;
+         IntPtr dc = GetDCEx(handle, IntPtr.Zero, ClientDcFlags);
+@@ -86,7 +101,13 @@
+         try
+         {
+             using var g = Graphics.FromHdc(dc);
+-            Wallpaper.Paint(owner, g, nativeSize: new Size(size.Right, size.Bottom));
++            var nativeSize = new Size(size.Right, size.Bottom);
++            // A native destination with many child-window holes makes each
++            // translucent GDI+ veil expensive. Composite that opaque root once
++            // at the exact geometry, then retain the destination's native clip.
++            var frame = RootFrame(nativeSize);
++            if (frame == null || !frame.TryCopy(g, new Rectangle(Point.Empty, nativeSize), Point.Empty, owner))
++                Wallpaper.Paint(owner, g, nativeSize: nativeSize);
+             g.Flush(System.Drawing.Drawing2D.FlushIntention.Sync);
+             int x = size.Right - 2, y = size.Bottom * 2 / 3;
+             if (ObservePixels && PtVisible(dc, x, y))
+@@ -96,6 +117,43 @@
+         catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException) { }
+         finally { painting = false; ReleaseDC(handle, dc); }
+     }
++    internal PixelSurface? RootFrame(Size size)
++    {
++        if(disposed || owner.IsDisposed || owner.Disposing)return null;
++        if(!UseRootCache || owner.Rendering?.Active != true) { ReleaseRoot(); return null; }
++        var key = new RootKey(size, owner.BackgroundImage, owner.BackgroundCrop, owner.DeviceDpi,
++            Theme.Surface.ToArgb(), Theme.Background.ToArgb(), Wallpaper.SurfaceAlpha(owner, WallpaperSurface.Ambient, 42));
++        if (key == rootKey && rootFrame != null) return rootFrame;
++        ReleaseRoot();
++        if (size.Width <= 0 || size.Height <= 0 || (long)size.Width * size.Height > WallpaperRaster.MaxPixels) return null;
++        PixelSurface? next = null;
++        try
++        {
++            next = PixelSurface.Create(size, owner.DeviceDpi, owner.Rendering);
++            if (next == null || !next.Native) return null;
++            using (var graphics = Graphics.FromImage(next.Bitmap))
++            {
++                graphics.Clear(Theme.Background);
++                Wallpaper.Paint(owner, graphics, nativeSize: size, nativeCopy: false);
++            }
++            rootFrame = next; rootKey = key; next = null;
++            return rootFrame;
++        }
++        catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException)
++        { return null; }
++        finally { next?.Dispose(); }
++    }
++    internal bool TryPaintCachedRoot(Control control, Graphics graphics, Size size, Point offset, int wash)
++    {
++        if(!UseRootCache || rootFrame == null || owner.Rendering?.Active != true || wash != 42 ||
++            control is NavigationPanel && owner.HasCustomBackground ||
++            rootKey != new RootKey(size,owner.BackgroundImage,owner.BackgroundCrop,owner.DeviceDpi,
++                Theme.Surface.ToArgb(),Theme.Background.ToArgb(),wash))return false;
++        var source = new Rectangle(offset,control.ClientSize);
++        if(source.X<0 || source.Y<0 || source.Right>size.Width || source.Bottom>size.Height)return false;
++        return rootFrame.TryCopy(graphics,source,Point.Empty,control);
++    }
++    private void ReleaseRoot() { rootFrame?.Dispose(); rootFrame = null; rootKey = null; }
+     private void Capture(Control control)
+     {
+         if (control.IsDisposed || !control.Visible) return;
+@@ -116,7 +174,7 @@
+         if (exclude) result.Exclude(shape); else result.Union(shape);
+     }
+     private void Clear() { foreach (var region in previous.Values) region.Dispose(); previous.Clear(); }
+-    public void Dispose() { depth = 0; Clear(); }
++    public void Dispose() { disposed = true; depth = 0; Clear(); ReleaseRoot(); }
+     [StructLayout(LayoutKind.Sequential)] private struct Rect { internal int Left, Top, Right, Bottom; }
+     [StructLayout(LayoutKind.Sequential)] private struct Position { internal IntPtr Window, After; internal int X, Y, Width, Height; internal uint Flags; }
+     [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr hwnd, out Rect rect);
+diff --git a/src/UI/Rendering/ResizeWorkProbe.cs b/src/UI/Rendering/ResizeWorkProbe.cs
+new file mode 100644
+--- /dev/null
++++ b/src/UI/Rendering/ResizeWorkProbe.cs
+@@ -0,0 +1,48 @@
++using System.Diagnostics;
++
++namespace DiskAtlas;
++
++// Opt-in, UI-thread-only instrumentation for owned validation windows. Normal
++// operation keeps Current null. No paths, handles or arbitrary strings recorded.
++internal sealed class ResizeWorkProbe
++{
++    internal enum Work { None, PositionChanging, PositionChanged, Size, NonClient, Erase,
++        Wallpaper, RasterBuild, LayoutPresent, TreemapBuild, GridBuild, RootCover, ExposedCover }
++    [ThreadStatic] private static ResizeWorkProbe? currentProbe;
++    internal static ResizeWorkProbe? Current { get => currentProbe; set => currentProbe = value; }
++    private readonly long[,] ticks = new long[13, 13], counts = new long[13, 13], maxima = new long[13, 13];
++    private readonly List<(int Step, Size Size, Work Caller)> rasterKeys = [];
++    private Work current;
++    private int step;
++    internal int Dropped { get; private set; }
++    internal void BeginStep(int value) { if(value is < 0 or > 12)throw new ArgumentOutOfRangeException(nameof(value));step=value; }
++    internal static Scope Measure(Work work) => Current is { } probe && work != Work.None ? new(probe,work) : default;
++    internal static void RasterMiss(Size size)
++    {
++        if(Current is not { } probe)return;
++        if(probe.rasterKeys.Count<256)probe.rasterKeys.Add((probe.step,size,probe.current));else probe.Dropped++;
++    }
++    internal object Summary() => new
++    {
++        capacity_steps=12, capacity_raster_events=256, dropped=Dropped, inclusive_times=true,
++        steps=Enumerable.Range(1,12).Select(s=>new { step=s, phases=Enumerable.Range(1,12).Where(w=>counts[s,w]>0).Select(w=>new
++        { phase=((Work)w).ToString(), calls=counts[s,w], total_ms=ticks[s,w]*1000d/Stopwatch.Frequency, max_ms=maxima[s,w]*1000d/Stopwatch.Frequency }).ToArray() }).ToArray(),
++        raster_events=rasterKeys.Where(k=>k.Step>0).Select(k=>new {step=k.Step,width=k.Size.Width,height=k.Size.Height,caller=k.Caller.ToString()}).ToArray()
++    };
++    internal readonly struct Scope : IDisposable
++    {
++        private readonly ResizeWorkProbe? probe;
++        private readonly Work work, previous;
++        private readonly int step;
++        private readonly long started;
++        internal Scope(ResizeWorkProbe probe, Work work)
++        { this.probe=probe;this.work=work;previous=probe.current;step=probe.step;started=Stopwatch.GetTimestamp();probe.current=work; }
++        public void Dispose()
++        {
++            if(probe==null)return;
++            long elapsed=Stopwatch.GetTimestamp()-started;
++            probe.ticks[step,(int)work]+=elapsed;probe.counts[step,(int)work]++;
++            probe.maxima[step,(int)work]=Math.Max(probe.maxima[step,(int)work],elapsed);probe.current=previous;
++        }
++    }
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -1,5 +1,11 @@
+ using DiskAtlas;
+ using System.Drawing;
++
++if(args.Length is 1 or 2 && args[0]=="--root-composite-tests")
++    return RootCompositeTests.Run(args.Contains("--dpi-96"));
++
++if(args.Length is >=2 and <=5 && args[0]=="--resize-pipeline-probe")
++    return ResizePipelineProbe.Run(args[1],args.Contains("--dpi-96"),args.Contains("--slow"),args.Contains("--pixels"));
+ 
+ if(args.Contains("--dib-integration-tests")) return DibMainFormTests.Run(args.Contains("--dpi-96"),args.Contains("--cache-only"));
+ 
+diff --git a/tests/ResizePipelineProbe.cs b/tests/ResizePipelineProbe.cs
+new file mode 100644
+--- /dev/null
++++ b/tests/ResizePipelineProbe.cs
+@@ -0,0 +1,107 @@
++using DiskAtlas;
++using DiskAtlas.ResizePrototype;
++using System.Diagnostics;
++using System.Reflection;
++using System.Runtime.InteropServices;
++using System.Text.Json;
++
++internal static class ResizePipelineProbe
++{
++    internal static int Run(string label, bool dpi96, bool slow, bool pixels)
++    {
++        if(label is not ("before" or "after" or "after-reuse" or "final" or "final-ready" or "off1" or "on1" or "on2" or "off2"))return 2;
++        string directory=Path.Combine(Path.GetTempPath(),"AsukaLens-C53-"+Guid.NewGuid().ToString("N"));
++        string report=Path.Combine("artifacts","resize-pipeline-C53",$"{label}-{(dpi96?96:144)}-{(slow?100:30)}-{(pixels?"pixels":"timing")}.json");
++        if(File.Exists(report)){Console.Error.WriteLine("FAIL resize pipeline report exists");return 2;}
++        Directory.CreateDirectory(directory);int result=1;bool completed=false;
++        var thread=new Thread(()=>
++        {
++            try
++            {
++                Application.SetHighDpiMode(dpi96?HighDpiMode.DpiUnaware:HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
++                using var form=new MainForm(null,false,Path.Combine(directory,"background.dat"),dibCandidate:true);
++                form.Shown+=async(_,_)=>
++                {
++                    try
++                    {
++                        string scope=Path.Combine(directory,"scope");Directory.CreateDirectory(scope);
++                        for(int i=0;i<5;i++)
++                        {
++                            string child=Path.Combine(scope,"group-"+i);Directory.CreateDirectory(child);
++                            for(int j=0;j<16;j++)File.WriteAllBytes(Path.Combine(child,$"sample-{j:000}.bin"),new byte[(5-i)*4096]);
++                        }
++                        await (Task)typeof(MainForm).GetMethod("ScanFolder",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(form,[scope])!;
++                        await Task.Delay(200);
++                        var coverage=(DibWindowCoverage)typeof(MainForm).GetField("dibCoverage",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(form)!;
++                        coverage.UseRootCache=label is not ("off1" or "off2");
++                        var work=new ResizeWorkProbe();ResizeWorkProbe.Current=work;
++                        using var root=pixels?new RootPixels(form):null;
++                        var common=form.Size;var sizes=ResizeDiagnosticReplay.Build(common,form.MinimumSize);
++                        var steps=new List<object>();long previous=0;
++                        for(int step=1;step<=sizes.Length;step++)
++                        {
++                            await Task.Delay(slow?100:30);
++                            long now=Stopwatch.GetTimestamp();work.BeginStep(step);
++                            if(root!=null)root.Step=step;
++                            form.Size=sizes[step-1];
++                            steps.Add(new {step,sync_ms=Stopwatch.GetElapsedTime(now).TotalMilliseconds,
++                                gap_ms=previous==0?0:Stopwatch.GetElapsedTime(previous,now).TotalMilliseconds,width=form.Width,height=form.Height});
++                            previous=now;
++                        }
++                        await Task.Delay(200);ResizeWorkProbe.Current=null;
++                        Directory.CreateDirectory(Path.GetDirectoryName(report)!);
++                        File.WriteAllText(report,JsonSerializer.Serialize(new {label,dpi=form.DeviceDpi,requested_interval_ms=slow?100:30,
++                            program_driven=true,screen_acceptance=false,diagnostic_pixel_sampling=pixels,steps,work=work.Summary(),root=root?.Summary(),
++                            session_bytes=form.Rendering!.Bytes,session_peak_bytes=form.Rendering.PeakBytes},new JsonSerializerOptions{WriteIndented=true}));
++                        Console.WriteLine($"PASS resize pipeline label={label}; dpi={form.DeviceDpi}; steps=12; pixel_sampling={pixels}; dropped={work.Dropped}");result=0;
++                    }
++                    catch(Exception){Console.Error.WriteLine("FAIL resize pipeline fixed-code=ProbeFailed");}
++                    finally{ResizeWorkProbe.Current=null;form.Close();}
++                };
++                Application.Run(form);completed=true;
++            }
++            catch{Console.Error.WriteLine("FAIL resize pipeline fixed-code=WorkerFailed");}
++        }){IsBackground=true};thread.SetApartmentState(ApartmentState.STA);thread.Start();
++        if(!thread.Join(TimeSpan.FromSeconds(90))){Console.Error.WriteLine("FAIL resize pipeline deadline");return 1;}
++        if(completed && Path.GetFullPath(directory).StartsWith(Path.TrimEndingDirectorySeparator(Path.GetTempPath())+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))
++            Directory.Delete(directory,true);
++        return result;
++    }
++
++    private sealed class RootPixels:NativeWindow,IDisposable
++    {
++        private readonly Form owner;private Size old;
++        private readonly int[,] valid=new int[6,13],black=new int[6,13];
++        internal int Step;
++        internal RootPixels(Form owner){this.owner=owner;AssignHandle(owner.Handle);}
++        protected override void WndProc(ref Message m)
++        {
++            if(m.Msg==0x46 && GetClientRect(Handle,out var r))old=new(r.Right,r.Bottom);
++            int phase=m.Msg switch{0x85=>0,0x14=>2,0x47=>4,_=>-1};
++            if(phase>=0)Sample(phase);
++            try{base.WndProc(ref m);}finally{if(phase>=0)Sample(phase+1);}
++        }
++        private void Sample(int phase)
++        {
++            if(Step is <1 or >12 || !GetClientRect(Handle,out var r))return;
++            var points=new List<Point>(2);
++            if(r.Right>old.Width)points.Add(new(r.Right-2,r.Bottom*2/3));
++            if(r.Bottom>old.Height)points.Add(new(r.Right*2/3,r.Bottom-2));
++            IntPtr dc=GetDCEx(Handle,IntPtr.Zero,0x2|0x8|0x10);if(dc==IntPtr.Zero)return;
++            try{foreach(var p in points)if(PtVisible(dc,p.X,p.Y))
++                {uint color=GetPixel(dc,p.X,p.Y);if(color==0xffffffff)continue;valid[phase,Step]++;if((color&0xffffff)==0)black[phase,Step]++;}}
++            finally{ReleaseDC(Handle,dc);}
++        }
++        internal object Summary()=>new{evidence="discrete GDI only",phases=Enumerable.Range(0,6).Select(p=>new
++            {phase=new[]{"NcEntering","NcReturned","EraseEntering","EraseReturned","PositionEntering","PositionReturned"}[p],
++                valid=Enumerable.Range(1,12).Sum(s=>valid[p,s]),black=Enumerable.Range(1,12).Sum(s=>black[p,s])}).ToArray()};
++        public void Dispose(){ReleaseHandle();GC.KeepAlive(owner);}
++        [StructLayout(LayoutKind.Sequential)]private struct Rect{internal int Left,Top,Right,Bottom;}
++        [DllImport("user32.dll")]private static extern bool GetClientRect(IntPtr h,out Rect r);
++        [DllImport("user32.dll")]private static extern IntPtr GetDCEx(IntPtr h,IntPtr r,uint flags);
++        [DllImport("user32.dll")]private static extern int ReleaseDC(IntPtr h,IntPtr d);
++        [DllImport("gdi32.dll")]private static extern bool PtVisible(IntPtr d,int x,int y);
++        [DllImport("gdi32.dll")]private static extern uint GetPixel(IntPtr d,int x,int y);
++    }
++}
+diff --git a/tests/RootCompositeTests.cs b/tests/RootCompositeTests.cs
+new file mode 100644
+--- /dev/null
++++ b/tests/RootCompositeTests.cs
+@@ -0,0 +1,108 @@
++using DiskAtlas;
++using System.Reflection;
++using System.Drawing.Drawing2D;
++
++internal static class RootCompositeTests
++{
++    internal static int Run(bool dpi96)
++    {
++        int checks=0;long pixels=0;string? failure=null;
++        var thread=new Thread(()=>
++        {
++            try
++            {
++                Application.SetHighDpiMode(dpi96?HighDpiMode.DpiUnaware:HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles();
++                using var form=new MainForm(null,dibCandidate:true);
++                form.Shown+=(_,_)=>
++                {
++                    try
++                    {
++                        var coverage=(DibWindowCoverage)typeof(MainForm).GetField("dibCoverage",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(form)!;
++                        var session=form.Rendering!;
++                        var size=new Size(193,127);
++                        for(int sample=0;sample<3;sample++)
++                        {
++                            using var image=new Bitmap(67,43);
++                            using(var g=Graphics.FromImage(image))
++                            {
++                                using var brush=new LinearGradientBrush(new Rectangle(0,0,67,43),sample==0?Color.Black:Color.Salmon,sample==2?Color.Navy:Color.White,37f);
++                                g.FillRectangle(brush,0,0,67,43);
++                            }
++                            var previous=form.BackgroundImage;form.BackgroundImage=new Bitmap(image);previous?.Dispose();
++                            using var child=new WallpaperTable{Size=new Size(79,61)};form.Controls.Add(child);
++                            var frame=coverage.RootFrame(size);
++                            Check(frame!=null && frame.Native,"RootFrameAvailable");
++                            using var direct=new NativeResizeFrame(size,form.DeviceDpi);
++                            direct.RenderOpaque(g=>Wallpaper.Paint(form,g,nativeSize:size,nativeCopy:false));
++                            for(int y=0;y<size.Height;y++)for(int x=0;x<size.Width;x++)
++                            {
++                                if(frame!.Bitmap.GetPixel(x,y).ToArgb()!=direct.Bitmap.GetPixel(x,y).ToArgb())throw new Failure("RootCompositePixelDifference");
++                                pixels++;
++                            }
++                            Check(ReferenceEquals(frame,coverage.RootFrame(size)),"MatchingKeyReusesRoot");
++                            using var target=new NativeResizeFrame(child.Size,form.DeviceDpi);
++                            bool copied=false;
++                            target.RenderOpaque(g=>{g.Clear(Color.Coral);copied=coverage.TryPaintCachedRoot(child,g,size,new Point(18,12),42);});
++                            Check(copied,"MappedRootSubsetCopied");
++                            for(int y=0;y<child.Height;y++)for(int x=0;x<child.Width;x++)
++                            {
++                                if(target.Bitmap.GetPixel(x,y).ToArgb()!=frame!.Bitmap.GetPixel(x+18,y+12).ToArgb())throw new Failure("RootSubsetPixelDifference");
++                                pixels++;
++                            }
++                            target.RenderOpaque(g=>
++                            {
++                                g.Clear(Color.Coral);
++                                using var clip=new Region(new Rectangle(3,4,41,32));clip.Exclude(new Rectangle(10,11,7,9));g.SetClip(clip,CombineMode.Replace);
++                                Check(coverage.TryPaintCachedRoot(child,g,size,new Point(18,12),42),"NativeClipAccepted");
++                            });
++                            for(int y=0;y<child.Height;y++)for(int x=0;x<child.Width;x++)
++                            {
++                                bool copiedPixel=new Rectangle(3,4,41,32).Contains(x,y)&&!new Rectangle(10,11,7,9).Contains(x,y);
++                                int expected=copiedPixel?frame!.Bitmap.GetPixel(x+18,y+12).ToArgb():Color.Coral.ToArgb();
++                                if(target.Bitmap.GetPixel(x,y).ToArgb()!=expected)throw new Failure("RootClipPixelDifference");pixels++;
++                            }
++                            target.RenderOpaque(g=>Check(!coverage.TryPaintCachedRoot(child,g,size,Point.Empty,122),"OtherWashRejected"));
++                            target.RenderOpaque(g=>Check(!coverage.TryPaintCachedRoot(child,g,new Size(194,127),Point.Empty,42),"WrongSizeRejected"));
++                            target.RenderOpaque(g=>{g.TranslateTransform(1,0);Check(!coverage.TryPaintCachedRoot(child,g,size,Point.Empty,42),"TransformFallsBack");});
++                        }
++                        var oldCropFrame=coverage.RootFrame(size);
++                        typeof(MainForm).GetProperty("BackgroundCrop",BindingFlags.Instance|BindingFlags.NonPublic)!
++                            .SetValue(form,new BackgroundView(.1f,.85f,1.4f,null));
++                        var cropped=coverage.RootFrame(size);
++                        Check(cropped!=null && !ReferenceEquals(cropped,oldCropFrame),"CropOnlyChangeInvalidatesRoot");
++                        using(var direct=new NativeResizeFrame(size,form.DeviceDpi))
++                        {
++                            direct.RenderOpaque(g=>Wallpaper.Paint(form,g,nativeSize:size,nativeCopy:false));
++                            for(int y=0;y<size.Height;y++)for(int x=0;x<size.Width;x++)
++                            {if(cropped!.Bitmap.GetPixel(x,y).ToArgb()!=direct.Bitmap.GetPixel(x,y).ToArgb())throw new Failure("RootCropPixels");pixels++;}
++                        }
++                        typeof(MainForm).GetProperty("HasCustomBackground",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(form,true);
++                        using(var navigation=new NavigationPanel{Size=new Size(79,61)})
++                        using(var target=new NativeResizeFrame(navigation.Size,form.DeviceDpi))
++                            target.RenderOpaque(g=>Check(!coverage.TryPaintCachedRoot(navigation,g,size,Point.Empty,42),"CustomNavigationWashNotReplaced"));
++                        long reserved=RenderSession.MaxBytes-session.Bytes;
++                        Check(session.Reserve(reserved),"FillTestBudget");
++                        Check(coverage.RootFrame(new Size(1000,800))==null,"NoOverspendOrStaleFrame");
++                        session.Release(reserved);
++                        Check(coverage.RootFrame(size)!=null && session.Bytes<=RenderSession.MaxBytes,"RecoverAfterBudgetFreed");
++                        coverage.UseRootCache=false;Check(coverage.RootFrame(size)==null,"ComparisonSwitchUsesOriginalPath");
++                        coverage.UseRootCache=true;Check(coverage.RootFrame(size)!=null,"ComparisonSwitchRestoresCache");
++                        session.Failed();session.Failed();session.Failed();Check(coverage.RootFrame(size)==null,"DisabledSessionReleasesRoot");
++                        form.Dispose();Check(session.Bytes==0,"AllSessionPixelsReleased");
++                        Check(coverage.RootFrame(size)==null && session.Bytes==0,"DisposedCoverageCannotAllocate");
++                    }
++                    catch(Exception e){failure=e is Failure f?f.Code:"UnexpectedRootComposite";}
++                    finally{if(!form.IsDisposed)form.Close();}
++                };
++                Application.Run(form);
++            }
++            catch{failure="RootWorkerFailed";}
++        }){IsBackground=true};thread.SetApartmentState(ApartmentState.STA);thread.Start();
++        if(!thread.Join(TimeSpan.FromSeconds(40)))failure="RootCompositeDeadline";
++        Console.WriteLine($"{(failure==null?"PASS":"FAIL")} root composite checks={checks}; rgba_pixels={pixels}; code={failure??"None"}; zero_tolerance=true");
++        return failure==null?0:1;
++        void Check(bool condition,string code){if(!condition)throw new Failure(code);checks++;}
++    }
++    private sealed class Failure(string code):Exception{internal string Code {get;}=code;}
++}
+diff --git a/docs/ui-resize-pipeline-plan.md b/docs/ui-resize-pipeline-plan.md
+new file mode 100644
+--- /dev/null
++++ b/docs/ui-resize-pipeline-plan.md
+@@ -0,0 +1,19 @@
++# C53：剩余缩放闪黑和卡顿
++
++2026-11-20，用户批准合并定位、针对性修正和必要回归，完成后打开C53候选；C52已确认保留，本轮不改普通默认。保持现有布局、背景、字号、动效；不录屏、不改系统设置、不读取个人卷。
++
++## 已知证据和本轮目标
++
++C51固定序列的NcPaintReturned黑点从20降至0，Entering仍20；单次实际请求间隔约0.57–0.79秒，不能当作30Hz。C52已关闭文字缓存差异，四组完整UI通过。下一步只处理当前绘制路径，不启动框架迁移或全界面自绘。
++
++先用真实MainForm、自建目录和固定12步序列，在相同DPI、尺寸及动效条件拆测根消息、背景生成、布局呈现、Treemap缓存、列表底图、早期/暴露区补绘。使用默认关闭的内存探针，只记录固定类别、尺寸、耗时及计数，不存截图、窗口标题、路径或清单；限制步骤和事件容量。早期可见点继续分别记录进入/返回，不能只看复制后的点。
++
++重点核实下一尺寸背景准备与旧托管尺寸的缓存请求是否反复替换，以及多消息补画是否重复承担整窗成本。它们目前是代码可疑路径，不是已证实根因。根据测量只修明确热点和呈现空档；失败保持原画面/完整回退，不复用尺寸或背景版本不符的帧。
++
++## 验收与交付
++
++- 同一固定序列记录整步实际耗时和各阶段包含式耗时；阶段可嵌套，不能相加冒充总时间。先保留基线，修后同条件对照，解释缓存/负载限制。
++- 支持复制映射与像素、资源/预算、两档布局/呈现与完整UI保持通过；补充本轮失效/重入/失败边界，不能放宽文字或表面断言。
++- 原布局、背景裁切、1.15倍沿边柔光、列表双行/滚动和原生输入行为不退化。用真实正常功能候选观察，再请用户反馈；普通默认与正式Release不改。
++- 离散GDI取点不是连续DWM呈现证据。若现有多表面结构仍无法消除剩余闪黑，明确给出所在阶段及限制，先向用户说明下一方案，不转而盲调参数。
++- 合并必要检查、更新状态/记忆、保存本轮前像和可恢复补丁，清理本轮无用产物。继承C30暂存和C31–C52代码不混提。
+diff --git a/docs/project-status.md b/docs/project-status.md
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,4 +1,10 @@
+ # AsukaLens 项目现状
++
++## 进行中：C53缩放根背景合成与卡顿排查（2026-11-20）
++
++用户已批准合并定位、针对性修正和回归，保持布局、背景、字号、动效，不录屏/改系统，不设默认。默认关闭的有界内存探针排除壁纸尺寸反复重建；11次尺寸变化只重建11次，实际热点是44次根窗口半透明补画。根背景与原遮罩在匹配尺寸的DIB预合成一次，相同Ambient表面只在完整缓存键匹配时复用，仍按目标原生裁切发布，预算不足/失效/不支持复制走原绘制。
++
++同构建off/on/on/off固定序列中，144DPI同步尺寸处理p50由约797–842ms降至376–401ms，96DPI一对为404→251ms；不代表帧率。最终提前准备把RootCover累计降到约81ms，总同步p50约441ms，成本移到准备阶段。NcPaintEntering的离散黑点仍在，不能宣称连续屏幕闪黑已解决。根合成两档各31项/126958RGBA零差异；四组完整UI及两档DIB集成/表面/布局/背景/滚动通过，柔光首次超时、同构建两档复验各99项通过，失败证据保留；最终版另复验两档根/集成/完整DIB UI。C53已启动，桌面锁屏，实际窗口复审待解锁。C52与普通输出保留；详见[C53记录](../iterations/2026-11-20-53-resize-pipeline/README.md)。
+ 
+ ## 最新：C52文字缓存修正，完整UI回归恢复通过（2026-11-20）
+ 
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,4 +1,8 @@
+ # 后续开发计划
++
++## 进行中：C53已批准缩放排查与针对性优化（2026-11-20）
++
++本轮按[合并方案](ui-resize-pipeline-plan.md)处理根背景重复合成热点，固定序列已观察到耗时下降。匹配像素/裁切/预算/失效回退、两档相关回归及最终构建已完成，补丁/证据已归档，本轮重复诊断文件已压缩清理。最终C53已启动，等待用户解锁后实际窗口复审；最早闪黑仍保留，不能因卡顿改善自动关闭。普通默认/Release不改，用户效果复审后再决定下一范围；不在本轮扩大到全界面架构迁移。
+ 
+ ## 最新：C52先修文字缓存与完整回归（2026-11-20）
+ 
+diff --git a/docs/ui-rendering-defects-handoff.md b/docs/ui-rendering-defects-handoff.md
+--- a/docs/ui-rendering-defects-handoff.md
++++ b/docs/ui-rendering-defects-handoff.md
+@@ -1,4 +1,14 @@
+ # 主界面绘制缺陷交接
++
++## C53根合成热点改善，最早黑点仍开放（2026-11-20）
++
++用户已批准合并排查/修正/回归及候选展示。12步真实主窗探针排除“壁纸尺寸来回重建”：11次变化仅11次重建；44次根半透明补画合计约3061ms，是已测热点。根壁纸与原遮罩预合成为有界DIB，并在尺寸、图片、聚焦、DPI、颜色/alpha完全匹配时复用，保留目标原生裁切与原回退。进一步在PositionChanging完成准备，使RootCover累计降到约81ms；这部分成本移到早期准备，不从总计时中删去。
++
++同构建144DPI off/on/on/off同步Size p50约842/401/376/797ms，96一对404/251ms；最终提前准备版144同步p50约441ms。新缓存约11MiB，仍归128MiB会话预算。程序驱动、暖缓存/外部负载未控，不当作真实帧率；仍未达到实时高帧率目标。
++
++新根像素/带孔裁切/预算与失效检查两档各31项、126958RGBA零容差；普通/DIB两档完整UI及相关专项通过。柔光首次30秒超时发生在独立普通Form恢复阶段，原因未确认，同构建两档复验99项通过；保留首次日志、不改限时。最终提前准备版另复验两档根/集成/完整DIB UI。
++
++最终NcEntering 10个有效点8黑，NcReturned及后续有效点0黑；早期取点仍在本窗补画之前，不凭返回0黑关闭真实闪黑，也不把少量黑点计数变动当改善证明。C53完整功能候选已启动，当前桌面锁屏，实际观感待解锁/用户复审；不设默认、不迁移框架、不改布局/背景/字号/动效、不录屏或改系统设置。见[C53](../iterations/2026-11-20-53-resize-pipeline/README.md)。
+ 
+ ## C52文字缓存根因与修正（2026-11-20）
+ 
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,4 +1,14 @@
+ # AsukaLens 开发检查点
++
++## 进行中：2026-11-20 C53候选待解锁复审
++
++用户批准合并缩放闪黑/卡顿定位、针对性修正和回归，保留布局/背景/字号/动效，不录屏、改系统或设默认。C52工作区前像在iterations/2026-11-20-53-resize-pipeline/before；方案docs/ui-resize-pipeline-plan.md。ResizeWorkProbe默认关闭、12步/256事件，排除尺寸来回重建(11变化/11重建)。已测热点44次根半透明合成3061ms；新增精确键/有界根DIB预合成及同Ambient复用，严格映射/失效回退，仍归128MiB预算，额外约11MiB。最终把准备移到PositionChanging，RootCover约81ms；不是凭空消除成本。
++
++同构建off/on/on/off144DPI Size同步p50为842/401/376/797ms；96 off/on404/251ms；最终提前准备版144约441ms。都是暖UI程序序列/外部负载未控，不是帧率。最终NcEntering 8/10黑、Returned及之后0黑，真实闪黑/长尾不关闭。根两档各31项/126958RGBA零差异；DIB608、两档集成26/表面688或658/布局35/呈现98/背景7组/滚动16，普通/DIB四组完整UI通过。柔光首次30秒超时发生在独立普通Form恢复，原因未明，同构建两档99复验通过，保留失败。最终提前准备版另外复验根/集成/完整DIB UI两档通过。
++
++C53最终应用/测试构建0警告，入口artifacts/dib-mainform-C53/app/AsukaLens.DibCandidate.exe，独立数据目录已预建，自建52文件约8.97MiB。已启动；当前桌面锁屏，停止CUA并已问用户解锁，实际画面/反馈尚未检查，不擅自标通过。先前本轮未体验的实例仅为最终补准备而替换，C52和普通bin保持。本轮16文件补丁已逐字节重放，源码/二进制哈希与隐私核查完成；55份自有原始证据压缩为ignored候选目录owned-validation.zip约64KiB后清散文件，重复apphost已删除。接下来仅待用户解锁后实际展示/反馈，不自动切默认或迁移架构。
++
++记录iterations/2026-11-20-53-resize-pipeline/README.md及performance-summary.json；本机原始探针/检查输出ignored artifacts/resize-pipeline-C53。无个人卷/raw/VSS/系统或OBS操作。Git仍9ac1f0b，继承C30 index和C31–C52依赖不混提，未提交/推送/发布。
+ 
+ ## 最新：2026-11-20 C52文字缓存与完整UI回归通过
+ 
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,4 +1,6 @@
+ # 影响后续开发的决定
++
++- 2026-11-20：用户批准C53合并缩放排查/修正/回归。依据真实计时预合成精确匹配的根DIB，复用Ambient并将准备提前，保持布局/背景/字号/动效及128MiB预算；同步尺寸成本下降，最早黑点仍在，不据后期0黑或取点减少关闭闪黑。候选已启动，锁屏期间停止输入，待解锁复审，不设默认或自动扩大架构。证据 iterations/2026-11-20-53-resize-pipeline/README.md。
+ 
+ - 2026-11-20：用户选择C52先修文字缓存、恢复完整UI，暂缓继续缩放调优。真实DC底图文字缓存解决抗锯齿差异，保留缓存/字号/动效及原阈值；普通/DIB两档完整UI通过。候选已展示，用户反馈“正常，保留C52候选”，保留本版、不设默认。最早闪黑与长尾不由文字修正关闭；额外表面参考图错误独立保留失败证据。见 iterations/2026-11-20-52-text-cache/README.md。
+ 

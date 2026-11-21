@@ -1,0 +1,1774 @@
+diff --git a/MainForm.cs b/MainForm.cs
+index 668cf86..cf1fe77 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -52,6 +52,8 @@ internal sealed class MainForm : Form
+     private ColumnStyle? restoreCompleteColumn;
+     private RowStyle? footerActionRow, footerShellRow;
+     private bool updatingFooterLayout;
++    private WallpaperTable? contentLayoutRoot, footerLayoutRoot;
++    private LayoutPresentation? layoutPresentation;
+     private readonly ActionButton clearType = new("清除类型筛选") { Dock = DockStyle.Fill, Visible = false, Margin = new Padding(0, 14, 12, 12) };
+     private ColumnStyle? filterColumn;
+     private readonly ActionButton previousPage = new("上一页") { Dock = DockStyle.Fill, Enabled = false };
+@@ -261,7 +263,6 @@ internal sealed class MainForm : Form
+         try
+         {
+             bool shown = !string.IsNullOrWhiteSpace(subtitle.Text);
+-            scopePanel.Visible = shown;
+             float scale = DeviceDpi / 96f;
+             int width = scopePanel.ClientSize.Width - scopePanel.Padding.Horizontal;
+             if (width <= 0) return; // Re-measure after the restored layout has a real width.
+@@ -271,7 +272,17 @@ internal sealed class MainForm : Form
+             // exceptional combinations their measured height rather than
+             // clipping snapshot/exclusion facts after a long type filter.
+             float height = shown ? Math.Max(textHeight + 8 * scale, 28 * scale) : 0;
+-            if (Math.Abs(scopeRow.Height - height) > .5f) scopeRow.Height = height;
++            if (Math.Abs(scopeRow.Height - height) <= .5f && scopePanel.Visible == shown) return;
++            // Visibility and height describe one layout state. Do not let a
++            // native child move once for each half of that state change.
++            using var presentation = contentLayoutRoot == null ? null : layoutPresentation?.BeginLayout(contentLayoutRoot);
++            contentLayoutRoot?.SuspendLayout();
++            try
++            {
++                scopeRow.Height = height;
++                scopePanel.Visible = shown;
++            }
++            finally { contentLayoutRoot?.ResumeLayout(true); }
+         }
+         finally { updatingScopeLayout = false; }
+     }
+@@ -309,15 +320,21 @@ internal sealed class MainForm : Form
+             RefreshDiskActivity();
+             return;
+         }
+-        // Repaint unchanged child bounds too: all surfaces share window coordinates.
+-        Invalidate(true);
+         UpdateScopeLayout();
+         RefreshDiskActivity();
+         if (wasMinimized)
+         {
++            // Keep restore asynchronous; the deferred black-flash issue is
++            // not handled by the ordinary geometry presentation boundary.
++            Invalidate(true);
+             wasMinimized = false;
+             QueueRestoreRepaint();
+         }
++        else if (!restoreRepaintQueued)
++        {
++            Invalidate();
++            layoutPresentation?.WindowResized();
++        }
+     }
+ 
+     private void QueueRestoreRepaint()
+@@ -326,14 +343,17 @@ internal sealed class MainForm : Form
+         restoreRepaintQueued = true;
+         BeginInvoke((Action)(() =>
+         {
+-            restoreRepaintQueued = false;
+-            if (IsDisposed || Disposing || !Visible || WindowState == FormWindowState.Minimized) return;
+-            // Restore completes child positioning after WM_SIZE. Re-measure
+-            // and invalidate from the final geometry, including unchanged children.
+-            PerformLayout();
+-            UpdateScopeLayout();
+-            WallpaperRaster.Get(BackgroundImage, ClientSize, BackgroundCrop);
+-            Invalidate(true);
++            try
++            {
++                if (IsDisposed || Disposing || !Visible || WindowState == FormWindowState.Minimized) return;
++                // Restore completes child positioning after WM_SIZE. Re-measure
++                // and invalidate from the final geometry, including unchanged children.
++                PerformLayout();
++                UpdateScopeLayout();
++                WallpaperRaster.Get(BackgroundImage, ClientSize, BackgroundCrop);
++                Invalidate(true);
++            }
++            finally { restoreRepaintQueued = false; }
+         }));
+     }
+ 
+@@ -405,6 +425,7 @@ internal sealed class MainForm : Form
+         shell.Controls.Add(navigation, 0, 0);
+         navigation.AttachActivity(activityPanel, () => activityPanel.Expanded);
+         var main = Table(1, 9);
++        contentLayoutRoot = main;
+         main.Padding = new Padding(28, 18, 28, 12);
+         foreach (float height in new float[] { 50, 52, 80, 52 }) main.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+         scopeRow = new RowStyle(SizeType.Absolute, 0);
+@@ -515,6 +536,7 @@ internal sealed class MainForm : Form
+         main.Controls.Add(split, 0, 5);
+ 
+         var bottom = Table(1, 3); bottom.Surface = WallpaperSurface.Chrome; bottom.Framed = true;
++        footerLayoutRoot = bottom;
+         bottom.Padding = new Padding(1); bottom.Margin = new Padding(0, 8, 0, 0);
+         bottom.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
+         bottom.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+@@ -547,7 +569,17 @@ internal sealed class MainForm : Form
+         restoreComplete.VisibleChanged += (_, _) => UpdateFooterLayout();
+         footer.SizeChanged += (_, _) => UpdateFooterLayout();
+         Shown += (_, _) => UpdateFooterLayout();
++        layoutPresentation = new LayoutPresentation(this, () => wasMinimized || restoreRepaintQueued,
++            ReconcileSurfaceClips, main, listPanel, navigation);
++    }
++
++    private static void ReconcileSurfaceClips(Control root)
++    {
++        if (root.IsDisposed || root.Disposing) return;
++        if (root is WallpaperTable table) table.ReconcileContentClips();
++        foreach (Control child in root.Controls.Cast<Control>().ToArray()) ReconcileSurfaceClips(child);
+     }
++    internal IDisposable? BeginLayoutPresentation(Control root) => layoutPresentation?.BeginLayout(root);
+ 
+     private void UpdateFooterLayout()
+     {
+@@ -558,8 +590,12 @@ internal sealed class MainForm : Form
+             bool hasActions = issues.Visible || restoreComplete.Visible;
+             float scale = DeviceDpi / 96f;
+             float height = hasActions ? 30 * scale : 0;
+-            if (Math.Abs(footerActionRow.Height - height) > .5f) footerActionRow.Height = height;
+-            if (Math.Abs(footerShellRow.Height - height) > .5f) footerShellRow.Height = height;
++            if (Math.Abs(footerActionRow.Height - height) <= .5f && Math.Abs(footerShellRow.Height - height) <= .5f) return;
++            using var presentation = contentLayoutRoot == null ? null : layoutPresentation?.BeginLayout(contentLayoutRoot);
++            contentLayoutRoot?.SuspendLayout();
++            footerLayoutRoot?.SuspendLayout();
++            try { footerActionRow.Height = height; footerShellRow.Height = height; }
++            finally { footerLayoutRoot?.ResumeLayout(true); contentLayoutRoot?.ResumeLayout(true); }
+         }
+         finally { updatingFooterLayout = false; }
+     }
+@@ -1464,6 +1500,7 @@ internal sealed class MainForm : Form
+     {
+         if (disposing)
+         {
++            layoutPresentation?.Dispose();
+             completeRecovery = null;
+             searchTimer.Dispose(); previewTimer.Dispose(); scanTip.Dispose(); filePathFont.Dispose(); scanCancellation?.Cancel(); viewCancellation?.Cancel();
+             activityMonitor?.Dispose();
+diff --git a/Wallpaper.cs b/Wallpaper.cs
+index 538d689..7a002d6 100644
+--- a/Wallpaper.cs
++++ b/Wallpaper.cs
+@@ -268,6 +268,7 @@ internal sealed class WallpaperTable : TableLayoutPanel
+             if (framed) contentClips[child] = key; else contentClips.Remove(child);
+         }
+     }
++    internal void ReconcileContentClips() => UpdateContentClips();
+     protected override void OnControlRemoved(ControlEventArgs e)
+     {
+         if (e.Control is { } child && contentClips != null && contentClips.Remove(child) && !child.IsDisposed && !Disposing)
+@@ -277,7 +278,12 @@ internal sealed class WallpaperTable : TableLayoutPanel
+         }
+         base.OnControlRemoved(e);
+     }
+-    protected override void OnLayout(LayoutEventArgs e) { base.OnLayout(e); UpdateContentClips(); }
++    protected override void OnLayout(LayoutEventArgs e)
++    {
++        using var presentation = (FindForm() as MainForm)?.BeginLayoutPresentation(this);
++        base.OnLayout(e);
++        UpdateContentClips();
++    }
+     protected override void Dispose(bool disposing)
+     {
+         if (disposing) contentClips?.Clear();
+@@ -306,6 +312,7 @@ internal sealed class WallpaperGrid : DataGridView
+         !IsHandleCreated || GetProp(Handle, "SysSetRedraw") != IntPtr.Zero;
+     internal const long MaxBackdropPixels = 4_000_000;
+     internal int BackdropBuilds { get; private set; }
++    internal event EventHandler? PresentationResumed;
+     internal long BackdropBytes => backdrop == null ? 0 : (long)backdrop.Width * backdrop.Height * 4;
+     private Bitmap? backdrop;
+     private BackdropKey? backdropKey, rejectedBackdropKey;
+@@ -387,6 +394,7 @@ internal sealed class WallpaperGrid : DataGridView
+         IntPtr held = redrawHeldHandle; redrawHeldHandle = IntPtr.Zero;
+         SendMessage(held, 0x000B, new IntPtr(1), IntPtr.Zero);
+         Invalidate(true);
++        PresentationResumed?.Invoke(this, EventArgs.Empty);
+     }
+ 
+     private void PresentScroll()
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 6312e9e..5f8e4f6 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -388,6 +388,11 @@ if (args.Contains("--input-frame-surface-tests")) return InputFrameSurfaceTests.
+ if (args.Contains("--progress-marker-tests")) return ProgressMarkerRenderingTests.Run(args.Contains("--dpi-96"));
+ if (args.Contains("--scrollbar-surface-tests")) return ScrollbarSurfaceTests.Run(args.Contains("--dpi-96"));
+ if (args.Contains("--backdrop-stability-tests")) return BackdropStabilityTests.Run(args.Contains("--dpi-96"));
++if (args.Contains("--layout-transition-tests")) return LayoutTransitionRegression.Run(args.Contains("--dpi-96"));
++if (args.Contains("--layout-transition-preview")) return LayoutTransitionPreview.Run(args.Contains("--dpi-96"));
++#if !LAYOUT_BASELINE
++if (args.Contains("--layout-presentation-tests")) return LayoutPresentationPolicyTests.Run(args.Contains("--dpi-96"));
++#endif
+ if (args.Contains("--wallpaper-drawing-probe")) return WallpaperDrawingProbe.Run();
+ if (args.Contains("--disk-activity-live")) return DiskActivityLiveChecks.Run();
+ if (args.Contains("--disk-activity-resource-probe")) return DiskActivityResourceProbe.Run();
+diff --git a/src/UI/LayoutPresentation.cs b/src/UI/LayoutPresentation.cs
+new file mode 100644
+index 0000000..c7008c1
+--- /dev/null
++++ b/src/UI/LayoutPresentation.cs
+@@ -0,0 +1,291 @@
++using System.Runtime.InteropServices;
++
++namespace DiskAtlas;
++
++// Geometry changes need a presentation boundary after child HWNDs and their
++// rounded clips settle. It owns one queue slot and, only during a registered
++// table's synchronous layout, an explicitly owned local redraw hold.
++internal sealed class LayoutPresentation : IDisposable
++{
++    private readonly Form owner;
++    private readonly Func<bool> suppressed;
++    private readonly Action<Control> settleClips;
++    private readonly List<Root> roots = [];
++    private bool queued, presenting, disposed;
++    private long ticket;
++    internal bool HasQueuedWork => queued;
++    internal int Presentations { get; private set; }
++    internal int PendingRoots => roots.Count(root => !root.Dirty.IsEmpty);
++
++    internal LayoutPresentation(Form owner, Func<bool> suppressed, Action<Control> settleClips, params Control[] controls)
++    {
++        this.owner = owner; this.suppressed = suppressed; this.settleClips = settleClips;
++        foreach (var control in controls) roots.Add(new Root(this, control));
++        owner.HandleDestroyed += OwnerHandleDestroyed;
++        owner.HandleCreated += Retry;
++    }
++
++    internal void ResizeSurfaces()
++    {
++        foreach (var root in roots) Request(root, root.Control.ClientRectangle);
++    }
++    internal void WindowResized() { foreach (var root in roots.ToArray()) root.Observe(); }
++    internal IDisposable? BeginLayout(Control control)
++    {
++        if (presenting || !Allowed) return null;
++        return roots.FirstOrDefault(root => root.Control == control)?.HoldLayout();
++    }
++
++    private void PresentPending()
++    {
++        if (presenting || !Allowed || !roots.Any(root => !root.Dirty.IsEmpty && Ready(root.Control))) return;
++        queued = false;
++        Flush(++ticket, owner.Handle);
++    }
++    // External redraw-lock owners must call this after releasing their lock.
++    // The grid's own outer scroll transaction supplies the same notification.
++    internal void RetryPending() => Queue();
++    private void Retry(object? sender, EventArgs args) => RetryPending();
++
++    private bool Allowed => !disposed && !owner.IsDisposed && !owner.Disposing && owner.IsHandleCreated &&
++        owner.Visible && owner.WindowState != FormWindowState.Minimized && !suppressed();
++
++    private void Request(Root root, Rectangle rectangle)
++    {
++        if (!Allowed) { Clear(); return; }
++        rectangle = Rectangle.Intersect(rectangle, root.Control.ClientRectangle);
++        if (rectangle.Width > 0 && rectangle.Height > 0)
++            root.Dirty = root.Dirty.IsEmpty ? rectangle : Rectangle.Union(root.Dirty, rectangle);
++        Queue();
++    }
++
++    private void Queue()
++    {
++        if (queued || presenting || !Allowed || !roots.Any(root => !root.Dirty.IsEmpty && Ready(root.Control))) return;
++        queued = true;
++        long expected = ++ticket;
++        IntPtr handle = owner.Handle; // Allowed checked IsHandleCreated; never create one.
++        try { owner.BeginInvoke((Action)(() => Flush(expected, handle))); }
++        catch (InvalidOperationException) { queued = false; Clear(); }
++    }
++
++    private bool Ready(Control control)
++    {
++        if (control.IsDisposed || control.Disposing || !control.IsHandleCreated || !control.Visible || control.FindForm() != owner) return false;
++        for (Control? ancestor = control; ancestor != null; ancestor = ancestor.Parent)
++            if (ancestor.IsHandleCreated && GetProp(ancestor.Handle, "SysSetRedraw") != IntPtr.Zero) return false;
++        return !HasPausedGrid(control);
++    }
++
++    private static bool HasPausedGrid(Control control)
++    {
++        if (control is WallpaperGrid grid && grid.Visible && grid.IsHandleCreated && grid.ScrollbarPaintingPaused) return true;
++        foreach (Control child in control.Controls)
++            if (child.Visible && HasPausedGrid(child)) return true;
++        return false;
++    }
++
++    private void Flush(long expected, IntPtr handle)
++    {
++        if (disposed || expected != ticket) return;
++        queued = false;
++        if (!Allowed || owner.Handle != handle) { Clear(); return; }
++        presenting = true;
++        try
++        {
++            var currentRoots = roots.ToArray();
++            bool Current() => !disposed && expected == ticket && Allowed && owner.Handle == handle;
++            foreach (var root in currentRoots)
++            {
++                if (!Current()) return;
++                if (root.Dirty.IsEmpty || !Ready(root.Control)) continue;
++                root.Control.PerformLayout();
++                if (!Current()) return;
++                settleClips(root.Control);
++                if (!Current()) return;
++                root.Observe();
++            }
++            // A parent request covers its registered descendants. Keep only
++            // the small list root when pagination is the sole geometry change.
++            foreach (var parent in currentRoots)
++            foreach (var child in currentRoots)
++            {
++                if (parent == child || parent.Dirty.IsEmpty || child.Dirty.IsEmpty || !parent.Control.Contains(child.Control)) continue;
++                Point offset = Offset(child.Control, parent.Control);
++                var area = child.Dirty; area.Offset(offset);
++                parent.Dirty = Rectangle.Union(parent.Dirty, area);
++                child.Dirty = Rectangle.Empty;
++            }
++            var batches = currentRoots.Where(root => !root.Dirty.IsEmpty && Ready(root.Control))
++                .Select(root => (Root: root, Area: Rectangle.Intersect(root.Dirty, root.Control.ClientRectangle), Handle: root.Control.Handle)).ToArray();
++            foreach (var batch in batches)
++            {
++                if (!Current()) return;
++                if (!Ready(batch.Root.Control)) continue; // Keep its pending area.
++                if (batch.Root.Control.Handle != batch.Handle)
++                {
++                    batch.Root.Dirty = batch.Root.Control.ClientRectangle;
++                    continue;
++                }
++                var area = Rectangle.Intersect(batch.Root.Dirty.IsEmpty ? batch.Area : Rectangle.Union(batch.Area, batch.Root.Dirty), batch.Root.Control.ClientRectangle);
++                batch.Root.Dirty = Rectangle.Empty;
++                var rect = new NativeRect(area);
++                // No Form-root or frame repaint, lock toggling, or loop here.
++                // UPDATENOW also drains already pending paint on these HWNDs.
++                if (RedrawWindow(batch.Handle, ref rect, IntPtr.Zero, 0x0001 | 0x0004 | 0x0080 | 0x0100)) Presentations++;
++                else if (Current() && Ready(batch.Root.Control)) batch.Root.Control.Invalidate(area, true);
++            }
++        }
++        finally { presenting = false; Queue(); }
++    }
++
++    private static Point Offset(Control control, Control? root)
++    {
++        Point point = Point.Empty;
++        for (Control? node = control; node != null && node != root; node = node.Parent) point.Offset(node.Left, node.Top);
++        return point;
++    }
++
++    private void Clear() { foreach (var root in roots) root.Dirty = Rectangle.Empty; }
++    private void OwnerHandleDestroyed(object? sender, EventArgs args) { ticket++; queued = false; Clear(); }
++
++    public void Dispose()
++    {
++        if (disposed) return;
++        disposed = true; ticket++; queued = false; Clear();
++        owner.HandleDestroyed -= OwnerHandleDestroyed;
++        owner.HandleCreated -= Retry;
++        foreach (var root in roots) root.Dispose();
++        roots.Clear();
++    }
++
++    private sealed class Root : IDisposable
++    {
++        private readonly LayoutPresentation presenter;
++        internal Control Control { get; }
++        internal Rectangle Dirty;
++        private Size size, windowSize;
++        private Point offset;
++        private bool visible;
++        private IntPtr heldLayoutHandle;
++        private bool layoutActive;
++        private long layoutGeneration;
++        private readonly Dictionary<Control, (Rectangle Bounds, bool Visible)> children = [];
++
++        internal Root(LayoutPresentation presenter, Control control)
++        {
++            this.presenter = presenter; Control = control;
++            size = control.ClientSize; windowSize = presenter.owner.ClientSize; offset = Offset(control, presenter.owner);
++            visible = control.Visible;
++            control.Layout += Layout;
++            control.LocationChanged += Changed; control.SizeChanged += Changed; control.VisibleChanged += Changed;
++            control.ControlAdded += Added; control.ControlRemoved += Removed;
++            control.HandleCreated += HandleCreated; control.HandleDestroyed += HandleDestroyed;
++            foreach (Control child in control.Controls) Watch(child);
++        }
++
++        private void Watch(Control child)
++        {
++            children[child] = (child.Bounds, child.Visible);
++            child.LocationChanged += Changed; child.SizeChanged += Changed; child.VisibleChanged += Changed;
++            if (child is WallpaperGrid grid) grid.PresentationResumed += presenter.Retry;
++        }
++        private void Unwatch(Control child)
++        {
++            child.LocationChanged -= Changed; child.SizeChanged -= Changed; child.VisibleChanged -= Changed;
++            if (child is WallpaperGrid grid) grid.PresentationResumed -= presenter.Retry;
++            children.Remove(child);
++        }
++        private void Added(object? sender, ControlEventArgs args) { if (args.Control is { } child) Watch(child); presenter.Request(this, Control.ClientRectangle); }
++        private void Removed(object? sender, ControlEventArgs args) { if (args.Control is { } child) Unwatch(child); presenter.Request(this, Control.ClientRectangle); }
++        private void Layout(object? sender, LayoutEventArgs args) => Observe();
++        private void Changed(object? sender, EventArgs args) { Observe(); if (!layoutActive) ReleaseLayout(); }
++        private void HandleCreated(object? sender, EventArgs args) => presenter.Request(this, Control.ClientRectangle);
++        private void HandleDestroyed(object? sender, EventArgs args)
++        {
++            layoutGeneration++; layoutActive = false; heldLayoutHandle = IntPtr.Zero;
++            Dirty = Rectangle.Empty; size = Size.Empty;
++        }
++
++        internal IDisposable? HoldLayout()
++        {
++            if (heldLayoutHandle != IntPtr.Zero || !presenter.Ready(Control) || !IsWindowVisible(Control.Handle)) return null;
++            heldLayoutHandle = Control.Handle;
++            layoutActive = true;
++            long generation = ++layoutGeneration;
++            SendMessage(heldLayoutHandle, 0x000B, IntPtr.Zero, IntPtr.Zero);
++            return new LayoutHold(this, generation);
++        }
++
++        private void ReleaseLayout()
++        {
++            if (heldLayoutHandle == IntPtr.Zero) return;
++            if (Control.IsDisposed || !Control.IsHandleCreated || Control.Handle != heldLayoutHandle)
++            { heldLayoutHandle = IntPtr.Zero; return; }
++            // Like the grid scroll transaction, never make a hidden control
++            // visible by releasing WM_SETREDRAW. Its show event retries this.
++            if (!Control.Visible) return;
++            IntPtr handle = heldLayoutHandle; heldLayoutHandle = IntPtr.Zero;
++            SendMessage(handle, 0x000B, new IntPtr(1), IntPtr.Zero);
++            if (Dirty.IsEmpty) Control.Invalidate(true);
++            presenter.PresentPending();
++        }
++
++        private sealed class LayoutHold(Root root, long generation) : IDisposable
++        {
++            private Root? owner = root;
++            public void Dispose()
++            {
++                var held = owner; owner = null;
++                if (held != null && held.layoutGeneration == generation) { held.layoutActive = false; held.ReleaseLayout(); }
++            }
++        }
++
++        internal void Observe()
++        {
++            if (Control.IsDisposed || Control.Disposing) return;
++            var nowOffset = Offset(Control, presenter.owner);
++            Rectangle area = size != Control.ClientSize || windowSize != presenter.owner.ClientSize || offset != nowOffset || visible != Control.Visible
++                ? Control.ClientRectangle : Rectangle.Empty;
++            size = Control.ClientSize; windowSize = presenter.owner.ClientSize; offset = nowOffset;
++            visible = Control.Visible;
++            foreach (var child in children.Keys.ToArray())
++            {
++                var previous = children[child]; var current = (Bounds: child.Bounds, Visible: child.Visible);
++                if (previous != current)
++                {
++                    Rectangle changed = Rectangle.Union(previous.Bounds, current.Bounds);
++                    area = area.IsEmpty ? changed : Rectangle.Union(area, changed);
++                    children[child] = current;
++                }
++            }
++            presenter.Request(this, area);
++        }
++
++        public void Dispose()
++        {
++            ReleaseLayout();
++            Control.Layout -= Layout;
++            Control.LocationChanged -= Changed; Control.SizeChanged -= Changed; Control.VisibleChanged -= Changed;
++            Control.ControlAdded -= Added; Control.ControlRemoved -= Removed;
++            Control.HandleCreated -= HandleCreated; Control.HandleDestroyed -= HandleDestroyed;
++            foreach (var child in children.Keys.ToArray()) Unwatch(child);
++        }
++    }
++
++    [StructLayout(LayoutKind.Sequential)]
++    private readonly struct NativeRect(Rectangle rect)
++    {
++        private readonly int left = rect.Left, top = rect.Top, right = rect.Right, bottom = rect.Bottom;
++    }
++    [DllImport("user32.dll")]
++    [return: MarshalAs(UnmanagedType.Bool)]
++    private static extern bool RedrawWindow(IntPtr window, ref NativeRect rect, IntPtr region, uint flags);
++    [DllImport("user32.dll", EntryPoint = "GetPropW", CharSet = CharSet.Unicode)]
++    private static extern IntPtr GetProp(IntPtr handle, string name);
++    [DllImport("user32.dll", EntryPoint = "SendMessageW")]
++    private static extern IntPtr SendMessage(IntPtr handle, uint message, IntPtr wParam, IntPtr lParam);
++    [DllImport("user32.dll")]
++    [return: MarshalAs(UnmanagedType.Bool)]
++    private static extern bool IsWindowVisible(IntPtr handle);
++}
+diff --git a/tests/LayoutTransitionRegression.cs b/tests/LayoutTransitionRegression.cs
+new file mode 100644
+index 0000000..325c9ac
+--- /dev/null
++++ b/tests/LayoutTransitionRegression.cs
+@@ -0,0 +1,406 @@
++using System.Diagnostics;
++using System.Reflection;
++using DiskAtlas;
++
++// Natural message/paint observations only. No screen capture, DrawToBitmap,
++// Refresh, Update, extra PerformLayout, personal settings, or directory scan.
++// A successful result is a presentation-order check, not desktop pixel proof.
++internal static class LayoutTransitionRegression
++{
++    private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
++    private const string SyntheticPath = @"X:\AsukaLens-Layout-Synthetic";
++
++    internal static int Run(bool dpi96 = false)
++    {
++        int passed = 0;
++        string? fatal = null;
++        var failures = new List<string>(32);
++        var observations = new List<Observation>(16);
++        long idleMilliseconds = 0;
++        int idleBoundaries = 0;
++        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(24));
++        Action? requestClose = null;
++        var worker = new Thread(() =>
++        {
++            try
++            {
++                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles();
++                Application.SetCompatibleTextRenderingDefault(false);
++                using var entered = new ManualResetEventSlim();
++                int runnerMode = 0;
++                int backendCancelled = 0;
++                SynchronizationContext? uiContext = null;
++                using var form = CreateForm((_, progress, token, session) =>
++                {
++                    token.ThrowIfCancellationRequested();
++                    if (Volatile.Read(ref runnerMode) == 0)
++                    {
++                        session.Attach(Snapshot(false).Root);
++                        progress.Report(new(1101, 1, 1101 * 4096L, SyntheticPath));
++                        entered.Set();
++                        token.WaitHandle.WaitOne();
++                        if (token.IsCancellationRequested) Interlocked.Exchange(ref backendCancelled, 1);
++                        token.ThrowIfCancellationRequested();
++                        throw new Failure("BlockedRunnerUnexpectedlyContinued");
++                    }
++                    return Snapshot(Volatile.Read(ref runnerMode) == 1);
++                });
++                requestClose = () =>
++                {
++                    try
++                    {
++                        uiContext?.Post(_ =>
++                        {
++                            if (!form.IsDisposed)
++                            {
++                                Field<CancellationTokenSource?>(form, "scanCancellation")?.Cancel();
++                                form.Close();
++                            }
++                            Application.ExitThread();
++                        }, null);
++                    }
++                    catch (InvalidOperationException) { }
++                };
++                Task? scanTask = null;
++                form.Shown += async (_, _) =>
++                {
++                    uiContext = SynchronizationContext.Current;
++                    try
++                    {
++                        Field<CheckBox>(form, "reduceMotion").Checked = true;
++                        StopTimers(form);
++                        var baseline = Snapshot(false);
++                        Set(form, "scan", baseline); Set(form, "current", baseline.Root);
++                        await View(form);
++                        await NaturalIdle();
++                        var scope = Field<Label>(form, "subtitle");
++                        var main = Field<WallpaperTable>(form, "scopePanel").Parent!;
++                        var analysis = main.Controls.OfType<WallpaperSplitContainer>().Single();
++                        var grid = Field<WallpaperGrid>(form, "grid");
++                        var map = Field<TreemapControl>(form, "map");
++                        using var trace = new TransitionTrace(main,
++                            [("MapTitle", Field<Label>(form, "mapTitle")), ("ListTitle", Field<Label>(form, "listTitle")),
++                             ("Map", map), ("Grid", grid)]);
++
++                        // The scope row is the production trigger that moves
++                        // the analysis ancestor, titles and both data surfaces.
++                        await Measure("ScopeSingle", () => { scope.Text = "合成范围说明"; return Task.CompletedTask; }, analysis, true);
++                        float single = Field<RowStyle>(form, "scopeRow").Height;
++                        await Measure("ScopeWrapped", () =>
++                        {
++                            scope.Text = string.Join(" · ", Enumerable.Repeat("只读快照，链接及目标未纳入，未知占用保持未知", 12));
++                            return Task.CompletedTask;
++                        }, analysis, true);
++                        Check(Field<RowStyle>(form, "scopeRow").Height > single, "ScopeFixtureActuallyBecomesMultiline");
++                        await Measure("ScopeCleared", () => { scope.Text = ""; return Task.CompletedTask; }, analysis, true);
++                        Check(Field<RowStyle>(form, "scopeRow").Height == 0, "ScopeFixtureActuallyCollapses");
++
++                        // Multiple native resizes in one operation must finish
++                        // with paints from the final geometry, not an earlier size.
++                        await Measure("ResizeBurst", () =>
++                        {
++                            Size original = form.ClientSize;
++                            form.ClientSize = new Size(original.Width - 17, original.Height - 11);
++                            form.ClientSize = new Size(original.Width - 31, original.Height - 19);
++                            form.ClientSize = original;
++                            return Task.CompletedTask;
++                        }, analysis, false);
++
++                        await Measure("Paging", () =>
++                        {
++                            Field<ActionButton>(form, "nextPage").PerformClick();
++                            return Task.CompletedTask;
++                        }, analysis, false, onlyGrid: true);
++                        Check(grid.RowCount == 101, "PagingFixtureActuallyChangesVisibleRows");
++
++                        await Measure("RefreshStart", () =>
++                        {
++                            entered.Reset(); scanTask = Scan(form); StopTimers(form);
++                            return Task.CompletedTask;
++                        }, analysis, true);
++                        await Until(() => entered.IsSet, "BlockedRefreshDidNotStart");
++                        Check(!Field<System.Windows.Forms.Timer>(form, "previewTimer").Enabled,
++                            "PreviewTimerCannotRepairTransitionDuringObservation");
++                        await Measure("RefreshCancel", async () =>
++                        {
++                            Field<ActionButton>(form, "cancel").PerformClick();
++                            await scanTask!;
++                        }, analysis, true);
++                        Check(Field<ScanProgressControl>(form, "progressBar").State == ScanDisplayState.Cancelled,
++                            "CancellationFixtureReturnsToTerminalState");
++
++                        Volatile.Write(ref runnerMode, 1);
++                        await Measure("PartialResult", async () => { await Scan(form); StopTimers(form); }, analysis, true);
++                        await Until(() => Field<CancellationTokenSource?>(form, "viewCancellation") == null,
++                            "PartialViewDidNotFinish");
++                        Check(Field<Label>(form, "subtitle").Text.Contains("未读全", StringComparison.Ordinal) &&
++                            Field<ActionButton>(form, "issues").Visible && Field<RowStyle>(form, "footerShellRow").Height > 0,
++                            "PartialFixtureChangesScopeAndFooter");
++                        Volatile.Write(ref runnerMode, 2);
++                        await Measure("CompleteResult", async () => { await Scan(form); StopTimers(form); }, analysis, true);
++                        await Until(() => Field<CancellationTokenSource?>(form, "viewCancellation") == null,
++                            "CompleteViewDidNotFinish");
++                        Check(!Field<ActionButton>(form, "issues").Visible, "CompleteFixtureRemovesPartialFooter");
++
++                        // Keep the production registration scope: redistribute
++                        // the existing main padding without changing its total
++                        // vertical size. The analysis ancestor moves while the
++                        // grid retains exactly the same local bounds.
++                        Rectangle localGrid = grid.Bounds;
++                        Rectangle gridInMain = RelativeBounds(grid, main);
++                        Padding padding = main.Padding;
++                        await Measure("AncestorMove", () =>
++                        {
++                            main.Padding = new Padding(padding.Left, padding.Top + 8, padding.Right, padding.Bottom - 8);
++                            return Task.CompletedTask;
++                        }, analysis, true);
++                        Check(grid.Bounds == localGrid && RelativeBounds(grid, main) != gridInMain &&
++                            main.Padding.Vertical == padding.Vertical,
++                            "AncestorMovesWhileGridLocalBoundsAndAvailableHeightStayFixed");
++                        // Keep the harness message loop alive while the last
++                        // owned window closes, so ScanFolder's cancellation
++                        // continuation can complete instead of losing its pump.
++                        Volatile.Write(ref runnerMode, 0);
++                        Interlocked.Exchange(ref backendCancelled, 0);
++                        entered.Reset();
++                        scanTask = Scan(form); StopTimers(form);
++                        await Until(() => entered.IsSet, "ClosingFixtureDidNotStart");
++                        form.Close();
++                        await scanTask.WaitAsync(TimeSpan.FromSeconds(2), stop.Token);
++                        Check(form.IsDisposed && scanTask.IsCompleted && Volatile.Read(ref backendCancelled) == 1,
++                            "ClosingCancelsOwnedPendingScanAndReleasesWindow");
++
++                        async Task Measure(string code, Func<Task> action, Control affected, bool requireMovement, bool onlyGrid = false)
++                        {
++                            await NaturalIdle();
++                            long started = Stopwatch.GetTimestamp();
++                            Rectangle before = RelativeBounds(affected, main);
++                            trace.Reset();
++                            await action();
++                            Rectangle after = RelativeBounds(affected, main);
++                            if (requireMovement) Check(before != after, code + "ActuallyChangesAnalysisGeometry");
++                            Rectangle band = Rectangle.Union(before, after);
++                            // This callback is posted only after the operation
++                            // returns. It does not force any paint or layout.
++                            var first = await FirstQueuedCheck(form, () => trace.Read(code, band, onlyGrid)).WaitAsync(stop.Token);
++                            first = first with { ElapsedMilliseconds = (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds };
++                            observations.Add(first);
++                            if (onlyGrid)
++                            {
++                                // Pagination changes data while its paging row
++                                // remains present. Keep its first-check sample
++                                // diagnostic; require ordinary idle paint, not
++                                // synchronous geometry presentation.
++                                Check(before == after, code + "_DataUpdatePreservesAnalysisGeometry");
++                                await NaturalIdle();
++                                var settled = trace.Read(code + "NaturalIdle", band, true) with
++                                {
++                                    ElapsedMilliseconds = (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds
++                                };
++                                observations.Add(settled);
++                                Check(settled.FinalChildrenPainted, code + "_GridPaintedByNaturalIdle");
++                            }
++                            else
++                            {
++                                Check(first.ParentExposurePainted, code + "_ParentExposurePaintedBeforeFirstQueuedCheck");
++                                Check(first.FinalChildrenPainted, code + "_FinalGeometryDescendantsPaintedBeforeFirstQueuedCheck");
++                            }
++                        }
++                    }
++                    catch (Failure error) { fatal = error.Code; }
++                    catch (OperationCanceledException) { fatal = "ObservationBudgetExpired"; }
++                    catch { fatal = "UnexpectedTransitionFailure"; }
++                    finally
++                    {
++                        Field<CancellationTokenSource?>(form, "scanCancellation")?.Cancel();
++                        if (scanTask is { IsCompleted: false })
++                        {
++                            try { await scanTask.WaitAsync(TimeSpan.FromSeconds(2)); }
++                            catch { fatal ??= "PendingScanCleanupFailed"; }
++                        }
++                        if (!form.IsDisposed) form.Close();
++                        Application.ExitThread();
++                    }
++                };
++                // No MainForm is attached to this context: closing it must not
++                // terminate the pump before its asynchronous cleanup resumes.
++                using var context = new ApplicationContext();
++                form.Show();
++                Application.Run(context);
++            }
++            catch (Failure error) { fatal = error.Code; }
++            catch { fatal = "UnexpectedTransitionWorkerFailure"; }
++        }) { IsBackground = true };
++        worker.SetApartmentState(ApartmentState.STA);
++        worker.Start();
++        bool finished = worker.Join(TimeSpan.FromSeconds(26));
++        if (!finished)
++        {
++            stop.Cancel(); requestClose?.Invoke();
++            finished = worker.Join(TimeSpan.FromSeconds(5));
++            fatal = finished ? "TransitionBudgetExceededAndWindowClosed" : "TransitionWorkerDidNotClose";
++        }
++        if (finished)
++            foreach (var item in observations)
++                Console.WriteLine("OBSERVE layout transition code=" + item.Code + "; parent_paints=" + item.ParentPaints +
++                    "; parent_invalidations=" + item.ParentInvalidations + "; child_paints=" + item.ChildPaints +
++                    "; child_invalidations=" + item.ChildInvalidations + "; parent_exposure_painted=" + item.ParentExposurePainted +
++                    "; final_children_painted=" + item.FinalChildrenPainted + "; operation_ms=" + item.ElapsedMilliseconds);
++        if (finished)
++        {
++            Console.WriteLine("OBSERVE layout harness idle_boundaries=" + idleBoundaries + "; idle_total_ms=" + idleMilliseconds);
++            foreach (string code in failures) Console.WriteLine("CHECK layout transition code=" + code + "; passed=False");
++        }
++        if (fatal != null || failures.Count > 0 || !finished)
++        {
++            Console.Error.WriteLine("FAIL layout transition code=" + (fatal ?? failures[0]) +
++                "; failed_checks=" + failures.Count + "; worker_finished=" + finished + "; no private details emitted");
++            return 1;
++        }
++        Console.WriteLine("PASS layout transition checks=" + passed + "; worker_finished=True; natural_message_order_only=True; desktop_pixels_verified=False");
++        return 0;
++
++        void Check(bool condition, string code)
++        {
++            if (condition) passed++;
++            else if (failures.Count < 64) failures.Add(code);
++        }
++        async Task NaturalIdle()
++        {
++            // Wait for one actual idle boundary, with no fixed 90 ms sleeps.
++            // This drains prior natural paint before resetting the next trace.
++            long started = Stopwatch.GetTimestamp();
++            var idle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
++            EventHandler handler = (_, _) => idle.TrySetResult();
++            Application.Idle += handler;
++            try { await idle.Task.WaitAsync(TimeSpan.FromSeconds(2), stop.Token); }
++            catch (TimeoutException) { throw new Failure("NaturalIdleBoundaryUnavailable"); }
++            finally
++            {
++                Application.Idle -= handler;
++                idleBoundaries++;
++                idleMilliseconds += (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
++            }
++        }
++        async Task Until(Func<bool> ready, string code)
++        {
++            long started = Stopwatch.GetTimestamp();
++            while (!ready())
++            {
++                if (Stopwatch.GetElapsedTime(started) > TimeSpan.FromSeconds(3)) throw new Failure(code);
++                await Task.Delay(10, stop.Token);
++            }
++        }
++
++    }
++
++    private static MainForm CreateForm(Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult> runner) =>
++        new(null, false, Path.Combine(Path.GetTempPath(), "AsukaLens-layout-unused-" + Guid.NewGuid().ToString("N"), "background.json"))
++        {
++            ShowInTaskbar = false, ScanRunner = runner,
++            ActivityMonitorFactory = _ => throw new Failure("UnexpectedDiskMonitor")
++        };
++    private static void StopTimers(MainForm form)
++    {
++        Field<System.Windows.Forms.Timer>(form, "previewTimer").Stop();
++        Field<System.Windows.Forms.Timer>(form, "searchTimer").Stop();
++    }
++    private static Task Scan(MainForm form) => (Task)typeof(MainForm).GetMethod("ScanFolder", Hidden)!.Invoke(form, [SyntheticPath])!;
++    private static Task View(MainForm form) => (Task)typeof(MainForm).GetMethod("UpdateViewAsync", Hidden)!.Invoke(form, [false])!;
++    private static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name, Hidden)!.GetValue(owner)!;
++    private static void Set(object owner, string name, object value) => owner.GetType().GetField(name, Hidden)!.SetValue(owner, value);
++    private static ScanResult Snapshot(bool partial)
++    {
++        const int count = 1101;
++        var root = new DiskEntry(SyntheticPath, true) { FileCount = count, Size = count * 4096L, AllocatedSize = count * 4096L, Incomplete = partial };
++        for (int index = 0; index < count; index++)
++            root.MutableChildren.Add(new DiskEntry(Path.Combine(SyntheticPath, "sample-" + index.ToString("D4") + ".bin"), false, root)
++                { FileCount = 1, Size = 4096, AllocatedSize = 4096 });
++        return new(root, TimeSpan.FromSeconds(.1), partial ? 1 : 0, []);
++    }
++    private static Rectangle RelativeBounds(Control control, Control root)
++    {
++        Point point = Point.Empty;
++        for (Control? node = control; node != root; node = node.Parent)
++        {
++            if (node == null) throw new Failure("ObservedControlLeftOwnedTree");
++            point.Offset(node.Left, node.Top);
++        }
++        return new Rectangle(point, control.Size);
++    }
++    private static Task<Observation> FirstQueuedCheck(Control owner, Func<Observation> read)
++    {
++        var source = new TaskCompletionSource<Observation>();
++        owner.BeginInvoke((Action)(() =>
++        {
++            try { source.SetResult(read()); }
++            catch (Exception error) { source.SetException(error); }
++        }));
++        return source.Task;
++    }
++    private sealed record Observation(string Code, int ParentPaints, int ParentInvalidations, int ChildPaints,
++        int ChildInvalidations, bool ParentExposurePainted, bool FinalChildrenPainted, long ElapsedMilliseconds = 0);
++
++    private sealed class TransitionTrace : IDisposable
++    {
++        private readonly Control root;
++        private readonly SurfaceObservation parent;
++        private readonly (string Code, SurfaceObservation Surface)[] children;
++        internal TransitionTrace(Control root, (string Code, Control Control)[] controls)
++        {
++            this.root = root;
++            parent = new(root, root);
++            children = controls.Select(item => (item.Code, new SurfaceObservation(item.Control, root))).ToArray();
++        }
++        internal void Reset() { parent.Reset(); foreach (var item in children) item.Surface.Reset(); }
++        internal Observation Read(string code, Rectangle affected, bool onlyGrid)
++        {
++            var required = children.Where(item => !onlyGrid || item.Code == "Grid").Select(item => item.Surface).ToArray();
++            bool allPainted = required.Length > 0 && required.All(surface => surface.Paints > 0 &&
++                surface.LastPaintBounds == RelativeBounds(surface.Owner, root));
++            return new(code, parent.Paints, parent.Invalidations, children.Sum(item => item.Surface.Paints),
++                children.Sum(item => item.Surface.Invalidations), parent.Paints > 0 && parent.PaintedClip.IntersectsWith(affected), allPainted);
++        }
++        public void Dispose() { parent.Dispose(); foreach (var item in children) item.Surface.Dispose(); }
++    }
++
++    // NoHoverLabel intentionally bypasses Label.OnPaint, so its managed Paint
++    // event does not fire. Observe completion of its normal WM_PAINT instead.
++    private sealed class SurfaceObservation : NativeWindow, IDisposable
++    {
++        internal Control Owner { get; }
++        private readonly Control root;
++        internal int Paints { get; private set; }
++        internal int Invalidations { get; private set; }
++        internal Rectangle LastPaintBounds { get; private set; }
++        internal Rectangle PaintedClip { get; private set; }
++        internal SurfaceObservation(Control owner, Control root)
++        {
++            Owner = owner; this.root = root;
++            owner.Paint += Painted; owner.Invalidated += Invalidated;
++            owner.HandleCreated += Created; owner.HandleDestroyed += Destroyed;
++            if (owner.IsHandleCreated) AssignHandle(owner.Handle);
++        }
++        internal void Reset() { Paints = Invalidations = 0; LastPaintBounds = PaintedClip = Rectangle.Empty; }
++        private void Painted(object? sender, PaintEventArgs args) => PaintedClip = PaintedClip.IsEmpty
++            ? args.ClipRectangle : Rectangle.Union(PaintedClip, args.ClipRectangle);
++        private void Invalidated(object? sender, InvalidateEventArgs args) => Invalidations++;
++        private void Created(object? sender, EventArgs args) { if (Handle == IntPtr.Zero) AssignHandle(Owner.Handle); }
++        private void Destroyed(object? sender, EventArgs args) { if (Handle != IntPtr.Zero) ReleaseHandle(); }
++        protected override void WndProc(ref Message message)
++        {
++            bool paint = message.Msg == 0x000F;
++            base.WndProc(ref message);
++            if (paint && !Owner.IsDisposed) { Paints++; LastPaintBounds = RelativeBounds(Owner, root); }
++        }
++        public void Dispose()
++        {
++            Owner.Paint -= Painted; Owner.Invalidated -= Invalidated;
++            Owner.HandleCreated -= Created; Owner.HandleDestroyed -= Destroyed;
++            if (Handle != IntPtr.Zero) ReleaseHandle();
++        }
++    }
++    private sealed class Failure(string code) : Exception("LayoutTransition") { internal string Code { get; } = code; }
++}
+diff --git a/tests/LayoutTransitionPreview.cs b/tests/LayoutTransitionPreview.cs
+new file mode 100644
+index 0000000..eb96dee
+--- /dev/null
++++ b/tests/LayoutTransitionPreview.cs
+@@ -0,0 +1,360 @@
++using DiskAtlas;
++using System.Diagnostics;
++using System.Reflection;
++
++// A real MainForm and DiskScanner over owned ordinary files. Commands change
++// only this window; no capture API or forced repaint participates in observing
++// the product's normal layout/paint transitions.
++internal static class LayoutTransitionPreview
++{
++    private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
++    private const string PublicRoot = @"X:\AsukaLens-Demo";
++    private const string WindowTitle = "AsukaLens · 布局切换预览（合成目录/受控暂停）";
++
++    internal static int Run(bool dpi96 = false)
++    {
++        var fixture = new Fixture();
++        string? previousData = Environment.GetEnvironmentVariable(AppDataLocation.EnvironmentVariable);
++        bool started = false, exited = false;
++        int result = 1;
++        Action? requestClose = null;
++        Func<bool>? backgroundStopped = null;
++        try
++        {
++            fixture.Create();
++            Environment.SetEnvironmentVariable(AppDataLocation.EnvironmentVariable, fixture.Settings);
++            var thread = new Thread(() =>
++            {
++                try
++                {
++                    Show(fixture, dpi96, close => Volatile.Write(ref requestClose, close),
++                        ready => Volatile.Write(ref backgroundStopped, ready));
++                    result = 0;
++                }
++                catch { Console.Error.WriteLine("FAIL layout-transition preview stage=ui"); }
++            }) { IsBackground = true };
++            thread.SetApartmentState(ApartmentState.STA);
++            thread.Start(); started = true;
++            exited = thread.Join(TimeSpan.FromMinutes(31));
++            if (!exited)
++            {
++                Volatile.Read(ref requestClose)?.Invoke();
++                exited = thread.Join(TimeSpan.FromSeconds(10));
++                result = 1;
++                Console.Error.WriteLine("FAIL layout-transition preview stage=lifetime");
++            }
++        }
++        catch { Console.Error.WriteLine("FAIL layout-transition preview stage=setup"); }
++        finally
++        {
++            if ((exited || !started) && Volatile.Read(ref backgroundStopped)?.Invoke() != false)
++            {
++                Environment.SetEnvironmentVariable(AppDataLocation.EnvironmentVariable, previousData);
++                try { fixture.Cleanup(); }
++                catch { result = 1; Console.Error.WriteLine("FAIL layout-transition preview stage=cleanup"); }
++            }
++            else { result = 1; Console.WriteLine("CLEANUP layout-transition preview deferred=True"); }
++        }
++        return result;
++    }
++
++    private static void Show(Fixture fixture, bool dpi96, Action<Action> setClose, Action<Func<bool>> setCleanupCheck)
++    {
++        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++        Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
++        Application.EnableVisualStyles();
++        Application.SetCompatibleTextRenderingDefault(false);
++        using var defaultFont = new Font("Microsoft YaHei UI", 9F);
++        Application.SetDefaultFont(defaultFont);
++        using var gate = new ScanGate();
++        using var form = new MainForm(null, false, Path.Combine(fixture.Settings, "background.dat"))
++        {
++            ScanRunner = gate.Scan,
++            FastScanConfirmation = () => false,
++            ActivityMonitorFactory = callback => new DiskActivityMonitor(callback,
++                (_, token) => { token.ThrowIfCancellationRequested(); return new(0, "合成活动 · 不采样磁盘"); },
++                token => { token.ThrowIfCancellationRequested(); return [new(0, "合成活动 · 不采样磁盘")]; },
++                _ => new SyntheticActivity())
++        };
++        using var iconStream = typeof(MainForm).Assembly.GetManifestResourceStream("DiskAtlas.AppIcon");
++        using var icon = iconStream == null ? null : new Icon(iconStream);
++        if (icon != null) form.Icon = icon;
++        form.Text = WindowTitle;
++        T Field<T>(string name) => (T)typeof(MainForm).GetField(name, Private)!.GetValue(form)!;
++        Task InvokeTask(string method, params object[] args) =>
++            (Task)typeof(MainForm).GetMethod(method, Private)!.Invoke(form, args)!;
++        var controls = Descendants(form).ToArray();
++        var subtitle = Field<Label>("subtitle");
++        var navigation = Field<NavigationPanel>("navigation");
++        foreach (var control in controls.Where(value => value is Label or TextBox { ReadOnly: true }))
++            control.TextChanged += (_, _) =>
++            {
++                string aliased = Alias(control.Text, fixture.Scope);
++                if (control.Text != aliased) control.Text = aliased;
++            };
++        // Alias the display-only property before its already-requested paint.
++        // Do not introduce a periodic repaint that could hide a stale surface.
++        navigation.Invalidated += (_, _) => navigation.RootPath = Alias(navigation.RootPath, fixture.Scope);
++        foreach (string name in new[] { "choose", "backgroundSettings", "diagnosticsButton", "ntfsFast" })
++        {
++            var control = Field<Control>(name);
++            control.EnabledChanged += (_, _) => { if (control.Enabled) control.Enabled = false; };
++            control.Enabled = false;
++        }
++
++        Task activeScan = Task.CompletedTask;
++        setCleanupCheck(() => activeScan.IsCompleted && gate.Active == 0);
++        bool closing = false, drained = false, failed = false;
++        using var listenerStop = new CancellationTokenSource();
++        using var lifetime = new System.Windows.Forms.Timer { Interval = 30 * 60 * 1000 };
++        using var closeOwned = new System.Windows.Forms.Timer { Interval = 40 };
++
++        void CancelScan()
++        {
++            (typeof(MainForm).GetField("scanCancellation", Private)!.GetValue(form) as CancellationTokenSource)?.Cancel();
++            gate.Release.Set();
++        }
++        void CloseOnUi()
++        {
++            if (form.IsDisposed) return;
++            foreach (var owned in form.OwnedForms)
++                if (!owned.IsDisposed) { owned.DialogResult = DialogResult.Cancel; owned.Close(); }
++            closeOwned.Start();
++        }
++        void Post(Action action)
++        {
++            try
++            {
++                if (!form.IsDisposed && form.IsHandleCreated)
++                    form.BeginInvoke((Action)(() => { if (!form.IsDisposed) action(); }));
++            }
++            catch (InvalidOperationException) { }
++        }
++        void RequestClose() => Post(CloseOnUi);
++        setClose(RequestClose);
++        closeOwned.Tick += (_, _) =>
++        {
++            if (form.IsDisposed) { closeOwned.Stop(); return; }
++            if (form.OwnedForms.Any(owned => !owned.IsDisposed && owned.Modal)) return;
++            closeOwned.Stop(); form.Close();
++        };
++        lifetime.Tick += (_, _) => { lifetime.Stop(); CloseOnUi(); };
++
++        async Task Scan()
++        {
++            if (closing || !activeScan.IsCompleted || Field<CancellationTokenSource?>("scanCancellation") != null)
++            { Console.WriteLine("STAGE layout-transition preview stage=busy"); return; }
++            try
++            {
++                Console.WriteLine("STAGE layout-transition preview stage=scan-start");
++                activeScan = InvokeTask("ScanFolder", fixture.Scope);
++                await activeScan;
++                if (closing || form.IsDisposed) return;
++                await InvokeTask("UpdateViewAsync", false);
++                Console.WriteLine("STAGE layout-transition preview stage=scan-ended; round=" + gate.Rounds +
++                    "; state=" + Field<ScanProgressControl>("progressBar").State);
++            }
++            catch
++            {
++                failed = true;
++                Console.Error.WriteLine("FAIL layout-transition preview stage=scan");
++                CloseOnUi();
++            }
++        }
++        void Resize(bool minimum)
++        {
++            var area = Screen.FromControl(form).WorkingArea;
++            float scale = form.DeviceDpi / 96f;
++            Size wanted = minimum ? new(1120, 780) : new(1440, 940);
++            form.WindowState = FormWindowState.Normal;
++            form.Size = new(Math.Min((int)(wanted.Width * scale), area.Width), Math.Min((int)(wanted.Height * scale), area.Height));
++            form.Location = new(area.Left + (area.Width - form.Width) / 2, area.Top + (area.Height - form.Height) / 2);
++        }
++        async void Command(string command)
++        {
++            if (closing) return;
++            switch (command)
++            {
++                case "scan": await Scan(); break;
++                case "release": gate.Release.Set(); Console.WriteLine("STAGE layout-transition preview stage=release"); break;
++                case "cancel": CancelScan(); Console.WriteLine("STAGE layout-transition preview stage=cancel"); break;
++                case "scope":
++                    subtitle.Text = "布局切换测试 · 以下为固定合成说明，非扫描事实\n用于观察范围行展开后标题和列表背景是否及时更新\n测试结束可清除此说明，统计仍来自自建目录";
++                    Console.WriteLine("STAGE layout-transition preview stage=scope"); break;
++                case "clear-scope": subtitle.Text = ""; Console.WriteLine("STAGE layout-transition preview stage=clear-scope"); break;
++                case "minimum": Resize(true); Console.WriteLine("STAGE layout-transition preview stage=minimum"); break;
++                case "common": Resize(false); Console.WriteLine("STAGE layout-transition preview stage=common"); break;
++                case "close": CloseOnUi(); break;
++                default: Console.WriteLine("STAGE layout-transition preview stage=unknown-command"); break;
++            }
++        }
++        ConsoleCancelEventHandler consoleCancel = (_, args) => { args.Cancel = true; RequestClose(); };
++        Console.CancelKeyPress += consoleCancel;
++        form.FormClosing += async (_, args) =>
++        {
++            if (drained || activeScan.IsCompleted && gate.Active == 0 && Field<CancellationTokenSource?>("scanCancellation") == null) return;
++            args.Cancel = true;
++            if (closing) return;
++            closing = true; CancelScan();
++            var watch = Stopwatch.StartNew();
++            while (!activeScan.IsCompleted || gate.Active != 0 || Field<CancellationTokenSource?>("scanCancellation") != null)
++            {
++                if (watch.Elapsed > TimeSpan.FromSeconds(8))
++                {
++                    failed = true; closing = false;
++                    Console.Error.WriteLine("FAIL layout-transition preview stage=close-wait");
++                    return;
++                }
++                await Task.Delay(25);
++            }
++            drained = true; form.Close();
++        };
++        form.Shown += async (_, _) =>
++        {
++            foreach (var grid in controls.OfType<DataGridView>())
++                grid.CellToolTipTextNeeded += (_, args) => args.ToolTipText = Alias(args.ToolTipText ?? "", fixture.Scope);
++            Resize(false); lifetime.Start();
++            await Scan();
++            if (!form.IsDisposed && !closing)
++                Console.WriteLine("READY layout-transition preview; files=1106; pause_from_round=2; commands=scan,release,cancel,scope,clear-scope,minimum,common,close");
++        };
++        var listener = Task.Run(async () =>
++        {
++            try
++            {
++                while (!listenerStop.IsCancellationRequested)
++                {
++                    string? line = await Console.In.ReadLineAsync(listenerStop.Token).ConfigureAwait(false);
++                    if (line == null) return; // EOF stops input, not this preview.
++                    string command = line.Trim();
++                    Post(() => Command(command));
++                    if (command == "close") return;
++                }
++            }
++            catch (OperationCanceledException) { }
++            catch
++            {
++                Console.Error.WriteLine("FAIL layout-transition preview stage=input");
++                Post(() => { failed = true; CloseOnUi(); });
++            }
++        });
++        try { Application.Run(form); }
++        finally
++        {
++            Console.CancelKeyPress -= consoleCancel;
++            listenerStop.Cancel();
++            _ = listener.ContinueWith(task => { _ = task.Exception; }, TaskScheduler.Default);
++        }
++        if (gate.Active != 0 || !activeScan.IsCompleted || failed) throw new InvalidOperationException("PreviewIncomplete");
++    }
++
++    private static string Alias(string text, string root) => text.Replace(root, PublicRoot, StringComparison.OrdinalIgnoreCase);
++    private static IEnumerable<Control> Descendants(Control parent)
++    {
++        foreach (Control child in parent.Controls)
++        { yield return child; foreach (var descendant in Descendants(child)) yield return descendant; }
++    }
++
++    private sealed class ScanGate : IDisposable
++    {
++        private int rounds, active;
++        internal int Rounds => Volatile.Read(ref rounds);
++        internal int Active => Volatile.Read(ref active);
++        internal ManualResetEventSlim Release { get; } = new();
++        internal ScanResult Scan(string path, IProgress<ScanProgress> progress, CancellationToken token, LiveScanSession live)
++        {
++            int round = Interlocked.Increment(ref rounds), paused = 0, preparing = 0;
++            Interlocked.Increment(ref active); Release.Reset();
++            try
++            {
++                return new DiskScanner(1).Scan(path, new ForwardProgress(value =>
++                {
++                    progress.Report(value with { CurrentPath = Alias(value.CurrentPath, path), Message = value.Message == null ? null : Alias(value.Message, path) });
++                    if (round < 2) return;
++                    if (value.Files == 0 && value.Folders == 0 && Interlocked.Exchange(ref preparing, 1) == 0)
++                    {
++                        Console.WriteLine("STAGE layout-transition preview stage=preparing; round=" + round);
++                        token.WaitHandle.WaitOne(TimeSpan.FromMilliseconds(1200)); token.ThrowIfCancellationRequested();
++                    }
++                    else if (Volatile.Read(ref paused) == 0 && live.Capture(path, token)?.Directory.Children.Any(entry => entry.Name == "A-child") == true &&
++                        Interlocked.Exchange(ref paused, 1) == 0)
++                    {
++                        Console.WriteLine("STAGE layout-transition preview stage=paused; round=" + round);
++                        if (!Release.Wait(TimeSpan.FromMinutes(2), token))
++                            Console.WriteLine("STAGE layout-transition preview stage=automatic-release; round=" + round);
++                    }
++                }), token, live);
++            }
++            finally { Interlocked.Decrement(ref active); }
++        }
++        public void Dispose() => Release.Dispose();
++    }
++    private sealed class ForwardProgress(Action<ScanProgress> report) : IProgress<ScanProgress>
++    { public void Report(ScanProgress value) => report(value); }
++    private sealed class SyntheticActivity : IDiskActivitySource
++    {
++        public DiskActivitySample Collect(CancellationToken token)
++        { token.ThrowIfCancellationRequested(); return new(DateTimeOffset.UtcNow, 0, 0, 0, 0, 0, DiskActivityStatus.Available); }
++        public void Dispose() { }
++    }
++
++    private sealed class Fixture
++    {
++        private const string Prefix = "AsukaLens-layout-transition-";
++        private readonly string temp = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath()));
++        private readonly string nonce = Guid.NewGuid().ToString("N");
++        private readonly Dictionary<string, long> files = new(StringComparer.OrdinalIgnoreCase);
++        private readonly HashSet<string> directories = new(StringComparer.OrdinalIgnoreCase);
++        private bool created;
++        private string Root => Path.Combine(temp, Prefix + nonce);
++        internal string Scope => Path.Combine(Root, "AsukaLens-Demo");
++        internal string Settings => Path.Combine(Root, "settings");
++        internal void Create()
++        {
++            if (Directory.Exists(Root) || File.Exists(Root)) throw new InvalidOperationException("FixtureCollision");
++            Directory.CreateDirectory(Root); created = true;
++            Write(".owner", System.Text.Encoding.UTF8.GetBytes(nonce));
++            foreach (string relative in new[] { "settings", "AsukaLens-Demo", Path.Combine("AsukaLens-Demo", "A-child") })
++            { Directory.CreateDirectory(Path.Combine(Root, relative)); directories.Add(relative); }
++            for (int index = 0; index < 1105; index++)
++                Write(Path.Combine("AsukaLens-Demo", $"sample-{index:0000}.txt"), new byte[17 + index % 31]);
++            Write(Path.Combine("AsukaLens-Demo", "A-child", "leaf.txt"), new byte[256]);
++        }
++        private void Write(string relative, byte[] bytes)
++        { File.WriteAllBytes(Path.Combine(Root, relative), bytes); files.Add(relative, bytes.Length); }
++        internal void Cleanup()
++        {
++            if (!created) return;
++            string resolved = Path.GetFullPath(Root);
++            if (!string.Equals(Path.GetDirectoryName(resolved), temp, StringComparison.OrdinalIgnoreCase) ||
++                Path.GetFileName(resolved) != Prefix + nonce || (File.GetAttributes(resolved) & FileAttributes.ReparsePoint) != 0 ||
++                File.ReadAllText(Path.Combine(resolved, ".owner")) != nonce) throw new InvalidOperationException("CleanupBoundary");
++            var pending = new Stack<string>(); pending.Push(resolved);
++            var seenFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
++            var seenDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
++            while (pending.TryPop(out var directory))
++                foreach (string entry in Directory.EnumerateFileSystemEntries(directory))
++                {
++                    string relative = Path.GetRelativePath(resolved, entry);
++                    var attributes = File.GetAttributes(entry);
++                    if ((attributes & FileAttributes.ReparsePoint) != 0) throw new InvalidOperationException("CleanupLink");
++                    if ((attributes & FileAttributes.Directory) != 0)
++                    {
++                        if (!directories.Contains(relative)) throw new InvalidOperationException("CleanupUnknownDirectory");
++                        seenDirectories.Add(relative); pending.Push(entry);
++                    }
++                    else
++                    {
++                        if (!files.TryGetValue(relative, out long length) || new FileInfo(entry).Length != length)
++                            throw new InvalidOperationException("CleanupUnknownFile");
++                        seenFiles.Add(relative);
++                    }
++                }
++            if (!seenFiles.SetEquals(files.Keys) || !seenDirectories.SetEquals(directories)) throw new InvalidOperationException("CleanupChanged");
++            foreach (string relative in files.Keys) File.Delete(Path.Combine(resolved, relative));
++            foreach (string relative in directories.OrderByDescending(value => value.Length)) Directory.Delete(Path.Combine(resolved, relative), false);
++            Directory.Delete(resolved, false); created = false;
++            Console.WriteLine("CLEANUP layout-transition preview completed=True");
++        }
++    }
++}
+diff --git a/tests/LayoutPresentationPolicyTests.cs b/tests/LayoutPresentationPolicyTests.cs
+new file mode 100644
+index 0000000..1fca48e
+--- /dev/null
++++ b/tests/LayoutPresentationPolicyTests.cs
+@@ -0,0 +1,488 @@
++using DiskAtlas;
++using System.Diagnostics;
++using System.Runtime.InteropServices;
++
++// Owned Forms, Panels and their native redraw state only. These checks do not
++// read a desktop image, scan a directory, or force an offscreen bitmap render.
++internal static class LayoutPresentationPolicyTests
++{
++    internal static int Run(bool dpi96 = false)
++    {
++        string failure = "None", phase = "Initialization";
++        int passed = 0;
++        Action? requestClose = null;
++        var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
++        CancellationToken token = cancellation.Token;
++        var worker = new Thread(() =>
++        {
++            var fixtures = new List<Fixture>();
++            Form? pump = null;
++            try
++            {
++                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles();
++                Application.SetCompatibleTextRenderingDefault(false);
++                pump = new Form
++                {
++                    Text = "AsukaLens · Layout policy checks", ClientSize = new Size(220, 70),
++                    ShowInTaskbar = false, StartPosition = FormStartPosition.CenterScreen,
++                    AutoScaleMode = AutoScaleMode.None
++                };
++                requestClose = () =>
++                {
++                    try
++                    {
++                        if (pump is { IsDisposed: false, IsHandleCreated: true } activePump)
++                            activePump.BeginInvoke((Action)CloseOwnedWindows);
++                    }
++                    catch (InvalidOperationException) { }
++                };
++                pump.Shown += async (_, _) =>
++                {
++                    await Task.Yield();
++                    try
++                    {
++                        phase = "Burst"; await CheckBurst();
++                        phase = "DisposeDuringSettle"; await CheckDisposeDuringSettle();
++                        phase = "PausedSecondBatch"; await CheckPausedSecondBatch();
++                        phase = "UnchangedLayoutRetry"; await CheckUnchangedLayoutRetry();
++                        phase = "SynchronousLayoutHold"; await CheckSynchronousLayoutHold();
++                        phase = "ThrowingLayoutHold"; await CheckThrowingLayoutHold();
++                        phase = "DisposedLayoutHold"; await CheckDisposedLayoutHold();
++                        phase = "DestroyedLayoutHold"; await CheckDestroyedLayoutHold();
++                        phase = "RecreatedLayoutGeneration"; await CheckRecreatedLayoutGeneration();
++                        phase = "QueuedClose"; await CheckQueuedClose();
++                        phase = "QueuedHandleDestruction"; await CheckQueuedHandleDestruction();
++                        phase = "Minimized"; await CheckMinimized();
++                    }
++                    catch (CheckFailure error) { failure = error.Code; }
++                    catch (OperationCanceledException) { failure = phase + "Cancelled"; }
++                    catch { failure = phase + "UnexpectedFailure"; }
++                    finally { CloseOwnedWindows(); }
++                };
++                Application.Run(pump);
++                if (failure == "None" && passed == 0) failure = "NoPolicyChecksCompleted";
++            }
++            catch (CheckFailure error) { failure = error.Code; }
++            catch { failure = phase + "UnexpectedUiCallbackFailure"; }
++            finally
++            {
++                cancellation.Cancel();
++                CloseOwnedWindows();
++                pump?.Dispose();
++            }
++
++            void CloseOwnedWindows()
++            {
++                foreach (var fixture in fixtures.ToArray()) fixture.Dispose();
++                if (pump is { IsDisposed: false }) pump.Close();
++                Application.ExitThread();
++            }
++
++            async Task<Fixture> OpenFixture(int rootCount = 1)
++            {
++                token.ThrowIfCancellationRequested();
++                var fixture = new Fixture(pump!, fixtures, rootCount);
++                await Until(() => fixture.Owner.IsHandleCreated && fixture.Owner.Visible &&
++                    fixture.Roots.All(root => root.IsHandleCreated && root.Visible), "OwnedFixtureDidNotBecomeVisible");
++                await Quiesce();
++                return fixture;
++            }
++
++            async Task CheckBurst()
++            {
++                using var fixture = await OpenFixture();
++                int settles = 0;
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, fixture.Roots);
++                for (int index = 0; index < 256; index++) presenter.ResizeSurfaces();
++                Check(presenter.HasQueuedWork && presenter.PendingRoots == 1 && presenter.Presentations == 0,
++                    "BurstUsesOnePendingRootBeforeDispatch");
++                await Until(() => !presenter.HasQueuedWork && presenter.PendingRoots == 0 && presenter.Presentations > 0,
++                    "BurstPresentationDidNotComplete");
++                Check(presenter.Presentations == 1 && settles == 1, "BurstCoalescesToOnePresentation");
++                presenter.RetryPending();
++                await Quiesce();
++                Check(!presenter.HasQueuedWork && presenter.PendingRoots == 0 && presenter.Presentations == 1 && settles == 1,
++                    "EmptyRetryDoesNotCreateIdleWork");
++            }
++
++            async Task CheckDisposeDuringSettle()
++            {
++                using var fixture = await OpenFixture(2);
++                int settles = 0;
++                LayoutPresentation? presenter = null;
++                try
++                {
++                    presenter = new LayoutPresentation(fixture.Owner, () => false, _ =>
++                    {
++                        settles++;
++                        presenter!.Dispose();
++                    }, fixture.Roots);
++                    presenter.ResizeSurfaces();
++                    Check(presenter.HasQueuedWork && presenter.PendingRoots == 2, "DisposeFixtureQueuesBothRoots");
++                    await Until(() => settles != 0, "DisposeSettleCallbackDidNotRun");
++                    await Quiesce();
++                    Check(settles == 1 && presenter.Presentations == 0 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                        "DisposeDuringSettleStopsBeforePaintingOtherRoots");
++                }
++                finally { presenter?.Dispose(); }
++            }
++
++            async Task CheckPausedSecondBatch()
++            {
++                using var fixture = await OpenFixture(2);
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, fixture.Roots);
++                RedrawHold? hold = null;
++                bool armed = true, pausedInsidePaint = false;
++                PaintEventHandler pauseSecond = (_, _) =>
++                {
++                    if (!armed) return;
++                    armed = false;
++                    hold = new RedrawHold(fixture.Roots[1]);
++                    pausedInsidePaint = true;
++                };
++                fixture.Roots[0].Paint += pauseSecond;
++                try
++                {
++                    presenter.ResizeSurfaces();
++                    await Until(() => pausedInsidePaint && !presenter.HasQueuedWork,
++                        "FirstRootDidNotPauseSecondDuringSynchronousPaint");
++                    var pausedHold = hold ?? throw new CheckFailure("SecondRootExternalHoldWasNotCreated");
++                    Check(pausedHold.IsPaused && presenter.Presentations == 1 && presenter.PendingRoots == 1,
++                        "SkippedSecondBatchRetainsOriginalDirtyArea");
++                    await Quiesce();
++                    Check(pausedHold.IsPaused && !presenter.HasQueuedWork && presenter.PendingRoots == 1 && presenter.Presentations == 1,
++                        "ExternalRedrawPauseIsPreservedWithoutBusyQueue");
++                    pausedHold.Dispose(); hold = null;
++                    Check(GetProp(fixture.Roots[1].Handle, "SysSetRedraw") == IntPtr.Zero &&
++                        IsWindowVisible(fixture.Roots[1].Handle), "OwnedExternalPauseIsReleasedByTestOnly");
++                    presenter.RetryPending();
++                    await Until(() => !presenter.HasQueuedWork && presenter.PendingRoots == 0 && presenter.Presentations == 2,
++                        "ResumedSecondBatchDidNotPresent");
++                    presenter.RetryPending();
++                    await Quiesce();
++                    Check(presenter.Presentations == 2 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                        "ResumedSecondBatchPresentsExactlyOnce");
++                }
++                finally
++                {
++                    fixture.Roots[0].Paint -= pauseSecond;
++                    hold?.Dispose();
++                }
++            }
++
++            async Task CheckUnchangedLayoutRetry()
++            {
++                using var fixture = await OpenFixture();
++                var root = fixture.Roots[0];
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, root);
++                using var hold = new RedrawHold(root);
++                using var declined = presenter.BeginLayout(root);
++                Check(declined == null && hold.IsPaused && presenter.Presentations == 0,
++                    "LayoutHoldNeverTakesOrReleasesExistingExternalHold");
++                presenter.ResizeSurfaces();
++                Check(hold.IsPaused && presenter.PendingRoots == 1 && !presenter.HasQueuedWork && presenter.Presentations == 0,
++                    "InitiallyPausedRootRetainsPendingWithoutQueue");
++                await Quiesce();
++                Check(hold.IsPaused && presenter.PendingRoots == 1 && !presenter.HasQueuedWork && presenter.Presentations == 0,
++                    "InitiallyPausedRootDoesNotPollOrReleaseExternalHold");
++                Rectangle previousBounds = root.Bounds;
++                Size previousWindow = fixture.Owner.ClientSize;
++                hold.Dispose();
++                root.PerformLayout();
++                Check(root.Bounds == previousBounds && fixture.Owner.ClientSize == previousWindow && presenter.HasQueuedWork,
++                    "UnchangedLayoutCanRetryExistingPendingArea");
++                await Until(() => !presenter.HasQueuedWork && presenter.PendingRoots == 0 && presenter.Presentations > 0,
++                    "UnchangedLayoutRetryDidNotPresent");
++                await Quiesce();
++                Check(presenter.Presentations == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                    "UnchangedLayoutRetryPresentsOnceWithoutNewGeometry");
++            }
++
++            async Task CheckSynchronousLayoutHold()
++            {
++                using var fixture = await OpenFixture();
++                var root = fixture.Roots[0];
++                using var child = new Panel { Bounds = new Rectangle(4, 4, 35, 20) };
++                root.Controls.Add(child);
++                int settles = 0;
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, root);
++                using (var layout = presenter.BeginLayout(root) ?? throw new CheckFailure("VisibleLayoutHoldWasNotAcquired"))
++                {
++                    Check(GetProp(root.Handle, "SysSetRedraw") != IntPtr.Zero && presenter.Presentations == 0,
++                        "LayoutTokenOwnsLocalRedrawHold");
++                    for (int index = 0; index < 4; index++)
++                    {
++                        child.Bounds = new Rectangle(9 + index * 12, 8 + index, 36 + index, 22);
++                        Check(GetProp(root.Handle, "SysSetRedraw") != IntPtr.Zero && presenter.Presentations == 0 && settles == 0,
++                            "ChildBoundsChangeKeepsLayoutHoldAndDefersPresentation");
++                    }
++                    using var nested = presenter.BeginLayout(root);
++                    Check(nested == null && GetProp(root.Handle, "SysSetRedraw") != IntPtr.Zero && presenter.PendingRoots == 1,
++                        "NestedLayoutAttemptDoesNotStealOuterHold");
++                }
++                Check(GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle) &&
++                    presenter.Presentations == 1 && settles == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                    "LayoutTokenExitReleasesAndPresentsBeforeReturning");
++                await Quiesce();
++                Check(presenter.Presentations == 1 && settles == 1 && !presenter.HasQueuedWork,
++                    "SynchronousLayoutExitLeavesNoDuplicateQueuedPresentation");
++            }
++
++            async Task CheckThrowingLayoutHold()
++            {
++                using var fixture = await OpenFixture();
++                var root = fixture.Roots[0];
++                using var child = new Panel { Bounds = new Rectangle(4, 4, 35, 20) };
++                root.Controls.Add(child);
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, root);
++                var sentinel = new CheckFailure("SyntheticLayoutMutation");
++                bool caught = false;
++                try
++                {
++                    using var layout = presenter.BeginLayout(root) ?? throw new CheckFailure("ThrowingLayoutHoldWasNotAcquired");
++                    child.Left += 12;
++                    throw sentinel;
++                }
++                catch (CheckFailure error) when (ReferenceEquals(error, sentinel)) { caught = true; }
++                Check(caught && GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle) &&
++                    presenter.Presentations == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                    "ThrowingLayoutMutationFinallyReleasesAndPresents");
++                await Quiesce();
++                Check(presenter.Presentations == 1 && !presenter.HasQueuedWork,
++                    "ThrowingLayoutMutationDoesNotLeaveRedrawOrQueueHeld");
++            }
++
++            async Task CheckDisposedLayoutHold()
++            {
++                using var fixture = await OpenFixture();
++                var root = fixture.Roots[0];
++                using var child = new Panel { Bounds = new Rectangle(4, 4, 35, 20) };
++                root.Controls.Add(child);
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, root);
++                using var layout = presenter.BeginLayout(root) ?? throw new CheckFailure("DisposedLayoutHoldWasNotAcquired");
++                child.Left += 12;
++                presenter.Dispose();
++                layout.Dispose();
++                Check(GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle) &&
++                    presenter.Presentations == 0 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                    "PresenterDisposeReleasesOwnedHoldAndTokenDisposeIsIdempotent");
++                await Quiesce();
++                Check(presenter.Presentations == 0 && !presenter.HasQueuedWork,
++                    "DisposedLayoutPresenterCannotQueueLatePresentation");
++            }
++
++            async Task CheckDestroyedLayoutHold()
++            {
++                using var fixture = await OpenFixture();
++                var root = fixture.Roots[0];
++                using var child = new Panel { Bounds = new Rectangle(4, 4, 35, 20) };
++                root.Controls.Add(child);
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, root);
++                int creations = fixture.Owner.HandleCreations;
++                using var layout = presenter.BeginLayout(root) ?? throw new CheckFailure("DestroyedLayoutHoldWasNotAcquired");
++                child.Left += 12;
++                fixture.Owner.DestroyTestHandle();
++                layout.Dispose();
++                Check(!fixture.Owner.IsHandleCreated && !root.IsHandleCreated && fixture.Owner.HandleCreations == creations &&
++                    presenter.Presentations == 0 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                    "DestroyedLayoutHandleCannotBeReleasedOrRecreatedByToken");
++                await Quiesce();
++                Check(!fixture.Owner.IsHandleCreated && fixture.Owner.HandleCreations == creations && presenter.Presentations == 0,
++                    "DestroyedLayoutHoldLeavesNoDelayedOldHandleWork");
++            }
++
++            async Task CheckRecreatedLayoutGeneration()
++            {
++                using var fixture = await OpenFixture();
++                var root = fixture.Roots[0];
++                using var child = new Panel { Bounds = new Rectangle(4, 4, 35, 20) };
++                root.Controls.Add(child);
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, root);
++                using var oldToken = presenter.BeginLayout(root) ?? throw new CheckFailure("OldGenerationHoldWasNotAcquired");
++                child.Left += 8;
++                int creations = fixture.Owner.HandleCreations;
++                fixture.Owner.DestroyTestHandle();
++                Check(!fixture.Owner.IsHandleCreated && !root.IsHandleCreated, "OldLayoutGenerationActuallyDestroysOwnedHandles");
++                fixture.Owner.RecreateForTest();
++                Check(fixture.Owner.IsHandleCreated && root.IsHandleCreated && fixture.Owner.HandleCreations > creations &&
++                    IsWindowVisible(root.Handle), "RecreatedOwnerAndRootHaveLiveVisibleHandles");
++                using var newToken = presenter.BeginLayout(root) ?? throw new CheckFailure("NewGenerationHoldWasNotAcquired");
++                child.Left += 8;
++                oldToken.Dispose();
++                child.Left += 8;
++                Check(GetProp(root.Handle, "SysSetRedraw") != IntPtr.Zero && presenter.Presentations == 0 && presenter.PendingRoots == 1,
++                    "OldTokenCannotReleaseOrDeactivateNewGenerationHold");
++                newToken.Dispose();
++                Check(GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle) &&
++                    presenter.Presentations == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                    "NewGenerationTokenReleasesAndPresentsNormally");
++                await Quiesce();
++                Check(presenter.Presentations == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                    "RecreatedGenerationRejectsStaleQueuedCallbacks");
++            }
++
++            async Task CheckQueuedClose()
++            {
++                using var fixture = await OpenFixture();
++                int settles = 0;
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, fixture.Roots);
++                presenter.ResizeSurfaces();
++                Check(presenter.HasQueuedWork, "CloseFixtureHasQueuedCallback");
++                fixture.Owner.Close();
++                await Quiesce();
++                Check(fixture.Owner.IsDisposed && settles == 0 && presenter.Presentations == 0 &&
++                    presenter.PendingRoots == 0 && !presenter.HasQueuedWork, "QueuedCloseDiscardsWorkWithoutAccessingOldControls");
++            }
++
++            async Task CheckQueuedHandleDestruction()
++            {
++                using var fixture = await OpenFixture();
++                int settles = 0;
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, fixture.Roots);
++                int creations = fixture.Owner.HandleCreations;
++                presenter.ResizeSurfaces();
++                Check(presenter.HasQueuedWork, "HandleDestructionFixtureHasQueuedCallback");
++                fixture.Owner.DestroyTestHandle();
++                await Quiesce();
++                Check(!fixture.Owner.IsDisposed && !fixture.Owner.IsHandleCreated && fixture.Owner.HandleCreations == creations &&
++                    settles == 0 && presenter.Presentations == 0 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                    "QueuedHandleDestructionDoesNotRecreateOrUseOldHandle");
++            }
++
++            async Task CheckMinimized()
++            {
++                using var fixture = await OpenFixture();
++                int settles = 0;
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, fixture.Roots);
++                presenter.ResizeSurfaces();
++                Check(presenter.HasQueuedWork, "MinimizeFixtureHasQueuedCallback");
++                fixture.Owner.WindowState = FormWindowState.Minimized;
++                await Until(() => fixture.Owner.WindowState == FormWindowState.Minimized && !presenter.HasQueuedWork,
++                    "MinimizedQueueDidNotSettle");
++                presenter.ResizeSurfaces(); presenter.RetryPending();
++                await Quiesce();
++                Check(fixture.Owner.WindowState == FormWindowState.Minimized && settles == 0 && presenter.Presentations == 0 &&
++                    presenter.PendingRoots == 0 && !presenter.HasQueuedWork, "MinimizedOwnerNeverPresentsOrQueuesMoreWork");
++            }
++
++            async Task Until(Func<bool> ready, string code)
++            {
++                var clock = Stopwatch.StartNew();
++                while (!ready())
++                {
++                    token.ThrowIfCancellationRequested();
++                    if (clock.Elapsed > TimeSpan.FromSeconds(2)) throw new CheckFailure(code);
++                    await Task.Delay(10, token);
++                }
++            }
++            async Task Quiesce() => await Task.Delay(70, token);
++        }) { IsBackground = true };
++        worker.SetApartmentState(ApartmentState.STA);
++        worker.Start();
++        bool finished = worker.Join(TimeSpan.FromSeconds(24));
++        if (!finished)
++        {
++            cancellation.Cancel(); requestClose?.Invoke();
++            finished = worker.Join(TimeSpan.FromSeconds(5));
++            failure = finished ? "PolicyBudgetExceeded" : "PolicyWorkerStillActive";
++        }
++        if (finished) cancellation.Dispose();
++        if (failure != "None" || !finished)
++        {
++            Console.Error.WriteLine("FAIL layout presentation policy code=" + failure + "; checks=" + passed + "; worker_finished=" + finished);
++            return 1;
++        }
++        Console.WriteLine("PASS layout presentation policy checks=" + passed + "; owned_windows_closed=True; no_screen_capture=True");
++        return 0;
++
++        void Check(bool condition, string code)
++        {
++            if (!condition) throw new CheckFailure(code);
++            passed++;
++            Console.WriteLine("PASS layout presentation policy " + code);
++        }
++    }
++
++    private sealed class Fixture : IDisposable
++    {
++        private readonly List<Fixture> owned;
++        internal TestForm Owner { get; }
++        internal Panel[] Roots { get; }
++
++        internal Fixture(Form pump, List<Fixture> owned, int rootCount)
++        {
++            this.owned = owned;
++            Owner = new TestForm
++            {
++                Text = "AsukaLens · Synthetic layout fixture", ClientSize = new Size(350, 130),
++                ShowInTaskbar = false, AutoScaleMode = AutoScaleMode.None,
++                StartPosition = FormStartPosition.CenterParent
++            };
++            Roots = Enumerable.Range(0, rootCount).Select(index => new Panel
++            {
++                Bounds = new Rectangle(10 + index * 165, 10, 150, 90),
++                BackColor = index == 0 ? Color.FromArgb(225, 232, 240) : Color.FromArgb(240, 228, 221)
++            }).ToArray();
++            Owner.Controls.AddRange(Roots);
++            owned.Add(this);
++            Owner.Show(pump);
++        }
++
++        public void Dispose()
++        {
++            owned.Remove(this);
++            if (!Owner.IsDisposed) { Owner.Close(); Owner.Dispose(); }
++        }
++    }
++
++    private sealed class TestForm : Form
++    {
++        internal int HandleCreations { get; private set; }
++        internal void DestroyTestHandle() => DestroyHandle();
++        internal void RecreateForTest()
++        {
++            CreateHandle();
++            foreach (Control child in Controls) { child.CreateControl(); _ = child.Handle; }
++        }
++        protected override void OnHandleCreated(EventArgs e) { HandleCreations++; base.OnHandleCreated(e); }
++    }
++
++    private sealed class RedrawHold : IDisposable
++    {
++        private readonly Control control;
++        private readonly IntPtr handle;
++        private bool released;
++
++        internal RedrawHold(Control control)
++        {
++            this.control = control;
++            if (!control.IsHandleCreated || !control.Visible) throw new CheckFailure("ExternalHoldRequiresOwnedVisibleHandle");
++            handle = control.Handle;
++            if (GetProp(handle, "SysSetRedraw") != IntPtr.Zero) throw new CheckFailure("ExternalHoldWasAlreadyOwnedElsewhere");
++            SendMessage(handle, 0x000B, IntPtr.Zero, IntPtr.Zero);
++        }
++        internal bool IsPaused => !released && !control.IsDisposed && control.IsHandleCreated && control.Handle == handle &&
++            GetProp(handle, "SysSetRedraw") != IntPtr.Zero;
++        public void Dispose()
++        {
++            if (released) return;
++            released = true;
++            if (!control.IsDisposed && control.IsHandleCreated && control.Handle == handle)
++                SendMessage(handle, 0x000B, new IntPtr(1), IntPtr.Zero);
++        }
++    }
++
++    private sealed class CheckFailure(string code) : Exception("LayoutPresentationPolicy")
++    {
++        internal string Code { get; } = code;
++    }
++    [DllImport("user32.dll", EntryPoint = "SendMessageW")]
++    private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
++    [DllImport("user32.dll", EntryPoint = "GetPropW", CharSet = CharSet.Unicode)]
++    private static extern IntPtr GetProp(IntPtr window, string name);
++    [DllImport("user32.dll")]
++    [return: MarshalAs(UnmanagedType.Bool)]
++    private static extern bool IsWindowVisible(IntPtr window);
++}

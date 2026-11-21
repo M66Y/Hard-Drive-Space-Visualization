@@ -1,0 +1,9 @@
+{
+  "checked": 4,
+  "rejected_codes": [
+    "OffsetNotChildTranslation",
+    "ExposedRootNotRestored",
+    "MissingGeometryWitness",
+    "PrintMisreportedAsRoot"
+  ]
+}

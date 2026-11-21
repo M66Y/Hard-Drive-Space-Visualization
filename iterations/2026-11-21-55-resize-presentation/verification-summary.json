@@ -1,0 +1,346 @@
+{
+  "date": "2026-11-21",
+  "cases": [
+    {
+      "name": "composition",
+      "exit_code": 0,
+      "dpi": 144
+    },
+    {
+      "name": "root",
+      "exit_code": 0,
+      "dpi": 144
+    },
+    {
+      "name": "restore",
+      "exit_code": 0,
+      "dpi": 144
+    },
+    {
+      "name": "restore-custom",
+      "exit_code": 0,
+      "dpi": 144
+    },
+    {
+      "name": "layout",
+      "exit_code": 0,
+      "dpi": 144
+    },
+    {
+      "name": "presentation",
+      "exit_code": 0,
+      "dpi": 144
+    },
+    {
+      "name": "integration",
+      "exit_code": 0,
+      "dpi": 144
+    },
+    {
+      "name": "surface",
+      "exit_code": 0,
+      "dpi": 144
+    },
+    {
+      "name": "surface-dib",
+      "exit_code": 0,
+      "dpi": 144
+    },
+    {
+      "name": "glow",
+      "exit_code": 0,
+      "dpi": 144
+    },
+    {
+      "name": "scroll",
+      "exit_code": 0,
+      "dpi": 144
+    },
+    {
+      "name": "ui-normal",
+      "exit_code": 0,
+      "dpi": 144
+    },
+    {
+      "name": "ui-dib",
+      "exit_code": 0,
+      "dpi": 144
+    },
+    {
+      "name": "composition",
+      "exit_code": 0,
+      "dpi": 96
+    },
+    {
+      "name": "root",
+      "exit_code": 0,
+      "dpi": 96
+    },
+    {
+      "name": "restore",
+      "exit_code": 0,
+      "dpi": 96
+    },
+    {
+      "name": "restore-custom",
+      "exit_code": 0,
+      "dpi": 96
+    },
+    {
+      "name": "layout",
+      "exit_code": 0,
+      "dpi": 96
+    },
+    {
+      "name": "presentation",
+      "exit_code": 0,
+      "dpi": 96
+    },
+    {
+      "name": "integration",
+      "exit_code": 0,
+      "dpi": 96
+    },
+    {
+      "name": "surface",
+      "exit_code": 0,
+      "dpi": 96
+    },
+    {
+      "name": "surface-dib",
+      "exit_code": 0,
+      "dpi": 96
+    },
+    {
+      "name": "glow",
+      "exit_code": 0,
+      "dpi": 96
+    },
+    {
+      "name": "scroll",
+      "exit_code": 0,
+      "dpi": 96
+    },
+    {
+      "name": "ui-normal",
+      "exit_code": 0,
+      "dpi": 96
+    },
+    {
+      "name": "ui-dib",
+      "exit_code": 0,
+      "dpi": 96
+    }
+  ],
+  "logs": [
+    {
+      "name": "composition-144.log",
+      "sha256": "A5AC05B3297AF0C86F11FF2E2C04EEA159F0785CB048F457BA906622DE2A4B67",
+      "bytes": 118,
+      "passed": true
+    },
+    {
+      "name": "composition-96.log",
+      "sha256": "A5AC05B3297AF0C86F11FF2E2C04EEA159F0785CB048F457BA906622DE2A4B67",
+      "bytes": 118,
+      "passed": true
+    },
+    {
+      "name": "glow-144.log",
+      "sha256": "88B32A07C2402488A2C7D13112F92033012B494192EB8FD7AA181DDC86F4C94A",
+      "bytes": 8163,
+      "passed": true
+    },
+    {
+      "name": "glow-96.log",
+      "sha256": "88B32A07C2402488A2C7D13112F92033012B494192EB8FD7AA181DDC86F4C94A",
+      "bytes": 8163,
+      "passed": true
+    },
+    {
+      "name": "integration-144.log",
+      "sha256": "90AB9C588D3B058DDFC2FCCE73467157A1E4F1B2D2FA50CA98D0C673AB188449",
+      "bytes": 354,
+      "passed": true
+    },
+    {
+      "name": "integration-96.log",
+      "sha256": "835B604DD86BB6B34A7364929D958585AB713780A3AA394F7E36AFA9EF3EFB55",
+      "bytes": 356,
+      "passed": true
+    },
+    {
+      "name": "layout-144.log",
+      "sha256": "F3D65F1FC282ECA1824BD8BFAA42F5C6EB738DF5DDEFC883CF1339171FC3FAFE",
+      "bytes": 2463,
+      "passed": true
+    },
+    {
+      "name": "layout-96.log",
+      "sha256": "DFA1EECC89A9DD5BDE9CBC5DC2C507FD6A51BE499E3FDC619C5908F15E454947",
+      "bytes": 2463,
+      "passed": true
+    },
+    {
+      "name": "native-frame.log",
+      "sha256": "566BC24DB68C43FF0505317E506E08C2789B6ACC062088F1C3D3CD84EBCCA6B5",
+      "bytes": 116,
+      "passed": true
+    },
+    {
+      "name": "presentation-144.log",
+      "sha256": "9D3D8C622C04343999BCA9FC626CD264EEFE877BF90AB84D129095AF2A5C1958",
+      "bytes": 8240,
+      "passed": true
+    },
+    {
+      "name": "presentation-96.log",
+      "sha256": "9D3D8C622C04343999BCA9FC626CD264EEFE877BF90AB84D129095AF2A5C1958",
+      "bytes": 8240,
+      "passed": true
+    },
+    {
+      "name": "restore-144.log",
+      "sha256": "F0C0C1E3C61817B7C2555F13E9A8E67D3B65D6C275C60C97EB6C62E27D7FC140",
+      "bytes": 75,
+      "passed": true
+    },
+    {
+      "name": "restore-96.log",
+      "sha256": "F29B9FD7ED88C6B7939BC4AF81B4AE25AB89B992641BBD280B925A36884991F4",
+      "bytes": 74,
+      "passed": true
+    },
+    {
+      "name": "restore-custom-144.log",
+      "sha256": "B634125C2AD4F495412454A19757134355C570DDCE071E8FFB1212BC4D5BA842",
+      "bytes": 74,
+      "passed": true
+    },
+    {
+      "name": "restore-custom-96.log",
+      "sha256": "E8DA0986346C290DBAB61C8A90D8C8E2ED41E059C508682834A2F7E60075ECAB",
+      "bytes": 73,
+      "passed": true
+    },
+    {
+      "name": "root-144.log",
+      "sha256": "7F67B0509D3FD9D255A3A6D4246DD612AA6BD7CE0AB449B05231DD1D2FE8DF41",
+      "bytes": 83,
+      "passed": true
+    },
+    {
+      "name": "root-96.log",
+      "sha256": "7F67B0509D3FD9D255A3A6D4246DD612AA6BD7CE0AB449B05231DD1D2FE8DF41",
+      "bytes": 83,
+      "passed": true
+    },
+    {
+      "name": "scroll-144.log",
+      "sha256": "202519437678035A5EEE8FC65F06E00F22693AE513E5FD4A78C2F853D3EA0C9C",
+      "bytes": 140,
+      "passed": true
+    },
+    {
+      "name": "scroll-96.log",
+      "sha256": "202519437678035A5EEE8FC65F06E00F22693AE513E5FD4A78C2F853D3EA0C9C",
+      "bytes": 140,
+      "passed": true
+    },
+    {
+      "name": "surface-144.log",
+      "sha256": "89312895D61CF16D2A50BD3AAC5C9364877AD3E484228B5A04953DE0E24820E4",
+      "bytes": 170,
+      "passed": true
+    },
+    {
+      "name": "surface-96.log",
+      "sha256": "0C1B8D59270CE43D61A986ED79F2C45F0948513FEDE501C3C11DDCC8AE9B8EAD",
+      "bytes": 510,
+      "passed": true
+    },
+    {
+      "name": "surface-dib-144.log",
+      "sha256": "2780E536BE2A6AD151921C65183C84367FA0A87B6040C677F887A1DEC69F0DC2",
+      "bytes": 340,
+      "passed": true
+    },
+    {
+      "name": "surface-dib-96.log",
+      "sha256": "0C1B8D59270CE43D61A986ED79F2C45F0948513FEDE501C3C11DDCC8AE9B8EAD",
+      "bytes": 510,
+      "passed": true
+    },
+    {
+      "name": "ui-dib-144.log",
+      "sha256": "FA4A5E26D0117148111CB9E933885E7F2687A09F1C178A8161AB2A3E931FDCE1",
+      "bytes": 4929,
+      "passed": true
+    },
+    {
+      "name": "ui-dib-96.log",
+      "sha256": "A735DB349DC087F1D9E2ED0920D4CFE7ED5301639B3821BE9C9A4CF9FFD21DD6",
+      "bytes": 4915,
+      "passed": true
+    },
+    {
+      "name": "ui-normal-144.log",
+      "sha256": "BB99F3CF5C2CD68C281B8FCBC9B394FB0EFB759689C87047B6C5ECFBDB1B1C17",
+      "bytes": 4932,
+      "passed": true
+    },
+    {
+      "name": "ui-normal-96.log",
+      "sha256": "C39B5FE614A66443E6B4C321C39F2E3A7E4597747A2CF3E2C8672F6B1F5DF2F1",
+      "bytes": 4923,
+      "passed": true
+    }
+  ],
+  "root_composite": {
+    "checks_each": 43,
+    "pixels_each": 155872,
+    "cases": 2,
+    "zero_tolerance": true
+  },
+  "natural_resize_composition": {
+    "checks_each": 123,
+    "cases": 2,
+    "no_forced_refresh_before_pixel_observation": true
+  },
+  "native_frame": {
+    "checks": 608,
+    "pixels": 6513984
+  },
+  "full_ui": {
+    "cases": 4,
+    "ordinary_and_dib": true
+  },
+  "transparent_restore": {
+    "cases": 4,
+    "checks_each": 38,
+    "backgrounds": [
+      "default",
+      "synthetic-custom"
+    ]
+  },
+  "retained": [
+    "layout",
+    "background",
+    "font",
+    "1.15x glow and button animations",
+    "ordinary default path",
+    "all seven product functions"
+  ],
+  "actual_ui": {
+    "candidate_launched": true,
+    "synthetic_files": 52,
+    "synthetic_size_approx_mib": 8.97,
+    "maximize_restore_reviewed": true,
+    "persistent_rectangle_or_cut_titles_observed": false,
+    "continuous_resize_human_feedback": "pending",
+    "no_screen_recording_or_system_setting_changes": true
+  },
+  "initial_test_compile_error": "SetClip overload in new test; corrected without changing pixel thresholds",
+  "rejected_attempt": "rejected-experiment.json",
+  "final_source_retains_SWP_NOREDRAW_experiment": false
+}

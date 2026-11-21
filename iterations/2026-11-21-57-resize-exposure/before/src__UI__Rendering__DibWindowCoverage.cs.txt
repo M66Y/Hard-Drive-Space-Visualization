@@ -1,0 +1,205 @@
+using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
+
+namespace DiskAtlas;
+
+// Candidate-only coverage. Uses freshly rendered wallpaper at native client
+// geometry; never captures or stretches the last visible UI frame.
+internal sealed class DibWindowCoverage : IDisposable
+{
+    private readonly MainForm owner;
+    private const uint ClientDcFlags = 0x2 | 0x8 | 0x10; // CACHE | CLIPCHILDREN | CLIPSIBLINGS; never WINDOW.
+    private int depth;
+    private bool painting, disposed;
+    private PixelSurface? rootFrame;
+    private RootKey? rootKey;
+    private readonly record struct RootKey(Size Size, Image? Image, BackgroundView Crop, int Dpi,
+        int Surface, int Background, int Wash);
+    private readonly Dictionary<Control, Region> previous = [];
+    internal int EarlyCopies { get; private set; }
+    internal int ExposedCopies { get; private set; }
+    internal int EarlyVisible { get; private set; }
+    internal int EarlyBlack { get; private set; }
+    internal bool ObservePixels { get; set; }
+    // Controlled test comparison only; ordinary candidates use the cache.
+    internal bool UseRootCache { get; set; } = true;
+    internal DibWindowCoverage(MainForm owner) => this.owner = owner;
+
+    internal void Before(ref Message m)
+    {
+        if(disposed)return;
+        try { Begin(ref m); }
+        catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException)
+        { depth = 0; Clear(); }
+    }
+
+    private void Begin(ref Message m)
+    {
+        if (!owner.IsHandleCreated || owner.IsDisposed || owner.Disposing || IsIconic(owner.Handle)) return;
+        if (m.Msg == 0x0046 && m.LParam != IntPtr.Zero && GetWindowRect(owner.Handle, out var window) && GetClientRect(owner.Handle, out var client))
+        {
+            var pos = Marshal.PtrToStructure<Position>(m.LParam);
+            var next = new Size(pos.Width - (window.Right - window.Left - client.Right),
+                pos.Height - (window.Bottom - window.Top - client.Bottom));
+            if ((pos.Flags & 1) == 0 && next.Width > 0 && next.Height > 0 && next != new Size(client.Right, client.Bottom))
+            {
+                owner.WallpaperRaster.Get(owner.BackgroundImage, next, owner.BackgroundCrop);
+                // Prepare the already measured opaque composite BEFORE Windows
+                // exposes the new client area. Early coverage then only copies;
+                // its cost has moved, not disappeared from the resize total.
+                RootFrame(next);
+            }
+        }
+        if (m.Msg is 0x0085 or 0x0014 or 0x0047 or 0x0005) CoverRoot();
+        if (m.Msg is 0x0047 or 0x0005)
+        {
+            if (depth++ == 0) Capture(owner);
+        }
+    }
+
+    internal void After(ref Message m)
+    {
+        if (m.Msg is not (0x0047 or 0x0005) || depth == 0) return;
+        if (--depth != 0) return;
+        using var resizeWork = ResizeWorkProbe.Measure(ResizeWorkProbe.Work.ExposedCover);
+        try
+        {
+            foreach (var (control, region) in previous)
+            {
+                if (control.IsDisposed || !control.IsHandleCreated || !control.Visible || control.FindForm() != owner) continue;
+                foreach (Control child in control.Controls)
+                    if (child.Visible) AddChild(region, child, true);
+                region.Intersect(control.ClientRectangle);
+                IntPtr handle = control.Handle;
+                IntPtr dc = GetDCEx(handle, IntPtr.Zero, ClientDcFlags);
+                if (dc == IntPtr.Zero) { control.Invalidate(true); continue; }
+                try
+                {
+                    using var g = Graphics.FromHdc(dc);
+                    if (region.IsEmpty(g)) continue;
+                    g.SetClip(region, CombineMode.Intersect);
+                    if (control is WallpaperTable table) table.PaintExposed(g);
+                    else Wallpaper.Paint(control, g);
+                    ExposedCopies++;
+                }
+                finally { ReleaseDC(handle, dc); }
+            }
+        }
+        catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException)
+        { if (!owner.IsDisposed) owner.Invalidate(true); }
+        finally { Clear(); }
+    }
+
+    private void CoverRoot()
+    {
+        using var resizeWork = ResizeWorkProbe.Measure(ResizeWorkProbe.Work.RootCover);
+        if (painting || !GetClientRect(owner.Handle, out var size) || size.Right <= 0 || size.Bottom <= 0) return;
+        IntPtr handle = owner.Handle;
+        IntPtr dc = GetDCEx(handle, IntPtr.Zero, ClientDcFlags);
+        if (dc == IntPtr.Zero) return;
+        painting = true;
+        try
+        {
+            using var g = Graphics.FromHdc(dc);
+            var nativeSize = new Size(size.Right, size.Bottom);
+            // A native destination with many child-window holes makes each
+            // translucent GDI+ veil expensive. Composite that opaque root once
+            // at the exact geometry, then retain the destination's native clip.
+            var frame = RootFrame(nativeSize);
+            if (frame == null || !frame.TryCopy(g, new Rectangle(Point.Empty, nativeSize), Point.Empty, owner))
+                Wallpaper.Paint(owner, g, nativeSize: nativeSize);
+            g.Flush(System.Drawing.Drawing2D.FlushIntention.Sync);
+            int x = size.Right - 2, y = size.Bottom * 2 / 3;
+            if (ObservePixels && PtVisible(dc, x, y))
+            { EarlyVisible++; if ((GetPixel(dc, x, y) & 0xffffff) == 0) EarlyBlack++; }
+            EarlyCopies++;
+        }
+        catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException) { }
+        finally { painting = false; ReleaseDC(handle, dc); }
+    }
+    internal PixelSurface? RootFrame(Size size)
+    {
+        if(disposed || owner.IsDisposed || owner.Disposing)return null;
+        if(!UseRootCache || owner.Rendering?.Active != true) { ReleaseRoot(); return null; }
+        var key = new RootKey(size, owner.BackgroundImage, owner.BackgroundCrop, owner.DeviceDpi,
+            Theme.Surface.ToArgb(), Theme.Background.ToArgb(), Wallpaper.SurfaceAlpha(owner, WallpaperSurface.Ambient, 42));
+        if (key == rootKey && rootFrame != null) return rootFrame;
+        ReleaseRoot();
+        if (size.Width <= 0 || size.Height <= 0 || (long)size.Width * size.Height > WallpaperRaster.MaxPixels) return null;
+        PixelSurface? next = null;
+        try
+        {
+            next = PixelSurface.Create(size, owner.DeviceDpi, owner.Rendering);
+            if (next == null || !next.Native) return null;
+            using (var graphics = Graphics.FromImage(next.Bitmap))
+            {
+                graphics.Clear(Theme.Background);
+                Wallpaper.Paint(owner, graphics, nativeSize: size, nativeCopy: false);
+            }
+            rootFrame = next; rootKey = key; next = null;
+            return rootFrame;
+        }
+        catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException)
+        { return null; }
+        finally { next?.Dispose(); }
+    }
+    internal bool TryPaintCachedRoot(Control control, Graphics graphics, Size size, Point offset, int wash)
+    {
+        if(!UseRootCache || rootFrame == null || owner.Rendering?.Active != true || wash != 42 ||
+            control is NavigationPanel && owner.HasCustomBackground ||
+            rootKey != new RootKey(size,owner.BackgroundImage,owner.BackgroundCrop,owner.DeviceDpi,
+                Theme.Surface.ToArgb(),Theme.Background.ToArgb(),wash))
+        { ResizeWorkProbe.Cache(ResizeWorkProbe.CacheResult.KeyOrPolicy); return false; }
+        var source = new Rectangle(offset,control.ClientSize);
+        if(source.X<0 || source.Y<0 || source.Right>size.Width || source.Bottom>size.Height)
+        { ResizeWorkProbe.Cache(ResizeWorkProbe.CacheResult.Outside); return false; }
+        if(rootFrame.TryCopy(graphics,source,Point.Empty,control))
+        { ResizeWorkProbe.Cache(ResizeWorkProbe.CacheResult.Hit); return true; }
+        using(var transform=graphics.Transform)
+        {
+            var m=transform.Elements;
+            if(m[0]!=1 || m[1]!=0 || m[2]!=0 || m[3]!=1 ||
+                !float.IsFinite(m[4]) || !float.IsFinite(m[5]) || Math.Abs(m[4])>32768 || Math.Abs(m[5])>32768 ||
+                m[4]!=MathF.Truncate(m[4]) || m[5]!=MathF.Truncate(m[5]) || graphics.PageScale!=1 ||
+                graphics.PageUnit is not (GraphicsUnit.Pixel or GraphicsUnit.Display))return false;
+        }
+        // Transparent WinForms parent callbacks can carry a GDI+ translation.
+        // Preserve that mapping and clip rather than rebuilding wallpaper plus
+        // its translucent veil for every child. The exact opaque composite is
+        // valid for both publishers; native mapping guards remain unchanged.
+        graphics.DrawImage(rootFrame.Bitmap,new Rectangle(Point.Empty,source.Size),source,GraphicsUnit.Pixel);
+        ResizeWorkProbe.Cache(ResizeWorkProbe.CacheResult.ManagedHit);
+        return true;
+    }
+    private void ReleaseRoot() { rootFrame?.Dispose(); rootFrame = null; rootKey = null; }
+    private void Capture(Control control)
+    {
+        if (control.IsDisposed || !control.Visible) return;
+        if (control.HasChildren && control is not (DataGridView or InputFrame))
+        {
+            var region = new Region(); region.MakeEmpty();
+            foreach (Control child in control.Controls)
+                if (child.Visible) AddChild(region, child, false);
+            previous[control] = region;
+            foreach (Control child in control.Controls) Capture(child);
+        }
+    }
+    private static void AddChild(Region result, Control child, bool exclude)
+    {
+        using var shape = child.Region?.Clone() ?? new Region(new Rectangle(Point.Empty, child.Size));
+        shape.Intersect(new Rectangle(Point.Empty, child.Size));
+        shape.Translate(child.Left, child.Top);
+        if (exclude) result.Exclude(shape); else result.Union(shape);
+    }
+    private void Clear() { foreach (var region in previous.Values) region.Dispose(); previous.Clear(); }
+    public void Dispose() { disposed = true; depth = 0; Clear(); ReleaseRoot(); }
+    [StructLayout(LayoutKind.Sequential)] private struct Rect { internal int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] private struct Position { internal IntPtr Window, After; internal int X, Y, Width, Height; internal uint Flags; }
+    [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr hwnd, out Rect rect);
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out Rect rect);
+    [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern IntPtr GetDCEx(IntPtr hwnd, IntPtr region, uint flags);
+    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hwnd, IntPtr dc);
+    [DllImport("gdi32.dll")] private static extern bool PtVisible(IntPtr dc, int x, int y);
+    [DllImport("gdi32.dll")] private static extern uint GetPixel(IntPtr dc, int x, int y);
+}

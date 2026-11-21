@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "baseline": "9ac1f0b",
+  "baseline_context": "Selected two-file working-tree delta; included preimages, not a HEAD-only patch",
+  "state": "candidate-desktop-review-and-final-regression-pending",
+  "patch_replay": {
+    "files": 2,
+    "sha256_all_matched": true
+  },
+  "files": [
+    {
+      "source": "src/UI/ResizePixelPolicy.cs",
+      "snapshot": "key-files/src_UI_ResizePixelPolicy.cs.txt",
+      "sha256": "A26DD5E731F9C41F6E5E7A589CC7EEB5382686DCE88249E16A150E06B7D306B9",
+      "bytes": 1492,
+      "preimage": "preimages/src_UI_ResizePixelPolicy.cs.txt",
+      "preimage_sha256": "E257865CBFC94C8BBB3084239D6B065B08873C770AAFDBF90FD41FBB12738571"
+    },
+    {
+      "source": "tests/ResizePixelPolicyTests.cs",
+      "snapshot": "key-files/tests_ResizePixelPolicyTests.cs.txt",
+      "sha256": "69B33DA168947F0CF6F08F4818FF32E3772477D5412D19DD220D1B5019565667",
+      "bytes": 4690,
+      "preimage": "preimages/tests_ResizePixelPolicyTests.cs.txt",
+      "preimage_sha256": "650F82C277C903047C5F1E701E9BCF7FD318A1BB6FC1E6DBC69D9EF37CC6E1F5"
+    }
+  ]
+}

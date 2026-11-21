@@ -1,0 +1,107 @@
+using DiskAtlas;
+using DiskAtlas.ResizePrototype;
+using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+
+internal static class ResizePipelineProbe
+{
+    internal static int Run(string label, bool dpi96, bool slow, bool pixels)
+    {
+        if(label is not ("before" or "after" or "after-reuse" or "final" or "final-ready" or "off1" or "on1" or "on2" or "off2"))return 2;
+        string directory=Path.Combine(Path.GetTempPath(),"AsukaLens-C53-"+Guid.NewGuid().ToString("N"));
+        string report=Path.Combine("artifacts","resize-pipeline-C53",$"{label}-{(dpi96?96:144)}-{(slow?100:30)}-{(pixels?"pixels":"timing")}.json");
+        if(File.Exists(report)){Console.Error.WriteLine("FAIL resize pipeline report exists");return 2;}
+        Directory.CreateDirectory(directory);int result=1;bool completed=false;
+        var thread=new Thread(()=>
+        {
+            try
+            {
+                Application.SetHighDpiMode(dpi96?HighDpiMode.DpiUnaware:HighDpiMode.PerMonitorV2);
+                Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
+                using var form=new MainForm(null,false,Path.Combine(directory,"background.dat"),dibCandidate:true);
+                form.Shown+=async(_,_)=>
+                {
+                    try
+                    {
+                        string scope=Path.Combine(directory,"scope");Directory.CreateDirectory(scope);
+                        for(int i=0;i<5;i++)
+                        {
+                            string child=Path.Combine(scope,"group-"+i);Directory.CreateDirectory(child);
+                            for(int j=0;j<16;j++)File.WriteAllBytes(Path.Combine(child,$"sample-{j:000}.bin"),new byte[(5-i)*4096]);
+                        }
+                        await (Task)typeof(MainForm).GetMethod("ScanFolder",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(form,[scope])!;
+                        await Task.Delay(200);
+                        var coverage=(DibWindowCoverage)typeof(MainForm).GetField("dibCoverage",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(form)!;
+                        coverage.UseRootCache=label is not ("off1" or "off2");
+                        var work=new ResizeWorkProbe();ResizeWorkProbe.Current=work;
+                        using var root=pixels?new RootPixels(form):null;
+                        var common=form.Size;var sizes=ResizeDiagnosticReplay.Build(common,form.MinimumSize);
+                        var steps=new List<object>();long previous=0;
+                        for(int step=1;step<=sizes.Length;step++)
+                        {
+                            await Task.Delay(slow?100:30);
+                            long now=Stopwatch.GetTimestamp();work.BeginStep(step);
+                            if(root!=null)root.Step=step;
+                            form.Size=sizes[step-1];
+                            steps.Add(new {step,sync_ms=Stopwatch.GetElapsedTime(now).TotalMilliseconds,
+                                gap_ms=previous==0?0:Stopwatch.GetElapsedTime(previous,now).TotalMilliseconds,width=form.Width,height=form.Height});
+                            previous=now;
+                        }
+                        await Task.Delay(200);ResizeWorkProbe.Current=null;
+                        Directory.CreateDirectory(Path.GetDirectoryName(report)!);
+                        File.WriteAllText(report,JsonSerializer.Serialize(new {label,dpi=form.DeviceDpi,requested_interval_ms=slow?100:30,
+                            program_driven=true,screen_acceptance=false,diagnostic_pixel_sampling=pixels,steps,work=work.Summary(),root=root?.Summary(),
+                            session_bytes=form.Rendering!.Bytes,session_peak_bytes=form.Rendering.PeakBytes},new JsonSerializerOptions{WriteIndented=true}));
+                        Console.WriteLine($"PASS resize pipeline label={label}; dpi={form.DeviceDpi}; steps=12; pixel_sampling={pixels}; dropped={work.Dropped}");result=0;
+                    }
+                    catch(Exception){Console.Error.WriteLine("FAIL resize pipeline fixed-code=ProbeFailed");}
+                    finally{ResizeWorkProbe.Current=null;form.Close();}
+                };
+                Application.Run(form);completed=true;
+            }
+            catch{Console.Error.WriteLine("FAIL resize pipeline fixed-code=WorkerFailed");}
+        }){IsBackground=true};thread.SetApartmentState(ApartmentState.STA);thread.Start();
+        if(!thread.Join(TimeSpan.FromSeconds(90))){Console.Error.WriteLine("FAIL resize pipeline deadline");return 1;}
+        if(completed && Path.GetFullPath(directory).StartsWith(Path.TrimEndingDirectorySeparator(Path.GetTempPath())+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))
+            Directory.Delete(directory,true);
+        return result;
+    }
+
+    private sealed class RootPixels:NativeWindow,IDisposable
+    {
+        private readonly Form owner;private Size old;
+        private readonly int[,] valid=new int[6,13],black=new int[6,13];
+        internal int Step;
+        internal RootPixels(Form owner){this.owner=owner;AssignHandle(owner.Handle);}
+        protected override void WndProc(ref Message m)
+        {
+            if(m.Msg==0x46 && GetClientRect(Handle,out var r))old=new(r.Right,r.Bottom);
+            int phase=m.Msg switch{0x85=>0,0x14=>2,0x47=>4,_=>-1};
+            if(phase>=0)Sample(phase);
+            try{base.WndProc(ref m);}finally{if(phase>=0)Sample(phase+1);}
+        }
+        private void Sample(int phase)
+        {
+            if(Step is <1 or >12 || !GetClientRect(Handle,out var r))return;
+            var points=new List<Point>(2);
+            if(r.Right>old.Width)points.Add(new(r.Right-2,r.Bottom*2/3));
+            if(r.Bottom>old.Height)points.Add(new(r.Right*2/3,r.Bottom-2));
+            IntPtr dc=GetDCEx(Handle,IntPtr.Zero,0x2|0x8|0x10);if(dc==IntPtr.Zero)return;
+            try{foreach(var p in points)if(PtVisible(dc,p.X,p.Y))
+                {uint color=GetPixel(dc,p.X,p.Y);if(color==0xffffffff)continue;valid[phase,Step]++;if((color&0xffffff)==0)black[phase,Step]++;}}
+            finally{ReleaseDC(Handle,dc);}
+        }
+        internal object Summary()=>new{evidence="discrete GDI only",phases=Enumerable.Range(0,6).Select(p=>new
+            {phase=new[]{"NcEntering","NcReturned","EraseEntering","EraseReturned","PositionEntering","PositionReturned"}[p],
+                valid=Enumerable.Range(1,12).Sum(s=>valid[p,s]),black=Enumerable.Range(1,12).Sum(s=>black[p,s])}).ToArray()};
+        public void Dispose(){ReleaseHandle();GC.KeepAlive(owner);}
+        [StructLayout(LayoutKind.Sequential)]private struct Rect{internal int Left,Top,Right,Bottom;}
+        [DllImport("user32.dll")]private static extern bool GetClientRect(IntPtr h,out Rect r);
+        [DllImport("user32.dll")]private static extern IntPtr GetDCEx(IntPtr h,IntPtr r,uint flags);
+        [DllImport("user32.dll")]private static extern int ReleaseDC(IntPtr h,IntPtr d);
+        [DllImport("gdi32.dll")]private static extern bool PtVisible(IntPtr d,int x,int y);
+        [DllImport("gdi32.dll")]private static extern uint GetPixel(IntPtr d,int x,int y);
+    }
+}

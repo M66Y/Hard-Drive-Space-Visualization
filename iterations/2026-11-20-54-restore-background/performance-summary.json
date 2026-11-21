@@ -1,0 +1,35 @@
+{
+  "scope": "same final code; one off/on pair; warm UI; fixed program-driven sequence",
+  "samples": [
+    {
+      "label": "off1",
+      "dpi": 144,
+      "steps": 12,
+      "size_changes": 11,
+      "sync_p50_ms": 798.9817,
+      "sync_p95_nearest_rank_ms": 1003.3701,
+      "session_bytes": 9606452,
+      "lifetime_session_peak_bytes": 27873396,
+      "raw_report_sha256": "BB260B0EA1B5639650230CF92CA4A39CF0A8DA2C9CCD83F09B905535E31BB9AC"
+    },
+    {
+      "label": "on1",
+      "dpi": 144,
+      "steps": 12,
+      "size_changes": 11,
+      "sync_p50_ms": 476.6087,
+      "sync_p95_nearest_rank_ms": 582.1377,
+      "session_bytes": 16994500,
+      "lifetime_session_peak_bytes": 27873396,
+      "raw_report_sha256": "9AFBF79F57795F68967C95EB15E6BD0468499EEE35A3672F8BD1F1EFC07490AE"
+    }
+  ],
+  "excluded_initial_no_size_change": true,
+  "limitations": [
+    "not actual screen frame rate",
+    "one pair; uncontrolled outside load",
+    "not a general speedup claim",
+    "both lifetime peaks include initial preparation; not a cache-off memory benefit comparison",
+    "inclusive stage timings must not be added"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "files": [
+    {
+      "file": "before/AGENTS.md",
+      "bytes": 49181,
+      "sha256": "ED802D38CB88A2A2C487E14B86760B48C5AC30207B201E42318D3ECC103CF458"
+    },
+    {
+      "file": "before/CompositionMainFormTests.cs",
+      "bytes": 7159,
+      "sha256": "6298DB6705B8032694B93D8EE62521DBC76C002D1AE852BC929819E49773AA68"
+    },
+    {
+      "file": "before/MainForm.cs",
+      "bytes": 98842,
+      "sha256": "97FFBA73B1A240A30361E0FFAA989D7C23FD537496EC555A941C678A871BE02F"
+    },
+    {
+      "file": "before/Program.cs",
+      "bytes": 3435,
+      "sha256": "FA221B2CA1B08B8B0FD5C78CF029AE36F6B82ED6533771AC0438463460F1DA7A"
+    },
+    {
+      "file": "before/provenance.json",
+      "bytes": 510,
+      "sha256": "323033F68439D946CC6E1E5ED03565CD3C4A9C6551D600487BDE4113BBD19EDA"
+    },
+    {
+      "file": "before/README.en.md",
+      "bytes": 11308,
+      "sha256": "FA87A8756FCCF0484755595BB06AC6B70D55B5A1C637FCA49BA1E46FEE022579"
+    },
+    {
+      "file": "before/README.md",
+      "bytes": 9837,
+      "sha256": "B1B87CD531CE55746882BBC4862C06DEA8CAE3F97C45BEEF4A2EBD527A2DB79A"
+    },
+    {
+      "file": "before/StageOnePreview.cs",
+      "bytes": 54131,
+      "sha256": "32F203ABBE10B952244EA04C0D4B0B99D9B1A4AF66940A713DBD99778864829A"
+    },
+    {
+      "file": "before/tests__Program.cs",
+      "bytes": 73379,
+      "sha256": "51032271CC160D272B49B994603BF9322631DF1FC7A83AC35BABA63EAEF61C62"
+    },
+    {
+      "file": "build-manifest.json",
+      "bytes": 684,
+      "sha256": "20D92E0E47316490819C719284D64477410025E4DB7285B9A3A573CCB1F5CF2B"
+    },
+    {
+      "file": "changes.patch",
+      "bytes": 1887592,
+      "sha256": "03BAEAAF2B42E1CC4FA5385EEE8D8531D80F8830D6479C9F1C4916EE1CEF1664"
+    },
+    {
+      "file": "cleanup-summary.json",
+      "bytes": 1780,
+      "sha256": "1A52A63E5B1A52422842ADCC567CB62EB8AECD92F7EBC820BA3B52BF567A778C"
+    },
+    {
+      "file": "integration-scope.json",
+      "bytes": 4058,
+      "sha256": "F8CE8A94288BB1DC332727EF942F8F6B64EF4BB2E195A3986FBD5A3F27370655"
+    },
+    {
+      "file": "patch-validation.json",
+      "bytes": 351,
+      "sha256": "AA7E93C294C92C92C1810A48C495892BCB955D243726E10EFF2892781C21EA73"
+    },
+    {
+      "file": "privacy-summary.json",
+      "bytes": 308,
+      "sha256": "6AEC1740B29E1A000827339D3959DB547E462AFAF2F0A052E8622A842DEC876F"
+    },
+    {
+      "file": "README.md",
+      "bytes": 3953,
+      "sha256": "48532838B6A046E9C5337EC5ED02772947417AC7D9F9C3009CC84EBE629E9A01"
+    },
+    {
+      "file": "verification-summary.json",
+      "bytes": 4686,
+      "sha256": "646788121A6BEB5D2B168505C350048B15CD1D10870E974A3749B25EB87F1177"
+    }
+  ]
+}

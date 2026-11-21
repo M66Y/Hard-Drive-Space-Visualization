@@ -1,0 +1,280 @@
+using DiskAtlas;
+using System.Reflection;
+using System.Runtime.InteropServices;
+
+// Owned synthetic rows and GDI bitmaps only. Native calls inspect this test's
+// own grid handle; they never capture a desktop or operate another window.
+internal static class WallpaperGridCacheTests
+{
+    private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindowVisible(IntPtr window);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "GetPropW")]
+    private static extern IntPtr GetProp(IntPtr window, string name);
+    [DllImport("user32.dll", EntryPoint = "SendMessageW")]
+    private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+
+    internal static int Run(bool dpi96 = false)
+    {
+        string failure = "None";
+        int passed = 0;
+        int failureHresult = 0;
+        Action? requestClose = null;
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(24));
+        CancellationToken token = cancellation.Token;
+        var worker = new Thread(() =>
+        {
+            try
+            {
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                string unused = Path.Combine(Path.GetTempPath(), "AsukaLens-grid-cache-unused-" + Guid.NewGuid().ToString("N"), "background.json");
+                using var form = new MainForm(null, false, unused)
+                {
+                    ShowInTaskbar = false,
+                    ScanRunner = (_, _, _, _) => throw new CheckFailure("UnexpectedScan"),
+                    ActivityMonitorFactory = _ => throw new CheckFailure("UnexpectedMonitor")
+                };
+                var grid = Field<WallpaperGrid>(form, "grid");
+                requestClose = () =>
+                {
+                    try
+                    {
+                        if (!form.IsDisposed && form.IsHandleCreated)
+                            form.BeginInvoke((Action)(() => { if (!form.IsDisposed) form.Close(); }));
+                    }
+                    catch (InvalidOperationException) { }
+                };
+                form.Shown += async (_, _) =>
+                {
+                    try
+                    {
+                        Field<CheckBox>(form, "reduceMotion").Checked = true;
+                        Field<System.Windows.Forms.Timer>(form, "previewTimer").Stop();
+                        var data = Enumerable.Range(0, 120).Select(index =>
+                            new MapItem("合成缓存 Synthetic cache " + index.ToString("000"), 4096 + index, null, "文档")).ToList();
+                        typeof(MainForm).GetMethod("PopulateGrid", Hidden)!.Invoke(form, [data]);
+                        SetImage(Color.FromArgb(24, 47, 91));
+                        int names = 0, paints = 0;
+                        grid.CellPainting += (_, e) => { if (e.ColumnIndex == 0 && e.RowIndex >= 0 && e.Handled) names++; };
+                        grid.Paint += (_, _) => paints++;
+                        grid.CurrentCell = grid[0, 0]; grid.Rows[0].Selected = true;
+                        await Settle(); PaintNow();
+                        Check(ReferenceEquals(Field<List<MapItem>>(form, "sortedRows"), data) && grid.RowCount == data.Count && names > 0,
+                            "RealSyntheticNamesUseProductCallback");
+                        Check(WallpaperGrid.MaxBackdropPixels == 4_000_000 && grid.BackdropBuilds > 0 &&
+                            grid.BackdropBytes == (long)grid.ClientSize.Width * grid.ClientSize.Height * 4 &&
+                            grid.BackdropBytes <= WallpaperGrid.MaxBackdropPixels * 4,
+                            "InitialBackdropIsViewportSizedAndBounded");
+                        int builds = grid.BackdropBuilds;
+                        grid.FirstDisplayedScrollingRowIndex = 3; await Settle(); PaintNow();
+                        Check(grid.BackdropBuilds == builds && grid.FirstDisplayedScrollingRowIndex == 3,
+                            "ScrollingReusesBackdrop");
+                        grid.ClearSelection(); grid.Rows[5].Selected = true; PaintNow();
+                        Check(grid.BackdropBuilds == builds && grid.Rows[5].Selected, "SelectionReusesBackdrop");
+                        int beforeWheel = paints;
+                        typeof(DataGridView).GetMethod("OnMouseWheel", Hidden)!.Invoke(grid,
+                            [new HandledMouseEventArgs(MouseButtons.None, 0, grid.Width / 2, grid.ColumnHeadersHeight + 8, -120)]);
+                        Check(paints > beforeWheel && grid.BackdropBuilds == builds, "WheelPresentsBeforeReturningWithoutRebuildingBackdrop");
+
+                        // Isolate each cache-key input rather than letting a
+                        // Dock resize change every dimension at the same time.
+                        var previousParent = grid.Parent!;
+                        previousParent.Controls.Remove(grid);
+                        using var host = new Panel { Bounds = new Rectangle(40, 60, 620, 430), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+                        form.Controls.Add(host); host.BringToFront(); host.Controls.Add(grid);
+                        grid.Dock = DockStyle.None; grid.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+                        grid.Bounds = new Rectangle(4, 6, 520, 320);
+                        await Settle(); PaintTiny();
+                        // SizeChanged runs inside base.OnSizeChanged. A correct
+                        // newly sized cache built there must survive returning
+                        // from the override, rather than be discarded afterwards.
+                        Check(grid.Dock == DockStyle.None && ReferenceEquals(grid.Parent, host),
+                            "SizeChangedCacheProbeUsesOwnedUndockedGrid");
+                        int callbacks = 0, callbackBuilds = 0;
+                        Color callbackPixel = Color.Empty;
+                        long callbackBytes = 0;
+                        EventHandler paintDuringSizeChange = (_, _) =>
+                        {
+                            callbacks++;
+                            callbackPixel = PaintTiny();
+                            callbackBuilds = grid.BackdropBuilds;
+                            callbackBytes = grid.BackdropBytes;
+                        };
+                        grid.SizeChanged += paintDuringSizeChange;
+                        try { grid.Size = new Size(grid.Width + 19, grid.Height + 11); }
+                        finally { grid.SizeChanged -= paintDuringSizeChange; }
+                        Check(callbacks == 1 && callbackBytes > 0 && callbackBytes <= WallpaperGrid.MaxBackdropPixels * 4,
+                            "SizeChangedCallbackBuildsBoundedNewBackdrop");
+                        Color afterCallbackPixel = PaintTiny();
+                        Check(afterCallbackPixel.ToArgb() == callbackPixel.ToArgb(),
+                            "SizeChangedCallbackAndFinalBackdropPixelsMatch");
+                        Check(grid.BackdropBuilds == callbackBuilds,
+                            "SizeChangedCallbackBackdropSurvivesReturnWithoutDuplicateBuild");
+                        PaintTiny();
+                        Check(grid.BackdropBuilds == callbackBuilds,
+                            "SizeChangedCallbackBackdropContinuesToReuseAfterProbeUnbound");
+                        CheckRebuild(() => grid.Size = new Size(grid.Width + 27, grid.Height + 13), "GridSizeInvalidatesBackdrop");
+                        CheckRebuild(() => grid.Left += 11, "GridLocationInvalidatesBackdrop");
+                        CheckRebuild(() => host.Top += 17, "AncestorWindowOffsetInvalidatesBackdrop");
+                        Size fixedGridSize = grid.ClientSize;
+                        CheckRebuild(() => form.ClientSize = new Size(form.ClientSize.Width + 31, form.ClientSize.Height + 23),
+                            "WindowSizeInvalidatesFixedGridBackdrop");
+                        Check(grid.ClientSize == fixedGridSize, "WindowResizeProbeKeepsGridSizeIndependent");
+                        Color oldPixel = PaintTiny();
+                        CheckRebuild(() => SetImage(Color.FromArgb(241, 185, 65)), "ImageReferenceInvalidatesBackdrop");
+                        Color newPixel = PaintTiny();
+                        Check(Math.Abs(oldPixel.R - newPixel.R) + Math.Abs(oldPixel.G - newPixel.G) + Math.Abs(oldPixel.B - newPixel.B) > 50,
+                            "ReplacedImageChangesActualBackdropPixels");
+                        CheckRebuild(() => typeof(MainForm).GetProperty("BackgroundCrop", Hidden)!.SetValue(form,
+                            new BackgroundView(.25f, .65f, 1.4f, null)), "CropInvalidatesBackdrop");
+                        grid.ClearSelection(); grid.Rows[grid.FirstDisplayedScrollingRowIndex].Selected = true;
+                        Color oldSelectionPixel = SelectionPixel();
+                        builds = grid.BackdropBuilds;
+                        Theme.SetAccent(Color.FromArgb(42, 83, 126));
+                        Color newSelectionPixel = SelectionPixel();
+                        Check(grid.BackdropBuilds == builds, "AccentOnlyChangeReusesUnaffectedBackdrop");
+                        Check(Math.Abs(oldSelectionPixel.R - newSelectionPixel.R) + Math.Abs(oldSelectionPixel.G - newSelectionPixel.G) +
+                            Math.Abs(oldSelectionPixel.B - newSelectionPixel.B) >= 6, "SelectionOverlayUsesCurrentThemeWithoutStaleBackdrop");
+                        var customField = typeof(MainForm).GetField("<HasCustomBackground>k__BackingField", Hidden)!;
+                        CheckRebuild(() => customField.SetValue(form, true), "SurfaceProtectionAlphaInvalidatesBackdrop");
+
+                        int initialRow = grid.FirstDisplayedScrollingRowIndex;
+                        int beforeGuard = paints, calls = 0;
+                        grid.PerformBufferedScroll(() =>
+                        {
+                            calls++;
+                            grid.PerformBufferedScroll(() => { calls++; grid.FirstDisplayedScrollingRowIndex = initialRow + 1; });
+                        });
+                        Check(calls == 2 && grid.FirstDisplayedScrollingRowIndex == initialRow + 1 && paints > beforeGuard,
+                            "NestedScrollGuardCompletesAndPresents");
+                        Check(IsWindowVisible(grid.Handle) && grid.Visible && GetProp(grid.Handle, "SysSetRedraw") == IntPtr.Zero,
+                            "NestedScrollGuardRestoresNativeRedraw");
+                        var sentinel = new CheckFailure("SyntheticAction");
+                        bool caught = false;
+                        try { grid.PerformBufferedScroll(() => throw sentinel); }
+                        catch (CheckFailure error) { caught = ReferenceEquals(error, sentinel); }
+                        Check(caught && grid.Visible && IsWindowVisible(grid.Handle) && GetProp(grid.Handle, "SysSetRedraw") == IntPtr.Zero,
+                            "ThrowingScrollActionRestoresRedrawAndPropagatesSameFailure");
+                        beforeGuard = paints; PaintNow();
+                        Check(paints > beforeGuard, "PaintingStillWorksAfterThrowingGuard");
+                        grid.PerformBufferedScroll(grid.Hide);
+                        // A redraw hold is deliberately deferred while hidden:
+                        // enabling native redraw here would add WS_VISIBLE.
+                        Check(!grid.Visible && !IsWindowVisible(grid.Handle) && grid.BackdropBytes == 0,
+                            "HidingInsideGuardDoesNotReshowAndReleasesBackdrop");
+                        calls = 0;
+                        grid.PerformBufferedScroll(() => calls++);
+                        Check(calls == 1 && !grid.Visible && !IsWindowVisible(grid.Handle) && grid.BackdropBytes == 0,
+                            "AlreadyHiddenGuardDoesNotForceNativeVisibility");
+                        grid.Show(); PaintNow();
+                        Check(grid.BackdropBytes > 0 && grid.Visible && IsWindowVisible(grid.Handle) &&
+                            GetProp(grid.Handle, "SysSetRedraw") == IntPtr.Zero, "ShowingRestoresRedrawAndRebuildsReleasedBackdrop");
+
+                        grid.PerformBufferedScroll(() => form.WindowState = FormWindowState.Minimized);
+                        Check(GetProp(grid.Handle, "SysSetRedraw") == IntPtr.Zero,
+                            "MinimizingOwnerInsideGuardDoesNotLeaveRedrawHeld");
+                        form.WindowState = FormWindowState.Normal; await Settle();
+                        beforeGuard = paints; PaintNow();
+                        Check(paints > beforeGuard && grid.Visible && IsWindowVisible(grid.Handle),
+                            "OwnerRestoreAfterGuardStillPaintsWithoutVisibilityEventDependency");
+                        SendMessage(grid.Handle, 0x000B, IntPtr.Zero, IntPtr.Zero);
+                        try
+                        {
+                            grid.PerformBufferedScroll(() => grid.FirstDisplayedScrollingRowIndex++);
+                            Check(GetProp(grid.Handle, "SysSetRedraw") != IntPtr.Zero,
+                                "ExternalRedrawHoldIsNotReleasedByScrollGuard");
+                        }
+                        finally { SendMessage(grid.Handle, 0x000B, new IntPtr(1), IntPtr.Zero); PaintNow(); }
+
+                        using (var oversized = new WallpaperGrid { ClientSize = new Size(4001, 1000) })
+                        using (var onePixel = new Bitmap(1, 1))
+                        using (var graphics = Graphics.FromImage(onePixel))
+                        {
+                            Check((long)oversized.ClientSize.Width * oversized.ClientSize.Height > WallpaperGrid.MaxBackdropPixels,
+                                "OversizeProbeActuallyExceedsPixelBudget");
+                            typeof(WallpaperGrid).GetMethod("PaintBackground", Hidden, null, [typeof(Graphics), typeof(Rectangle), typeof(Rectangle)], null)!.Invoke(oversized,
+                                [graphics, new Rectangle(0, 0, 1, 1), oversized.ClientRectangle]);
+                            Check(oversized.BackdropBytes == 0 && oversized.BackdropBuilds == 0,
+                                "OversizeFallbackDoesNotAllocateBackdrop");
+                        }
+                        grid.Dispose();
+                        Check(grid.BackdropBytes == 0 && grid.IsDisposed, "DisposalReleasesBackdrop");
+
+                        void CheckRebuild(Action mutate, string code)
+                        {
+                            int before = grid.BackdropBuilds;
+                            mutate(); PaintTiny();
+                            Check(grid.BackdropBuilds > before && grid.BackdropBytes > 0 &&
+                                grid.BackdropBytes <= WallpaperGrid.MaxBackdropPixels * 4, code);
+                            int after = grid.BackdropBuilds; PaintTiny();
+                            Check(grid.BackdropBuilds == after, code + "_ThenReuses");
+                        }
+                        void PaintNow() { token.ThrowIfCancellationRequested(); grid.Invalidate(); grid.Update(); }
+                        Color PaintTiny()
+                        {
+                            token.ThrowIfCancellationRequested();
+                            using var pixel = new Bitmap(1, 1);
+                            using var graphics = Graphics.FromImage(pixel);
+                            typeof(WallpaperGrid).GetMethod("PaintBackground", Hidden, null, [typeof(Graphics), typeof(Rectangle), typeof(Rectangle)], null)!.Invoke(grid,
+                                [graphics, new Rectangle(0, 0, 1, 1), grid.ClientRectangle]);
+                            return pixel.GetPixel(0, 0);
+                        }
+                        Color SelectionPixel()
+                        {
+                            token.ThrowIfCancellationRequested();
+                            using var image = new Bitmap(grid.Width, grid.Height);
+                            grid.DrawToBitmap(image, grid.ClientRectangle);
+                            var cell = grid.GetCellDisplayRectangle(1, grid.FirstDisplayedScrollingRowIndex, true);
+                            if (cell.Width < 8 || cell.Height < 8) throw new CheckFailure("SelectionPixelUnavailable");
+                            return image.GetPixel(cell.Left + 3, cell.Top + cell.Height / 2);
+                        }
+                        void SetImage(Color color)
+                        {
+                            var image = new Bitmap(32, 24);
+                            using (var graphics = Graphics.FromImage(image)) graphics.Clear(color);
+                            var previous = form.BackgroundImage;
+                            form.BackgroundImage = image;
+                            previous?.Dispose();
+                        }
+                        async Task Settle() => await Task.Delay(45, token);
+                    }
+                    catch (CheckFailure error) { failure = error.Code; }
+                    catch (OperationCanceledException) { failure = "Cancelled"; }
+                    catch (Exception error) { failure = "UnexpectedCacheTestFailure"; failureHresult = (error.InnerException ?? error).HResult; }
+                    finally { Theme.SetAccent(null); if (!form.IsDisposed) form.Close(); }
+                };
+                Application.Run(form);
+            }
+            catch (CheckFailure error) { failure = error.Code; }
+            catch (Exception error) { failure = "UnexpectedWorkerFailure"; failureHresult = (error.InnerException ?? error).HResult; }
+        }) { IsBackground = true };
+        worker.SetApartmentState(ApartmentState.STA); worker.Start();
+        bool finished = worker.Join(TimeSpan.FromSeconds(24));
+        if (!finished)
+        {
+            cancellation.Cancel(); requestClose?.Invoke();
+            finished = worker.Join(TimeSpan.FromSeconds(5));
+            failure = finished ? "CacheTestBudgetExceeded" : "WorkerStillActive";
+        }
+        if (failure != "None" || !finished)
+        {
+            Console.Error.WriteLine("FAIL wallpaper grid cache code=" + failure + "; worker_finished=" + finished +
+                "; checks=" + passed + "; hresult=" + failureHresult.ToString("X8"));
+            return 1;
+        }
+        Console.WriteLine("PASS wallpaper grid cache checks=" + passed + "; owned_window_closed=True; synthetic_rendering_only=True");
+        return 0;
+
+        void Check(bool condition, string code)
+        {
+            if (!condition) throw new CheckFailure(code);
+            passed++;
+        }
+    }
+    private static T Field<T>(MainForm form, string name) => (T)typeof(MainForm).GetField(name, Hidden)!.GetValue(form)!;
+    private sealed class CheckFailure(string code) : Exception("WallpaperGridCache") { internal string Code { get; } = code; }
+}

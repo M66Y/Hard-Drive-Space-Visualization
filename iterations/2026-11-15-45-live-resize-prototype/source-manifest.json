@@ -1,0 +1,80 @@
+{
+  "revision": 1,
+  "date": "2026-11-15",
+  "git_head": "9ac1f0b30f31a4f00a4f55048409b1999cabbaf0",
+  "base": "inherited-stage-one-working-tree",
+  "independent_head_patch": false,
+  "source_snapshots_verified": true,
+  "sources": [
+    {
+      "source": "tests/Program.cs",
+      "snapshot": "key-files/tests/Program.cs",
+      "sha256": "3E962C22EAE7AE41DC0A1D0B636EDE23DAD433AD9DB7308F87C51A1E8B1D7603",
+      "bytes": 68881
+    },
+    {
+      "source": "tests/Prototypes/Resize/LiveResizePreview.cs",
+      "snapshot": "key-files/tests/Prototypes/Resize/LiveResizePreview.cs",
+      "sha256": "73E3A9A65169B072F867BD554BCCC0AF39D13B6AD0310E8D02D113B15EBD457D",
+      "bytes": 4246
+    },
+    {
+      "source": "tests/Prototypes/Resize/LiveResizePrototypeForm.cs",
+      "snapshot": "key-files/tests/Prototypes/Resize/LiveResizePrototypeForm.cs",
+      "sha256": "92670C8A6B78F66082EC7899933B28751E27BB3F5829EFB7FDA094549B95D5D9",
+      "bytes": 24738
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizePrototypeTests.cs",
+      "snapshot": "key-files/tests/Prototypes/Resize/ResizePrototypeTests.cs",
+      "sha256": "0F0BF789DCDAA08E8DF60829062990283BCD067F56811DE89448B0C2ADF4E1E9",
+      "bytes": 30612
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeScene.cs",
+      "snapshot": "key-files/tests/Prototypes/Resize/ResizeScene.cs",
+      "sha256": "C0F82A243DDB58BD12EA363E1E36E4867579A253E451927E79F804908F9ADC80",
+      "bytes": 12623
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeSceneRenderer.cs",
+      "snapshot": "key-files/tests/Prototypes/Resize/ResizeSceneRenderer.cs",
+      "sha256": "1A87278FD2BA615427C876025BD7EA4AAEF7309D196B45C9C194F78B3AA3A518",
+      "bytes": 25469
+    }
+  ],
+  "shared_input_hashes": [
+    {
+      "source": "Core.cs",
+      "sha256": "08969EB36EF24D966D53F5FA8485EF427B4EAD906D0798DE691AECF22261B0F3"
+    },
+    {
+      "source": "Theme.cs",
+      "sha256": "B0CC75962A8746EA8507BC54BDD4AD13A5B738A2529D96764EAAC6C423623185"
+    },
+    {
+      "source": "Wallpaper.cs",
+      "sha256": "9A5E3161440D4783AF366C50E2DE82BD4F8FECFDE08C1DAFF35A846F20E868A1"
+    },
+    {
+      "source": "MainForm.cs",
+      "sha256": "CC09168CAEB25AD0043E093F3AFEE2A2030321D0FDB5CD74D7FFA32C7722250F"
+    },
+    {
+      "source": "src/UI/FileListPresentation.cs",
+      "sha256": "CAFFE28002C18FB5F70AE62897FEB565093355B60C08509A2B41746015379C02"
+    },
+    {
+      "source": "src/UI/TreemapDensityLayout.cs",
+      "sha256": "285903A7DE8B6302911A5CDE39382027B052F0812BDD49E6F232BDB0B9251C45"
+    },
+    {
+      "source": "src/UI/GridScrollbarSkin.cs",
+      "sha256": "01FEEB607A703D35FD73101B8FEA174B4BE2DAEDD6482B1D258CCD6BF46919BC"
+    },
+    {
+      "source": "tests/DiskAtlas.Tests.csproj",
+      "sha256": "E738153C0E8E6E09936DC7A3026C5F114A3A36578967B2529125E70CDC5929F9"
+    }
+  ]
+}

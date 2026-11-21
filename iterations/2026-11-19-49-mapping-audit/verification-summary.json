@@ -1,0 +1,23 @@
+{
+  "revision": 1,
+  "date": "2026-11-19",
+  "scope": "diagnose-only-step-one",
+  "test_build": { "warnings": 0, "errors": 0 },
+  "native_frame": { "checks": 468, "pixels_compared": 6219072, "scene_comparisons": 2, "zero_tolerance": true },
+  "prototype_regression": [
+    { "dpi": 144, "checks": 199, "cleanup_deferred": false },
+    { "dpi": 96, "virtualized": true, "checks": 199, "cleanup_deferred": false }
+  ],
+  "regression_binding": "before-final-diagnostics-only-release-catch-and-dpi-field; final-four-window-replays-bound-by-build-manifest",
+  "final_matrix": { "reports": 4, "attributed_combo_printclient_rejections": 78, "explained_old_grid_residuals": 18, "observation_failures": 0, "truncated": false },
+  "evidence_counterexamples": { "count": 3, "all_rejected": true, "kinds": ["wrong-offset", "wrong-old-grid-pixel", "missing-natural-root-paint"] },
+  "patch_replay": { "files": 4, "exact_sha256_match": true, "autocrlf": false, "eol": "lf" },
+  "candidate_replaced": false,
+  "normal_application_replaced": false,
+  "settings_changed": false,
+  "drag_full_windows_observed": true,
+  "mouse_drag_tested": false,
+  "screen_flash_fixed": false,
+  "commit_created": false,
+  "formal_release": false
+}

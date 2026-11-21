@@ -1,0 +1,232 @@
+{
+  "source_commit": "8efdf112ffed2b6ea35896378256d22588848cac",
+  "cases": [
+    {
+      "exit": 0,
+      "args": [
+        "--desktop-rendering-tests"
+      ],
+      "name": "startup-policy"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-backdrop-tests"
+      ],
+      "name": "composition-resources"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--disk-activity-tests"
+      ],
+      "name": "disk-sampler"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--native-resize-frame-tests"
+      ],
+      "name": "native-frame"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--desktop-default-tests"
+      ],
+      "name": "default-144"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--ui-regression"
+      ],
+      "name": "ui-144"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--background-tests"
+      ],
+      "name": "background-144"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--transparent-restore-tests"
+      ],
+      "name": "restore-144"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--wallpaper-scroll-tests"
+      ],
+      "name": "scroll-144"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--treemap-state-tests"
+      ],
+      "name": "glow-144"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--layout-transition-tests"
+      ],
+      "name": "layout-144"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--disk-activity-panel-tests"
+      ],
+      "name": "disk-panel-144"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--disk-activity-mainform-tests"
+      ],
+      "name": "disk-mainform-144"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--hover-popup-policy-tests"
+      ],
+      "name": "no-hover-144"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--desktop-default-tests",
+        "--dpi-96"
+      ],
+      "name": "default-96"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--ui-regression",
+        "--dpi-96"
+      ],
+      "name": "ui-96"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--background-tests",
+        "--dpi-96"
+      ],
+      "name": "background-96"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--transparent-restore-tests",
+        "--dpi-96"
+      ],
+      "name": "restore-96"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--wallpaper-scroll-tests",
+        "--dpi-96"
+      ],
+      "name": "scroll-96"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--treemap-state-tests",
+        "--dpi-96"
+      ],
+      "name": "glow-96"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--layout-transition-tests",
+        "--dpi-96"
+      ],
+      "name": "layout-96"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--disk-activity-panel-tests",
+        "--dpi-96"
+      ],
+      "name": "disk-panel-96"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--disk-activity-mainform-tests",
+        "--dpi-96"
+      ],
+      "name": "disk-mainform-96"
+    },
+    {
+      "exit": 0,
+      "args": [
+        "--composition-tests",
+        "--hover-popup-policy-tests",
+        "--dpi-96"
+      ],
+      "name": "no-hover-96"
+    }
+  ],
+  "policy_checks": 36,
+  "production_checks_per_dpi": 83,
+  "process_dpi": [
+    144,
+    96
+  ],
+  "native_frame_checks": 608,
+  "native_pixels": 6513984,
+  "independent_committed_tree_build": {
+    "app": true,
+    "tests": true,
+    "warnings": 0,
+    "errors": 0,
+    "startup_policy": true
+  },
+  "report_collision_preserved": true,
+  "old_report_not_overwritten": true,
+  "source_unchanged_after_matrix": true,
+  "real_preview": {
+    "actual_scan": true,
+    "public_path_alias": true,
+    "normal_title": true,
+    "default_rendering": true,
+    "fixture_cleanup": true
+  },
+  "normal_program_opened": true,
+  "stage_one_final_user_acceptance": "pending",
+  "windows10": "skipped-by-user",
+  "cross_monitor": "not-tested",
+  "recording": false,
+  "release": false
+}

@@ -1,0 +1,641 @@
+{
+  "runs": [
+    {
+      "label": "after",
+      "dpi": 144,
+      "requested_interval_ms": 30,
+      "pixel_sampling": true,
+      "sync_p50_ms": 524.5681,
+      "sync_p95_ms": 581.6765,
+      "gap_p50_ms": 583.24315,
+      "gap_p95_ms": 616.4797,
+      "session_current_pixel_bytes": 16994500,
+      "session_peak_pixel_bytes": 27873396,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 269.53860000000003,
+        "PositionChanged": 5181.8315,
+        "Size": 8.578299999999999,
+        "NonClient": 300.57320000000004,
+        "Erase": 7.4753,
+        "Wallpaper": 3894.8038,
+        "RasterBuild": 267.86999999999995,
+        "LayoutPresent": 1742.6038999999998,
+        "TreemapBuild": 116.16700000000002,
+        "GridBuild": 41.6558,
+        "RootCover": 320.3344,
+        "ExposedCover": 258.69669999999996
+      },
+      "root": {
+        "evidence": "discrete GDI only",
+        "phases": [
+          {
+            "phase": "NcEntering",
+            "valid": 10,
+            "black": 9
+          },
+          {
+            "phase": "NcReturned",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "EraseEntering",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "EraseReturned",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "PositionEntering",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "PositionReturned",
+            "valid": 0,
+            "black": 0
+          }
+        ]
+      }
+    },
+    {
+      "label": "after",
+      "dpi": 144,
+      "requested_interval_ms": 30,
+      "pixel_sampling": false,
+      "sync_p50_ms": 533.8109,
+      "sync_p95_ms": 575.6767,
+      "gap_p50_ms": 574.94465,
+      "gap_p95_ms": 613.6275,
+      "session_current_pixel_bytes": 16994500,
+      "session_peak_pixel_bytes": 27873396,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 268.3927,
+        "PositionChanged": 4988.6305999999995,
+        "Size": 10.7417,
+        "NonClient": 308.7817,
+        "Erase": 11.0863,
+        "Wallpaper": 3893.0736,
+        "RasterBuild": 266.32059999999996,
+        "LayoutPresent": 1728.1604,
+        "TreemapBuild": 121.45550000000001,
+        "GridBuild": 42.684000000000005,
+        "RootCover": 342.64129999999994,
+        "ExposedCover": 239.22740000000002
+      },
+      "root": null
+    },
+    {
+      "label": "after-reuse",
+      "dpi": 144,
+      "requested_interval_ms": 30,
+      "pixel_sampling": false,
+      "sync_p50_ms": 393.5178,
+      "sync_p95_ms": 452.236,
+      "gap_p50_ms": 412.6041,
+      "gap_p95_ms": 469.5795,
+      "session_current_pixel_bytes": 16994500,
+      "session_peak_pixel_bytes": 27873396,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 273.96680000000003,
+        "PositionChanged": 3501.7212000000004,
+        "Size": 11.480299999999998,
+        "NonClient": 308.8234,
+        "Erase": 7.2864,
+        "Wallpaper": 2316.7767,
+        "RasterBuild": 271.7904,
+        "LayoutPresent": 1367.624,
+        "TreemapBuild": 121.13489999999999,
+        "GridBuild": 43.7654,
+        "RootCover": 342.7646,
+        "ExposedCover": 164.1125
+      },
+      "root": null
+    },
+    {
+      "label": "before",
+      "dpi": 144,
+      "requested_interval_ms": 30,
+      "pixel_sampling": true,
+      "sync_p50_ms": 796.1794,
+      "sync_p95_ms": 956.8528,
+      "gap_p50_ms": 837.021,
+      "gap_p95_ms": 989.5106,
+      "session_current_pixel_bytes": 9606452,
+      "session_peak_pixel_bytes": 16293988,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 277.63620000000003,
+        "PositionChanged": 6524.3439,
+        "Size": 712.7564000000001,
+        "NonClient": 882.9232000000001,
+        "Erase": 725.9514,
+        "Wallpaper": 6636.199200000001,
+        "RasterBuild": 276.1292,
+        "LayoutPresent": 1733.9316999999999,
+        "TreemapBuild": 119.9797,
+        "GridBuild": 45.2826,
+        "RootCover": 3033.9908,
+        "ExposedCover": 282.16720000000004
+      },
+      "root": {
+        "evidence": "discrete GDI only",
+        "phases": [
+          {
+            "phase": "NcEntering",
+            "valid": 10,
+            "black": 9
+          },
+          {
+            "phase": "NcReturned",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "EraseEntering",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "EraseReturned",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "PositionEntering",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "PositionReturned",
+            "valid": 0,
+            "black": 0
+          }
+        ]
+      }
+    },
+    {
+      "label": "before",
+      "dpi": 144,
+      "requested_interval_ms": 30,
+      "pixel_sampling": false,
+      "sync_p50_ms": 731.1,
+      "sync_p95_ms": 949.112,
+      "gap_p50_ms": 819.39405,
+      "gap_p95_ms": 989.34,
+      "session_current_pixel_bytes": 9606452,
+      "session_peak_pixel_bytes": 16293988,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 265.3069,
+        "PositionChanged": 6451.469599999999,
+        "Size": 717.8891,
+        "NonClient": 929.1586,
+        "Erase": 701.5457,
+        "Wallpaper": 6638.751,
+        "RasterBuild": 263.56,
+        "LayoutPresent": 1710.2139,
+        "TreemapBuild": 115.3511,
+        "GridBuild": 41.9417,
+        "RootCover": 3061.4835000000003,
+        "ExposedCover": 278.192
+      },
+      "root": null
+    },
+    {
+      "label": "final",
+      "dpi": 144,
+      "requested_interval_ms": 100,
+      "pixel_sampling": false,
+      "sync_p50_ms": 426.2843,
+      "sync_p95_ms": 452.7455,
+      "gap_p50_ms": 491.60875,
+      "gap_p95_ms": 549.8439,
+      "session_current_pixel_bytes": 16994500,
+      "session_peak_pixel_bytes": 27873396,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 269.919,
+        "PositionChanged": 3607.687000000001,
+        "Size": 8.422799999999999,
+        "NonClient": 311.23199999999997,
+        "Erase": 8.6784,
+        "Wallpaper": 2343.4073,
+        "RasterBuild": 268.123,
+        "LayoutPresent": 1382.1194,
+        "TreemapBuild": 119.7726,
+        "GridBuild": 43.37220000000001,
+        "RootCover": 341.9939,
+        "ExposedCover": 184.1113
+      },
+      "root": null
+    },
+    {
+      "label": "final",
+      "dpi": 144,
+      "requested_interval_ms": 30,
+      "pixel_sampling": true,
+      "sync_p50_ms": 408.7421,
+      "sync_p95_ms": 446.5724,
+      "gap_p50_ms": 423.8974,
+      "gap_p95_ms": 488.5081,
+      "session_current_pixel_bytes": 16994500,
+      "session_peak_pixel_bytes": 27873396,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 269.5769,
+        "PositionChanged": 3453.0789,
+        "Size": 9.439,
+        "NonClient": 302.2825,
+        "Erase": 7.0588,
+        "Wallpaper": 2258.9755000000005,
+        "RasterBuild": 267.93050000000005,
+        "LayoutPresent": 1321.4450000000002,
+        "TreemapBuild": 120.6882,
+        "GridBuild": 42.935500000000005,
+        "RootCover": 324.5113,
+        "ExposedCover": 144.5937
+      },
+      "root": {
+        "evidence": "discrete GDI only",
+        "phases": [
+          {
+            "phase": "NcEntering",
+            "valid": 10,
+            "black": 10
+          },
+          {
+            "phase": "NcReturned",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "EraseEntering",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "EraseReturned",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "PositionEntering",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "PositionReturned",
+            "valid": 0,
+            "black": 0
+          }
+        ]
+      }
+    },
+    {
+      "label": "final",
+      "dpi": 144,
+      "requested_interval_ms": 30,
+      "pixel_sampling": false,
+      "sync_p50_ms": 426.6002,
+      "sync_p95_ms": 518.4282,
+      "gap_p50_ms": 448.89734999999996,
+      "gap_p95_ms": 551.6396,
+      "session_current_pixel_bytes": 16994500,
+      "session_peak_pixel_bytes": 27873396,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 310.3074,
+        "PositionChanged": 4000.3856,
+        "Size": 8.8187,
+        "NonClient": 381.01650000000006,
+        "Erase": 9.4884,
+        "Wallpaper": 2559.4457,
+        "RasterBuild": 307.7993,
+        "LayoutPresent": 1625.5303000000001,
+        "TreemapBuild": 156.054,
+        "GridBuild": 59.4772,
+        "RootCover": 421.2005,
+        "ExposedCover": 134.80939999999998
+      },
+      "root": null
+    },
+    {
+      "label": "final",
+      "dpi": 96,
+      "requested_interval_ms": 30,
+      "pixel_sampling": false,
+      "sync_p50_ms": 246.9544,
+      "sync_p95_ms": 303.0107,
+      "gap_p50_ms": 282.10434999999995,
+      "gap_p95_ms": 346.1742,
+      "session_current_pixel_bytes": 7524192,
+      "session_peak_pixel_bytes": 12350548,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 202.11799999999997,
+        "PositionChanged": 2536.6022,
+        "Size": 6.2975,
+        "NonClient": 68.54079999999999,
+        "Erase": 10.752099999999999,
+        "Wallpaper": 846.8573000000001,
+        "RasterBuild": 199.4734,
+        "LayoutPresent": 746.6071000000001,
+        "TreemapBuild": 73.62799999999999,
+        "GridBuild": 10.166400000000001,
+        "RootCover": 100.07669999999999,
+        "ExposedCover": 113.80589999999998
+      },
+      "root": null
+    },
+    {
+      "label": "final-ready",
+      "dpi": 144,
+      "requested_interval_ms": 30,
+      "pixel_sampling": true,
+      "sync_p50_ms": 492.8508,
+      "sync_p95_ms": 516.5369,
+      "gap_p50_ms": 502.65930000000003,
+      "gap_p95_ms": 552.3864,
+      "session_current_pixel_bytes": 16994500,
+      "session_peak_pixel_bytes": 27873396,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 682.7368000000001,
+        "PositionChanged": 4146.2736,
+        "Size": 8.9193,
+        "NonClient": 18.410400000000003,
+        "Erase": 11.342600000000001,
+        "Wallpaper": 2654.3319,
+        "RasterBuild": 308.4783,
+        "LayoutPresent": 1735.9981999999998,
+        "TreemapBuild": 169.078,
+        "GridBuild": 59.5587,
+        "RootCover": 42.0459,
+        "ExposedCover": 146.7946
+      },
+      "root": {
+        "evidence": "discrete GDI only",
+        "phases": [
+          {
+            "phase": "NcEntering",
+            "valid": 10,
+            "black": 8
+          },
+          {
+            "phase": "NcReturned",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "EraseEntering",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "EraseReturned",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "PositionEntering",
+            "valid": 10,
+            "black": 0
+          },
+          {
+            "phase": "PositionReturned",
+            "valid": 0,
+            "black": 0
+          }
+        ]
+      }
+    },
+    {
+      "label": "final-ready",
+      "dpi": 144,
+      "requested_interval_ms": 30,
+      "pixel_sampling": false,
+      "sync_p50_ms": 440.5901,
+      "sync_p95_ms": 512.6752,
+      "gap_p50_ms": 464.8874,
+      "gap_p95_ms": 550.3012,
+      "session_current_pixel_bytes": 16994500,
+      "session_peak_pixel_bytes": 27873396,
+      "raster_builds": 13,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "Wallpaper": 2710.5593999999996,
+        "PositionChanging": 661.3841000000001,
+        "PositionChanged": 4278.284600000001,
+        "Size": 23.0819,
+        "NonClient": 17.7304,
+        "Erase": 24.8967,
+        "RasterBuild": 366.20649999999995,
+        "LayoutPresent": 1800.7751,
+        "TreemapBuild": 157.0385,
+        "GridBuild": 63.9291,
+        "RootCover": 80.9337,
+        "ExposedCover": 150.6831
+      },
+      "root": null
+    },
+    {
+      "label": "off1",
+      "dpi": 144,
+      "requested_interval_ms": 30,
+      "pixel_sampling": false,
+      "sync_p50_ms": 842.1892,
+      "sync_p95_ms": 983.9408,
+      "gap_p50_ms": 897.287,
+      "gap_p95_ms": 1022.702,
+      "session_current_pixel_bytes": 9606452,
+      "session_peak_pixel_bytes": 27873396,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 266.30350000000004,
+        "PositionChanged": 7049.404699999999,
+        "Size": 790.4132,
+        "NonClient": 1008.4928000000001,
+        "Erase": 730.1396,
+        "Wallpaper": 7206.197,
+        "RasterBuild": 264.52849999999995,
+        "LayoutPresent": 1843.4459000000002,
+        "TreemapBuild": 117.03450000000002,
+        "GridBuild": 41.70879999999999,
+        "RootCover": 3287.5954,
+        "ExposedCover": 307.1785
+      },
+      "root": null
+    },
+    {
+      "label": "off1",
+      "dpi": 96,
+      "requested_interval_ms": 30,
+      "pixel_sampling": false,
+      "sync_p50_ms": 403.6222,
+      "sync_p95_ms": 469.9679,
+      "gap_p50_ms": 439.60695,
+      "gap_p95_ms": 503.4433,
+      "session_current_pixel_bytes": 4251936,
+      "session_peak_pixel_bytes": 12350548,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 178.1203,
+        "PositionChanged": 3433.5027,
+        "Size": 299.1555,
+        "NonClient": 491.2909000000001,
+        "Erase": 286.96180000000004,
+        "Wallpaper": 2946.3329999999996,
+        "RasterBuild": 176.07000000000002,
+        "LayoutPresent": 777.8136000000001,
+        "TreemapBuild": 52.6728,
+        "GridBuild": 8.133,
+        "RootCover": 1378.0447,
+        "ExposedCover": 233.57660000000004
+      },
+      "root": null
+    },
+    {
+      "label": "off2",
+      "dpi": 144,
+      "requested_interval_ms": 30,
+      "pixel_sampling": false,
+      "sync_p50_ms": 796.6159,
+      "sync_p95_ms": 973.945,
+      "gap_p50_ms": 869.7873,
+      "gap_p95_ms": 1016.3441,
+      "session_current_pixel_bytes": 9606452,
+      "session_peak_pixel_bytes": 27873396,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 263.34860000000003,
+        "PositionChanged": 6734.0163,
+        "Size": 741.5612,
+        "NonClient": 946.4991,
+        "Erase": 702.0481000000001,
+        "Wallpaper": 6910.174799999999,
+        "RasterBuild": 262.0308,
+        "LayoutPresent": 1762.2645,
+        "TreemapBuild": 116.50909999999999,
+        "GridBuild": 41.593199999999996,
+        "RootCover": 3142.5166999999997,
+        "ExposedCover": 269.5591
+      },
+      "root": null
+    },
+    {
+      "label": "on1",
+      "dpi": 144,
+      "requested_interval_ms": 30,
+      "pixel_sampling": false,
+      "sync_p50_ms": 400.5585,
+      "sync_p95_ms": 433.8006,
+      "gap_p50_ms": 397.45935,
+      "gap_p95_ms": 468.5164,
+      "session_current_pixel_bytes": 16994500,
+      "session_peak_pixel_bytes": 27873396,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 265.0357,
+        "PositionChanged": 3414.2693,
+        "Size": 7.568899999999999,
+        "NonClient": 306.1441,
+        "Erase": 7.8028,
+        "Wallpaper": 2233.9697,
+        "RasterBuild": 262.47509999999994,
+        "LayoutPresent": 1301.5404,
+        "TreemapBuild": 117.57589999999999,
+        "GridBuild": 43.167,
+        "RootCover": 339.3,
+        "ExposedCover": 164.3343
+      },
+      "root": null
+    },
+    {
+      "label": "on1",
+      "dpi": 96,
+      "requested_interval_ms": 30,
+      "pixel_sampling": false,
+      "sync_p50_ms": 251.1528,
+      "sync_p95_ms": 312.4755,
+      "gap_p50_ms": 270.9874,
+      "gap_p95_ms": 342.5107,
+      "session_current_pixel_bytes": 7524192,
+      "session_peak_pixel_bytes": 12350548,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 177.5119,
+        "PositionChanged": 2466.314,
+        "Size": 4.2855,
+        "NonClient": 48.2633,
+        "Erase": 3.4507000000000003,
+        "Wallpaper": 992.703,
+        "RasterBuild": 175.99210000000002,
+        "LayoutPresent": 623.7913,
+        "TreemapBuild": 53.010999999999996,
+        "GridBuild": 7.7625,
+        "RootCover": 106.57039999999999,
+        "ExposedCover": 151.41949999999997
+      },
+      "root": null
+    },
+    {
+      "label": "on2",
+      "dpi": 144,
+      "requested_interval_ms": 30,
+      "pixel_sampling": false,
+      "sync_p50_ms": 375.4903,
+      "sync_p95_ms": 450.9406,
+      "gap_p50_ms": 408.7902,
+      "gap_p95_ms": 487.5832,
+      "session_current_pixel_bytes": 16994500,
+      "session_peak_pixel_bytes": 27873396,
+      "raster_builds": 11,
+      "dropped": 0,
+      "inclusive_phase_ms": {
+        "PositionChanging": 263.52889999999996,
+        "PositionChanged": 3478.2203000000004,
+        "Size": 12.4198,
+        "NonClient": 299.78580000000005,
+        "Erase": 9.640299999999998,
+        "Wallpaper": 2269.9572,
+        "RasterBuild": 261.5684,
+        "LayoutPresent": 1292.4887999999999,
+        "TreemapBuild": 118.30199999999999,
+        "GridBuild": 42.2534,
+        "RootCover": 344.12629999999996,
+        "ExposedCover": 150.8554
+      },
+      "root": null
+    }
+  ],
+  "paired_labels": [
+    "off1",
+    "on1",
+    "on2",
+    "off2"
+  ],
+  "final_source_followup": "final-ready",
+  "limits": "program-driven; warm UI; external load uncontrolled; inclusive phases not additive; 96 DPI virtualized; discrete GDI not continuous display"
+}

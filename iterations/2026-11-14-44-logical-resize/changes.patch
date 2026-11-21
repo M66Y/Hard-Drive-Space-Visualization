@@ -1,0 +1,211 @@
+diff --git a/MainForm.cs b/MainForm.cs
+index 1d895be..6c8f8e6 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -380,7 +380,7 @@ internal sealed class MainForm : Form
+         // nested WM_SIZE, so the outer WM_WINDOWPOSCHANGED owns the boundary.
+         // Keep direct WM_SIZE compatible; nested scopes share the same batch.
+         using (message.Msg == 0x0047 || message.Msg == 0x0005 && message.WParam.ToInt64() != 1
+-            ? layoutPresentation?.BeginGeometry(ShouldHoldGeometryRedraw(ref message)) : null)
++            ? layoutPresentation?.BeginGeometry(logicalOnly: ShouldHoldGeometryRedraw(ref message)) : null)
+             base.WndProc(ref message);
+         HandleMonitoringSystemEvent(message.Msg, message.WParam.ToInt64());
+     }
+@@ -402,6 +402,9 @@ internal sealed class MainForm : Form
+         return false;
+     }
+ 
++    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
++    internal bool IsGeometryPresentationPaused => layoutPresentation?.IsLogicalGeometryActive == true;
++
+     [StructLayout(LayoutKind.Sequential)]
+     private struct GeometryWindowPosition
+     {
+diff --git a/Wallpaper.cs b/Wallpaper.cs
+index aef9ed5..721d49e 100644
+--- a/Wallpaper.cs
++++ b/Wallpaper.cs
+@@ -325,6 +325,7 @@ internal sealed class WallpaperGrid : DataGridView
+         get
+         {
+             if (disposed || scrollDepth > 0 || redrawHeldHandle != IntPtr.Zero || !IsHandleCreated) return true;
++            if (FindForm() is MainForm { IsGeometryPresentationPaused: true }) return true;
+             // Resize transactions can hold an ancestor rather than this HWND.
+             // Direct scrollbar drawing must obey the same ownership boundary.
+             for (Control? current = this; current != null; current = current.Parent)
+diff --git a/src/UI/LayoutPresentation.cs b/src/UI/LayoutPresentation.cs
+index 5da86f3..a8641ba 100644
+--- a/src/UI/LayoutPresentation.cs
++++ b/src/UI/LayoutPresentation.cs
+@@ -17,6 +17,8 @@ internal sealed class LayoutPresentation : IDisposable
+     private long geometryGeneration;
+     private IntPtr geometryHandle;
+     private bool geometryHoldRequested, finalizingGeometry;
++    private bool logicalOnlyGeometry;
++    internal bool IsLogicalGeometryActive => logicalOnlyGeometry && (geometryDepth > 0 || finalizingGeometry);
+     private readonly List<(Root Root, IDisposable Token)> geometryHolds = [];
+     internal bool HasQueuedWork => queued;
+     internal int Presentations { get; private set; }
+@@ -46,7 +48,7 @@ internal sealed class LayoutPresentation : IDisposable
+     // A Form WM_SIZE lays out several registered roots. Each root still owns
+     // its local redraw hold, but none may synchronously present an intermediate
+     // parent layout. The outer message performs one final presentation pass.
+-    internal IDisposable? BeginGeometry(bool holdRedraw = false)
++    internal IDisposable? BeginGeometry(bool holdRedraw = false, bool logicalOnly = false)
+     {
+         if (presenting || finalizingGeometry || !Allowed) return null;
+         if (geometryDepth == 0)
+@@ -54,12 +56,13 @@ internal sealed class LayoutPresentation : IDisposable
+             geometryHandle = owner.Handle;
+             geometryGeneration++;
+             geometryHoldRequested = false;
++            logicalOnlyGeometry = logicalOnly;
+             ticket++; queued = false; // Retire a previously posted callback.
+         }
+         geometryDepth++;
+         long generation = geometryGeneration;
+         IntPtr handle = geometryHandle;
+-        if (holdRedraw && NativeLayoutHoldEnabled && !geometryHoldRequested)
++        if (holdRedraw && !logicalOnlyGeometry && NativeLayoutHoldEnabled && !geometryHoldRequested)
+         {
+             geometryHoldRequested = true;
+             try
+@@ -120,7 +123,7 @@ internal sealed class LayoutPresentation : IDisposable
+             }
+             if (generation == geometryGeneration)
+             {
+-                geometryDepth = 0; geometryHandle = IntPtr.Zero; geometryHoldRequested = false;
++                geometryDepth = 0; geometryHandle = IntPtr.Zero; geometryHoldRequested = false; logicalOnlyGeometry = false;
+             }
+             finalizingGeometry = false;
+         }
+@@ -265,7 +268,7 @@ internal sealed class LayoutPresentation : IDisposable
+     private void OwnerHandleDestroyed(object? sender, EventArgs args)
+     {
+         geometryGeneration++; geometryDepth = 0; geometryHandle = IntPtr.Zero;
+-        geometryHoldRequested = false; geometryHolds.Clear();
++        geometryHoldRequested = false; logicalOnlyGeometry = false; geometryHolds.Clear();
+         ticket++; queued = false; Clear();
+     }
+ 
+@@ -273,7 +276,7 @@ internal sealed class LayoutPresentation : IDisposable
+     {
+         if (disposed) return;
+         disposed = true; geometryGeneration++; geometryDepth = 0; geometryHandle = IntPtr.Zero;
+-        geometryHoldRequested = false; geometryHolds.Clear();
++        geometryHoldRequested = false; logicalOnlyGeometry = false; geometryHolds.Clear();
+         ticket++; queued = false; Clear();
+         owner.HandleDestroyed -= OwnerHandleDestroyed;
+         owner.HandleCreated -= Retry;
+@@ -336,7 +339,7 @@ internal sealed class LayoutPresentation : IDisposable
+             heldLayoutHandle = Control.Handle;
+             layoutActive = true;
+             long generation = ++layoutGeneration;
+-            nativeLayoutHeld = presenter.NativeLayoutHoldEnabled;
++            nativeLayoutHeld = presenter.NativeLayoutHoldEnabled && !presenter.logicalOnlyGeometry;
+             IntPtr handle = heldLayoutHandle;
+             try
+             {
+diff --git a/tests/LayoutPresentationPolicyTests.cs b/tests/LayoutPresentationPolicyTests.cs
+index 283c3bd..f08e2a5 100644
+--- a/tests/LayoutPresentationPolicyTests.cs
++++ b/tests/LayoutPresentationPolicyTests.cs
+@@ -50,6 +50,7 @@ internal static class LayoutPresentationPolicyTests
+                         phase = "GeometryGeneration"; await CheckGeometryGeneration();
+                         phase = "GeometryExternalHold"; await CheckGeometryExternalHold();
+                         phase = "NativeGeometryBatch"; await CheckNativeGeometryBatch();
++                        phase = "LogicalOnlyGeometry"; await CheckLogicalOnlyGeometry();
+                         phase = "NativeGeometryAncestor"; await CheckNativeGeometryAncestor();
+                         phase = "NativeGeometryExternal"; await CheckNativeGeometryExternal();
+                         phase = "NativeGeometryFailures"; await CheckNativeGeometryFailures();
+@@ -284,6 +285,49 @@ internal static class LayoutPresentationPolicyTests
+                 Check(!presenter.HasQueuedWork, "GeometryResumesOnceAfterExternalOwnerReleases");
+             }
+ 
++            async Task CheckLogicalOnlyGeometry()
++            {
++                using var fixture = await OpenFixture();
++                var root = fixture.Roots[0];
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, root);
++                using var outer = presenter.BeginGeometry(logicalOnly: true) ?? throw new CheckFailure("LogicalOnlyGeometryNotAcquired");
++                using (presenter.BeginGeometry() ?? throw new CheckFailure("NestedLogicalOnlyGeometryNotAcquired"))
++                {
++                    using (presenter.BeginLayout(root) ?? throw new CheckFailure("LogicalOnlyRootTokenNotAcquired"))
++                    {
++                        root.Width += 2;
++                        Check(GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle),
++                            "LogicalOnlyGeometryLayoutKeepsNativeVisibilityAndRedraw");
++                    }
++                }
++                Check(presenter.Presentations == 0 && presenter.PendingRoots == 1 && !presenter.HasQueuedWork,
++                    "LogicalOnlyGeometryInnerEndDoesNotPresentEarly");
++                outer.Dispose();
++                Check(presenter.Presentations == 1 && presenter.PendingRoots == 0 &&
++                    GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle),
++                    "LogicalOnlyGeometryPresentsOnceWithoutNativeVisibilityToggle");
++                using (presenter.BeginLayout(root) ?? throw new CheckFailure("PostLogicalOnlyLayoutNotAcquired"))
++                {
++                    Check(GetProp(root.Handle, "SysSetRedraw") != IntPtr.Zero,
++                        "OutsideLogicalOnlyGeometryOrdinaryLayoutStillUsesNativeHold");
++                    root.Width += 2;
++                }
++                Check(GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && presenter.Presentations == 2,
++                    "OrdinaryLayoutAfterLogicalOnlyGeometryReleasesAndPresents");
++                var sentinel = new CheckFailure("SyntheticLogicalOnlyException");
++                bool caught = false;
++                try
++                {
++                    using var geometry = presenter.BeginGeometry(logicalOnly: true);
++                    using (presenter.BeginLayout(root)) root.Width += 2;
++                    throw sentinel;
++                }
++                catch (CheckFailure error) when (ReferenceEquals(error, sentinel)) { caught = true; }
++                using (presenter.BeginLayout(root) ?? throw new CheckFailure("PostLogicalOnlyExceptionLayoutNotAcquired"))
++                    Check(caught && GetProp(root.Handle, "SysSetRedraw") != IntPtr.Zero,
++                        "LogicalOnlyGeometryExceptionDoesNotLeakModeOutsideScope");
++            }
++
+             async Task CheckNativeGeometryBatch()
+             {
+                 using var fixture = await OpenFixture(2);
+diff --git a/tests/LayoutTransitionRegression.cs b/tests/LayoutTransitionRegression.cs
+index 619f942..a40444f 100644
+--- a/tests/LayoutTransitionRegression.cs
++++ b/tests/LayoutTransitionRegression.cs
+@@ -106,7 +106,7 @@ internal static class LayoutTransitionRegression
+                         await Measure("ResizeBurst", () =>
+                         {
+                             var presentation = Field<LayoutPresentation>(form, "layoutPresentation");
+-                            int resizeEvents = 0, unbatchedResizeEvents = 0, nativeHeldResizeEvents = 0;
++                            int resizeEvents = 0, unbatchedResizeEvents = 0, nativeHeldResizeEvents = 0, nativeVisibleResizeEvents = 0;
+                             EventHandler observeResize = (_, _) =>
+                             {
+                                 resizeEvents++;
+@@ -114,6 +114,7 @@ internal static class LayoutTransitionRegression
+                                 var content = Field<Control>(form, "contentLayoutRoot");
+                                 if (content.IsHandleCreated && GetProp(content.Handle, "SysSetRedraw") != IntPtr.Zero)
+                                     nativeHeldResizeEvents++;
++                                if (content.IsHandleCreated && IsWindowVisible(content.Handle)) nativeVisibleResizeEvents++;
+                             };
+                             form.Resize += observeResize;
+                             try
+@@ -126,8 +127,8 @@ internal static class LayoutTransitionRegression
+                             finally { form.Resize -= observeResize; }
+                             Check(resizeEvents >= 3 && unbatchedResizeEvents == 0,
+                                 "ActualMainFormResizeEventsStayInsideGeometryBatch");
+-                            Check(resizeEvents >= 3 && nativeHeldResizeEvents == resizeEvents,
+-                                "ActualMainFormResizeEventsKeepAnalysisRootNativeHeld");
++                            Check(resizeEvents >= 3 && nativeHeldResizeEvents == 0 && nativeVisibleResizeEvents == resizeEvents,
++                                "ActualMainFormResizeEventsKeepAnalysisRootNativelyVisible");
+                             Check(Field<int>(presentation, "geometryDepth") == 0,
+                                 "ActualMainFormGeometryBatchEndsAfterBoundsUpdate");
+                             return Task.CompletedTask;
+@@ -452,5 +453,8 @@ internal static class LayoutTransitionRegression
+     }
+     [DllImport("user32.dll", EntryPoint = "GetPropW", CharSet = CharSet.Unicode)]
+     private static extern IntPtr GetProp(IntPtr window, string name);
++    [DllImport("user32.dll")]
++    [return: MarshalAs(UnmanagedType.Bool)]
++    private static extern bool IsWindowVisible(IntPtr window);
+     private sealed class Failure(string code) : Exception("LayoutTransition") { internal string Code { get; } = code; }
+ }

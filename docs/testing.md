@@ -9,9 +9,15 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll
 
 主窗检查用 `--ui-regression`，另在独立进程追加 `--dpi-96`；结果范围、三类不完整快照与基本键盘操作见[界面验收](../iterations/2026-11-07-12-result-information/README.md)。诊断专项使用 `--diagnostics-tests`、`--diagnostics-ui` 和后者的 `--dpi-96`；背景专项使用 `--background-tests` 及 `--dpi-96`，异常白名单使用 `--error-report-tests`。需要正常的可交互 Windows 桌面。
 
+## 当前默认绘制检查
+
+`--desktop-rendering-tests`核对普通启动和显式开发入口；`--desktop-default-tests`及`--dpi-96`用与Program相同的选择规则验证普通标题、真实合成目录扫描、背景切换和故障退回C55。`--composition-backdrop-tests`检查合成源、句柄代际和关闭资源；完整UI用`--composition-tests --ui-regression`及`--dpi-96`。主窗测试构造保留旧参照，不把全部像素比较的两侧偷偷切为同一路径。
+
 ## 文档预览
 
-`--readme-preview docs/images/overview.png` 在 96 DPI 虚拟化进程中用生产 MainForm 和内存合成数据绘制界面，仅写入指定文档图片，不扫描真实目录或读取个人设置，已有图片拒绝覆盖。`--result-info-preview` 为手动状态观察入口。主程序源码未变时，不为修改文档重新运行整套功能回归。
+`--stage-one-preview b --readme`打开当前真实MainForm，以隔离配置扫描自建文件并显示公开路径别名。使用当前默认绘制，标题为AsukaLens。通过桌面窗口截图导出`docs/images/overview.jpg`，核对无外部覆盖、个人路径或私人数据后用于README；不录屏。交互式预览保留stdin时输入`close`安全关闭并清理自有夹具，也可正常关闭窗口。
+
+旧`--readme-preview`是96DPI的内存合成绘图工具，仍可用于参考，不能冒充当前系统标题栏或真实桌面截图。`--result-info-preview`是手动状态入口。仅改文档不重复完整功能回归。
 
 ## NTFS 特殊流原型
 

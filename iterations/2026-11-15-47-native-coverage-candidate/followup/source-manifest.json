@@ -1,0 +1,48 @@
+{
+  "revision": 1,
+  "state": "previous-user-review-failed; new-buffer-plan-pending",
+  "production_integrated": false,
+  "files": [
+    {
+      "source": "tests/Program.cs",
+      "snapshot": "key-files\\tests\\Program.cs.txt",
+      "sha256": "AD23E9A13D99B49811792A93A201C4F23D5CE6F6E567527C844A102F52F50D3E"
+    },
+    {
+      "source": "tests/Prototypes/Resize/LiveResizePrototypeForm.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\LiveResizePrototypeForm.cs.txt",
+      "sha256": "693A029CC8259CE479D275C18FFDBABDB7A06AEF34233F6C5D672F7E9AF8A009"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeSceneRenderer.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeSceneRenderer.cs.txt",
+      "sha256": "FB3C7B783277AD35DAB30535E150342A1064336BB6E99C70FCC0C79F64F7B2DE"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeSceneBaseCache.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeSceneBaseCache.cs.txt",
+      "sha256": "6DB4118DDF570627F390463A64C4E48D45BD6000521700EED376589CF4AF5D7F"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeSceneCacheTests.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeSceneCacheTests.cs.txt",
+      "sha256": "10A858CDA54C87EFA65DBD437A1509D3E5A5BCA952A6883ABE17268FC3037D33"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeDiagnosticTrace.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeDiagnosticTrace.cs.txt",
+      "sha256": "9C7EA3E1C2DB97231A921A8ECE17CF15BF4DF90D6B89F9FD294D150E48875730"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeBackgroundCoverage.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeBackgroundCoverage.cs.txt",
+      "sha256": "C5E0744329FAC4472F7CFC85F0A5E1E3C859E5E1F26712EE7BF63E599EC45B00"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeCoverageTests.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeCoverageTests.cs.txt",
+      "sha256": "FF53C4AE4A9980F769328694662863C95F14D8F4830FE027CF94A4DE5B1A4BD2"
+    }
+  ],
+  "test_dll_sha256": "70724489E28213F848D0AF7A5244A15C4F9B36E6B79EF1F4CF75455A9BA76065"
+}

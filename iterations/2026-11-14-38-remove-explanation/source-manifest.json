@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "baseline": "9ac1f0b",
+  "predecessor": "iterations/2026-11-14-37-layout-transitions",
+  "state": "item-accepted-stage-one-pending",
+  "files": [
+    {
+      "source": "MainForm.cs",
+      "snapshot": "key-files/MainForm.cs.txt",
+      "sha256": "B94F6127482B1FB847A0DC8D51B8329F4B824A36807F1AEBB36045F033617C5A",
+      "bytes": 92718
+    },
+    {
+      "source": "src/UI/LayoutPresentation.cs",
+      "snapshot": "key-files/src_UI_LayoutPresentation.cs.txt",
+      "sha256": "9FEA2C50792CA597CCC0ED94783785E438924C8259306CF543BE179B690F090F",
+      "bytes": 14521
+    },
+    {
+      "source": "tests/LayoutPresentationPolicyTests.cs",
+      "snapshot": "key-files/tests_LayoutPresentationPolicyTests.cs.txt",
+      "sha256": "64861948F4D69107AA3C00B57C17A0C1D466F578EAE78D4C5F39AC30038D9DB4",
+      "bytes": 29128
+    },
+    {
+      "source": "tests/LayoutTransitionPreview.cs",
+      "snapshot": "key-files/tests_LayoutTransitionPreview.cs.txt",
+      "sha256": "CFE551950A821858954A081D80E404A0593D91001703E271713F36884B588A96",
+      "bytes": 24240
+    },
+    {
+      "source": "tests/StageOnePreview.cs",
+      "snapshot": "key-files/tests_StageOnePreview.cs.txt",
+      "sha256": "A891B647AB6F820618E30A53E91D29C047947ACA80E71186931CF762EB44F937",
+      "bytes": 46401
+    },
+    {
+      "source": "tests/UiRegression.cs",
+      "snapshot": "key-files/tests_UiRegression.cs.txt",
+      "sha256": "4E050A7BFC9731508FE585A21D711F433CD7220D8EB9C88407322EE11157E3EB",
+      "bytes": 52198
+    },
+    {
+      "source": "tests/ResultInformationRegression.cs",
+      "snapshot": "key-files/tests_ResultInformationRegression.cs.txt",
+      "sha256": "18455100F7CE222BA2C0E0E8FE898571828A7310810FFC31E3C2FAF2D2E59230",
+      "bytes": 13861
+    },
+    {
+      "source": "tests/FastScanMainFormTests.cs",
+      "snapshot": "key-files/tests_FastScanMainFormTests.cs.txt",
+      "sha256": "16B318FF4BF079BE755E189D5B0629C36F3D6B3A0A4B2142E0A9C4098984793B",
+      "bytes": 27060
+    },
+    {
+      "source": "tests/VisualSurfaceRegression.cs",
+      "snapshot": "key-files/tests_VisualSurfaceRegression.cs.txt",
+      "sha256": "011DB878575BF46094D604DEE373E99BAF931DFA0ED0F1A1D56D4F38940F749B",
+      "bytes": 32317
+    },
+    {
+      "source": "tests/BackdropStabilityTests.cs",
+      "snapshot": "key-files/tests_BackdropStabilityTests.cs.txt",
+      "sha256": "82920BDFC9E5FA93416FC928D1F9932286C585E2AC74B050A681784B3566F8CA",
+      "bytes": 12053
+    },
+    {
+      "source": "tests/LayoutTransitionRegression.cs",
+      "snapshot": "key-files/tests_LayoutTransitionRegression.cs.txt",
+      "sha256": "12D72D402794BB16230E8D4FA4034B0C79C19E0C05324F98C2011FD0EB58871E",
+      "bytes": 25561
+    },
+    {
+      "source": "tests/WallpaperScrollRegression.cs",
+      "snapshot": "key-files/tests_WallpaperScrollRegression.cs.txt",
+      "sha256": "0E1DCE275E8C0D0C8838F23CA9066F79479885E326CF7680A47A349A31291CD7",
+      "bytes": 8585
+    },
+    {
+      "source": "tests/WorkspaceLayoutTests.cs",
+      "snapshot": "key-files/tests_WorkspaceLayoutTests.cs.txt",
+      "sha256": "1288EF36CB3686E1310C2336BA9C0072DBC2D79BF4C48344E7DE35B429AF3C35",
+      "bytes": 8157
+    }
+  ]
+}

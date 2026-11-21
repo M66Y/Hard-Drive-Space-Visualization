@@ -1,0 +1,298 @@
+using System.Diagnostics;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+
+namespace DiskAtlas.ResizePrototype;
+
+// Memory DIB/DC contracts only: no windows, screen capture or timing claims.
+internal static class ResizeFrameBlitterTests
+{
+    private const int Sentinel = 0x17495B;
+
+    internal static int Run()
+    {
+        int checks = 0;
+        long comparedPixels = 0;
+        try
+        {
+            foreach (int dpi in new[] { 96, 144 }) Cases(dpi);
+            Console.WriteLine($"PASS resize frame blitter: {checks}; rgb_pixels_compared={comparedPixels}; zero_tolerance=true; memory_dc_only=true");
+            return 0;
+        }
+        catch (Failure failure)
+        { Console.Error.WriteLine($"FAIL resize frame blitter: {failure.Code}; checks={checks}"); return 1; }
+        catch
+        { Console.Error.WriteLine($"FAIL resize frame blitter: UnexpectedMemoryDcFailure; checks={checks}"); return 1; }
+
+        void Check(bool condition, string code)
+        { if (!condition) throw new Failure(code); checks++; }
+
+        void Compare(MemorySurface target, int[] source, Func<int, int, bool> copied, string code)
+        {
+            int[] actual = target.ReadRgb();
+            long different = 0;
+            for (int y = 0; y < target.Height; y++)
+            for (int x = 0; x < target.Width; x++)
+            {
+                int index = y * target.Width + x;
+                if (actual[index] != (copied(x, y) ? source[index] : Sentinel)) different++;
+                comparedPixels++;
+            }
+            if (different != 0) Console.WriteLine($"BLITTER mismatch_code={code}; mismatch_pixels={different}");
+            Check(different == 0, code);
+        }
+
+        void Cases(int dpi)
+        {
+            var size = new Size(192, 128);
+            int[] pattern = Pattern(size);
+            using var source = SourceImage(size, dpi, pattern);
+            using var sourceGraphics = Graphics.FromImage(source);
+            var full = new Rectangle(Point.Empty, size);
+            var area = new Rectangle(17, 13, size.Width - 41, size.Height - 29);
+            using (var target = new MemorySurface(size, Sentinel))
+            {
+                Check(ResizeFrameBlitter.TryCopy(source, sourceGraphics, target.Dc, full), "RawFullCopyAccepted");
+                Compare(target, pattern, (_, _) => true, "RawFullCopyPreservesEveryRgbPixel");
+                target.Reset(Sentinel);
+                Check(ResizeFrameBlitter.TryCopy(source, sourceGraphics, target.Dc, area), "RawPartialCopyAccepted");
+                Compare(target, pattern, (x, y) => area.Contains(x, y), "PartialCopyUsesSameSourceDestinationCoordinates");
+            }
+
+            using (var target = new MemorySurface(size, Sentinel))
+            using (var nativeClip = new OwnedRegion(0, 0, size.Width / 2, size.Height))
+            using (var bottom = new OwnedRegion(0, size.Height * 2 / 3, size.Width, size.Height))
+            using (var hole = new OwnedRegion(21, 27, 43, 56))
+            using (var after = new OwnedRegion(0, 0, 0, 0))
+            {
+                Check(CombineRgn(nativeClip.Handle, nativeClip.Handle, bottom.Handle, 2) != 0 &&
+                    CombineRgn(nativeClip.Handle, nativeClip.Handle, hole.Handle, 4) != 0, "ComplexNativeClipCreated");
+                Check(SelectClipRgn(target.Dc, nativeClip.Handle) != 0, "ComplexNativeClipInstalled");
+                int level = SaveDC(target.Dc); Check(level > 0 && RestoreDC(target.Dc, level), "NativeStackBaselineReadable");
+                Check(ResizeFrameBlitter.TryCopy(source, sourceGraphics, target.Dc, full), "ComplexNativeCopyAccepted");
+                Check(GetClipRgn(target.Dc, after.Handle) == 1 && EqualRgn(nativeClip.Handle, after.Handle), "NativeClipRestoredExactly");
+                int nextLevel = SaveDC(target.Dc); Check(nextLevel == level && RestoreDC(target.Dc, nextLevel), "NativeDcStackBalanced");
+                Compare(target, pattern, (x, y) => (x < size.Width / 2 || y >= size.Height * 2 / 3) &&
+                    !new Rectangle(21, 27, 22, 29).Contains(x, y), "RawCopyRespectsComplexNativeClipIncludingHole");
+            }
+
+            using (var target = new MemorySurface(size, Sentinel))
+            using (var nativeClip = new OwnedRegion(0, 0, size.Width / 2, size.Height))
+            using (var bottom = new OwnedRegion(0, size.Height * 2 / 3, size.Width, size.Height))
+            using (var nativeAfter = new OwnedRegion(0, 0, 0, 0))
+            {
+                CombineRgn(nativeClip.Handle, nativeClip.Handle, bottom.Handle, 2);
+                Check(SelectClipRgn(target.Dc, nativeClip.Handle) != 0, "MixedClipNativePartInstalled");
+                using var graphics = Graphics.FromHdc(target.Dc);
+                graphics.PageUnit = GraphicsUnit.Pixel;
+                using var managed = new Region(new Rectangle(31, 19, size.Width - 42, size.Height - 30));
+                managed.Exclude(new Rectangle(48, 41, 37, 23));
+                graphics.SetClip(managed, System.Drawing.Drawing2D.CombineMode.Replace);
+                using var originalManaged = graphics.Clip;
+                Check(ResizeFrameBlitter.TryCopy(source, sourceGraphics, graphics, area), "ManagedAndNativeClipCopyAccepted");
+                using (var afterManaged = graphics.Clip)
+                    Check(afterManaged.Equals(originalManaged, graphics), "ManagedClipPreservedExactly");
+                Check(GetClipRgn(target.Dc, nativeAfter.Handle) == 1 && EqualRgn(nativeClip.Handle, nativeAfter.Handle),
+                    "ManagedCopyRestoresNativeClipExactly");
+                using (var transform = graphics.Transform)
+                    Check(transform.IsIdentity && graphics.PageScale == 1 && graphics.PageUnit == GraphicsUnit.Pixel,
+                        "ManagedCopyPreservesTransformAndUnits");
+                Compare(target, pattern, (x, y) => area.Contains(x, y) &&
+                    (x < size.Width / 2 || y >= size.Height * 2 / 3) && managed.IsVisible(x + .5f, y + .5f),
+                    "ManagedAndNativeClipsAreIntersectedAtEveryPixel");
+
+                // Warm GDI+ temporary DC state, then repeat with the same two
+                // live Graphics objects. No GDI-object growth is allowed.
+                for (int i = 0; i < 4; i++) Check(ResizeFrameBlitter.TryCopy(source, sourceGraphics, graphics, area), "WarmRepeatedCopyAccepted");
+                using var process = Process.GetCurrentProcess();
+                uint resources = GetGuiResources(process.Handle, 0);
+                Check(resources > 0, "GdiResourceBaselineReadable");
+                for (int i = 0; i < 64; i++)
+                    Check(ResizeFrameBlitter.TryCopy(source, sourceGraphics, graphics, area), "RepeatedCopyAccepted");
+                uint afterResources = GetGuiResources(process.Handle, 0);
+                Check(afterResources <= resources, "RepeatedCopyDoesNotLeakGdiObjects");
+                using var brush = new SolidBrush(Color.White);
+                graphics.FillRectangle(brush, new Rectangle(35, 22, 1, 1));
+                IntPtr stillUsable = sourceGraphics.GetHdc();
+                Check(stillUsable != IntPtr.Zero, "SourceGraphicsReleasedAfterRepeatedCopies");
+                sourceGraphics.ReleaseHdc(stillUsable);
+                Check(GetClipRgn(target.Dc, nativeAfter.Handle) == 1 && EqualRgn(nativeClip.Handle, nativeAfter.Handle),
+                    "RepeatedCopyKeepsExternalNativeClip");
+            }
+
+            using (var target = new MemorySurface(size, Sentinel))
+            using (var graphics = Graphics.FromHdc(target.Dc))
+            {
+                graphics.SetClip(Rectangle.Empty);
+                _ = ResizeFrameBlitter.TryCopy(source, sourceGraphics, graphics, full);
+                Compare(target, pattern, (_, _) => false, "EmptyManagedClipNeverWrites");
+                using var emptyClip = graphics.Clip;
+                Check(emptyClip.IsEmpty(graphics), "EmptyManagedClipPreserved");
+            }
+
+            using (var target = new MemorySurface(size, Sentinel))
+            {
+                foreach (var bad in new[] { Rectangle.Empty, new Rectangle(-1, 0, 10, 10), new Rectangle(0, -1, 10, 10),
+                    new Rectangle(size.Width - 1, 0, 2, 1), new Rectangle(0, size.Height - 1, 1, 2),
+                    new Rectangle(1, 1, int.MaxValue, int.MaxValue) })
+                    Check(!ResizeFrameBlitter.TryCopy(source, sourceGraphics, target.Dc, bad), "InvalidAreaRejected");
+                Check(!ResizeFrameBlitter.TryCopy(source, sourceGraphics, IntPtr.Zero, full), "MissingTargetDcRejected");
+                Check(!ResizeFrameBlitter.TryCopy(null!, sourceGraphics, target.Dc, full), "MissingSourceRejected");
+                Check(!ResizeFrameBlitter.TryCopy(source, null!, target.Dc, full), "MissingSourceGraphicsRejected");
+                Check(!ResizeFrameBlitter.TryCopy(source, sourceGraphics, sourceGraphics, full), "SameGraphicsRejected");
+                IntPtr sourceDc = sourceGraphics.GetHdc();
+                try { Check(!ResizeFrameBlitter.TryCopy(source, sourceGraphics, sourceDc, full), "SameBorrowedSourceDcRejected"); }
+                finally { sourceGraphics.ReleaseHdc(sourceDc); }
+
+                sourceGraphics.TranslateTransform(2, 1);
+                Check(!ResizeFrameBlitter.TryCopy(source, sourceGraphics, target.Dc, full), "TransformedSourceRejected");
+                sourceGraphics.ResetTransform();
+                sourceGraphics.PageScale = 2;
+                Check(!ResizeFrameBlitter.TryCopy(source, sourceGraphics, target.Dc, full), "ScaledSourceUnitsRejected");
+                sourceGraphics.PageScale = 1;
+                sourceGraphics.PageUnit = GraphicsUnit.Point;
+                Check(!ResizeFrameBlitter.TryCopy(source, sourceGraphics, target.Dc, full), "NonPixelSourceUnitsRejected");
+                sourceGraphics.PageUnit = GraphicsUnit.Display;
+
+                int saved = SaveDC(target.Dc);
+                try
+                {
+                    SetViewportOrgEx(target.Dc, 3, 4, IntPtr.Zero);
+                    Check(!ResizeFrameBlitter.TryCopy(source, sourceGraphics, target.Dc, full), "NonIdentityNativeOriginRejected");
+                    Check(GetViewportOrgEx(target.Dc, out var origin) && origin.X == 3 && origin.Y == 4,
+                        "RejectedNativeOriginIsNotModified");
+                }
+                finally { RestoreDC(target.Dc, saved); }
+                saved = SaveDC(target.Dc);
+                try
+                {
+                    SetMapMode(target.Dc, 8);
+                    Check(!ResizeFrameBlitter.TryCopy(source, sourceGraphics, target.Dc, full), "NonTextNativeMapModeRejected");
+                }
+                finally { RestoreDC(target.Dc, saved); }
+                saved = SaveDC(target.Dc);
+                try
+                {
+                    SetGraphicsMode(target.Dc, 2);
+                    var transform = new XForm { M11 = 2, M22 = 1 };
+                    Check(SetWorldTransform(target.Dc, ref transform), "NativeTransformFixtureAccepted");
+                    Check(!ResizeFrameBlitter.TryCopy(source, sourceGraphics, target.Dc, full), "NonIdentityNativeTransformRejected");
+                }
+                finally { RestoreDC(target.Dc, saved); }
+                Compare(target, pattern, (_, _) => false, "RejectedRequestsNeverWriteTargetPixels");
+
+                using var graphics = Graphics.FromHdc(target.Dc);
+                graphics.TranslateTransform(4, 2);
+                Check(!ResizeFrameBlitter.TryCopy(source, sourceGraphics, graphics, full), "TransformedManagedTargetRejected");
+                graphics.ResetTransform(); graphics.PageScale = 2;
+                Check(!ResizeFrameBlitter.TryCopy(source, sourceGraphics, graphics, full), "ScaledManagedTargetRejected");
+                graphics.PageScale = 1; graphics.PageUnit = GraphicsUnit.Inch;
+                Check(!ResizeFrameBlitter.TryCopy(source, sourceGraphics, graphics, full), "NonPixelManagedTargetRejected");
+                graphics.PageUnit = GraphicsUnit.Pixel;
+                Compare(target, pattern, (_, _) => false, "RejectedManagedRequestsNeverWriteTargetPixels");
+            }
+        }
+    }
+
+    private static int[] Pattern(Size size) => Enumerable.Range(0, size.Width * size.Height).Select(index =>
+    {
+        int x = index % size.Width, y = index / size.Width;
+        return ((x * 11 + y * 7) & 255) << 16 | ((x * 3 + y * 17) & 255) << 8 | ((x * 19 + y * 5) & 255);
+    }).ToArray();
+
+    private static Bitmap SourceImage(Size size, int dpi, int[] rgb)
+    {
+        var image = new Bitmap(size.Width, size.Height, PixelFormat.Format32bppPArgb);
+        image.SetResolution(dpi, dpi);
+        var bits = image.LockBits(new Rectangle(Point.Empty, size), ImageLockMode.WriteOnly, PixelFormat.Format32bppPArgb);
+        try
+        {
+            var row = new int[size.Width];
+            for (int y = 0; y < size.Height; y++)
+            {
+                for (int x = 0; x < size.Width; x++) row[x] = unchecked((int)0xff000000) | rgb[y * size.Width + x];
+                Marshal.Copy(row, 0, bits.Scan0 + y * bits.Stride, row.Length);
+            }
+        }
+        finally { image.UnlockBits(bits); }
+        return image;
+    }
+
+    private sealed class MemorySurface : IDisposable
+    {
+        internal int Width { get; }
+        internal int Height { get; }
+        internal IntPtr Dc { get; private set; }
+        private IntPtr bitmap, previous, pixels;
+        internal MemorySurface(Size size, int color)
+        {
+            Width = size.Width; Height = size.Height;
+            Dc = CreateCompatibleDC(IntPtr.Zero);
+            var info = new BitmapInfo { Header = new BitmapInfoHeader { Size = 40, Width = Width, Height = -Height,
+                Planes = 1, BitCount = 32, Compression = 0 } };
+            bitmap = CreateDIBSection(Dc, ref info, 0, out pixels, IntPtr.Zero, 0);
+            if (Dc == IntPtr.Zero || bitmap == IntPtr.Zero || pixels == IntPtr.Zero)
+            { Dispose(); throw new Failure("MemoryDibCreationFailed"); }
+            previous = SelectObject(Dc, bitmap);
+            if (previous == IntPtr.Zero || previous == new IntPtr(-1))
+            { Dispose(); throw new Failure("MemoryDibSelectionFailed"); }
+            Reset(color);
+        }
+        internal void Reset(int color)
+        {
+            GdiFlush();
+            var row = Enumerable.Repeat(unchecked((int)0xff000000) | color, Width).ToArray();
+            for (int y = 0; y < Height; y++) Marshal.Copy(row, 0, pixels + y * Width * 4, Width);
+        }
+        internal int[] ReadRgb()
+        {
+            GdiFlush();
+            var values = new int[Width * Height]; Marshal.Copy(pixels, values, 0, values.Length);
+            for (int i = 0; i < values.Length; i++) values[i] &= 0x00ffffff;
+            return values;
+        }
+        public void Dispose()
+        {
+            if (Dc != IntPtr.Zero && previous != IntPtr.Zero && previous != new IntPtr(-1)) SelectObject(Dc, previous);
+            if (bitmap != IntPtr.Zero) { DeleteObject(bitmap); bitmap = IntPtr.Zero; }
+            if (Dc != IntPtr.Zero) { DeleteDC(Dc); Dc = IntPtr.Zero; }
+            pixels = previous = IntPtr.Zero;
+        }
+    }
+    private sealed class OwnedRegion : IDisposable
+    {
+        internal IntPtr Handle { get; private set; }
+        internal OwnedRegion(int left, int top, int right, int bottom)
+        {
+            Handle = CreateRectRgn(left, top, right, bottom);
+            if (Handle == IntPtr.Zero) throw new Failure("MemoryRegionCreationFailed");
+        }
+        public void Dispose() { if (Handle != IntPtr.Zero) { DeleteObject(Handle); Handle = IntPtr.Zero; } }
+    }
+    private sealed class Failure(string code) : Exception { internal string Code { get; } = code; }
+    [StructLayout(LayoutKind.Sequential)] private struct NativePoint { internal int X, Y; }
+    [StructLayout(LayoutKind.Sequential)] private struct XForm { internal float M11, M12, M21, M22, Dx, Dy; }
+    [StructLayout(LayoutKind.Sequential)] private struct BitmapInfoHeader
+    { internal uint Size; internal int Width, Height; internal ushort Planes, BitCount; internal uint Compression, SizeImage;
+        internal int XPelsPerMeter, YPelsPerMeter; internal uint ClrUsed, ClrImportant; }
+    [StructLayout(LayoutKind.Sequential)] private struct BitmapInfo { internal BitmapInfoHeader Header; internal uint Color; }
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateCompatibleDC(IntPtr dc);
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateDIBSection(IntPtr dc, ref BitmapInfo info, uint usage, out IntPtr pixels, IntPtr section, uint offset);
+    [DllImport("gdi32.dll")] private static extern IntPtr SelectObject(IntPtr dc, IntPtr value);
+    [DllImport("gdi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool DeleteDC(IntPtr dc);
+    [DllImport("gdi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool DeleteObject(IntPtr value);
+    [DllImport("gdi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool GdiFlush();
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
+    [DllImport("gdi32.dll")] private static extern int CombineRgn(IntPtr destination, IntPtr first, IntPtr second, int mode);
+    [DllImport("gdi32.dll")] private static extern int SelectClipRgn(IntPtr dc, IntPtr region);
+    [DllImport("gdi32.dll")] private static extern int GetClipRgn(IntPtr dc, IntPtr region);
+    [DllImport("gdi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool EqualRgn(IntPtr first, IntPtr second);
+    [DllImport("gdi32.dll")] private static extern int SaveDC(IntPtr dc);
+    [DllImport("gdi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool RestoreDC(IntPtr dc, int state);
+    [DllImport("gdi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool SetViewportOrgEx(IntPtr dc, int x, int y, IntPtr old);
+    [DllImport("gdi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetViewportOrgEx(IntPtr dc, out NativePoint point);
+    [DllImport("gdi32.dll")] private static extern int SetMapMode(IntPtr dc, int mode);
+    [DllImport("gdi32.dll")] private static extern int SetGraphicsMode(IntPtr dc, int mode);
+    [DllImport("gdi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static extern bool SetWorldTransform(IntPtr dc, ref XForm transform);
+    [DllImport("user32.dll")] private static extern uint GetGuiResources(IntPtr process, uint flags);
+}

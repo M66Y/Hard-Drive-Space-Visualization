@@ -1,0 +1,27 @@
+[
+  {
+    "source": "MainForm.cs",
+    "snapshot": "MainForm.cs.txt",
+    "sha256": "8adbd5a69d5365f15269e3a457c49a8bad880bc3fc0cbf8732ab10bd7b0051ed"
+  },
+  {
+    "source": "ScanProgressControl.cs",
+    "snapshot": "ScanProgressControl.cs.txt",
+    "sha256": "366ead191b55b554c033a9e45d00934994613f97500b202812049dff34e71fee"
+  },
+  {
+    "source": "tests/ProgressMarkerRenderingTests.cs",
+    "snapshot": "tests__ProgressMarkerRenderingTests.cs.txt",
+    "sha256": "4260073d26cf4cc474f902e89d49195a5ccecb6e8547269b69d406696aba3a58"
+  },
+  {
+    "source": "tests/ResultInformationRegression.cs",
+    "snapshot": "tests__ResultInformationRegression.cs.txt",
+    "sha256": "2a6b01e929f533ae9e01ce6df20244b7bf01ee5b068c7e7ec04396d2963021a8"
+  },
+  {
+    "source": "tests/StageOnePreview.cs",
+    "snapshot": "tests__StageOnePreview.cs.txt",
+    "sha256": "40725455a443e2373e207fbeeceb515793913241e74b13780bf4a714d5f42514"
+  }
+]

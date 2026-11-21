@@ -1,0 +1,50 @@
+{
+  "revision": 1,
+  "synthetic_only": true,
+  "normal_app_replaced": false,
+  "app_build": "passed_zero_warnings_isolated_output",
+  "test_build": "passed_zero_warnings",
+  "prototype_default": {
+    "exit_code": 0,
+    "checks": 199,
+    "alpha_non255": 0,
+    "cleanup_deferred": false,
+    "status": "passed"
+  },
+  "prototype_dpi96": {
+    "exit_code": 0,
+    "checks": 199,
+    "alpha_non255": 0,
+    "cleanup_deferred": false,
+    "status": "passed"
+  },
+  "ui_default": {
+    "earlier_restricted_run": "failed_gdi_plus_not_counted_as_passed",
+    "exit_code": 0,
+    "dpi": 144,
+    "status": "passed_normal_desktop"
+  },
+  "ui_dpi96": {
+    "exit_code": 0,
+    "dpi": 96,
+    "status": "passed_normal_desktop"
+  },
+  "visual": {
+    "native_combo": "observed_open_and_metric_binding",
+    "native_all": "failed_resize_black_regions_and_stale_positions",
+    "system_settings_changed": false,
+    "native_text": "observed_input_filter_binding",
+    "native_grid": "failed_resize_black_regions_and_displaced_content",
+    "minimize_restore": "not_closed",
+    "drag_full_windows": false,
+    "native_mouse_drag": "pending_user_selected_program_driven_demo",
+    "normal_app_migration": "not_started",
+    "canvas": "sampled_complete_user_review_pending",
+    "display_fps": "not_measured"
+  },
+  "cleanup": {
+    "old_fixtures": "untouched",
+    "recording": "not_used",
+    "failed_ui_fixture": "verified_shape_and_reparse_guard_removed"
+  }
+}

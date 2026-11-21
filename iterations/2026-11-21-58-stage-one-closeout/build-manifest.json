@@ -1,0 +1,14 @@
+{
+  "implementation_commit": "8efdf112ffed2b6ea35896378256d22588848cac",
+  "implementation_pushed": true,
+  "normal_entry": "bin/Release/net10.0-windows/AsukaLens.exe",
+  "build_script_entry": "bin/Release/net10.0-windows/DiskAtlas.exe",
+  "normal_dll_sha256": "82760477DEEE9BDB123B9C6E97A6DF65CCA10F5B36F5F3941AF118D5D30B3A54",
+  "test_dll_sha256": "6351483AA9726FC0EFB2610A8B85C4373387D1A79519DE89883DE828851A22F6",
+  "C55_dll_sha256": "D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498",
+  "C55_preserved": true,
+  "default_composition": true,
+  "candidate_marker_in_normal_title": false,
+  "windows10": "not-validated",
+  "package_generated": false
+}

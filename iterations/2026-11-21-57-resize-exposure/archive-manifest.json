@@ -1,0 +1,209 @@
+{
+  "files": [
+    {
+      "file": "before/.agents__skills__asukalens-project-memory__references__checkpoint.md.txt",
+      "bytes": 19037,
+      "sha256": "06D0E49142425DA80D1711C5D03144175A65EEECF226F58DE841AF464BEF0A7F"
+    },
+    {
+      "file": "before/.agents__skills__asukalens-project-memory__references__decisions.md.txt",
+      "bytes": 29349,
+      "sha256": "BCF9AE4AD0E714C4D31EBECF1BB8BE56E2DDBE2AA264557E107495E9B7F41888"
+    },
+    {
+      "file": "before/AGENTS.md.txt",
+      "bytes": 48526,
+      "sha256": "9F2EC8FB5D7BF4B39FB4A6279D2A7190947B747F056D47AC5DCAE62DDE2D4BCC"
+    },
+    {
+      "file": "before/docs__development-plan.md.txt",
+      "bytes": 73123,
+      "sha256": "D1298AF6C25ABAB42679996C59533FEFBEC00253025DA4F669D00662F1F748C5"
+    },
+    {
+      "file": "before/docs__project-status.md.txt",
+      "bytes": 86209,
+      "sha256": "6475BA556F537804F917CBD28C411A4E43CF72B1D0602B365CF91D1A3A9BDFD1"
+    },
+    {
+      "file": "before/docs__ui-rendering-defects-handoff.md.txt",
+      "bytes": 23317,
+      "sha256": "D61E378CD474608BABD1EFE4C2B53364F2ECB5517A92B04D609E5035818A25C7"
+    },
+    {
+      "file": "before/MainForm.cs.txt",
+      "bytes": 96718,
+      "sha256": "BFE2A949F4710D65CE53C029961E6FC7A3145ABE6C916AECFD0F37AFF9A3777D"
+    },
+    {
+      "file": "before/NativeResizeFrame.cs",
+      "bytes": 17304,
+      "sha256": "5EB8E0EE851D46F030968336E9F65017C44C6641B8D2E214B1331B2CC20ECF3C"
+    },
+    {
+      "file": "before/Program.cs.txt",
+      "bytes": 3158,
+      "sha256": "0278EAEE608ED97FE0B7A0375E264619C4BBE8C6B79962A28F3D05B0A4EA38E9"
+    },
+    {
+      "file": "before/RenderSession.cs",
+      "bytes": 5754,
+      "sha256": "5BAA4FEBA78319CA457345C3762E55987862BBC8911C78DB4643DF8ECBF63A6C"
+    },
+    {
+      "file": "before/ResizePipelineProbe.cs",
+      "bytes": 7715,
+      "sha256": "91C6D6219D0749ACE73676B7BE8F497D9CD7AA2E95B1EDA0549059E35AE555F4"
+    },
+    {
+      "file": "before/src__UI__Rendering__DibWindowCoverage.cs.txt",
+      "bytes": 11433,
+      "sha256": "A923B02B82B72E08EE071361FE4AA49BD4A2678E5147D104C026C46FD681EA21"
+    },
+    {
+      "file": "before/tests__EarlyClientProbe.cs.txt",
+      "bytes": 9965,
+      "sha256": "AD5D142B60B259CCD602639D22D4188F4F618E59BF6C2BF0E2EF4523EBA215D4"
+    },
+    {
+      "file": "before/tests__Program.cs.txt",
+      "bytes": 72896,
+      "sha256": "3ABCD7DD5EED84D7EFDD11E95ED79DCC510DA0EDF5990B05C2B633FE63B58C61"
+    },
+    {
+      "file": "build-manifest.json",
+      "bytes": 1151,
+      "sha256": "DA27EEA293EAE147A6ACB863C6404424A2EAAB5C218E5549826DED5186FB5AAC"
+    },
+    {
+      "file": "changes.patch",
+      "bytes": 70030,
+      "sha256": "EA5260A323C2A7EEB8DD08EB0F818A58E8457C6E4F71943FC897E8983F87EEB0"
+    },
+    {
+      "file": "cleanup-summary.json",
+      "bytes": 560,
+      "sha256": "E0A62ED0C4CDFD421A5DD7BABC1BA7B9ADBAEA3046E88BFC22BD2B695B172D96"
+    },
+    {
+      "file": "diagnostic-summary.json",
+      "bytes": 1025,
+      "sha256": "FA17AC771E2DF41D77EBAF72C47EE7D4ECEC35294A264E5A57123731924C587A"
+    },
+    {
+      "file": "key-files/.agents__skills__asukalens-project-memory__references__checkpoint.md.txt",
+      "bytes": 20592,
+      "sha256": "5ED3783A7C8B92BC8B74CA06B42298EACE5CDED9E72BC9E2EA80DB44930AB02F"
+    },
+    {
+      "file": "key-files/.agents__skills__asukalens-project-memory__references__decisions.md.txt",
+      "bytes": 29896,
+      "sha256": "982FD52E084798AF4F477C08B8C7B618FC70655301BE37CE24C4476035A92606"
+    },
+    {
+      "file": "key-files/AGENTS.md.txt",
+      "bytes": 49181,
+      "sha256": "ED802D38CB88A2A2C487E14B86760B48C5AC30207B201E42318D3ECC103CF458"
+    },
+    {
+      "file": "key-files/docs__development-plan.md.txt",
+      "bytes": 75295,
+      "sha256": "90DAF8C3B6BE4832A31DF4022CB0775E4E3ECE5847A2D9E50DAA1FB908A54B2F"
+    },
+    {
+      "file": "key-files/docs__project-status.md.txt",
+      "bytes": 88381,
+      "sha256": "8DCF0166DC87FAB790A816753BF07B258FFBE75D47CAF7F1020BAFF0F600D668"
+    },
+    {
+      "file": "key-files/docs__ui-background-composition-plan.md.txt",
+      "bytes": 5011,
+      "sha256": "D65573A434979D9AA84D99F8EB22A6F3922C141F46B97623643DB92A0F587B83"
+    },
+    {
+      "file": "key-files/docs__ui-rendering-defects-handoff.md.txt",
+      "bytes": 25489,
+      "sha256": "44ED60C527D65B98973348B1652529FC5978F604903409DB8906127108A0F95D"
+    },
+    {
+      "file": "key-files/MainForm.cs.txt",
+      "bytes": 98842,
+      "sha256": "97FFBA73B1A240A30361E0FFAA989D7C23FD537496EC555A941C678A871BE02F"
+    },
+    {
+      "file": "key-files/Program.cs.txt",
+      "bytes": 3435,
+      "sha256": "FA221B2CA1B08B8B0FD5C78CF029AE36F6B82ED6533771AC0438463460F1DA7A"
+    },
+    {
+      "file": "key-files/src__UI__Rendering__CompositionBackdrop.cs.txt",
+      "bytes": 8560,
+      "sha256": "417AA47301588F9DA9A8858200E7C83F71843693CE8455E7586421D93620C409"
+    },
+    {
+      "file": "key-files/src__UI__Rendering__DibWindowCoverage.cs.txt",
+      "bytes": 12085,
+      "sha256": "2111A6EAE1D0AABBD612C75B4EE9ADA85FF04B67362E73BB4DAB2B709329180F"
+    },
+    {
+      "file": "key-files/src__UI__Rendering__NativeResizeFrame.cs.txt",
+      "bytes": 18645,
+      "sha256": "0D11BEBAF89FC5BA494901CFC8AD3243C1A904A6A58605005332B7C075942984"
+    },
+    {
+      "file": "key-files/src__UI__Rendering__RenderSession.cs.txt",
+      "bytes": 5861,
+      "sha256": "F8973BCC6606FD70656E989C9133E5E54C82F467F3BB64FCD1FE8082473C321A"
+    },
+    {
+      "file": "key-files/tests__CompositionBackdropTests.cs.txt",
+      "bytes": 9814,
+      "sha256": "B11C5406AB96E38ED6FE68996B8AD4D97A1C24B3BF865D42B2187A93B3484FF7"
+    },
+    {
+      "file": "key-files/tests__CompositionMainFormTests.cs.txt",
+      "bytes": 7159,
+      "sha256": "6298DB6705B8032694B93D8EE62521DBC76C002D1AE852BC929819E49773AA68"
+    },
+    {
+      "file": "key-files/tests__EarlyClientProbe.cs.txt",
+      "bytes": 10528,
+      "sha256": "407D1F3EA0484200EDAF1D1089106DC6A565A248DE217BE20660E63FEAF3CF8F"
+    },
+    {
+      "file": "key-files/tests__Program.cs.txt",
+      "bytes": 73379,
+      "sha256": "51032271CC160D272B49B994603BF9322631DF1FC7A83AC35BABA63EAEF61C62"
+    },
+    {
+      "file": "key-files/tests__ResizePipelineProbe.cs.txt",
+      "bytes": 8210,
+      "sha256": "B76D31B7D5D3DD3F48D6FBA63E8E76AD14F23C9150382D1F9A18A3D562D2DBAD"
+    },
+    {
+      "file": "patch-validation.json",
+      "bytes": 268,
+      "sha256": "50520DF107159D35102DC636C7ECD6FD876CE1CF56C79D6F931E09BFEDC157E4"
+    },
+    {
+      "file": "performance-summary.json",
+      "bytes": 1156,
+      "sha256": "7D94FA5AD497C78C3A0626A81087208CD6D92852E9FC37BADBA04104B3F8D1DC"
+    },
+    {
+      "file": "README.md",
+      "bytes": 4150,
+      "sha256": "1B2BA58F55AC22B2F070CAD11A0C9BECAF1CAB5F9247C117A2F5C08196B8D069"
+    },
+    {
+      "file": "user-feedback.md",
+      "bytes": 1110,
+      "sha256": "FE90062AC7DA28A391328039756744D6DF289C64D1AB0FB29E4931BF6D81FA2D"
+    },
+    {
+      "file": "verification-summary.json",
+      "bytes": 7851,
+      "sha256": "5866CEFDCABDC3E46257BFA348494D2D97BE6291F2F7C9A7FF3BF70D4D7D6797"
+    }
+  ]
+}

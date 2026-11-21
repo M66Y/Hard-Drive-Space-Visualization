@@ -1,0 +1,137 @@
+{
+  "revision": 1,
+  "date": "2026-11-15",
+  "git_baseline": "9ac1f0b30f31a4f00a4f55048409b1999cabbaf0",
+  "state": "retained-test-candidate-not-integrated",
+  "first_user_review_test_dll_sha256": "16211893A4BF86AC127E1044C00C5041D699AF39CC0829145C218BEE6752A179",
+  "final_test_dll_sha256": "E9EB112D87B84032FD077BA685194246072AB695AC8507B35995CCEF11013BBC",
+  "final_review_delta": "native-handle-release-and-first-full-frame-protection; same-layout-background-and-copy-backend",
+  "sources": [
+    {
+      "source": "tests/Prototypes/Resize/LiveResizePreview.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__LiveResizePreview.cs.txt",
+      "sha256": "F5C59B4FCEA5454AAA77B74A3F837ADE2367C803AE32992BC5B9C1A39B579594"
+    },
+    {
+      "source": "tests/Prototypes/Resize/LiveResizePrototypeForm.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__LiveResizePrototypeForm.cs.txt",
+      "sha256": "CFE59EEEF69A9EC225B58E3A4D6F5DF392736BC1AEED2B18990099A9331389ED"
+    },
+    {
+      "source": "tests/Prototypes/Resize/NativeResizeFrame.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__NativeResizeFrame.cs.txt",
+      "sha256": "4A847759FD9D66CD4C31A1AFB27703ADD84C579673F1437636E88641AF0E081E"
+    },
+    {
+      "source": "tests/Prototypes/Resize/NativeResizeFrameTests.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__NativeResizeFrameTests.cs.txt",
+      "sha256": "625402521C0582E6B3EE372F9DA49190A4F205E52BFF27733C9554BB1280C0FD"
+    },
+    {
+      "source": "tests/Prototypes/Resize/NativeResizeHostLifecycleTests.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__NativeResizeHostLifecycleTests.cs.txt",
+      "sha256": "84CF35AE01F5F4B659C0E5F5004D31E4CC0B05A7ED907F49710C1E58FBC27B00"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeBackgroundCoverage.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__ResizeBackgroundCoverage.cs.txt",
+      "sha256": "0E63E58969B875B8706505E4020E28D7AC0DECF80ECF2E6B7A18F345C5805021"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeCoverageTests.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__ResizeCoverageTests.cs.txt",
+      "sha256": "E98D0B05A2E16B49B8F7B812143B715B3603F9EE997519CC3A147CE4DA19FC90"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeDiagnosticReplay.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__ResizeDiagnosticReplay.cs.txt",
+      "sha256": "96353B005DA452333E7F91AC97974D7FCED5D7CF964695630ABBBBF088A85128"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeDiagnosticTrace.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__ResizeDiagnosticTrace.cs.txt",
+      "sha256": "D69C48CE72B3B10DB5FE9EEBBC0BCD703B5C2B1E8908BF26A178B15AABFAC1A6"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizePrototypeTests.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__ResizePrototypeTests.cs.txt",
+      "sha256": "0F0BF789DCDAA08E8DF60829062990283BCD067F56811DE89448B0C2ADF4E1E9"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeScene.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__ResizeScene.cs.txt",
+      "sha256": "C0F82A243DDB58BD12EA363E1E36E4867579A253E451927E79F804908F9ADC80"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeSceneBaseCache.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__ResizeSceneBaseCache.cs.txt",
+      "sha256": "6DB4118DDF570627F390463A64C4E48D45BD6000521700EED376589CF4AF5D7F"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeSceneCacheTests.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__ResizeSceneCacheTests.cs.txt",
+      "sha256": "10A858CDA54C87EFA65DBD437A1509D3E5A5BCA952A6883ABE17268FC3037D33"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeSceneRenderer.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__ResizeSceneRenderer.cs.txt",
+      "sha256": "FB3C7B783277AD35DAB30535E150342A1064336BB6E99C70FCC0C79F64F7B2DE"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeTitleGeometryAudit.cs",
+      "snapshot": "key-files/tests__Prototypes__Resize__ResizeTitleGeometryAudit.cs.txt",
+      "sha256": "36C2174BA7F5BB239ED47B3FB2D32B7408254322C42F8623188904E090A282EB"
+    },
+    {
+      "source": "tests/Program.cs",
+      "snapshot": "key-files/tests__Program.cs.txt",
+      "sha256": "AE874FF40A02F711F3CD6AC219C8EEFD2301F40010DBDB53EAE07060B2882BD9"
+    },
+    {
+      "source": "tests/DiskAtlas.Tests.csproj",
+      "snapshot": "key-files/tests__DiskAtlas.Tests.csproj.txt",
+      "sha256": "E738153C0E8E6E09936DC7A3026C5F114A3A36578967B2529125E70CDC5929F9"
+    },
+    {
+      "source": "DiskAtlas.csproj",
+      "snapshot": "key-files/DiskAtlas.csproj.txt",
+      "sha256": "1E3A74C73C3441C563B12E590B2A5038BE34339E7597A5CADA589DA6C80C87B7"
+    }
+  ],
+  "binaries": [
+    {
+      "file": "artifacts/resize-candidate-C48/app/AsukaLens.NativeFramePrototype.exe",
+      "sha256": "CA765BF93DCC93464615FF831CDEF6D2806F796A4D363A14F6B18BBBCBB89754"
+    },
+    {
+      "file": "artifacts/resize-candidate-C48/app/DiskAtlas.Tests.dll",
+      "sha256": "E9EB112D87B84032FD077BA685194246072AB695AC8507B35995CCEF11013BBC"
+    },
+    {
+      "file": "artifacts/resize-candidate-C48/app/DiskAtlas.Tests.deps.json",
+      "sha256": "F4365858C6878F5331C0E9A4BEB0D28B658EAC14720A6C4341A6C5126A8B3BE3"
+    },
+    {
+      "file": "artifacts/resize-candidate-C48/app/DiskAtlas.Tests.runtimeconfig.json",
+      "sha256": "96BC2946DFF8790400D652EC7F8DE7BB043E954980D59470C112788B68A1FBD3"
+    },
+    {
+      "file": "artifacts/resize-candidate-C48/production-build-check/DiskAtlas.dll",
+      "sha256": "F692D45703BD637266F66DFD8864F26D8996F9EEFE858795CED23E4F4145D7E0"
+    },
+    {
+      "file": "bin/Release/net10.0-windows/DiskAtlas.dll",
+      "sha256": "8690F5F5A1CC9160A698CAA0E355966D87B9ED1F5E1C27659AD6DD5B865886B1"
+    }
+  ],
+  "private_trace_archive": {
+    "file": "artifacts/resize-candidate-C48/owned-traces.zip",
+    "entries": 10,
+    "sha256": "C717556A5DED0693BC81BE7E0E4BB815B32859F1A5E820A22C9C1859A0C3AB6D",
+    "private_local_only": true,
+    "all_entries_hash_verified": true
+  },
+  "normal_output_replaced": false,
+  "formal_release": false,
+  "git_commit_created": false
+}

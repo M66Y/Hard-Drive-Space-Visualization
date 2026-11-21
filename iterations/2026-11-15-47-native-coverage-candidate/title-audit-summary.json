@@ -1,0 +1,180 @@
+{
+  "schema": "resize-title-geometry-audit-v1",
+  "enabled": true,
+  "title_count": 2,
+  "watched_controls": 11,
+  "paint_entries": 140,
+  "erase_entries": 1421,
+  "title_paint_entries": 25,
+  "title_paint_geometry_issues": 0,
+  "sampled_events": 1561,
+  "max_sampled_events": 2048,
+  "observations_truncated": false,
+  "native_client_mismatches": 606,
+  "native_bounds_mismatches": 655,
+  "region_bbox_mismatches_beyond_one_pixel": 0,
+  "region_compared_observations": 3274,
+  "managed_region_native_unavailable": 0,
+  "unavailable_observations": 0,
+  "issue_count": 64,
+  "max_issues": 64,
+  "issue_records_truncated": true,
+  "dropped_issue_records": 591,
+  "failures": 0,
+  "detach_deferred": false,
+  "diagnostic_ticks": 412953,
+  "timestamp_frequency": 10000000,
+  "attribution": "bbox-observations-only-not-glyph-clipping-proof",
+  "native_region_zero": "absent-or-error-unknown-not-a-mismatch",
+  "emitted_issue_examples": 4,
+  "issues": [
+    {
+      "Event": 14,
+      "Timestamp": 9344400,
+      "TitleId": 1,
+      "SourceSurfaceId": 2,
+      "Message": "EraseEnter",
+      "chain": [
+        {
+          "SurfaceId": 1,
+          "Depth": 0,
+          "Dpi": 144,
+          "ClientMismatch": true,
+          "BoundsMismatch": true,
+          "RegionMismatch": false,
+          "native_client": [
+            498,
+            48
+          ],
+          "managed_client": [
+            502,
+            48
+          ],
+          "native_bounds": [
+            24,
+            9,
+            498,
+            48
+          ],
+          "managed_bounds": [
+            24,
+            9,
+            502,
+            48
+          ]
+        }
+      ]
+    },
+    {
+      "Event": 15,
+      "Timestamp": 9348150,
+      "TitleId": 1,
+      "SourceSurfaceId": 1,
+      "Message": "EraseEnter",
+      "chain": [
+        {
+          "SurfaceId": 1,
+          "Depth": 0,
+          "Dpi": 144,
+          "ClientMismatch": true,
+          "BoundsMismatch": true,
+          "RegionMismatch": false,
+          "native_client": [
+            498,
+            48
+          ],
+          "managed_client": [
+            502,
+            48
+          ],
+          "native_bounds": [
+            24,
+            9,
+            498,
+            48
+          ],
+          "managed_bounds": [
+            24,
+            9,
+            502,
+            48
+          ]
+        }
+      ]
+    },
+    {
+      "Event": 16,
+      "Timestamp": 9371337,
+      "TitleId": 1,
+      "SourceSurfaceId": 1,
+      "Message": "EraseEnter",
+      "chain": [
+        {
+          "SurfaceId": 1,
+          "Depth": 0,
+          "Dpi": 144,
+          "ClientMismatch": true,
+          "BoundsMismatch": true,
+          "RegionMismatch": false,
+          "native_client": [
+            502,
+            48
+          ],
+          "managed_client": [
+            498,
+            48
+          ],
+          "native_bounds": [
+            24,
+            9,
+            502,
+            48
+          ],
+          "managed_bounds": [
+            24,
+            9,
+            498,
+            48
+          ]
+        }
+      ]
+    },
+    {
+      "Event": 17,
+      "Timestamp": 9405473,
+      "TitleId": 2,
+      "SourceSurfaceId": 8,
+      "Message": "EraseEnter",
+      "chain": [
+        {
+          "SurfaceId": 7,
+          "Depth": 0,
+          "Dpi": 144,
+          "ClientMismatch": true,
+          "BoundsMismatch": true,
+          "RegionMismatch": false,
+          "native_client": [
+            394,
+            48
+          ],
+          "managed_client": [
+            397,
+            48
+          ],
+          "native_bounds": [
+            24,
+            9,
+            394,
+            48
+          ],
+          "managed_bounds": [
+            24,
+            9,
+            397,
+            48
+          ]
+        }
+      ]
+    }
+  ]
+}

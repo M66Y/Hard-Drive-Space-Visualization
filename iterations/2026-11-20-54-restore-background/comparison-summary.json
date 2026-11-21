@@ -1,0 +1,44 @@
+{
+  "scope": "owned parent-heading blank area; three valid points per stage",
+  "root_cache_pairs": {
+    "on": {
+      "before": {
+        "initial": 0,
+        "maximized": 0,
+        "restored": 3,
+        "settled": 3,
+        "local-invalidation": 3,
+        "parent-invalidation": 0
+      },
+      "after": {
+        "initial": 0,
+        "maximized": 0,
+        "restored": 0,
+        "settled": 0,
+        "local-invalidation": 0,
+        "parent-invalidation": 0
+      }
+    },
+    "off": {
+      "before": {
+        "initial": 0,
+        "maximized": 0,
+        "restored": 3,
+        "settled": 3,
+        "local-invalidation": 3,
+        "parent-invalidation": 0
+      },
+      "after": {
+        "initial": 0,
+        "maximized": 0,
+        "restored": 0,
+        "settled": 0,
+        "local-invalidation": 0,
+        "parent-invalidation": 0
+      }
+    }
+  },
+  "checkbox_movement_policy_unchanged": true,
+  "fix": "single renderer in WallpaperTable.PaintExposed",
+  "native_window_clip_checks_each_dpi": 12
+}

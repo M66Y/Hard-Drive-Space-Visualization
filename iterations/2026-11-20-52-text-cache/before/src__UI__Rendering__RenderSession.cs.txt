@@ -1,0 +1,107 @@
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+
+namespace DiskAtlas;
+
+// One main window owns one budget, including bitmap fallback storage. Cached
+// native/managed aliases share pixels; allocation reserves before constructing.
+internal sealed class RenderSession
+{
+    internal const long MaxBytes = 128L * 1024 * 1024;
+    internal bool Requested { get; }
+    internal bool Active => Requested && failures < 3;
+    internal long Bytes { get; private set; }
+    internal long PeakBytes { get; private set; }
+    internal int Copies { get; private set; }
+    internal int Fallbacks { get; private set; }
+    internal int BudgetRejected { get; private set; }
+    internal Dictionary<NativeResizeFrame.CopyFailure, int> CopyFailureCounts { get; } = [];
+    private int failures;
+    internal RenderSession(bool enabled) => Requested = enabled;
+    internal bool Reserve(long bytes)
+    {
+        if (bytes <= 0 || bytes > MaxBytes - Bytes) { BudgetRejected++; return false; }
+        Bytes += bytes; PeakBytes = Math.Max(PeakBytes, Bytes); return true;
+    }
+    internal void Release(long bytes) => Bytes -= bytes;
+    internal void Copied() { Copies++; failures = 0; }
+    internal void Failed(bool unsupported = false) { Fallbacks++; if (!unsupported) failures++; }
+    internal void CopyFailed(NativeResizeFrame.CopyFailure code)
+    {
+        CopyFailureCounts[code] = CopyFailureCounts.GetValueOrDefault(code) + 1;
+        Failed(code is NativeResizeFrame.CopyFailure.GraphicsTransform or NativeResizeFrame.CopyFailure.TargetOrigin or
+            NativeResizeFrame.CopyFailure.GraphicsUnit);
+    }
+}
+
+internal sealed class PixelSurface : IDisposable
+{
+    private NativeResizeFrame? native;
+    private Bitmap? bitmap;
+    private RenderSession? session;
+    private readonly long bytes;
+    internal Bitmap Bitmap => bitmap ?? throw new ObjectDisposedException(nameof(PixelSurface));
+    internal bool Native => native != null;
+    private PixelSurface(Size size, int dpi, RenderSession? owner)
+    {
+        bytes = checked((long)size.Width * size.Height * 4);
+        if (owner != null && !owner.Reserve(bytes)) throw new InvalidOperationException("PixelBudget");
+        session = owner;
+        try
+        {
+            if (owner?.Active == true)
+            {
+                try { native = new NativeResizeFrame(size, dpi); bitmap = native.Bitmap; return; }
+                catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException)
+                { owner.Failed(); }
+            }
+            bitmap = new Bitmap(size.Width, size.Height, PixelFormat.Format32bppPArgb);
+            bitmap.SetResolution(dpi, dpi);
+        }
+        catch { owner?.Release(bytes); session = null; throw; }
+    }
+    internal static PixelSurface? Create(Size size, int dpi, RenderSession? owner)
+    {
+        if (size.Width <= 0 || size.Height <= 0) return null;
+        try { return new PixelSurface(size, dpi, owner); }
+        catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException) { return null; }
+    }
+
+    internal bool TryCopy(Graphics target, Rectangle source, Point destination, Control? paintedControl = null)
+    {
+        if (native == null || session?.Active != true || source.Width <= 0 || source.Height <= 0) return false;
+        using (var transform = target.Transform)
+            if (!transform.IsIdentity)
+            { session.CopyFailed(NativeResizeFrame.CopyFailure.GraphicsTransform); return false; }
+        Point viewport = Point.Empty;
+        IntPtr dc = IntPtr.Zero;
+        try
+        {
+            dc = target.GetHdc();
+            // WinForms asks a parent to print its background into a child DC.
+            // Accept only a window actually in that parent's owned subtree.
+            var child = Control.FromHandle(WindowFromDC(dc));
+            if (child != null && paintedControl != null && child != paintedControl && paintedControl.Contains(child))
+                for (Control? node = child; node != null && node != paintedControl; node = node.Parent)
+                    viewport.Offset(-node.Left, -node.Top);
+        }
+        catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException)
+        { session.Failed(); return false; }
+        finally { if (dc != IntPtr.Zero) target.ReleaseHdc(dc); }
+        if (native.TryCopyTo(target, source, destination, viewport)) { session.Copied(); return true; }
+        session.CopyFailed(native.LastCopyFailure);
+        return false;
+    }
+    internal void Paint(Graphics target, Rectangle source, Point destination, Control? owner = null)
+    {
+        if (!TryCopy(target, source, destination, owner))
+            target.DrawImage(Bitmap, new Rectangle(destination, source.Size), source, GraphicsUnit.Pixel);
+    }
+    public void Dispose()
+    {
+        if (bitmap == null) return;
+        if (native != null) native.Dispose(); else bitmap.Dispose();
+        bitmap = null; native = null; session?.Release(bytes); session = null;
+    }
+    [DllImport("user32.dll")] private static extern IntPtr WindowFromDC(IntPtr dc);
+}

@@ -1,0 +1,9 @@
+{
+  "legacy_native_copy": true,
+  "expected_exit_code": 1,
+  "observed_exit_code": 1,
+  "fixed_code": "ExposedParentBackgroundMismatch",
+  "new_regression_detects_old_path": true,
+  "legacy_test_dll_sha256": "4BEB927AA4785577AFDE3AECB6CDC95489946D211CEFE5FA47EF78CA885BCE78",
+  "restored_wallpaper_sha256": "898BD4F3DE1E247C3D995F64565A85D26AF58305BF2272217F77ECC75EB0F67E"
+}

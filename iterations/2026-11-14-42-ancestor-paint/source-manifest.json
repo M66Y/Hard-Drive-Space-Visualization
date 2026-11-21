@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "baseline": "9ac1f0b",
+  "baseline_context": "Three-file ancestor paint follow-up to C41; included selected working-tree preimages, not a HEAD-only delta",
+  "state": "candidate-final-regression-and-desktop-review-pending",
+  "patch_replay": {
+    "files": 3,
+    "sha256_all_matched": true
+  },
+  "files": [
+    {
+      "source": "Wallpaper.cs",
+      "snapshot": "key-files/Wallpaper.cs.txt",
+      "sha256": "09BCAE089BB337C11F507080DD22992E9A0CEE025E93855AADE0EC467764DAAF",
+      "bytes": 28774,
+      "preimage": "preimages/Wallpaper.cs.txt",
+      "preimage_sha256": "4F3283BFF1C02E4AAED72DE915CBEDE4036A62CC2C0DC024B2D17EAB13E823BA"
+    },
+    {
+      "source": "src/UI/GridScrollbarSkin.cs",
+      "snapshot": "key-files/src_UI_GridScrollbarSkin.cs.txt",
+      "sha256": "01FEEB607A703D35FD73101B8FEA174B4BE2DAEDD6482B1D258CCD6BF46919BC",
+      "bytes": 11104,
+      "preimage": "preimages/src_UI_GridScrollbarSkin.cs.txt",
+      "preimage_sha256": "1B1380E8BB20B80ED0FC543EABB3B1C0BD49848992CBF2020920AF24FB822338"
+    },
+    {
+      "source": "tests/WallpaperGridCacheTests.cs",
+      "snapshot": "key-files/tests_WallpaperGridCacheTests.cs.txt",
+      "sha256": "C315371DDD5C1FA0D945FE2698CC1B9C6B6E45A78A92B3971A328A02243FABB2",
+      "bytes": 23841,
+      "preimage": "preimages/tests_WallpaperGridCacheTests.cs.txt",
+      "preimage_sha256": "75C860F41DB4D4BF29D41E2EACF315316AEC1931FF921D591EE7650369CC29F6"
+    }
+  ]
+}

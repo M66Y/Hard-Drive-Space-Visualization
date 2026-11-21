@@ -1,0 +1,18 @@
+{
+  "closed_out": "2026-11-21",
+  "scope_files": 12,
+  "patch_byte_replay": true,
+  "source_and_binary_hashes_verified": true,
+  "original_default_C52_C53_hashes_unchanged": true,
+  "public_privacy_pattern_scan_passed": true,
+  "new_relative_links_checked": 15,
+  "private_zip_entries": 44,
+  "private_zip_sha256": "D2A19DE8C81B00C47394FD8A34E176B9D09D2182E2971CFB881C8FDDD6095E1E",
+  "candidate_retained": true,
+  "ordinary_default_changed": false,
+  "commit_pushed": false,
+  "formal_release_generated": false,
+  "no_new_tests_needed_for_pure_closeout": true,
+  "remaining": "earliest resize flash, long-tail latency, minimize/restore transients, cross-monitor DPI",
+  "scoped_whitespace_check_passed": true
+}

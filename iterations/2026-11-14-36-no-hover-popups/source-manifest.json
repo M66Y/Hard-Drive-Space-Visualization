@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "baseline": "9ac1f0b",
+  "predecessor": "iterations/2026-11-14-35-quiet-hints",
+  "state": "item-accepted-stage-one-review-pending",
+  "removed_sources": [
+    "src/UI/GridHoverHints.cs",
+    "tests/QuietToolTipTests.cs"
+  ],
+  "files": [
+    {
+      "source": "MainForm.cs",
+      "snapshot": "key-files/MainForm.cs.txt",
+      "sha256": "272080595854BE0969CB196634D13673CB568F47398E34D74269359D299D19D8",
+      "bytes": 91448
+    },
+    {
+      "source": "TreemapControl.cs",
+      "snapshot": "key-files/TreemapControl.cs.txt",
+      "sha256": "8271404F9DDE516F386DD16D6B763059345D702F2A22052F06575D0EBBDD55A4",
+      "bytes": 28629
+    },
+    {
+      "source": "ScanProgressControl.cs",
+      "snapshot": "key-files/ScanProgressControl.cs.txt",
+      "sha256": "ECD99A61FA5D1935A4021588B3314EFA1732FB91F7D9D48C66ED0FFE66DC9C63",
+      "bytes": 12305
+    },
+    {
+      "source": "Wallpaper.cs",
+      "snapshot": "key-files/Wallpaper.cs.txt",
+      "sha256": "E6837B35F2286B7A59EA2F1CD132F34E3AE4155A253C1E434097ACE9E76F87F9",
+      "bytes": 27057
+    },
+    {
+      "source": "Theme.cs",
+      "snapshot": "key-files/Theme.cs.txt",
+      "sha256": "B0CC75962A8746EA8507BC54BDD4AD13A5B738A2529D96764EAAC6C423623185",
+      "bytes": 38836
+    },
+    {
+      "source": "src/Diagnostics/DiagnosticsDialog.cs",
+      "snapshot": "key-files/src_Diagnostics_DiagnosticsDialog.cs.txt",
+      "sha256": "DC015EC5252A6BDDD10A0F0E03E240D9A4DC276231CAE7998DFD7ED1EEABC355",
+      "bytes": 16802
+    },
+    {
+      "source": "src/UI/AppToolTips.cs",
+      "snapshot": "key-files/src_UI_AppToolTips.cs.txt",
+      "sha256": "4F20AE9C7D10BB9B0D1E13CC7A257568EC61DAAA7792183A28C4E46F1CA9A221",
+      "bytes": 332
+    },
+    {
+      "source": "src/UI/NoHoverLabel.cs",
+      "snapshot": "key-files/src_UI_NoHoverLabel.cs.txt",
+      "sha256": "A4A96901AFCA6DD9B1F076CFBB7A4D97C4880BD7CBD22AB71CDBCF8C735FB340",
+      "bytes": 1957
+    },
+    {
+      "source": "src/UI/FastScanOptIn.cs",
+      "snapshot": "key-files/src_UI_FastScanOptIn.cs.txt",
+      "sha256": "913E0B8B17B9E4947D4A38787F989531AE6AEE89B64C5CE32AA47B3509591FF5",
+      "bytes": 963
+    },
+    {
+      "source": "tests/HoverPopupPolicyTests.cs",
+      "snapshot": "key-files/tests_HoverPopupPolicyTests.cs.txt",
+      "sha256": "DCAE8FEA56023AA5C29548FA890C929B55A7D60D6ECF44187C91BE207E65A460",
+      "bytes": 13764
+    },
+    {
+      "source": "tests/FastScanMainFormTests.cs",
+      "snapshot": "key-files/tests_FastScanMainFormTests.cs.txt",
+      "sha256": "45D699D4223698DBF719B0CF136930E72F2DA03F6F30E26D1FEC9FC0FD4FF1DE",
+      "bytes": 26113
+    },
+    {
+      "source": "tests/DiagnosticsUiRegression.cs",
+      "snapshot": "key-files/tests_DiagnosticsUiRegression.cs.txt",
+      "sha256": "2787D2F322BBDDD62EA38AA4651F400D431D73B467E4E4A9E545F796F566D065",
+      "bytes": 14825
+    },
+    {
+      "source": "tests/Program.cs",
+      "snapshot": "key-files/tests_Program.cs.txt",
+      "sha256": "7039C2851B22FD177A690BFBFDAE2FEA514727C9834C02C7ADAD18B7792EAFA9",
+      "bytes": 67190
+    }
+  ]
+}

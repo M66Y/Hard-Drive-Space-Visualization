@@ -1,0 +1,88 @@
+{
+  "revision": 1,
+  "baseline": "9ac1f0b30f31a4f00a4f55048409b1999cabbaf0",
+  "state": "user-review-failed-partial-improvement",
+  "scope": "working-tree-test-candidate; not-full-HEAD-patch",
+  "files": [
+    {
+      "source": "DiskAtlas.csproj",
+      "snapshot": "key-files\\DiskAtlas.csproj.txt",
+      "sha256": "1E3A74C73C3441C563B12E590B2A5038BE34339E7597A5CADA589DA6C80C87B7"
+    },
+    {
+      "source": "Wallpaper.cs",
+      "snapshot": "key-files\\Wallpaper.cs.txt",
+      "sha256": "8812A5A21E63A300B13EA8B427FFEE57917CAAEDB571BE32E1518D93D645AD39"
+    },
+    {
+      "source": "MainForm.cs",
+      "snapshot": "key-files\\MainForm.cs.txt",
+      "sha256": "CC09168CAEB25AD0043E093F3AFEE2A2030321D0FDB5CD74D7FFA32C7722250F"
+    },
+    {
+      "source": "tests/Program.cs",
+      "snapshot": "key-files\\tests\\Program.cs.txt",
+      "sha256": "F60D4D94B705D278741878B5D2E8DE35628180B96825B70D903240CA84634AD8"
+    },
+    {
+      "source": "tests/StageOnePreview.cs",
+      "snapshot": "key-files\\tests\\StageOnePreview.cs.txt",
+      "sha256": "91C1E72FE07554D40A8F5C1436D4A0A2696E30E551F1956B8580C95EEE7B4960"
+    },
+    {
+      "source": "tests/SplitPanelBackgroundExperimentTests.cs",
+      "snapshot": "key-files\\tests\\SplitPanelBackgroundExperimentTests.cs.txt",
+      "sha256": "91B25F188C6CD40766528F609692ECB9F75B58FF3ED4A204292DEF48820474C0"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeBackgroundCoverage.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeBackgroundCoverage.cs.txt",
+      "sha256": "C5E0744329FAC4472F7CFC85F0A5E1E3C859E5E1F26712EE7BF63E599EC45B00"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeCoverageTests.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeCoverageTests.cs.txt",
+      "sha256": "FF53C4AE4A9980F769328694662863C95F14D8F4830FE027CF94A4DE5B1A4BD2"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeTitleGeometryAudit.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeTitleGeometryAudit.cs.txt",
+      "sha256": "36C2174BA7F5BB239ED47B3FB2D32B7408254322C42F8623188904E090A282EB"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeDiagnosticTrace.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeDiagnosticTrace.cs.txt",
+      "sha256": "8AE671A0CE20CDD5D3CB7272206B3C0C70AB08719A6C844A4849D9AA447E7B5C"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeDiagnosticReplay.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeDiagnosticReplay.cs.txt",
+      "sha256": "96353B005DA452333E7F91AC97974D7FCED5D7CF964695630ABBBBF088A85128"
+    },
+    {
+      "source": "tests/Prototypes/Resize/LiveResizePrototypeForm.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\LiveResizePrototypeForm.cs.txt",
+      "sha256": "B5AB3069475051645590D0BB70E056F3A1BF22078EA803F75AC19850B4731AD0"
+    },
+    {
+      "source": "tests/Prototypes/Resize/LiveResizePreview.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\LiveResizePreview.cs.txt",
+      "sha256": "59D6C8B9078888582CFA687A828BE3F1D09CAD0024229B9397912E7FD53365FD"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeScene.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeScene.cs.txt",
+      "sha256": "C0F82A243DDB58BD12EA363E1E36E4867579A253E451927E79F804908F9ADC80"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizeSceneRenderer.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizeSceneRenderer.cs.txt",
+      "sha256": "04500F1323B944BDA23067403F8D396E01802D734CA03B546908AB422005810C"
+    },
+    {
+      "source": "tests/Prototypes/Resize/ResizePrototypeTests.cs",
+      "snapshot": "key-files\\tests\\Prototypes\\Resize\\ResizePrototypeTests.cs.txt",
+      "sha256": "0F0BF789DCDAA08E8DF60829062990283BCD067F56811DE89448B0C2ADF4E1E9"
+    }
+  ]
+}

@@ -1,0 +1,234 @@
+namespace DiskAtlas;
+
+// Native cells still own selection, input and accessibility. This only replaces
+// their eager hover popups with one bounded, stationary-cell hint.
+internal sealed class GridHoverHints : IDisposable
+{
+    private readonly DataGridView grid;
+    private readonly Func<Form, bool> ownerIsActive;
+    private readonly ToolTip toolTip = AppToolTips.Create();
+    private readonly System.Windows.Forms.Timer timer = new();
+    private Form? ownerForm;
+    private HintTarget? target;
+    private Point anchor;
+    private HintPhase phase;
+    private bool disposed;
+
+    private enum HintPhase { None, Waiting, Visible, Consumed }
+    private readonly record struct HintTarget(int RowIndex, int ColumnIndex, string Text);
+
+    internal bool PendingHint => phase == HintPhase.Waiting;
+    internal bool HintVisible => phase == HintPhase.Visible;
+    internal (int RowIndex, int ColumnIndex)? CurrentCell =>
+        target is { } cell ? (cell.RowIndex, cell.ColumnIndex) : null;
+
+    internal GridHoverHints(DataGridView grid) : this(grid, static form => Form.ActiveForm == form) { }
+
+    // The second constructor permits deterministic controller-policy tests;
+    // WallpaperGrid always uses the real active-window policy above.
+    internal GridHoverHints(DataGridView grid, Func<Form, bool> ownerIsActive)
+    {
+        ArgumentNullException.ThrowIfNull(ownerIsActive);
+        this.grid = grid;
+        this.ownerIsActive = ownerIsActive;
+        grid.ShowCellToolTips = false;
+        timer.Tick += TimerTick;
+        grid.MouseMove += MouseMoved;
+        grid.MouseLeave += CancelHint;
+        grid.MouseDown += CancelHint;
+        grid.MouseWheel += CancelHint;
+        grid.MouseCaptureChanged += CancelHint;
+        grid.KeyDown += CancelHint;
+        grid.PreviewKeyDown += CancelHint;
+        grid.LostFocus += CancelHint;
+        grid.Leave += CancelHint;
+        grid.Scroll += CancelHint;
+        grid.RowsAdded += CancelHint;
+        grid.RowsRemoved += CancelHint;
+        grid.CellValueChanged += CancelHint;
+        grid.CurrentCellChanged += CancelHint;
+        grid.DataSourceChanged += CancelHint;
+        grid.DataBindingComplete += CancelHint;
+        grid.Sorted += CancelHint;
+        grid.ColumnAdded += CancelHint;
+        grid.ColumnRemoved += CancelHint;
+        grid.ColumnWidthChanged += CancelHint;
+        grid.ColumnDisplayIndexChanged += CancelHint;
+        grid.ColumnStateChanged += CancelHint;
+        grid.RowHeightChanged += CancelHint;
+        grid.VisibleChanged += CancelHint;
+        grid.EnabledChanged += CancelHint;
+        grid.SizeChanged += CancelHint;
+        grid.LocationChanged += CancelHint;
+        grid.DpiChangedAfterParent += CancelHint;
+        grid.HandleDestroyed += CancelHint;
+        grid.ParentChanged += ParentChanged;
+        grid.HandleCreated += ParentChanged;
+        AttachForm();
+    }
+
+    private void MouseMoved(object? sender, MouseEventArgs e)
+    {
+        AttachForm();
+        if (!CanShow() || e.Button != MouseButtons.None || Control.MouseButtons != MouseButtons.None ||
+            !TryGetTarget(e.Location, out var candidate) || !CanShow())
+        {
+            Cancel();
+            return;
+        }
+
+        int tolerance = Math.Max(1, (int)Math.Round(4 * grid.DeviceDpi / 96f));
+        long dx = (long)e.X - anchor.X, dy = (long)e.Y - anchor.Y;
+        if (target == candidate && dx * dx + dy * dy <= (long)tolerance * tolerance) return;
+
+        Cancel();
+        target = candidate;
+        anchor = e.Location;
+        phase = HintPhase.Waiting;
+        timer.Interval = AppToolTips.InitialDelayMilliseconds;
+        timer.Start();
+    }
+
+    private void TimerTick(object? sender, EventArgs e)
+    {
+        timer.Stop();
+        if (phase == HintPhase.Visible)
+        {
+            AppToolTips.Hide(toolTip, grid);
+            phase = HintPhase.Consumed;
+            return;
+        }
+        if (phase != HintPhase.Waiting || target is not { } expected || !CanShow())
+        {
+            Cancel();
+            return;
+        }
+
+        Point mouse = grid.PointToClient(Control.MousePosition);
+        int tolerance = Math.Max(1, (int)Math.Round(4 * grid.DeviceDpi / 96f));
+        long dx = (long)mouse.X - anchor.X, dy = (long)mouse.Y - anchor.Y;
+        // Virtual rows can have changed while the timer was pending. Read only
+        // this cell again, including its CellToolTipTextNeeded callback.
+        if (Control.MouseButtons != MouseButtons.None || dx * dx + dy * dy > (long)tolerance * tolerance ||
+            !TryGetTarget(mouse, out var current) || current != expected ||
+            phase != HintPhase.Waiting || target != expected || !CanShow())
+        {
+            Cancel();
+            return;
+        }
+
+        phase = HintPhase.Visible;
+        AppToolTips.Show(toolTip, grid, expected.Text,
+            new Point(mouse.X, mouse.Y + Math.Max(1, (int)Math.Round(22 * grid.DeviceDpi / 96f))));
+        timer.Interval = AppToolTips.DisplayMilliseconds;
+        timer.Start();
+    }
+
+    private bool TryGetTarget(Point point, out HintTarget result)
+    {
+        result = default;
+        if (!grid.ClientRectangle.Contains(point)) return false;
+        var hit = grid.HitTest(point.X, point.Y);
+        if (hit.ColumnIndex < 0 || hit.ColumnIndex >= grid.ColumnCount) return false;
+        var column = grid.Columns[hit.ColumnIndex];
+        string text;
+        if (hit.Type == DataGridViewHitTestType.ColumnHeader)
+            text = column.ToolTipText;
+        else if (hit.Type == DataGridViewHitTestType.Cell && hit.RowIndex >= 0 &&
+            hit.RowIndex < grid.RowCount && column.Name == "name")
+            text = grid.Rows[hit.RowIndex].Cells[hit.ColumnIndex].ToolTipText;
+        else return false;
+
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        result = new HintTarget(hit.RowIndex, hit.ColumnIndex, text);
+        return true;
+    }
+
+    private bool CanShow() => !disposed && !grid.IsDisposed && !grid.Disposing &&
+        grid.IsHandleCreated && grid.Visible && grid.Enabled && !grid.Capture &&
+        ownerForm is { IsDisposed: false, Disposing: false, Visible: true } form &&
+        form.WindowState != FormWindowState.Minimized && ownerIsActive(form);
+
+    private void CancelHint(object? sender, EventArgs e) => Cancel();
+    private void ParentChanged(object? sender, EventArgs e) { Cancel(); AttachForm(); }
+
+    private void AttachForm()
+    {
+        var form = grid.FindForm();
+        if (ReferenceEquals(form, ownerForm)) return;
+        Cancel();
+        DetachForm();
+        ownerForm = form;
+        if (form == null) return;
+        form.Deactivate += CancelHint;
+        form.FormClosing += CancelHint;
+        form.FormClosed += CancelHint;
+        form.KeyDown += CancelHint;
+        form.Move += CancelHint;
+        form.Resize += CancelHint;
+    }
+
+    private void DetachForm()
+    {
+        if (ownerForm == null) return;
+        ownerForm.Deactivate -= CancelHint;
+        ownerForm.FormClosing -= CancelHint;
+        ownerForm.FormClosed -= CancelHint;
+        ownerForm.KeyDown -= CancelHint;
+        ownerForm.Move -= CancelHint;
+        ownerForm.Resize -= CancelHint;
+        ownerForm = null;
+    }
+
+    private void Cancel()
+    {
+        if (disposed) return;
+        if (phase == HintPhase.None && target == null) return;
+        timer.Stop();
+        AppToolTips.Hide(toolTip, grid);
+        target = null;
+        phase = HintPhase.None;
+    }
+
+    public void Dispose()
+    {
+        if (disposed) return;
+        Cancel();
+        disposed = true;
+        DetachForm();
+        grid.MouseMove -= MouseMoved;
+        grid.MouseLeave -= CancelHint;
+        grid.MouseDown -= CancelHint;
+        grid.MouseWheel -= CancelHint;
+        grid.MouseCaptureChanged -= CancelHint;
+        grid.KeyDown -= CancelHint;
+        grid.PreviewKeyDown -= CancelHint;
+        grid.LostFocus -= CancelHint;
+        grid.Leave -= CancelHint;
+        grid.Scroll -= CancelHint;
+        grid.RowsAdded -= CancelHint;
+        grid.RowsRemoved -= CancelHint;
+        grid.CellValueChanged -= CancelHint;
+        grid.CurrentCellChanged -= CancelHint;
+        grid.DataSourceChanged -= CancelHint;
+        grid.DataBindingComplete -= CancelHint;
+        grid.Sorted -= CancelHint;
+        grid.ColumnAdded -= CancelHint;
+        grid.ColumnRemoved -= CancelHint;
+        grid.ColumnWidthChanged -= CancelHint;
+        grid.ColumnDisplayIndexChanged -= CancelHint;
+        grid.ColumnStateChanged -= CancelHint;
+        grid.RowHeightChanged -= CancelHint;
+        grid.VisibleChanged -= CancelHint;
+        grid.EnabledChanged -= CancelHint;
+        grid.SizeChanged -= CancelHint;
+        grid.LocationChanged -= CancelHint;
+        grid.DpiChangedAfterParent -= CancelHint;
+        grid.HandleDestroyed -= CancelHint;
+        grid.ParentChanged -= ParentChanged;
+        grid.HandleCreated -= ParentChanged;
+        timer.Tick -= TimerTick;
+        timer.Dispose();
+        toolTip.Dispose();
+    }
+}

@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "baseline": "9ac1f0b",
+  "state": "working-tree-stage-one-review-pending",
+  "files": [
+    {
+      "source": "MainForm.cs",
+      "snapshot": "key-files/MainForm.cs.txt",
+      "sha256": "C947A0A677520907B8F4FFB7247D814E59C42FB5FEF8A0A92815ED264CAC195B",
+      "bytes": 90933
+    },
+    {
+      "source": "TreemapControl.cs",
+      "snapshot": "key-files/TreemapControl.cs.txt",
+      "sha256": "E493CD555D27DCCCB4A29E4D12187DDB5C1E3997F53978B7ED80265954B2D16E",
+      "bytes": 29357
+    },
+    {
+      "source": "src/UI/FileListPresentation.cs",
+      "snapshot": "key-files/src_UI_FileListPresentation.cs.txt",
+      "sha256": "CAFFE28002C18FB5F70AE62897FEB565093355B60C08509A2B41746015379C02",
+      "bytes": 1860
+    },
+    {
+      "source": "src/UI/TreemapDensityLayout.cs",
+      "snapshot": "key-files/src_UI_TreemapDensityLayout.cs.txt",
+      "sha256": "285903A7DE8B6302911A5CDE39382027B052F0812BDD49E6F232BDB0B9251C45",
+      "bytes": 2869
+    },
+    {
+      "source": "tests/StageOnePreview.cs",
+      "snapshot": "key-files/tests_StageOnePreview.cs.txt",
+      "sha256": "7A0573F75720B7F0FDCB691C703493E8348646AFF57838E5760F72B09C4B1C97",
+      "bytes": 45254
+    },
+    {
+      "source": "tests/LargeFileRowPresentationTests.cs",
+      "snapshot": "key-files/tests_LargeFileRowPresentationTests.cs.txt",
+      "sha256": "71097754393E5B243087452D031A69E7304F941889F646DEE82BF4F20DFC1A6E",
+      "bytes": 24108
+    },
+    {
+      "source": "tests/TreemapDensityLayoutTests.cs",
+      "snapshot": "key-files/tests_TreemapDensityLayoutTests.cs.txt",
+      "sha256": "C957E6AB6FD62C55EDB09224698D8CE5DB6578A1C4CC3A1F880616111BD1D751",
+      "bytes": 10828
+    },
+    {
+      "source": "tests/WallpaperScrollRegression.cs",
+      "snapshot": "key-files/tests_WallpaperScrollRegression.cs.txt",
+      "sha256": "6EEA38D68CE517CA80A458B9EBDADFDF85703B77C377C9C85DB93D4356618A25",
+      "bytes": 8081
+    },
+    {
+      "source": "tests/FastScanMainFormTests.cs",
+      "snapshot": "key-files/tests_FastScanMainFormTests.cs.txt",
+      "sha256": "A197FD21B742EDC8C1F4F07181EFA4C193AD9790BFC9904DE091E078D342AAFA",
+      "bytes": 22233
+    },
+    {
+      "source": "tests/Program.cs",
+      "snapshot": "key-files/tests_Program.cs.txt",
+      "sha256": "431941AA5C76A49019721EFA8ED9599CE5A74698D7B198C95EBE74F20DEAC0A6",
+      "bytes": 67079
+    }
+  ]
+}

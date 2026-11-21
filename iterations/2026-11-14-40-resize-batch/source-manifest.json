@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "baseline": "9ac1f0b",
+  "baseline_context": "C39/C38 inherited working tree; selected preimages only",
+  "state": "candidate-not-visually-accepted",
+  "files": [
+    {
+      "source": "MainForm.cs",
+      "snapshot": "key-files/MainForm.cs.txt",
+      "sha256": "EB509E4A267861865E9C251F2E33322C94DCD5365E4868636FF85343253BC83D",
+      "bytes": 93169,
+      "preimage": "iterations\\2026-11-14-39-resize-pixels\\key-files\\MainForm.cs.txt",
+      "preimage_sha256": "F3D91E9E21CC1CE2AEF8D6CCC2E9EC6DC14E035F13042EE4FC6F9C570C4A5556"
+    },
+    {
+      "source": "src/UI/LayoutPresentation.cs",
+      "snapshot": "key-files/src_UI_LayoutPresentation.cs.txt",
+      "sha256": "37A471C15FE6DF160BA136C54752CDF16BC027008A2A80F39E119BA3C814B8D1",
+      "bytes": 16205,
+      "preimage": "iterations\\2026-11-14-38-remove-explanation\\key-files\\src_UI_LayoutPresentation.cs.txt",
+      "preimage_sha256": "9FEA2C50792CA597CCC0ED94783785E438924C8259306CF543BE179B690F090F"
+    },
+    {
+      "source": "tests/LayoutPresentationPolicyTests.cs",
+      "snapshot": "key-files/tests_LayoutPresentationPolicyTests.cs.txt",
+      "sha256": "40B3A3F71FDB18E58E402F7497C1974B54AA66A71E84512E9DABE942A12E71A0",
+      "bytes": 36545,
+      "preimage": "iterations\\2026-11-14-38-remove-explanation\\key-files\\tests_LayoutPresentationPolicyTests.cs.txt",
+      "preimage_sha256": "64861948F4D69107AA3C00B57C17A0C1D466F578EAE78D4C5F39AC30038D9DB4"
+    },
+    {
+      "source": "tests/LayoutTransitionRegression.cs",
+      "snapshot": "key-files/tests_LayoutTransitionRegression.cs.txt",
+      "sha256": "EEE9ED4152014F69219DB47FBD43FA70867BB4A700F375C0B6E89B464D2885D1",
+      "bytes": 26597,
+      "preimage": "iterations\\2026-11-14-38-remove-explanation\\key-files\\tests_LayoutTransitionRegression.cs.txt",
+      "preimage_sha256": "12D72D402794BB16230E8D4FA4034B0C79C19E0C05324F98C2011FD0EB58871E"
+    }
+  ]
+}

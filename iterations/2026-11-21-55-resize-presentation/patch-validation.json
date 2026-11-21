@@ -1,0 +1,8 @@
+{
+  "base": "C54-reviewed working-tree preimages; not clean HEAD",
+  "scoped_files": 14,
+  "byte_exact": true,
+  "git_apply_check_and_replay": true,
+  "temporary_replay_tree_removed": true,
+  "patch_sha256": "049114D2087B976316ECE24398E6F9B748EFEB135724F903ECFDA337D063782A"
+}

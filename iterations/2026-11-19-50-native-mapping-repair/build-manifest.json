@@ -1,0 +1,64 @@
+{
+  "baseline": "9ac1f0b30f31a4f00a4f55048409b1999cabbaf0",
+  "stage": "C50",
+  "candidate": "independent-synthetic",
+  "normal_app_replaced": false,
+  "default_enabled": false,
+  "files": [
+    {
+      "path": "artifacts/resize-candidate-C50/app/AsukaLens.NativeFramePrototype.exe",
+      "sha256": "CA765BF93DCC93464615FF831CDEF6D2806F796A4D363A14F6B18BBBCBB89754",
+      "bytes": 162304
+    },
+    {
+      "path": "artifacts/resize-candidate-C50/app/DiskAtlas.Tests.dll",
+      "sha256": "E275BE9FD0553B4FEF41DF2CF195DFBB44171A68201CC79344FA2ABD021293EA",
+      "bytes": 6101504
+    },
+    {
+      "path": "artifacts/resize-candidate-C50/app/DiskAtlas.Tests.deps.json",
+      "sha256": "F4365858C6878F5331C0E9A4BEB0D28B658EAC14720A6C4341A6C5126A8B3BE3",
+      "bytes": 439
+    },
+    {
+      "path": "artifacts/resize-candidate-C50/app/DiskAtlas.Tests.runtimeconfig.json",
+      "sha256": "96BC2946DFF8790400D652EC7F8DE7BB043E954980D59470C112788B68A1FBD3",
+      "bytes": 519
+    },
+    {
+      "path": "artifacts/resize-candidate-C48/app/DiskAtlas.Tests.dll",
+      "sha256": "E9EB112D87B84032FD077BA685194246072AB695AC8507B35995CCEF11013BBC",
+      "bytes": 6074368
+    },
+    {
+      "path": "bin/Release/net10.0-windows/DiskAtlas.dll",
+      "sha256": "8690F5F5A1CC9160A698CAA0E355966D87B9ED1F5E1C27659AD6DD5B865886B1",
+      "bytes": 3488256
+    },
+    {
+      "path": "tests/Prototypes/Resize/NativeResizeFrame.cs",
+      "sha256": "5759CE5CBD9F2E161AB9245322ED2570C3B8B2C70361946C7AB570196F1F26E4",
+      "bytes": 15154
+    },
+    {
+      "path": "tests/Prototypes/Resize/NativeResizeFrameTests.cs",
+      "sha256": "644B730F76D19AB5582ACD1A63558B62D1BDD1B5847A97833A32B3DE842C7C9A",
+      "bytes": 30068
+    },
+    {
+      "path": "tests/Prototypes/Resize/LiveResizePrototypeForm.cs",
+      "sha256": "4AE75D0687A939277A0007FE9FAE8052305C4B584E9393A2AAD3A8837F5AEB8B",
+      "bytes": 41896
+    },
+    {
+      "path": "tests/Prototypes/Resize/NativeResizeHostLifecycleTests.cs",
+      "sha256": "DFEAEA9A052CAA9C6CBFD8D12119D421AA65169FEF402AFD5DB399619A4FFEEE",
+      "bytes": 20013
+    },
+    {
+      "path": "tests/ResizeMappingRepairEvidence.Tests.ps1",
+      "sha256": "7D2C1D6724DB4ECD20750CB20D7386987CAFB8F69DF9AD47F82E22F0AE91F137",
+      "bytes": 5556
+    }
+  ]
+}

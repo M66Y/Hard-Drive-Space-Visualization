@@ -1,0 +1,175 @@
+using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Text;
+
+namespace DiskAtlas;
+
+internal sealed record HintTextLayout(Size Size, IReadOnlyList<string> Lines, int Padding, int LineHeight, bool Truncated);
+
+// Keep the registered value complete for local accessibility/tests; only the
+// transient visible bubble is bounded. No paths or hint text are logged.
+internal static class AppToolTips
+{
+    internal const int InitialDelayMilliseconds = 1000;
+    internal const int DisplayMilliseconds = 5000;
+    internal const int MaximumWidthDip = 360, MaximumHeightDip = 220;
+    internal const int MaximumDisplayedCharacters = 600;
+    private static readonly ConditionalWeakTable<ToolTip, Renderer> renderers = new();
+    private const TextFormatFlags TextFlags = TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix |
+        TextFormatFlags.NoPadding | TextFormatFlags.PreserveGraphicsClipping;
+
+    internal static ToolTip Create()
+    {
+        var tip = new ToolTip
+        {
+            InitialDelay = InitialDelayMilliseconds, ReshowDelay = InitialDelayMilliseconds,
+            AutoPopDelay = DisplayMilliseconds, ShowAlways = false, OwnerDraw = true,
+            BackColor = Theme.Surface, ForeColor = Theme.Text, UseAnimation = false
+        };
+        var renderer = new Renderer(tip);
+        renderers.Add(tip, renderer);
+        tip.Popup += renderer.Popup;
+        tip.Draw += renderer.Draw;
+        tip.Disposed += (_, _) => { renderer.Dispose(); renderers.Remove(tip); };
+        return tip;
+    }
+
+    internal static void Show(ToolTip tip, Control owner, string text, Point position)
+    {
+        if (!renderers.TryGetValue(tip, out var renderer) || owner.IsDisposed || !owner.IsHandleCreated) return;
+        renderer.ManualOwner = owner;
+        renderer.ManualText = text;
+        tip.Show(text, owner, position, DisplayMilliseconds);
+    }
+
+    internal static void Hide(ToolTip tip, Control owner)
+    {
+        if (!renderers.TryGetValue(tip, out var renderer)) return;
+        if (!owner.IsDisposed && owner.IsHandleCreated) tip.Hide(owner);
+        renderer.ManualOwner = null;
+        renderer.ManualText = null;
+        renderer.Current = null;
+    }
+
+    internal static HintTextLayout Layout(string text, Graphics graphics, Font font, int dpi, Size workingArea)
+    {
+        if (workingArea.Width <= 0 || workingArea.Height <= 0)
+            return new(Size.Empty, [], 0, 1, text.Length > 0);
+        double scale = Math.Max(1, dpi) / 96d;
+        int width = Math.Min((int)Math.Ceiling(MaximumWidthDip * scale), Math.Max(1, workingArea.Width - (int)Math.Ceiling(24 * scale)));
+        int height = Math.Min((int)Math.Ceiling(MaximumHeightDip * scale), Math.Max(1, workingArea.Height - (int)Math.Ceiling(24 * scale)));
+        int padding = Math.Min((int)Math.Ceiling(10 * scale), Math.Max(0, Math.Min(width, height) / 4));
+        int lineHeight = Math.Max(1, TextRenderer.MeasureText(graphics, "Ag中", font,
+            new Size(int.MaxValue, int.MaxValue), TextFlags).Height);
+        int inner = Math.Max(0, width - 2 * padding), maximumLines = Math.Max(0, (height - 2 * padding) / lineHeight);
+        var limited = new StringBuilder();
+        bool truncated = false;
+        var enumerator = StringInfo.GetTextElementEnumerator(text);
+        while (enumerator.MoveNext())
+        {
+            string element = enumerator.GetTextElement();
+            if (limited.Length + element.Length > MaximumDisplayedCharacters) { truncated = true; break; }
+            limited.Append(element);
+        }
+        string visible = limited.ToString().Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Replace('\t', ' ');
+        var lines = new List<string>();
+        int Measure(string value) => TextRenderer.MeasureText(graphics, value, font,
+            new Size(int.MaxValue, int.MaxValue), TextFlags).Width;
+        var paragraphs = visible.Split('\n');
+        for (int paragraphIndex = 0; paragraphIndex < paragraphs.Length; paragraphIndex++)
+        {
+            string paragraph = paragraphs[paragraphIndex];
+            int[] starts = StringInfo.ParseCombiningCharacters(paragraph);
+            int start = 0;
+            if (starts.Length == 0)
+            {
+                if (lines.Count >= maximumLines) { truncated |= visible.Length > 0; break; }
+                lines.Add("");
+            }
+            while (start < starts.Length)
+            {
+                if (lines.Count >= maximumLines || inner <= 0) { truncated = true; break; }
+                int low = start + 1, high = starts.Length, best = start;
+                while (low <= high)
+                {
+                    int middle = low + (high - low) / 2;
+                    int end = middle == starts.Length ? paragraph.Length : starts[middle];
+                    if (Measure(paragraph[starts[start]..end]) <= inner) { best = middle; low = middle + 1; }
+                    else high = middle - 1;
+                }
+                if (best == start) { truncated = true; break; }
+                int endOffset = best == starts.Length ? paragraph.Length : starts[best];
+                // Prefer natural path/word boundaries when they do not waste
+                // most of a line; binary-search bounds preserve Unicode units.
+                int preferred = paragraph.LastIndexOfAny([' ', '\\', '/', '-'], endOffset - 1, endOffset - starts[start]);
+                if (preferred >= starts[start] + (endOffset - starts[start]) / 2 && preferred + 1 < endOffset)
+                {
+                    int boundary = Array.BinarySearch(starts, preferred + 1);
+                    if (boundary > start) { best = boundary; endOffset = preferred + 1; }
+                }
+                lines.Add(paragraph[starts[start]..endOffset]);
+                start = best;
+            }
+            if (start < starts.Length) break;
+            if (paragraphIndex < paragraphs.Length - 1 && lines.Count >= maximumLines) { truncated = true; break; }
+        }
+        if (truncated && lines.Count > 0)
+        {
+            string last = lines[^1];
+            int[] elements = StringInfo.ParseCombiningCharacters(last);
+            int length = elements.Length;
+            while (length > 0 && Measure(last + "…") > inner)
+            {
+                length--;
+                last = last[..elements[length]];
+            }
+            lines[^1] = Measure(last + "…") <= inner ? last + "…" : "";
+        }
+        int measuredWidth = lines.Count == 0 ? 0 : lines.Max(Measure);
+        return new(new Size(Math.Min(width, Math.Max(1, measuredWidth + 2 * padding)),
+            Math.Min(height, Math.Max(1, lines.Count * lineHeight + 2 * padding))), lines, padding, lineHeight, truncated);
+    }
+
+    private sealed class Renderer(ToolTip tip) : IDisposable
+    {
+        private readonly Font font = Theme.Font(Theme.CaptionFontSize);
+        private bool disposed;
+        internal Control? ManualOwner;
+        internal string? ManualText;
+        internal HintTextLayout? Current;
+        internal void Popup(object? sender, PopupEventArgs args)
+        {
+            if (disposed || args.AssociatedControl is not { IsDisposed: false, Disposing: false, IsHandleCreated: true, Visible: true } owner)
+            { args.Cancel = true; return; }
+            string text = owner == ManualOwner ? ManualText ?? "" : tip.GetToolTip(owner) ?? "";
+            if (string.IsNullOrWhiteSpace(text)) { args.Cancel = true; return; }
+            using var graphics = owner.CreateGraphics();
+            Current = Layout(text, graphics, font, owner.DeviceDpi, Screen.FromControl(owner).WorkingArea.Size);
+            if (Current.Lines.Count == 0) { args.Cancel = true; return; }
+            args.ToolTipSize = Current.Size;
+        }
+        internal void Draw(object? sender, DrawToolTipEventArgs args)
+        {
+            if (disposed || Current == null) return;
+            bool contrast = SystemInformation.HighContrast;
+            Color surface = contrast ? SystemColors.Info : Theme.Surface, foreground = contrast ? SystemColors.InfoText : Theme.Text;
+            args.Graphics.Clear(surface);
+            args.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            float scale = Math.Max(1, args.AssociatedControl?.DeviceDpi ?? 96) / 96f;
+            float inset = Math.Max(.5f, scale / 2);
+            using var path = Theme.Round(new RectangleF(args.Bounds.X + inset, args.Bounds.Y + inset,
+                Math.Max(0, args.Bounds.Width - 2 * inset), Math.Max(0, args.Bounds.Height - 2 * inset)), 8 * scale);
+            using var border = new Pen(contrast ? foreground : Theme.Border, Math.Max(1, scale));
+            args.Graphics.DrawPath(border, path);
+            for (int index = 0; index < Current.Lines.Count; index++)
+                TextRenderer.DrawText(args.Graphics, Current.Lines[index], font,
+                    new Rectangle(args.Bounds.Left + Current.Padding, args.Bounds.Top + Current.Padding + index * Current.LineHeight,
+                        Math.Max(0, args.Bounds.Width - 2 * Current.Padding), Current.LineHeight), foreground, TextFlags);
+        }
+        public void Dispose()
+        {
+            if (disposed) return;
+            disposed = true; ManualText = null; ManualOwner = null; Current = null; font.Dispose();
+        }
+    }
+}

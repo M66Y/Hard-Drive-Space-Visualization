@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "baseline": "9ac1f0b",
+  "state": "stage-one-user-review-pending",
+  "files": [
+    {
+      "source": "MainForm.cs",
+      "snapshot": "key-files/MainForm.cs.txt",
+      "sha256": "39E33601858C1B9D61A6BD246A2B36F6ACFDDBAE5B61B6CF492A78E8E309709A",
+      "bytes": 90894
+    },
+    {
+      "source": "TreemapControl.cs",
+      "snapshot": "key-files/TreemapControl.cs.txt",
+      "sha256": "48FF1E4882B51B8D032956338A1CBDCA5D9E0A65B364DDFBE84269C8741FF08B",
+      "bytes": 29349
+    },
+    {
+      "source": "ScanProgressControl.cs",
+      "snapshot": "key-files/ScanProgressControl.cs.txt",
+      "sha256": "FD6C35B547E43036E403CCFE6A5115042A357300B87AAD4C401AF9EB0CFADA33",
+      "bytes": 12578
+    },
+    {
+      "source": "Wallpaper.cs",
+      "snapshot": "key-files/Wallpaper.cs.txt",
+      "sha256": "B0FD8BEB217E8B9AFBF8D7452E6DDE45249DA9728668500D46E6513163BA92E3",
+      "bytes": 27197
+    },
+    {
+      "source": "src/Monitoring/DiskActivityPanel.cs",
+      "snapshot": "key-files/src_Monitoring_DiskActivityPanel.cs.txt",
+      "sha256": "25A2DB80F40BA8FBB85BB822F6E81C474D0BD12C4C34CA6B968D12D8FE1D7C39",
+      "bytes": 27497
+    },
+    {
+      "source": "src/UI/AppToolTips.cs",
+      "snapshot": "key-files/src_UI_AppToolTips.cs.txt",
+      "sha256": "D0BB8369C0927C5AC112274C691ACAF860B97FB7014ADE876C65C783D169871F",
+      "bytes": 9356
+    },
+    {
+      "source": "src/UI/GridHoverHints.cs",
+      "snapshot": "key-files/src_UI_GridHoverHints.cs.txt",
+      "sha256": "08A50A2F3B6CF30D19B002CA0F34B47DCA1B013B824E258EB381984072E6544B",
+      "bytes": 8994
+    },
+    {
+      "source": "tests/QuietToolTipTests.cs",
+      "snapshot": "key-files/tests_QuietToolTipTests.cs.txt",
+      "sha256": "1C1AC6B8FC7405E3F169D4D22652C9BB1B70A509735680A88BCC263AB1D6CA2B",
+      "bytes": 23104
+    },
+    {
+      "source": "tests/DiskActivityMainFormTests.cs",
+      "snapshot": "key-files/tests_DiskActivityMainFormTests.cs.txt",
+      "sha256": "FDCA8C65E7AF7A6CD38368249FDAC206EEE9910515284395B3EC860F3C1EF07E",
+      "bytes": 24430
+    },
+    {
+      "source": "tests/StageOnePreview.cs",
+      "snapshot": "key-files/tests_StageOnePreview.cs.txt",
+      "sha256": "B3E49A16688317A7DCCB66FBC54FF115F559A559EB3BD94AB48CB3C007315928",
+      "bytes": 45985
+    },
+    {
+      "source": "tests/Program.cs",
+      "snapshot": "key-files/tests_Program.cs.txt",
+      "sha256": "49F45582401ACCAB4C76BA246F527CDB4A2803DFC6499E84B9E12B644A5B0B39",
+      "bytes": 67181
+    }
+  ]
+}

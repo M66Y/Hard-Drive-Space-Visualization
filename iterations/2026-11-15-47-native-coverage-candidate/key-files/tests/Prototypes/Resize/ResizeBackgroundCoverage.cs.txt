@@ -1,0 +1,200 @@
+using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
+
+namespace DiskAtlas.ResizePrototype;
+
+// Test-only early coverage of newly exposed native client pixels. This draws
+// the real image at the NEW geometry; it never stretches a previous UI frame.
+internal sealed class ResizeBackgroundCoverage : IDisposable
+{
+    internal const long MaxPixels = 8_000_000;
+    internal long OwnedBytes => 0; // No extra raster or full-window buffer.
+    private bool disposed;
+
+    internal bool TryPaint(IntPtr hdc, Size nativeClientSize, Image wallpaper,
+        BackgroundView? view = null, int wash = 0, Size? previousClient = null)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        ArgumentNullException.ThrowIfNull(wallpaper);
+        if (hdc == IntPtr.Zero || nativeClientSize.Width <= 0 || nativeClientSize.Height <= 0 ||
+            nativeClientSize.Width > 32768 || nativeClientSize.Height > 32768 ||
+            (long)nativeClientSize.Width * nativeClientSize.Height > MaxPixels || wash is < 0 or > 255)
+            return false;
+        var client = new Rectangle(Point.Empty, nativeClientSize);
+        if (previousClient is { } old && old.Width >= nativeClientSize.Width && old.Height >= nativeClientSize.Height)
+            return false;
+        using var graphics = Graphics.FromHdc(hdc);
+        var saved = graphics.Save();
+        try
+        {
+            graphics.SetClip(client, CombineMode.Intersect);
+            if (previousClient is { Width: > 0, Height: > 0 } previous)
+                graphics.ExcludeClip(new Rectangle(Point.Empty, previous));
+            graphics.CompositingMode = CompositingMode.SourceCopy;
+            using (var opaque = new SolidBrush(Theme.Background)) graphics.FillRectangle(opaque, client);
+            graphics.CompositingMode = CompositingMode.SourceOver;
+            graphics.InterpolationMode = InterpolationMode.HighQualityBilinear;
+            graphics.DrawImage(wallpaper, Wallpaper.CoverBounds(wallpaper, nativeClientSize, Point.Empty, view));
+            if (wash != 0)
+            {
+                using var veil = new SolidBrush(Color.FromArgb(wash, Theme.Surface));
+                graphics.FillRectangle(veil, client);
+            }
+            return true;
+        }
+        finally { graphics.Restore(saved); }
+    }
+
+    public void Dispose() => disposed = true;
+}
+
+// Installed ONLY by an explicit test-preview option. It owns a hook on its
+// supplied form and DCs from that form; normal application construction is unchanged.
+internal sealed class ResizeRootCoverageHook : NativeWindow, IDisposable
+{
+    private readonly Form owner;
+    private readonly ResizeBackgroundCoverage coverage = new();
+    private readonly Func<BackgroundView?> crop;
+    private readonly int wash;
+    private readonly Action<Size>? prepareFrame;
+    private readonly Func<IntPtr, Size, bool>? presentFrame;
+    private Size previousNative;
+    private long handleGeneration;
+    private bool disposed, painting;
+    internal int PaintCount { get; private set; }
+    internal int Failures { get; private set; }
+    internal long PaintTicks { get; private set; }
+
+    internal ResizeRootCoverageHook(Form owner, Func<BackgroundView?> crop, int wash = 0,
+        Action<Size>? prepareFrame = null, Func<IntPtr, Size, bool>? presentFrame = null)
+    {
+        this.owner = owner; this.crop = crop; this.wash = wash;
+        this.prepareFrame = prepareFrame; this.presentFrame = presentFrame;
+        owner.HandleCreated += Created;
+        owner.HandleDestroyed += Destroyed;
+        if (owner.IsHandleCreated) Created(owner, EventArgs.Empty);
+    }
+
+    private void Created(object? sender, EventArgs e)
+    {
+        if (disposed || owner.IsDisposed || !owner.IsHandleCreated) return;
+        if (Handle != IntPtr.Zero) ReleaseHandle();
+        handleGeneration++;
+        AssignHandle(owner.Handle);
+        previousNative = NativeSize();
+    }
+    private void Destroyed(object? sender, EventArgs e)
+    {
+        handleGeneration++;
+        if (Handle != IntPtr.Zero) ReleaseHandle();
+        previousNative = Size.Empty;
+    }
+    private Size NativeSize() => Handle != IntPtr.Zero && GetClientRect(Handle, out var r)
+        ? new(Math.Max(0, r.Right - r.Left), Math.Max(0, r.Bottom - r.Top)) : Size.Empty;
+
+    private bool Cover(IntPtr suppliedDc)
+    {
+        if (disposed || painting || owner.IsDisposed || owner.Disposing || Handle == IntPtr.Zero ||
+            IsIconic(Handle) || owner.BackgroundImage == null) return false;
+        IntPtr observedHandle = Handle;
+        long observedGeneration = handleGeneration;
+        Size size = NativeSize();
+        bool grew = size.Width > previousNative.Width || size.Height > previousNative.Height;
+        if (size.Width <= 0 || size.Height <= 0 || !grew && presentFrame == null)
+            return false;
+        IntPtr dc = suppliedDc;
+        bool ownDc = dc == IntPtr.Zero;
+        painting = true;
+        long began = System.Diagnostics.Stopwatch.GetTimestamp();
+        try
+        {
+            Image? image = owner.BackgroundImage;
+            BackgroundView? view = grew ? crop() : null;
+            if (image == null || disposed || owner.IsDisposed || Handle != observedHandle || handleGeneration != observedGeneration)
+                return false;
+            if (ownDc) dc = GetDC(observedHandle);
+            if (dc == IntPtr.Zero) { Failures++; return false; }
+            // WM_ERASE's supplied DC can cover only newly invalid strips. A
+            // complete prepared scene needs our OWN root client DC, otherwise
+            // shrinking would leave valid old-width pixels outside that clip.
+            bool presented = false;
+            if (presentFrame != null)
+            {
+                IntPtr frameDc = ownDc ? dc : GetDC(observedHandle);
+                try { if (frameDc != IntPtr.Zero) presented = presentFrame(frameDc, size); }
+                finally { if (!ownDc && frameDc != IntPtr.Zero) ReleaseDC(observedHandle, frameDc); }
+            }
+            if (presented)
+            {
+                if (disposed || Handle != observedHandle || handleGeneration != observedGeneration) return false;
+                previousNative = size; PaintCount++; return true;
+            }
+            if (!grew) return false;
+            if (image == null || disposed || owner.IsDisposed || Handle != observedHandle || handleGeneration != observedGeneration)
+                return false;
+            if (!coverage.TryPaint(dc, size, image, view, wash, previousNative))
+            { Failures++; return false; }
+            if (disposed || owner.IsDisposed || Handle != observedHandle || handleGeneration != observedGeneration)
+                return false;
+            previousNative = size;
+            PaintCount++;
+            return true;
+        }
+        catch (Exception error) when (error is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException)
+        { Failures++; return false; }
+        finally
+        {
+            if (ownDc && dc != IntPtr.Zero) ReleaseDC(observedHandle, dc);
+            PaintTicks += System.Diagnostics.Stopwatch.GetTimestamp() - began;
+            painting = false;
+        }
+    }
+
+    protected override void WndProc(ref Message message)
+    {
+        if (message.Msg == 0x0046 && prepareFrame != null)
+        {
+            base.WndProc(ref message);
+            if (!disposed && !painting && Handle != IntPtr.Zero && !IsIconic(Handle) && message.LParam != IntPtr.Zero)
+            {
+                var next = Marshal.PtrToStructure<WindowPosition>(message.LParam);
+                Size current = NativeSize();
+                if ((next.Flags & 0x0001) == 0 && GetWindowRect(Handle, out var window))
+                {
+                    var size = new Size(next.Width - (window.Right - window.Left - current.Width),
+                        next.Height - (window.Bottom - window.Top - current.Height));
+                    if (size != current && size.Width > 0 && size.Height > 0 && (long)size.Width * size.Height <= ResizeBackgroundCoverage.MaxPixels)
+                        prepareFrame(size);
+                }
+            }
+            return;
+        }
+        if (message.Msg == 0x0014 && Cover(message.WParam))
+        { message.Result = (IntPtr)1; return; }
+        // Some paths suppress WM_ERASEBKGND. Cover only new right/bottom
+        // regions before nested WM_SIZE/layout work; never force a UI repaint.
+        if (message.Msg is 0x0047 or 0x0005) Cover(IntPtr.Zero);
+        base.WndProc(ref message);
+        if (message.Msg == 0x0047 && !disposed && Handle != IntPtr.Zero && !IsIconic(Handle))
+            previousNative = NativeSize();
+    }
+
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true;
+        handleGeneration++;
+        owner.HandleCreated -= Created; owner.HandleDestroyed -= Destroyed;
+        if (Handle != IntPtr.Zero) ReleaseHandle();
+        coverage.Dispose();
+    }
+
+    [StructLayout(LayoutKind.Sequential)] private struct NativeRect { internal int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] private struct WindowPosition
+    { internal IntPtr Window, After; internal int X, Y, Width, Height; internal uint Flags; }
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetClientRect(IntPtr handle, out NativeRect rectangle);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetWindowRect(IntPtr handle, out NativeRect rectangle);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsIconic(IntPtr handle);
+    [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr handle);
+    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr handle, IntPtr dc);
+}

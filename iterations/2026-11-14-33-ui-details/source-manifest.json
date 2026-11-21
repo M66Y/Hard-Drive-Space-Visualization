@@ -1,0 +1,72 @@
+[
+  {
+    "source": "MainForm.cs",
+    "snapshot": "MainForm.cs.txt",
+    "sha256": "2f3641ee3dd394cf7ffd1820318f698ea1e03321e467bbcc706cd833b8d6e9b6"
+  },
+  {
+    "source": "Theme.cs",
+    "snapshot": "Theme.cs.txt",
+    "sha256": "9838c5a370c47a87916f4df8c11395a395d6af963bb025ae5ef4b3f9b91a0f46"
+  },
+  {
+    "source": "Wallpaper.cs",
+    "snapshot": "Wallpaper.cs.txt",
+    "sha256": "17968992cf0bbd00c72c274767557b5015693484cbe3639526b56249bd8116b1"
+  },
+  {
+    "source": "ScanProgressControl.cs",
+    "snapshot": "ScanProgressControl.cs.txt",
+    "sha256": "4083313e9faf1ab37708607675efc55a2764a674a6d8c78ac801458252d39c1d"
+  },
+  {
+    "source": "TreemapControl.cs",
+    "snapshot": "TreemapControl.cs.txt",
+    "sha256": "1ad70373e250c39929504c4adf22cabbf6acd28f0b06693bce9a139aac78734e"
+  },
+  {
+    "source": "src/UI/GridScrollbarSkin.cs",
+    "snapshot": "src__UI__GridScrollbarSkin.cs.txt",
+    "sha256": "1b1380e8bb20b80ed0fc543eabb3b1c0bd49848992cbf2020920af24fb822338"
+  },
+  {
+    "source": "tests/DiskAtlas.Tests.csproj",
+    "snapshot": "tests__DiskAtlas.Tests.csproj.txt",
+    "sha256": "e738153c0e8e6e09936dc7a3026c5f114a3a36578967b2529125e70cdc5929f9"
+  },
+  {
+    "source": "tests/Program.cs",
+    "snapshot": "tests__Program.cs.txt",
+    "sha256": "2858de56867c6b64059da30fb2cd88f0a62c50e910835650a4f3d01c1d8f35e3"
+  },
+  {
+    "source": "tests/StageOnePreview.cs",
+    "snapshot": "tests__StageOnePreview.cs.txt",
+    "sha256": "bda4a07c1f4c69e345a97f47968cf58adcd018f2374a301cdea65e3e1b3d70cb"
+  },
+  {
+    "source": "tests/ResultInformationRegression.cs",
+    "snapshot": "tests__ResultInformationRegression.cs.txt",
+    "sha256": "8889622eb64be0e318faf436b4b49f4d15c1f831c113dce78a962dc113f1800d"
+  },
+  {
+    "source": "tests/InputFrameSurfaceTests.cs",
+    "snapshot": "tests__InputFrameSurfaceTests.cs.txt",
+    "sha256": "e24b6f401b3b7f005e48cd1cdf6495475e2cfd230e14d3c161a221ec2eb10b00"
+  },
+  {
+    "source": "tests/ProgressMarkerRenderingTests.cs",
+    "snapshot": "tests__ProgressMarkerRenderingTests.cs.txt",
+    "sha256": "8e482d35d4fb1cfc42236bb404b3d3238e6cbe8077840eea6b8af861053e96d4"
+  },
+  {
+    "source": "tests/WorkspaceLayoutTests.cs",
+    "snapshot": "tests__WorkspaceLayoutTests.cs.txt",
+    "sha256": "70c914d7d81ffe0f2a0eb809ab60c9d9de641d33f22ce8a9a3b375512997fdfc"
+  },
+  {
+    "source": "tests/ScrollbarSurfaceTests.cs",
+    "snapshot": "tests__ScrollbarSurfaceTests.cs.txt",
+    "sha256": "2ca6887b873d360a5e2b36e78382eaff567f3cb2e16cf6cbe7de9979d2fc63ee"
+  }
+]

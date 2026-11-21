@@ -1,0 +1,114 @@
+{
+  "revision": 1,
+  "kind": "owned-GDI-early-stage-observation",
+  "schema": "resize-diagnostic-trace-v3",
+  "trace_sha256": "1FEC6B87B99C55F6BA644013705F8C355AE0D91EB4FF41677D0CCBD7D16419E5",
+  "records": 428,
+  "truncated": false,
+  "failures": 0,
+  "diagnostic_ms": 435.229,
+  "early_budget_truncated": false,
+  "early_truncated": false,
+  "stages": [
+    {
+      "stage": "EraseEntering",
+      "valid": 44,
+      "black": 20
+    },
+    {
+      "stage": "EraseReturned",
+      "valid": 44,
+      "black": 0
+    },
+    {
+      "stage": "NcCalcSizeReturned",
+      "valid": 44,
+      "black": 0
+    },
+    {
+      "stage": "NcPaintEntering",
+      "valid": 44,
+      "black": 20
+    },
+    {
+      "stage": "WindowPosChangedEntering",
+      "valid": 44,
+      "black": 0
+    }
+  ],
+  "publication_intervals": [
+    {
+      "geometry": 1,
+      "startup": true,
+      "nc_to_erase_ms": 2.529,
+      "erase_to_copy_interval_ms": 544.289
+    },
+    {
+      "geometry": 2,
+      "startup": false,
+      "nc_to_erase_ms": 6.108,
+      "erase_to_copy_interval_ms": 176.069
+    },
+    {
+      "geometry": 3,
+      "startup": false,
+      "nc_to_erase_ms": 7.069,
+      "erase_to_copy_interval_ms": 206.326
+    },
+    {
+      "geometry": 4,
+      "startup": false,
+      "nc_to_erase_ms": 6.105,
+      "erase_to_copy_interval_ms": 156.002
+    },
+    {
+      "geometry": 5,
+      "startup": false,
+      "nc_to_erase_ms": 5.831,
+      "erase_to_copy_interval_ms": 169.158
+    },
+    {
+      "geometry": 6,
+      "startup": false,
+      "nc_to_erase_ms": 6.255,
+      "erase_to_copy_interval_ms": 150.408
+    },
+    {
+      "geometry": 7,
+      "startup": false,
+      "nc_to_erase_ms": 7.329,
+      "erase_to_copy_interval_ms": 206.61
+    },
+    {
+      "geometry": 8,
+      "startup": false,
+      "nc_to_erase_ms": 5.951,
+      "erase_to_copy_interval_ms": 144.048
+    },
+    {
+      "geometry": 9,
+      "startup": false,
+      "nc_to_erase_ms": 6.826,
+      "erase_to_copy_interval_ms": 206.782
+    },
+    {
+      "geometry": 10,
+      "startup": false,
+      "nc_to_erase_ms": 7.174,
+      "erase_to_copy_interval_ms": 142.868
+    },
+    {
+      "geometry": 11,
+      "startup": false,
+      "nc_to_erase_ms": 6.983,
+      "erase_to_copy_interval_ms": 237.02
+    },
+    {
+      "geometry": 12,
+      "startup": false,
+      "nc_to_erase_ms": 9.551,
+      "erase_to_copy_interval_ms": 153.911
+    }
+  ],
+  "user_review": "previous-candidate-failed; followup-not-reviewed"
+}

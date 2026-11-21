@@ -1,0 +1,391 @@
+diff --git a/Wallpaper.cs b/Wallpaper.cs
+index aca3657..7f3d78d 100644
+--- a/Wallpaper.cs
++++ b/Wallpaper.cs
+@@ -588,7 +588,9 @@ internal sealed class WallpaperSplitContainer : SplitContainer
+     }
+     public WallpaperSplitContainer()
+     {
+-        SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
++        // Include AllPaintingInWmPaint so native background erases do not
++        // redraw the wallpaper before the buffered paint draws it again.
++        SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.ResizeRedraw, true);
+         Panel1.BackColor = Color.Transparent;
+         Panel2.BackColor = Color.Transparent;
+     }
+diff --git a/tests/LayoutTransitionPreview.cs b/tests/LayoutTransitionPreview.cs
+index e4de008..b18f099 100644
+--- a/tests/LayoutTransitionPreview.cs
++++ b/tests/LayoutTransitionPreview.cs
+@@ -181,31 +181,62 @@ internal static class LayoutTransitionPreview
+             var watch = Stopwatch.StartNew();
+             int steps = 0;
+             long maximumSetMilliseconds = 0;
+-            Console.WriteLine("STAGE layout-transition sweep=start; kind=programmatic; native_drag=False; planned_steps=24");
++            long setTicks = 0, waitTicks = 0, restoreTicks = 0;
++            PaintMessageObservation? paintObservation = null;
++            Console.WriteLine("STAGE layout-transition sweep=start");
++            Console.WriteLine("OBSERVE sweep kind=programmatic; native_drag=False");
++            Console.WriteLine("OBSERVE sweep planned_steps=24");
+             try
+             {
++                paintObservation = new PaintMessageObservation(form);
+                 for (int step = 1; step <= 24; step++)
+                 {
+                     if (closing || form.IsDisposed || watch.Elapsed > TimeSpan.FromSeconds(40)) break;
+                     double amount = step <= 12 ? step / 12d : (24 - step) / 12d;
+                     var before = Stopwatch.GetTimestamp();
+-                    form.Size = new Size(
+-                        (int)Math.Round(original.Width + (form.MinimumSize.Width - original.Width) * amount),
+-                        (int)Math.Round(original.Height + (form.MinimumSize.Height - original.Height) * amount));
+-                    maximumSetMilliseconds = Math.Max(maximumSetMilliseconds,
+-                        (long)Stopwatch.GetElapsedTime(before).TotalMilliseconds);
++                    try
++                    {
++                        form.Size = new Size(
++                            (int)Math.Round(original.Width + (form.MinimumSize.Width - original.Width) * amount),
++                            (int)Math.Round(original.Height + (form.MinimumSize.Height - original.Height) * amount));
++                    }
++                    finally
++                    {
++                        long elapsed = Stopwatch.GetTimestamp() - before;
++                        setTicks += elapsed;
++                        maximumSetMilliseconds = Math.Max(maximumSetMilliseconds,
++                            (long)(elapsed * 1000d / Stopwatch.Frequency));
++                    }
+                     steps++;
+-                    await Task.Delay(60, listenerStop.Token);
++                    long waitStarted = Stopwatch.GetTimestamp();
++                    try { await Task.Delay(60, listenerStop.Token); }
++                    finally { waitTicks += Stopwatch.GetTimestamp() - waitStarted; }
+                 }
+             }
+             catch (OperationCanceledException) when (listenerStop.IsCancellationRequested) { }
+             finally
+             {
+-                if (!closing && !form.IsDisposed) form.Bounds = original;
+-                sweeping = false;
+-                Console.WriteLine("STAGE layout-transition sweep=end; kind=programmatic; steps=" + steps +
+-                    "; elapsed_ms=" + watch.ElapsedMilliseconds + "; max_set_ms=" + maximumSetMilliseconds +
+-                    "; restored=" + (!form.IsDisposed && form.Bounds == original));
++                try
++                {
++                    if (!closing && !form.IsDisposed)
++                    {
++                        long restoreStarted = Stopwatch.GetTimestamp();
++                        try { form.Bounds = original; }
++                        finally { restoreTicks = Stopwatch.GetTimestamp() - restoreStarted; }
++                    }
++                }
++                finally
++                {
++                    paintObservation?.Dispose();
++                    sweeping = false;
++                    Console.WriteLine("STAGE layout-transition sweep=end");
++                    Console.WriteLine($"OBSERVE sweep steps={steps}; restored={!form.IsDisposed && form.Bounds == original}");
++                    Console.WriteLine($"OBSERVE sweep elapsed_ms={watch.ElapsedMilliseconds}; max_set_ms={maximumSetMilliseconds}");
++                    Console.WriteLine(FormattableString.Invariant($"OBSERVE sweep set_total_ms={setTicks * 1000d / Stopwatch.Frequency:F3}"));
++                    Console.WriteLine(FormattableString.Invariant($"OBSERVE sweep wait_total_ms={waitTicks * 1000d / Stopwatch.Frequency:F3}"));
++                    Console.WriteLine(FormattableString.Invariant($"OBSERVE sweep restore_ms={restoreTicks * 1000d / Stopwatch.Frequency:F3}"));
++                    paintObservation?.Report();
++                }
+             }
+         }
+         async void Command(string command)
+@@ -308,6 +339,128 @@ internal static class LayoutTransitionPreview
+ 
+     // Observe only this fixture's native sizing messages. Counts describe
+     // dispatch into the native sizing loop, never screen pixels or DWM commits.
++    // Passive hooks on at most 256 existing owned controls. Timing wraps the
++    // normal message chain; nested HWND dispatch is inclusive and cannot be
++    // summed across controls or message types as total UI/CPU time.
++    private sealed class PaintMessageObservation : IDisposable
++    {
++        private const int MaximumControls = 256;
++        private static readonly MethodInfo GetControlStyle = typeof(Control).GetMethod("GetStyle", Private)!;
++        private readonly List<PaintHook> hooks = [];
++        private readonly Dictionary<string, Counts> groups = new(StringComparer.Ordinal);
++        private bool limitReached, disposed;
++
++        internal PaintMessageObservation(Form owner)
++        {
++            try
++            {
++                var pending = new Queue<Control>(); pending.Enqueue(owner);
++                while (pending.TryDequeue(out var control))
++                {
++                    if (control.IsDisposed || control.Disposing || control != owner && control.FindForm() != owner) continue;
++                    string kind = control.GetType().Name;
++                    if (!groups.TryGetValue(kind, out var counts)) groups.Add(kind, counts = new Counts());
++                    counts.Controls++;
++                    int styles = 0;
++                    if ((bool)GetControlStyle.Invoke(control, [ControlStyles.UserPaint])!) styles |= 1;
++                    if ((bool)GetControlStyle.Invoke(control, [ControlStyles.AllPaintingInWmPaint])!) styles |= 2;
++                    if ((bool)GetControlStyle.Invoke(control, [ControlStyles.OptimizedDoubleBuffer])!) styles |= 4;
++                    counts.StylesAll &= styles; counts.StylesAny |= styles;
++                    hooks.Add(new PaintHook(control, counts));
++                    foreach (Control child in control.Controls)
++                    {
++                        if (hooks.Count + pending.Count < MaximumControls) pending.Enqueue(child);
++                        else limitReached = true;
++                    }
++                }
++            }
++            catch { Dispose(); throw; }
++        }
++
++        internal void Report()
++        {
++            Console.WriteLine("OBSERVE resize-paint-messages; controls=" + hooks.Count);
++            Console.WriteLine("OBSERVE paint control_limit=256; limit_reached=" + limitReached);
++            Console.WriteLine("OBSERVE paint initial_control_tree_only=True");
++            Console.WriteLine("OBSERVE paint includes_wait_and_restore=True");
++            Console.WriteLine("OBSERVE paint inclusive_nested=True; additive_total=False");
++            Console.WriteLine("OBSERVE paint capture=False; input=False");
++            Console.WriteLine("OBSERVE styles_initial UserPaint=1; AllPaintingInWmPaint=2");
++            Console.WriteLine("OBSERVE styles_initial OptimizedDoubleBuffer=4");
++            foreach (var group in groups.OrderBy(pair => pair.Key, StringComparer.Ordinal))
++            {
++                var counts = group.Value;
++                Console.WriteLine("OBSERVE paint type=" + group.Key);
++                Console.WriteLine($"OBSERVE paint controls={counts.Controls}; erase_calls={counts.EraseCalls}; paint_calls={counts.PaintCalls}");
++                Console.WriteLine(FormattableString.Invariant($"OBSERVE paint erase_ms={counts.EraseTicks * 1000d / Stopwatch.Frequency:F3}; paint_ms={counts.PaintTicks * 1000d / Stopwatch.Frequency:F3}"));
++                Console.WriteLine($"OBSERVE paint styles_all={counts.StylesAll}; styles_any={counts.StylesAny}");
++            }
++        }
++
++        public void Dispose()
++        {
++            if (disposed) return;
++            disposed = true;
++            foreach (var hook in hooks) hook.Dispose();
++        }
++
++        private sealed class Counts
++        {
++            internal int Controls;
++            internal int StylesAll = 7, StylesAny;
++            internal long EraseCalls, EraseTicks, PaintCalls, PaintTicks;
++        }
++
++        private sealed class PaintHook : NativeWindow, IDisposable
++        {
++            private readonly Control owner;
++            private readonly Counts counts;
++            private bool disposed;
++
++            internal PaintHook(Control owner, Counts counts)
++            {
++                this.owner = owner; this.counts = counts;
++                owner.HandleCreated += Created; owner.HandleDestroyed += Destroyed;
++                try { if (owner.IsHandleCreated) AssignHandle(owner.Handle); }
++                catch { Dispose(); throw; }
++            }
++
++            private void Created(object? sender, EventArgs args)
++            {
++                if (disposed || owner.IsDisposed || owner.Disposing || !owner.IsHandleCreated) return;
++                if (Handle != IntPtr.Zero) ReleaseHandle();
++                AssignHandle(owner.Handle);
++            }
++
++            private void Destroyed(object? sender, EventArgs args)
++            {
++                if (Handle != IntPtr.Zero) ReleaseHandle();
++            }
++
++            protected override void WndProc(ref Message message)
++            {
++                int kind = message.Msg;
++                if (kind is not (0x0014 or 0x000F)) { base.WndProc(ref message); return; }
++                long started = Stopwatch.GetTimestamp();
++                try { base.WndProc(ref message); }
++                finally
++                {
++                    long ticks = Stopwatch.GetTimestamp() - started;
++                    if (kind == 0x0014) { counts.EraseCalls++; counts.EraseTicks += ticks; }
++                    else { counts.PaintCalls++; counts.PaintTicks += ticks; }
++                }
++            }
++
++            public void Dispose()
++            {
++                if (disposed) return;
++                disposed = true;
++                owner.HandleCreated -= Created; owner.HandleDestroyed -= Destroyed;
++                if (Handle != IntPtr.Zero) ReleaseHandle();
++            }
++        }
++    }
++
+     private sealed class SizingInfo : NativeWindow, IDisposable
+     {
+         private const int MaxSizes = 64;
+diff --git a/tests/Program.cs b/tests/Program.cs
+index badabb5..512ec3a 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -1,6 +1,10 @@
+ using DiskAtlas;
+ using System.Drawing;
+ 
++if (args.Length is 1 or 2 && args[0] == "--wallpaper-background-erase-tests" &&
++    (args.Length == 1 || args[1] == "--dpi-96"))
++    return WallpaperBackgroundEraseTests.Run(args.Length == 2);
++
+ if (args.Length == 1 && args[0] == "--resize-pixel-policy-tests")
+ {
+     try { int n = ResizePixelPolicyTests.Run(); Console.WriteLine($"PASS resize pixel policy: {n}; synthetic buffers only; visual acceptance separate"); return 0; }
+diff --git a/tests/WallpaperBackgroundEraseTests.cs b/tests/WallpaperBackgroundEraseTests.cs
+new file mode 100644
+index 0000000..f67cd7f
+--- /dev/null
++++ b/tests/WallpaperBackgroundEraseTests.cs
+@@ -0,0 +1,147 @@
++using System.Drawing.Imaging;
++using System.Runtime.InteropServices;
++using DiskAtlas;
++
++// Own bitmap HDCs and an owned synthetic window only. These are erase/paint
++// behavior checks, not desktop capture, input injection or visual acceptance.
++internal static class WallpaperBackgroundEraseTests
++{
++    private static readonly Color Sentinel = Color.FromArgb(17, 239, 173);
++
++    internal static int Run(bool dpi96 = false)
++    {
++        string failure = "None";
++        int passed = 0;
++        Action? close = null;
++        var worker = new Thread(() =>
++        {
++            try
++            {
++                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles();
++                Application.SetCompatibleTextRenderingDefault(false);
++                using var form = new MainForm(null, false,
++                    Path.Combine(Path.GetTempPath(), "AsukaLens-erase-unused-" + Guid.NewGuid().ToString("N"), "background.json"))
++                {
++                    ShowInTaskbar = false,
++                    ScanRunner = (_, _, _, _) => throw new CheckFailure("UnexpectedScan"),
++                    ActivityMonitorFactory = _ => throw new CheckFailure("UnexpectedMonitor")
++                };
++                using var image = new Bitmap(64, 64);
++                using (var graphics = Graphics.FromImage(image))
++                {
++                    graphics.Clear(Color.FromArgb(40, 70, 120));
++                    using var brush = new SolidBrush(Color.FromArgb(225, 130, 50));
++                    graphics.FillRectangle(brush, 32, 0, 32, 64);
++                }
++                var previous = form.BackgroundImage;
++                form.BackgroundImage = image; previous?.Dispose();
++                using var split = new WallpaperSplitContainer
++                {
++                    Bounds = new Rectangle(20, 20, 320, 180), Dock = DockStyle.None,
++                    SplitterDistance = 145, SplitterWidth = 8
++                };
++                form.Controls.Add(split); split.BringToFront();
++                close = () =>
++                {
++                    try
++                    {
++                        if (!form.IsDisposed && form.IsHandleCreated)
++                            form.BeginInvoke((Action)(() => { if (!form.IsDisposed) form.Close(); }));
++                    }
++                    catch (InvalidOperationException) { }
++                };
++                form.Shown += (_, _) =>
++                {
++                    try
++                    {
++                        Check(split.IsHandleCreated && split.FindForm() == form && split.Dock == DockStyle.None,
++                            "OwnedUndockedSplitHasLiveHandle");
++                        using var bitmap = new Bitmap(split.ClientSize.Width, split.ClientSize.Height, PixelFormat.Format32bppArgb);
++                        Clear(bitmap);
++                        IntPtr result = SendToBitmap(bitmap, split.Handle, 0x0014, IntPtr.Zero);
++                        Check(result != IntPtr.Zero, "StandaloneEraseMessageIsHandled");
++                        Check(Samples(bitmap).All(pixel => Rgb(pixel) == Rgb(Sentinel)),
++                            "StandaloneEraseDoesNotRedrawWallpaper");
++                        // Printing the client uses its ordinary background and
++                        // foreground paint path, with an owned memory HDC.
++                        SendToBitmap(bitmap, split.Handle, 0x0318, new IntPtr(0x0004 | 0x0008));
++                        Check(Samples(bitmap).Any(pixel => Rgb(pixel) != Rgb(Sentinel)),
++                            "NormalClientPaintStillRestoresBackground");
++                        int paints = 0;
++                        PaintEventHandler count = (_, _) => paints++;
++                        split.Paint += count;
++                        try { split.Invalidate(); split.Update(); }
++                        finally { split.Paint -= count; }
++                        Check(paints > 0, "SubsequentOrdinaryPaintStillRuns");
++                        // Returning to an independent erase after a successful
++                        // paint must remain quiet, rather than rely on a cache.
++                        Clear(bitmap);
++                        SendToBitmap(bitmap, split.Handle, 0x0014, IntPtr.Zero);
++                        Check(Samples(bitmap).All(pixel => Rgb(pixel) == Rgb(Sentinel)),
++                            "StandaloneEraseRemainsQuietAfterNormalPaint");
++                    }
++                    catch (CheckFailure error) { failure = error.Code; }
++                    catch { failure = "UnexpectedOwnedPaintFailure"; }
++                    finally { form.Close(); }
++                };
++                Application.Run(form);
++            }
++            catch (CheckFailure error) { failure = error.Code; }
++            catch { failure = "UnexpectedOwnedWindowFailure"; }
++        }) { IsBackground = true };
++        worker.SetApartmentState(ApartmentState.STA); worker.Start();
++        bool finished = worker.Join(TimeSpan.FromSeconds(24));
++        if (!finished)
++        {
++            close?.Invoke(); finished = worker.Join(TimeSpan.FromSeconds(4));
++            failure = finished ? "OwnedPaintBudgetExceeded" : "OwnedPaintWorkerStillActive";
++        }
++        if (failure != "None" || !finished || passed == 0)
++        {
++            Console.Error.WriteLine("FAIL background erase code=" + failure);
++            Console.Error.WriteLine("OBSERVE checks=" + passed + "; worker_finished=" + finished);
++            return 1;
++        }
++        Console.WriteLine("PASS background erase checks=" + passed);
++        Console.WriteLine("OBSERVE owned_bitmaps_only=True; desktop_capture=False");
++        return 0;
++
++        void Check(bool condition, string code)
++        {
++            if (!condition) throw new CheckFailure(code);
++            passed++;
++        }
++    }
++
++    private static void Clear(Bitmap bitmap)
++    {
++        using var graphics = Graphics.FromImage(bitmap);
++        graphics.Clear(Sentinel);
++    }
++
++    private static IEnumerable<Color> Samples(Bitmap bitmap)
++    {
++        foreach (int x in new[] { 3, bitmap.Width / 3, bitmap.Width - 4 })
++        foreach (int y in new[] { 3, bitmap.Height / 3, bitmap.Height - 4 })
++            yield return bitmap.GetPixel(x, y);
++    }
++
++    private static int Rgb(Color color) => color.ToArgb() & 0x00ffffff;
++
++    private static IntPtr SendToBitmap(Bitmap bitmap, IntPtr window, uint message, IntPtr parameter)
++    {
++        using var graphics = Graphics.FromImage(bitmap);
++        IntPtr hdc = graphics.GetHdc();
++        try { return SendMessage(window, message, hdc, parameter); }
++        finally { graphics.ReleaseHdc(hdc); }
++    }
++
++    [DllImport("user32.dll", EntryPoint = "SendMessageW")]
++    private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
++    private sealed class CheckFailure(string code) : Exception("WallpaperBackgroundErase")
++    {
++        internal string Code { get; } = code;
++    }
++}

@@ -1,0 +1,138 @@
+using DiskAtlas;
+using System.Reflection;
+
+// Observe normal WM_PAINT invalidation after native scrolling. DrawToBitmap
+// would repaint everything itself and hide the original ScrollWindow defect.
+internal static class WallpaperScrollRegression
+{
+    internal static int Run(bool dpi96 = false)
+    {
+        string failure = "None";
+        int passed = 0;
+        var worker = new Thread(() =>
+        {
+            try
+            {
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                using var form = new MainForm(null, loadSavedBackground: false,
+                    backgroundSettingsPath: Path.Combine(Path.GetTempPath(), "AsukaLens-scroll-unused-" + Guid.NewGuid().ToString("N")));
+                var grid = Field<WallpaperGrid>(form, "grid");
+                var painted = new List<Rectangle>();
+                grid.Paint += (_, e) => painted.Add(e.ClipRectangle);
+                form.Shown += async (_, _) =>
+                {
+                    try
+                    {
+                        form.BringToFront();
+                        var root = new DiskEntry(Path.Combine(Path.GetTempPath(), "AsukaLens-synthetic-scroll"), true)
+                            { FileCount = 100, Size = 1700 };
+                        var rows = new List<MapItem>();
+                        for (int index = 0; index < 100; index++)
+                        {
+                            var entry = new DiskEntry(Path.Combine(root.Path, "demo-" + index.ToString("000") + ".txt"), false, root)
+                                { Size = 17, FileCount = 1 };
+                            root.MutableChildren.Add(entry);
+                            rows.Add(new(entry.Name, entry.Size, entry, "文档"));
+                        }
+                        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                        typeof(MainForm).GetField("current", flags)!.SetValue(form, root);
+                        typeof(MainForm).GetField("mode", flags)!.SetValue(form, 1);
+                        typeof(MainForm).GetMethod("PopulateGrid", flags)!.Invoke(form, [rows]);
+                        grid.CurrentCell = grid[0, 0];
+                        grid.Rows[0].Selected = true;
+                        await Task.Delay(60);
+                        var background = form.BackgroundImage;
+                        var raster = form.WallpaperRaster.Get(background, form.ClientSize, form.BackgroundCrop);
+                        Point originalCell = grid.CurrentCellAddress;
+                        Check(raster != null && grid.Rows.Count == 100 && grid.DisplayedRowCount(false) < 100 &&
+                            grid.Rows[0].Height == FileListPresentation.RowHeight(grid.DeviceDpi, true) &&
+                            Convert.ToString(grid[0, 0].Value)!.Contains('\n'),
+                            "ScrollableNativeFixtureAvailable");
+
+                        async Task CheckRepaint(Action action, string code)
+                        {
+                            painted.Clear();
+                            action();
+                            await Task.Delay(50);
+                            grid.Update(); // Flush pending paint, without introducing new invalidation.
+                            Point nearTop = new(5, grid.ColumnHeadersHeight + 4);
+                            int horizontalBar = grid.Controls.OfType<HScrollBar>().Where(bar => bar.Visible).Sum(bar => bar.Height);
+                            Point nearBottom = new(Math.Max(6, grid.ClientSize.Width / 2), grid.ClientSize.Height - horizontalBar - 5);
+                            Check(painted.Any(rectangle => rectangle.Contains(nearTop) && rectangle.Contains(nearBottom)),
+                                code + "_RepaintsWholeVisibleViewport");
+                            Check(ReferenceEquals(background, form.BackgroundImage) &&
+                                ReferenceEquals(raster, form.WallpaperRaster.Get(background, form.ClientSize, form.BackgroundCrop)),
+                                code + "_KeepsWindowWallpaperAndRasterStable");
+                            Check(grid.RowCount == 100 && grid.CurrentCellAddress == originalCell && grid.Rows[0].Selected,
+                                code + "_RetainsNativeRowsCurrentCellAndSelection");
+                        }
+
+                        await CheckRepaint(() => grid.FirstDisplayedScrollingRowIndex = 2, "VerticalScrollDown");
+                        Check(grid.FirstDisplayedScrollingRowIndex == 2, "VerticalScrollActuallyMovedRows");
+                        await CheckRepaint(() => grid.FirstDisplayedScrollingRowIndex = 1, "VerticalScrollUp");
+
+                        grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+                        foreach (DataGridViewColumn column in grid.Columns) if (column.Visible) column.Width = 400;
+                        await Task.Delay(40);
+                        await CheckRepaint(() => grid.HorizontalScrollingOffset = 60, "HorizontalScroll");
+                        Check(grid.HorizontalScrollingOffset > 0, "HorizontalScrollActuallyMovedColumns");
+                        grid.HorizontalScrollingOffset = 0;
+                        grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+                        await Task.Delay(40);
+
+                        var gridBounds = grid.RectangleToScreen(grid.ClientRectangle);
+                        const string facts = "实时预览 · 非最终统计 · 大小持续更新 · 暂显前 1,024 项";
+                        typeof(MainForm).GetMethod("SetScopeDetails", flags)!.Invoke(form, [facts]);
+                        await Task.Delay(50);
+                        Check(Field<string>(form, "scopeDetails") == facts && grid.RectangleToScreen(grid.ClientRectangle) == gridBounds,
+                            "ScopeFactsRemainAvailableWithoutMovingNativeGrid");
+                        Check(ReferenceEquals(raster, form.WallpaperRaster.Get(background, form.ClientSize, form.BackgroundCrop)) &&
+                            grid.RowCount == 100 && grid.CurrentCellAddress == originalCell,
+                            "ScopeFactsKeepWallpaperAndListContextStable");
+
+                        painted.Clear();
+                        form.WindowState = FormWindowState.Minimized;
+                        await Task.Delay(60);
+                        form.WindowState = FormWindowState.Normal;
+                        await Task.Delay(140);
+                        grid.Update();
+                        Check(form.WindowState == FormWindowState.Normal && painted.Count > 0 && grid.Visible,
+                            "RestoreTriggersVisibleNativeGridRepaint");
+                        Check(ReferenceEquals(background, form.BackgroundImage) && grid.RowCount == 100 &&
+                            grid.CurrentCellAddress == originalCell && grid.Rows[0].Selected,
+                            "RestoreRetainsWallpaperRowsAndSelection");
+                    }
+                    catch (Failure error) { failure = error.Code; }
+                    catch { failure = "UnexpectedUiFailure"; }
+                    finally { form.Close(); }
+                };
+                Application.Run(form);
+            }
+            catch (Failure error) { failure = error.Code; }
+            catch { failure = "UnexpectedWorkerFailure"; }
+        }) { IsBackground = true };
+        worker.SetApartmentState(ApartmentState.STA);
+        worker.Start();
+        if (!worker.Join(TimeSpan.FromSeconds(30))) failure = "UiWorkerDidNotFinish";
+        if (failure != "None")
+        {
+            Console.Error.WriteLine("FAIL wallpaper scroll code=" + failure + "; no private details emitted");
+            return 1;
+        }
+        Console.WriteLine("PASS wallpaper scroll checks=" + passed + "; native repaint contract, desktop pixels reviewed separately");
+        return 0;
+
+        void Check(bool condition, string code)
+        {
+            if (!condition) throw new Failure(code);
+            passed++;
+        }
+    }
+
+    private static T Field<T>(MainForm form, string name) => (T)typeof(MainForm)
+        .GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(form)!;
+    private sealed class Failure(string code) : Exception("WallpaperScroll") { internal string Code { get; } = code; }
+}

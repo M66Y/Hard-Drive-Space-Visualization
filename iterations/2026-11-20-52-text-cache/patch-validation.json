@@ -1,0 +1,9 @@
+{
+  "byte_exact": true,
+  "files": 11,
+  "base": "C51 working-tree preimages; not clean HEAD",
+  "replay_core_autocrlf": false,
+  "reconstructed_preimages": [
+    ".agents/skills/asukalens-project-memory/references/checkpoint.md"
+  ]
+}

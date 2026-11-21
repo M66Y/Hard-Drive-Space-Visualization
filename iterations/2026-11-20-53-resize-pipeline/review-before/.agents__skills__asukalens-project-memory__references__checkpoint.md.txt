@@ -1,0 +1,88 @@
+# AsukaLens 开发检查点
+
+## 进行中：2026-11-20 C53候选待解锁复审
+
+用户批准合并缩放闪黑/卡顿定位、针对性修正和回归，保留布局/背景/字号/动效，不录屏、改系统或设默认。C52工作区前像在iterations/2026-11-20-53-resize-pipeline/before；方案docs/ui-resize-pipeline-plan.md。ResizeWorkProbe默认关闭、12步/256事件，排除尺寸来回重建(11变化/11重建)。已测热点44次根半透明合成3061ms；新增精确键/有界根DIB预合成及同Ambient复用，严格映射/失效回退，仍归128MiB预算，额外约11MiB。最终把准备移到PositionChanging，RootCover约81ms；不是凭空消除成本。
+
+同构建off/on/on/off144DPI Size同步p50为842/401/376/797ms；96 off/on404/251ms；最终提前准备版144约441ms。都是暖UI程序序列/外部负载未控，不是帧率。最终NcEntering 8/10黑、Returned及之后0黑，真实闪黑/长尾不关闭。根两档各31项/126958RGBA零差异；DIB608、两档集成26/表面688或658/布局35/呈现98/背景7组/滚动16，普通/DIB四组完整UI通过。柔光首次30秒超时发生在独立普通Form恢复，原因未明，同构建两档99复验通过，保留失败。最终提前准备版另外复验根/集成/完整DIB UI两档通过。
+
+C53最终应用/测试构建0警告，入口artifacts/dib-mainform-C53/app/AsukaLens.DibCandidate.exe，独立数据目录已预建，自建52文件约8.97MiB。已启动；当前桌面锁屏，停止CUA并已问用户解锁，实际画面/反馈尚未检查，不擅自标通过。先前本轮未体验的实例仅为最终补准备而替换，C52和普通bin保持。本轮16文件补丁已逐字节重放，源码/二进制哈希与隐私核查完成；55份自有原始证据压缩为ignored候选目录owned-validation.zip约64KiB后清散文件，重复apphost已删除。接下来仅待用户解锁后实际展示/反馈，不自动切默认或迁移架构。
+
+记录iterations/2026-11-20-53-resize-pipeline/README.md及performance-summary.json；本机原始探针/检查输出ignored artifacts/resize-pipeline-C53。无个人卷/raw/VSS/系统或OBS操作。Git仍9ac1f0b，继承C30 index和C31–C52依赖不混提，未提交/推送/发布。
+
+## 最新：2026-11-20 C52文字缓存与完整UI回归通过
+
+用户选择先修文字缓存和完整回归，保留布局/背景/字号/动效。最小控件证明Graphics.FromImage.GetHdc读到占位底色，TextRenderer与直接DC的真实背景不同；字体质量/格式变体不解决，alpha原本无差异。NativeResizeFrame.RenderOpaque在实际DIB持久源DC绘制不透明缓存并封alpha，PixelSurface额外计最多4KiB工作区，128MiB总限额不变；普通发布仍旧路径，不默认启用DIB。
+
+普通/DIB各144/96DPI四组完整UI通过；新增6种底色/裁切各882000 RGBA零差异，失败后恢复/线程/释放通过。原700000像素差异从13452降1000，仅y=0整行，原1%阈值不改。DIB608项/6513984像素、集成各26/合计1698575像素、柔光各99通过；表面四组688/658通过。首次表面失败是独立离屏参考错误请求Native复制，参考改source-over后原断言通过；实际Grid不改，失败日志保留。
+
+C52完整候选 artifacts/dib-mainform-C52/app/AsukaLens.DibCandidate.exe 已打开；自建52文件实际扫描约8.97MiB，空间分布选中/柔光、大文件双行及滚动已观察，用户反馈“正常，保留C52候选”，保留本版、不设默认。首次脚本漏建隔离目录导致Argument错误，补建后正常；锁屏期间停止输入，用户解锁后才继续。普通bin哈希8690F5F5A1CC9160A698CAA0E355966D87B9ED1F5E1C27659AD6DD5B865886B1与C51候选哈希72F1180FA6FF1DB7DAEAC7253E75F91ECE14D7945EF5EAFBFD5A8D864B3B81FA不变。
+
+记录 iterations/2026-11-20-52-text-cache/README.md，保存前像/关键文件/本轮补丁及验证摘要；原始自有图与日志仅ignored artifacts。未录屏、改系统/OBS、访问个人卷或raw/VSS。未继续缩放调优：早期黑点/长尾/恢复瞬态/跨屏仍开放。Git仍9ac1f0b，继承暂存和C31–C51工作区不混提，未提交/推送/发布。下一步由用户候选反馈决定，不自动开启第二阶段。
+
+## 最新：2026-11-20 C51完整功能DIB候选用户确认改善明显
+
+用户批准C50接入正常功能主窗，合并剩余缩放排查与验收，保留布局/背景/动效，先打开候选、不设默认。NativeResizeFrame已迁移src/UI/Rendering，测试引用生产同一份；RenderSession/PixelSurface在128MiB总像素预算内接入背景、Treemap静态层、列表底图，保留原生控件和GDI+回退。MainForm显式--dib-candidate或独立apphost名启用，普通默认关闭。
+
+最终测试/应用构建0警告；DIB核心608项/6,513,984像素，两档集成各26项，真实map/grid两档共1,698,575像素与旧路径零差异。两档功能子集、列表缓存49/滚动16、布局35/98、背景7组、柔光99、表面660/658通过。完整UI原缓存/直接文字比较assert100失败：旧C50及本轮旧/DIB均复现，13,452/700,000像素；原阈值不改，不将功能子集当完整UI通过。
+
+本轮修正两个接入问题：离屏缓存合成不能直接BitBlt导致透明度差异，仍用原GDI+合成后DIB发布；提前补画初版DCX_WINDOW误值，修为0x2 CACHE客户DC并核子窗裁切。固定主窗12步中54早期/106暴露补画；新旧快慢两档NcPaintReturned从20黑降0，Entering仍20黑。步间隔p50旧710/678ms、DIB572/615ms，p95无稳定改善，不宣称高帧率或所有闪黑解决。最终另外补失败清理及固定获取的HWND释放，集成再验通过。
+
+候选 artifacts/dib-mainform-C51/app/AsukaLens.DibCandidate.exe 已打开，隔离配置，自建225文件真实扫描约20.21MiB，大文件/滚动实际观察。用户反馈“改善明显，保留候选”；据此保留本版，仍不设默认、不继续下一阶段。普通bin DLL哈希8690F5F5A1CC9160A698CAA0E355966D87B9ED1F5E1C27659AD6DD5B865886B1未变。鼠标拖动未观测有效尺寸变化，不记通过；最早黑点、长尾、最小化恢复瞬态、跨屏及继承缓存差异继续待修。
+
+证据 iterations/2026-11-20-51-dib-mainform/README.md；前像/关键源码/本轮patch/构建摘要保留，原始自有trace与缓存图仅ignored artifacts压缩。自建demo/候选和隔离数据供用户当前体验保留，不清理其正在使用的文件。未访问个人卷、raw/VSS，未录屏、改系统/OBS或发布。Git仍9ac1f0b，继承C30 index与C31–C50 WIP不混提，未提交推送；源码集成完成不等于默认或视觉全验收。
+## 最新：2026-11-19 C50两项修复完成并展示，用户确认明显改善
+
+用户本轮明确要求修复C49的下拉框映射和列表移动暴露区，保留布局／背景／动效，先展示DIB候选、不设默认。已完成：NativeResizeFrame显式source/destination/expected viewport，旧零原点合同和复杂映射拒绝保持；GetHrgn已有目标视口，不重复平移。OnPrint不再冒充根FrameCopied或消耗prepared帧；OnResize在子控件位置/Region稳定后，以旧覆盖减新覆盖同步补当前帧。
+
+最终四组All144、Combo144、Grid144、All96：78次下拉映射成功、0回退，18次旧Grid残留在布局结束前修复，176个原几何后根点全匹配；4种篡改证据反例拒绝。DIB608项/6,513,984像素零差异，两档host各62、coverage各91、原型各199；测试构建0警告。C49旧失败checker不改，新tests/ResizeMappingRepairEvidence.Tests.ps1验证修复，没删除旧点或强制Refresh。
+
+候选 artifacts/resize-candidate-C50/app/AsukaLens.NativeFramePrototype.exe 已以All模式打开，DLL SHA256 E275BE9FD0553B4FEF41DF2CF195DFBB44171A68201CC79344FA2ABD021293EA。双击仍A默认，F2切换，F6连续尺寸演示。下拉展开/收起、F6真实窗口及结束画面已观察；用户实际反馈“改善比较明显”；保留候选，不等于所有闪黑验收通过。仍是合成原型，不是完整MainForm扫描功能；普通DLL和C48哈希不变。
+
+早期NcPaintEntering每组仍20黑点、返回0黑；本轮没有消除/关闭所有闪黑、半截标题、最小化和跨屏。鼠标拖动工具一次越界拒绝，后续未有可确认尺寸变化，不算手动实时拖动通过。未录屏、不改系统/OBS、无个人文件/卷读取。DragFullWindows只读true。
+
+证据 iterations/2026-11-19-50-native-mapping-repair/README.md；源文件前像/关键文件/patch和构建摘要保留，原始自有trace收束至ignored候选目录。正常版总体接入方案已有授权，但本轮按最新指令停在两项候选展示；反馈已收，不自动设默认或继续下一实施阶段。Git main仍9ac1f0b，继承C30 index与C31–C49 WIP不混提，未提交推送/发布。
+
+C49原因证据回链 iterations/2026-11-19-49-mapping-audit/README.md；原两问题独立，不能因本轮解决局部推断全部显示缺陷已解决。
+## 2026-11-15：C48 DIB候选保留，普通版未接入
+
+用户批准 docs/ui-native-frame-buffer-prototype-plan.md，实际体验后反馈“明显改善，先保留这版候选”。本轮已完成必要验证／归档／本轮清理，停在保留候选，不启动正常版集成或第二阶段；第一阶段、连续缩放和最小化恢复未整体关闭。事实入口 docs/project-status.md、docs/development-plan.md、docs/ui-rendering-defects-handoff.md，证据 iterations/2026-11-15-48-native-frame/README.md。
+
+候选 artifacts/resize-candidate-C48/app/AsukaLens.NativeFramePrototype.exe 已重开，A纯画布默认，F6程序驱动尺寸演示，F2原生控件对照。不是正常扫描软件或发行包。首次用户体验DLL与最终资源保护DLL哈希分列build-manifest；最终DLL为E9EB112D87B84032FD077BA685194246072AB695AC8507B35995CCEF11013BBC，布局／背景／发布技术未变。
+
+NativeResizeFrame显式拥有top-down32bit DIB与持久源DC，Bitmap/Graphics共享bits，Flush后BitBlt；线程、目标映射／裁切、释放及128MiB frame+cache约束保留。无限managed clip不转换HRGN，保留native clip。主窗按实际native size/DPI/state确认prepared frame；DIB句柄销毁清别名／prepared/rendered状态，新buffer即使缓存命中也先全填，不能只画edge ring。所有新路径仅测试开关启用。
+
+最终native frame 468项／6,219,072像素／两完整scene零容差；两档coverage各91项／1,075,200 RGB像素；两档host lifecycle各50项，Canvas/All重建与同key空buffer重填非不透明像素0。默认Bitmap prototype199项通过（最终DIB专用保护前）。应用隔离构建/tests零警告；独立只读审查未发现保留候选阻塞项。测试初API编译错误和float边界oracle277差异已定位纠正，未放宽零容差；host重建不保证cache-hit，另加确定性同key检查。
+
+固定12步A：DIB23次发布23native/0fallback，发布p95约1.1ms；同代码Bitmap33次p95约65ms，Paint数量不同，只作局部诊断。两者11次新geometry准备均约1.46秒，约133ms/次，不能当完整帧率或普遍加速。PublishEnd仅尝试结束；成功另看FrameCopied/native。All59次中33native/26TargetOrigin回退；44几何后点无黑但38match/6差异待查。消息栈非RootWM_PAINT分类包括父背景回调，不能全叫prepared。
+
+NcPaint进入仍采到20个复制前黑点，返回/后续点无黑；离散GDI观察不等于DWM连续帧。用户反馈是明显改善和保留，不是全部问题解决。DragFullWindows=false按用户选择保持；鼠标实时拖动、真实跨屏DPI、125%、最小化恢复未覆盖。不要再重复要求证明肉眼看到黑。
+
+10份详细trace/replay逐项哈希核验压缩到ignored artifacts/resize-candidate-C48/owned-traces.zip后清散文件，临时production-build-check核哈希后删除。18份关键源快照和二进制绑定在C48，不是完整独立源码包。没有个人扫描/raw/VSS/VHD、录屏、OBS或系统设置变更；普通bin/Release与正式v1.5.0保持。
+
+## Git及继承工作区
+
+main/origin/main基线9ac1f0b30f31a4f00a4f55048409b1999cabbaf0。继承C30暂存候选与C31–C47未提交工作区，C48依赖该UI/原型基底；不reset、覆盖或盲目提交index，不为满足自动提交规则混入旧半成品。本轮未创建提交／推送／发布。后续先核Git、源码与最新实际反馈，不从旧标题推断已完成。
+
+## C45–C47定位历史索引
+
+C45纯画布与原生对照在快速尺寸变化下均有黑区，纯画布不是无条件解法。C46证实新native客户区根表面铺底空档，透明SplitterPanel重复擦背景是热点；标题具体字形裁切分支未全锁定，不能归为同因。证据各自见 iterations/2026-11-15-45-live-resize-prototype 与 -46-resize-root-cause。
+
+C47受限铺底／预备完整帧只部分改善，用户仍失败。早期trace发现NcPaint/Erase进入20黑，旧晚期0黑漏采；Erase→copy约144–237ms含DC/发布/诊断，非DWM。静态底图缓存与动态边带拆分两档各51项，RGBA零差异；从GDI+临时HDC作源的试验24,576像素全错，已撤出活动编译并保留 rejected-frame-copy，不能重用。详见C47及followup，C48取代其待确认／待展示状态，不抹掉失败证据。
+
+## 已确认体验与旧失败
+
+- 七项核心功能保留；背景明显透出、完整圆角、紧凑四按钮、NTFS位于扫描设置行、侧栏迷你监测默认关闭。
+- C31选中与悬停同圆角轮廓持续沿边柔光，用户接受1.15倍约2.435秒一圈；不要重复调流速。最小化恢复多种候选仍失败，见C31及handoff，不据C48关闭。
+- C32固定列表底图缓存＋可见行绘制，用户确认滚动正常；400万像素预算、归属／失效／暂停约束保留。
+- C33透明滚动轨道、完整圆角、统一输入底色、大文件统一布局、进度图标无拖尾泛光；后续文字对齐并删除最底行。
+- C34名称＋路径双行、矮统计卡及细碎图块早聚合按B实施，第一阶段仍未整体接受。
+- C36关闭全部悬停文字气泡，保留点击详情/柔光；NTFS主动开启时说明并确认，取消不扫描，用户本项通过。
+- C38删除图表上方动态说明框，不挪别处；用户“可以了”。必要短阶段/百分比/部分状态及主动详情保留。
+- C39–44缩放候选局部检查通过但用户仍闪黑，不能重试同参数冒充新解法；源码/补丁/失败证据各自保留。
+
+## 其他边界与后续
+
+普通版接入方案已获准，但默认切换须用户反馈后决定；本轮按最新指令完成两项修复并展示候选，用户已确认改善明显。原因见C49、修复见C50，新尺寸准备与实际主窗仍待后续实施，不机械扩展路线。C28同快照Matched已完成，不重启个人扫描，旧raw/VSS/VHD许可不延续。正式v1.5.0不随工作区变化，没有新标签或Release。
+
+此前OBS恢复原配置/120fps/场景/麦克风并退出；原录像受自动审批拒删仍保留，本轮不触碰、不绕过。真实跨屏、高对比系统切换、新版Windows10观感仍未验。其余重要理由见 references/decisions.md 与 iterations/。

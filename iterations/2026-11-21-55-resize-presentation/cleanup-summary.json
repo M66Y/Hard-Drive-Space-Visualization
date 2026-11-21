@@ -1,0 +1,21 @@
+{
+  "private_zip": "artifacts/dib-mainform-C55/owned-validation.zip",
+  "zip_entries": 55,
+  "zip_bytes": 53881,
+  "zip_sha256": "2796B60E9740641F81D91B41F96BCB9CF67F6B612B643D075D4B896EC0CB76CB",
+  "original_evidence_bytes": 398895,
+  "zip_crc_and_each_entry_sha256_verified": true,
+  "removed_duplicate_apphost_bytes": 319488,
+  "unchanged_production_files": [
+    {
+      "path": "MainForm.cs",
+      "sha256": "6B5E5011F026161527E37187A094F591DF19FBCABC4EC64BA472D868B92C4D73"
+    },
+    {
+      "path": "src/UI/Rendering/RenderSession.cs",
+      "sha256": "5BAA4FEBA78319CA457345C3762E55987862BBC8911C78DB4643DF8ECBF63A6C"
+    }
+  ],
+  "candidate_old_versions_data_and_demo_retained": true,
+  "user_files_deleted": false
+}

@@ -1,0 +1,11 @@
+<Project>
+  <Target Name="UseC36LayoutBaseline" BeforeTargets="CoreCompile">
+    <PropertyGroup><DefineConstants>$(DefineConstants);LAYOUT_BASELINE</DefineConstants></PropertyGroup>
+    <ItemGroup>
+      <Compile Remove="..\MainForm.cs;..\Wallpaper.cs" />
+      <Compile Remove="..\src\UI\LayoutPresentation.cs;LayoutPresentationPolicyTests.cs" />
+      <Compile Include="..\iterations\2026-11-14-36-no-hover-popups\key-files\MainForm.cs.txt" />
+      <Compile Include="..\iterations\2026-11-14-36-no-hover-popups\key-files\Wallpaper.cs.txt" />
+    </ItemGroup>
+  </Target>
+</Project>

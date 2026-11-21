@@ -1,0 +1,141 @@
+diff --git a/Wallpaper.cs b/Wallpaper.cs
+index 7f3d78d..aef9ed5 100644
+--- a/Wallpaper.cs
++++ b/Wallpaper.cs
+@@ -320,8 +320,21 @@ internal sealed class WallpaperGrid : DataGridView
+ {
+     private GridScrollbarSkin? scrollbarSkin;
+     internal int SkinnedScrollbarCount => scrollbarSkin?.Count ?? 0;
+-    internal bool ScrollbarPaintingPaused => disposed || scrollDepth > 0 || redrawHeldHandle != IntPtr.Zero ||
+-        !IsHandleCreated || GetProp(Handle, "SysSetRedraw") != IntPtr.Zero;
++    internal bool ScrollbarPaintingPaused
++    {
++        get
++        {
++            if (disposed || scrollDepth > 0 || redrawHeldHandle != IntPtr.Zero || !IsHandleCreated) return true;
++            // Resize transactions can hold an ancestor rather than this HWND.
++            // Direct scrollbar drawing must obey the same ownership boundary.
++            for (Control? current = this; current != null; current = current.Parent)
++            {
++                if (current.IsDisposed || current.Disposing) return true;
++                if (current.IsHandleCreated && GetProp(current.Handle, "SysSetRedraw") != IntPtr.Zero) return true;
++            }
++            return false;
++        }
++    }
+     internal const long MaxBackdropPixels = 4_000_000;
+     internal int BackdropBuilds { get; private set; }
+     internal event EventHandler? PresentationResumed;
+@@ -411,9 +424,8 @@ internal sealed class WallpaperGrid : DataGridView
+ 
+     private void PresentScroll()
+     {
+-        if (!scrollChanged || disposed || scrollDepth != 0 || redrawHeldHandle != IntPtr.Zero ||
+-            !IsHandleCreated || !Visible || FindForm()?.WindowState == FormWindowState.Minimized ||
+-            GetProp(Handle, "SysSetRedraw") != IntPtr.Zero) return;
++        if (!scrollChanged || ScrollbarPaintingPaused || !Visible ||
++            FindForm()?.WindowState == FormWindowState.Minimized) return;
+         scrollChanged = false;
+         Update();
+     }
+diff --git a/src/UI/GridScrollbarSkin.cs b/src/UI/GridScrollbarSkin.cs
+index 6a9e2b5..28c69c9 100644
+--- a/src/UI/GridScrollbarSkin.cs
++++ b/src/UI/GridScrollbarSkin.cs
+@@ -127,8 +127,13 @@ internal sealed class GridScrollbarSkin : IDisposable
+         private void Changed(object? sender, EventArgs e) { if (!disposed && !bar.IsDisposed) bar.Invalidate(); }
+         protected override void WndProc(ref Message message)
+         {
+-            if (disposed || painting || owner.IsDisposed || SystemInformation.HighContrast)
++            if (disposed || painting || owner.IsDisposed)
+             { base.WndProc(ref message); return; }
++            // Neither the themed renderer nor the native high-contrast
++            // fallback may print across an ancestor's presentation boundary.
++            if (message.Msg is 0x0317 or 0x0318 && message.WParam != IntPtr.Zero && owner.ScrollbarPaintingPaused)
++            { message.Result = IntPtr.Zero; return; }
++            if (SystemInformation.HighContrast) { base.WndProc(ref message); return; }
+             if (message.Msg == 0x0014) { message.Result = new IntPtr(1); return; } // WM_ERASEBKGND
+             if (message.Msg == 0x000F)
+             {
+@@ -151,7 +156,7 @@ internal sealed class GridScrollbarSkin : IDisposable
+                 finally { if (dc != IntPtr.Zero) EndPaint(Handle, ref paint); }
+                 message.Result = IntPtr.Zero; return;
+             }
+-            if (message.Msg is 0x0317 or 0x0318 && message.WParam != IntPtr.Zero && !owner.ScrollbarPaintingPaused)
++            if (message.Msg is 0x0317 or 0x0318 && message.WParam != IntPtr.Zero)
+             {
+                 using var graphics = Graphics.FromHdc(message.WParam);
+                 if (Draw(graphics)) { message.Result = IntPtr.Zero; return; }
+diff --git a/tests/WallpaperGridCacheTests.cs b/tests/WallpaperGridCacheTests.cs
+index e633fb2..ccd8122 100644
+--- a/tests/WallpaperGridCacheTests.cs
++++ b/tests/WallpaperGridCacheTests.cs
+@@ -80,6 +80,68 @@ internal static class WallpaperGridCacheTests
+                             [new HandledMouseEventArgs(MouseButtons.None, 0, grid.Width / 2, grid.ColumnHeadersHeight + 8, -120)]);
+                         Check(paints > beforeWheel && grid.BackdropBuilds == builds, "WheelPresentsBeforeReturningWithoutRebuildingBackdrop");
+ 
++                        // The resize coordinator owns an ancestor HWND, not
++                        // the grid. Direct scrollbar painting and scroll Update
++                        // must respect that same pause until the owner releases.
++                        var ancestor = Field<Control>(form, "contentLayoutRoot");
++                        var presentation = Field<LayoutPresentation>(form, "layoutPresentation");
++                        Check(!grid.ScrollbarPaintingPaused && IsWindowVisible(grid.Handle),
++                            "AncestorPauseProbeStartsWithVisibleUnpausedGrid");
++                        int ancestorBuilds = grid.BackdropBuilds, ancestorPaints = paints;
++                        int priorPresentations = presentation.Presentations;
++                        SendMessage(ancestor.Handle, 0x000B, IntPtr.Zero, IntPtr.Zero);
++                        try
++                        {
++                            Check(GetProp(ancestor.Handle, "SysSetRedraw") != IntPtr.Zero && !IsWindowVisible(grid.Handle),
++                                "OwnedAncestorHoldIsNativeAndCoversGrid");
++                            Check(grid.ScrollbarPaintingPaused, "AncestorRedrawHoldPausesScrollbarPainting");
++                            // A changed source makes any accidental direct bar
++                            // paint observably rebuild its backing bitmap.
++                            SetImage(Color.FromArgb(42, 83, 127));
++                            presentation.ResizeSurfaces();
++                            var bar = grid.Controls.OfType<VScrollBar>().Single(item => item.Visible);
++                            SendMessage(bar.Handle, 0x00E0, new IntPtr(bar.Value), new IntPtr(1));
++                            // WM_PRINTCLIENT uses an explicit memory HDC and
++                            // must not fall through to native painting while an
++                            // ancestor's redraw ownership is still active.
++                            using (var print = new Bitmap(bar.ClientSize.Width, bar.ClientSize.Height))
++                            {
++                                Color sentinelPixel = Color.FromArgb(13, 227, 179);
++                                using (var graphics = Graphics.FromImage(print))
++                                {
++                                    graphics.Clear(sentinelPixel);
++                                    IntPtr hdc = graphics.GetHdc();
++                                    try { SendMessage(bar.Handle, 0x0318, hdc, new IntPtr(0x0004)); }
++                                    finally { graphics.ReleaseHdc(hdc); }
++                                }
++                                bool unchanged = true;
++                                for (int y = 0; unchanged && y < print.Height; y++)
++                                for (int x = 0; unchanged && x < print.Width; x++)
++                                    unchanged = (print.GetPixel(x, y).ToArgb() & 0x00ffffff) ==
++                                        (sentinelPixel.ToArgb() & 0x00ffffff);
++                                Check(unchanged, "AncestorPauseKeepsScrollbarPrintClientBitmapUntouched");
++                            }
++                            grid.FirstDisplayedScrollingRowIndex++;
++                            Check(grid.BackdropBuilds == ancestorBuilds && paints == ancestorPaints,
++                                "AncestorPausePreventsDirectBarBackdropBuildAndScrollPresentation");
++                            Check(GetProp(ancestor.Handle, "SysSetRedraw") != IntPtr.Zero,
++                                "ScrollNeverReleasesExternallyOwnedAncestorHold");
++                        }
++                        finally
++                        {
++                            SendMessage(ancestor.Handle, 0x000B, new IntPtr(1), IntPtr.Zero);
++                            presentation.RetryPending();
++                        }
++                        // No PaintNow/Update here: the production parent
++                        // RedrawWindow path must deliver the final child paint.
++                        await Settle();
++                        Check(!grid.ScrollbarPaintingPaused && IsWindowVisible(grid.Handle) &&
++                            GetProp(ancestor.Handle, "SysSetRedraw") == IntPtr.Zero,
++                            "AncestorReleaseRestoresGridPaintingAvailability");
++                        Check(presentation.Presentations > priorPresentations && paints > ancestorPaints &&
++                            grid.BackdropBuilds > ancestorBuilds && grid.BackdropBytes > 0,
++                            "ParentPresentationRebuildsAndPaintsGridAfterAncestorRelease");
++
+                         // Isolate each cache-key input rather than letting a
+                         // Dock resize change every dimension at the same time.
+                         var previousParent = grid.Parent!;

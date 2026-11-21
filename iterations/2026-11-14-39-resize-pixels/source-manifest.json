@@ -1,0 +1,38 @@
+{
+  "files": [
+    {
+      "bytes": 92773,
+      "source": "MainForm.cs",
+      "sha256": "F3D91E9E21CC1CE2AEF8D6CCC2E9EC6DC14E035F13042EE4FC6F9C570C4A5556",
+      "snapshot": "key-files/MainForm.cs.txt"
+    },
+    {
+      "bytes": 28012,
+      "source": "Wallpaper.cs",
+      "sha256": "A331CA1ACF70598EDBA0C1B4FE0F68BB9D5C5EFBA4745116EAD1C5A151B8A2FC",
+      "snapshot": "key-files/Wallpaper.cs.txt"
+    },
+    {
+      "bytes": 1426,
+      "source": "src/UI/ResizePixelPolicy.cs",
+      "sha256": "E257865CBFC94C8BBB3084239D6B065B08873C770AAFDBF90FD41FBB12738571",
+      "snapshot": "key-files/src_UI_ResizePixelPolicy.cs.txt"
+    },
+    {
+      "bytes": 4609,
+      "source": "tests/ResizePixelPolicyTests.cs",
+      "sha256": "650F82C277C903047C5F1E701E9BCF7FD318A1BB6FC1E6DBC69D9EF37CC6E1F5",
+      "snapshot": "key-files/tests_ResizePixelPolicyTests.cs.txt"
+    },
+    {
+      "bytes": 67916,
+      "source": "tests/Program.cs",
+      "sha256": "A1BF69E1D6B5F4A783823AF1DC889E0C1DB281EC4877E5467B6FE216DF47A7DE",
+      "snapshot": "key-files/tests_Program.cs.txt"
+    }
+  ],
+  "baseline": "9ac1f0b",
+  "state": "user-review-failed-lag",
+  "predecessor": "C38 workspace",
+  "schema": 1
+}

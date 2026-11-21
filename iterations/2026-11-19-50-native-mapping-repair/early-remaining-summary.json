@@ -1,0 +1,146 @@
+[
+  {
+    "mode": "All",
+    "dpi": 144,
+    "stages": [
+      {
+        "stage": "EraseEntering",
+        "valid": 38,
+        "black": 0
+      },
+      {
+        "stage": "EraseReturned",
+        "valid": 38,
+        "black": 0
+      },
+      {
+        "stage": "NcCalcSizeReturned",
+        "valid": 44,
+        "black": 0
+      },
+      {
+        "stage": "NcPaintEntering",
+        "valid": 38,
+        "black": 20
+      },
+      {
+        "stage": "NcPaintReturned",
+        "valid": 38,
+        "black": 0
+      },
+      {
+        "stage": "WindowPosChangedEntering",
+        "valid": 38,
+        "black": 0
+      }
+    ]
+  },
+  {
+    "mode": "Combo",
+    "dpi": 144,
+    "stages": [
+      {
+        "stage": "EraseEntering",
+        "valid": 44,
+        "black": 0
+      },
+      {
+        "stage": "EraseReturned",
+        "valid": 44,
+        "black": 0
+      },
+      {
+        "stage": "NcCalcSizeReturned",
+        "valid": 44,
+        "black": 0
+      },
+      {
+        "stage": "NcPaintEntering",
+        "valid": 44,
+        "black": 20
+      },
+      {
+        "stage": "NcPaintReturned",
+        "valid": 44,
+        "black": 0
+      },
+      {
+        "stage": "WindowPosChangedEntering",
+        "valid": 44,
+        "black": 0
+      }
+    ]
+  },
+  {
+    "mode": "Grid",
+    "dpi": 144,
+    "stages": [
+      {
+        "stage": "EraseEntering",
+        "valid": 38,
+        "black": 0
+      },
+      {
+        "stage": "EraseReturned",
+        "valid": 38,
+        "black": 0
+      },
+      {
+        "stage": "NcCalcSizeReturned",
+        "valid": 44,
+        "black": 0
+      },
+      {
+        "stage": "NcPaintEntering",
+        "valid": 38,
+        "black": 20
+      },
+      {
+        "stage": "NcPaintReturned",
+        "valid": 38,
+        "black": 0
+      },
+      {
+        "stage": "WindowPosChangedEntering",
+        "valid": 38,
+        "black": 0
+      }
+    ]
+  },
+  {
+    "mode": "All",
+    "dpi": 96,
+    "stages": [
+      {
+        "stage": "EraseEntering",
+        "valid": 38,
+        "black": 0
+      },
+      {
+        "stage": "EraseReturned",
+        "valid": 38,
+        "black": 0
+      },
+      {
+        "stage": "NcCalcSizeReturned",
+        "valid": 44,
+        "black": 0
+      },
+      {
+        "stage": "NcPaintEntering",
+        "valid": 38,
+        "black": 20
+      },
+      {
+        "stage": "NcPaintReturned",
+        "valid": 38,
+        "black": 0
+      },
+      {
+        "stage": "WindowPosChangedEntering",
+        "valid": 38,
+        "black": 0
+      }
+    ]
+  }
+]

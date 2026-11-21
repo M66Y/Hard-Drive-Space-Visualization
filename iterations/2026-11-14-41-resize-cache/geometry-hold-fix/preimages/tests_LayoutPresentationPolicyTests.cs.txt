@@ -1,0 +1,700 @@
+using DiskAtlas;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+
+// Owned Forms, Panels and their native redraw state only. These checks do not
+// read a desktop image, scan a directory, or force an offscreen bitmap render.
+internal static class LayoutPresentationPolicyTests
+{
+    internal static int Run(bool dpi96 = false)
+    {
+        string failure = "None", phase = "Initialization";
+        int passed = 0;
+        Action? requestClose = null;
+        var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        CancellationToken token = cancellation.Token;
+        var worker = new Thread(() =>
+        {
+            var fixtures = new List<Fixture>();
+            Form? pump = null;
+            try
+            {
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                pump = new Form
+                {
+                    Text = "AsukaLens · Layout policy checks", ClientSize = new Size(220, 70),
+                    ShowInTaskbar = false, StartPosition = FormStartPosition.CenterScreen,
+                    AutoScaleMode = AutoScaleMode.None
+                };
+                requestClose = () =>
+                {
+                    try
+                    {
+                        if (pump is { IsDisposed: false, IsHandleCreated: true } activePump)
+                            activePump.BeginInvoke((Action)CloseOwnedWindows);
+                    }
+                    catch (InvalidOperationException) { }
+                };
+                pump.Shown += async (_, _) =>
+                {
+                    await Task.Yield();
+                    try
+                    {
+                        phase = "Burst"; await CheckBurst();
+                        phase = "GeometryBatch"; await CheckGeometryBatch();
+                        phase = "GeometrySettledLayout"; await CheckGeometrySettledLayout();
+                        phase = "GeometryException"; await CheckGeometryException();
+                        phase = "GeometryGeneration"; await CheckGeometryGeneration();
+                        phase = "GeometryExternalHold"; await CheckGeometryExternalHold();
+                        phase = "DisposeDuringSettle"; await CheckDisposeDuringSettle();
+                        phase = "PausedSecondBatch"; await CheckPausedSecondBatch();
+                        phase = "UnchangedLayoutRetry"; await CheckUnchangedLayoutRetry();
+                        phase = "SynchronousLayoutHold"; await CheckSynchronousLayoutHold();
+                        phase = "LogicalOnlyLayoutHold"; await CheckLogicalOnlyLayoutHold();
+                        phase = "ThrowingLayoutHold"; await CheckThrowingLayoutHold();
+                        phase = "DisposedLayoutHold"; await CheckDisposedLayoutHold();
+                        phase = "DestroyedLayoutHold"; await CheckDestroyedLayoutHold();
+                        phase = "RecreatedLayoutGeneration"; await CheckRecreatedLayoutGeneration();
+                        phase = "QueuedClose"; await CheckQueuedClose();
+                        phase = "QueuedHandleDestruction"; await CheckQueuedHandleDestruction();
+                        phase = "Minimized"; await CheckMinimized();
+                    }
+                    catch (CheckFailure error) { failure = error.Code; }
+                    catch (OperationCanceledException) { failure = phase + "Cancelled"; }
+                    catch { failure = phase + "UnexpectedFailure"; }
+                    finally { CloseOwnedWindows(); }
+                };
+                Application.Run(pump);
+                if (failure == "None" && passed == 0) failure = "NoPolicyChecksCompleted";
+            }
+            catch (CheckFailure error) { failure = error.Code; }
+            catch { failure = phase + "UnexpectedUiCallbackFailure"; }
+            finally
+            {
+                cancellation.Cancel();
+                CloseOwnedWindows();
+                pump?.Dispose();
+            }
+
+            void CloseOwnedWindows()
+            {
+                foreach (var fixture in fixtures.ToArray()) fixture.Dispose();
+                if (pump is { IsDisposed: false }) pump.Close();
+                Application.ExitThread();
+            }
+
+            async Task<Fixture> OpenFixture(int rootCount = 1)
+            {
+                token.ThrowIfCancellationRequested();
+                var fixture = new Fixture(pump!, fixtures, rootCount);
+                await Until(() => fixture.Owner.IsHandleCreated && fixture.Owner.Visible &&
+                    fixture.Roots.All(root => root.IsHandleCreated && root.Visible), "OwnedFixtureDidNotBecomeVisible");
+                await Quiesce();
+                return fixture;
+            }
+
+            async Task CheckBurst()
+            {
+                using var fixture = await OpenFixture();
+                int settles = 0;
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, fixture.Roots);
+                for (int index = 0; index < 256; index++) presenter.ResizeSurfaces();
+                Check(presenter.HasQueuedWork && presenter.PendingRoots == 1 && presenter.Presentations == 0,
+                    "BurstUsesOnePendingRootBeforeDispatch");
+                await Until(() => !presenter.HasQueuedWork && presenter.PendingRoots == 0 && presenter.Presentations > 0,
+                    "BurstPresentationDidNotComplete");
+                Check(presenter.Presentations == 1 && settles == 1, "BurstCoalescesToOnePresentation");
+                presenter.RetryPending();
+                await Quiesce();
+                Check(!presenter.HasQueuedWork && presenter.PendingRoots == 0 && presenter.Presentations == 1 && settles == 1,
+                    "EmptyRetryDoesNotCreateIdleWork");
+            }
+
+            async Task CheckGeometryBatch()
+            {
+                using var fixture = await OpenFixture(2);
+                int settles = 0;
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, fixture.Roots);
+                // A pre-existing posted callback must not run inside a later
+                // geometry scope, even if a nested handler pumps messages.
+                presenter.ResizeSurfaces();
+                using var outer = presenter.BeginGeometry() ?? throw new CheckFailure("GeometryOuterNotAcquired");
+                using (presenter.BeginGeometry() ?? throw new CheckFailure("GeometryInnerNotAcquired"))
+                {
+                    foreach (var root in fixture.Roots)
+                    {
+                        using (presenter.BeginLayout(root) ?? throw new CheckFailure("GeometryRootHoldNotAcquired"))
+                            root.Width += 2;
+                    }
+                    await Quiesce();
+                    Check(settles == 0 && presenter.Presentations == 0 && presenter.PendingRoots == 2 && !presenter.HasQueuedWork,
+                        "GeometryBatchRetainsDirtyWithoutEarlyQueueOrPresentation");
+                }
+                Check(settles == 0 && presenter.Presentations == 0, "NestedGeometryDoesNotPresentBeforeOuterEnd");
+                foreach (var root in fixture.Roots)
+                    Check(GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle),
+                        "GeometryBatchReleasesOnlyLocalRootHoldsBeforeFinalPass");
+                outer.Dispose();
+                Check(settles == 2 && presenter.Presentations == 2 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                    "GeometryBatchPresentsEachRootOnceAtFinalBoundary");
+                outer.Dispose();
+                await Quiesce();
+                Check(settles == 2 && presenter.Presentations == 2 && !presenter.HasQueuedWork,
+                    "GeometryBatchRejectsStaleCallbackAndRepeatedDispose");
+                using (presenter.BeginGeometry() ?? throw new CheckFailure("EmptyGeometryNotAcquired")) { }
+                Check(settles == 2 && presenter.Presentations == 2 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                    "EmptyGeometryBoundaryDoesNotCreateWork");
+            }
+
+            async Task CheckGeometrySettledLayout()
+            {
+                using var fixture = await OpenFixture();
+                var root = fixture.Roots[0];
+                using var child = new Panel { Dock = DockStyle.Bottom, Height = 10 };
+                root.Controls.Add(child);
+                int layouts = 0, settles = 0, paints = 0;
+                LayoutEventHandler countLayout = (_, _) => layouts++;
+                PaintEventHandler countPaint = (_, _) => paints++;
+                root.Layout += countLayout; root.Paint += countPaint;
+                try
+                {
+                    using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, root);
+                    int beforeFinal;
+                    using (presenter.BeginGeometry() ?? throw new CheckFailure("SettledGeometryNotAcquired"))
+                    {
+                        root.Width += 3;
+                        root.PerformLayout(); // Framework-equivalent work inside the owned transaction.
+                        presenter.ResizeSurfaces();
+                        beforeFinal = layouts;
+                        Check(beforeFinal > 0 && settles == 0 && presenter.Presentations == 0,
+                            "GeometryFrameworkLayoutOccursBeforeFinalPresentation");
+                    }
+                    Check(layouts == beforeFinal, "SettledGeometryDoesNotReplayRootLayout");
+                    Check(settles == 1 && paints > 0 && presenter.Presentations == 1 && presenter.PendingRoots == 0,
+                        "SettledGeometryStillReconcilesClipsAndPaintsFinalRoot");
+                    int ordinaryBefore = layouts;
+                    presenter.ResizeSurfaces();
+                    await Until(() => !presenter.HasQueuedWork && presenter.Presentations == 2,
+                        "OrdinaryPresentationAfterSettledGeometryDidNotComplete");
+                    Check(layouts > ordinaryBefore && settles == 2,
+                        "OrdinaryDeferredPresentationStillPerformsRootLayout");
+
+                    root.SuspendLayout();
+                    Rectangle suspendedChildBounds = child.Bounds;
+                    using (presenter.BeginGeometry() ?? throw new CheckFailure("SuspendedSettledGeometryNotAcquired"))
+                    {
+                        root.Width += 3;
+                        presenter.ResizeSurfaces();
+                    }
+                    int suspendedLayouts = layouts;
+                    int beforeResumePresentations = presenter.Presentations;
+                    root.ResumeLayout(true);
+                    await Until(() => !presenter.HasQueuedWork && presenter.PendingRoots == 0 &&
+                        presenter.Presentations > beforeResumePresentations,
+                        "ResumedChildGeometryDidNotTriggerLaterPresentation");
+                    Check(layouts > suspendedLayouts && child.Bounds != suspendedChildBounds && presenter.PendingRoots == 0,
+                        "ExternalSuspendedLayoutStillRunsAndObservedGeometrySettlesOnResume");
+                }
+                finally
+                {
+                    root.Layout -= countLayout; root.Paint -= countPaint;
+                    root.ResumeLayout(false);
+                }
+            }
+
+            async Task CheckGeometryException()
+            {
+                using var fixture = await OpenFixture();
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, fixture.Roots);
+                var sentinel = new CheckFailure("SyntheticGeometryException");
+                bool caught = false;
+                try
+                {
+                    using var geometry = presenter.BeginGeometry() ?? throw new CheckFailure("ThrowingGeometryNotAcquired");
+                    using (presenter.BeginLayout(fixture.Roots[0]) ?? throw new CheckFailure("ThrowingGeometryRootNotAcquired"))
+                        fixture.Roots[0].Height += 2;
+                    Check(presenter.Presentations == 0 && presenter.PendingRoots == 1, "ThrowingGeometryStillDefersRootPresentation");
+                    throw sentinel;
+                }
+                catch (CheckFailure error) when (ReferenceEquals(error, sentinel)) { caught = true; }
+                Check(caught && presenter.Presentations == 1 && presenter.PendingRoots == 0,
+                    "ThrowingGeometryFinallyPresentsPendingAndReleasesScope");
+                await Quiesce();
+                using (presenter.BeginLayout(fixture.Roots[0]) ?? throw new CheckFailure("PostGeometryLayoutNotAcquired"))
+                    fixture.Roots[0].Height += 2;
+                Check(presenter.Presentations == 2, "NonResizeLayoutKeepsOriginalSynchronousPresentation");
+            }
+
+            async Task CheckGeometryGeneration()
+            {
+                using var fixture = await OpenFixture();
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, fixture.Roots);
+                using var oldToken = presenter.BeginGeometry() ?? throw new CheckFailure("OldGeometryNotAcquired");
+                presenter.ResizeSurfaces();
+                int creations = fixture.Owner.HandleCreations;
+                fixture.Owner.DestroyTestHandle();
+                Check(!fixture.Owner.IsHandleCreated && !fixture.Roots[0].IsHandleCreated &&
+                    presenter.Presentations == 0 && presenter.PendingRoots == 0, "GeometryHandleDestructionInvalidatesPendingGeneration");
+                await Quiesce();
+                Check(!fixture.Owner.IsHandleCreated && fixture.Owner.HandleCreations == creations,
+                    "GeometryScopeDoesNotRecreateDestroyedOwner");
+                fixture.Owner.RecreateForTest();
+                using var newToken = presenter.BeginGeometry() ?? throw new CheckFailure("NewGeometryNotAcquired");
+                presenter.ResizeSurfaces();
+                oldToken.Dispose();
+                await Quiesce();
+                Check(presenter.Presentations == 0 && presenter.PendingRoots == 1 && !presenter.HasQueuedWork,
+                    "OldGeometryTokenCannotEndNewGenerationOrFlushItsDirtyArea");
+                newToken.Dispose();
+                Check(presenter.Presentations == 1 && presenter.PendingRoots == 0,
+                    "NewGeometryGenerationPresentsNormally");
+                using var finalToken = presenter.BeginGeometry() ?? throw new CheckFailure("DisposedGeometryNotAcquired");
+                presenter.ResizeSurfaces();
+                presenter.Dispose(); finalToken.Dispose();
+                Check(presenter.Presentations == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                    "PresenterDisposeMakesGeometryTokensHarmless");
+            }
+
+            async Task CheckGeometryExternalHold()
+            {
+                using var fixture = await OpenFixture();
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, fixture.Roots);
+                using var external = new RedrawHold(fixture.Roots[0]);
+                using (presenter.BeginGeometry() ?? throw new CheckFailure("ExternalGeometryNotAcquired"))
+                {
+                    Check(presenter.BeginLayout(fixture.Roots[0]) == null, "GeometryNeverTakesExternallyHeldRoot");
+                    presenter.ResizeSurfaces();
+                }
+                await Quiesce();
+                Check(external.IsPaused && presenter.Presentations == 0 && presenter.PendingRoots == 1 && !presenter.HasQueuedWork,
+                    "FinalGeometryBoundaryPreservesExternalHoldAndDirtyArea");
+                external.Dispose(); presenter.RetryPending();
+                await Until(() => presenter.Presentations == 1 && presenter.PendingRoots == 0,
+                    "GeometryExternalHoldReleaseDidNotResume");
+                Check(!presenter.HasQueuedWork, "GeometryResumesOnceAfterExternalOwnerReleases");
+            }
+
+            async Task CheckDisposeDuringSettle()
+            {
+                using var fixture = await OpenFixture(2);
+                int settles = 0;
+                LayoutPresentation? presenter = null;
+                try
+                {
+                    presenter = new LayoutPresentation(fixture.Owner, () => false, _ =>
+                    {
+                        settles++;
+                        presenter!.Dispose();
+                    }, fixture.Roots);
+                    presenter.ResizeSurfaces();
+                    Check(presenter.HasQueuedWork && presenter.PendingRoots == 2, "DisposeFixtureQueuesBothRoots");
+                    await Until(() => settles != 0, "DisposeSettleCallbackDidNotRun");
+                    await Quiesce();
+                    Check(settles == 1 && presenter.Presentations == 0 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                        "DisposeDuringSettleStopsBeforePaintingOtherRoots");
+                }
+                finally { presenter?.Dispose(); }
+            }
+
+            async Task CheckPausedSecondBatch()
+            {
+                using var fixture = await OpenFixture(2);
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, fixture.Roots);
+                RedrawHold? hold = null;
+                bool armed = true, pausedInsidePaint = false;
+                PaintEventHandler pauseSecond = (_, _) =>
+                {
+                    if (!armed) return;
+                    armed = false;
+                    hold = new RedrawHold(fixture.Roots[1]);
+                    pausedInsidePaint = true;
+                };
+                fixture.Roots[0].Paint += pauseSecond;
+                try
+                {
+                    presenter.ResizeSurfaces();
+                    await Until(() => pausedInsidePaint && !presenter.HasQueuedWork,
+                        "FirstRootDidNotPauseSecondDuringSynchronousPaint");
+                    var pausedHold = hold ?? throw new CheckFailure("SecondRootExternalHoldWasNotCreated");
+                    Check(pausedHold.IsPaused && presenter.Presentations == 1 && presenter.PendingRoots == 1,
+                        "SkippedSecondBatchRetainsOriginalDirtyArea");
+                    await Quiesce();
+                    Check(pausedHold.IsPaused && !presenter.HasQueuedWork && presenter.PendingRoots == 1 && presenter.Presentations == 1,
+                        "ExternalRedrawPauseIsPreservedWithoutBusyQueue");
+                    pausedHold.Dispose(); hold = null;
+                    Check(GetProp(fixture.Roots[1].Handle, "SysSetRedraw") == IntPtr.Zero &&
+                        IsWindowVisible(fixture.Roots[1].Handle), "OwnedExternalPauseIsReleasedByTestOnly");
+                    presenter.RetryPending();
+                    await Until(() => !presenter.HasQueuedWork && presenter.PendingRoots == 0 && presenter.Presentations == 2,
+                        "ResumedSecondBatchDidNotPresent");
+                    presenter.RetryPending();
+                    await Quiesce();
+                    Check(presenter.Presentations == 2 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                        "ResumedSecondBatchPresentsExactlyOnce");
+                }
+                finally
+                {
+                    fixture.Roots[0].Paint -= pauseSecond;
+                    hold?.Dispose();
+                }
+            }
+
+            async Task CheckUnchangedLayoutRetry()
+            {
+                using var fixture = await OpenFixture();
+                var root = fixture.Roots[0];
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, root);
+                using var hold = new RedrawHold(root);
+                using var declined = presenter.BeginLayout(root);
+                Check(declined == null && hold.IsPaused && presenter.Presentations == 0,
+                    "LayoutHoldNeverTakesOrReleasesExistingExternalHold");
+                presenter.ResizeSurfaces();
+                Check(hold.IsPaused && presenter.PendingRoots == 1 && !presenter.HasQueuedWork && presenter.Presentations == 0,
+                    "InitiallyPausedRootRetainsPendingWithoutQueue");
+                await Quiesce();
+                Check(hold.IsPaused && presenter.PendingRoots == 1 && !presenter.HasQueuedWork && presenter.Presentations == 0,
+                    "InitiallyPausedRootDoesNotPollOrReleaseExternalHold");
+                Rectangle previousBounds = root.Bounds;
+                Size previousWindow = fixture.Owner.ClientSize;
+                hold.Dispose();
+                root.PerformLayout();
+                Check(root.Bounds == previousBounds && fixture.Owner.ClientSize == previousWindow && presenter.HasQueuedWork,
+                    "UnchangedLayoutCanRetryExistingPendingArea");
+                await Until(() => !presenter.HasQueuedWork && presenter.PendingRoots == 0 && presenter.Presentations > 0,
+                    "UnchangedLayoutRetryDidNotPresent");
+                await Quiesce();
+                Check(presenter.Presentations == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                    "UnchangedLayoutRetryPresentsOnceWithoutNewGeometry");
+            }
+
+            async Task CheckSynchronousLayoutHold()
+            {
+                using var fixture = await OpenFixture();
+                var root = fixture.Roots[0];
+                using var child = new Panel { Bounds = new Rectangle(4, 4, 35, 20) };
+                root.Controls.Add(child);
+                int settles = 0;
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, root);
+                using (var layout = presenter.BeginLayout(root) ?? throw new CheckFailure("VisibleLayoutHoldWasNotAcquired"))
+                {
+                    Check(GetProp(root.Handle, "SysSetRedraw") != IntPtr.Zero && presenter.Presentations == 0,
+                        "LayoutTokenOwnsLocalRedrawHold");
+                    for (int index = 0; index < 4; index++)
+                    {
+                        child.Bounds = new Rectangle(9 + index * 12, 8 + index, 36 + index, 22);
+                        Check(GetProp(root.Handle, "SysSetRedraw") != IntPtr.Zero && presenter.Presentations == 0 && settles == 0,
+                            "ChildBoundsChangeKeepsLayoutHoldAndDefersPresentation");
+                    }
+                    using var nested = presenter.BeginLayout(root);
+                    Check(nested == null && GetProp(root.Handle, "SysSetRedraw") != IntPtr.Zero && presenter.PendingRoots == 1,
+                        "NestedLayoutAttemptDoesNotStealOuterHold");
+                }
+                Check(GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle) &&
+                    presenter.Presentations == 1 && settles == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                    "LayoutTokenExitReleasesAndPresentsBeforeReturning");
+                await Quiesce();
+                Check(presenter.Presentations == 1 && settles == 1 && !presenter.HasQueuedWork,
+                    "SynchronousLayoutExitLeavesNoDuplicateQueuedPresentation");
+            }
+
+            // Experimental isolation only: this checks native visibility and
+            // token policy, not intermediate desktop pixels or a visual fix.
+            async Task CheckLogicalOnlyLayoutHold()
+            {
+                using var fixture = await OpenFixture();
+                var root = fixture.Roots[0];
+                using var child = new Panel { Bounds = new Rectangle(4, 4, 35, 20) };
+                root.Controls.Add(child); child.CreateControl();
+                using var clip = new Region(new Rectangle(2, 2, 48, 24));
+                int settles = 0;
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, root)
+                    { NativeLayoutHoldEnabled = false };
+                try
+                {
+                    using (var layout = presenter.BeginLayout(root) ?? throw new CheckFailure("LogicalOnlyLayoutTokenWasNotAcquired"))
+                    {
+                        child.Bounds = new Rectangle(12, 8, 52, 28);
+                        child.Region = clip;
+                        Check(GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle) &&
+                            IsWindowVisible(child.Handle) && child.Bounds == new Rectangle(12, 8, 52, 28) &&
+                            ReferenceEquals(child.Region, clip) && clip.IsVisible(26, 14) && !clip.IsVisible(0, 0) && presenter.Presentations == 0,
+                            "LogicalOnlyTokenKeepsNativeVisibilityDuringBoundsAndRegionChanges");
+                        using var nested = presenter.BeginLayout(root);
+                        Check(nested == null && GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle),
+                            "LogicalOnlyNestedAttemptDoesNotTakeOverTransaction");
+                    }
+                    Check(GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle) &&
+                        presenter.Presentations == 1 && settles == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                        "LogicalOnlyTokenExitStillPresentsSynchronously");
+                    using (var external = new RedrawHold(root))
+                    {
+                        using var declined = presenter.BeginLayout(root);
+                        Check(declined == null && external.IsPaused && presenter.Presentations == 1,
+                            "LogicalOnlyModeStillRespectsExistingExternalRedrawHold");
+                    }
+                    await Quiesce();
+                    Check(presenter.Presentations == 1 && settles == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                        "LogicalOnlyExperimentLeavesNoDuplicatePresentation");
+                }
+                finally { child.Region = null; }
+            }
+
+            async Task CheckThrowingLayoutHold()
+            {
+                using var fixture = await OpenFixture();
+                var root = fixture.Roots[0];
+                using var child = new Panel { Bounds = new Rectangle(4, 4, 35, 20) };
+                root.Controls.Add(child);
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, root);
+                var sentinel = new CheckFailure("SyntheticLayoutMutation");
+                bool caught = false;
+                try
+                {
+                    using var layout = presenter.BeginLayout(root) ?? throw new CheckFailure("ThrowingLayoutHoldWasNotAcquired");
+                    child.Left += 12;
+                    throw sentinel;
+                }
+                catch (CheckFailure error) when (ReferenceEquals(error, sentinel)) { caught = true; }
+                Check(caught && GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle) &&
+                    presenter.Presentations == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                    "ThrowingLayoutMutationFinallyReleasesAndPresents");
+                await Quiesce();
+                Check(presenter.Presentations == 1 && !presenter.HasQueuedWork,
+                    "ThrowingLayoutMutationDoesNotLeaveRedrawOrQueueHeld");
+            }
+
+            async Task CheckDisposedLayoutHold()
+            {
+                using var fixture = await OpenFixture();
+                var root = fixture.Roots[0];
+                using var child = new Panel { Bounds = new Rectangle(4, 4, 35, 20) };
+                root.Controls.Add(child);
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, root);
+                using var layout = presenter.BeginLayout(root) ?? throw new CheckFailure("DisposedLayoutHoldWasNotAcquired");
+                child.Left += 12;
+                presenter.Dispose();
+                layout.Dispose();
+                Check(GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle) &&
+                    presenter.Presentations == 0 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                    "PresenterDisposeReleasesOwnedHoldAndTokenDisposeIsIdempotent");
+                await Quiesce();
+                Check(presenter.Presentations == 0 && !presenter.HasQueuedWork,
+                    "DisposedLayoutPresenterCannotQueueLatePresentation");
+            }
+
+            async Task CheckDestroyedLayoutHold()
+            {
+                using var fixture = await OpenFixture();
+                var root = fixture.Roots[0];
+                using var child = new Panel { Bounds = new Rectangle(4, 4, 35, 20) };
+                root.Controls.Add(child);
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, root);
+                int creations = fixture.Owner.HandleCreations;
+                using var layout = presenter.BeginLayout(root) ?? throw new CheckFailure("DestroyedLayoutHoldWasNotAcquired");
+                child.Left += 12;
+                fixture.Owner.DestroyTestHandle();
+                layout.Dispose();
+                Check(!fixture.Owner.IsHandleCreated && !root.IsHandleCreated && fixture.Owner.HandleCreations == creations &&
+                    presenter.Presentations == 0 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                    "DestroyedLayoutHandleCannotBeReleasedOrRecreatedByToken");
+                await Quiesce();
+                Check(!fixture.Owner.IsHandleCreated && fixture.Owner.HandleCreations == creations && presenter.Presentations == 0,
+                    "DestroyedLayoutHoldLeavesNoDelayedOldHandleWork");
+            }
+
+            async Task CheckRecreatedLayoutGeneration()
+            {
+                using var fixture = await OpenFixture();
+                var root = fixture.Roots[0];
+                using var child = new Panel { Bounds = new Rectangle(4, 4, 35, 20) };
+                root.Controls.Add(child);
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, root);
+                using var oldToken = presenter.BeginLayout(root) ?? throw new CheckFailure("OldGenerationHoldWasNotAcquired");
+                child.Left += 8;
+                int creations = fixture.Owner.HandleCreations;
+                fixture.Owner.DestroyTestHandle();
+                Check(!fixture.Owner.IsHandleCreated && !root.IsHandleCreated, "OldLayoutGenerationActuallyDestroysOwnedHandles");
+                fixture.Owner.RecreateForTest();
+                Check(fixture.Owner.IsHandleCreated && root.IsHandleCreated && fixture.Owner.HandleCreations > creations &&
+                    IsWindowVisible(root.Handle), "RecreatedOwnerAndRootHaveLiveVisibleHandles");
+                using var newToken = presenter.BeginLayout(root) ?? throw new CheckFailure("NewGenerationHoldWasNotAcquired");
+                child.Left += 8;
+                oldToken.Dispose();
+                child.Left += 8;
+                Check(GetProp(root.Handle, "SysSetRedraw") != IntPtr.Zero && presenter.Presentations == 0 && presenter.PendingRoots == 1,
+                    "OldTokenCannotReleaseOrDeactivateNewGenerationHold");
+                newToken.Dispose();
+                Check(GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle) &&
+                    presenter.Presentations == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                    "NewGenerationTokenReleasesAndPresentsNormally");
+                await Quiesce();
+                Check(presenter.Presentations == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                    "RecreatedGenerationRejectsStaleQueuedCallbacks");
+            }
+
+            async Task CheckQueuedClose()
+            {
+                using var fixture = await OpenFixture();
+                int settles = 0;
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, fixture.Roots);
+                presenter.ResizeSurfaces();
+                Check(presenter.HasQueuedWork, "CloseFixtureHasQueuedCallback");
+                fixture.Owner.Close();
+                await Quiesce();
+                Check(fixture.Owner.IsDisposed && settles == 0 && presenter.Presentations == 0 &&
+                    presenter.PendingRoots == 0 && !presenter.HasQueuedWork, "QueuedCloseDiscardsWorkWithoutAccessingOldControls");
+            }
+
+            async Task CheckQueuedHandleDestruction()
+            {
+                using var fixture = await OpenFixture();
+                int settles = 0;
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, fixture.Roots);
+                int creations = fixture.Owner.HandleCreations;
+                presenter.ResizeSurfaces();
+                Check(presenter.HasQueuedWork, "HandleDestructionFixtureHasQueuedCallback");
+                fixture.Owner.DestroyTestHandle();
+                await Quiesce();
+                Check(!fixture.Owner.IsDisposed && !fixture.Owner.IsHandleCreated && fixture.Owner.HandleCreations == creations &&
+                    settles == 0 && presenter.Presentations == 0 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
+                    "QueuedHandleDestructionDoesNotRecreateOrUseOldHandle");
+            }
+
+            async Task CheckMinimized()
+            {
+                using var fixture = await OpenFixture();
+                int settles = 0;
+                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, fixture.Roots);
+                presenter.ResizeSurfaces();
+                Check(presenter.HasQueuedWork, "MinimizeFixtureHasQueuedCallback");
+                fixture.Owner.WindowState = FormWindowState.Minimized;
+                await Until(() => fixture.Owner.WindowState == FormWindowState.Minimized && !presenter.HasQueuedWork,
+                    "MinimizedQueueDidNotSettle");
+                presenter.ResizeSurfaces(); presenter.RetryPending();
+                await Quiesce();
+                Check(fixture.Owner.WindowState == FormWindowState.Minimized && settles == 0 && presenter.Presentations == 0 &&
+                    presenter.PendingRoots == 0 && !presenter.HasQueuedWork, "MinimizedOwnerNeverPresentsOrQueuesMoreWork");
+            }
+
+            async Task Until(Func<bool> ready, string code)
+            {
+                var clock = Stopwatch.StartNew();
+                while (!ready())
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (clock.Elapsed > TimeSpan.FromSeconds(2)) throw new CheckFailure(code);
+                    await Task.Delay(10, token);
+                }
+            }
+            async Task Quiesce() => await Task.Delay(70, token);
+        }) { IsBackground = true };
+        worker.SetApartmentState(ApartmentState.STA);
+        worker.Start();
+        bool finished = worker.Join(TimeSpan.FromSeconds(24));
+        if (!finished)
+        {
+            cancellation.Cancel(); requestClose?.Invoke();
+            finished = worker.Join(TimeSpan.FromSeconds(5));
+            failure = finished ? "PolicyBudgetExceeded" : "PolicyWorkerStillActive";
+        }
+        if (finished) cancellation.Dispose();
+        if (failure != "None" || !finished)
+        {
+            Console.Error.WriteLine("FAIL layout presentation policy code=" + failure + "; checks=" + passed + "; worker_finished=" + finished);
+            return 1;
+        }
+        Console.WriteLine("PASS layout presentation policy checks=" + passed + "; owned_windows_closed=True; no_screen_capture=True");
+        return 0;
+
+        void Check(bool condition, string code)
+        {
+            if (!condition) throw new CheckFailure(code);
+            passed++;
+            Console.WriteLine("PASS layout presentation policy " + code);
+        }
+    }
+
+    private sealed class Fixture : IDisposable
+    {
+        private readonly List<Fixture> owned;
+        internal TestForm Owner { get; }
+        internal Panel[] Roots { get; }
+
+        internal Fixture(Form pump, List<Fixture> owned, int rootCount)
+        {
+            this.owned = owned;
+            Owner = new TestForm
+            {
+                Text = "AsukaLens · Synthetic layout fixture", ClientSize = new Size(350, 130),
+                ShowInTaskbar = false, AutoScaleMode = AutoScaleMode.None,
+                StartPosition = FormStartPosition.CenterParent
+            };
+            Roots = Enumerable.Range(0, rootCount).Select(index => new Panel
+            {
+                Bounds = new Rectangle(10 + index * 165, 10, 150, 90),
+                BackColor = index == 0 ? Color.FromArgb(225, 232, 240) : Color.FromArgb(240, 228, 221)
+            }).ToArray();
+            Owner.Controls.AddRange(Roots);
+            owned.Add(this);
+            Owner.Show(pump);
+        }
+
+        public void Dispose()
+        {
+            owned.Remove(this);
+            if (!Owner.IsDisposed) { Owner.Close(); Owner.Dispose(); }
+        }
+    }
+
+    private sealed class TestForm : Form
+    {
+        internal int HandleCreations { get; private set; }
+        internal void DestroyTestHandle() => DestroyHandle();
+        internal void RecreateForTest()
+        {
+            CreateHandle();
+            foreach (Control child in Controls) { child.CreateControl(); _ = child.Handle; }
+        }
+        protected override void OnHandleCreated(EventArgs e) { HandleCreations++; base.OnHandleCreated(e); }
+    }
+
+    private sealed class RedrawHold : IDisposable
+    {
+        private readonly Control control;
+        private readonly IntPtr handle;
+        private bool released;
+
+        internal RedrawHold(Control control)
+        {
+            this.control = control;
+            if (!control.IsHandleCreated || !control.Visible) throw new CheckFailure("ExternalHoldRequiresOwnedVisibleHandle");
+            handle = control.Handle;
+            if (GetProp(handle, "SysSetRedraw") != IntPtr.Zero) throw new CheckFailure("ExternalHoldWasAlreadyOwnedElsewhere");
+            SendMessage(handle, 0x000B, IntPtr.Zero, IntPtr.Zero);
+        }
+        internal bool IsPaused => !released && !control.IsDisposed && control.IsHandleCreated && control.Handle == handle &&
+            GetProp(handle, "SysSetRedraw") != IntPtr.Zero;
+        public void Dispose()
+        {
+            if (released) return;
+            released = true;
+            if (!control.IsDisposed && control.IsHandleCreated && control.Handle == handle)
+                SendMessage(handle, 0x000B, new IntPtr(1), IntPtr.Zero);
+        }
+    }
+
+    private sealed class CheckFailure(string code) : Exception("LayoutPresentationPolicy")
+    {
+        internal string Code { get; } = code;
+    }
+    [DllImport("user32.dll", EntryPoint = "SendMessageW")]
+    private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll", EntryPoint = "GetPropW", CharSet = CharSet.Unicode)]
+    private static extern IntPtr GetProp(IntPtr window, string name);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindowVisible(IntPtr window);
+}

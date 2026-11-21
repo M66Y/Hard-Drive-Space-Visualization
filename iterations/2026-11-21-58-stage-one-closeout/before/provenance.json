@@ -1,0 +1,14 @@
+{
+  "note": "Disambiguated same-basename entry files before publication of this documentation commit.",
+  "files": {
+    "Program.cs": {
+      "project_path": "Program.cs",
+      "source": "C57 reviewed key-files/Program.cs.txt; no software changes between C57 acceptance and C58 start",
+      "sha256": "FA221B2CA1B08B8B0FD5C78CF029AE36F6B82ED6533771AC0438463460F1DA7A"
+    },
+    "tests__Program.cs": {
+      "project_path": "tests/Program.cs",
+      "source": "C58 start preimage"
+    }
+  }
+}

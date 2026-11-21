@@ -1,0 +1,43 @@
+{
+  "files_replayed": 9,
+  "byte_exact": true,
+  "files": [
+    {
+      "path": "tests/Prototypes/Resize/NativeResizeFrame.cs",
+      "sha256": "5759CE5CBD9F2E161AB9245322ED2570C3B8B2C70361946C7AB570196F1F26E4"
+    },
+    {
+      "path": "tests/Prototypes/Resize/NativeResizeFrameTests.cs",
+      "sha256": "644B730F76D19AB5582ACD1A63558B62D1BDD1B5847A97833A32B3DE842C7C9A"
+    },
+    {
+      "path": "tests/Prototypes/Resize/LiveResizePrototypeForm.cs",
+      "sha256": "4AE75D0687A939277A0007FE9FAE8052305C4B584E9393A2AAD3A8837F5AEB8B"
+    },
+    {
+      "path": "tests/Prototypes/Resize/NativeResizeHostLifecycleTests.cs",
+      "sha256": "DFEAEA9A052CAA9C6CBFD8D12119D421AA65169FEF402AFD5DB399619A4FFEEE"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "18EA5CBC321C9769FA133034092017ACBDE04680409CED50D20BCE1C73B3F7E8"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "B641A6352B5B4FEB585A3C22FD3DF67FA1C86C95C7CA552D8BBCE65D2ED2DB50"
+    },
+    {
+      "path": "docs/ui-rendering-defects-handoff.md",
+      "sha256": "2F2817D8F2E9F2684A522298B1F7B7BD4CA72D02A74761F194E03420E3A6DCCD"
+    },
+    {
+      "path": "docs/ui-dib-mainform-integration-plan.md",
+      "sha256": "77936B74615E1A0AC42DE9294EA1F2E78E78AC22369591FEBF08C237803964ED"
+    },
+    {
+      "path": "tests/ResizeMappingRepairEvidence.Tests.ps1",
+      "sha256": "7D2C1D6724DB4ECD20750CB20D7386987CAFB8F69DF9AD47F82E22F0AE91F137"
+    }
+  ],
+  "baseline": "C49 working tree preimages, not clean HEAD"
+}

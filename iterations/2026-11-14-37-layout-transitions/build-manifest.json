@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "kind": "development-not-release",
+  "files": [
+    {
+      "path": "bin/Release/net10.0-windows/DiskAtlas.dll",
+      "sha256": "C6373B211278EFBA78103D921371021ABDCB444AE197AD15C8183F8B4E61CEB8",
+      "bytes": 3483136
+    },
+    {
+      "path": "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll",
+      "sha256": "B97B82FBE922C7CDE62F2D44E73F1C08BA892BBF8CAAC2C6C81378D14A6D1DF3",
+      "bytes": 5707776
+    }
+  ]
+}

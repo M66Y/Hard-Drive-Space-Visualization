@@ -1,0 +1,146 @@
+{
+  "runs": [
+    {
+      "kind": "old",
+      "interval": 30,
+      "trace": "mainform-089a81aebdaf4d509e3b09479392d961.json",
+      "sha256": "C3079D8D66DC427895BE280375503FB1DF99289D2AB15CABBA3FA39CE496F668",
+      "early": {
+        "NcCalcSizeReturned": {
+          "valid": 0,
+          "black": 0
+        },
+        "WindowPosChangedEntering": {
+          "valid": 20,
+          "black": 20
+        },
+        "NcPaintEntering": {
+          "valid": 20,
+          "black": 20
+        },
+        "NcPaintReturned": {
+          "valid": 20,
+          "black": 20
+        },
+        "EraseEntering": {
+          "valid": 20,
+          "black": 20
+        },
+        "EraseReturned": {
+          "valid": 20,
+          "black": 20
+        }
+      },
+      "replay": "replay-65d92c9abd394a92b9dba087d2371c7c.json",
+      "actual_gap_p50_ms": 710.0409,
+      "actual_gap_p95_ms": 759.9055
+    },
+    {
+      "kind": "dib",
+      "interval": 30,
+      "trace": "mainform-ed5ef67c1ca54552a08351bab2eeb3b9.json",
+      "sha256": "41B0330D99BE4EE7E35CD95FA5E8A97B9B1F7035CFA36D3213BF056F037415AB",
+      "early": {
+        "NcCalcSizeReturned": {
+          "valid": 0,
+          "black": 0
+        },
+        "WindowPosChangedEntering": {
+          "valid": 20,
+          "black": 0
+        },
+        "NcPaintEntering": {
+          "valid": 20,
+          "black": 20
+        },
+        "NcPaintReturned": {
+          "valid": 20,
+          "black": 0
+        },
+        "EraseEntering": {
+          "valid": 20,
+          "black": 0
+        },
+        "EraseReturned": {
+          "valid": 20,
+          "black": 0
+        }
+      },
+      "replay": "replay-c7414cf618024db1bc49eb791c0aba4a.json",
+      "actual_gap_p50_ms": 572.1191,
+      "actual_gap_p95_ms": 788.29
+    },
+    {
+      "kind": "dib",
+      "interval": 100,
+      "trace": "mainform-babbab47581e49ceb93448c512615440.json",
+      "sha256": "4ECC7FC4CB36E4B8D2B60F91BBB11F4E045FEF2C0ACF5A22EC9378E02E3691E8",
+      "early": {
+        "NcCalcSizeReturned": {
+          "valid": 0,
+          "black": 0
+        },
+        "WindowPosChangedEntering": {
+          "valid": 20,
+          "black": 0
+        },
+        "NcPaintEntering": {
+          "valid": 20,
+          "black": 20
+        },
+        "NcPaintReturned": {
+          "valid": 20,
+          "black": 0
+        },
+        "EraseEntering": {
+          "valid": 20,
+          "black": 0
+        },
+        "EraseReturned": {
+          "valid": 20,
+          "black": 0
+        }
+      },
+      "replay": "replay-b27832ab4968453bab56843b0df9bf32.json",
+      "actual_gap_p50_ms": 615.0994,
+      "actual_gap_p95_ms": 774.0543
+    },
+    {
+      "kind": "old",
+      "interval": 100,
+      "trace": "mainform-a36bc8f601f74bdb8af2c9ba5c0836c1.json",
+      "sha256": "CB803A5F164D4C6531FF23CFB20CE19716A82E69371DE0CFD72E08646EE8A839",
+      "early": {
+        "NcCalcSizeReturned": {
+          "valid": 0,
+          "black": 0
+        },
+        "WindowPosChangedEntering": {
+          "valid": 20,
+          "black": 20
+        },
+        "NcPaintEntering": {
+          "valid": 20,
+          "black": 20
+        },
+        "NcPaintReturned": {
+          "valid": 20,
+          "black": 20
+        },
+        "EraseEntering": {
+          "valid": 20,
+          "black": 20
+        },
+        "EraseReturned": {
+          "valid": 20,
+          "black": 20
+        }
+      },
+      "replay": "replay-450570ec87194881bd12a8baacd2fe2f.json",
+      "actual_gap_p50_ms": 677.6386,
+      "actual_gap_p95_ms": 779.8904
+    }
+  ],
+  "evidence": "GDI samples only, not continuous display",
+  "source_note": "Paint code as final; final build additionally guards acquisition exceptions and retains acquired HWND for release"
+}

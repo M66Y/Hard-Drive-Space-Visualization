@@ -1,0 +1,82 @@
+{
+  "revision": "c30-visual-proportions-v1",
+  "date": "2026-11-13",
+  "baseline": "9ac1f0b30f31a4f00a4f55048409b1999cabbaf0",
+  "scope": "stage-one-proportions-correction",
+  "user_stage_result_review": "pending",
+  "stage_two_started": false,
+  "build": {
+    "tests": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "application": {
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "regression": {
+    "activity_panel_144": 50,
+    "activity_panel_96": 50,
+    "visual_surface_96": 458,
+    "visual_surface_144": 458,
+    "ui_96": "passed",
+    "activity_mainform_96": 77,
+    "activity_mainform_144": 77,
+    "ui_144": "passed"
+  },
+  "layout": {
+    "ordinary_font_sizes_preserved": true,
+    "top_rows_before_dip": 331,
+    "top_rows_after_dip": 288,
+    "resize_preserves_source_and_history": true,
+    "expanded_max_dip": 180,
+    "collapsed_activity_dip": 30,
+    "minimum_expanded_paged_full_row_guaranteed": false,
+    "common_metrics": "two-by-two",
+    "paging_reserved": true,
+    "common_curve_dip": 116,
+    "short_metrics": "one-by-four",
+    "expanded_min_dip": 112
+  },
+  "desktop": {
+    "search_focus_visible": true,
+    "native_screenshots": true,
+    "common_expanded": true,
+    "common_collapsed": true,
+    "minimum_expanded": true,
+    "ai_image_edits": false,
+    "dpi": 144
+  },
+  "preview": {
+    "baseline_expansion_rejected": true,
+    "settings_isolated": true,
+    "graceful_close_and_cleanup": true,
+    "activity_real_pdh": false,
+    "owned_directory_real_scan": true,
+    "diagnostics_loaded": false,
+    "activity_synthetic": true,
+    "display_paths_aliased": true,
+    "tree_paths_unchanged": true
+  },
+  "initial_findings": {
+    "sandbox_gdi_not_used_as_product_failure": true,
+    "native_combo_height_96_fixed": true,
+    "caption_width_96_fixed_without_font_reduction": true,
+    "test_wait_bound_to_displayed_revision": true
+  },
+  "limits": {
+    "performance_benchmark_not_run": true,
+    "dynamic_cross_monitor_not_observed": true,
+    "dpi_125_not_observed": true,
+    "windows10_new_visuals_not_observed": true,
+    "system_text_scaling_not_observed": true,
+    "all_reference_resolutions_not_observed": true
+  },
+  "personal_directory_scan": false,
+  "raw_vss_vhd_used": false,
+  "release_created": false,
+  "cleanup": {
+    "final_check_pending": true
+  }
+}

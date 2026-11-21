@@ -1,0 +1,12 @@
+{
+  "byte_exact": true,
+  "current_files": 17,
+  "deleted_files": [
+    "tests/Prototypes/Resize/NativeResizeFrame.cs"
+  ],
+  "reconstructed_preimages": [
+    "tests/StageOnePreview.cs",
+    "tests/Prototypes/Resize/ResizeDiagnosticTrace.cs"
+  ],
+  "base": "C50 working tree preimages, not clean HEAD"
+}

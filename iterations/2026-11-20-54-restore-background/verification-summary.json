@@ -1,0 +1,226 @@
+{
+  "implementation_and_acceptance_date": "2026-11-20",
+  "resumed_closeout_date": "2026-11-21",
+  "recorded_builds": {
+    "application": "passed; zero warnings/errors",
+    "tests": "passed; zero warnings/errors"
+  },
+  "no_test_rerun_for_documentation_closeout": true,
+  "unchanged_reviewed_source_and_binaries": true,
+  "checks": {
+    "transparent_restore": {
+      "cases": 4,
+      "checks_each": 38,
+      "dpi": [
+        144,
+        96
+      ],
+      "backgrounds": [
+        "default",
+        "synthetic-custom"
+      ],
+      "exact_rgb": true
+    },
+    "native_window_clip": {
+      "cases": 2,
+      "checks_each": 12
+    },
+    "complete_ui": {
+      "cases": 4,
+      "paths": [
+        "ordinary",
+        "DIB"
+      ],
+      "dpi": [
+        144,
+        96
+      ]
+    },
+    "dib_integration": {
+      "cases": 2,
+      "checks_each": 26,
+      "combined_map_grid_pixels": 1698575,
+      "differences": 0
+    },
+    "native_frame": {
+      "checks": 608,
+      "rgba_pixels": 6513984
+    },
+    "root_composite": {
+      "cases": 2,
+      "checks_each": 31,
+      "rgba_pixels_each": 126958
+    },
+    "visual_surface": [
+      688,
+      658
+    ],
+    "layout_transition": [
+      35,
+      35
+    ],
+    "layout_presentation": [
+      98,
+      98
+    ],
+    "treemap_glow": [
+      99,
+      99
+    ],
+    "wallpaper_scroll": [
+      16,
+      16
+    ]
+  },
+  "negative_control": "negative-check.json",
+  "comparison": "comparison-summary.json",
+  "logs": {
+    "glow-144.log": {
+      "sha256": "88B32A07C2402488A2C7D13112F92033012B494192EB8FD7AA181DDC86F4C94A",
+      "bytes": 8163,
+      "recorded_run_passed": true
+    },
+    "glow-96.log": {
+      "sha256": "88B32A07C2402488A2C7D13112F92033012B494192EB8FD7AA181DDC86F4C94A",
+      "bytes": 8163,
+      "recorded_run_passed": true
+    },
+    "integration-144.log": {
+      "sha256": "CE5ED9C6B8ACE7697ED18100344CA717D6032041EF57DD28EFAE62D5E4937268",
+      "bytes": 354,
+      "recorded_run_passed": true
+    },
+    "integration-96.log": {
+      "sha256": "98C5A0D1CA5BB7909CF67896C526B90837E26A6B71C756F74E9BF4429E7E0DFE",
+      "bytes": 356,
+      "recorded_run_passed": true
+    },
+    "layout-144.log": {
+      "sha256": "664D23172CDE5D5FED0A4200D30FAF7544494A8583E1463B8B1D505BF7FACE8B",
+      "bytes": 2463,
+      "recorded_run_passed": true
+    },
+    "layout-96.log": {
+      "sha256": "0ED4650C903DF3A66761559E28E22D35BC9A03CBE733B9CD16D769463E4F64D6",
+      "bytes": 2461,
+      "recorded_run_passed": true
+    },
+    "native-frame.log": {
+      "sha256": "566BC24DB68C43FF0505317E506E08C2789B6ACC062088F1C3D3CD84EBCCA6B5",
+      "bytes": 116,
+      "recorded_run_passed": true
+    },
+    "native-window-144.log": {
+      "sha256": "AA58FF741E70633664BAF3D5D1D672AA37B293122E66FBF07AE65D835A9117D9",
+      "bytes": 49,
+      "recorded_run_passed": true
+    },
+    "native-window-96.log": {
+      "sha256": "AA58FF741E70633664BAF3D5D1D672AA37B293122E66FBF07AE65D835A9117D9",
+      "bytes": 49,
+      "recorded_run_passed": true
+    },
+    "performance-off.log": {
+      "sha256": "A70EF65E4A323B38699748314D6A4203C0CB4F0FE2C694C8238E6330FC25305F",
+      "bytes": 85,
+      "recorded_run_passed": true
+    },
+    "performance-on.log": {
+      "sha256": "C118EC1A70A5C7E323CD4DAECDE2C8CFAD715F8B2A1AA977C79402FF1F5D6D22",
+      "bytes": 84,
+      "recorded_run_passed": true
+    },
+    "presentation-144.log": {
+      "sha256": "9D3D8C622C04343999BCA9FC626CD264EEFE877BF90AB84D129095AF2A5C1958",
+      "bytes": 8240,
+      "recorded_run_passed": true
+    },
+    "presentation-96.log": {
+      "sha256": "9D3D8C622C04343999BCA9FC626CD264EEFE877BF90AB84D129095AF2A5C1958",
+      "bytes": 8240,
+      "recorded_run_passed": true
+    },
+    "restore-custom-144.log": {
+      "sha256": "B634125C2AD4F495412454A19757134355C570DDCE071E8FFB1212BC4D5BA842",
+      "bytes": 74,
+      "recorded_run_passed": true
+    },
+    "restore-custom-96.log": {
+      "sha256": "E8DA0986346C290DBAB61C8A90D8C8E2ED41E059C508682834A2F7E60075ECAB",
+      "bytes": 73,
+      "recorded_run_passed": true
+    },
+    "restore-default-144.log": {
+      "sha256": "F0C0C1E3C61817B7C2555F13E9A8E67D3B65D6C275C60C97EB6C62E27D7FC140",
+      "bytes": 75,
+      "recorded_run_passed": true
+    },
+    "restore-default-96.log": {
+      "sha256": "F29B9FD7ED88C6B7939BC4AF81B4AE25AB89B992641BBD280B925A36884991F4",
+      "bytes": 74,
+      "recorded_run_passed": true
+    },
+    "root-144.log": {
+      "sha256": "D07187CB173A68DB574AE93C0F7DAC4FBF1E2408873CDF35E34955043C55C252",
+      "bytes": 83,
+      "recorded_run_passed": true
+    },
+    "root-96.log": {
+      "sha256": "D07187CB173A68DB574AE93C0F7DAC4FBF1E2408873CDF35E34955043C55C252",
+      "bytes": 83,
+      "recorded_run_passed": true
+    },
+    "scroll-144.log": {
+      "sha256": "202519437678035A5EEE8FC65F06E00F22693AE513E5FD4A78C2F853D3EA0C9C",
+      "bytes": 140,
+      "recorded_run_passed": true
+    },
+    "scroll-96.log": {
+      "sha256": "202519437678035A5EEE8FC65F06E00F22693AE513E5FD4A78C2F853D3EA0C9C",
+      "bytes": 140,
+      "recorded_run_passed": true
+    },
+    "surface-144.log": {
+      "sha256": "2780E536BE2A6AD151921C65183C84367FA0A87B6040C677F887A1DEC69F0DC2",
+      "bytes": 340,
+      "recorded_run_passed": true
+    },
+    "surface-96.log": {
+      "sha256": "0C1B8D59270CE43D61A986ED79F2C45F0948513FEDE501C3C11DDCC8AE9B8EAD",
+      "bytes": 510,
+      "recorded_run_passed": true
+    },
+    "ui-dib-144.log": {
+      "sha256": "059CE5A141000532039CA87BA91B33F1C122B37E57217C089CB53384048A5D8F",
+      "bytes": 4945,
+      "recorded_run_passed": true
+    },
+    "ui-dib-96.log": {
+      "sha256": "52B1D4BFE87D9D1BCDF131664DF2795E29E96C4D3B83B782445BEB003F53405F",
+      "bytes": 4938,
+      "recorded_run_passed": true
+    },
+    "ui-normal-144.log": {
+      "sha256": "149283D104F59DA9D8D8580B4603F2CAA3F7C65DE5488D293F77EFEFCD372FE3",
+      "bytes": 4945,
+      "recorded_run_passed": true
+    },
+    "ui-normal-96.log": {
+      "sha256": "C3BDE6545E3776ED470712B44A19427C182980C54E3F0E2AEF04C359633B9F65",
+      "bytes": 4937,
+      "recorded_run_passed": true
+    }
+  },
+  "actual_ui": {
+    "maximize_restore_observed": true,
+    "localized_rectangle_gone": true,
+    "user_feedback": "背景残留已消失，保留C54",
+    "extra_manual_workspace_and_scroll_completed_in_C54": false
+  },
+  "limits": [
+    "not continuous-flash closure",
+    "no real cross-monitor DPI acceptance",
+    "automated pixels do not establish all real-screen transitions",
+    "no default change or Release"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "revision": 1,
+  "git_baseline": "9ac1f0b30f31a4f00a4f55048409b1999cabbaf0",
+  "patch_base": "inherited-C48-working-tree-before-snapshots",
+  "files": [
+    {
+      "file": "tests/Prototypes/Resize/LiveResizePrototypeForm.cs",
+      "before_sha256": "cfe59eeef69a9ec225b58e3a4d6f5df392736bc1aeed2b18990099a9331389ed",
+      "after_sha256": "37167cb4de26a7d14ef961a5172d3342dbafeaea5ef434b7db545f1c979df0be",
+      "snapshot": "key-files/LiveResizePrototypeForm.cs.txt"
+    },
+    {
+      "file": "tests/Prototypes/Resize/LiveResizePreview.cs",
+      "before_sha256": "f5c59b4fcea5454aaa77b74a3f837ade2367c803ae32992bc5b9c1a39b579594",
+      "after_sha256": "9737874c820db5119f725ee0823b4af92128c9b7df2143115cd14025145fcbfb",
+      "snapshot": "key-files/LiveResizePreview.cs.txt"
+    },
+    {
+      "file": "tests/Prototypes/Resize/ResizeDiagnosticTrace.cs",
+      "before_sha256": "d69c48ce72b3b10db5fe9eebbc0bcd703b5c2b1e8908bf26a178b15aabfac1a6",
+      "after_sha256": "8d4112073843493cbf930aa7887b4cf1bdd1f66a32f70bc8394c2e90d32c0483",
+      "snapshot": "key-files/ResizeDiagnosticTrace.cs.txt"
+    },
+    {
+      "file": "tests/ResizeMappingEvidence.Tests.ps1",
+      "before_sha256": null,
+      "after_sha256": "22040dd167bd74b2674c054df3ff386e66eb11374e18f4c27c3e731bd1eae2d3",
+      "snapshot": "key-files/ResizeMappingEvidence.Tests.ps1.txt"
+    }
+  ],
+  "patch_sha256": "ea97290e57a9d99e7c946c6ac50de8d4b624febe44eb158180bbffb5218c0bb8",
+  "test_dll_sha256": "594c1172952ddb3e9722bc59c24afc302a114db93b6ab0b16956d2ea5830cfeb",
+  "retained_C48_dll_sha256": "e9eb112d87b84032fd077ba685194246072ab695ac8507b35995ccef11013bbc",
+  "normal_dll_sha256": "8690f5f5a1cc9160a698caa0e355966d87b9ed1f5e1c27659ad6dd5b865886b1",
+  "native_frame_unchanged": true,
+  "formal_release": false,
+  "commit_created": false,
+  "patch_replay": "4-of-4-exact-SHA256; core.autocrlf=false; core.eol=lf",
+  "local_trace_archive": {
+    "path": "artifacts/resize-mapping-C49/owned-traces.zip",
+    "count": 24,
+    "sha256": "F07D3F72AB9B5C1402368F0EDEA8A63188A586464A27404221260EB68939A71D",
+    "all_entries_hash_verified": true,
+    "local_only": true
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "baseline": "9ac1f0b30f31a4f00a4f55048409b1999cabbaf0",
+  "normal_default_enabled": false,
+  "files": [
+    {
+      "path": "Program.cs",
+      "sha256": "926043C3D09D1E475C5B066FCB039048F00B334F29AF6CCD9B94E0F5D6F71B91",
+      "bytes": 2883
+    },
+    {
+      "path": "MainForm.cs",
+      "sha256": "9486DEB6B7F1C4385A7B1EBC4A33A9EB0453D9BCC6F2B7E04F1840552C4B7064",
+      "bytes": 95466
+    },
+    {
+      "path": "Wallpaper.cs",
+      "sha256": "6A2361F64797293A0E9B235303EAE6311AF77D9872FC23BC2E250B45878AE2DF",
+      "bytes": 36891
+    },
+    {
+      "path": "TreemapControl.cs",
+      "sha256": "08707907D45EDBE69A442F131A9DD862B7FCAD50EAE46098CCE1B283D2B7911F",
+      "bytes": 28861
+    },
+    {
+      "path": "src/UI/LayoutPresentation.cs",
+      "sha256": "2AA7B9FC4310615F96123CEB78BDD3B7396E9F49C96BE874C279859573F4191A",
+      "bytes": 21693
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "E5CC10F39639F0F5DC12663BE11575C86DDA49210ECBF35539A6B282BA4E93F4",
+      "bytes": 71283
+    },
+    {
+      "path": "tests/UiRegression.cs",
+      "sha256": "9D2A0A6683A910323D0461340E0CEB7969660C71D9D8B36564E2F3962BC2E5A9",
+      "bytes": 53108
+    },
+    {
+      "path": "tests/StageOnePreview.cs",
+      "sha256": "32F203ABBE10B952244EA04C0D4B0B99D9B1A4AF66940A713DBD99778864829A",
+      "bytes": 54131
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "19BABD98BCBF6ADECDE14FF2A85BAF06F6D2E8BA06C93549C21D04B875F4540C",
+      "bytes": 77117
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "CDF3C76B8AF9637828EA7D5BBD4CE46FB3F30C442B3357E99AC048DA15CC3730",
+      "bytes": 67092
+    },
+    {
+      "path": "docs/ui-rendering-defects-handoff.md",
+      "sha256": "ED90FDE38F7417388B93E1D9A3D4845717EA747089A06274DD8326E4BCCA0F27",
+      "bytes": 15447
+    },
+    {
+      "path": "docs/ui-dib-mainform-integration-plan.md",
+      "sha256": "F8F3CD101115D0B8EFEBBA1EFC109C5DEE198745789EF5D6E7551A5C54D42966",
+      "bytes": 10611
+    },
+    {
+      "path": "tests/Prototypes/Resize/ResizeDiagnosticTrace.cs",
+      "sha256": "C489D1616F0D4805B4DF93E2C930433EEFAABE323A572D3106E4039CC61D9C77",
+      "bytes": 36944
+    },
+    {
+      "path": "src/UI/Rendering/NativeResizeFrame.cs",
+      "sha256": "E1E1E68F0E024DB048A1E8A5DDB61C799654B7FDA2D1EC541C05E32D4FEBA0F6",
+      "bytes": 15127
+    },
+    {
+      "path": "src/UI/Rendering/RenderSession.cs",
+      "sha256": "8A222F2C413622803CFFB843D6D62375EDF8375D16C5DBC2EE0A86AC8417140A",
+      "bytes": 5202
+    },
+    {
+      "path": "src/UI/Rendering/DibWindowCoverage.cs",
+      "sha256": "2F4B66657DEC637BD6B2B5D22533A053390256D03591B713D5BCFD556712736D",
+      "bytes": 6484
+    },
+    {
+      "path": "tests/DibMainFormTests.cs",
+      "sha256": "705960B57D9B13A6F6A26B9F811B22EE02C8EE537D5F0E41B3FACF7FB1C59D2D",
+      "bytes": 8160
+    },
+    {
+      "path": "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll",
+      "sha256": "1FECBAB64430E911E1DCFF99FC19F1C702E74961D8971F3F1D089CD866AF405F",
+      "bytes": 6120960
+    },
+    {
+      "path": "artifacts/dib-mainform-C51/app/AsukaLens.DibCandidate.exe",
+      "sha256": "CD8B2D593A625724F503CF2B07213BDE743572662CC4CFC1B6AE1F6C5C75451F",
+      "bytes": 319488
+    },
+    {
+      "path": "artifacts/dib-mainform-C51/app/DiskAtlas.dll",
+      "sha256": "72F1180FA6FF1DB7DAEAC7253E75F91ECE14D7945EF5EAFBFD5A8D864B3B81FA",
+      "bytes": 3509760
+    },
+    {
+      "path": "artifacts/dib-mainform-C51/app/DiskAtlas.deps.json",
+      "sha256": "917E3D4746D29D407A90BA393CBCDE3EA26938962DE90E3A23F1DB021F503CE2",
+      "bytes": 421
+    },
+    {
+      "path": "artifacts/dib-mainform-C51/app/DiskAtlas.runtimeconfig.json",
+      "sha256": "96BC2946DFF8790400D652EC7F8DE7BB043E954980D59470C112788B68A1FBD3",
+      "bytes": 519
+    },
+    {
+      "path": "bin/Release/net10.0-windows/DiskAtlas.dll",
+      "sha256": "8690F5F5A1CC9160A698CAA0E355966D87B9ED1F5E1C27659AD6DD5B865886B1",
+      "bytes": 3488256
+    },
+    {
+      "path": "artifacts/resize-candidate-C50/app/DiskAtlas.Tests.dll",
+      "sha256": "E275BE9FD0553B4FEF41DF2CF195DFBB44171A68201CC79344FA2ABD021293EA",
+      "bytes": 6101504
+    }
+  ]
+}

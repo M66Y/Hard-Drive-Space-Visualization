@@ -1,0 +1,406 @@
+using System.Diagnostics;
+using System.Reflection;
+using DiskAtlas;
+
+// Natural message/paint observations only. No screen capture, DrawToBitmap,
+// Refresh, Update, extra PerformLayout, personal settings, or directory scan.
+// A successful result is a presentation-order check, not desktop pixel proof.
+internal static class LayoutTransitionRegression
+{
+    private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
+    private const string SyntheticPath = @"X:\AsukaLens-Layout-Synthetic";
+
+    internal static int Run(bool dpi96 = false)
+    {
+        int passed = 0;
+        string? fatal = null;
+        var failures = new List<string>(32);
+        var observations = new List<Observation>(16);
+        long idleMilliseconds = 0;
+        int idleBoundaries = 0;
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(24));
+        Action? requestClose = null;
+        var worker = new Thread(() =>
+        {
+            try
+            {
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                using var entered = new ManualResetEventSlim();
+                int runnerMode = 0;
+                int backendCancelled = 0;
+                SynchronizationContext? uiContext = null;
+                using var form = CreateForm((_, progress, token, session) =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (Volatile.Read(ref runnerMode) == 0)
+                    {
+                        session.Attach(Snapshot(false).Root);
+                        progress.Report(new(1101, 1, 1101 * 4096L, SyntheticPath));
+                        entered.Set();
+                        token.WaitHandle.WaitOne();
+                        if (token.IsCancellationRequested) Interlocked.Exchange(ref backendCancelled, 1);
+                        token.ThrowIfCancellationRequested();
+                        throw new Failure("BlockedRunnerUnexpectedlyContinued");
+                    }
+                    return Snapshot(Volatile.Read(ref runnerMode) == 1);
+                });
+                requestClose = () =>
+                {
+                    try
+                    {
+                        uiContext?.Post(_ =>
+                        {
+                            if (!form.IsDisposed)
+                            {
+                                Field<CancellationTokenSource?>(form, "scanCancellation")?.Cancel();
+                                form.Close();
+                            }
+                            Application.ExitThread();
+                        }, null);
+                    }
+                    catch (InvalidOperationException) { }
+                };
+                Task? scanTask = null;
+                form.Shown += async (_, _) =>
+                {
+                    uiContext = SynchronizationContext.Current;
+                    try
+                    {
+                        Field<CheckBox>(form, "reduceMotion").Checked = true;
+                        StopTimers(form);
+                        var baseline = Snapshot(false);
+                        Set(form, "scan", baseline); Set(form, "current", baseline.Root);
+                        await View(form);
+                        await NaturalIdle();
+                        var scope = Field<Label>(form, "subtitle");
+                        var main = Field<WallpaperTable>(form, "scopePanel").Parent!;
+                        var analysis = main.Controls.OfType<WallpaperSplitContainer>().Single();
+                        var grid = Field<WallpaperGrid>(form, "grid");
+                        var map = Field<TreemapControl>(form, "map");
+                        using var trace = new TransitionTrace(main,
+                            [("MapTitle", Field<Label>(form, "mapTitle")), ("ListTitle", Field<Label>(form, "listTitle")),
+                             ("Map", map), ("Grid", grid)]);
+
+                        // The scope row is the production trigger that moves
+                        // the analysis ancestor, titles and both data surfaces.
+                        await Measure("ScopeSingle", () => { scope.Text = "合成范围说明"; return Task.CompletedTask; }, analysis, true);
+                        float single = Field<RowStyle>(form, "scopeRow").Height;
+                        await Measure("ScopeWrapped", () =>
+                        {
+                            scope.Text = string.Join(" · ", Enumerable.Repeat("只读快照，链接及目标未纳入，未知占用保持未知", 12));
+                            return Task.CompletedTask;
+                        }, analysis, true);
+                        Check(Field<RowStyle>(form, "scopeRow").Height > single, "ScopeFixtureActuallyBecomesMultiline");
+                        await Measure("ScopeCleared", () => { scope.Text = ""; return Task.CompletedTask; }, analysis, true);
+                        Check(Field<RowStyle>(form, "scopeRow").Height == 0, "ScopeFixtureActuallyCollapses");
+
+                        // Multiple native resizes in one operation must finish
+                        // with paints from the final geometry, not an earlier size.
+                        await Measure("ResizeBurst", () =>
+                        {
+                            Size original = form.ClientSize;
+                            form.ClientSize = new Size(original.Width - 17, original.Height - 11);
+                            form.ClientSize = new Size(original.Width - 31, original.Height - 19);
+                            form.ClientSize = original;
+                            return Task.CompletedTask;
+                        }, analysis, false);
+
+                        await Measure("Paging", () =>
+                        {
+                            Field<ActionButton>(form, "nextPage").PerformClick();
+                            return Task.CompletedTask;
+                        }, analysis, false, onlyGrid: true);
+                        Check(grid.RowCount == 101, "PagingFixtureActuallyChangesVisibleRows");
+
+                        await Measure("RefreshStart", () =>
+                        {
+                            entered.Reset(); scanTask = Scan(form); StopTimers(form);
+                            return Task.CompletedTask;
+                        }, analysis, true);
+                        await Until(() => entered.IsSet, "BlockedRefreshDidNotStart");
+                        Check(!Field<System.Windows.Forms.Timer>(form, "previewTimer").Enabled,
+                            "PreviewTimerCannotRepairTransitionDuringObservation");
+                        await Measure("RefreshCancel", async () =>
+                        {
+                            Field<ActionButton>(form, "cancel").PerformClick();
+                            await scanTask!;
+                        }, analysis, true);
+                        Check(Field<ScanProgressControl>(form, "progressBar").State == ScanDisplayState.Cancelled,
+                            "CancellationFixtureReturnsToTerminalState");
+
+                        Volatile.Write(ref runnerMode, 1);
+                        await Measure("PartialResult", async () => { await Scan(form); StopTimers(form); }, analysis, true);
+                        await Until(() => Field<CancellationTokenSource?>(form, "viewCancellation") == null,
+                            "PartialViewDidNotFinish");
+                        Check(Field<Label>(form, "subtitle").Text.Contains("未读全", StringComparison.Ordinal) &&
+                            Field<ActionButton>(form, "issues").Visible && Field<RowStyle>(form, "footerShellRow").Height > 0,
+                            "PartialFixtureChangesScopeAndFooter");
+                        Volatile.Write(ref runnerMode, 2);
+                        await Measure("CompleteResult", async () => { await Scan(form); StopTimers(form); }, analysis, true);
+                        await Until(() => Field<CancellationTokenSource?>(form, "viewCancellation") == null,
+                            "CompleteViewDidNotFinish");
+                        Check(!Field<ActionButton>(form, "issues").Visible, "CompleteFixtureRemovesPartialFooter");
+
+                        // Keep the production registration scope: redistribute
+                        // the existing main padding without changing its total
+                        // vertical size. The analysis ancestor moves while the
+                        // grid retains exactly the same local bounds.
+                        Rectangle localGrid = grid.Bounds;
+                        Rectangle gridInMain = RelativeBounds(grid, main);
+                        Padding padding = main.Padding;
+                        await Measure("AncestorMove", () =>
+                        {
+                            main.Padding = new Padding(padding.Left, padding.Top + 8, padding.Right, padding.Bottom - 8);
+                            return Task.CompletedTask;
+                        }, analysis, true);
+                        Check(grid.Bounds == localGrid && RelativeBounds(grid, main) != gridInMain &&
+                            main.Padding.Vertical == padding.Vertical,
+                            "AncestorMovesWhileGridLocalBoundsAndAvailableHeightStayFixed");
+                        // Keep the harness message loop alive while the last
+                        // owned window closes, so ScanFolder's cancellation
+                        // continuation can complete instead of losing its pump.
+                        Volatile.Write(ref runnerMode, 0);
+                        Interlocked.Exchange(ref backendCancelled, 0);
+                        entered.Reset();
+                        scanTask = Scan(form); StopTimers(form);
+                        await Until(() => entered.IsSet, "ClosingFixtureDidNotStart");
+                        form.Close();
+                        await scanTask.WaitAsync(TimeSpan.FromSeconds(2), stop.Token);
+                        Check(form.IsDisposed && scanTask.IsCompleted && Volatile.Read(ref backendCancelled) == 1,
+                            "ClosingCancelsOwnedPendingScanAndReleasesWindow");
+
+                        async Task Measure(string code, Func<Task> action, Control affected, bool requireMovement, bool onlyGrid = false)
+                        {
+                            await NaturalIdle();
+                            long started = Stopwatch.GetTimestamp();
+                            Rectangle before = RelativeBounds(affected, main);
+                            trace.Reset();
+                            await action();
+                            Rectangle after = RelativeBounds(affected, main);
+                            if (requireMovement) Check(before != after, code + "ActuallyChangesAnalysisGeometry");
+                            Rectangle band = Rectangle.Union(before, after);
+                            // This callback is posted only after the operation
+                            // returns. It does not force any paint or layout.
+                            var first = await FirstQueuedCheck(form, () => trace.Read(code, band, onlyGrid)).WaitAsync(stop.Token);
+                            first = first with { ElapsedMilliseconds = (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds };
+                            observations.Add(first);
+                            if (onlyGrid)
+                            {
+                                // Pagination changes data while its paging row
+                                // remains present. Keep its first-check sample
+                                // diagnostic; require ordinary idle paint, not
+                                // synchronous geometry presentation.
+                                Check(before == after, code + "_DataUpdatePreservesAnalysisGeometry");
+                                await NaturalIdle();
+                                var settled = trace.Read(code + "NaturalIdle", band, true) with
+                                {
+                                    ElapsedMilliseconds = (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds
+                                };
+                                observations.Add(settled);
+                                Check(settled.FinalChildrenPainted, code + "_GridPaintedByNaturalIdle");
+                            }
+                            else
+                            {
+                                Check(first.ParentExposurePainted, code + "_ParentExposurePaintedBeforeFirstQueuedCheck");
+                                Check(first.FinalChildrenPainted, code + "_FinalGeometryDescendantsPaintedBeforeFirstQueuedCheck");
+                            }
+                        }
+                    }
+                    catch (Failure error) { fatal = error.Code; }
+                    catch (OperationCanceledException) { fatal = "ObservationBudgetExpired"; }
+                    catch { fatal = "UnexpectedTransitionFailure"; }
+                    finally
+                    {
+                        Field<CancellationTokenSource?>(form, "scanCancellation")?.Cancel();
+                        if (scanTask is { IsCompleted: false })
+                        {
+                            try { await scanTask.WaitAsync(TimeSpan.FromSeconds(2)); }
+                            catch { fatal ??= "PendingScanCleanupFailed"; }
+                        }
+                        if (!form.IsDisposed) form.Close();
+                        Application.ExitThread();
+                    }
+                };
+                // No MainForm is attached to this context: closing it must not
+                // terminate the pump before its asynchronous cleanup resumes.
+                using var context = new ApplicationContext();
+                form.Show();
+                Application.Run(context);
+            }
+            catch (Failure error) { fatal = error.Code; }
+            catch { fatal = "UnexpectedTransitionWorkerFailure"; }
+        }) { IsBackground = true };
+        worker.SetApartmentState(ApartmentState.STA);
+        worker.Start();
+        bool finished = worker.Join(TimeSpan.FromSeconds(26));
+        if (!finished)
+        {
+            stop.Cancel(); requestClose?.Invoke();
+            finished = worker.Join(TimeSpan.FromSeconds(5));
+            fatal = finished ? "TransitionBudgetExceededAndWindowClosed" : "TransitionWorkerDidNotClose";
+        }
+        if (finished)
+            foreach (var item in observations)
+                Console.WriteLine("OBSERVE layout transition code=" + item.Code + "; parent_paints=" + item.ParentPaints +
+                    "; parent_invalidations=" + item.ParentInvalidations + "; child_paints=" + item.ChildPaints +
+                    "; child_invalidations=" + item.ChildInvalidations + "; parent_exposure_painted=" + item.ParentExposurePainted +
+                    "; final_children_painted=" + item.FinalChildrenPainted + "; operation_ms=" + item.ElapsedMilliseconds);
+        if (finished)
+        {
+            Console.WriteLine("OBSERVE layout harness idle_boundaries=" + idleBoundaries + "; idle_total_ms=" + idleMilliseconds);
+            foreach (string code in failures) Console.WriteLine("CHECK layout transition code=" + code + "; passed=False");
+        }
+        if (fatal != null || failures.Count > 0 || !finished)
+        {
+            Console.Error.WriteLine("FAIL layout transition code=" + (fatal ?? failures[0]) +
+                "; failed_checks=" + failures.Count + "; worker_finished=" + finished + "; no private details emitted");
+            return 1;
+        }
+        Console.WriteLine("PASS layout transition checks=" + passed + "; worker_finished=True; natural_message_order_only=True; desktop_pixels_verified=False");
+        return 0;
+
+        void Check(bool condition, string code)
+        {
+            if (condition) passed++;
+            else if (failures.Count < 64) failures.Add(code);
+        }
+        async Task NaturalIdle()
+        {
+            // Wait for one actual idle boundary, with no fixed 90 ms sleeps.
+            // This drains prior natural paint before resetting the next trace.
+            long started = Stopwatch.GetTimestamp();
+            var idle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            EventHandler handler = (_, _) => idle.TrySetResult();
+            Application.Idle += handler;
+            try { await idle.Task.WaitAsync(TimeSpan.FromSeconds(2), stop.Token); }
+            catch (TimeoutException) { throw new Failure("NaturalIdleBoundaryUnavailable"); }
+            finally
+            {
+                Application.Idle -= handler;
+                idleBoundaries++;
+                idleMilliseconds += (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+            }
+        }
+        async Task Until(Func<bool> ready, string code)
+        {
+            long started = Stopwatch.GetTimestamp();
+            while (!ready())
+            {
+                if (Stopwatch.GetElapsedTime(started) > TimeSpan.FromSeconds(3)) throw new Failure(code);
+                await Task.Delay(10, stop.Token);
+            }
+        }
+
+    }
+
+    private static MainForm CreateForm(Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult> runner) =>
+        new(null, false, Path.Combine(Path.GetTempPath(), "AsukaLens-layout-unused-" + Guid.NewGuid().ToString("N"), "background.json"))
+        {
+            ShowInTaskbar = false, ScanRunner = runner,
+            ActivityMonitorFactory = _ => throw new Failure("UnexpectedDiskMonitor")
+        };
+    private static void StopTimers(MainForm form)
+    {
+        Field<System.Windows.Forms.Timer>(form, "previewTimer").Stop();
+        Field<System.Windows.Forms.Timer>(form, "searchTimer").Stop();
+    }
+    private static Task Scan(MainForm form) => (Task)typeof(MainForm).GetMethod("ScanFolder", Hidden)!.Invoke(form, [SyntheticPath])!;
+    private static Task View(MainForm form) => (Task)typeof(MainForm).GetMethod("UpdateViewAsync", Hidden)!.Invoke(form, [false])!;
+    private static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name, Hidden)!.GetValue(owner)!;
+    private static void Set(object owner, string name, object value) => owner.GetType().GetField(name, Hidden)!.SetValue(owner, value);
+    private static ScanResult Snapshot(bool partial)
+    {
+        const int count = 1101;
+        var root = new DiskEntry(SyntheticPath, true) { FileCount = count, Size = count * 4096L, AllocatedSize = count * 4096L, Incomplete = partial };
+        for (int index = 0; index < count; index++)
+            root.MutableChildren.Add(new DiskEntry(Path.Combine(SyntheticPath, "sample-" + index.ToString("D4") + ".bin"), false, root)
+                { FileCount = 1, Size = 4096, AllocatedSize = 4096 });
+        return new(root, TimeSpan.FromSeconds(.1), partial ? 1 : 0, []);
+    }
+    private static Rectangle RelativeBounds(Control control, Control root)
+    {
+        Point point = Point.Empty;
+        for (Control? node = control; node != root; node = node.Parent)
+        {
+            if (node == null) throw new Failure("ObservedControlLeftOwnedTree");
+            point.Offset(node.Left, node.Top);
+        }
+        return new Rectangle(point, control.Size);
+    }
+    private static Task<Observation> FirstQueuedCheck(Control owner, Func<Observation> read)
+    {
+        var source = new TaskCompletionSource<Observation>();
+        owner.BeginInvoke((Action)(() =>
+        {
+            try { source.SetResult(read()); }
+            catch (Exception error) { source.SetException(error); }
+        }));
+        return source.Task;
+    }
+    private sealed record Observation(string Code, int ParentPaints, int ParentInvalidations, int ChildPaints,
+        int ChildInvalidations, bool ParentExposurePainted, bool FinalChildrenPainted, long ElapsedMilliseconds = 0);
+
+    private sealed class TransitionTrace : IDisposable
+    {
+        private readonly Control root;
+        private readonly SurfaceObservation parent;
+        private readonly (string Code, SurfaceObservation Surface)[] children;
+        internal TransitionTrace(Control root, (string Code, Control Control)[] controls)
+        {
+            this.root = root;
+            parent = new(root, root);
+            children = controls.Select(item => (item.Code, new SurfaceObservation(item.Control, root))).ToArray();
+        }
+        internal void Reset() { parent.Reset(); foreach (var item in children) item.Surface.Reset(); }
+        internal Observation Read(string code, Rectangle affected, bool onlyGrid)
+        {
+            var required = children.Where(item => !onlyGrid || item.Code == "Grid").Select(item => item.Surface).ToArray();
+            bool allPainted = required.Length > 0 && required.All(surface => surface.Paints > 0 &&
+                surface.LastPaintBounds == RelativeBounds(surface.Owner, root));
+            return new(code, parent.Paints, parent.Invalidations, children.Sum(item => item.Surface.Paints),
+                children.Sum(item => item.Surface.Invalidations), parent.Paints > 0 && parent.PaintedClip.IntersectsWith(affected), allPainted);
+        }
+        public void Dispose() { parent.Dispose(); foreach (var item in children) item.Surface.Dispose(); }
+    }
+
+    // NoHoverLabel intentionally bypasses Label.OnPaint, so its managed Paint
+    // event does not fire. Observe completion of its normal WM_PAINT instead.
+    private sealed class SurfaceObservation : NativeWindow, IDisposable
+    {
+        internal Control Owner { get; }
+        private readonly Control root;
+        internal int Paints { get; private set; }
+        internal int Invalidations { get; private set; }
+        internal Rectangle LastPaintBounds { get; private set; }
+        internal Rectangle PaintedClip { get; private set; }
+        internal SurfaceObservation(Control owner, Control root)
+        {
+            Owner = owner; this.root = root;
+            owner.Paint += Painted; owner.Invalidated += Invalidated;
+            owner.HandleCreated += Created; owner.HandleDestroyed += Destroyed;
+            if (owner.IsHandleCreated) AssignHandle(owner.Handle);
+        }
+        internal void Reset() { Paints = Invalidations = 0; LastPaintBounds = PaintedClip = Rectangle.Empty; }
+        private void Painted(object? sender, PaintEventArgs args) => PaintedClip = PaintedClip.IsEmpty
+            ? args.ClipRectangle : Rectangle.Union(PaintedClip, args.ClipRectangle);
+        private void Invalidated(object? sender, InvalidateEventArgs args) => Invalidations++;
+        private void Created(object? sender, EventArgs args) { if (Handle == IntPtr.Zero) AssignHandle(Owner.Handle); }
+        private void Destroyed(object? sender, EventArgs args) { if (Handle != IntPtr.Zero) ReleaseHandle(); }
+        protected override void WndProc(ref Message message)
+        {
+            bool paint = message.Msg == 0x000F;
+            base.WndProc(ref message);
+            if (paint && !Owner.IsDisposed) { Paints++; LastPaintBounds = RelativeBounds(Owner, root); }
+        }
+        public void Dispose()
+        {
+            Owner.Paint -= Painted; Owner.Invalidated -= Invalidated;
+            Owner.HandleCreated -= Created; Owner.HandleDestroyed -= Destroyed;
+            if (Handle != IntPtr.Zero) ReleaseHandle();
+        }
+    }
+    private sealed class Failure(string code) : Exception("LayoutTransition") { internal string Code { get; } = code; }
+}

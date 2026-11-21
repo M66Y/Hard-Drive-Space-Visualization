@@ -1,0 +1,145 @@
+{
+  "files": [
+    {
+      "file": "before/.agents__skills__asukalens-project-memory__references__checkpoint.md.txt",
+      "bytes": 15767,
+      "sha256": "51396D949E492AFDB6CAE18581D5006736F81322313F20EEF07D315CBBEFC444"
+    },
+    {
+      "file": "before/.agents__skills__asukalens-project-memory__references__decisions.md.txt",
+      "bytes": 27397,
+      "sha256": "D905EB9DF44CE14D0CA30D80E2ABC33D8DC2C1C71E2942A441252C6270801298"
+    },
+    {
+      "file": "before/AGENTS.md.txt",
+      "bytes": 47262,
+      "sha256": "CFE71FD5232C8C1CE154E0835483EEE19EC33D5348CF951F067DD100A769B63F"
+    },
+    {
+      "file": "before/docs__development-plan.md.txt",
+      "bytes": 70030,
+      "sha256": "7AA310C52621F93A070E07E373733DD37714D4AA388338BBCBFADB2BFFFEBE53"
+    },
+    {
+      "file": "before/docs__project-status.md.txt",
+      "bytes": 83116,
+      "sha256": "A239F31A13DC378244ABF4E5194616C0B0FDABB3274D3466510254FC249CB8CF"
+    },
+    {
+      "file": "before/docs__ui-rendering-defects-handoff.md.txt",
+      "bytes": 20224,
+      "sha256": "AC31BD7C5DD565F83A3E882E2352599188E181A59DEB9ED348179003DEA05EEC"
+    },
+    {
+      "file": "before/src__UI__Rendering__DibWindowCoverage.cs.txt",
+      "bytes": 10002,
+      "sha256": "5DDAB046F68A3211042518CD3DA4C61EAB6D4FCFA0381689559C1FC347878B20"
+    },
+    {
+      "file": "before/src__UI__Rendering__ResizeWorkProbe.cs.txt",
+      "bytes": 2722,
+      "sha256": "EB56DEEECF24EE1BB4BDDCD903565DD82ABA87773E6BB3229B3DDDFD738C3EEF"
+    },
+    {
+      "file": "before/tests__Program.cs.txt",
+      "bytes": 72375,
+      "sha256": "E35659F8ED57493A0BA8D3DBF1E5649FE88E4EEA3C5721D35C6B3F42295E5845"
+    },
+    {
+      "file": "before/tests__ResizePipelineProbe.cs.txt",
+      "bytes": 7254,
+      "sha256": "19BC5B41A946A7E78984593FE305A2B6FC9717885B4486A7323943138466933C"
+    },
+    {
+      "file": "before/tests__RootCompositeTests.cs.txt",
+      "bytes": 7942,
+      "sha256": "7CC46A212AFFC2BEF631DE7B9DA048416774BA33CBCD572970C49802D0A253A2"
+    },
+    {
+      "file": "before/Wallpaper.cs.txt",
+      "bytes": 37529,
+      "sha256": "898BD4F3DE1E247C3D995F64565A85D26AF58305BF2272217F77ECC75EB0F67E"
+    },
+    {
+      "file": "build-manifest.json",
+      "bytes": 4982,
+      "sha256": "C496533CCA05506C74332505131E58D9B7C22D1428FD6FCB2C7CC163458EE67E"
+    },
+    {
+      "file": "changes.patch",
+      "bytes": 54028,
+      "sha256": "049114D2087B976316ECE24398E6F9B748EFEB135724F903ECFDA337D063782A"
+    },
+    {
+      "file": "cleanup-summary.json",
+      "bytes": 749,
+      "sha256": "7F8B7334938259F9015F86B31AB05DD05AED3A2E8257A4C204765061E8CC957C"
+    },
+    {
+      "file": "final-checks.json",
+      "bytes": 544,
+      "sha256": "74BBEE7AD96227D6EFDC2022ED0FFB31A3F948773EA011357066DB77AB7EBA48"
+    },
+    {
+      "file": "key-files/src__UI__Rendering__DibWindowCoverage.cs.txt",
+      "bytes": 11433,
+      "sha256": "A923B02B82B72E08EE071361FE4AA49BD4A2678E5147D104C026C46FD681EA21"
+    },
+    {
+      "file": "key-files/src__UI__Rendering__ResizeWorkProbe.cs.txt",
+      "bytes": 4509,
+      "sha256": "91C0D87295B985870A9CF7FE413B3119C8FACEECB8FEACAF7D931D5201F90A84"
+    },
+    {
+      "file": "key-files/tests__Program.cs.txt",
+      "bytes": 72535,
+      "sha256": "D5F9F107744FA81B362B4D0965E3D40722CE132B6CCA4720510D2FEDD7809E6E"
+    },
+    {
+      "file": "key-files/tests__ResizeCompositionTests.cs.txt",
+      "bytes": 5819,
+      "sha256": "7EAFA6A22B3E3ACC7FD582C1AE6D7D6F3CE1B8D27D7A87F4622063483DA5AC7C"
+    },
+    {
+      "file": "key-files/tests__ResizePipelineProbe.cs.txt",
+      "bytes": 7372,
+      "sha256": "BEE58B80A38485789E0E3075F85A54816B9A7E9182C16611566E1121BCEE3894"
+    },
+    {
+      "file": "key-files/tests__RootCompositeTests.cs.txt",
+      "bytes": 10102,
+      "sha256": "545ADF92BA2015CE37CF1A58ACBC9CFB815CF328481BEFF01E39B47F4BB941AB"
+    },
+    {
+      "file": "key-files/Wallpaper.cs.txt",
+      "bytes": 38340,
+      "sha256": "3A47EDE2887B5DBD8E799B43286CFF2DB9D4FDEA94740C73B43382E09D2851DD"
+    },
+    {
+      "file": "patch-validation.json",
+      "bytes": 285,
+      "sha256": "06E1116C91A1ACFC44CD5C3D15569D0E90B499EC41C3E90D5557F02FD61875F3"
+    },
+    {
+      "file": "performance-summary.json",
+      "bytes": 3235,
+      "sha256": "4970F004B3A677D1D8C642EA25E7FE44994213E641A900FDB780252D0C8207B7"
+    },
+    {
+      "file": "README.md",
+      "bytes": 4191,
+      "sha256": "8BFEAEECB3A2DC75C460DA62759D3CCDF4BB6F2598D0A98421E9EEBFD46C185D"
+    },
+    {
+      "file": "rejected-experiment.json",
+      "bytes": 1595,
+      "sha256": "B85089AC84EBAE45B9E6D0B812E98EB9E32E87A272C252F62CFC515A5812753D"
+    },
+    {
+      "file": "verification-summary.json",
+      "bytes": 8307,
+      "sha256": "27FBC8819A05732452E481D781B11AE809DC1985493927DF0056649DEE761440"
+    }
+  ],
+  "self_excluded": true
+}

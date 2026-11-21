@@ -1,0 +1,115 @@
+{
+  "implementation_date": "2026-11-20",
+  "closed_out": "2026-11-21",
+  "head": "9ac1f0b30f31a4f00a4f55048409b1999cabbaf0",
+  "scope": [
+    {
+      "path": "Wallpaper.cs",
+      "bytes": 37529,
+      "sha256": "898BD4F3DE1E247C3D995F64565A85D26AF58305BF2272217F77ECC75EB0F67E",
+      "before_sha256": "6CAEC58482FDE5C2BF8BBF75EF592B65A729F3549E8BE098E39A5C027A4A1952"
+    },
+    {
+      "path": "tests/Program.cs",
+      "bytes": 72375,
+      "sha256": "E35659F8ED57493A0BA8D3DBF1E5649FE88E4EEA3C5721D35C6B3F42295E5845",
+      "before_sha256": "46687FF25C6B14C2262F69A54022B34039215983D4406183A80B88E2DAED7EA7"
+    },
+    {
+      "path": "tests/ResizePipelineProbe.cs",
+      "bytes": 7254,
+      "sha256": "19BC5B41A946A7E78984593FE305A2B6FC9717885B4486A7323943138466933C",
+      "before_sha256": "17B1FFD1AEEF9EACB9A383425AEB17C0B6519E50C3208C17C356AB322FD0E31A"
+    },
+    {
+      "path": "tests/TransparentRestoreProbe.cs",
+      "bytes": 9690,
+      "sha256": "06FEC9DBE8B0D0F782752E18D09D1BC5F354841D7C8422F256BDF7434C97C5B4",
+      "before_sha256": null
+    },
+    {
+      "path": "tests/NativeWindowClipProbe.cs",
+      "bytes": 4461,
+      "sha256": "214C5F4529BFD537D5F2D9FEE1EA5E7E7845B6300C9E73E4B73FC336545910E2",
+      "before_sha256": null
+    },
+    {
+      "path": "AGENTS.md",
+      "bytes": 47262,
+      "sha256": "CFE71FD5232C8C1CE154E0835483EEE19EC33D5348CF951F067DD100A769B63F",
+      "before_sha256": "06F8C37BBEE6EEB416F8CBD747DF090E7B3E6C0A6F9506D0E12F762028C2698D"
+    },
+    {
+      "path": "docs/ui-restore-background-plan.md",
+      "bytes": 3733,
+      "sha256": "8A70EB532446A825A949E4247AC27EAAA4D32F14A0E06651BDEC0970DEC9C1AC",
+      "before_sha256": "2E627FB73ACEA0C6D39FAF878E41881765C8C83247796C54E0D541241A070822"
+    },
+    {
+      "path": "docs/project-status.md",
+      "bytes": 83116,
+      "sha256": "A239F31A13DC378244ABF4E5194616C0B0FDABB3274D3466510254FC249CB8CF",
+      "before_sha256": "BEECC926222D39C0A94828914EC595401E0617CF44542022FB33B6179CCBE798"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "bytes": 70030,
+      "sha256": "7AA310C52621F93A070E07E373733DD37714D4AA388338BBCBFADB2BFFFEBE53",
+      "before_sha256": "50B84C45EE5682FCF0C5B56E3B65613CD49CC2D6CFD04DE84CBD06EE27554698"
+    },
+    {
+      "path": "docs/ui-rendering-defects-handoff.md",
+      "bytes": 20224,
+      "sha256": "AC31BD7C5DD565F83A3E882E2352599188E181A59DEB9ED348179003DEA05EEC",
+      "before_sha256": "7EFC2B55866401E0638DA9DA3E7899312F9EE38BFEAC06AA63A25C20C4FDC64D"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "bytes": 15767,
+      "sha256": "51396D949E492AFDB6CAE18581D5006736F81322313F20EEF07D315CBBEFC444",
+      "before_sha256": "0D8E81E816D9FC25FF35B836ECF613D7D6CA8D3B79963E4DC8FB882587A342FD"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "bytes": 27397,
+      "sha256": "D905EB9DF44CE14D0CA30D80E2ABC33D8DC2C1C71E2942A441252C6270801298",
+      "before_sha256": "EB1E33C972D45ADAA435F70F5855E7EF6F56E1B6264C3CB964563FB7FB50D746"
+    }
+  ],
+  "binaries": [
+    {
+      "path": "bin/Release/net10.0-windows/DiskAtlas.dll",
+      "bytes": 3488256,
+      "sha256": "8690F5F5A1CC9160A698CAA0E355966D87B9ED1F5E1C27659AD6DD5B865886B1"
+    },
+    {
+      "path": "artifacts/dib-mainform-C52/app/DiskAtlas.dll",
+      "bytes": 3511296,
+      "sha256": "57F05C9E9BAC4E8E9C9AC6F4D80DAF5FB492DC29610DC8E3A537236DF112D40C"
+    },
+    {
+      "path": "artifacts/dib-mainform-C53/app/DiskAtlas.dll",
+      "bytes": 3524608,
+      "sha256": "3B3AD11C34AADE4AF0004B99DFC3774F382639BBEE13EC278A09BEDD3BACE177"
+    },
+    {
+      "path": "artifacts/dib-mainform-C54/app/DiskAtlas.dll",
+      "bytes": 3524608,
+      "sha256": "ADF1F5D07D4DC1D7EF284B32395599C1588E8F461D655B3C9861E5925FAB4408"
+    },
+    {
+      "path": "artifacts/dib-mainform-C54/app/AsukaLens.DibCandidate.exe",
+      "bytes": 319488,
+      "sha256": "CD8B2D593A625724F503CF2B07213BDE743572662CC4CFC1B6AE1F6C5C75451F"
+    },
+    {
+      "path": "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll",
+      "bytes": 6187520,
+      "sha256": "1857E980C23CC968DB5558BCB8D7297C9674F14B350AFBE3C558DB682EBE86BF"
+    }
+  ],
+  "default_changed": false,
+  "release_generated": false,
+  "commit_pushed": false,
+  "reason": "inherited uncommitted dependencies must be integrated separately; no mixed commit"
+}

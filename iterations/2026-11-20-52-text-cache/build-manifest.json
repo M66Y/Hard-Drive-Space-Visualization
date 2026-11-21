@@ -1,0 +1,94 @@
+{
+  "baseline": "9ac1f0b30f31a4f00a4f55048409b1999cabbaf0",
+  "default_changed": false,
+  "files": [
+    {
+      "path": "TreemapControl.cs",
+      "sha256": "C1C7D80B5EC9DF1D739F9663D5FED08D64CB755D2C3D80962F6123ADB0237569",
+      "bytes": 28963,
+      "before_sha256": "08707907D45EDBE69A442F131A9DD862B7FCAD50EAE46098CCE1B283D2B7911F"
+    },
+    {
+      "path": "src/UI/Rendering/NativeResizeFrame.cs",
+      "sha256": "5EB8E0EE851D46F030968336E9F65017C44C6641B8D2E214B1331B2CC20ECF3C",
+      "bytes": 17304,
+      "before_sha256": "E1E1E68F0E024DB048A1E8A5DDB61C799654B7FDA2D1EC541C05E32D4FEBA0F6"
+    },
+    {
+      "path": "src/UI/Rendering/RenderSession.cs",
+      "sha256": "5BAA4FEBA78319CA457345C3762E55987862BBC8911C78DB4643DF8ECBF63A6C",
+      "bytes": 5754,
+      "before_sha256": "8A222F2C413622803CFFB843D6D62375EDF8375D16C5DBC2EE0A86AC8417140A"
+    },
+    {
+      "path": "tests/UiRegression.cs",
+      "sha256": "53EDF8D81A3EE2CF5A57B1C1669B9768A44601CFA53837876A0B6F2CC5DFE45A",
+      "bytes": 53094,
+      "before_sha256": "9D2A0A6683A910323D0461340E0CEB7969660C71D9D8B36564E2F3962BC2E5A9"
+    },
+    {
+      "path": "tests/CacheTextProbe.cs",
+      "sha256": "7D174C9A18F0BCBCB4C3F6C6139E7669433010FE3399E414E94B5A5D5EAC2C4E",
+      "bytes": 5533,
+      "before_sha256": null
+    },
+    {
+      "path": "tests/VisualSurfaceRegression.cs",
+      "sha256": "4AC76286CBF8348480F02A03B507687BBA0ACF4A6701C52381F3081955CB5F41",
+      "bytes": 32631,
+      "before_sha256": "011DB878575BF46094D604DEE373E99BAF931DFA0ED0F1A1D56D4F38940F749B"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "B3567023ACB98CC9F9068BF5B9061AF5627AE628453A1487EBB27B3679E96260",
+      "bytes": 78873,
+      "before_sha256": "AE6EABCD0B4FD5CB55300BE4F5A51EF579188CCECEB4DBEB6B3ED4C8DB66DBB5"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "B86199DC0C73CF8D02D81B9887F6D851D75124958A9FDE13F78AC4418A1B8E51",
+      "bytes": 67876,
+      "before_sha256": "ED54EF81D5AD212F70E753B65E291857D161B9F813D091A10B7591EE4325796E"
+    },
+    {
+      "path": "docs/ui-rendering-defects-handoff.md",
+      "sha256": "A7D6A544D2400071402FB95BAB79F8E46DA9B1667FA6AFE791CE94B49737F1D6",
+      "bytes": 16641,
+      "before_sha256": "07DD915B33B3193079673705E0AB1FF555C86FBCA120C2092EB2368459846118"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "16FABBDF679BDA77B92D426430B60262358FBC19B52A7C4E987C74CE90E10308",
+      "bytes": 13053,
+      "before_sha256": "435D3B9CACD896D22F4F2B5C6347C5160C70ABF9271B1A5473A058DD5C9E6C20"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "EE205DBBE3C0D01E0FD0CC3880634EA1E21E6020B6EE59072F4E32D34A8FD355",
+      "bytes": 25915,
+      "before_sha256": "BF1A3487D1F2368E45AE28F22C70B1C1C75AB42E20B08FA3253F618368122B68"
+    }
+  ],
+  "binaries": [
+    {
+      "name": "normal",
+      "path": "bin/Release/net10.0-windows/DiskAtlas.dll",
+      "sha256": "8690F5F5A1CC9160A698CAA0E355966D87B9ED1F5E1C27659AD6DD5B865886B1"
+    },
+    {
+      "name": "C51",
+      "path": "artifacts/dib-mainform-C51/app/DiskAtlas.dll",
+      "sha256": "72F1180FA6FF1DB7DAEAC7253E75F91ECE14D7945EF5EAFBFD5A8D864B3B81FA"
+    },
+    {
+      "name": "C52",
+      "path": "artifacts/dib-mainform-C52/app/DiskAtlas.dll",
+      "sha256": "57F05C9E9BAC4E8E9C9AC6F4D80DAF5FB492DC29610DC8E3A537236DF112D40C"
+    },
+    {
+      "name": "tests-final",
+      "path": "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll",
+      "sha256": "CF3F76C506090289735CD2B0CF524BDE6DFD905793E7C1C030E533BA28C80577"
+    }
+  ]
+}

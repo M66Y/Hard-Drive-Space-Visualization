@@ -1,0 +1,271 @@
+{
+  "revision": 2,
+  "scope": "C48-owned-synthetic-window-GDI-observation",
+  "timing_boundary": "root-WM_PAINT-stack-versus-outside-root-WM_PAINT; outside includes native parent-background callbacks; not caller-type or DWM-frame-rate",
+  "runs": [
+    {
+      "trace": "resize-5776b3e31b804e81b8e6951b1d7b9805.json",
+      "sha256": "98D7084EA97B2ED14D09FD535185F1EDC4372FD29AD95C8DA12A6F6629716B9F",
+      "native_dib": true,
+      "pixels": true,
+      "mode": "Canvas",
+      "records": 414,
+      "truncated": false,
+      "failures": 0,
+      "early_stages": [
+        {
+          "stage": "EraseEntering",
+          "valid": 44,
+          "black": 0
+        },
+        {
+          "stage": "EraseReturned",
+          "valid": 44,
+          "black": 0
+        },
+        {
+          "stage": "NcCalcSizeReturned",
+          "valid": 44,
+          "black": 0
+        },
+        {
+          "stage": "NcPaintEntering",
+          "valid": 44,
+          "black": 20
+        },
+        {
+          "stage": "NcPaintReturned",
+          "valid": 44,
+          "black": 0
+        },
+        {
+          "stage": "WindowPosChangedEntering",
+          "valid": 44,
+          "black": 0
+        }
+      ],
+      "valid_post_geometry_root": 44,
+      "black_post_geometry_root": 0,
+      "post_geometry_matches_frame": 44,
+      "publication": [
+        {
+          "kind": "root-wm-paint",
+          "count": 12,
+          "p50_ms": 53.614,
+          "p95_ms": 64.655
+        },
+        {
+          "kind": "outside-root-wm-paint",
+          "count": 11,
+          "p50_ms": 1.061,
+          "p95_ms": 1.461
+        }
+      ]
+    },
+    {
+      "trace": "resize-15bcab88bb8e4d1da208aeb1a081f08b.json",
+      "sha256": "50DAAD4CC318DBA1D796221B264F3CC32DA6B7E7A97B56A18BA435FE53EDF57B",
+      "native_dib": true,
+      "pixels": false,
+      "mode": "Canvas",
+      "records": 414,
+      "truncated": false,
+      "failures": 0,
+      "early_stages": [],
+      "valid_post_geometry_root": 0,
+      "black_post_geometry_root": 0,
+      "post_geometry_matches_frame": 0,
+      "publication": [
+        {
+          "kind": "root-wm-paint",
+          "count": 12,
+          "p50_ms": 65.268,
+          "p95_ms": 93.483
+        },
+        {
+          "kind": "outside-root-wm-paint",
+          "count": 11,
+          "p50_ms": 1.04,
+          "p95_ms": 1.75
+        }
+      ]
+    },
+    {
+      "trace": "resize-c6f91ca009e540979cd23e08f94a79a7.json",
+      "sha256": "D491E91A8617A370BB4FB336EDBC3E39F3EFB09AE8E72E6C85D73BC3F3CB14AF",
+      "native_dib": true,
+      "pixels": true,
+      "mode": "Canvas",
+      "records": 414,
+      "truncated": false,
+      "failures": 0,
+      "early_stages": [
+        {
+          "stage": "EraseEntering",
+          "valid": 44,
+          "black": 0
+        },
+        {
+          "stage": "EraseReturned",
+          "valid": 44,
+          "black": 0
+        },
+        {
+          "stage": "NcCalcSizeReturned",
+          "valid": 44,
+          "black": 0
+        },
+        {
+          "stage": "NcPaintEntering",
+          "valid": 44,
+          "black": 20
+        },
+        {
+          "stage": "NcPaintReturned",
+          "valid": 44,
+          "black": 0
+        },
+        {
+          "stage": "WindowPosChangedEntering",
+          "valid": 44,
+          "black": 0
+        }
+      ],
+      "valid_post_geometry_root": 44,
+      "black_post_geometry_root": 0,
+      "post_geometry_matches_frame": 44,
+      "publication": [
+        {
+          "kind": "root-wm-paint",
+          "count": 12,
+          "p50_ms": 1.064,
+          "p95_ms": 1.182
+        },
+        {
+          "kind": "outside-root-wm-paint",
+          "count": 11,
+          "p50_ms": 0.774,
+          "p95_ms": 1.165
+        }
+      ]
+    },
+    {
+      "trace": "resize-8e68fc69a7ee4fb79ada878998a2385e.json",
+      "sha256": "8267B28667E64B17D3C5B0D53C6EF02C334251778260883BE7E6DCC01D80686A",
+      "native_dib": false,
+      "pixels": true,
+      "mode": "Canvas",
+      "records": 539,
+      "truncated": false,
+      "failures": 0,
+      "early_stages": [
+        {
+          "stage": "EraseEntering",
+          "valid": 44,
+          "black": 20
+        },
+        {
+          "stage": "EraseReturned",
+          "valid": 44,
+          "black": 0
+        },
+        {
+          "stage": "NcCalcSizeReturned",
+          "valid": 44,
+          "black": 0
+        },
+        {
+          "stage": "NcPaintEntering",
+          "valid": 44,
+          "black": 20
+        },
+        {
+          "stage": "NcPaintReturned",
+          "valid": 44,
+          "black": 20
+        },
+        {
+          "stage": "WindowPosChangedEntering",
+          "valid": 44,
+          "black": 0
+        }
+      ],
+      "valid_post_geometry_root": 44,
+      "black_post_geometry_root": 0,
+      "post_geometry_matches_frame": 44,
+      "publication": [
+        {
+          "kind": "root-wm-paint",
+          "count": 22,
+          "p50_ms": 32.184,
+          "p95_ms": 60.314
+        },
+        {
+          "kind": "outside-root-wm-paint",
+          "count": 11,
+          "p50_ms": 46.838,
+          "p95_ms": 63.655
+        }
+      ]
+    },
+    {
+      "trace": "resize-c7a5c971ecd74e0fa9d66da2b7211317.json",
+      "sha256": "9CA75FB55F3D8F37B7741EA2DC55E41D34E304B08E7CE132EEAAE1DEA9EA461A",
+      "native_dib": true,
+      "pixels": true,
+      "mode": "All",
+      "records": 1677,
+      "truncated": false,
+      "failures": 0,
+      "early_stages": [
+        {
+          "stage": "EraseEntering",
+          "valid": 38,
+          "black": 0
+        },
+        {
+          "stage": "EraseReturned",
+          "valid": 38,
+          "black": 0
+        },
+        {
+          "stage": "NcCalcSizeReturned",
+          "valid": 44,
+          "black": 0
+        },
+        {
+          "stage": "NcPaintEntering",
+          "valid": 38,
+          "black": 20
+        },
+        {
+          "stage": "NcPaintReturned",
+          "valid": 38,
+          "black": 0
+        },
+        {
+          "stage": "WindowPosChangedEntering",
+          "valid": 38,
+          "black": 0
+        }
+      ],
+      "valid_post_geometry_root": 44,
+      "black_post_geometry_root": 0,
+      "post_geometry_matches_frame": 38,
+      "publication": [
+        {
+          "kind": "root-wm-paint",
+          "count": 22,
+          "p50_ms": 0.718,
+          "p95_ms": 1.109
+        },
+        {
+          "kind": "outside-root-wm-paint",
+          "count": 37,
+          "p50_ms": 0.994,
+          "p95_ms": 5.809
+        }
+      ]
+    }
+  ]
+}

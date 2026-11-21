@@ -1,0 +1,56 @@
+{
+  "full_ui": {
+    "ordinary_144": "passed",
+    "ordinary_96": "passed",
+    "dib_144": "passed",
+    "dib_96": "passed",
+    "functional_subset_used_instead": false
+  },
+  "text_matrix": {
+    "cases_per_run": 6,
+    "rgba_pixels_per_run": 882000,
+    "differences": 0,
+    "runs": 4,
+    "lifetime_passed": true
+  },
+  "treemap_comparison": {
+    "before": 13452,
+    "after": 1000,
+    "pixels": 700000,
+    "remaining_rows": [
+      0
+    ],
+    "alpha_differences": 0,
+    "original_threshold_changed": false
+  },
+  "native_frame": {
+    "checks": 608,
+    "pixels": 6513984
+  },
+  "integration": {
+    "checks_each_dpi": 26,
+    "compared_pixels": 1698575,
+    "differences": 0
+  },
+  "glow_checks_each_dpi": 99,
+  "surface_checks": {
+    "ordinary_144": 688,
+    "ordinary_96": 658,
+    "dib_144": 688,
+    "dib_96": 658
+  },
+  "surface_reference_first_failure": "GridBlankSurfaceUsesSingleWindowAlignedComposite",
+  "surface_reference_fixed_without_grid_or_tolerance_change": true,
+  "actual_window": {
+    "owned_files": 52,
+    "scan_shown": true,
+    "selection_glow_seen": true,
+    "double_row_list_seen": true,
+    "scrolled_list_seen": true,
+    "user_feedback": "accepted; preserve C52 candidate; not default"
+  },
+  "remaining_resize_defects_open": true,
+  "published": false,
+  "committed": false,
+  "pushed": false
+}

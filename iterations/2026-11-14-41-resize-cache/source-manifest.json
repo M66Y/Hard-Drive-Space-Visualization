@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "baseline": "9ac1f0b",
+  "baseline_context": "Selected C39/C40/C32/C38 preimages of inherited working tree; not a HEAD-only delta",
+  "state": "candidate-review-pending",
+  "grid_cache_preimage_verified": "Exact byte-equivalent text after reversing only the newly added SizeChanged test block; CRLF retained",
+  "files": [
+    {
+      "source": "Wallpaper.cs",
+      "snapshot": "key-files/Wallpaper.cs.txt",
+      "sha256": "94CA0BB270F2D3F4900D7A8654E8AEDEE0E1D724E7B461DC61732E87B73B94C8",
+      "bytes": 28197,
+      "preimage": "iterations/2026-11-14-39-resize-pixels/key-files/Wallpaper.cs.txt",
+      "preimage_sha256": "A331CA1ACF70598EDBA0C1B4FE0F68BB9D5C5EFBA4745116EAD1C5A151B8A2FC"
+    },
+    {
+      "source": "src/UI/LayoutPresentation.cs",
+      "snapshot": "key-files/src_UI_LayoutPresentation.cs.txt",
+      "sha256": "27139CD95E18D8D6EECF268C514075B9B712EDB88E032DDC0D1C9973ED53DE5F",
+      "bytes": 16623,
+      "preimage": "iterations/2026-11-14-40-resize-batch/key-files/src_UI_LayoutPresentation.cs.txt",
+      "preimage_sha256": "37A471C15FE6DF160BA136C54752CDF16BC027008A2A80F39E119BA3C814B8D1"
+    },
+    {
+      "source": "tests/LayoutPresentationPolicyTests.cs",
+      "snapshot": "key-files/tests_LayoutPresentationPolicyTests.cs.txt",
+      "sha256": "F25550B36A59B640673A5BCD5317E52A3A16DDE16AAAC7638AF66CB49421467E",
+      "bytes": 39912,
+      "preimage": "iterations/2026-11-14-40-resize-batch/key-files/tests_LayoutPresentationPolicyTests.cs.txt",
+      "preimage_sha256": "40B3A3F71FDB18E58E402F7497C1974B54AA66A71E84512E9DABE942A12E71A0"
+    },
+    {
+      "source": "tests/WallpaperGridCacheTests.cs",
+      "snapshot": "key-files/tests_WallpaperGridCacheTests.cs.txt",
+      "sha256": "75C860F41DB4D4BF29D41E2EACF315316AEC1931FF921D591EE7650369CC29F6",
+      "bytes": 19245,
+      "preimage": "iterations/2026-11-14-32-list-scroll/key-files/tests__WallpaperGridCacheTests.cs.txt",
+      "preimage_sha256": "EF0CFFECA5076B8551210C6C65D507C4F533E14DEA603484D785B81922D89165"
+    },
+    {
+      "source": "tests/LayoutTransitionPreview.cs",
+      "snapshot": "key-files/tests_LayoutTransitionPreview.cs.txt",
+      "sha256": "2EE3BBAE7B14AB5163CAE29A2466B0C4FB393854F7B11F7E29D3EF25222FA751",
+      "bytes": 26321,
+      "preimage": "iterations/2026-11-14-38-remove-explanation/key-files/tests_LayoutTransitionPreview.cs.txt",
+      "preimage_sha256": "CFE551950A821858954A081D80E404A0593D91001703E271713F36884B588A96"
+    }
+  ]
+}

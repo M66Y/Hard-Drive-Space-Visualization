@@ -1,0 +1,33 @@
+{
+  "user_feedback_C56": "continuous resize still flashes black",
+  "geometry": {
+    "records_per_mode": 112,
+    "old_window": [
+      1680,
+      1170
+    ],
+    "old_client": [
+      1658,
+      1114
+    ],
+    "new_window": [
+      2160,
+      1410
+    ],
+    "new_client": [
+      2138,
+      1354
+    ],
+    "observation": "CalcReturned still old geometry; NcEntering new geometry and right black; NcReturned restored",
+    "interval_is_not_black_duration": true
+  },
+  "preserved_failures": [
+    "initial prototype harness omitted republish after handle recreation; fixed harness",
+    "initial integration delay observed; no unique cause asserted; source creation deferred until shown",
+    "maximise expected client size mismatch; corrected using returned NCCALCSIZE rectangle",
+    "first desktop launch refused missing isolated data directory; created directory and relaunched"
+  ],
+  "recording": false,
+  "personal_volume_access": false,
+  "all_black_surfaces_proven": false
+}

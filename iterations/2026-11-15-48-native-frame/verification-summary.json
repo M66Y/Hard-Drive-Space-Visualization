@@ -1,0 +1,21 @@
+{
+  "revision": 1,
+  "scope": "C48-test-only-native-DIB-candidate",
+  "native_frame": { "checks": 468, "pixels_compared": 6219072, "scene_comparisons": 2, "zero_tolerance": true, "exit_code": 0 },
+  "coverage": [
+    { "dpi_mode": "default", "checks": 91, "rgb_pixels_checked": 1075200, "cleanup_deferred": false, "exit_code": 0 },
+    { "dpi_mode": "dpi-96-virtualized", "checks": 91, "rgb_pixels_checked": 1075200, "cleanup_deferred": false, "exit_code": 0 }
+  ],
+  "host_lifecycle": [
+    { "dpi_mode": "default", "checks": 50, "canvas_nonopaque": 0, "all_nonopaque": 0, "cache_refill_nonopaque": 0, "cleanup_deferred": false, "exit_code": 0 },
+    { "dpi_mode": "dpi-96-virtualized", "checks": 50, "canvas_nonopaque": 0, "all_nonopaque": 0, "cache_refill_nonopaque": 0, "cleanup_deferred": false, "exit_code": 0 }
+  ],
+  "bitmap_prototype_regression": { "dpi_mode": "default", "checks": 199, "exit_code": 0, "boundary": "before-final-DIB-only-host-guards" },
+  "builds": { "isolated_application_warnings": 0, "test_warnings": 0, "normal_output_replaced": false },
+  "user_feedback": "明显改善，先保留这版候选",
+  "decision": "retain-test-candidate",
+  "normal_integration_approved": false,
+  "all_resize_defects_closed": false,
+  "screen_observation": "separate-from-GDI-pixel-tests",
+  "recording_or_system_settings_changed": false
+}

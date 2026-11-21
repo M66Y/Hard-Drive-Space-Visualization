@@ -1,0 +1,9 @@
+{
+  "base": "C53-reviewed working-tree preimages; not clean HEAD",
+  "scoped_files": 12,
+  "byte_exact": true,
+  "git_apply_check_and_replay": true,
+  "patch_sha256": "669782B71F1A0335E8A6FF9EE42F3C8D0F1A78EA85127B6FACD128D9DFB926B1",
+  "reconstructed_preimages": [],
+  "temp_replay_tree_removed": true
+}

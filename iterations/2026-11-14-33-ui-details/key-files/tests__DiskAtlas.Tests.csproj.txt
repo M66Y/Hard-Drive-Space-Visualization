@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RestoreConfigFile>$(MSBuildThisFileDirectory)..\NuGet.Config</RestoreConfigFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\src\AppInfo.cs" Link="AppInfo.cs" />
+    <Compile Include="..\src\AppDataLocation.cs" Link="AppDataLocation.cs" />
+    <Compile Include="..\src\Diagnostics\**\*.cs" Link="Diagnostics\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\src\Scanning\**\*.cs" Link="Scanning\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\src\Monitoring\**\*.cs" Link="Monitoring\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\src\UI\**\*.cs" Link="UI\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\ErrorReport.cs" Link="ErrorReport.cs" />
+    <Compile Include="..\Core.cs" Link="Core.cs" />
+    <Compile Include="..\NativeStorage.cs" Link="NativeStorage.cs" />
+    <Compile Include="..\ScanPolicy.cs" Link="ScanPolicy.cs" />
+    <Compile Include="..\RefreshStatus.cs" Link="RefreshStatus.cs" />
+    <Compile Include="..\ChangeJournal.cs" Link="ChangeJournal.cs" />
+    <Compile Include="..\ScanCoordinator.cs" Link="ScanCoordinator.cs" />
+    <Compile Include="..\StorageMetrics.cs" Link="StorageMetrics.cs" />
+    <Compile Include="..\MetadataVerifier.cs" Link="MetadataVerifier.cs" />
+    <Compile Include="..\LiveScanSession.cs" Link="LiveScanSession.cs" />
+    <Compile Include="..\FileKinds.cs" Link="FileKinds.cs" />
+    <Compile Include="..\ViewQuery.cs" Link="ViewQuery.cs" />
+    <Compile Include="..\MainForm.cs" Link="MainForm.cs" />
+    <Compile Include="..\TreemapControl.cs" Link="TreemapControl.cs" />
+    <Compile Include="..\ScanProgressControl.cs" Link="ScanProgressControl.cs" />
+    <Compile Include="..\Theme.cs" Link="Theme.cs" />
+    <Compile Include="..\BackgroundSettings.cs" Link="BackgroundSettings.cs" />
+    <Compile Include="..\BackgroundDialog.cs" Link="BackgroundDialog.cs" />
+    <Compile Include="..\Wallpaper.cs" Link="Wallpaper.cs" />
+    <EmbeddedResource Include="..\assets\background.png" LogicalName="DiskAtlas.Background" />
+    <EmbeddedResource Include="..\assets\app.ico" LogicalName="DiskAtlas.AppIcon" />
+  </ItemGroup>
+</Project>

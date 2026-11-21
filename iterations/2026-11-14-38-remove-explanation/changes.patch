@@ -1,0 +1,673 @@
+diff --git a/MainForm.cs b/MainForm.cs
+index cf1fe77..63ca566 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -12,6 +12,12 @@ internal sealed class MainForm : Form
+     internal bool NtfsFastEnabled { get => ntfsFast.Checked; set => ntfsFast.Checked = value; }
+     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+     internal Func<bool>? FastScanConfirmation { get; init; }
++    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
++    internal bool NativeLayoutHoldEnabled
++    {
++        get => layoutPresentation?.NativeLayoutHoldEnabled ?? true;
++        set { if (layoutPresentation != null) layoutPresentation.NativeLayoutHoldEnabled = value; }
++    }
+     private bool changingFastChoice;
+     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+     internal Func<Action<DiskActivityUpdate>, DiskActivityMonitor>? ActivityMonitorFactory { get; set; }
+@@ -61,10 +67,8 @@ internal sealed class MainForm : Form
+     private readonly Label pageInfo = LabelOf("", Theme.CaptionFontSize, false, true);
+     private RowStyle? pagingRow;
+     private int pageIndex;
+-    private readonly Label subtitle = LabelOf("", Theme.CaptionFontSize);
+-    private RowStyle? scopeRow;
+-    private WallpaperTable? scopePanel;
+-    private bool updatingScopeLayout;
++    private string scopeDetails = "";
++    private bool displayingPreviousResult;
+     private bool wasMinimized;
+     private bool restoreRepaintQueued;
+     private readonly Label mapTitle = LabelOf("空间分布", 12, true);
+@@ -151,10 +155,10 @@ internal sealed class MainForm : Form
+         search.AccessibleName = "搜索当前视图";
+         pathBox.AccessibleName = "当前目录路径";
+         grid.AccessibleName = "当前视图结果列表";
+-        foreach (var label in new[] { subtitle, mapCaption, listCaption, status })
++        foreach (var label in new[] { mapCaption, listCaption, status })
+             label.TextChanged += (_, _) => scanTip.SetToolTip(label, label.Text);
+-        status.TextChanged += (_, _) => progressBar.SetDetailText(status.Text);
+-        progressBar.SetDetailText(status.Text);
++        status.TextChanged += (_, _) => UpdateProgressDetails();
++        UpdateProgressDetails();
+         scanTip.SetToolTip(totalCard, "统计卡始终包含当前目录及全部子目录，不随搜索、类型筛选或列表分页改变。\n实际占用按整个扫描范围去重；共享路径不重复计入，不等于删除后释放空间。");
+         scanTip.SetToolTip(filesCard, "包含当前目录及所有子目录中的文件。");
+         scanTip.SetToolTip(foldersCard, "包含所有子文件夹；可在空间图或列表中双击进入。");
+@@ -252,41 +256,20 @@ internal sealed class MainForm : Form
+         Size = new Size(Math.Min((int)(1440 * scale), area.Width), Math.Min((int)(940 * scale), area.Height));
+         Location = new Point(area.X + (area.Width - Width) / 2, area.Y + (area.Height - Height) / 2);
+         WallpaperRaster.Get(BackgroundImage, ClientSize, BackgroundCrop);
+-        UpdateScopeLayout();
+     }
+ 
+-    private void UpdateScopeLayout()
++    private void SetScopeDetails(string value)
+     {
+-        if (updatingScopeLayout || scopeRow == null || scopePanel == null || IsDisposed || Disposing ||
+-            WindowState == FormWindowState.Minimized) return;
+-        updatingScopeLayout = true;
+-        try
+-        {
+-            bool shown = !string.IsNullOrWhiteSpace(subtitle.Text);
+-            float scale = DeviceDpi / 96f;
+-            int width = scopePanel.ClientSize.Width - scopePanel.Padding.Horizontal;
+-            if (width <= 0) return; // Re-measure after the restored layout has a real width.
+-            int textHeight = shown ? TextRenderer.MeasureText(subtitle.Text, subtitle.Font,
+-                new Size(width, int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix).Height : 0;
+-            // Scope text is made from bounded names and fixed facts. Give
+-            // exceptional combinations their measured height rather than
+-            // clipping snapshot/exclusion facts after a long type filter.
+-            float height = shown ? Math.Max(textHeight + 8 * scale, 28 * scale) : 0;
+-            if (Math.Abs(scopeRow.Height - height) <= .5f && scopePanel.Visible == shown) return;
+-            // Visibility and height describe one layout state. Do not let a
+-            // native child move once for each half of that state change.
+-            using var presentation = contentLayoutRoot == null ? null : layoutPresentation?.BeginLayout(contentLayoutRoot);
+-            contentLayoutRoot?.SuspendLayout();
+-            try
+-            {
+-                scopeRow.Height = height;
+-                scopePanel.Visible = shown;
+-            }
+-            finally { contentLayoutRoot?.ResumeLayout(true); }
+-        }
+-        finally { updatingScopeLayout = false; }
++        if (scopeDetails == value) return;
++        scopeDetails = value;
++        // Keep facts available without adding a visible label, popup or row.
++        map.AccessibleDescription = grid.AccessibleDescription = value;
++        UpdateProgressDetails();
+     }
+ 
++    private void UpdateProgressDetails() => progressBar.SetDetailText(
++        scopeDetails.Length == 0 ? status.Text : scopeDetails + "\n" + status.Text);
++
+     private static Label LabelOf(string text, float size, bool bold = false, bool muted = false) => new NoHoverLabel()
+     {
+         Text = text, Font = Theme.Font(size, bold ? FontStyle.Bold : FontStyle.Regular), ForeColor = muted ? Theme.Muted : Theme.Text,
+@@ -320,7 +303,6 @@ internal sealed class MainForm : Form
+             RefreshDiskActivity();
+             return;
+         }
+-        UpdateScopeLayout();
+         RefreshDiskActivity();
+         if (wasMinimized)
+         {
+@@ -349,7 +331,6 @@ internal sealed class MainForm : Form
+                 // Restore completes child positioning after WM_SIZE. Re-measure
+                 // and invalidate from the final geometry, including unchanged children.
+                 PerformLayout();
+-                UpdateScopeLayout();
+                 WallpaperRaster.Get(BackgroundImage, ClientSize, BackgroundCrop);
+                 Invalidate(true);
+             }
+@@ -424,12 +405,10 @@ internal sealed class MainForm : Form
+         shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+         shell.Controls.Add(navigation, 0, 0);
+         navigation.AttachActivity(activityPanel, () => activityPanel.Expanded);
+-        var main = Table(1, 9);
++        var main = Table(1, 8);
+         contentLayoutRoot = main;
+         main.Padding = new Padding(28, 18, 28, 12);
+         foreach (float height in new float[] { 50, 52, 80, 52 }) main.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+-        scopeRow = new RowStyle(SizeType.Absolute, 0);
+-        main.RowStyles.Add(scopeRow);
+         main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 66));
+         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+@@ -489,14 +468,6 @@ internal sealed class MainForm : Form
+         pathBox.Text = "未选择文件夹（支持拖入文件夹）";
+         main.Controls.Add(toolbar, 0, 3);
+ 
+-        scopePanel = Table(1, 1); scopePanel.Surface = WallpaperSurface.Chrome; scopePanel.Framed = true;
+-        scopePanel.Padding = new Padding(12, 4, 12, 4); scopePanel.Visible = false;
+-        scopePanel.Controls.Add(subtitle, 0, 0); main.Controls.Add(scopePanel, 0, 4);
+-        subtitle.AutoEllipsis = false;
+-        ((NoHoverLabel)subtitle).WrapText = true;
+-        subtitle.TextChanged += (_, _) => UpdateScopeLayout();
+-        subtitle.SizeChanged += (_, _) => UpdateScopeLayout();
+-
+         var split = new WallpaperSplitContainer { Size = new Size(1100, 480), Dock = DockStyle.Fill, BackColor = Theme.Background, SplitterWidth = 14, Panel1MinSize = 300, Panel2MinSize = 290, Margin = Padding.Empty };
+         // Set a valid size before setting the splitter distance and minimums at runtime.
+         split.Size = new Size(1100, 480);
+@@ -533,7 +504,7 @@ internal sealed class MainForm : Form
+         pages.Controls.Add(previousPage, 0, 0); pages.Controls.Add(pageInfo, 1, 0); pages.Controls.Add(nextPage, 2, 0);
+         listPanel.Controls.Add(pages, 0, 2);
+         split.Panel2.Controls.Add(listPanel);
+-        main.Controls.Add(split, 0, 5);
++        main.Controls.Add(split, 0, 4);
+ 
+         var bottom = Table(1, 3); bottom.Surface = WallpaperSurface.Chrome; bottom.Framed = true;
+         footerLayoutRoot = bottom;
+@@ -564,7 +535,7 @@ internal sealed class MainForm : Form
+         footer.Controls.Add(status, 0, 0); footer.Controls.Add(restoreComplete, 1, 0); footer.Controls.Add(issues, 2, 0);
+         footer.Padding = new Padding(14, 0, 10, 0);
+         bottom.Controls.Add(footer, 0, 2);
+-        main.Controls.Add(bottom, 0, 6); main.SetRowSpan(bottom, 3);
++        main.Controls.Add(bottom, 0, 5); main.SetRowSpan(bottom, 3);
+         issues.VisibleChanged += (_, _) => UpdateFooterLayout();
+         restoreComplete.VisibleChanged += (_, _) => UpdateFooterLayout();
+         footer.SizeChanged += (_, _) => UpdateFooterLayout();
+@@ -794,7 +765,12 @@ internal sealed class MainForm : Form
+         map.Scanning = scan == null;
+         map.Invalidate();
+         status.Text = $"开始扫描：{path}";
+-        if (scan != null) subtitle.Text = "正在准备新结果 · 以下暂为上一次扫描结果";
++        displayingPreviousResult = scan != null;
++        if (scan != null)
++        {
++            SetScopeDetails("正在准备新结果 · 以下暂为上一次扫描结果");
++            mapTitle.Text = (mode == 0 ? "空间分布" : mode == 1 ? "大文件分布" : "文件类型分布") + " · 旧结果";
++        }
+         refreshInfo.Text = $"{StrategyName} · 准备扫描";
+         refreshInfo.Cursor = Cursors.Default;
+         scanTip.SetToolTip(refreshInfo, ScanPolicy.Explain(options.Mode));
+@@ -860,6 +836,7 @@ internal sealed class MainForm : Form
+             }
+             else completeRecovery = null;
+             scan = result;
++            displayingPreviousResult = false;
+             current = restored ?? result.Root;
+             navigation.RootName = scan.Root.Name; navigation.RootPath = scan.Root.Path; navigation.Invalidate();
+             if (isRefresh)
+@@ -921,7 +898,7 @@ internal sealed class MainForm : Form
+             {
+                 choose.Enabled = true; refresh.Enabled = scan != null; cancel.Visible = false;
+                 strategyCombo.Enabled = metricCombo.Enabled = ntfsFast.Enabled = true;
+-                refreshInfo.Cursor = scan?.Statistics != null ? Cursors.Hand : Cursors.Default;
++                refreshInfo.Cursor = scan != null ? Cursors.Hand : Cursors.Default;
+                 map.Scanning = false; map.Invalidate();
+                 if (cancellation.IsCancellationRequested || scan == previousScan) UpdateStrategyHint();
+                 UpdateRecoveryAvailability();
+@@ -940,6 +917,7 @@ internal sealed class MainForm : Form
+         void RestorePrevious()
+         {
+             EndPreview(); current = previousDirectory; RestoreQuery();
++            displayingPreviousResult = scan != null;
+             if (scan != null)
+             {
+                 navigation.RootName = scan.Root.Name; navigation.RootPath = scan.Root.Path; navigation.Invalidate(); UpdateView();
+@@ -951,7 +929,7 @@ internal sealed class MainForm : Form
+                 totalCard.Caption = "文件逻辑大小 · 1024 进制"; timeCard.Caption = "后台扫描，不阻塞操作";
+                 map.EmptyTitle = "扫描尚未完成"; map.EmptyCaption = "选择文件夹可重新开始";
+                 pathBox.Text = "未选择文件夹（支持拖入文件夹）";
+-                subtitle.Text = "";
++                SetScopeDetails("");
+                 mapCaption.Text = ""; listCaption.Text = "";
+                 navigation.RootName = "尚未选择文件夹"; navigation.RootPath = "从一个文件夹，开始探索"; navigation.Invalidate();
+                 up.Enabled = home.Enabled = false;
+@@ -974,7 +952,7 @@ internal sealed class MainForm : Form
+     {
+         if (scanCancellation != null || completeRecovery is not { } saved) return;
+         EndPreview(); searchTimer.Stop(); viewCancellation?.Cancel();
+-        scan = saved.Result; completeRecovery = null;
++        scan = saved.Result; completeRecovery = null; displayingPreviousResult = true;
+         current = saved.Directory == null ? scan.Root : scan.Root.FindDirectory(saved.Directory) ?? scan.Root;
+         mode = saved.Mode; typeFilter = saved.Type; sortColumn = saved.Sort; sortAscending = saved.Ascending;
+         clearingSearch = true;
+@@ -1071,8 +1049,9 @@ internal sealed class MainForm : Form
+             clearType.Visible = false; if (filterColumn != null) filterColumn.Width = 0;
+             // Publish one complete scope string: two assignments would briefly
+             // shrink then grow this row on every truncated preview refresh.
+-            subtitle.Text = "实时预览 · 非最终统计 · 大小持续更新" + (scan != null ? " · 已保留上次扫描结果" : "") +
+-                (preview.Truncated ? $" · 暂显前 {LiveScanSession.PreviewLimit:N0} 项" : "");
++            displayingPreviousResult = false;
++            SetScopeDetails("实时预览 · 非最终统计 · 大小持续更新" + (scan != null ? " · 已保留上次扫描结果" : "") +
++                (preview.Truncated ? $" · 暂显前 {LiveScanSession.PreviewLimit:N0} 项" : ""));
+             pathBox.Text = current.Path;
+             totalCard.Value = SizeFormat.Bytes(current.Size); filesCard.Value = SizeFormat.Number(current.FileCount); foldersCard.Value = SizeFormat.Number(current.FolderCount);
+             timeCard.Value = $"{preview.Elapsed.TotalSeconds:0.0} s";
+@@ -1152,6 +1131,7 @@ internal sealed class MainForm : Form
+         var request = new ViewRequest(directory, (ViewMode)requestedMode, search.Text, sort, sortAscending, typeFilter, metric);
+         pathBox.Text = current.Path;
+         var scopeFacts = new List<string>();
++        if (displayingPreviousResult) scopeFacts.Add("当前显示上一次扫描结果");
+         if (directory.Incomplete) scopeFacts.Add("部分结果 · 当前目录未读全");
+         if (directory.UnknownAllocationFiles > 0) scopeFacts.Add($"{directory.UnknownAllocationFiles:N0} 项占用未知");
+         if (request.ExtensionFilter != null) scopeFacts.Add($"筛选 {request.ExtensionFilter}");
+@@ -1162,7 +1142,7 @@ internal sealed class MainForm : Form
+             scopeFacts.Add($"快照 {source.CapturedAt.LocalDateTime:HH:mm:ss}（非实时）");
+             if (source.ExcludedReparseEntries > 0) scopeFacts.Add($"跳过 {source.ExcludedReparseEntries:N0} 个链接，目标未纳入");
+         }
+-        subtitle.Text = string.Join(" · ", scopeFacts);
++        SetScopeDetails(string.Join(" · ", scopeFacts));
+         clearType.Visible = typeFilter != null;
+         if (filterColumn != null) filterColumn.Width = typeFilter != null ? 142 * DeviceDpi / 96f : 0;
+         totalCard.Value = SizeFormat.Bytes(directory.Bytes(metric)) + (metric == SizeMetric.Allocated && directory.UnknownAllocationFiles > 0 ? " + 未知" : "");
+@@ -1203,9 +1183,10 @@ internal sealed class MainForm : Form
+                 listTitle.Text = requestedMode == 1 ? request.ExtensionFilter != null ? $"{request.ExtensionFilter} 文件" : "最大的 500 个文件" : "文件与文件夹";
+                 mapCaption.Text = requestedMode == 1 ? "含子目录" : "";
+             }
++            if (displayingPreviousResult) mapTitle.Text += " · 旧结果";
+             search.PlaceholderText = requestedMode switch { 1 => "搜索所有子目录的文件名…", 2 => "搜索扩展名或类型…", _ => "搜索当前层级名称…" };
+             search.AccessibleDescription = search.PlaceholderText;
+-            subtitle.Text = string.Join(" · ", scopeFacts);
++            SetScopeDetails(string.Join(" · ", scopeFacts));
+             listCaption.Text = $"{result.Rows.Count:N0} 项";
+             listCaption.AccessibleDescription = (requestedMode == 1 ? $"含子目录 · 匹配 {result.MatchedCount:N0} 个，显示最大 {result.Rows.Count:N0} 个。" : "") +
+                 "当前视图所列项目的数量与大小占比（大文件最多 500 个），分页只改变列表显示；分母为当前目录未筛选的大小。" +
+@@ -1406,12 +1387,19 @@ internal sealed class MainForm : Form
+ 
+     private void ShowRefreshDetails()
+     {
+-        if (scan?.Statistics is not { } stats) return;
++        if (scan == null) return;
+         using var dialog = new Form { Text = "最近完成的扫描 · 刷新详情", Size = new Size(780, 520), StartPosition = FormStartPosition.CenterParent,
+             BackColor = Theme.Surface, ForeColor = Theme.Text, MinimizeBox = false, Font = Theme.Font(9), Padding = new Padding(18) };
+         var text = new TextBox { Multiline = true, ReadOnly = true, Dock = DockStyle.Fill, ScrollBars = ScrollBars.Vertical, WordWrap = true,
+             BackColor = Theme.Surface, ForeColor = Theme.Text, BorderStyle = BorderStyle.None, Font = Theme.Font(10) };
+-        text.Text = (RefreshPresentation.Details(stats) + "\n\n" + ScanPolicy.Explain(stats.Mode)).Replace("\n", "\r\n");
++        var sections = new List<string>();
++        if (scan.Statistics is { } stats) sections.Add(RefreshPresentation.Details(stats) + "\n\n" + ScanPolicy.Explain(stats.Mode));
++        if (scan.Source is { } source)
++            sections.Add($"只读快照：{source.CapturedAt.LocalDateTime:yyyy-MM-dd HH:mm:ss}（非实时）\n" +
++                $"链接及目标未纳入：{source.ExcludedReparseEntries:N0} 项");
++        if (scopeDetails.Length > 0) sections.Add(scopeDetails);
++        sections.Add($"跳过：{scan.Skipped:N0} 项；占用未知：{scan.Root.UnknownAllocationFiles:N0} 项");
++        text.Text = string.Join("\n\n", sections).Replace("\n", "\r\n");
+         dialog.Controls.Add(text); dialog.ShowDialog(this);
+     }
+ 
+diff --git a/src/UI/LayoutPresentation.cs b/src/UI/LayoutPresentation.cs
+index c7008c1..2d9065d 100644
+--- a/src/UI/LayoutPresentation.cs
++++ b/src/UI/LayoutPresentation.cs
+@@ -16,6 +16,8 @@ internal sealed class LayoutPresentation : IDisposable
+     internal bool HasQueuedWork => queued;
+     internal int Presentations { get; private set; }
+     internal int PendingRoots => roots.Count(root => !root.Dirty.IsEmpty);
++    // Diagnostic comparison only; ordinary application behavior stays enabled.
++    internal bool NativeLayoutHoldEnabled { get; set; } = true;
+ 
+     internal LayoutPresentation(Form owner, Func<bool> suppressed, Action<Control> settleClips, params Control[] controls)
+     {
+@@ -169,6 +171,7 @@ internal sealed class LayoutPresentation : IDisposable
+         private bool visible;
+         private IntPtr heldLayoutHandle;
+         private bool layoutActive;
++        private bool nativeLayoutHeld;
+         private long layoutGeneration;
+         private readonly Dictionary<Control, (Rectangle Bounds, bool Visible)> children = [];
+ 
+@@ -203,7 +206,7 @@ internal sealed class LayoutPresentation : IDisposable
+         private void HandleCreated(object? sender, EventArgs args) => presenter.Request(this, Control.ClientRectangle);
+         private void HandleDestroyed(object? sender, EventArgs args)
+         {
+-            layoutGeneration++; layoutActive = false; heldLayoutHandle = IntPtr.Zero;
++            layoutGeneration++; layoutActive = false; nativeLayoutHeld = false; heldLayoutHandle = IntPtr.Zero;
+             Dirty = Rectangle.Empty; size = Size.Empty;
+         }
+ 
+@@ -213,7 +216,8 @@ internal sealed class LayoutPresentation : IDisposable
+             heldLayoutHandle = Control.Handle;
+             layoutActive = true;
+             long generation = ++layoutGeneration;
+-            SendMessage(heldLayoutHandle, 0x000B, IntPtr.Zero, IntPtr.Zero);
++            nativeLayoutHeld = presenter.NativeLayoutHoldEnabled;
++            if (nativeLayoutHeld) SendMessage(heldLayoutHandle, 0x000B, IntPtr.Zero, IntPtr.Zero);
+             return new LayoutHold(this, generation);
+         }
+ 
+@@ -224,9 +228,10 @@ internal sealed class LayoutPresentation : IDisposable
+             { heldLayoutHandle = IntPtr.Zero; return; }
+             // Like the grid scroll transaction, never make a hidden control
+             // visible by releasing WM_SETREDRAW. Its show event retries this.
+-            if (!Control.Visible) return;
++            if (nativeLayoutHeld && !Control.Visible) return;
+             IntPtr handle = heldLayoutHandle; heldLayoutHandle = IntPtr.Zero;
+-            SendMessage(handle, 0x000B, new IntPtr(1), IntPtr.Zero);
++            bool restoreNative = nativeLayoutHeld; nativeLayoutHeld = false;
++            if (restoreNative) SendMessage(handle, 0x000B, new IntPtr(1), IntPtr.Zero);
+             if (Dirty.IsEmpty) Control.Invalidate(true);
+             presenter.PresentPending();
+         }
+diff --git a/tests/LayoutPresentationPolicyTests.cs b/tests/LayoutPresentationPolicyTests.cs
+index 1fca48e..b3c2c97 100644
+--- a/tests/LayoutPresentationPolicyTests.cs
++++ b/tests/LayoutPresentationPolicyTests.cs
+@@ -48,6 +48,7 @@ internal static class LayoutPresentationPolicyTests
+                         phase = "PausedSecondBatch"; await CheckPausedSecondBatch();
+                         phase = "UnchangedLayoutRetry"; await CheckUnchangedLayoutRetry();
+                         phase = "SynchronousLayoutHold"; await CheckSynchronousLayoutHold();
++                        phase = "LogicalOnlyLayoutHold"; await CheckLogicalOnlyLayoutHold();
+                         phase = "ThrowingLayoutHold"; await CheckThrowingLayoutHold();
+                         phase = "DisposedLayoutHold"; await CheckDisposedLayoutHold();
+                         phase = "DestroyedLayoutHold"; await CheckDestroyedLayoutHold();
+@@ -230,6 +231,48 @@ internal static class LayoutPresentationPolicyTests
+                     "SynchronousLayoutExitLeavesNoDuplicateQueuedPresentation");
+             }
+ 
++            // Experimental isolation only: this checks native visibility and
++            // token policy, not intermediate desktop pixels or a visual fix.
++            async Task CheckLogicalOnlyLayoutHold()
++            {
++                using var fixture = await OpenFixture();
++                var root = fixture.Roots[0];
++                using var child = new Panel { Bounds = new Rectangle(4, 4, 35, 20) };
++                root.Controls.Add(child); child.CreateControl();
++                using var clip = new Region(new Rectangle(2, 2, 48, 24));
++                int settles = 0;
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, root)
++                    { NativeLayoutHoldEnabled = false };
++                try
++                {
++                    using (var layout = presenter.BeginLayout(root) ?? throw new CheckFailure("LogicalOnlyLayoutTokenWasNotAcquired"))
++                    {
++                        child.Bounds = new Rectangle(12, 8, 52, 28);
++                        child.Region = clip;
++                        Check(GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle) &&
++                            IsWindowVisible(child.Handle) && child.Bounds == new Rectangle(12, 8, 52, 28) &&
++                            ReferenceEquals(child.Region, clip) && clip.IsVisible(26, 14) && !clip.IsVisible(0, 0) && presenter.Presentations == 0,
++                            "LogicalOnlyTokenKeepsNativeVisibilityDuringBoundsAndRegionChanges");
++                        using var nested = presenter.BeginLayout(root);
++                        Check(nested == null && GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle),
++                            "LogicalOnlyNestedAttemptDoesNotTakeOverTransaction");
++                    }
++                    Check(GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle) &&
++                        presenter.Presentations == 1 && settles == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                        "LogicalOnlyTokenExitStillPresentsSynchronously");
++                    using (var external = new RedrawHold(root))
++                    {
++                        using var declined = presenter.BeginLayout(root);
++                        Check(declined == null && external.IsPaused && presenter.Presentations == 1,
++                            "LogicalOnlyModeStillRespectsExistingExternalRedrawHold");
++                    }
++                    await Quiesce();
++                    Check(presenter.Presentations == 1 && settles == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                        "LogicalOnlyExperimentLeavesNoDuplicatePresentation");
++                }
++                finally { child.Region = null; }
++            }
++
+             async Task CheckThrowingLayoutHold()
+             {
+                 using var fixture = await OpenFixture();
+diff --git a/tests/LayoutTransitionPreview.cs b/tests/LayoutTransitionPreview.cs
+index eb96dee..40fe63f 100644
+--- a/tests/LayoutTransitionPreview.cs
++++ b/tests/LayoutTransitionPreview.cs
+@@ -79,12 +79,15 @@ internal static class LayoutTransitionPreview
+         using var iconStream = typeof(MainForm).Assembly.GetManifestResourceStream("DiskAtlas.AppIcon");
+         using var icon = iconStream == null ? null : new Icon(iconStream);
+         if (icon != null) form.Icon = icon;
+-        form.Text = WindowTitle;
++        using var sizingInfo = new SizingInfo(form);
++        void UpdateTitle() => form.Text = WindowTitle + " · NativeLayoutHold=" + (form.NativeLayoutHoldEnabled ? "ON" : "OFF");
++        UpdateTitle();
+         T Field<T>(string name) => (T)typeof(MainForm).GetField(name, Private)!.GetValue(form)!;
+         Task InvokeTask(string method, params object[] args) =>
+             (Task)typeof(MainForm).GetMethod(method, Private)!.Invoke(form, args)!;
++        void SetScopeDetails(string details) => typeof(MainForm).GetMethod("SetScopeDetails", Private)!
++            .Invoke(form, [Alias(details, fixture.Scope)]);
+         var controls = Descendants(form).ToArray();
+-        var subtitle = Field<Label>("subtitle");
+         var navigation = Field<NavigationPanel>("navigation");
+         foreach (var control in controls.Where(value => value is Label or TextBox { ReadOnly: true }))
+             control.TextChanged += (_, _) =>
+@@ -179,11 +182,20 @@ internal static class LayoutTransitionPreview
+                 case "release": gate.Release.Set(); Console.WriteLine("STAGE layout-transition preview stage=release"); break;
+                 case "cancel": CancelScan(); Console.WriteLine("STAGE layout-transition preview stage=cancel"); break;
+                 case "scope":
+-                    subtitle.Text = "布局切换测试 · 以下为固定合成说明，非扫描事实\n用于观察范围行展开后标题和列表背景是否及时更新\n测试结束可清除此说明，统计仍来自自建目录";
+-                    Console.WriteLine("STAGE layout-transition preview stage=scope"); break;
+-                case "clear-scope": subtitle.Text = ""; Console.WriteLine("STAGE layout-transition preview stage=clear-scope"); break;
++                    SetScopeDetails("后台事实变化测试 · 固定合成内容，非扫描事实\n仅更新可访问描述，不显示说明或新增界面行\n统计仍来自自建目录");
++                    Console.WriteLine("STAGE layout-transition preview stage=scope-details; metadata_only=True"); break;
++                case "clear-scope":
++                    SetScopeDetails("");
++                    Console.WriteLine("STAGE layout-transition preview stage=clear-scope-details; metadata_only=True"); break;
+                 case "minimum": Resize(true); Console.WriteLine("STAGE layout-transition preview stage=minimum"); break;
+                 case "common": Resize(false); Console.WriteLine("STAGE layout-transition preview stage=common"); break;
++                case "native-on":
++                case "native-off":
++                    form.NativeLayoutHoldEnabled = command == "native-on";
++                    UpdateTitle();
++                    Console.WriteLine("STAGE layout-transition preview stage=native-hold; enabled=" + form.NativeLayoutHoldEnabled);
++                    break;
++                case "sizing-info": sizingInfo.Report(form.NativeLayoutHoldEnabled); break;
+                 case "close": CloseOnUi(); break;
+                 default: Console.WriteLine("STAGE layout-transition preview stage=unknown-command"); break;
+             }
+@@ -216,7 +228,9 @@ internal static class LayoutTransitionPreview
+             Resize(false); lifetime.Start();
+             await Scan();
+             if (!form.IsDisposed && !closing)
+-                Console.WriteLine("READY layout-transition preview; files=1106; pause_from_round=2; commands=scan,release,cancel,scope,clear-scope,minimum,common,close");
++                Console.WriteLine("READY layout-transition preview; native_hold=" + form.NativeLayoutHoldEnabled +
++                    "; files=1106; pause_from_round=2; scope_commands=metadata-only; visual_acceptance=unverified" +
++                    "; commands=scan,release,cancel,scope,clear-scope,minimum,common,native-on,native-off,sizing-info,close");
+         };
+         var listener = Task.Run(async () =>
+         {
+@@ -255,6 +269,89 @@ internal static class LayoutTransitionPreview
+         { yield return child; foreach (var descendant in Descendants(child)) yield return descendant; }
+     }
+ 
++    // Observe only this fixture's native sizing messages. Counts describe
++    // dispatch into the native sizing loop, never screen pixels or DWM commits.
++    private sealed class SizingInfo : NativeWindow, IDisposable
++    {
++        private const int MaxSizes = 64;
++        private readonly Form owner;
++        private readonly HashSet<Size> sizes = [];
++        private int enters, sizing, size, exits;
++        private bool sizeLimitReached, inSizeMove, nativeResizeObserved, disposed;
++        private bool sizingSeenInLoop;
++        private Size loopStartSize;
++
++        internal SizingInfo(Form owner)
++        {
++            this.owner = owner;
++            owner.HandleCreated += HandleCreated;
++            owner.HandleDestroyed += HandleDestroyed;
++            if (owner.IsHandleCreated) AssignHandle(owner.Handle);
++        }
++        private void HandleCreated(object? sender, EventArgs e)
++        {
++            if (!disposed && owner.IsHandleCreated)
++            {
++                if (Handle != IntPtr.Zero) ReleaseHandle();
++                AssignHandle(owner.Handle);
++            }
++        }
++        private void HandleDestroyed(object? sender, EventArgs e)
++        {
++            inSizeMove = false;
++            if (Handle != IntPtr.Zero) ReleaseHandle();
++        }
++        protected override void WndProc(ref Message message)
++        {
++            switch (message.Msg)
++            {
++                case 0x0231: // WM_ENTERSIZEMOVE
++                    Increment(ref enters); inSizeMove = true;
++                    sizingSeenInLoop = false; loopStartSize = owner.ClientSize;
++                    break;
++                case 0x0214: // WM_SIZING
++                    Increment(ref sizing);
++                    if (inSizeMove) sizingSeenInLoop = true;
++                    break;
++                case 0x0005: // WM_SIZE: lParam contains client extents, not a position.
++                    Increment(ref size);
++                    long packed = message.LParam.ToInt64();
++                    var observed = new Size((int)(packed & 0xffff), (int)((packed >> 16) & 0xffff));
++                    // Entering a sizing loop or pushing against MinimumSize
++                    // alone is not evidence that client geometry changed.
++                    if (inSizeMove && sizingSeenInLoop && message.WParam.ToInt32() != 1 &&
++                        observed.Width > 0 && observed.Height > 0 && observed != loopStartSize)
++                        nativeResizeObserved = true;
++                    if (!sizes.Contains(observed))
++                    {
++                        if (sizes.Count < MaxSizes) sizes.Add(observed);
++                        else sizeLimitReached = true;
++                    }
++                    break;
++                case 0x0232: // WM_EXITSIZEMOVE
++                    Increment(ref exits); inSizeMove = false;
++                    break;
++            }
++            base.WndProc(ref message);
++        }
++        private static void Increment(ref int count) { if (count < int.MaxValue) count++; }
++        internal void Report(bool nativeHold) => Console.WriteLine(
++            "OBSERVE layout-transition sizing-info; cumulative=True; native_hold=" + nativeHold +
++            "; wm_entersizemove=" + enters + "; wm_sizing=" + sizing + "; wm_size=" + size +
++            "; wm_exitsizemove=" + exits + "; distinct_sizes=" + sizes.Count +
++            "; size_limit_reached=" + sizeLimitReached + "; in_size_move=" + inSizeMove +
++            "; native_resize_observed=" + nativeResizeObserved);
++        public void Dispose()
++        {
++            if (disposed) return;
++            disposed = true;
++            owner.HandleCreated -= HandleCreated;
++            owner.HandleDestroyed -= HandleDestroyed;
++            if (Handle != IntPtr.Zero) ReleaseHandle();
++            sizes.Clear();
++        }
++    }
++
+     private sealed class ScanGate : IDisposable
+     {
+         private int rounds, active;
+diff --git a/tests/LayoutTransitionRegression.cs b/tests/LayoutTransitionRegression.cs
+index 325c9ac..667e2b1 100644
+--- a/tests/LayoutTransitionRegression.cs
++++ b/tests/LayoutTransitionRegression.cs
+@@ -75,8 +75,7 @@ internal static class LayoutTransitionRegression
+                         Set(form, "scan", baseline); Set(form, "current", baseline.Root);
+                         await View(form);
+                         await NaturalIdle();
+-                        var scope = Field<Label>(form, "subtitle");
+-                        var main = Field<WallpaperTable>(form, "scopePanel").Parent!;
++                        var main = Field<WallpaperTable>(form, "contentLayoutRoot");
+                         var analysis = main.Controls.OfType<WallpaperSplitContainer>().Single();
+                         var grid = Field<WallpaperGrid>(form, "grid");
+                         var map = Field<TreemapControl>(form, "map");
+@@ -84,21 +83,25 @@ internal static class LayoutTransitionRegression
+                             [("MapTitle", Field<Label>(form, "mapTitle")), ("ListTitle", Field<Label>(form, "listTitle")),
+                              ("Map", map), ("Grid", grid)]);
+ 
+-                        // The scope row is the production trigger that moves
+-                        // the analysis ancestor, titles and both data surfaces.
+-                        await Measure("ScopeSingle", () => { scope.Text = "合成范围说明"; return Task.CompletedTask; }, analysis, true);
+-                        float single = Field<RowStyle>(form, "scopeRow").Height;
+-                        await Measure("ScopeWrapped", () =>
++                        // Scope facts are metadata. Short, long and cleared
++                        // values must not introduce a visible row or reflow.
++                        await Measure("ScopeSingle", () =>
+                         {
+-                            scope.Text = string.Join(" · ", Enumerable.Repeat("只读快照，链接及目标未纳入，未知占用保持未知", 12));
++                            SetFacts(form, "合成范围说明"); return Task.CompletedTask;
++                        }, analysis, false, preserveGeometry: true);
++                        string longFacts = string.Join(" · ", Enumerable.Repeat("只读快照，链接及目标未纳入，未知占用保持未知", 12));
++                        await Measure("ScopeLong", () =>
++                        {
++                            SetFacts(form, longFacts);
+                             return Task.CompletedTask;
+-                        }, analysis, true);
+-                        Check(Field<RowStyle>(form, "scopeRow").Height > single, "ScopeFixtureActuallyBecomesMultiline");
+-                        await Measure("ScopeCleared", () => { scope.Text = ""; return Task.CompletedTask; }, analysis, true);
+-                        Check(Field<RowStyle>(form, "scopeRow").Height == 0, "ScopeFixtureActuallyCollapses");
++                        }, analysis, false, preserveGeometry: true);
++                        Check(Field<string>(form, "scopeDetails") == longFacts, "LongScopeFactsRemainComplete");
++                        await Measure("ScopeCleared", () => { SetFacts(form, ""); return Task.CompletedTask; }, analysis, false, preserveGeometry: true);
++                        Check(Field<string>(form, "scopeDetails").Length == 0, "ScopeFactsCanBeClearedWithoutExplanationRow");
+ 
+-                        // Multiple native resizes in one operation must finish
+-                        // with paints from the final geometry, not an earlier size.
++                        // Programmatic sizes check final-geometry message order.
++                        // They do not enter the native sizing loop or verify
++                        // continuous-resize desktop pixels.
+                         await Measure("ResizeBurst", () =>
+                         {
+                             Size original = form.ClientSize;
+@@ -119,7 +122,7 @@ internal static class LayoutTransitionRegression
+                         {
+                             entered.Reset(); scanTask = Scan(form); StopTimers(form);
+                             return Task.CompletedTask;
+-                        }, analysis, true);
++                        }, analysis, false, preserveGeometry: true);
+                         await Until(() => entered.IsSet, "BlockedRefreshDidNotStart");
+                         Check(!Field<System.Windows.Forms.Timer>(form, "previewTimer").Enabled,
+                             "PreviewTimerCannotRepairTransitionDuringObservation");
+@@ -127,7 +130,9 @@ internal static class LayoutTransitionRegression
+                         {
+                             Field<ActionButton>(form, "cancel").PerformClick();
+                             await scanTask!;
+-                        }, analysis, true);
++                            await Until(() => Field<CancellationTokenSource?>(form, "viewCancellation") == null,
++                                "CancelledViewDidNotFinish");
++                        }, analysis, false, preserveGeometry: true);
+                         Check(Field<ScanProgressControl>(form, "progressBar").State == ScanDisplayState.Cancelled,
+                             "CancellationFixtureReturnsToTerminalState");
+ 
+@@ -135,9 +140,9 @@ internal static class LayoutTransitionRegression
+                         await Measure("PartialResult", async () => { await Scan(form); StopTimers(form); }, analysis, true);
+                         await Until(() => Field<CancellationTokenSource?>(form, "viewCancellation") == null,
+                             "PartialViewDidNotFinish");
+-                        Check(Field<Label>(form, "subtitle").Text.Contains("未读全", StringComparison.Ordinal) &&
++                        Check(Field<string>(form, "scopeDetails").Contains("未读全", StringComparison.Ordinal) &&
+                             Field<ActionButton>(form, "issues").Visible && Field<RowStyle>(form, "footerShellRow").Height > 0,
+-                            "PartialFixtureChangesScopeAndFooter");
++                            "PartialFixtureRetainsFactsAndRequiredFooterActions");
+                         Volatile.Write(ref runnerMode, 2);
+                         await Measure("CompleteResult", async () => { await Scan(form); StopTimers(form); }, analysis, true);
+                         await Until(() => Field<CancellationTokenSource?>(form, "viewCancellation") == null,
+@@ -172,11 +177,14 @@ internal static class LayoutTransitionRegression
+                         Check(form.IsDisposed && scanTask.IsCompleted && Volatile.Read(ref backendCancelled) == 1,
+                             "ClosingCancelsOwnedPendingScanAndReleasesWindow");
+ 
+-                        async Task Measure(string code, Func<Task> action, Control affected, bool requireMovement, bool onlyGrid = false)
++                        async Task Measure(string code, Func<Task> action, Control affected, bool requireMovement,
++                            bool onlyGrid = false, bool preserveGeometry = false)
+                         {
+                             await NaturalIdle();
+                             long started = Stopwatch.GetTimestamp();
+                             Rectangle before = RelativeBounds(affected, main);
++                            var childBounds = new Control[] { Field<Label>(form, "mapTitle"), Field<Label>(form, "listTitle"), map, grid }
++                                .Select(control => RelativeBounds(control, form)).ToArray();
+                             trace.Reset();
+                             await action();
+                             Rectangle after = RelativeBounds(affected, main);
+@@ -187,7 +195,16 @@ internal static class LayoutTransitionRegression
+                             var first = await FirstQueuedCheck(form, () => trace.Read(code, band, onlyGrid)).WaitAsync(stop.Token);
+                             first = first with { ElapsedMilliseconds = (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds };
+                             observations.Add(first);
+-                            if (onlyGrid)
++                            if (preserveGeometry)
++                            {
++                                var afterChildren = new Control[] { Field<Label>(form, "mapTitle"), Field<Label>(form, "listTitle"), map, grid }
++                                    .Select(control => RelativeBounds(control, form));
++                                Check(before == after && childBounds.SequenceEqual(afterChildren), code + "_FactsDoNotReflowAnalysis");
++                                string facts = Field<string>(form, "scopeDetails");
++                                Check(facts.Length == 0 || !Descendants(form).OfType<Label>().Any(label => label.Visible && label.Text == facts),
++                                    code + "_FactsDoNotAppearAsExplanationControl");
++                            }
++                            else if (onlyGrid)
+                             {
+                                 // Pagination changes data while its paging row
+                                 // remains present. Keep its first-check sample
+@@ -309,6 +326,15 @@ internal static class LayoutTransitionRegression
+     }
+     private static Task Scan(MainForm form) => (Task)typeof(MainForm).GetMethod("ScanFolder", Hidden)!.Invoke(form, [SyntheticPath])!;
+     private static Task View(MainForm form) => (Task)typeof(MainForm).GetMethod("UpdateViewAsync", Hidden)!.Invoke(form, [false])!;
++    private static void SetFacts(MainForm form, string text) => typeof(MainForm).GetMethod("SetScopeDetails", Hidden)!.Invoke(form, [text]);
++    private static IEnumerable<Control> Descendants(Control root)
++    {
++        foreach (Control child in root.Controls)
++        {
++            yield return child;
++            foreach (var descendant in Descendants(child)) yield return descendant;
++        }
++    }
+     private static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name, Hidden)!.GetValue(owner)!;
+     private static void Set(object owner, string name, object value) => owner.GetType().GetField(name, Hidden)!.SetValue(owner, value);
+     private static ScanResult Snapshot(bool partial)

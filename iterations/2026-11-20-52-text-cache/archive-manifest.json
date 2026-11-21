@@ -1,0 +1,114 @@
+{
+  "files": [
+    {
+      "path": "before/.agents__skills__asukalens-project-memory__references__checkpoint.md.txt",
+      "sha256": "435D3B9CACD896D22F4F2B5C6347C5160C70ABF9271B1A5473A058DD5C9E6C20",
+      "bytes": 11059
+    },
+    {
+      "path": "before/.agents__skills__asukalens-project-memory__references__decisions.md.txt",
+      "sha256": "BF1A3487D1F2368E45AE28F22C70B1C1C75AB42E20B08FA3253F618368122B68",
+      "bytes": 25477
+    },
+    {
+      "path": "before/docs__development-plan.md.txt",
+      "sha256": "ED54EF81D5AD212F70E753B65E291857D161B9F813D091A10B7591EE4325796E",
+      "bytes": 67079
+    },
+    {
+      "path": "before/docs__project-status.md.txt",
+      "sha256": "AE6EABCD0B4FD5CB55300BE4F5A51EF579188CCECEB4DBEB6B3ED4C8DB66DBB5",
+      "bytes": 77207
+    },
+    {
+      "path": "before/docs__ui-rendering-defects-handoff.md.txt",
+      "sha256": "07DD915B33B3193079673705E0AB1FF555C86FBCA120C2092EB2368459846118",
+      "bytes": 15504
+    },
+    {
+      "path": "before/src__UI__Rendering__NativeResizeFrame.cs.txt",
+      "sha256": "E1E1E68F0E024DB048A1E8A5DDB61C799654B7FDA2D1EC541C05E32D4FEBA0F6",
+      "bytes": 15127
+    },
+    {
+      "path": "before/src__UI__Rendering__RenderSession.cs.txt",
+      "sha256": "8A222F2C413622803CFFB843D6D62375EDF8375D16C5DBC2EE0A86AC8417140A",
+      "bytes": 5202
+    },
+    {
+      "path": "before/tests__UiRegression.cs.txt",
+      "sha256": "9D2A0A6683A910323D0461340E0CEB7969660C71D9D8B36564E2F3962BC2E5A9",
+      "bytes": 53108
+    },
+    {
+      "path": "before/tests__VisualSurfaceRegression.cs.txt",
+      "sha256": "011DB878575BF46094D604DEE373E99BAF931DFA0ED0F1A1D56D4F38940F749B",
+      "bytes": 32317
+    },
+    {
+      "path": "before/TreemapControl.cs.txt",
+      "sha256": "08707907D45EDBE69A442F131A9DD862B7FCAD50EAE46098CCE1B283D2B7911F",
+      "bytes": 28861
+    },
+    {
+      "path": "build-manifest.json",
+      "sha256": "5A340DD734243A9BA82619F10E10443F341AE989F7E93D7273C2B9CDAD450CE0",
+      "bytes": 3756
+    },
+    {
+      "path": "changes.patch",
+      "sha256": "4A87A9D5741D42F2B08E033A3AD63C467AB744AB4405BBC2EA2A9D5F3E493880",
+      "bytes": 57379
+    },
+    {
+      "path": "final-checks.json",
+      "sha256": "609092F3E93956A2D10568A213F4C6CD6B36AF3CAB45452A935B1E5FF1B4B9DC",
+      "bytes": 546
+    },
+    {
+      "path": "key-files/src__UI__Rendering__NativeResizeFrame.cs.txt",
+      "sha256": "5EB8E0EE851D46F030968336E9F65017C44C6641B8D2E214B1331B2CC20ECF3C",
+      "bytes": 17304
+    },
+    {
+      "path": "key-files/src__UI__Rendering__RenderSession.cs.txt",
+      "sha256": "5BAA4FEBA78319CA457345C3762E55987862BBC8911C78DB4643DF8ECBF63A6C",
+      "bytes": 5754
+    },
+    {
+      "path": "key-files/tests__CacheTextProbe.cs.txt",
+      "sha256": "7D174C9A18F0BCBCB4C3F6C6139E7669433010FE3399E414E94B5A5D5EAC2C4E",
+      "bytes": 5533
+    },
+    {
+      "path": "key-files/tests__UiRegression.cs.txt",
+      "sha256": "53EDF8D81A3EE2CF5A57B1C1669B9768A44601CFA53837876A0B6F2CC5DFE45A",
+      "bytes": 53094
+    },
+    {
+      "path": "key-files/tests__VisualSurfaceRegression.cs.txt",
+      "sha256": "4AC76286CBF8348480F02A03B507687BBA0ACF4A6701C52381F3081955CB5F41",
+      "bytes": 32631
+    },
+    {
+      "path": "key-files/TreemapControl.cs.txt",
+      "sha256": "C1C7D80B5EC9DF1D739F9663D5FED08D64CB755D2C3D80962F6123ADB0237569",
+      "bytes": 28963
+    },
+    {
+      "path": "patch-validation.json",
+      "sha256": "A0C81B3C87349F4A298F53884719822571F157BCC023ECBBF2785B6C25273316",
+      "bytes": 243
+    },
+    {
+      "path": "README.md",
+      "sha256": "55E9C22C89EF8BA74DECA35D9D7718B8D3624871877F18DB7DC8EDEC22A39461",
+      "bytes": 5248
+    },
+    {
+      "path": "verification-summary.json",
+      "sha256": "F4F50C7CC703547F570010FF8B3F08F5277CBCC7A97FAA63DF007A71E993A4DC",
+      "bytes": 1393
+    }
+  ]
+}

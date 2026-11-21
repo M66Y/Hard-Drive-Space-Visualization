@@ -1,0 +1,253 @@
+diff --git a/Wallpaper.cs b/Wallpaper.cs
+index e3f8fb6..aca3657 100644
+--- a/Wallpaper.cs
++++ b/Wallpaper.cs
+@@ -556,7 +556,13 @@ internal sealed class WallpaperGrid : DataGridView
+         e.Handled = true;
+     }
+ 
+-    protected override void OnSizeChanged(EventArgs e) { base.OnSizeChanged(e); ReleaseBackdrop(); }
++    protected override void OnSizeChanged(EventArgs e)
++    {
++        // A SizeChanged callback can already paint the new geometry. Retire
++        // the previous surface first, so that valid new cache survives base.
++        ReleaseBackdrop();
++        base.OnSizeChanged(e);
++    }
+     protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); ReleaseBackdrop(); Invalidate(); }
+     protected override void OnParentChanged(EventArgs e) { base.OnParentChanged(e); ReleaseBackdrop(); }
+     protected override void OnHandleDestroyed(EventArgs e) { redrawHeldHandle = IntPtr.Zero; base.OnHandleDestroyed(e); ReleaseBackdrop(); }
+diff --git a/src/UI/LayoutPresentation.cs b/src/UI/LayoutPresentation.cs
+index 34b7392..d1cd846 100644
+--- a/src/UI/LayoutPresentation.cs
++++ b/src/UI/LayoutPresentation.cs
+@@ -63,7 +63,7 @@ internal sealed class LayoutPresentation : IDisposable
+         if (--geometryDepth != 0) return;
+         IntPtr handle = geometryHandle; geometryHandle = IntPtr.Zero;
+         if (!Allowed || owner.Handle != handle) return;
+-        PresentPending();
++        PresentPending(layoutSettled: true);
+     }
+ 
+     private sealed class GeometryHold(LayoutPresentation presenter, long generation) : IDisposable
+@@ -76,11 +76,11 @@ internal sealed class LayoutPresentation : IDisposable
+         }
+     }
+ 
+-    private void PresentPending()
++    private void PresentPending(bool layoutSettled = false)
+     {
+         if (geometryDepth != 0 || presenting || !Allowed || !roots.Any(root => !root.Dirty.IsEmpty && Ready(root.Control))) return;
+         queued = false;
+-        Flush(++ticket, owner.Handle);
++        Flush(++ticket, owner.Handle, layoutSettled);
+     }
+     // External redraw-lock owners must call this after releasing their lock.
+     // The grid's own outer scroll transaction supplies the same notification.
+@@ -125,7 +125,7 @@ internal sealed class LayoutPresentation : IDisposable
+         return false;
+     }
+ 
+-    private void Flush(long expected, IntPtr handle)
++    private void Flush(long expected, IntPtr handle, bool layoutSettled = false)
+     {
+         if (disposed || expected != ticket) return;
+         queued = false;
+@@ -140,7 +140,11 @@ internal sealed class LayoutPresentation : IDisposable
+             {
+                 if (!Current()) return;
+                 if (root.Dirty.IsEmpty || !Ready(root.Control)) continue;
+-                root.Control.PerformLayout();
++                // A completed outer geometry message has already run the
++                // framework's layout. Keep clip reconciliation and observation,
++                // without replaying every root's layout merely to present it.
++                // Deferred/non-geometry requests retain the original path.
++                if (!layoutSettled) root.Control.PerformLayout();
+                 if (!Current()) return;
+                 settleClips(root.Control);
+                 if (!Current()) return;
+diff --git a/tests/LayoutPresentationPolicyTests.cs b/tests/LayoutPresentationPolicyTests.cs
+index 16f52a5..b763d1f 100644
+--- a/tests/LayoutPresentationPolicyTests.cs
++++ b/tests/LayoutPresentationPolicyTests.cs
+@@ -45,6 +45,7 @@ internal static class LayoutPresentationPolicyTests
+                     {
+                         phase = "Burst"; await CheckBurst();
+                         phase = "GeometryBatch"; await CheckGeometryBatch();
++                        phase = "GeometrySettledLayout"; await CheckGeometrySettledLayout();
+                         phase = "GeometryException"; await CheckGeometryException();
+                         phase = "GeometryGeneration"; await CheckGeometryGeneration();
+                         phase = "GeometryExternalHold"; await CheckGeometryExternalHold();
+@@ -148,6 +149,62 @@ internal static class LayoutPresentationPolicyTests
+                     "EmptyGeometryBoundaryDoesNotCreateWork");
+             }
+ 
++            async Task CheckGeometrySettledLayout()
++            {
++                using var fixture = await OpenFixture();
++                var root = fixture.Roots[0];
++                using var child = new Panel { Dock = DockStyle.Bottom, Height = 10 };
++                root.Controls.Add(child);
++                int layouts = 0, settles = 0, paints = 0;
++                LayoutEventHandler countLayout = (_, _) => layouts++;
++                PaintEventHandler countPaint = (_, _) => paints++;
++                root.Layout += countLayout; root.Paint += countPaint;
++                try
++                {
++                    using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, root);
++                    int beforeFinal;
++                    using (presenter.BeginGeometry() ?? throw new CheckFailure("SettledGeometryNotAcquired"))
++                    {
++                        root.Width += 3;
++                        root.PerformLayout(); // Framework-equivalent work inside the owned transaction.
++                        presenter.ResizeSurfaces();
++                        beforeFinal = layouts;
++                        Check(beforeFinal > 0 && settles == 0 && presenter.Presentations == 0,
++                            "GeometryFrameworkLayoutOccursBeforeFinalPresentation");
++                    }
++                    Check(layouts == beforeFinal, "SettledGeometryDoesNotReplayRootLayout");
++                    Check(settles == 1 && paints > 0 && presenter.Presentations == 1 && presenter.PendingRoots == 0,
++                        "SettledGeometryStillReconcilesClipsAndPaintsFinalRoot");
++                    int ordinaryBefore = layouts;
++                    presenter.ResizeSurfaces();
++                    await Until(() => !presenter.HasQueuedWork && presenter.Presentations == 2,
++                        "OrdinaryPresentationAfterSettledGeometryDidNotComplete");
++                    Check(layouts > ordinaryBefore && settles == 2,
++                        "OrdinaryDeferredPresentationStillPerformsRootLayout");
++
++                    root.SuspendLayout();
++                    Rectangle suspendedChildBounds = child.Bounds;
++                    using (presenter.BeginGeometry() ?? throw new CheckFailure("SuspendedSettledGeometryNotAcquired"))
++                    {
++                        root.Width += 3;
++                        presenter.ResizeSurfaces();
++                    }
++                    int suspendedLayouts = layouts;
++                    int beforeResumePresentations = presenter.Presentations;
++                    root.ResumeLayout(true);
++                    await Until(() => !presenter.HasQueuedWork && presenter.PendingRoots == 0 &&
++                        presenter.Presentations > beforeResumePresentations,
++                        "ResumedChildGeometryDidNotTriggerLaterPresentation");
++                    Check(layouts > suspendedLayouts && child.Bounds != suspendedChildBounds && presenter.PendingRoots == 0,
++                        "ExternalSuspendedLayoutStillRunsAndObservedGeometrySettlesOnResume");
++                }
++                finally
++                {
++                    root.Layout -= countLayout; root.Paint -= countPaint;
++                    root.ResumeLayout(false);
++                }
++            }
++
+             async Task CheckGeometryException()
+             {
+                 using var fixture = await OpenFixture();
+diff --git a/tests/WallpaperGridCacheTests.cs b/tests/WallpaperGridCacheTests.cs
+index b367c08..e633fb2 100644
+--- a/tests/WallpaperGridCacheTests.cs
++++ b/tests/WallpaperGridCacheTests.cs
+@@ -89,6 +89,34 @@ internal static class WallpaperGridCacheTests
+                         grid.Dock = DockStyle.None; grid.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+                         grid.Bounds = new Rectangle(4, 6, 520, 320);
+                         await Settle(); PaintTiny();
++                        // SizeChanged runs inside base.OnSizeChanged. A correct
++                        // newly sized cache built there must survive returning
++                        // from the override, rather than be discarded afterwards.
++                        Check(grid.Dock == DockStyle.None && ReferenceEquals(grid.Parent, host),
++                            "SizeChangedCacheProbeUsesOwnedUndockedGrid");
++                        int callbacks = 0, callbackBuilds = 0;
++                        Color callbackPixel = Color.Empty;
++                        long callbackBytes = 0;
++                        EventHandler paintDuringSizeChange = (_, _) =>
++                        {
++                            callbacks++;
++                            callbackPixel = PaintTiny();
++                            callbackBuilds = grid.BackdropBuilds;
++                            callbackBytes = grid.BackdropBytes;
++                        };
++                        grid.SizeChanged += paintDuringSizeChange;
++                        try { grid.Size = new Size(grid.Width + 19, grid.Height + 11); }
++                        finally { grid.SizeChanged -= paintDuringSizeChange; }
++                        Check(callbacks == 1 && callbackBytes > 0 && callbackBytes <= WallpaperGrid.MaxBackdropPixels * 4,
++                            "SizeChangedCallbackBuildsBoundedNewBackdrop");
++                        Color afterCallbackPixel = PaintTiny();
++                        Check(afterCallbackPixel.ToArgb() == callbackPixel.ToArgb(),
++                            "SizeChangedCallbackAndFinalBackdropPixelsMatch");
++                        Check(grid.BackdropBuilds == callbackBuilds,
++                            "SizeChangedCallbackBackdropSurvivesReturnWithoutDuplicateBuild");
++                        PaintTiny();
++                        Check(grid.BackdropBuilds == callbackBuilds,
++                            "SizeChangedCallbackBackdropContinuesToReuseAfterProbeUnbound");
+                         CheckRebuild(() => grid.Size = new Size(grid.Width + 27, grid.Height + 13), "GridSizeInvalidatesBackdrop");
+                         CheckRebuild(() => grid.Left += 11, "GridLocationInvalidatesBackdrop");
+                         CheckRebuild(() => host.Top += 17, "AncestorWindowOffsetInvalidatesBackdrop");
+diff --git a/tests/LayoutTransitionPreview.cs b/tests/LayoutTransitionPreview.cs
+index 40fe63f..e4de008 100644
+--- a/tests/LayoutTransitionPreview.cs
++++ b/tests/LayoutTransitionPreview.cs
+@@ -107,7 +107,7 @@ internal static class LayoutTransitionPreview
+ 
+         Task activeScan = Task.CompletedTask;
+         setCleanupCheck(() => activeScan.IsCompleted && gate.Active == 0);
+-        bool closing = false, drained = false, failed = false;
++        bool closing = false, drained = false, failed = false, sweeping = false;
+         using var listenerStop = new CancellationTokenSource();
+         using var lifetime = new System.Windows.Forms.Timer { Interval = 30 * 60 * 1000 };
+         using var closeOwned = new System.Windows.Forms.Timer { Interval = 40 };
+@@ -173,11 +173,48 @@ internal static class LayoutTransitionPreview
+             form.Size = new(Math.Min((int)(wanted.Width * scale), area.Width), Math.Min((int)(wanted.Height * scale), area.Height));
+             form.Location = new(area.Left + (area.Width - form.Width) / 2, area.Top + (area.Height - form.Height) / 2);
+         }
++        async Task SweepSizes()
++        {
++            if (sweeping || !activeScan.IsCompleted || closing || form.IsDisposed) return;
++            sweeping = true;
++            Rectangle original = form.Bounds;
++            var watch = Stopwatch.StartNew();
++            int steps = 0;
++            long maximumSetMilliseconds = 0;
++            Console.WriteLine("STAGE layout-transition sweep=start; kind=programmatic; native_drag=False; planned_steps=24");
++            try
++            {
++                for (int step = 1; step <= 24; step++)
++                {
++                    if (closing || form.IsDisposed || watch.Elapsed > TimeSpan.FromSeconds(40)) break;
++                    double amount = step <= 12 ? step / 12d : (24 - step) / 12d;
++                    var before = Stopwatch.GetTimestamp();
++                    form.Size = new Size(
++                        (int)Math.Round(original.Width + (form.MinimumSize.Width - original.Width) * amount),
++                        (int)Math.Round(original.Height + (form.MinimumSize.Height - original.Height) * amount));
++                    maximumSetMilliseconds = Math.Max(maximumSetMilliseconds,
++                        (long)Stopwatch.GetElapsedTime(before).TotalMilliseconds);
++                    steps++;
++                    await Task.Delay(60, listenerStop.Token);
++                }
++            }
++            catch (OperationCanceledException) when (listenerStop.IsCancellationRequested) { }
++            finally
++            {
++                if (!closing && !form.IsDisposed) form.Bounds = original;
++                sweeping = false;
++                Console.WriteLine("STAGE layout-transition sweep=end; kind=programmatic; steps=" + steps +
++                    "; elapsed_ms=" + watch.ElapsedMilliseconds + "; max_set_ms=" + maximumSetMilliseconds +
++                    "; restored=" + (!form.IsDisposed && form.Bounds == original));
++            }
++        }
+         async void Command(string command)
+         {
+             if (closing) return;
++            if (sweeping && command is not ("close" or "cancel" or "sizing-info")) return;
+             switch (command)
+             {
++                case "sweep": await SweepSizes(); break;
+                 case "scan": await Scan(); break;
+                 case "release": gate.Release.Set(); Console.WriteLine("STAGE layout-transition preview stage=release"); break;
+                 case "cancel": CancelScan(); Console.WriteLine("STAGE layout-transition preview stage=cancel"); break;
+@@ -230,7 +267,7 @@ internal static class LayoutTransitionPreview
+             if (!form.IsDisposed && !closing)
+                 Console.WriteLine("READY layout-transition preview; native_hold=" + form.NativeLayoutHoldEnabled +
+                     "; files=1106; pause_from_round=2; scope_commands=metadata-only; visual_acceptance=unverified" +
+-                    "; commands=scan,release,cancel,scope,clear-scope,minimum,common,native-on,native-off,sizing-info,close");
++                    "; commands=scan,release,cancel,scope,clear-scope,minimum,common,sweep,native-on,native-off,sizing-info,close");
+         };
+         var listener = Task.Run(async () =>
+         {

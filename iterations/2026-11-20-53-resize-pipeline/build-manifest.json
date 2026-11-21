@@ -1,0 +1,125 @@
+{
+  "baseline": "9ac1f0b30f31a4f00a4f55048409b1999cabbaf0",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "06F8C37BBEE6EEB416F8CBD747DF090E7B3E6C0A6F9506D0E12F762028C2698D",
+      "bytes": 46638,
+      "before_sha256": "ABB4C6C6B02D2771CFC61766B38F9336A639D8358A46F7BA10AB759C513FFF3F"
+    },
+    {
+      "path": "MainForm.cs",
+      "sha256": "6B5E5011F026161527E37187A094F591DF19FBCABC4EC64BA472D868B92C4D73",
+      "bytes": 96046,
+      "before_sha256": "9486DEB6B7F1C4385A7B1EBC4A33A9EB0453D9BCC6F2B7E04F1840552C4B7064"
+    },
+    {
+      "path": "Wallpaper.cs",
+      "sha256": "6CAEC58482FDE5C2BF8BBF75EF592B65A729F3549E8BE098E39A5C027A4A1952",
+      "bytes": 37355,
+      "before_sha256": "6A2361F64797293A0E9B235303EAE6311AF77D9872FC23BC2E250B45878AE2DF"
+    },
+    {
+      "path": "TreemapControl.cs",
+      "sha256": "48FDABE45D12E2BF1EDA9C9A61C54C2E7269137A0DBDA7FEACD810C4F79E92C9",
+      "bytes": 29055,
+      "before_sha256": "C1C7D80B5EC9DF1D739F9663D5FED08D64CB755D2C3D80962F6123ADB0237569"
+    },
+    {
+      "path": "src/UI/LayoutPresentation.cs",
+      "sha256": "E1601DEB3AD5682812AEA1393C738E1094807185616BBF010A4F36EDB8ECCC4B",
+      "bytes": 21785,
+      "before_sha256": "2AA7B9FC4310615F96123CEB78BDD3B7396E9F49C96BE874C279859573F4191A"
+    },
+    {
+      "path": "src/UI/Rendering/DibWindowCoverage.cs",
+      "sha256": "5DDAB046F68A3211042518CD3DA4C61EAB6D4FCFA0381689559C1FC347878B20",
+      "bytes": 10002,
+      "before_sha256": "2F4B66657DEC637BD6B2B5D22533A053390256D03591B713D5BCFD556712736D"
+    },
+    {
+      "path": "src/UI/Rendering/ResizeWorkProbe.cs",
+      "sha256": "EB56DEEECF24EE1BB4BDDCD903565DD82ABA87773E6BB3229B3DDDFD738C3EEF",
+      "bytes": 2722,
+      "before_sha256": null
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "46687FF25C6B14C2262F69A54022B34039215983D4406183A80B88E2DAED7EA7",
+      "bytes": 71606,
+      "before_sha256": "E5CC10F39639F0F5DC12663BE11575C86DDA49210ECBF35539A6B282BA4E93F4"
+    },
+    {
+      "path": "tests/ResizePipelineProbe.cs",
+      "sha256": "17B1FFD1AEEF9EACB9A383425AEB17C0B6519E50C3208C17C356AB322FD0E31A",
+      "bytes": 7212,
+      "before_sha256": null
+    },
+    {
+      "path": "tests/RootCompositeTests.cs",
+      "sha256": "7CC46A212AFFC2BEF631DE7B9DA048416774BA33CBCD572970C49802D0A253A2",
+      "bytes": 7942,
+      "before_sha256": null
+    },
+    {
+      "path": "docs/ui-resize-pipeline-plan.md",
+      "sha256": "294A8DA4C9E38F14F2FEDD1263E03879CB26D48D112FB5F4376ED9354AFF18BB",
+      "bytes": 2307,
+      "before_sha256": null
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "FBC47A564867A203F0FB40F060B280AD7FFA5F55F400E4D33072B1B0329FA3A9",
+      "bytes": 80179,
+      "before_sha256": "B3567023ACB98CC9F9068BF5B9061AF5627AE628453A1487EBB27B3679E96260"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "38ACA96D2D0147DD4DCFAAA7B27E1DAD24CD7EE0F6DE7D72181F0D1C09B03CF5",
+      "bytes": 68475,
+      "before_sha256": "B86199DC0C73CF8D02D81B9887F6D851D75124958A9FDE13F78AC4418A1B8E51"
+    },
+    {
+      "path": "docs/ui-rendering-defects-handoff.md",
+      "sha256": "CADABCF6F485DDEF2C0E24271A90550725FEF51FAD23B8B683D7F4A8A5837CFC",
+      "bytes": 18322,
+      "before_sha256": "A7D6A544D2400071402FB95BAB79F8E46DA9B1667FA6AFE791CE94B49737F1D6"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "F060BB5FE8574E02C97618C5617377E8736906A4DB8A0BC5AE8D2B9EC413DD9C",
+      "bytes": 15276,
+      "before_sha256": "16FABBDF679BDA77B92D426430B60262358FBC19B52A7C4E987C74CE90E10308"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "63CC34ED57DDF7AC1E6614C03328E722B61E56B4F1D6FE94E97A1FC5668F0F11",
+      "bytes": 26371,
+      "before_sha256": "EE205DBBE3C0D01E0FD0CC3880634EA1E21E6020B6EE59072F4E32D34A8FD355"
+    }
+  ],
+  "binaries": [
+    {
+      "name": "normal",
+      "path": "bin/Release/net10.0-windows/DiskAtlas.dll",
+      "sha256": "8690F5F5A1CC9160A698CAA0E355966D87B9ED1F5E1C27659AD6DD5B865886B1"
+    },
+    {
+      "name": "C52",
+      "path": "artifacts/dib-mainform-C52/app/DiskAtlas.dll",
+      "sha256": "57F05C9E9BAC4E8E9C9AC6F4D80DAF5FB492DC29610DC8E3A537236DF112D40C"
+    },
+    {
+      "name": "C53",
+      "path": "artifacts/dib-mainform-C53/app/DiskAtlas.dll",
+      "sha256": "3B3AD11C34AADE4AF0004B99DFC3774F382639BBEE13EC278A09BEDD3BACE177"
+    },
+    {
+      "name": "tests",
+      "path": "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll",
+      "sha256": "BFA306F2736CA8B642810DC2DFF7ACCFDDC85C77F3E02E230C2541673E9B00B9"
+    }
+  ],
+  "default_changed": false,
+  "commit_and_push": false
+}

@@ -1,0 +1,8 @@
+{
+  "base": "reviewed C55 working-tree preimages; includes C56 diagnosis and approved implementation",
+  "scope_files": 15,
+  "byte_exact": true,
+  "git_apply_check_and_replay": true,
+  "temporary_replay_tree_removed": true,
+  "patch_sha256": "1658D42DBC63D98782D6AF79DC5A8170C111D3133A536AE93572504743A7AD70"
+}

@@ -1,0 +1,19 @@
+{
+  "private_archive": "artifacts/dib-mainform-C57/owned-validation.zip",
+  "archive_sha256": "C19919693CACE4BEEBCD211E297953F570B523EB7A0514FDB58D6831018AA1FD",
+  "archive_entries": 54,
+  "archive_bytes": 54228,
+  "verified_raw_files_removed": 54,
+  "raw_bytes": 374940,
+  "candidates_preserved": [
+    "ordinary",
+    "C55",
+    "C56",
+    "C57"
+  ],
+  "temporary_replay_removed": true,
+  "shared_synthetic_demo_preserved": true,
+  "recording_files_created": 0,
+  "private_data_uploaded": false,
+  "owned_empty_temp_fixtures_removed": 2
+}

@@ -1,0 +1,111 @@
+diff --git a/MainForm.cs b/MainForm.cs
+index 910fac5..2d22eb1 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -59,6 +59,9 @@ internal sealed class MainForm : Form
+     private bool updatingScopeLayout;
+     private bool wasMinimized;
+     private bool restoreRepaintQueued;
++    private bool restorePresentationPending;
++    private bool paintingRestoredWindow;
++    private int restorePresentationPasses;
+     private readonly Label mapTitle = LabelOf("空间分布", 12, true);
+     private readonly Label mapCaption = LabelOf("", Theme.CaptionFontSize, false, true);
+     private readonly Label listTitle = LabelOf("文件与文件夹", 12, true);
+@@ -275,6 +278,7 @@ internal sealed class MainForm : Form
+         if (WindowState == FormWindowState.Minimized)
+         {
+             wasMinimized = true;
++            restorePresentationPending = true;
+             RefreshDiskActivity();
+             return;
+         }
+@@ -297,15 +301,40 @@ internal sealed class MainForm : Form
+         {
+             restoreRepaintQueued = false;
+             if (IsDisposed || Disposing || !Visible || WindowState == FormWindowState.Minimized) return;
++            if (!restorePresentationPending) return;
+             // Restore completes child positioning after WM_SIZE. Re-measure
+             // and invalidate from the final geometry, including unchanged children.
+             PerformLayout();
+             UpdateScopeLayout();
+             WallpaperRaster.Get(BackgroundImage, ClientSize, BackgroundCrop);
+             Invalidate(true);
++            restorePresentationPending = false;
+         }));
+     }
+ 
++    private void PresentRestoredWindow()
++    {
++        if (!restorePresentationPending || paintingRestoredWindow || !IsHandleCreated || IsDisposed || Disposing ||
++            !Visible || WindowState == FormWindowState.Minimized || ClientSize.Width <= 0 || ClientSize.Height <= 0) return;
++        restorePresentationPending = false;
++        paintingRestoredWindow = true;
++        try
++        {
++            PerformLayout();
++            UpdateScopeLayout();
++            WallpaperRaster.Get(BackgroundImage, ClientSize, BackgroundCrop);
++            const uint invalidate = 0x0001, erase = 0x0004, allChildren = 0x0080, updateNow = 0x0100;
++            if (RedrawWindow(Handle, IntPtr.Zero, IntPtr.Zero, invalidate | erase | allChildren | updateNow))
++                restorePresentationPasses++;
++            else Invalidate(true);
++        }
++        finally { paintingRestoredWindow = false; }
++    }
++
++    [System.Runtime.InteropServices.DllImport("user32.dll")]
++    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
++    private static extern bool RedrawWindow(IntPtr window, IntPtr updateRectangle, IntPtr updateRegion, uint flags);
++
+     private void RefreshDiskActivity()
+     {
+         if (activityPanel == null || !IsHandleCreated || IsDisposed || Disposing) return;
+@@ -342,7 +371,12 @@ internal sealed class MainForm : Form
+ 
+     protected override void WndProc(ref Message message)
+     {
++        // DefWindowProc sends WM_SIZE/WM_MOVE synchronously from this message.
++        // Capture the transition before base dispatch consumes the resize state,
++        // then paint the final child surfaces before returning to Windows.
++        bool restoredPosition = message.Msg == 0x0047 && restorePresentationPending;
+         base.WndProc(ref message);
++        if (restoredPosition) PresentRestoredWindow();
+         HandleMonitoringSystemEvent(message.Msg, message.WParam.ToInt64());
+     }
+ 
+diff --git a/tests/BackdropStabilityTests.cs b/tests/BackdropStabilityTests.cs
+index ae36464..886f323 100644
+--- a/tests/BackdropStabilityTests.cs
++++ b/tests/BackdropStabilityTests.cs
+@@ -111,7 +111,16 @@ internal static class BackdropStabilityTests
+                         Observe("minimize", regions.Since(beforeMinimize));
+                         Check(Math.Abs(row.Height - longHeight) <= .5f, "MinimizedWindowDoesNotRemeasureScope");
+                         var beforeRestore = regions.Current;
++                        int completedPresentations = Field<int>("restorePresentationPasses");
++                        int restoredGridPaints = 0;
++                        PaintEventHandler countPaint = (_, _) => restoredGridPaints++;
++                        grid.Paint += countPaint;
+                         form.WindowState = FormWindowState.Normal;
++                        grid.Paint -= countPaint;
++                        Check(Field<int>("restorePresentationPasses") == completedPresentations + 1 && restoredGridPaints > 0,
++                            "RestorePaintsNativeChildrenBeforeStateSetterReturns");
++                        Check(!Field<bool>("paintingRestoredWindow") && !Field<bool>("restorePresentationPending"),
++                            "RestoreConsumesPresentationWithoutLeavingReentrancyGuard");
+                         Check(Field<bool>("restoreRepaintQueued"), "RestoreQueuesOneFinalRepaint");
+                         await Until(() => form.WindowState == FormWindowState.Normal && form.ClientSize == client &&
+                             !Field<bool>("restoreRepaintQueued"), "RestoreRepaintDidNotSettle");
+@@ -125,6 +134,13 @@ internal static class BackdropStabilityTests
+                         var idleRegions = regions.Since(beforeIdle);
+                         Observe("settled", idleRegions);
+                         Check(idleRegions == default, "SettledRestoreDoesNotKeepChangingLiveRegions");
++                        int finalPresentations = Field<int>("restorePresentationPasses");
++                        var location = form.Location;
++                        form.Location = new Point(location.X + 1, location.Y);
++                        form.Location = location;
++                        await Settle();
++                        Check(Field<int>("restorePresentationPasses") == finalPresentations,
++                            "OrdinaryWindowPositionChangesDoNotRepeatSynchronousRestorePaint");
+                     }
+                     catch (CheckFailure error) { failure = error.Code; }
+                     catch { failure = "UnexpectedBackdropLifecycleFailure"; }

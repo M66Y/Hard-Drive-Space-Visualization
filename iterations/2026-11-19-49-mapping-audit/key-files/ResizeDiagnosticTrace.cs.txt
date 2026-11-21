@@ -1,0 +1,623 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace DiskAtlas.ResizePrototype;
+
+// Opt-in observations of this owned test window only. No redraw, invalidation,
+// desktop capture, message injection, or settings changes are performed here.
+internal sealed class ResizeDiagnosticTrace : IDisposable
+{
+    internal const int MaxRecords = 16_384;
+    internal const int MaxPixelSamplesPerGeometry = 32;
+    internal const int MaxEarlyPixelSamplesPerGeometry = 24;
+    private const int MaxEarlyPixelSamplesPerStage = 4;
+    private const int MaxHooks = 64;
+    private const uint WmSize = 0x0005, WmPaint = 0x000F, WmErase = 0x0014,
+        WmWindowPosChanging = 0x0046, WmWindowPosChanged = 0x0047,
+        WmNcCalcSize = 0x0083, WmNcPaint = 0x0085, WmNcDestroy = 0x0082;
+    private readonly Form owner;
+    private readonly int managedThread;
+    private readonly bool pixels;
+    private readonly bool coverageCandidate, splitCandidate;
+    private readonly long started = Stopwatch.GetTimestamp();
+    private readonly List<TraceRecord> records = new(MaxRecords);
+    private readonly Dictionary<IntPtr, TraceWindow> windows = [];
+    private long sequence, geometry, frameTicket, dropped;
+    private int surfaceTicket, pixelSamples, phaseSamples;
+    private int earlyPixelSamples, earlyPhaseSamples;
+    private long earlySamplesTotal, earlyRepeatedStagesSkipped, earlyBudgetLimitedGeometries;
+    private bool earlyGeometryBudgetLimited;
+    private Size previousActualClient;
+    private long diagnosticTicks;
+    private bool disposed, recording = true, observing, hooksLimited;
+    private int rejectedStages, wrongThreadCalls, observationFailures;
+    internal bool MappingAuditEnabled { get; set; }
+    private readonly List<object> mappingAudit = [];
+    private readonly List<object> rootAudit = [];
+    private int auditDropped;
+
+    // C49 opt-in, fixed geometry-only fields for this owned synthetic window.
+    // No repaint/flush, selected-object changes, stack strings or raw handles.
+    internal void AuditMapping(Graphics graphics, NativeResizeFrame.CopyFailure failure)
+    {
+        if (!MappingAuditEnabled || !Allowed()) return;
+        if (mappingAudit.Count >= 128) { auditDropped++; return; }
+        IntPtr dc = IntPtr.Zero;
+        try
+        {
+            var methods = new StackTrace(false).GetFrames().Select(f => f.GetMethod()).ToArray();
+            bool transparentParent = methods.Any(m => m?.Name == "PaintTransparentBackground" && m.DeclaringType == typeof(Control));
+            bool invokeParentPaint = methods.Any(m => m?.Name == "InvokePaint" && m.DeclaringType == typeof(Control));
+            dc = graphics.GetHdc();
+            bool originsValid = GetWindowOrgEx(dc, out var window);
+            originsValid &= GetViewportOrgEx(dc, out var viewport);
+            int clipKind = GetClipBox(dc, out var clip);
+            IntPtr target = WindowFromDC(dc);
+            Control? targetControl = Control.FromHandle(target);
+            mappingAudit.Add(new { sequence, geometry, failure = failure.ToString(), transparentParent, invokeParentPaint,
+                dc_kind = GetObjectType(dc), map_mode = GetMapMode(dc), originsValid,
+                window_x = window.X, window_y = window.Y, viewport_x = viewport.X, viewport_y = viewport.Y,
+                clip_kind = clipKind, clip = Rect(clip), target_owned = Owned(target), target_kind = PixelKind(target).ToString(),
+                target_control_kind = targetControl == null ? "Unknown" : Kind(targetControl).ToString(),
+                target_control_bounds = targetControl?.Bounds,
+                printClient = methods.Any(m => m?.Name == "WmPrintClient" && m.DeclaringType == typeof(Control)),
+                onPrint = methods.Any(m => m?.Name == "OnPrint" && m.DeclaringType == typeof(Control)),
+                comboMessage = methods.Any(m => m?.Name == "WndProc" && m.DeclaringType == typeof(ComboBox)),
+                child_bounds = owner.Controls.Cast<Control>().Select(c => new { kind = Kind(c).ToString(), bounds = c.Bounds }).ToArray() });
+        }
+        catch { observationFailures++; }
+        finally
+        {
+            if (dc != IntPtr.Zero)
+            { try { graphics.ReleaseHdc(dc); } catch { observationFailures++; } }
+        }
+    }
+
+    internal void AuditRoot(string phase, Bitmap? frame)
+    {
+        if (!MappingAuditEnabled || !Allowed() || !owner.IsHandleCreated || frame == null) return;
+        if (phase is not ("PreparedCopied" or "BeforeChildren" or "AfterTextBounds" or "AfterStrategyBounds" or
+            "AfterMetricBounds" or "AfterGridBounds" or "AfterChildren" or "PaintCopied")) { rejectedStages++; return; }
+        if (rootAudit.Count >= 1024) { auditDropped++; return; }
+        IntPtr root = owner.Handle;
+        if (!GetClientRect(root, out var rect) || rect.Right < 4 || rect.Bottom < 4) return;
+        // Same second right-edge witness that failed six times in C48.
+        var point = new Point(rect.Right - 2, rect.Bottom * 2 / 3);
+        IntPtr child = DeepestChild(root, point), dc = GetDC(root);
+        if (dc == IntPtr.Zero) return;
+        uint pixel;
+        try { pixel = PtVisible(dc, point.X, point.Y) ? GetPixel(dc, point.X, point.Y) : uint.MaxValue; }
+        finally { ReleaseDC(root, dc); }
+        uint? expected = point.X < frame.Width && point.Y < frame.Height ? Rgb(frame.GetPixel(point.X, point.Y)) : null;
+        uint? childPixel = null;
+        if (child != root)
+        {
+            var local = new NativePoint { X = point.X, Y = point.Y };
+            if (ClientToScreen(root, ref local) && ScreenToClient(child, ref local))
+            {
+                IntPtr childDc = GetDC(child);
+                if (childDc != IntPtr.Zero)
+                { try { childPixel = PtVisible(childDc, local.X, local.Y) ? GetPixel(childDc, local.X, local.Y) : uint.MaxValue; }
+                  finally { ReleaseDC(child, childDc); } }
+            }
+        }
+        bool printClient = new StackTrace(false).GetFrames().Any(f => f.GetMethod() is { Name: "WmPrintClient" } m && m.DeclaringType == typeof(Control));
+        rootAudit.Add(new { sequence, geometry, phase, printClient, dpi = owner.DeviceDpi,
+            width = rect.Right, height = rect.Bottom, x = point.X, y = point.Y,
+            valid = pixel != uint.MaxValue, pixel, expected, matches = expected == pixel, childPixel,
+            owner_kind = child == root ? "Root" : PixelKind(child).ToString(),
+            grid_bounds = owner.Controls.OfType<DataGridView>().Select(c => c.Bounds).ToArray() });
+        static uint Rgb(Color c) => (uint)(c.R | c.G << 8 | c.B << 16);
+    }
+    private static readonly HashSet<string> Stages = new(StringComparer.Ordinal)
+    {
+        "Constructor", "Shown", "GeometryBegin", "GeometryBeforeChildren", "GeometryAfterChildren",
+        "GeometryEnd", "FrameBegin", "FrameRendered", "FrameCopied", "ModeChanged", "Closing",
+        "LayoutBefore", "LayoutAfter", "ResizeBeforeBase", "ResizeAfterBase", "ResizeBefore",
+        "ResizeAfter", "HandleCreated", "HandleDestroyed", "ReplayStarted", "ReplayStep", "ReplayFinished",
+        "SceneBackground", "SceneChrome", "SceneMap", "SceneList", "SceneDetails",
+        "NativeSizeReturned", "RootPaintReturned", "PublishBegin", "PublishEnd"
+    };
+
+    internal ResizeDiagnosticTrace(Form owner, bool pixels = false, bool coverageCandidate = false, bool splitCandidate = false)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        this.owner = owner; this.pixels = pixels;
+        this.coverageCandidate = coverageCandidate; this.splitCandidate = splitCandidate;
+        managedThread = Environment.CurrentManagedThreadId;
+        owner.HandleCreated += HandleCreated;
+        owner.HandleDestroyed += HandleDestroyed;
+        if (owner.IsHandleCreated) AttachCurrentChildren();
+    }
+
+    internal void AttachCurrentChildren()
+    {
+        if (!Allowed()) return;
+        long began = Stopwatch.GetTimestamp();
+        try
+        {
+            if (!owner.IsHandleCreated) return;
+            var root = owner.Handle;
+            var wanted = new Dictionary<IntPtr, SurfaceKind> { [root] = SurfaceKind.Root };
+            var leaves = new List<Control>();
+            Collect(owner);
+            foreach (var leaf in leaves)
+            {
+                Add(leaf, Kind(leaf));
+                Control? ancestor = leaf.Parent;
+                for (int depth = 0; ancestor != null && ancestor != owner && depth < 8; depth++, ancestor = ancestor.Parent)
+                    Add(ancestor, SurfaceKind.Ancestor);
+                // Native edit/scroll children do not necessarily have Control wrappers.
+                if (leaf.IsHandleCreated)
+                    EnumChildWindows(leaf.Handle, (handle, _) =>
+                    {
+                        if (wanted.Count >= MaxHooks) { hooksLimited = true; return false; }
+                        if (IsChild(root, handle) && IsWindow(handle))
+                            wanted.TryAdd(handle, Control.FromHandle(handle) is ScrollBar ? SurfaceKind.Scrollbar : SurfaceKind.OwnedChild);
+                        return true;
+                    }, IntPtr.Zero);
+            }
+            foreach (var pair in windows.ToArray())
+                if (!wanted.ContainsKey(pair.Key) || !IsWindow(pair.Key))
+                { pair.Value.Detach(); windows.Remove(pair.Key); }
+            foreach (var pair in wanted)
+            {
+                if (windows.ContainsKey(pair.Key)) continue;
+                if (windows.Count >= MaxHooks) { hooksLimited = true; break; }
+                var hook = new TraceWindow(this, pair.Key, pair.Value,
+                    pair.Value == SurfaceKind.Root ? 0 : ++surfaceTicket);
+                windows.Add(pair.Key, hook);
+                try { hook.Attach(); }
+                catch { windows.Remove(pair.Key); observationFailures++; }
+            }
+
+            void Collect(Control parent)
+            {
+                foreach (Control child in parent.Controls)
+                {
+                    if (child.IsDisposed || child.Disposing) continue;
+                    if (child is TextBox or ComboBox or DataGridView or ScrollBar or TreemapControl) leaves.Add(child);
+                    if (leaves.Count >= MaxHooks) { hooksLimited = true; return; }
+                    if (child.HasChildren) Collect(child);
+                }
+            }
+            void Add(Control control, SurfaceKind kind)
+            {
+                if (wanted.Count >= MaxHooks) { hooksLimited = true; return; }
+                if (control.IsHandleCreated && !control.IsDisposed &&
+                    (control == owner || IsChild(root, control.Handle))) wanted.TryAdd(control.Handle, kind);
+            }
+        }
+        catch { observationFailures++; }
+        finally { diagnosticTicks += Stopwatch.GetTimestamp() - began; }
+    }
+
+    internal void Mark(string stage, Bitmap? frame = null, Rectangle? clip = null, Size? frameContent = null)
+    {
+        if (!Stages.Contains(stage)) { rejectedStages++; return; }
+        if (!Allowed()) return;
+        if (stage == "FrameBegin") frameTicket++;
+        long began = Stopwatch.GetTimestamp();
+        observing = true;
+        try
+        {
+            AdvanceGeometry();
+            var record = Observe(SurfaceKind.Root, 0, owner.IsHandleCreated ? owner.Handle : IntPtr.Zero,
+                stage, null, null, frame, clip, frameContent);
+            if (pixels && (stage is "GeometryAfterChildren" or "FrameCopied" or "NativeSizeReturned" or "RootPaintReturned"))
+            {
+                int bit = stage is "GeometryAfterChildren" or "NativeSizeReturned" ? 1 : 2;
+                if ((phaseSamples & bit) == 0)
+                {
+                    phaseSamples |= bit;
+                    record = record with { Pixels = SamplePixels(frame, frameContent) };
+                }
+            }
+            Append(record);
+        }
+        catch { observationFailures++; }
+        finally { observing = false; diagnosticTicks += Stopwatch.GetTimestamp() - began; }
+    }
+
+    private void Message(TraceWindow window, ref Message message, bool before)
+    {
+        if (!Allowed() || observing) return;
+        bool selected = message.Msg is 0x0005 or 0x000F or 0x0014 or 0x0046 or 0x0047 or 0x0083 or 0x0085;
+        if (!selected) return;
+        long began = Stopwatch.GetTimestamp(); observing = true;
+        try
+        {
+            Position? position = null;
+            if ((message.Msg == WmWindowPosChanging || message.Msg == WmWindowPosChanged) && message.LParam != IntPtr.Zero)
+                position = Marshal.PtrToStructure<Position>(message.LParam);
+            if (before && window.Kind == SurfaceKind.Root)
+            {
+                AdvanceGeometry();
+                if (owner is not LiveResizePrototypeForm && message.Msg == WmPaint) frameTicket++;
+            }
+            long? result = !before && (message.Msg == WmPaint || message.Msg == WmErase) &&
+                message.Result.ToInt64() is 0 or 1 ? message.Result.ToInt64() : null;
+            var record = Observe(window.Kind, window.Id, window.ObservedHandle, before ? "MessageEnter" : "MessageExit",
+                message.Msg, position, null, null, null) with { MessageResult = result };
+            if (pixels && window.Kind == SurfaceKind.Root && EarlyStage(message.Msg, before) is { } early)
+            {
+                // A native client-size change can become observable before the
+                // existing WM_SIZE-return sampling boundary. Keep this channel
+                // independent of the original two-phase / 32-point budget.
+                AdvanceGeometry();
+                record = record with { Geometry = geometry, EarlyStage = early.Name };
+                if ((earlyPhaseSamples & early.Bit) == 0)
+                {
+                    earlyPhaseSamples |= early.Bit;
+                    record = record with
+                    {
+                        EarlyPixels = SampleEarlyRootPixels(),
+                        EarlySampleBudgetExhausted = earlyGeometryBudgetLimited
+                    };
+                }
+                else earlyRepeatedStagesSkipped++;
+            }
+            Append(record);
+        }
+        catch { observationFailures++; }
+        finally { observing = false; diagnosticTicks += Stopwatch.GetTimestamp() - began; }
+    }
+
+    private void AdvanceGeometry()
+    {
+        if (!owner.IsHandleCreated || !GetClientRect(owner.Handle, out var client)) return;
+        var actual = new Size(client.Right - client.Left, client.Bottom - client.Top);
+        if (actual == previousActualClient) return;
+        previousActualClient = actual; geometry++; pixelSamples = 0; phaseSamples = 0;
+        earlyPixelSamples = 0; earlyPhaseSamples = 0; earlyGeometryBudgetLimited = false;
+    }
+
+    private static (string Name, int Bit)? EarlyStage(int message, bool before) => (message, before) switch
+    {
+        ((int)WmNcCalcSize, false) => ("NcCalcSizeReturned", 1),
+        ((int)WmNcPaint, true) => ("NcPaintEntering", 2),
+        ((int)WmNcPaint, false) => ("NcPaintReturned", 32),
+        ((int)WmErase, true) => ("EraseEntering", 4),
+        ((int)WmErase, false) => ("EraseReturned", 8),
+        ((int)WmWindowPosChanged, true) => ("WindowPosChangedEntering", 16),
+        _ => null
+    };
+
+    private PixelSample[] SampleEarlyRootPixels()
+    {
+        if (!owner.IsHandleCreated) return [];
+        if (earlyPixelSamples >= MaxEarlyPixelSamplesPerGeometry)
+        {
+            if (!earlyGeometryBudgetLimited) earlyBudgetLimitedGeometries++;
+            earlyGeometryBudgetLimited = true;
+            return [];
+        }
+        IntPtr root = owner.Handle;
+        if (!Owned(root) || !GetClientRect(root, out var client)) return [];
+        int width = client.Right - client.Left, height = client.Bottom - client.Top;
+        if (width < 4 || height < 4) return [];
+        Point[] points = [new(width - 2, height / 3), new(width - 2, height * 2 / 3),
+            new(width / 3, height - 2), new(width * 2 / 3, height - 2)];
+        var samples = new List<PixelSample>(MaxEarlyPixelSamplesPerStage);
+        foreach (Point point in points)
+        {
+            if (samples.Count >= MaxEarlyPixelSamplesPerStage) break;
+            if (earlyPixelSamples >= MaxEarlyPixelSamplesPerGeometry)
+            {
+                if (!earlyGeometryBudgetLimited) earlyBudgetLimitedGeometries++;
+                earlyGeometryBudgetLimited = true;
+                break;
+            }
+            IntPtr child = DeepestChild(root, point);
+            // Never read the parent's DC as evidence for a location belonging
+            // to an owned child. Its early content remains explicitly unknown.
+            samples.Add(child == root
+                ? Read(root, point, point, false, "EarlyRootMinusChildren", null, null)
+                : new("EarlyRootPointChildUnknown", Alias(child), PixelKind(child), point.X, point.Y,
+                    false, false, null, false, "ChildOwnedPointNotSampledUnknown"));
+            earlyPixelSamples++; earlySamplesTotal++;
+        }
+        return samples.ToArray();
+    }
+
+    private void NativeCompleted(SurfaceKind kind, int message)
+    {
+        if (kind != SurfaceKind.Root || owner is LiveResizePrototypeForm || disposed) return;
+        if (message == WmSize) Mark("NativeSizeReturned");
+        else if (message == WmPaint) Mark("RootPaintReturned");
+    }
+
+    private TraceRecord Observe(SurfaceKind kind, int id, IntPtr handle, string stage, int? message,
+        Position? position, Bitmap? frame, Rectangle? clip, Size? content)
+    {
+        var root = owner.IsHandleCreated ? owner.Handle : IntPtr.Zero;
+        var rootOrigin = new NativePoint();
+        bool rootValid = root != IntPtr.Zero && IsWindow(root) && ClientToScreen(root, ref rootOrigin);
+        NativeRect rootClient = default, rootWindow = default, extended = default, targetWindow = default, targetClient = default;
+        bool clientValid = rootValid && GetClientRect(root, out rootClient);
+        bool windowValid = rootValid && GetWindowRect(root, out rootWindow);
+        bool extendedValid = rootValid && DwmGetWindowAttribute(root, 9, out extended, Marshal.SizeOf<NativeRect>()) >= 0;
+        bool targetValid = rootValid && Owned(handle) && GetWindowRect(handle, out targetWindow);
+        bool targetClientValid = targetValid && GetClientRect(handle, out targetClient);
+        Rectangle? managed = null;
+        if (targetValid && Control.FromHandle(handle) is { IsHandleCreated: true } control)
+        {
+            var origin = new NativePoint();
+            if (ClientToScreen(handle, ref origin))
+                managed = new(origin.X - rootOrigin.X, origin.Y - rootOrigin.Y, control.ClientSize.Width, control.ClientSize.Height);
+        }
+        NativeRect update = default;
+        bool updateValid = targetValid && GetUpdateRect(handle, out update, false);
+        Rectangle? requested = null;
+        if (position is { } pos && rootValid)
+        {
+            var origin = new NativePoint();
+            IntPtr parent = handle == root ? IntPtr.Zero : GetParent(handle);
+            if (handle == root) requested = new(pos.X - rootOrigin.X, pos.Y - rootOrigin.Y, pos.Width, pos.Height);
+            else if (Owned(parent) && ClientToScreen(parent, ref origin))
+                requested = new(pos.X + origin.X - rootOrigin.X, pos.Y + origin.Y - rootOrigin.Y, pos.Width, pos.Height);
+        }
+        var prototype = owner as LiveResizePrototypeForm;
+        Size? actualContent = content ?? (frame == null ? null : new Size(
+            Math.Min(owner.ClientSize.Width, frame.Width), Math.Min(owner.ClientSize.Height, frame.Height)));
+        return new TraceRecord(++sequence, Stopwatch.GetTimestamp() - started, geometry, frameTicket,
+            kind, id, stage, message, position?.Flags, requested,
+            clientValid ? Rect(rootClient) : null, windowValid ? Relative(rootWindow, rootOrigin) : null,
+            extendedValid ? Relative(extended, rootOrigin) : null, owner.ClientSize,
+            targetValid ? Relative(targetWindow, rootOrigin) : null,
+            targetClientValid ? Rect(targetClient) : null, managed, updateValid ? Rect(update) : null,
+            updateValid, frame?.Size, actualContent, frame != null && content == null, clip,
+            prototype?.PresentedLayout?.PixelSize, prototype?.FrameCount, prototype?.NativeMode,
+            rootValid && targetValid ? "Observed" : "Unavailable", null, null);
+    }
+
+    private PixelSample[] SamplePixels(Bitmap? frame, Size? content)
+    {
+        if (!owner.IsHandleCreated || pixelSamples >= MaxPixelSamplesPerGeometry) return [];
+        var root = owner.Handle;
+        if (!GetClientRect(root, out var nativeClient)) return [];
+        int width = nativeClient.Right, height = nativeClient.Bottom;
+        if (width < 4 || height < 4) return [];
+        var origin = new NativePoint();
+        if (!ClientToScreen(root, ref origin)) return [];
+        int remaining = Math.Min(16, MaxPixelSamplesPerGeometry - pixelSamples);
+        var result = new List<PixelSample>(16);
+        Point[] rootPoints = [new(width - 2, height / 3), new(width - 2, height * 2 / 3),
+            new(width / 3, height - 2), new(width * 2 / 3, height - 2)];
+        foreach (var point in rootPoints)
+        {
+            if (remaining <= 0) break;
+            var child = DeepestChild(root, point);
+            if (child != root)
+            {
+                var local = new NativePoint { X = point.X + origin.X, Y = point.Y + origin.Y };
+                if (ScreenToClient(child, ref local))
+                    result.Add(Read(child, new(local.X, local.Y), point, false,
+                        "RootPointOwnedByChild", frame, content));
+                else result.Add(new("RootPointOwnedByChild", Alias(child), PixelKind(child), point.X, point.Y, false,
+                    false, null, false, "NotRootMinusChildrenUnknownMapping"));
+                remaining--; pixelSamples++; continue;
+            }
+            result.Add(Read(root, point, point, false, "RootMinusChildren", frame, content));
+            remaining--; pixelSamples++;
+        }
+        foreach (var hook in windows.Values.Where(value => value.Kind is SurfaceKind.Grid or SurfaceKind.Text or
+            SurfaceKind.Combo or SurfaceKind.Map or SurfaceKind.Scrollbar).OrderBy(value => value.Kind).Take(4))
+        {
+            if (remaining <= 0) break;
+            if (!Owned(hook.ObservedHandle) || !IsWindowVisible(hook.ObservedHandle) ||
+                !GetClientRect(hook.ObservedHandle, out var childRect) || childRect.Right < 4 || childRect.Bottom < 4) continue;
+            var childOrigin = new NativePoint();
+            if (!ClientToScreen(hook.ObservedHandle, ref childOrigin)) continue;
+            int margin = Math.Max(16, (int)Math.Round(owner.DeviceDpi * 16d / 96));
+            Point[] points = [new(Math.Min(margin, childRect.Right / 2), Math.Min(margin, childRect.Bottom / 2)),
+                new(childRect.Right / 2, childRect.Bottom / 2)];
+            foreach (var point in points)
+            {
+                if (remaining <= 0) break;
+                var rootPoint = new Point(point.X + childOrigin.X - origin.X, point.Y + childOrigin.Y - origin.Y);
+                result.Add(Read(hook.ObservedHandle, point, rootPoint, false, "OwnedChildClient", frame, content));
+                remaining--; pixelSamples++;
+            }
+        }
+        if (remaining > 0 && GetWindowRect(root, out var outer))
+        {
+            var windowPoint = new Point(Math.Max(0, (outer.Right - outer.Left) / 2), 6);
+            var rootPoint = new Point(windowPoint.X + outer.Left - origin.X, windowPoint.Y + outer.Top - origin.Y);
+            if (!new Rectangle(0, 0, width, height).Contains(rootPoint))
+            {
+                result.Add(Read(root, windowPoint, rootPoint, true, "RootNonClient", null, null));
+                remaining--; pixelSamples++;
+            }
+        }
+        return result.ToArray();
+    }
+
+    private PixelSample Read(IntPtr handle, Point local, Point rootPoint, bool nonClient,
+        string location, Bitmap? frame, Size? content)
+    {
+        if (!Owned(handle)) return new(location, Alias(handle), PixelKind(handle), rootPoint.X, rootPoint.Y, false,
+            false, null, false, "NotOwned");
+        IntPtr dc = nonClient ? GetWindowDC(handle) : GetDC(handle);
+        if (dc == IntPtr.Zero) return new(location, Alias(handle), PixelKind(handle), rootPoint.X, rootPoint.Y, false,
+            false, null, false, "NoDC");
+        uint pixel;
+        bool visible;
+        try { visible = PtVisible(dc, local.X, local.Y); pixel = visible ? GetPixel(dc, local.X, local.Y) : uint.MaxValue; }
+        finally { ReleaseDC(handle, dc); }
+        if (pixel == uint.MaxValue) return new(location, Alias(handle), PixelKind(handle), rootPoint.X, rootPoint.Y, false,
+            false, null, false, visible ? "InvalidPixel" : "OutsideDcClipUnknownRegion");
+        Size available = content ?? new Size(Math.Min(owner.ClientSize.Width, frame?.Width ?? 0),
+            Math.Min(owner.ClientSize.Height, frame?.Height ?? 0));
+        bool? matches = null;
+        bool expectedBlack = false;
+        if (frame != null && rootPoint.X >= 0 && rootPoint.Y >= 0 && rootPoint.X < available.Width &&
+            rootPoint.Y < available.Height && rootPoint.X < frame.Width && rootPoint.Y < frame.Height)
+        {
+            Color expected = frame.GetPixel(rootPoint.X, rootPoint.Y);
+            uint expectedValue = (uint)(expected.R | expected.G << 8 | expected.B << 16);
+            matches = pixel == expectedValue; expectedBlack = expectedValue == 0;
+        }
+        return new(location, Alias(handle), PixelKind(handle), rootPoint.X, rootPoint.Y, true, pixel == 0, matches,
+            expectedBlack, handle != owner.Handle ? "ParentBufferUnderChildNotEquivalenceProof" : "GdiSurfaceOnlyNotDisplayProof");
+    }
+
+    private IntPtr DeepestChild(IntPtr root, Point point)
+    {
+        IntPtr current = root;
+        var local = new NativePoint { X = point.X, Y = point.Y };
+        for (int depth = 0; depth < 12; depth++)
+        {
+            IntPtr child = ChildWindowFromPointEx(current, local, 1);
+            if (child == IntPtr.Zero || child == current || !Owned(child)) break;
+            if (!ClientToScreen(current, ref local) || !ScreenToClient(child, ref local)) break;
+            current = child;
+        }
+        return current;
+    }
+
+    private int Alias(IntPtr handle) => windows.TryGetValue(handle, out var hook) ? hook.Id : -1;
+    private SurfaceKind PixelKind(IntPtr handle) => windows.TryGetValue(handle, out var hook) ? hook.Kind : SurfaceKind.OwnedChild;
+    private bool Owned(IntPtr handle) => handle != IntPtr.Zero && owner.IsHandleCreated && IsWindow(handle) &&
+        (handle == owner.Handle || IsChild(owner.Handle, handle));
+
+    private bool Allowed()
+    {
+        if (disposed || !recording) return false;
+        if (Environment.CurrentManagedThreadId == managedThread) return true;
+        wrongThreadCalls++; return false;
+    }
+    private void Append(TraceRecord record)
+    {
+        if (records.Count < MaxRecords) records.Add(record);
+        else { dropped++; recording = false; }
+    }
+    private void HandleCreated(object? sender, EventArgs e) { AttachCurrentChildren(); Mark("HandleCreated"); }
+    private void HandleDestroyed(object? sender, EventArgs e)
+    {
+        Mark("HandleDestroyed");
+        foreach (var hook in windows.Values.ToArray()) hook.Detach();
+        windows.Clear();
+    }
+
+    internal void Flush(string path)
+    {
+        // Call only after this owned window has closed. The path is an output
+        // argument, never serialized. No exception content enters the report.
+        if (!owner.IsDisposed && owner.IsHandleCreated) throw new InvalidOperationException("TraceWindowStillOpen");
+        recording = false;
+        var report = new
+        {
+            schema = MappingAuditEnabled ? "resize-diagnostic-trace-v4-mapping-audit" : "resize-diagnostic-trace-v3", pixels_enabled = pixels,
+            root_coverage_candidate = coverageCandidate, split_panel_candidate = splitCandidate,
+            native_dib_frame = owner is LiveResizePrototypeForm { UsesNativeFrame: true },
+            coverage_strategy = !coverageCandidate ? "off" : owner is LiveResizePrototypeForm ? "prepared-scene-with-background-fallback" : "background-only",
+            max_records = MaxRecords, records_count = records.Count,
+            truncated = dropped > 0, dropped_records_lower_bound = dropped,
+            pixel_samples_per_geometry_max = MaxPixelSamplesPerGeometry,
+            pixel_samples_original_phases = "geometry-after-children-or-native-size-returned;frame-copied-or-root-paint-returned",
+            early_pixel_samples_per_geometry_max = MaxEarlyPixelSamplesPerGeometry,
+            early_pixel_samples_per_stage_max = MaxEarlyPixelSamplesPerStage,
+            early_pixel_sample_stages = new[] { "NcCalcSizeReturned", "NcPaintEntering", "NcPaintReturned", "EraseEntering", "EraseReturned", "WindowPosChangedEntering" },
+            early_pixel_budget = "independent-of-original-32;first-observation-per-stage-per-geometry;six-stages-max-24",
+            early_pixel_samples_count = earlySamplesTotal,
+            early_repeated_stages_skipped = earlyRepeatedStagesSkipped,
+            early_budget_limited_geometries = earlyBudgetLimitedGeometries,
+            early_budget_truncated = earlyBudgetLimitedGeometries > 0,
+            early_truncated = dropped > 0 || earlyBudgetLimitedGeometries > 0,
+            hooks_limited = hooksLimited, rejected_stages = rejectedStages,
+            wrong_thread_calls = wrongThreadCalls, observation_failures = observationFailures,
+            diagnostic_ticks = diagnosticTicks, timestamp_frequency = Stopwatch.Frequency,
+            surface_evidence = "own-gdi-surfaces-only-not-dwm-or-screen-proof",
+            early_evidence = "synchronous-gdi-readback-can-change-timing;no-black-does-not-refute-visible-black",
+            region_attribution = "window-region-not-queried-pixel-dc-visibility-recorded",
+            geometry_ticket = "actual-root-getclientrect-size-change",
+            baseline_frame_boundary = "non-prototype-framecopied-is-root-wmpaint-exit-not-all-children",
+            mapping_audit = new { enabled = MappingAuditEnabled, mapping_limit = 128, root_limit = 1024, dropped = auditDropped,
+                mapping = mappingAudit, root_witness = rootAudit },
+            records
+        };
+        var options = new JsonSerializerOptions { WriteIndented = false };
+        options.Converters.Add(new JsonStringEnumConverter());
+        File.WriteAllText(path, JsonSerializer.Serialize(report, options));
+    }
+
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true; recording = false;
+        owner.HandleCreated -= HandleCreated; owner.HandleDestroyed -= HandleDestroyed;
+        if (Environment.CurrentManagedThreadId == managedThread)
+        {
+            foreach (var hook in windows.Values.ToArray()) hook.Detach();
+            windows.Clear();
+        }
+    }
+
+    private static SurfaceKind Kind(Control control) => control switch
+    {
+        DataGridView => SurfaceKind.Grid, TextBox => SurfaceKind.Text, ComboBox => SurfaceKind.Combo,
+        ScrollBar => SurfaceKind.Scrollbar, TreemapControl => SurfaceKind.Map, _ => SurfaceKind.OwnedChild
+    };
+    private static Rectangle Rect(NativeRect rect) => Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom);
+    private static Rectangle Relative(NativeRect rect, NativePoint origin) =>
+        new(rect.Left - origin.X, rect.Top - origin.Y, rect.Right - rect.Left, rect.Bottom - rect.Top);
+
+    private enum SurfaceKind { Root, Grid, Text, Combo, Scrollbar, Map, Ancestor, OwnedChild }
+    private sealed record PixelSample(string Location, int SurfaceId, SurfaceKind Surface, int X, int Y,
+        bool Valid, bool Black, bool? MatchesFrame, bool ExpectedFrameBlack, string EvidenceBoundary);
+    private sealed record TraceRecord(long Sequence, long Timestamp, long Geometry, long Frame,
+        SurfaceKind Surface, int SurfaceId, string Stage, int? Message, uint? WindowPositionFlags,
+        Rectangle? RequestedBounds, Rectangle? RootClient, Rectangle? RootWindow, Rectangle? ExtendedFrame,
+        Size ManagedRootClient, Rectangle? TargetWindow, Rectangle? TargetClient, Rectangle? ManagedTargetClient,
+        Rectangle? UpdateBounds, bool UpdatePending, Size? FrameCapacity, Size? FrameContent,
+        bool FrameContentAssumed, Rectangle? Clip, Size? PresentedLayout, int? PresentedFrames,
+        ResizeNativeMode? Mode, string Observation, PixelSample[]? Pixels, long? MessageResult,
+        string? EarlyStage = null, PixelSample[]? EarlyPixels = null, bool EarlySampleBudgetExhausted = false);
+
+    private sealed class TraceWindow(ResizeDiagnosticTrace trace, IntPtr handle, SurfaceKind kind, int id) : NativeWindow
+    {
+        internal IntPtr ObservedHandle { get; } = handle;
+        internal SurfaceKind Kind { get; } = kind;
+        internal int Id { get; } = id;
+        internal void Attach() => AssignHandle(ObservedHandle);
+        internal void Detach() { if (Handle != IntPtr.Zero) ReleaseHandle(); }
+        protected override void WndProc(ref Message message)
+        {
+            trace.Message(this, ref message, true);
+            try { base.WndProc(ref message); }
+            finally { trace.Message(this, ref message, false); trace.NativeCompleted(Kind, message.Msg); }
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)] private struct NativeRect { internal int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] private struct NativePoint { internal int X, Y; }
+    [StructLayout(LayoutKind.Sequential)] private struct Position
+    { internal IntPtr Window, After; internal int X, Y, Width, Height; internal uint Flags; }
+    private delegate bool EnumWindowsProc(IntPtr handle, IntPtr argument);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool EnumChildWindows(IntPtr parent, EnumWindowsProc callback, IntPtr argument);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsWindow(IntPtr handle);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsWindowVisible(IntPtr handle);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsChild(IntPtr parent, IntPtr child);
+    [DllImport("user32.dll")] private static extern IntPtr GetParent(IntPtr handle);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetClientRect(IntPtr handle, out NativeRect rectangle);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetWindowRect(IntPtr handle, out NativeRect rectangle);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool ClientToScreen(IntPtr handle, ref NativePoint point);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool ScreenToClient(IntPtr handle, ref NativePoint point);
+    [DllImport("user32.dll")] private static extern IntPtr ChildWindowFromPointEx(IntPtr parent, NativePoint point, uint flags);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetUpdateRect(IntPtr handle, out NativeRect rectangle, [MarshalAs(UnmanagedType.Bool)] bool erase);
+    [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr handle, int attribute, out NativeRect value, int size);
+    [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr handle);
+    [DllImport("user32.dll")] private static extern IntPtr GetWindowDC(IntPtr handle);
+    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr handle, IntPtr dc);
+    [DllImport("gdi32.dll")] private static extern uint GetPixel(IntPtr dc, int x, int y);
+    [DllImport("gdi32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool PtVisible(IntPtr dc, int x, int y);
+    [DllImport("gdi32.dll")] private static extern bool GetWindowOrgEx(IntPtr dc, out NativePoint point);
+    [DllImport("gdi32.dll")] private static extern bool GetViewportOrgEx(IntPtr dc, out NativePoint point);
+    [DllImport("gdi32.dll")] private static extern int GetClipBox(IntPtr dc, out NativeRect rect);
+    [DllImport("gdi32.dll")] private static extern uint GetObjectType(IntPtr dc);
+    [DllImport("gdi32.dll")] private static extern int GetMapMode(IntPtr dc);
+    [DllImport("user32.dll")] private static extern IntPtr WindowFromDC(IntPtr dc);
+}

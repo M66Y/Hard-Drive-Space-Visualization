@@ -1,0 +1,296 @@
+diff --git a/MainForm.cs b/MainForm.cs
+index a776ea1..506def7 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -375,7 +375,12 @@ internal sealed class MainForm : Form
+     protected override void WndProc(ref Message message)
+     {
+         ResizePixelPolicy.Prepare(this, ref message);
+-        base.WndProc(ref message);
++        // WinForms updates managed bounds after DefWindowProc has sent its
++        // nested WM_SIZE, so the outer WM_WINDOWPOSCHANGED owns the boundary.
++        // Keep direct WM_SIZE compatible; nested scopes share the same batch.
++        using (message.Msg == 0x0047 || message.Msg == 0x0005 && message.WParam.ToInt64() != 1
++            ? layoutPresentation?.BeginGeometry() : null)
++            base.WndProc(ref message);
+         HandleMonitoringSystemEvent(message.Msg, message.WParam.ToInt64());
+     }
+ 
+diff --git a/src/UI/LayoutPresentation.cs b/src/UI/LayoutPresentation.cs
+index 2d9065d..34b7392 100644
+--- a/src/UI/LayoutPresentation.cs
++++ b/src/UI/LayoutPresentation.cs
+@@ -13,6 +13,9 @@ internal sealed class LayoutPresentation : IDisposable
+     private readonly List<Root> roots = [];
+     private bool queued, presenting, disposed;
+     private long ticket;
++    private int geometryDepth;
++    private long geometryGeneration;
++    private IntPtr geometryHandle;
+     internal bool HasQueuedWork => queued;
+     internal int Presentations { get; private set; }
+     internal int PendingRoots => roots.Count(root => !root.Dirty.IsEmpty);
+@@ -38,9 +41,44 @@ internal sealed class LayoutPresentation : IDisposable
+         return roots.FirstOrDefault(root => root.Control == control)?.HoldLayout();
+     }
+ 
++    // A Form WM_SIZE lays out several registered roots. Each root still owns
++    // its local redraw hold, but none may synchronously present an intermediate
++    // parent layout. The outer message performs one final presentation pass.
++    internal IDisposable? BeginGeometry()
++    {
++        if (presenting || !Allowed) return null;
++        if (geometryDepth == 0)
++        {
++            geometryHandle = owner.Handle;
++            geometryGeneration++;
++            ticket++; queued = false; // Retire a previously posted callback.
++        }
++        geometryDepth++;
++        return new GeometryHold(this, geometryGeneration);
++    }
++
++    private void EndGeometry(long generation)
++    {
++        if (disposed || generation != geometryGeneration || geometryDepth == 0) return;
++        if (--geometryDepth != 0) return;
++        IntPtr handle = geometryHandle; geometryHandle = IntPtr.Zero;
++        if (!Allowed || owner.Handle != handle) return;
++        PresentPending();
++    }
++
++    private sealed class GeometryHold(LayoutPresentation presenter, long generation) : IDisposable
++    {
++        private LayoutPresentation? owner = presenter;
++        public void Dispose()
++        {
++            var held = owner; owner = null;
++            held?.EndGeometry(generation);
++        }
++    }
++
+     private void PresentPending()
+     {
+-        if (presenting || !Allowed || !roots.Any(root => !root.Dirty.IsEmpty && Ready(root.Control))) return;
++        if (geometryDepth != 0 || presenting || !Allowed || !roots.Any(root => !root.Dirty.IsEmpty && Ready(root.Control))) return;
+         queued = false;
+         Flush(++ticket, owner.Handle);
+     }
+@@ -54,7 +92,7 @@ internal sealed class LayoutPresentation : IDisposable
+ 
+     private void Request(Root root, Rectangle rectangle)
+     {
+-        if (!Allowed) { Clear(); return; }
++        if (!Allowed) { if (geometryDepth == 0) Clear(); return; }
+         rectangle = Rectangle.Intersect(rectangle, root.Control.ClientRectangle);
+         if (rectangle.Width > 0 && rectangle.Height > 0)
+             root.Dirty = root.Dirty.IsEmpty ? rectangle : Rectangle.Union(root.Dirty, rectangle);
+@@ -63,7 +101,7 @@ internal sealed class LayoutPresentation : IDisposable
+ 
+     private void Queue()
+     {
+-        if (queued || presenting || !Allowed || !roots.Any(root => !root.Dirty.IsEmpty && Ready(root.Control))) return;
++        if (geometryDepth != 0 || queued || presenting || !Allowed || !roots.Any(root => !root.Dirty.IsEmpty && Ready(root.Control))) return;
+         queued = true;
+         long expected = ++ticket;
+         IntPtr handle = owner.Handle; // Allowed checked IsHandleCreated; never create one.
+@@ -91,12 +129,13 @@ internal sealed class LayoutPresentation : IDisposable
+     {
+         if (disposed || expected != ticket) return;
+         queued = false;
++        if (geometryDepth != 0) return;
+         if (!Allowed || owner.Handle != handle) { Clear(); return; }
+         presenting = true;
+         try
+         {
+             var currentRoots = roots.ToArray();
+-            bool Current() => !disposed && expected == ticket && Allowed && owner.Handle == handle;
++            bool Current() => !disposed && geometryDepth == 0 && expected == ticket && Allowed && owner.Handle == handle;
+             foreach (var root in currentRoots)
+             {
+                 if (!Current()) return;
+@@ -149,12 +188,17 @@ internal sealed class LayoutPresentation : IDisposable
+     }
+ 
+     private void Clear() { foreach (var root in roots) root.Dirty = Rectangle.Empty; }
+-    private void OwnerHandleDestroyed(object? sender, EventArgs args) { ticket++; queued = false; Clear(); }
++    private void OwnerHandleDestroyed(object? sender, EventArgs args)
++    {
++        geometryGeneration++; geometryDepth = 0; geometryHandle = IntPtr.Zero;
++        ticket++; queued = false; Clear();
++    }
+ 
+     public void Dispose()
+     {
+         if (disposed) return;
+-        disposed = true; ticket++; queued = false; Clear();
++        disposed = true; geometryGeneration++; geometryDepth = 0; geometryHandle = IntPtr.Zero;
++        ticket++; queued = false; Clear();
+         owner.HandleDestroyed -= OwnerHandleDestroyed;
+         owner.HandleCreated -= Retry;
+         foreach (var root in roots) root.Dispose();
+diff --git a/tests/LayoutPresentationPolicyTests.cs b/tests/LayoutPresentationPolicyTests.cs
+index b3c2c97..16f52a5 100644
+--- a/tests/LayoutPresentationPolicyTests.cs
++++ b/tests/LayoutPresentationPolicyTests.cs
+@@ -44,6 +44,10 @@ internal static class LayoutPresentationPolicyTests
+                     try
+                     {
+                         phase = "Burst"; await CheckBurst();
++                        phase = "GeometryBatch"; await CheckGeometryBatch();
++                        phase = "GeometryException"; await CheckGeometryException();
++                        phase = "GeometryGeneration"; await CheckGeometryGeneration();
++                        phase = "GeometryExternalHold"; await CheckGeometryExternalHold();
+                         phase = "DisposeDuringSettle"; await CheckDisposeDuringSettle();
+                         phase = "PausedSecondBatch"; await CheckPausedSecondBatch();
+                         phase = "UnchangedLayoutRetry"; await CheckUnchangedLayoutRetry();
+@@ -108,6 +112,114 @@ internal static class LayoutPresentationPolicyTests
+                     "EmptyRetryDoesNotCreateIdleWork");
+             }
+ 
++            async Task CheckGeometryBatch()
++            {
++                using var fixture = await OpenFixture(2);
++                int settles = 0;
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => settles++, fixture.Roots);
++                // A pre-existing posted callback must not run inside a later
++                // geometry scope, even if a nested handler pumps messages.
++                presenter.ResizeSurfaces();
++                using var outer = presenter.BeginGeometry() ?? throw new CheckFailure("GeometryOuterNotAcquired");
++                using (presenter.BeginGeometry() ?? throw new CheckFailure("GeometryInnerNotAcquired"))
++                {
++                    foreach (var root in fixture.Roots)
++                    {
++                        using (presenter.BeginLayout(root) ?? throw new CheckFailure("GeometryRootHoldNotAcquired"))
++                            root.Width += 2;
++                    }
++                    await Quiesce();
++                    Check(settles == 0 && presenter.Presentations == 0 && presenter.PendingRoots == 2 && !presenter.HasQueuedWork,
++                        "GeometryBatchRetainsDirtyWithoutEarlyQueueOrPresentation");
++                }
++                Check(settles == 0 && presenter.Presentations == 0, "NestedGeometryDoesNotPresentBeforeOuterEnd");
++                foreach (var root in fixture.Roots)
++                    Check(GetProp(root.Handle, "SysSetRedraw") == IntPtr.Zero && IsWindowVisible(root.Handle),
++                        "GeometryBatchReleasesOnlyLocalRootHoldsBeforeFinalPass");
++                outer.Dispose();
++                Check(settles == 2 && presenter.Presentations == 2 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                    "GeometryBatchPresentsEachRootOnceAtFinalBoundary");
++                outer.Dispose();
++                await Quiesce();
++                Check(settles == 2 && presenter.Presentations == 2 && !presenter.HasQueuedWork,
++                    "GeometryBatchRejectsStaleCallbackAndRepeatedDispose");
++                using (presenter.BeginGeometry() ?? throw new CheckFailure("EmptyGeometryNotAcquired")) { }
++                Check(settles == 2 && presenter.Presentations == 2 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                    "EmptyGeometryBoundaryDoesNotCreateWork");
++            }
++
++            async Task CheckGeometryException()
++            {
++                using var fixture = await OpenFixture();
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, fixture.Roots);
++                var sentinel = new CheckFailure("SyntheticGeometryException");
++                bool caught = false;
++                try
++                {
++                    using var geometry = presenter.BeginGeometry() ?? throw new CheckFailure("ThrowingGeometryNotAcquired");
++                    using (presenter.BeginLayout(fixture.Roots[0]) ?? throw new CheckFailure("ThrowingGeometryRootNotAcquired"))
++                        fixture.Roots[0].Height += 2;
++                    Check(presenter.Presentations == 0 && presenter.PendingRoots == 1, "ThrowingGeometryStillDefersRootPresentation");
++                    throw sentinel;
++                }
++                catch (CheckFailure error) when (ReferenceEquals(error, sentinel)) { caught = true; }
++                Check(caught && presenter.Presentations == 1 && presenter.PendingRoots == 0,
++                    "ThrowingGeometryFinallyPresentsPendingAndReleasesScope");
++                await Quiesce();
++                using (presenter.BeginLayout(fixture.Roots[0]) ?? throw new CheckFailure("PostGeometryLayoutNotAcquired"))
++                    fixture.Roots[0].Height += 2;
++                Check(presenter.Presentations == 2, "NonResizeLayoutKeepsOriginalSynchronousPresentation");
++            }
++
++            async Task CheckGeometryGeneration()
++            {
++                using var fixture = await OpenFixture();
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, fixture.Roots);
++                using var oldToken = presenter.BeginGeometry() ?? throw new CheckFailure("OldGeometryNotAcquired");
++                presenter.ResizeSurfaces();
++                int creations = fixture.Owner.HandleCreations;
++                fixture.Owner.DestroyTestHandle();
++                Check(!fixture.Owner.IsHandleCreated && !fixture.Roots[0].IsHandleCreated &&
++                    presenter.Presentations == 0 && presenter.PendingRoots == 0, "GeometryHandleDestructionInvalidatesPendingGeneration");
++                await Quiesce();
++                Check(!fixture.Owner.IsHandleCreated && fixture.Owner.HandleCreations == creations,
++                    "GeometryScopeDoesNotRecreateDestroyedOwner");
++                fixture.Owner.RecreateForTest();
++                using var newToken = presenter.BeginGeometry() ?? throw new CheckFailure("NewGeometryNotAcquired");
++                presenter.ResizeSurfaces();
++                oldToken.Dispose();
++                await Quiesce();
++                Check(presenter.Presentations == 0 && presenter.PendingRoots == 1 && !presenter.HasQueuedWork,
++                    "OldGeometryTokenCannotEndNewGenerationOrFlushItsDirtyArea");
++                newToken.Dispose();
++                Check(presenter.Presentations == 1 && presenter.PendingRoots == 0,
++                    "NewGeometryGenerationPresentsNormally");
++                using var finalToken = presenter.BeginGeometry() ?? throw new CheckFailure("DisposedGeometryNotAcquired");
++                presenter.ResizeSurfaces();
++                presenter.Dispose(); finalToken.Dispose();
++                Check(presenter.Presentations == 1 && presenter.PendingRoots == 0 && !presenter.HasQueuedWork,
++                    "PresenterDisposeMakesGeometryTokensHarmless");
++            }
++
++            async Task CheckGeometryExternalHold()
++            {
++                using var fixture = await OpenFixture();
++                using var presenter = new LayoutPresentation(fixture.Owner, () => false, _ => { }, fixture.Roots);
++                using var external = new RedrawHold(fixture.Roots[0]);
++                using (presenter.BeginGeometry() ?? throw new CheckFailure("ExternalGeometryNotAcquired"))
++                {
++                    Check(presenter.BeginLayout(fixture.Roots[0]) == null, "GeometryNeverTakesExternallyHeldRoot");
++                    presenter.ResizeSurfaces();
++                }
++                await Quiesce();
++                Check(external.IsPaused && presenter.Presentations == 0 && presenter.PendingRoots == 1 && !presenter.HasQueuedWork,
++                    "FinalGeometryBoundaryPreservesExternalHoldAndDirtyArea");
++                external.Dispose(); presenter.RetryPending();
++                await Until(() => presenter.Presentations == 1 && presenter.PendingRoots == 0,
++                    "GeometryExternalHoldReleaseDidNotResume");
++                Check(!presenter.HasQueuedWork, "GeometryResumesOnceAfterExternalOwnerReleases");
++            }
++
+             async Task CheckDisposeDuringSettle()
+             {
+                 using var fixture = await OpenFixture(2);
+diff --git a/tests/LayoutTransitionRegression.cs b/tests/LayoutTransitionRegression.cs
+index 667e2b1..0733b37 100644
+--- a/tests/LayoutTransitionRegression.cs
++++ b/tests/LayoutTransitionRegression.cs
+@@ -104,10 +104,26 @@ internal static class LayoutTransitionRegression
+                         // continuous-resize desktop pixels.
+                         await Measure("ResizeBurst", () =>
+                         {
+-                            Size original = form.ClientSize;
+-                            form.ClientSize = new Size(original.Width - 17, original.Height - 11);
+-                            form.ClientSize = new Size(original.Width - 31, original.Height - 19);
+-                            form.ClientSize = original;
++                            var presentation = Field<LayoutPresentation>(form, "layoutPresentation");
++                            int resizeEvents = 0, unbatchedResizeEvents = 0;
++                            EventHandler observeResize = (_, _) =>
++                            {
++                                resizeEvents++;
++                                if (Field<int>(presentation, "geometryDepth") <= 0) unbatchedResizeEvents++;
++                            };
++                            form.Resize += observeResize;
++                            try
++                            {
++                                Size original = form.ClientSize;
++                                form.ClientSize = new Size(original.Width - 17, original.Height - 11);
++                                form.ClientSize = new Size(original.Width - 31, original.Height - 19);
++                                form.ClientSize = original;
++                            }
++                            finally { form.Resize -= observeResize; }
++                            Check(resizeEvents >= 3 && unbatchedResizeEvents == 0,
++                                "ActualMainFormResizeEventsStayInsideGeometryBatch");
++                            Check(Field<int>(presentation, "geometryDepth") == 0,
++                                "ActualMainFormGeometryBatchEndsAfterBoundsUpdate");
+                             return Task.CompletedTask;
+                         }, analysis, false);
+ 

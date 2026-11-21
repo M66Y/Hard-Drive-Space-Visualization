@@ -1,0 +1,87 @@
+{
+  "comparison": "same final product code; C55 root cache enabled in both modes; off/on/on/off",
+  "requested_steps": 12,
+  "size_changes": 11,
+  "dpi": 144,
+  "program_driven": true,
+  "samples": [
+    {
+      "label": "off1",
+      "sync_p50_ms": 250.2278,
+      "sync_p95_nearest_rank_ms": 270.0915,
+      "actual_geometry_changes": 11,
+      "opaque_active": false,
+      "application_pixel_peak_bytes": 27873396,
+      "report_sha256": "A7F3066D99040E187A889C538B697D1D7FFBF240A8AA9899F18EBD95124DB3FC"
+    },
+    {
+      "label": "on1",
+      "sync_p50_ms": 228.3739,
+      "sync_p95_nearest_rank_ms": 271.4179,
+      "actual_geometry_changes": 11,
+      "opaque_active": true,
+      "application_pixel_peak_bytes": 27873396,
+      "report_sha256": "196DEA9EB09FDB4E9C8F67F028E7610BB3AB468EB72166D14291044B2F052558"
+    },
+    {
+      "label": "on2",
+      "sync_p50_ms": 227.2024,
+      "sync_p95_nearest_rank_ms": 287.3279,
+      "actual_geometry_changes": 11,
+      "opaque_active": true,
+      "application_pixel_peak_bytes": 27873396,
+      "report_sha256": "7A4560D223D9EE17E700BC41D14FE7507467D2D31168BAD45259BE741F967D0C"
+    },
+    {
+      "label": "off2",
+      "sync_p50_ms": 246.9392,
+      "sync_p95_nearest_rank_ms": 276.7767,
+      "actual_geometry_changes": 11,
+      "opaque_active": false,
+      "application_pixel_peak_bytes": 27873396,
+      "report_sha256": "EC6DE4DBE2D660DFB0BEC85ED9249585D8DA014168B366EF228403AA541946A8"
+    }
+  ],
+  "stored_surface_observations": {
+    "evidence": "discrete GDI only",
+    "phases": [
+      {
+        "phase": "NcEntering",
+        "valid": 10,
+        "black": 9
+      },
+      {
+        "phase": "NcReturned",
+        "valid": 10,
+        "black": 0
+      },
+      {
+        "phase": "EraseEntering",
+        "valid": 10,
+        "black": 0
+      },
+      {
+        "phase": "EraseReturned",
+        "valid": 10,
+        "black": 0
+      },
+      {
+        "phase": "PositionEntering",
+        "valid": 10,
+        "black": 0
+      },
+      {
+        "phase": "PositionReturned",
+        "valid": 0,
+        "black": 0
+      }
+    ]
+  },
+  "limitations": [
+    "not screen frame rate",
+    "warm UI and uncontrolled outside load",
+    "not a universal speedup claim",
+    "system window image memory not measured or charged to application budget",
+    "stored GDI black samples are not final-screen acceptance"
+  ]
+}

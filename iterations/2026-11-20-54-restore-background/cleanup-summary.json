@@ -1,0 +1,51 @@
+{
+  "closed_out": "2026-11-21",
+  "private_zip": "artifacts/dib-mainform-C54/owned-validation.zip",
+  "zip_entries": 44,
+  "zip_bytes": 34329,
+  "zip_sha256": "D2A19DE8C81B00C47394FD8A34E176B9D09D2182E2971CFB881C8FDDD6095E1E",
+  "uncompressed_evidence_bytes": 205377,
+  "zip_crc_and_each_entry_sha256_verified": true,
+  "removed_original_evidence_bytes": 7312159,
+  "removed_legacy_binaries": [
+    {
+      "file": "legacy-check/app/DiskAtlas.Tests.deps.json",
+      "bytes": 439,
+      "sha256": "F4365858C6878F5331C0E9A4BEB0D28B658EAC14720A6C4341A6C5126A8B3BE3"
+    },
+    {
+      "file": "legacy-check/app/DiskAtlas.Tests.dll",
+      "bytes": 6187520,
+      "sha256": "4BEB927AA4785577AFDE3AECB6CDC95489946D211CEFE5FA47EF78CA885BCE78"
+    },
+    {
+      "file": "legacy-check/app/DiskAtlas.Tests.exe",
+      "bytes": 162304,
+      "sha256": "CA765BF93DCC93464615FF831CDEF6D2806F796A4D363A14F6B18BBBCBB89754"
+    },
+    {
+      "file": "legacy-check/app/DiskAtlas.Tests.pdb",
+      "bytes": 756000,
+      "sha256": "0AAEAD7B526BCAB186376A4CAD188E6F8D6B93CDEE3F230C2563A03B05783113"
+    },
+    {
+      "file": "legacy-check/app/DiskAtlas.Tests.runtimeconfig.json",
+      "bytes": 519,
+      "sha256": "96BC2946DFF8790400D652EC7F8DE7BB043E954980D59470C112788B68A1FBD3"
+    }
+  ],
+  "removed_duplicate_apphost_bytes": 319488,
+  "removed_unchanged_preimages": [
+    {
+      "file": "before/MainForm.cs.txt",
+      "bytes": 96046
+    },
+    {
+      "file": "before/src__UI__Rendering__DibWindowCoverage.cs.txt",
+      "bytes": 10002
+    }
+  ],
+  "candidate_preserved": true,
+  "ordinary_C52_C53_preserved": true,
+  "no_user_files_deleted": true
+}

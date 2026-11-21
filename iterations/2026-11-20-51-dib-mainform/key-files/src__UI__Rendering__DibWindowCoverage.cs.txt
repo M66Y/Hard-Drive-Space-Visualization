@@ -1,0 +1,129 @@
+using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
+
+namespace DiskAtlas;
+
+// Candidate-only coverage. Uses freshly rendered wallpaper at native client
+// geometry; never captures or stretches the last visible UI frame.
+internal sealed class DibWindowCoverage : IDisposable
+{
+    private readonly MainForm owner;
+    private const uint ClientDcFlags = 0x2 | 0x8 | 0x10; // CACHE | CLIPCHILDREN | CLIPSIBLINGS; never WINDOW.
+    private int depth;
+    private bool painting;
+    private readonly Dictionary<Control, Region> previous = [];
+    internal int EarlyCopies { get; private set; }
+    internal int ExposedCopies { get; private set; }
+    internal int EarlyVisible { get; private set; }
+    internal int EarlyBlack { get; private set; }
+    internal bool ObservePixels { get; set; }
+    internal DibWindowCoverage(MainForm owner) => this.owner = owner;
+
+    internal void Before(ref Message m)
+    {
+        try { Begin(ref m); }
+        catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException)
+        { depth = 0; Clear(); }
+    }
+
+    private void Begin(ref Message m)
+    {
+        if (!owner.IsHandleCreated || owner.IsDisposed || owner.Disposing || IsIconic(owner.Handle)) return;
+        if (m.Msg == 0x0046 && m.LParam != IntPtr.Zero && GetWindowRect(owner.Handle, out var window) && GetClientRect(owner.Handle, out var client))
+        {
+            var pos = Marshal.PtrToStructure<Position>(m.LParam);
+            var next = new Size(pos.Width - (window.Right - window.Left - client.Right),
+                pos.Height - (window.Bottom - window.Top - client.Bottom));
+            if ((pos.Flags & 1) == 0 && next.Width > 0 && next.Height > 0 && next != new Size(client.Right, client.Bottom))
+                owner.WallpaperRaster.Get(owner.BackgroundImage, next, owner.BackgroundCrop);
+        }
+        if (m.Msg is 0x0085 or 0x0014 or 0x0047 or 0x0005) CoverRoot();
+        if (m.Msg is 0x0047 or 0x0005)
+        {
+            if (depth++ == 0) Capture(owner);
+        }
+    }
+
+    internal void After(ref Message m)
+    {
+        if (m.Msg is not (0x0047 or 0x0005) || depth == 0) return;
+        if (--depth != 0) return;
+        try
+        {
+            foreach (var (control, region) in previous)
+            {
+                if (control.IsDisposed || !control.IsHandleCreated || !control.Visible || control.FindForm() != owner) continue;
+                foreach (Control child in control.Controls)
+                    if (child.Visible) AddChild(region, child, true);
+                region.Intersect(control.ClientRectangle);
+                IntPtr handle = control.Handle;
+                IntPtr dc = GetDCEx(handle, IntPtr.Zero, ClientDcFlags);
+                if (dc == IntPtr.Zero) { control.Invalidate(true); continue; }
+                try
+                {
+                    using var g = Graphics.FromHdc(dc);
+                    if (region.IsEmpty(g)) continue;
+                    g.SetClip(region, CombineMode.Intersect);
+                    if (control is WallpaperTable table) table.PaintExposed(g);
+                    else Wallpaper.Paint(control, g);
+                    ExposedCopies++;
+                }
+                finally { ReleaseDC(handle, dc); }
+            }
+        }
+        catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException)
+        { if (!owner.IsDisposed) owner.Invalidate(true); }
+        finally { Clear(); }
+    }
+
+    private void CoverRoot()
+    {
+        if (painting || !GetClientRect(owner.Handle, out var size) || size.Right <= 0 || size.Bottom <= 0) return;
+        IntPtr handle = owner.Handle;
+        IntPtr dc = GetDCEx(handle, IntPtr.Zero, ClientDcFlags);
+        if (dc == IntPtr.Zero) return;
+        painting = true;
+        try
+        {
+            using var g = Graphics.FromHdc(dc);
+            Wallpaper.Paint(owner, g, nativeSize: new Size(size.Right, size.Bottom));
+            g.Flush(System.Drawing.Drawing2D.FlushIntention.Sync);
+            int x = size.Right - 2, y = size.Bottom * 2 / 3;
+            if (ObservePixels && PtVisible(dc, x, y))
+            { EarlyVisible++; if ((GetPixel(dc, x, y) & 0xffffff) == 0) EarlyBlack++; }
+            EarlyCopies++;
+        }
+        catch (Exception e) when (e is ArgumentException or ExternalException or InvalidOperationException or OutOfMemoryException) { }
+        finally { painting = false; ReleaseDC(handle, dc); }
+    }
+    private void Capture(Control control)
+    {
+        if (control.IsDisposed || !control.Visible) return;
+        if (control.HasChildren && control is not (DataGridView or InputFrame))
+        {
+            var region = new Region(); region.MakeEmpty();
+            foreach (Control child in control.Controls)
+                if (child.Visible) AddChild(region, child, false);
+            previous[control] = region;
+            foreach (Control child in control.Controls) Capture(child);
+        }
+    }
+    private static void AddChild(Region result, Control child, bool exclude)
+    {
+        using var shape = child.Region?.Clone() ?? new Region(new Rectangle(Point.Empty, child.Size));
+        shape.Intersect(new Rectangle(Point.Empty, child.Size));
+        shape.Translate(child.Left, child.Top);
+        if (exclude) result.Exclude(shape); else result.Union(shape);
+    }
+    private void Clear() { foreach (var region in previous.Values) region.Dispose(); previous.Clear(); }
+    public void Dispose() { depth = 0; Clear(); }
+    [StructLayout(LayoutKind.Sequential)] private struct Rect { internal int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] private struct Position { internal IntPtr Window, After; internal int X, Y, Width, Height; internal uint Flags; }
+    [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr hwnd, out Rect rect);
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out Rect rect);
+    [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern IntPtr GetDCEx(IntPtr hwnd, IntPtr region, uint flags);
+    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hwnd, IntPtr dc);
+    [DllImport("gdi32.dll")] private static extern bool PtVisible(IntPtr dc, int x, int y);
+    [DllImport("gdi32.dll")] private static extern uint GetPixel(IntPtr dc, int x, int y);
+}

@@ -1,0 +1,240 @@
+{
+  "date": "2026-11-21",
+  "final_unique_matrix_passed": 26,
+  "results": [
+    {
+      "dpi": 144,
+      "exit_code": 0,
+      "name": "composition"
+    },
+    {
+      "dpi": 144,
+      "exit_code": 0,
+      "name": "root"
+    },
+    {
+      "dpi": 144,
+      "exit_code": 0,
+      "name": "restore"
+    },
+    {
+      "dpi": 144,
+      "exit_code": 0,
+      "name": "restore-custom"
+    },
+    {
+      "dpi": 144,
+      "exit_code": 0,
+      "name": "layout"
+    },
+    {
+      "dpi": 144,
+      "exit_code": 0,
+      "name": "presentation"
+    },
+    {
+      "dpi": 144,
+      "exit_code": 0,
+      "name": "integration"
+    },
+    {
+      "dpi": 144,
+      "exit_code": 0,
+      "name": "surface"
+    },
+    {
+      "dpi": 144,
+      "exit_code": -532462766,
+      "name": "glow"
+    },
+    {
+      "exit_code": -532462766,
+      "name": "glow",
+      "dpi": 144
+    },
+    {
+      "name": "glow",
+      "dpi": 144,
+      "exit_code": 0,
+      "evidence": "../glow-stage-diagnostic.log",
+      "phase_markers_added": true,
+      "timeout_and_assertions_unchanged": true
+    },
+    {
+      "name": "scroll",
+      "dpi": 144,
+      "exit_code": 0
+    },
+    {
+      "name": "ui-opaque",
+      "dpi": 144,
+      "exit_code": 0
+    },
+    {
+      "name": "ui-ordinary",
+      "dpi": 144,
+      "exit_code": 0
+    },
+    {
+      "name": "ui-dib-off",
+      "dpi": 144,
+      "exit_code": 0
+    },
+    {
+      "name": "composition",
+      "dpi": 96,
+      "exit_code": 0
+    },
+    {
+      "name": "root",
+      "dpi": 96,
+      "exit_code": 0
+    },
+    {
+      "name": "restore",
+      "dpi": 96,
+      "exit_code": 0
+    },
+    {
+      "name": "restore-custom",
+      "dpi": 96,
+      "exit_code": 0
+    },
+    {
+      "name": "layout",
+      "dpi": 96,
+      "exit_code": 0
+    },
+    {
+      "name": "presentation",
+      "dpi": 96,
+      "exit_code": 0
+    },
+    {
+      "name": "integration",
+      "dpi": 96,
+      "exit_code": 0
+    },
+    {
+      "name": "surface",
+      "dpi": 96,
+      "exit_code": 0
+    },
+    {
+      "name": "glow",
+      "dpi": 96,
+      "exit_code": 0
+    },
+    {
+      "name": "scroll",
+      "dpi": 96,
+      "exit_code": 0
+    },
+    {
+      "name": "ui-opaque",
+      "dpi": 96,
+      "exit_code": 0
+    },
+    {
+      "name": "ui-ordinary",
+      "dpi": 96,
+      "exit_code": 0
+    },
+    {
+      "name": "ui-dib-off",
+      "dpi": 96,
+      "exit_code": 0
+    }
+  ],
+  "native_lifecycle": [
+    {
+      "dpi": 144,
+      "checks": 81,
+      "alpha": 255,
+      "color_key_enabled": false,
+      "click_through": false
+    },
+    {
+      "dpi": 96,
+      "checks": 81,
+      "alpha": 255,
+      "color_key_enabled": false,
+      "click_through": false
+    }
+  ],
+  "closed_cycle_resources": {
+    "144": {
+      "gdi": [
+        135,
+        135,
+        135,
+        135,
+        135,
+        135
+      ],
+      "user": [
+        58,
+        58,
+        58,
+        58,
+        58,
+        58
+      ]
+    },
+    "96": {
+      "gdi": [
+        129,
+        129,
+        129,
+        129,
+        129,
+        129
+      ],
+      "user": [
+        59,
+        59,
+        59,
+        59,
+        59,
+        59
+      ]
+    },
+    "system_image_bytes_measured": false
+  },
+  "complete_ui_cases": 6,
+  "paths": [
+    "C56 opaque DIB",
+    "ordinary",
+    "DIB with opaque mode off"
+  ],
+  "native_frame": {
+    "checks": 608,
+    "pixels": 6513984
+  },
+  "pixel_comparisons": "two DPI strict root and DIB map/grid checks passed",
+  "retained_failures": {
+    "count": 2,
+    "case": "plain Form owner restore in treemap-state check, before C56 MainForm section",
+    "cause": "not confirmed",
+    "recheck": "phase markers only; original 30s limit and all 99 assertions retained; final 144/96 passed"
+  },
+  "implementation_findings": [
+    "native-only initialization and post-OnHandleCreated initialization were cleared by Form.CreateHandle final UpdateStyles",
+    "public AllowTransparency intent plus native alpha255 coordinates framework lifecycle",
+    "initial test fixture recreated a handle during creation and was corrected to an existing-handle scenario",
+    "unused color-key output value is not meaningful when LWA_COLORKEY is off; flags remain exactly 2",
+    "layout reference must be shown at same DPI instead of compared with pre-show logical geometry"
+  ],
+  "actual_ui": {
+    "opened": true,
+    "owned_files": 52,
+    "owned_size_approx_mib": 8.97,
+    "maximize_restore_reviewed": true,
+    "layout_background_titles_complete": true,
+    "human_continuous_resize_feedback": "pending"
+  },
+  "no_recording_or_system_changes": true,
+  "ordinary_and_C55_retained": true,
+  "default_changed": false,
+  "release_generated": false
+}

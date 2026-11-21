@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "baseline": "9ac1f0b",
+  "predecessor": "iterations/2026-11-14-36-no-hover-popups",
+  "state": "user-review-failed",
+  "files": [
+    {
+      "source": "MainForm.cs",
+      "snapshot": "key-files/MainForm.cs.txt",
+      "sha256": "203BA240208374ED3E8D901024B4BC2324142C881FFD9E5A096CD416B3A6F31B",
+      "bytes": 93407
+    },
+    {
+      "source": "Wallpaper.cs",
+      "snapshot": "key-files/Wallpaper.cs.txt",
+      "sha256": "B73BBC2991281E302E3A6748F01FDD6469B972BB49D21EC4720DC32A5EF74720",
+      "bytes": 27360
+    },
+    {
+      "source": "src/UI/LayoutPresentation.cs",
+      "snapshot": "key-files/src_UI_LayoutPresentation.cs.txt",
+      "sha256": "03FD6268D9CECDB321C94CC79E19F93FBDCF8B99FF529A976FAA8E44AB571EF4",
+      "bytes": 14108
+    },
+    {
+      "source": "tests/LayoutTransitionRegression.cs",
+      "snapshot": "key-files/tests_LayoutTransitionRegression.cs.txt",
+      "sha256": "7776A6FAB1A7DF8A96652E820B19140D0D8916B1B5C5AFCC5BABF50F5384ADBD",
+      "bytes": 23708
+    },
+    {
+      "source": "tests/LayoutTransitionPreview.cs",
+      "snapshot": "key-files/tests_LayoutTransitionPreview.cs.txt",
+      "sha256": "243AAA361F73EC3640AFB15C6909E1131EFABB6751EA0D6CDB858C2CE95C1C2E",
+      "bytes": 19480
+    },
+    {
+      "source": "tests/LayoutPresentationPolicyTests.cs",
+      "snapshot": "key-files/tests_LayoutPresentationPolicyTests.cs.txt",
+      "sha256": "02DDFD2872EF578BD49126FD66A4E2616FE946AC119949BDA78050CFD9288E3E",
+      "bytes": 26178
+    },
+    {
+      "source": "tests/Program.cs",
+      "snapshot": "key-files/tests_Program.cs.txt",
+      "sha256": "27AECE83F69665EEBC28BCC3E0BFEC9E44E7A08765D6C49531BD1E7379EA3887",
+      "bytes": 67569
+    }
+  ]
+}

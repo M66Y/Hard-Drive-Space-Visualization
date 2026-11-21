@@ -1,0 +1,215 @@
+diff --git a/MainForm.cs b/MainForm.cs
+index 63ca566..a776ea1 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -374,6 +374,7 @@ internal sealed class MainForm : Form
+ 
+     protected override void WndProc(ref Message message)
+     {
++        ResizePixelPolicy.Prepare(this, ref message);
+         base.WndProc(ref message);
+         HandleMonitoringSystemEvent(message.Msg, message.WParam.ToInt64());
+     }
+diff --git a/Wallpaper.cs b/Wallpaper.cs
+index 7a002d6..e3f8fb6 100644
+--- a/Wallpaper.cs
++++ b/Wallpaper.cs
+@@ -211,6 +211,11 @@ internal sealed class WallpaperTable : TableLayoutPanel
+         SetStyle(ControlStyles.ResizeRedraw, true);
+     }
+     protected override void OnPaintBackground(PaintEventArgs e) => Wallpaper.Paint(this, e.Graphics, Wash, Surface);
++    protected override void WndProc(ref Message message)
++    {
++        ResizePixelPolicy.Prepare(this, ref message);
++        base.WndProc(ref message);
++    }
+     protected override void OnLocationChanged(EventArgs e)
+     {
+         base.OnLocationChanged(e);
+@@ -289,7 +294,14 @@ internal sealed class WallpaperTable : TableLayoutPanel
+         if (disposing) contentClips?.Clear();
+         base.Dispose(disposing);
+     }
+-    protected override void OnSizeChanged(EventArgs e) { base.OnSizeChanged(e); if (framed) { UpdateFrameRegion(); UpdateContentClips(); } }
++    protected override void OnSizeChanged(EventArgs e)
++    {
++        // base triggers nested layout. Hold through the final Region updates,
++        // rather than presenting a layout whose corner clips are still old.
++        using var presentation = (FindForm() as MainForm)?.BeginLayoutPresentation(this);
++        base.OnSizeChanged(e);
++        if (framed) { UpdateFrameRegion(); UpdateContentClips(); }
++    }
+     protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); if (framed) { UpdateFrameRegion(); UpdateContentClips(); } }
+     protected override void OnPaint(PaintEventArgs e)
+     {
+@@ -425,6 +437,7 @@ internal sealed class WallpaperGrid : DataGridView
+     }
+     protected override void WndProc(ref Message m)
+     {
++        ResizePixelPolicy.Prepare(this, ref m);
+         // Native child scrollbar messages reach the grid before ScrollWindow.
+         // Do not wrap WM_PAINT, ordinary movement or the entire main window.
+         if (m.Msg is 0x0114 or 0x0115)
+@@ -562,6 +575,11 @@ internal sealed class WallpaperGrid : DataGridView
+ 
+ internal sealed class WallpaperSplitContainer : SplitContainer
+ {
++    protected override void WndProc(ref Message message)
++    {
++        ResizePixelPolicy.Prepare(this, ref message);
++        base.WndProc(ref message);
++    }
+     public WallpaperSplitContainer()
+     {
+         SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+diff --git a/src/UI/ResizePixelPolicy.cs b/src/UI/ResizePixelPolicy.cs
+new file mode 100644
+index 0000000..ad84804
+--- /dev/null
++++ b/src/UI/ResizePixelPolicy.cs
+@@ -0,0 +1,32 @@
++using System.Runtime.InteropServices;
++
++namespace DiskAtlas;
++
++// These surfaces sample window coordinates. Preserved pixels are invalid when
++// their geometry changes, even when Windows considers the client content reusable.
++internal static class ResizePixelPolicy
++{
++    internal static void Prepare(Control control, ref Message message)
++    {
++        if (message.Msg != 0x0046 || message.LParam == IntPtr.Zero ||
++            control.FindForm()?.WindowState == FormWindowState.Minimized) return;
++        var position = Marshal.PtrToStructure<WindowPosition>(message.LParam);
++        bool moved = (position.Flags & 0x0002) == 0 &&
++            (position.X != control.Left || position.Y != control.Top);
++        bool resized = (position.Flags & 0x0001) == 0 &&
++            (position.Width != control.Width || position.Height != control.Height);
++        // Moving the whole Form does not change its wallpaper coordinates.
++        // Leave that already-correct path and minimize/restore behavior alone.
++        if (!resized && (!moved || control is Form)) return;
++        position.Flags |= 0x0100; // SWP_NOCOPYBITS: invalidate instead of blitting old pixels.
++        Marshal.StructureToPtr(position, message.LParam, false);
++    }
++
++    [StructLayout(LayoutKind.Sequential)]
++    private struct WindowPosition
++    {
++        public IntPtr Handle, InsertAfter;
++        public int X, Y, Width, Height;
++        public uint Flags;
++    }
++}
+diff --git a/tests/ResizePixelPolicyTests.cs b/tests/ResizePixelPolicyTests.cs
+new file mode 100644
+index 0000000..c4085cb
+--- /dev/null
++++ b/tests/ResizePixelPolicyTests.cs
+@@ -0,0 +1,90 @@
++using System.Runtime.InteropServices;
++using DiskAtlas;
++
++// Synthetic WINDOWPOS buffers and owned, unshown controls only. No desktop
++// input, screenshots, raw storage or claims about visual resize acceptance.
++internal static class ResizePixelPolicyTests
++{
++    internal static int Run()
++    {
++        int passed = 0;
++        Exception? failure = null;
++        var thread = new Thread(() =>
++        {
++            try
++            {
++                using var control = new Panel { Bounds = new Rectangle(10, 20, 80, 50) };
++                Check(control, 0x0046, Position(11, 20, 80, 50), true);
++                Check(control, 0x0046, Position(10, 21, 80, 50), true);
++                Check(control, 0x0046, Position(10, 20, 81, 50), true);
++                Check(control, 0x0046, Position(10, 20, 80, 51), true);
++                Check(control, 0x0046, Position(10, 20, 80, 50), false);
++                Check(control, 0x0046, Position(999, 999, 80, 50, 0x0002), false);
++                Check(control, 0x0046, Position(10, 20, 999, 999, 0x0001), false);
++                Check(control, 0x0046, Position(999, 999, 999, 999, 0x0003), false);
++                Check(control, 0x0046, Position(999, 999, 81, 50, 0x0002), true);
++                Check(control, 0x0046, Position(11, 20, 999, 999, 0x0001), true);
++                Check(control, 0x0046, Position(11, 20, 80, 50, 0x0010 | 0x0004 | 0x0200), true);
++                Check(control, 0x0046, Position(10, 20, 80, 50, 0x0010 | 0x0004), false);
++                Check(control, 0x0046, Position(11, 20, 80, 50, 0x0100), true);
++                Check(control, 0x0047, Position(11, 20, 80, 50), false);
++                Check(control, 0x0005, Position(11, 20, 80, 50), false);
++                var empty = Message.Create(IntPtr.Zero, 0x0046, IntPtr.Zero, IntPtr.Zero);
++                ResizePixelPolicy.Prepare(control, ref empty);
++                Assert(empty.Msg == 0x0046 && empty.LParam == IntPtr.Zero, "NullBufferUnchanged");
++                using var form = new Form();
++                form.Bounds = new Rectangle(10, 20, 280, 180);
++                Check(form, 0x0046, Position(11, 20, 280, 180), false);
++                Check(form, 0x0046, Position(10, 20, 281, 180), true);
++                form.Controls.Add(control);
++                form.WindowState = FormWindowState.Minimized;
++                Check(control, 0x0046, Position(11, 20, 80, 50), false);
++                Assert(!form.IsHandleCreated && !control.IsHandleCreated, "NoNativeWindowsCreated");
++            }
++            catch (Exception error) { failure = error; }
++        });
++        thread.SetApartmentState(ApartmentState.STA);
++        thread.Start(); thread.Join();
++        if (failure != null) throw new InvalidOperationException("ResizePixelPolicyCheckFailed", failure);
++        return passed;
++
++        void Check(Control control, int messageId, WindowPosition before, bool expected)
++        {
++            IntPtr buffer = Marshal.AllocHGlobal(Marshal.SizeOf<WindowPosition>());
++            try
++            {
++                Marshal.StructureToPtr(before, buffer, false);
++                var message = Message.Create(new IntPtr(17), messageId, new IntPtr(19), buffer);
++                ResizePixelPolicy.Prepare(control, ref message);
++                var after = Marshal.PtrToStructure<WindowPosition>(buffer);
++                uint expectedFlags = expected ? before.Flags | 0x0100u : before.Flags;
++                Assert(after.Flags == expectedFlags, "OnlyRequiredCopyPolicyChanged");
++                Assert(after.Window == before.Window && after.InsertAfter == before.InsertAfter &&
++                    after.X == before.X && after.Y == before.Y && after.Width == before.Width && after.Height == before.Height &&
++                    message.HWnd == new IntPtr(17) && message.Msg == messageId && message.WParam == new IntPtr(19) &&
++                    message.LParam == buffer, "OtherFieldsPreserved");
++            }
++            finally { Marshal.FreeHGlobal(buffer); }
++        }
++
++        void Assert(bool condition, string code)
++        {
++            if (!condition) throw new InvalidOperationException(code);
++            passed++;
++        }
++    }
++
++    private static WindowPosition Position(int x, int y, int width, int height, uint flags = 0) => new()
++    {
++        Window = new IntPtr(23), InsertAfter = new IntPtr(29), X = x, Y = y,
++        Width = width, Height = height, Flags = flags
++    };
++
++    [StructLayout(LayoutKind.Sequential)]
++    private struct WindowPosition
++    {
++        internal IntPtr Window, InsertAfter;
++        internal int X, Y, Width, Height;
++        internal uint Flags;
++    }
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 5f8e4f6..badabb5 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -1,6 +1,12 @@
+ using DiskAtlas;
+ using System.Drawing;
+ 
++if (args.Length == 1 && args[0] == "--resize-pixel-policy-tests")
++{
++    try { int n = ResizePixelPolicyTests.Run(); Console.WriteLine($"PASS resize pixel policy: {n}; synthetic buffers only; visual acceptance separate"); return 0; }
++    catch { Console.Error.WriteLine("FAIL resize pixel policy; no private details emitted"); return 1; }
++}
++
+ if (args.Length == 1 && args[0] == "--ntfs-reparse-policy-tests")
+ {
+     try { int n = DiskAtlas.NtfsPrototype.NtfsReparsePolicyTests.Run(); Console.WriteLine($"PASS reparse policy: {n}; synthetic only"); return 0; }
