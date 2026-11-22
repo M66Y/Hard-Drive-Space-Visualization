@@ -346,6 +346,32 @@ internal sealed class WallpaperTable : TableLayoutPanel
 
 internal sealed class WallpaperGrid : DataGridView
 {
+    private readonly System.Windows.Forms.Timer locateTimer = new() { Interval = 33 };
+    private long locateStarted;
+    private int locateRow = -1, containingRow = -1;
+    internal bool LocateFlashRunning => locateTimer.Enabled;
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    internal bool LocateAnimationEnabled { get; set; } = true;
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    internal int ContainingRow
+    {
+        get => containingRow;
+        set { int old = containingRow; containingRow = value; DirtyRow(old); DirtyRow(value); }
+    }
+    internal void FlashLocatedRow(int row)
+    {
+        StopLocateFlash();
+        if (!LocateAnimationEnabled || SystemInformation.HighContrast || row < 0 || row >= RowCount || !Visible) return;
+        locateRow = row; locateStarted = System.Diagnostics.Stopwatch.GetTimestamp(); locateTimer.Start(); DirtyRow(row);
+    }
+    internal void StopLocateFlash()
+    {
+        locateTimer.Stop(); int old = locateRow; locateRow = -1; DirtyRow(old);
+    }
+    private void DirtyRow(int row)
+    {
+        if (!disposed && IsHandleCreated && row >= 0 && row < RowCount) InvalidateRow(row);
+    }
     private GridScrollbarSkin? scrollbarSkin;
     internal int SkinnedScrollbarCount => scrollbarSkin?.Count ?? 0;
     internal bool ScrollbarPaintingPaused
@@ -392,6 +418,13 @@ internal sealed class WallpaperGrid : DataGridView
         DoubleBuffered = true;
         scrollbarSkin = new GridScrollbarSkin(this);
         ShowCellToolTips = false;
+        locateTimer.Tick += (_, _) =>
+        {
+            if (!LocateAnimationEnabled || !Visible || FindForm()?.WindowState == FormWindowState.Minimized ||
+                ScrollbarPaintingPaused || System.Diagnostics.Stopwatch.GetElapsedTime(locateStarted).TotalMilliseconds >= 700)
+                StopLocateFlash();
+            else DirtyRow(locateRow);
+        };
     }
 
     internal void PaintScrollbarBackdrop(ScrollBar bar, Graphics graphics)
@@ -591,6 +624,20 @@ internal sealed class WallpaperGrid : DataGridView
                 using var selection = new SolidBrush(Color.FromArgb(96, Theme.Selection));
                 e.Graphics.FillRectangle(selection, e.CellBounds);
             }
+            if (!SystemInformation.HighContrast && e.RowIndex >= 0)
+            {
+                if (e.RowIndex == containingRow)
+                {
+                    using var context = new SolidBrush(Color.FromArgb(26, Theme.Selection));
+                    e.Graphics.FillRectangle(context, e.CellBounds);
+                }
+                if (e.RowIndex == locateRow && locateTimer.Enabled)
+                {
+                    double phase = Math.Clamp(System.Diagnostics.Stopwatch.GetElapsedTime(locateStarted).TotalMilliseconds / 700d, 0, 1);
+                    using var glow = new SolidBrush(Color.FromArgb((int)(76 * (1 - phase)), Theme.Surface));
+                    e.Graphics.FillRectangle(glow, e.CellBounds);
+                }
+            }
         }
         finally { e.Graphics.Restore(saved); }
     }
@@ -614,16 +661,16 @@ internal sealed class WallpaperGrid : DataGridView
     }
     protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); ReleaseBackdrop(); Invalidate(); }
     protected override void OnParentChanged(EventArgs e) { base.OnParentChanged(e); ReleaseBackdrop(); }
-    protected override void OnHandleDestroyed(EventArgs e) { redrawHeldHandle = IntPtr.Zero; base.OnHandleDestroyed(e); ReleaseBackdrop(); }
+    protected override void OnHandleDestroyed(EventArgs e) { StopLocateFlash(); redrawHeldHandle = IntPtr.Zero; base.OnHandleDestroyed(e); ReleaseBackdrop(); }
     protected override void OnVisibleChanged(EventArgs e)
     {
         base.OnVisibleChanged(e);
-        if (!Visible) ReleaseBackdrop();
+        if (!Visible) { StopLocateFlash(); ReleaseBackdrop(); }
         else if (scrollDepth == 0) { RestoreRedraw(); PresentScroll(); }
     }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { disposed = true; scrollbarSkin?.Dispose(); scrollbarSkin = null; ReleaseBackdrop(); }
+        if (disposing) { StopLocateFlash(); locateTimer.Dispose(); disposed = true; scrollbarSkin?.Dispose(); scrollbarSkin = null; ReleaseBackdrop(); }
         base.Dispose(disposing);
     }
 }

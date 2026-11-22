@@ -11,6 +11,8 @@ internal sealed class TreemapControl : Control
     private List<MapTile> tiles = [];
     private readonly Dictionary<MapItem, List<MapTile>> nestedLayouts = [];
     private readonly Dictionary<MapItem, MapTile> tileLookup = [];
+    private readonly Dictionary<DiskEntry, MapItem> entryLookup = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<MapItem> nestedItems = [];
     private Bitmap? staticLayer;
     private PixelSurface? staticPixels;
     private CacheKey? cacheKey, rejectedKey;
@@ -81,6 +83,7 @@ internal sealed class TreemapControl : Control
     }
     public void SelectItem(MapItem? value)
     {
+        if (value?.Entry is { } entry && entryLookup.TryGetValue(entry, out var display)) value = display;
         if (selected == value) return;
         var previous = selected; selected = value; InvalidateItem(previous); InvalidateItem(value);
         SyncMotion();
@@ -98,10 +101,14 @@ internal sealed class TreemapControl : Control
         var layout = TreemapDensityLayout.Build(items,
             new RectangleF(pad, pad, Math.Max(0, Width - 2 * pad), Math.Max(0, Height - 2 * pad)), DeviceDpi);
         tiles = layout.Tiles;
-        nestedLayouts.Clear(); tileLookup.Clear();
+        nestedLayouts.Clear(); tileLookup.Clear(); entryLookup.Clear(); nestedItems.Clear();
         // Original list selections retain their identity, while an entry folded
         // into the remainder uses that displayed tile's outline and bounds.
-        foreach (var pair in layout.TileLookup) tileLookup[pair.Key] = pair.Value;
+        foreach (var pair in layout.TileLookup)
+        {
+            tileLookup[pair.Key] = pair.Value;
+            if (pair.Key.Entry is { } entry) entryLookup[entry] = pair.Key;
+        }
         float s = DeviceDpi / 96f;
         if (!ShowNested) return;
         foreach (var tile in tiles)
@@ -109,11 +116,27 @@ internal sealed class TreemapControl : Control
             var rect = RectangleF.Inflate(tile.Bounds, -2 * s, -2 * s);
             if (tile.Item.Entry is not { IsDirectory: true } dir || rect.Width <= 90 * s || rect.Height <= 110 * s) continue;
             var nestedBounds = new RectangleF(rect.X + 7 * s, rect.Y + 63 * s, rect.Width - 14 * s, rect.Height - 70 * s);
-            var nested = dir.Children.Where(c => c.Bytes(Metric) > 0).Take(36).Select(c => new MapItem(c.Name, c.Bytes(Metric), c, Theme.Category(c.Extension))).ToList();
+            var nested = dir.Children.Where(c => c.Bytes(Metric) > 0).Take(36).Select(c => new MapItem(c.Name, c.Bytes(Metric), c, Theme.Category(c.Extension),
+                UnknownFiles: Metric == SizeMetric.Allocated ? c.UnknownAllocationFiles : 0)).ToList();
             long rest = dir.Bytes(Metric) - nested.Sum(i => i.Size);
-            if (rest > 0) nested.Add(new MapItem("其他", rest, null, "其他", IsAggregate: true));
-            nestedLayouts[tile.Item] = TreemapLayout.Build(nested, nestedBounds);
+            if (rest > 0) nested.Add(new MapItem("其他", rest, null, "其他", Math.Max(1, dir.Children.Count - nested.Count), true,
+                Metric == SizeMetric.Allocated ? Math.Max(0, dir.UnknownAllocationFiles - nested.Sum(i => i.UnknownFiles)) : 0));
+            var childTiles = TreemapLayout.Build(nested, nestedBounds);
+            nestedLayouts[tile.Item] = childTiles;
+            foreach (var child in childTiles)
+            {
+                tileLookup[child.Item] = child;
+                nestedItems.Add(child.Item);
+                if (child.Item.Entry is { } entry) entryLookup[entry] = child.Item;
+            }
         }
+    }
+    private MapItem? HitTestItem(Point point)
+    {
+        var tile = tiles.FirstOrDefault(t => t.Bounds.Contains(point));
+        if (tile == null) return null;
+        return nestedLayouts.TryGetValue(tile.Item, out var children)
+            ? children.FirstOrDefault(child => child.Bounds.Contains(point))?.Item ?? tile.Item : tile.Item;
     }
     protected override void OnPaint(PaintEventArgs e)
     {
@@ -253,7 +276,7 @@ internal sealed class TreemapControl : Control
         var state = g.Save();
         try
         {
-            ClipGlowToEdge(g, tile.Bounds, contour.Scale);
+            ClipInteractionEdge(g, item, tile.Bounds, contour.Scale);
             contour.DrawBase(g, !AnimationsEnabled);
         }
         finally { g.Restore(state); }
@@ -268,6 +291,16 @@ internal sealed class TreemapControl : Control
         // Keep the soft halo on the edge ring. At rounded corners even a very
         // faint blur tail must not recolour cached body pixels or text.
         var body = RectangleF.Inflate(tile, -8 * scale, -8 * scale);
+        if (body.Width > 0 && body.Height > 0) graphics.SetClip(body, CombineMode.Exclude);
+    }
+
+    private void ClipInteractionEdge(Graphics graphics, MapItem item, RectangleF bounds, float scale)
+    {
+        if (!nestedItems.Contains(item)) { ClipGlowToEdge(graphics, bounds, scale); return; }
+        graphics.SetClip(bounds, CombineMode.Intersect);
+        // Internal labels start 5 DIP from the edge. Their new glow must stay
+        // outside that body rather than reuse the parent's wider halo ring.
+        var body = RectangleF.Inflate(bounds, -4 * scale, -4 * scale);
         if (body.Width > 0 && body.Height > 0) graphics.SetClip(body, CombineMode.Exclude);
     }
 
@@ -286,7 +319,8 @@ internal sealed class TreemapControl : Control
     private GlowContour? GetGlowContour(MapItem item, RectangleF bounds)
     {
         float scale = DeviceDpi / 96f;
-        var fill = GlowBounds(bounds, scale);
+        bool nested = nestedItems.Contains(item);
+        var fill = nested ? RectangleF.Inflate(bounds, -scale, -scale) : GlowBounds(bounds, scale);
         if (fill.IsEmpty) return null;
         int accent = Theme.Accent.ToArgb();
         if (glowContours.TryGetValue(item, out var existing))
@@ -294,7 +328,7 @@ internal sealed class TreemapControl : Control
             if (existing.Bounds == fill && existing.Accent == accent && existing.Scale == scale) return existing;
             existing.Dispose(); glowContours.Remove(item);
         }
-        var result = new GlowContour(fill, scale, accent);
+        var result = new GlowContour(fill, scale, accent, nested);
         glowContours[item] = result;
         return result;
     }
@@ -308,7 +342,8 @@ internal sealed class TreemapControl : Control
         private readonly Pen edgeBase, travel, reducedTravel;
         private readonly Pen[] movingHalo, reducedHalo;
         private readonly float perimeter;
-        public GlowContour(RectangleF bounds, float scale, int accent)
+        public GlowContour(RectangleF bounds, float scale, int accent) : this(bounds, scale, accent, false) { }
+        public GlowContour(RectangleF bounds, float scale, int accent, bool nested)
         {
             Bounds = bounds; Scale = scale; Accent = accent;
             // The approved SVG inset its 1.5px base stroke by .75px and reduced
@@ -316,7 +351,7 @@ internal sealed class TreemapControl : Control
             // on the same rounded corners rather than drawing a second box.
             float inset = Math.Min(.75f * scale, Math.Min(bounds.Width, bounds.Height) / 4);
             var lineBounds = RectangleF.Inflate(bounds, -inset, -inset);
-            float radius = Math.Max(.01f, Math.Min(8 * scale, Math.Min(bounds.Width, bounds.Height) / 4) - inset);
+            float radius = Math.Max(.01f, Math.Min((nested ? 4 : 8) * scale, Math.Min(bounds.Width, bounds.Height) / 4) - inset);
             Path = Theme.Round(lineBounds, radius);
             var color = Color.FromArgb(accent);
             Color Adapt(Color reference) => accent == Theme.DefaultAccent.ToArgb()
@@ -404,7 +439,7 @@ internal sealed class TreemapControl : Control
         var state = g.Save();
         try
         {
-            ClipGlowToEdge(g, bounds, contour.Scale);
+            ClipInteractionEdge(g, item, bounds, contour.Scale);
             contour.DrawMovingHighlight(g, phase);
         }
         finally { g.Restore(state); }
@@ -459,7 +494,7 @@ internal sealed class TreemapControl : Control
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
-        var item = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
+        var item = HitTestItem(e.Location);
         if (item == hovered) return;
         var previous = hovered; hovered = item;
         InvalidateItem(previous); InvalidateItem(item); SyncMotion();
@@ -483,13 +518,13 @@ internal sealed class TreemapControl : Control
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
-        SelectItem(tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item);
+        SelectItem(HitTestItem(e.Location));
         ItemSelected?.Invoke(selected);
     }
     protected override void OnMouseDoubleClick(MouseEventArgs e)
     {
         base.OnMouseDoubleClick(e);
-        var item = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
+        var item = HitTestItem(e.Location);
         if (item != null) ItemActivated?.Invoke(item);
     }
     private void ClearHover()

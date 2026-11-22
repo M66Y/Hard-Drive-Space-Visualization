@@ -201,7 +201,8 @@ internal static class FastScanMainFormTests
                         var file = Field<List<MapItem>>("sortedRows").Single(row => row.Name == "notes.txt");
                         Invoke("SelectItem", file, true);
                         Check(Field<ActionButton>("reveal").Enabled && Field<Label>("detailPath").Text.Contains(file.Entry!.Path) &&
-                            Field<Label>("detailTitle").Text.Contains("硬链接") && grid.ContextMenuStrip!.Items.Cast<ToolStripItem>().Any(item => item.Text == "复制完整路径"), "FILE_DETAILS_LOCATION_AND_COPY_AUXILIARIES_RETAINED");
+                            Field<Label>("detailTitle").AccessibleDescription!.Contains("硬链接") && Field<ActionButton>("selectionDetails").Enabled &&
+                            grid.ContextMenuStrip!.Items.Cast<ToolStripItem>().Any(item => item.Text == "复制完整路径"), "FILE_DETAILS_LOCATION_AND_COPY_AUXILIARIES_RETAINED");
                         metric.SelectedIndex = 1; await View();
                         Check(Field<StatCard>("totalCard").Title == "实际占用空间" && Field<TreemapControl>("map").TotalSize == 20512 &&
                             Field<List<MapItem>>("sortedRows").Sum(row => row.Size) == 20512, "ALLOCATED_METRIC_REACHES_CARD_MAP_AND_ROWS");

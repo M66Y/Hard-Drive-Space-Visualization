@@ -1,0 +1,1400 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index 20079cf8555c3992326e55282cb301d69bcccec8..7a4424fe61d09f6d6209d4350df3c741f15e2169 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,27 +1,27 @@
+ # AsukaLens 开发检查点
+ 
+-## 当前：阶段一整体通过，第二阶段方案预览待反馈（2026-11-21）
++## 当前：C61联动开发版已展示，待用户体验反馈（2026-11-22）
+ 
+-用户确认“第一阶段可以收尾了”，随后仅要求第二阶段具体方案/预览，重点图表选中、列表定位、文件详情，保持背景与动效，先不实施。已核对干净main/origin基线bb864b6，C58实现8efdf11/文档48c8397和C59背景修复bb864b6均已推送；本轮文档/设计待随记录提交，不改产品或发布。
++用户已确认C60方案并授权实施第二阶段，保持布局/背景/动效，完成后开真实程序测试，阶段收尾由反馈决定，不发布。基线干净main/origin 93b80abcd32272cb7ba860c4a48aaf00dd657374；本轮实现、测试、文档及归档均归C61，提交/推送状态核对Git，不从此处推断HEAD。
+ 
+-当前方案docs/ui-stage-two-linkage-plan.md，取代旧阶段二暂缓提案。现有SelectItem/ActivateItem已有双向/分页/进入/定位，改进反馈与边界。用户已确认内嵌文件单击只显示详情、保留总览，主动点“在列表中查看”再进入父目录准确选中文件，勿重复询问。固定底部摘要＋主动详情，保留无悬停文字/无自动说明框；合并/未知/共享/类型对象不得冒充单文件。对话交互预览仅合成数据，不读取卷/目录或修改配置，不等于WinForms验收。产品实施仍待预览反馈及明确确认。
++已完成对象身份双向选择、pending选择交接、内部图块命中及原1.15倍柔光、父目录只标归属、主动进入并选中、就近/跨页定位及700ms有界提亮、固定两行摘要和主动详情。长名称不能挤掉两种大小；详情按主窗DPI缩放，路径可复制，不写日志。合并/类型/未知/硬链接保持各自语义，不改扫描后端。
+ 
+-C57默认背景合成/DIB和C55回退保持；C59仅修高DPI二次放大，焦点/Zoom/图片/配置及1.15倍动效不变，用户已通过。C59八例252800像素一致，相关两档回归完成；独立普通Form96DPI柔光恢复两次失败及随后原断言99项通过均保留，失败原因未确认，不改动效或用通过覆盖失败。Windows10新绘制路径/真实跨屏仍未验，用户已明确不做本轮Win10，不重复追问。当前只做方案/文档，无新构建、录屏、系统改动、个人卷操作或发布。
++应用/tests零警告构建，最终144/96DPI专项各44项通过；普通/C57两档完整UI及受影响滚动/缓存/布局/图块/双行/无悬停/合成快扫检查完成。修复连续查询丢书签、三参柔光反射入口兼容、摘要分配和详情DPI问题。首次受限启动在SplitContainer Scale发生GDI+异常，可交互复验通过但原因未证明，原失败保留本机；不得改写为首次全过。详情DPI最后修改后仅重跑受影响44项两档，不反复扩大矩阵。
+ 
+-正常入口bin/Release/net10.0-windows/AsukaLens.exe或run.cmd；C55独立版在artifacts/dib-mainform-C55/app。第一阶段功能/验证见C58及C59，第二阶段准备证据见iterations/2026-11-21-60-stage-two-plan。
++真实常用程序已检查内部文件保留总览/主动进入/详情；最小窗口的双行列表及详情通过桌面观察。自建演示目录正常版已留前台，用户实际体验反馈待回；暂不结束第二阶段或进入第三阶段。原始日志只留ignored artifacts，公共证据见iterations/2026-11-22-61-selection-linkage；软件运行所需自建demo暂保留，用户测试结束后再按归属清理。
+ 
+-## 已获用户反馈与未验收边界
++## 已接受行为与未验边界
+ 
+-- C57用户反馈“没问题了”，本机连续缩放体验通过，不重复要求证明同一故障。阶段一已整体接受；阶段二仅方案预览，产品实施仍需确认。
+-- C57原主DLL4B6141834737F764A800CDBF1CFFDFBDD5183590D473CEA19FBD61FFC33F8AC5；C55主DLL D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498。历史版本以各轮build-manifest为准，不把旧候选当当前默认。
+-- Win10新绘制路径、真实跨屏仍未验；普通进程两档DPI不替代跨屏。用户本轮明确跳过Win10，不反复追问。
+-- C56全不透明root-layered未消除用户闪黑，不默认启用；C57不是它的依赖。C53根缓存/C54父标题局部补画/C55整数位移缓存及延迟Split擦背景分别有原因证据，见各轮记录，不能把全部归为一个原因。
+-- 两次早期独立普通Form柔光还原超时保持历史失败；后加阶段标记后在原时限通过，原因未确认，不抹去失败。
++- 第一阶段整体已接受，C57普通默认/C55回退保持；背景图片/聚焦/Zoom、完整圆角和动效未改，不录屏或改系统设置。
++- 内嵌文件先保留总览，主动“在列表中查看”进入父目录，是用户已选定的决定，不重复询问。无悬停文字、无自动解释框；详细事实集中主动详情。
++- C55独立DLL SHA256 D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498，保留且核哈希。历史版本看各轮build-manifest，不把候选名称当Git冻结。
++- Windows10新绘制、真实跨屏未验；用户已明确跳过本轮Win10，不重复追问。两档进程DPI不替代真实多显示器。
++- C59早期96DPI柔光两次失败保留，观察版原断言通过、原因未明；C56未消除用户闪黑，不能恢复默认。C57后续反馈已接受，勿重复要求证明旧问题。
+ 
+-## 后续建议与授权边界
++## 下一步与授权
+ 
+-先收第二阶段方案/交互预览反馈，明确实施范围后再开发；完成后仍先看真实程序效果，再决定阶段是否结束。不恢复悬停文字/自动说明框。第三阶段背景强度/配色/密度、软件占用分析及清理入口仍须各自评审，不由路线自动授权。
++等待用户对C61真实程序反馈，必要时只修本阶段范围；反馈同意后再做阶段二最终收尾。第三阶段个性化、软件占用/清理、高速稳定提速仍需方案确认。
+ 
+-C28同一快照正确性对照已Matched且清理确认，已完成，不重列为待做。实验快扫已接真实主窗、默认关闭，重解析点边界明确；个人卷raw/VSS仍须当轮范围授权，旧VHD/快照许可均不延续。Windows10新快扫后端及普遍等工作量提速尚未证明。PERF-001高速稳定提速按用户要求P2延期。
++C28同快照统计对照已Matched并清理，不重列为待做。实验快扫默认关闭；个人卷raw/VSS须当轮明确授权，旧VHD/快照许可不延续。本轮没有个人卷/VHD/VSS、打包或发布。PERF-001仍P2延期。
+ 
+-历史事实优先看docs/project-status.md、docs/development-plan.md与references/decisions.md，再按链接读取iterations；本Skill只作索引，不复制原始诊断或个人路径。
++项目现状/计划/决策及Git优先于记忆；此Skill只作交接索引，不存个人路径、原始诊断或原始NTFS页。
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index be3b31d82f47094a9155483d3ee9009f91195da4..78233c120fb6f3ef1c6c5f0fa1831b6924a23cd9 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,5 +1,7 @@
+ # 影响后续开发的决定
+ 
++- 2026-11-22 C61：用户批准C60联动实施、阶段结束仍待真实程序反馈。以当前结果树DiskEntry引用区别同名与硬链接路径；跨查询用pending交接避免清空选择时丢书签；内部图块必须真实命中，单击保留总览，父目录只标归属，主动进入后再选中文件。固定底部给两种大小独立空间，完整事实按需详情，不恢复悬停/自动说明。保持C57/C55与1.15倍动效，未改扫描后端；证据见iterations/2026-11-22-61-selection-linkage。
++
+ - 2026-11-21 C60：用户明确通过第一阶段整体收尾；第二阶段只授权方案和交互预览，未授权实施。重点复用现有图表/列表/详情联动，保持背景/布局/1.15倍动效及C57/C55回退。内嵌文件先显示详情并保留视角，主动“在列表中查看”后进入所在目录（用户已选定，避免自动跳走）。底部固定摘要、完整详情按需查看，不恢复悬停/自动说明，不把合并/未知/共享当单文件；见docs/ui-stage-two-linkage-plan.md。
+ 
+ - 2026-11-21 C59：用户确认背景比例修正版符合预期并保留。高DPI脸部裁失源于缓存按物理尺寸再次放大，修发布像素映射而非改焦点/Zoom；8例252800像素零差异，真实主窗脸可见。背景相关回归通过，旧独立Form柔光96DPI两次失败保留，观察版原断言通过但原因未确认，不改产品动画。C55保留，不录屏/改系统/测Win10或发布；见iterations/2026-11-21-59-background-pixel-mapping。
+diff --git a/AGENTS.md b/AGENTS.md
+index 21bbb8b989da81d1f52f7179821cd8972f819ca7..e1769730c3a9b2aa8ead7bbfeaafae3b5c0be1cd 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -119,6 +119,7 @@
+ - 检查与改动相称。纯文档改动检查覆盖、事实、链接、相互矛盾与隐私，不仅为改文档重复构建；现状审计可运行基线检查。涉及核心扫描、缓存和统计逻辑时，增加必要边界测试并运行对应检查。
+ - 界面改动验证实际使用流程、布局和状态；算法或性能改动核对结果正确性与同条件基准。检查通过后，无新改动或疑点不反复扩大测试。
+ - 表面、字体或尺寸修改可运行 `--visual-surface-tests` 及 `--dpi-96`：自有小目录真实扫描后用合成背景检查底板、合成对比和最小窗口排版；程序位图断言不替代实际桌面观察。`--stage-one-preview a|b [--minimum] [--dpi-96] [--expanded]` 为测试 apphost 的真实合成目录预览，隔离配置、显示路径使用公开别名，关闭后核归属清理；A/B 的磁盘活动使用明确标记的纯合成源，收起不采样。`baseline` 需预先保留的旧开发程序集，不支持展开，不以其名称当 Git 冻结证明。交互预览使用保持 stdin 的终端会话，精确 `close` 会先退自有弹窗再关主窗；EOF 不会自动关闭。工具细节见 [C29 记录](iterations/2026-11-13-29-visual-polish/README.md)与[C30 比例修正](iterations/2026-11-13-30-visual-proportions/README.md)。
++- 图表/列表/详情联动修改运行 `--selection-linkage-tests` 及 `--dpi-96`（专项自行构造C57，不加composition前缀），核对象身份、内部文件/父归属、就近/跨页、查询交接、未知/共享及详情资源；另查受影响UI/滚动/柔光并实际观察。内嵌文件单击保留视角，主动“在列表中查看”才进入父目录；不靠同名或硬链接身份猜测路径，不增加悬停文字或动态说明行。见[联动说明](docs/selection-linkage.md)。
+ - 布局/圆角裁切/原生移动重绘改动另运行 `--layout-transition-tests`、`--layout-presentation-tests`，分别加 `--dpi-96`。前者观测范围行、扫描切换/取消、partial/分页及祖先移动的自然消息顺序，后者验证合并、重入、暂停恢复与句柄生命周期；它们不代表真实屏幕像素无残影。`--layout-transition-preview [--dpi-96]` 使用自建合成目录与真实扫描器，第二次扫描起受控暂停；stdin命令 `scan`、`release`、`cancel`、`scope`、`clear-scope`、`minimum`、`common`、`close` 仅作用于自有窗口，暂停不作为性能证据。关闭后等待任务退出再核归属清理，不在观测前强制刷新以掩盖瞬态，实际动态效果仍需桌面观察与用户反馈。
+ - DIB根背景缓存修改另运行 `--root-composite-tests` 及 `--dpi-96`，核对完整像素、局部/带孔裁切、尺寸/图片/聚焦失效、预算和关闭后释放。`--resize-pipeline-probe off1|on1|on2|off2 [--dpi-96] [--slow] [--pixels]` 只扫描自建临时目录，输出至ignored artifacts并拒绝覆盖；固定12步、最多256条尺寸事件，阶段耗时可嵌套不可相加。性能与离散GDI取点分开测，均不能代表真实帧率或连续屏幕无闪黑；默认程序不启用该内存探针。方案见 [C53缩放排查](docs/ui-resize-pipeline-plan.md)。
+ - 已按窗口像素准备的背景缓存必须显式按像素源/目标矩形发布，不能用按物理尺寸随DPI缩放的`DrawImageUnscaled`再次放大。修改此链路运行`--background-pixel-mapping-tests`：用独立像素参照覆盖96/120/144/192 DPI，不能只对比两条共享同一错误缩放的绘制路径。保留原焦点、Zoom及用户配置，不以改参数掩盖映射错误。
+diff --git a/MainForm.cs b/MainForm.cs
+index 4bc1300dcb3333034a9da026821650269af1199c..8887f98e521ea961758eca50235722aaeb6f01bd 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -61,6 +61,9 @@ internal sealed class MainForm : Form
+     private readonly ActionButton up = new("↑  上一级") { Width = 92, Dock = DockStyle.Fill, Enabled = false };
+     private readonly ActionButton home = new("扫描根目录") { Width = 108, Dock = DockStyle.Fill, Enabled = false };
+     private readonly ActionButton reveal = new("在资源管理器中定位") { Width = 170, Dock = DockStyle.Fill, Enabled = false };
++    private readonly ActionButton selectionDetails = new("详情") { Dock = DockStyle.Fill, Enabled = false, Subtle = true };
++    private readonly ActionButton showInList = new("在列表中查看") { Dock = DockStyle.Fill, Visible = false };
++    private ColumnStyle? detailActionsColumn, inListActionColumn;
+     private readonly ActionButton issues = new("查看未读取项") { Width = 115, Dock = DockStyle.Fill, Visible = false };
+     private readonly ActionButton restoreComplete = new("恢复上次完整结果") { Dock = DockStyle.Fill, Visible = false };
+     private ColumnStyle? restoreCompleteColumn;
+@@ -75,6 +78,12 @@ internal sealed class MainForm : Form
+     private readonly Label pageInfo = LabelOf("", Theme.CaptionFontSize, false, true);
+     private RowStyle? pagingRow;
+     private int pageIndex;
++    private string listBaseCaption = "";
++    private long viewVersion, selectionRevision;
++    private object? selectionOwner;
++    private MapItem? pendingViewSelection;
++    private object? pendingSelectionOwner;
++    private object? SelectionOwner => showingPreview ? liveSession : scan;
+     private string scopeDetails = "";
+     private bool displayingPreviousResult;
+     private bool wasMinimized;
+@@ -83,7 +92,7 @@ internal sealed class MainForm : Form
+     private readonly Label mapCaption = LabelOf("", Theme.CaptionFontSize, false, true);
+     private readonly Label listTitle = LabelOf("文件与文件夹", 12, true);
+     private readonly Label listCaption = LabelOf("", Theme.CaptionFontSize, false, true);
+-    private readonly Label detailTitle = LabelOf("未选择项目", Theme.BodyFontSize, true);
++    private readonly SelectionSummaryLabel detailTitle = new() { Font = Theme.Font(Theme.BodyFontSize, FontStyle.Bold) };
+     private readonly Label detailPath = LabelOf("", Theme.CaptionFontSize, false, true);
+     private readonly Label status = LabelOf("就绪", Theme.CaptionFontSize, false, true);
+     private readonly TextBox pathBox = new() { ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = Theme.Surface, ForeColor = Theme.Text, Dock = DockStyle.Fill };
+@@ -234,7 +243,12 @@ internal sealed class MainForm : Form
+             }
+             else if (scan != null) OpenDirectory(scan.Root);
+         };
+-        reveal.Click += (_, _) => RevealSelection();
++        reveal.Click += (_, _) => ActivateSelection();
++        selectionDetails.Click += (_, _) => ShowSelectionDetails();
++        showInList.Click += async (_, _) =>
++        {
++            if (selection?.Entry is { } entry) await NavigateToEntryAsync(entry);
++        };
+         issues.Click += (_, _) => ShowIssues();
+         restoreComplete.Click += (_, _) => RestoreCompleteResult();
+         clearType.Click += (_, _) => { typeFilter = null; UpdateView(); };
+@@ -244,7 +258,7 @@ internal sealed class MainForm : Form
+         map.ItemSelected += item => SelectItem(item, true);
+         map.ItemActivated += ActivateItem;
+         search.TextChanged += (_, _) => { if (!clearingSearch) { searchTimer.Stop(); searchTimer.Start(); } };
+-        searchTimer.Tick += (_, _) => { searchTimer.Stop(); UpdateView(); };
++        searchTimer.Tick += (_, _) => { searchTimer.Stop(); UpdateView(true); };
+         previewTimer.Tick += async (_, _) => { if (liveSession != null && viewCancellation == null) await UpdatePreviewAsync(); };
+         KeyDown += HandleKeys;
+         DragEnter += (_, e) => { if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1 && Directory.Exists(paths[0])) e.Effect = DragDropEffects.Copy; };
+@@ -632,12 +646,19 @@ internal sealed class MainForm : Form
+         detail.Margin = Padding.Empty;
+         detail.Surface = WallpaperSurface.Chrome;
+         detail.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+-        detail.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
++        detailActionsColumn = new ColumnStyle(SizeType.Absolute, 180);
++        detail.ColumnStyles.Add(detailActionsColumn);
+         var detailText = Table(1, 2); detailText.Surface = WallpaperSurface.Chrome;
+         detailText.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+         detailText.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+         detailText.Controls.Add(detailTitle, 0, 0); detailText.Controls.Add(detailPath, 0, 1);
+-        detail.Controls.Add(detailText, 0, 0); detail.Controls.Add(reveal, 1, 0);
++        var detailActions = Table(3, 1); detailActions.Surface = WallpaperSurface.Chrome;
++        inListActionColumn = new ColumnStyle(SizeType.Absolute, 0);
++        detailActions.ColumnStyles.Add(inListActionColumn);
++        detailActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
++        detailActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
++        detailActions.Controls.Add(showInList, 0, 0); detailActions.Controls.Add(selectionDetails, 1, 0); detailActions.Controls.Add(reveal, 2, 0);
++        detail.Controls.Add(detailText, 0, 0); detail.Controls.Add(detailActions, 1, 0);
+         bottom.Controls.Add(detail, 0, 0);
+         bottom.Controls.Add(progressBar, 0, 1);
+         var footer = Table(3, 1); footer.Surface = WallpaperSurface.Chrome;
+@@ -772,8 +793,16 @@ internal sealed class MainForm : Form
+                     ? (e.State & DataGridViewElementStates.Selected) != 0 ? SystemColors.HighlightText : SystemColors.WindowText
+                     : Theme.Text;
+                 const TextFormatFlags flags = TextFormatFlags.SingleLine | TextFormatFlags.PreserveGraphicsClipping;
+-                if (bands.Name.Width > 0 && bands.Name.Height > 0)
+-                    Theme.TextAt(graphics, item.Name, e.CellStyle!.Font ?? grid.Font, foreground, bands.Name, flags);
++                var nameBounds = bands.Name;
++                if (((WallpaperGrid)grid).ContainingRow == e.RowIndex && nameBounds.Width > 150 * grid.DeviceDpi / 96)
++                {
++                    int width = 66 * grid.DeviceDpi / 96;
++                    var badge = new Rectangle(nameBounds.Right - width, nameBounds.Top, width, nameBounds.Height);
++                    nameBounds.Width -= width;
++                    Theme.TextAt(graphics, "所在目录", filePathFont, SystemInformation.HighContrast ? foreground : Theme.Accent, badge, flags);
++                }
++                if (nameBounds.Width > 0 && nameBounds.Height > 0)
++                    Theme.TextAt(graphics, item.Name, e.CellStyle!.Font ?? grid.Font, foreground, nameBounds, flags);
+                 if (detailed && bands.Path.Width > 0 && bands.Path.Height > 0)
+                     TextRenderer.DrawText(graphics, FileListPresentation.RelativeLocation(item, current), filePathFont,
+                         bands.Path, SystemInformation.HighContrast ? foreground : Theme.Muted,
+@@ -1090,6 +1119,8 @@ internal sealed class MainForm : Form
+     private void ApplyMotionPreference()
+     {
+         map.AnimationsEnabled = progressBar.AnimationsEnabled = !reduceMotion.Checked;
++        ((WallpaperGrid)grid).LocateAnimationEnabled = !reduceMotion.Checked;
++        if (reduceMotion.Checked) ((WallpaperGrid)grid).StopLocateFlash();
+         Apply(this);
+         void Apply(Control parent)
+         {
+@@ -1129,7 +1160,8 @@ internal sealed class MainForm : Form
+         var scanSource = scanCancellation;
+         if (session == null || scanSource == null || scanSource.IsCancellationRequested) return;
+         string? requestedPath = showingPreview ? current?.Path : null;
+-        string? selectedName = showingPreview ? selection?.Entry?.Name : null;
++        var previewSelection = showingPreview && ReferenceEquals(selectionOwner, session) ? selection?.Entry : null;
++        string? selectedPath = previewSelection?.Path;
+         int firstVisibleRow = requestedPath == previewDisplayedPath ? grid.FirstDisplayedScrollingRowIndex : -1;
+         viewCancellation?.Cancel();
+         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(scanSource.Token);
+@@ -1176,14 +1208,16 @@ internal sealed class MainForm : Form
+             up.Enabled = current.Parent != null; home.Enabled = current != preview.Root;
+             mapTitle.Text = "空间分布 · 扫描中"; listTitle.Text = "已发现的文件与文件夹";
+             mapCaption.Text = "文件大小预览";
+-            listCaption.Text = $"{preview.DiscoveredChildren:N0} 项已发现";
++            listBaseCaption = listCaption.Text = $"{preview.DiscoveredChildren:N0} 项已发现";
+             ApplyGridPresentation(0);
+             map.LoadingView = map.Scanning = false; map.ShowNested = false; map.TotalSize = current.Size;
+             map.EmptyTitle = view.Rows.Count == 0 ? "这个目录还在读取中" : "已发现项目的大小暂为 0 B";
+             map.EmptyCaption = "预览会自动更新；扫描完成后恢复搜索、大文件与文件类型视图";
+             map.SetItems(view.MapItems); PopulateGrid(view.Rows);
+-            var selected = selectedName == null ? null : view.Rows.FirstOrDefault(i => i.Name == selectedName);
+-            if (selected != null) SelectItem(selected, true);
++            var selected = selectedPath == null ? null : view.Rows.FirstOrDefault(i => i.Entry is { } entry &&
++                entry.Path.Equals(selectedPath, StringComparison.Ordinal) && entry.IsDirectory == previewSelection!.IsDirectory &&
++                (entry.Storage == null || previewSelection.Storage == null || entry.Storage.Identity == previewSelection.Storage.Identity));
++            if (selected != null) ApplySelection(selected, true, false);
+             if (firstVisibleRow >= 0 && grid.RowCount > 0)
+                 ((WallpaperGrid)grid).PerformBufferedScroll(() => grid.FirstDisplayedScrollingRowIndex = Math.Min(firstVisibleRow, grid.RowCount - 1));
+             previewDisplayedPath = current.Path;
+@@ -1211,7 +1245,7 @@ internal sealed class MainForm : Form
+         mode = index; navigation.SelectedIndex = index; navigation.Invalidate();
+         ResetSearch();
+         sortColumn = "size"; sortAscending = false;
+-        UpdateView();
++        UpdateView(true);
+     }
+ 
+     private void OpenDirectory(DiskEntry directory)
+@@ -1232,6 +1266,7 @@ internal sealed class MainForm : Form
+ 
+     private async Task UpdateViewAsync(bool preserveSelection)
+     {
++        viewVersion++;
+         if (liveSession != null) { await UpdatePreviewAsync(); return; }
+         if (current == null || scan == null) return;
+         viewCancellation?.Cancel();
+@@ -1240,7 +1275,9 @@ internal sealed class MainForm : Form
+         var token = cancellation.Token;
+         var directory = current;
+         int requestedMode = mode;
+-        var previous = preserveSelection ? selection : null;
++        var previous = !preserveSelection ? null : selection != null && ReferenceEquals(selectionOwner, SelectionOwner)
++            ? selection : ReferenceEquals(pendingSelectionOwner, SelectionOwner) ? pendingViewSelection : null;
++        pendingViewSelection = previous; pendingSelectionOwner = SelectionOwner;
+         var sort = sortColumn switch { "name" => ViewSort.Name, "count" => ViewSort.Count, "location" => ViewSort.Location, _ => ViewSort.Size };
+         var request = new ViewRequest(directory, (ViewMode)requestedMode, search.Text, sort, sortAscending, typeFilter, metric);
+         pathBox.Text = current.Path;
+@@ -1279,13 +1316,20 @@ internal sealed class MainForm : Form
+             ApplyGridPresentation(requestedMode);
+         }
+         finally { updating = false; }
+-        SelectItem(null, false);
++        ApplySelection(null, false, false);
+         map.Enabled = false; map.LoadingView = true; map.SetItems([]);
+         mapCaption.Text = "正在整理视图…";
+         try
+         {
+-            var result = await Task.Run(() => ViewQuery.Build(request, token), token);
++            var built = await Task.Run(() =>
++            {
++                var result = ViewQuery.Build(request, token);
++                var rebound = SelectionLinkage.Rebind(result.Rows, previous, directory, request.Metric, requestedMode);
++                token.ThrowIfCancellationRequested();
++                return (Result: result, Selected: rebound);
++            }, token);
+             if (IsDisposed || Disposing || !ReferenceEquals(viewCancellation, cancellation) || token.IsCancellationRequested) return;
++            var result = built.Result;
+             if (requestedMode == 2)
+             {
+                 mapTitle.Text = "类型分布"; listTitle.Text = "文件类型";
+@@ -1301,7 +1345,7 @@ internal sealed class MainForm : Form
+             search.PlaceholderText = requestedMode switch { 1 => "搜索所有子目录的文件名…", 2 => "搜索扩展名或类型…", _ => "搜索当前层级名称…" };
+             search.AccessibleDescription = search.PlaceholderText;
+             SetScopeDetails(string.Join(" · ", scopeFacts));
+-            listCaption.Text = $"{result.Rows.Count:N0} 项";
++            listBaseCaption = listCaption.Text = $"{result.Rows.Count:N0} 项";
+             listCaption.AccessibleDescription = (requestedMode == 1 ? $"含子目录 · 匹配 {result.MatchedCount:N0} 个，显示最大 {result.Rows.Count:N0} 个。" : "") +
+                 "当前视图所列项目的数量与大小占比（大文件最多 500 个），分页只改变列表显示；分母为当前目录未筛选的大小。" +
+                 (request.Metric == SizeMetric.Allocated ? "占比仅按已知分配量计算，未知不计为零。" : "");
+@@ -1316,7 +1360,7 @@ internal sealed class MainForm : Form
+             if (request.Metric == SizeMetric.Allocated && directory.UnknownAllocationFiles > 0) map.EmptyCaption = "右侧保留文件名和文件大小；底部可查看占用未知的原因";
+             map.SetItems(result.MapItems);
+             PopulateGrid(result.Rows);
+-            if (previous != null && result.Rows.Contains(previous)) SelectItem(previous, true);
++            if (built.Selected != null) ApplySelection(built.Selected, true, false);
+         }
+         catch (OperationCanceledException) { }
+         catch (Exception ex)
+@@ -1332,7 +1376,8 @@ internal sealed class MainForm : Form
+             if (ReferenceEquals(viewCancellation, cancellation))
+             {
+                 viewCancellation = null;
+-                if (!IsDisposed && !Disposing) { map.LoadingView = false; map.Enabled = true; grid.Enabled = true; map.Invalidate(); }
++                pendingViewSelection = null; pendingSelectionOwner = null;
++                if (!IsDisposed && !Disposing) { map.LoadingView = false; map.Enabled = true; grid.Enabled = true; UpdateSelectionActions(); map.Invalidate(); }
+             }
+         }
+     }
+@@ -1354,11 +1399,13 @@ internal sealed class MainForm : Form
+                     (col.Name == sortColumn || col.Name == "name" && mode == 1 && sortColumn == "location" ? sortAscending ? " ↑" : " ↓" : "");
+         }
+         finally { grid.ResumeLayout(); updating = false; }
+-        SelectItem(null, false);
++        ApplySelection(null, false, false);
+     }
+ 
+     private void PopulatePage(int requestedPage)
+     {
++        ((WallpaperGrid)grid).StopLocateFlash();
++        ((WallpaperGrid)grid).ContainingRow = -1;
+         var page = PageSlice.Create(sortedRows.Count, requestedPage);
+         pageIndex = page.Index;
+         bool wasUpdating = updating;
+@@ -1408,7 +1455,18 @@ internal sealed class MainForm : Form
+ 
+     private void SelectItem(MapItem? item, bool syncGrid)
+     {
+-        selection = item; map.SelectItem(item); reveal.Enabled = item?.Entry != null;
++        pendingViewSelection = null; pendingSelectionOwner = null;
++        ApplySelection(item, syncGrid, syncGrid);
++    }
++
++    private void ApplySelection(MapItem? item, bool syncGrid, bool feedback)
++    {
++        selectionRevision++;
++        selection = item; selectionOwner = item == null ? null : SelectionOwner;
++        map.SelectItem(item);
++        var surface = (WallpaperGrid)grid;
++        surface.StopLocateFlash(); surface.ContainingRow = -1;
++        string? hint = null;
+         if (syncGrid)
+         {
+             bool previousUpdating = updating;
+@@ -1416,37 +1474,103 @@ internal sealed class MainForm : Form
+             try
+             {
+                 grid.ClearSelection();
+-                int index = item == null ? -1 : sortedRows.IndexOf(item);
++                int exact = SelectionLinkage.FindRow(sortedRows, item);
++                int index = exact >= 0 ? exact : SelectionLinkage.ContainingRow(sortedRows, item, current);
+                 if (index >= 0)
+                 {
+-                    if (index / PageSlice.Size != pageIndex) PopulatePage(index / PageSlice.Size);
++                    bool acrossPages = index / PageSlice.Size != pageIndex;
++                    if (acrossPages) PopulatePage(index / PageSlice.Size);
+                     int row = index % PageSlice.Size;
+-                    ((WallpaperGrid)grid).PerformBufferedScroll(() =>
++                    surface.PerformBufferedScroll(() =>
+                     {
+-                        grid.Rows[row].Selected = true; grid.FirstDisplayedScrollingRowIndex = row;
++                        int before = grid.FirstDisplayedScrollingRowIndex;
++                        int target = SelectionLinkage.ScrollTarget(before, grid.DisplayedRowCount(false), row);
++                        if (before != target) grid.FirstDisplayedScrollingRowIndex = target;
++                        if (exact >= 0)
++                        {
++                            grid.CurrentCell = grid.Rows[row].Cells[grid.Columns.GetFirstColumn(DataGridViewElementStates.Visible)!.Index];
++                            grid.Rows[row].Selected = true;
++                        }
++                        else { grid.CurrentCell = null; surface.ContainingRow = row; }
+                     });
++                    hint = exact < 0 ? "所在目录" : acrossPages ? "已跨页定位" : feedback ? "已定位" : null;
++                    if (feedback && exact >= 0) surface.FlashLocatedRow(row);
+                 }
+             }
+             finally { updating = previousUpdating; }
+         }
++        SetLocationFeedback(hint);
++        UpdateSelectionActions();
+         if (item == null)
+         {
+-            detailTitle.Text = "未选择项目";
++            detailTitle.SetDetails(null, filePathFont);
+             detailPath.Text = "";
+             return;
+         }
+-        detailTitle.Text = $"{item.Name} · {(item.UnknownFiles > 0 ? item.Size == 0 ? "占用未知" : SizeFormat.Bytes(item.Size) + " + 未知" : SizeFormat.Bytes(item.Size))} · {SizeFormat.Percent(item.Size, current?.Bytes(metric) ?? 0)}";
+-        detailPath.Text = item.Entry is { } entry
+-            ? $"{entry.Path}  ·  修改于 {entry.Modified:yyyy-MM-dd HH:mm}" + (entry.Incomplete ? " · 部分内容未读取" : "")
+-            : !item.IsAggregate && mode == 2 ? $"{item.Category}  ·  {item.Count:N0} 个文件（含所有子目录）" : $"合并展示的 {item.Count:N0} 项，可在右侧列表查看单个项目";
+-        if (item.Entry is { } metadata)
++        var details = SelectionDetails.Create(item, metric, mode, scopeDetails);
++        detailTitle.SetDetails(details, filePathFont);
++        detailPath.Text = details.Path.Length > 0 ? details.Path : details.Note;
++        detailTitle.AccessibleDescription = details.Note;
++    }
++
++    private void SetLocationFeedback(string? hint)
++    {
++        string count = listBaseCaption.Length > 0 ? listBaseCaption : $"{sortedRows.Count:N0} 项";
++        listCaption.Text = count + (hint == null ? "" : " · " + hint);
++        var page = PageSlice.Create(sortedRows.Count, pageIndex);
++        pageInfo.Text = (hint == null ? "" : hint + " · ") + $"第 {page.Index + 1:N0} / {page.Pages:N0} 页";
++    }
++
++    private void UpdateSelectionActions()
++    {
++        var details = selection == null ? null : SelectionDetails.Create(selection, metric, mode, scopeDetails);
++        reveal.Text = details?.ActionText ?? "定位文件";
++        reveal.Enabled = selection != null && grid.Enabled && map.Enabled;
++        selectionDetails.Enabled = selection != null;
++        bool internalEntry = selection?.Entry?.Parent != null && mode == 0 &&
++            SelectionLinkage.FindRow(sortedRows, selection) < 0 && SelectionLinkage.ContainingRow(sortedRows, selection, current) >= 0;
++        showInList.Visible = internalEntry;
++        showInList.Enabled = internalEntry && liveSession == null && grid.Enabled;
++        if (detailActionsColumn != null && inListActionColumn != null)
+         {
+-            string allocation = metadata.UnknownAllocationFiles > 0 ? "占用未知" : SizeFormat.Bytes(metadata.IsDirectory ? metadata.AllocatedSize : metadata.Storage?.AllocatedBytes ?? 0);
+-            detailTitle.Text = $"{item.Name} · 文件大小 {SizeFormat.Bytes(metadata.Size)} · 实际占用 {allocation}" +
+-                (metadata.Storage is { LinkCount: > 1 } storage ? $" · {storage.LinkCount} 个硬链接{(metadata.SharedAllocation ? "（本路径共享，不重复计入）" : "")}" : "");
++            float scale = DeviceDpi / 96f;
++            inListActionColumn.Width = internalEntry ? 112 * scale : 0;
++            detailActionsColumn.Width = (internalEntry ? 292 : 180) * scale;
+         }
+     }
+ 
++    private void ActivateSelection()
++    {
++        if (selection == null || !ReferenceEquals(selectionOwner, SelectionOwner)) return;
++        if (selection.IsAggregate) { grid.Focus(); return; }
++        ActivateItem(selection);
++    }
++
++    private async Task NavigateToEntryAsync(DiskEntry entry)
++    {
++        if (entry.Parent == null || liveSession != null || scan == null || !ReferenceEquals(selectionOwner, scan)) return;
++        var owner = scan;
++        current = entry.Parent; selection = null; typeFilter = null; mode = 0; ResetSearch();
++        if (sortColumn is "count" or "location") { sortColumn = "size"; sortAscending = false; }
++        navigation.SelectedIndex = 0; navigation.Invalidate();
++        var update = UpdateViewAsync(false); long version = viewVersion;
++        await update;
++        if (IsDisposed || Disposing || viewVersion != version || !ReferenceEquals(scan, owner) || !ReferenceEquals(current, entry.Parent)) return;
++        var row = sortedRows.FirstOrDefault(i => ReferenceEquals(i.Entry, entry));
++        if (row != null) ApplySelection(row, true, true);
++    }
++
++    private void ShowSelectionDetails()
++    {
++        if (selection == null) return;
++        long revision = selectionRevision;
++        object? owner = SelectionOwner;
++        using var dialog = new SelectionDetailsDialog(SelectionDetails.Create(selection, metric, mode, scopeDetails));
++        if (dialog.ShowDialog(this) != DialogResult.OK) return;
++        if (IsDisposed || Disposing || selectionRevision != revision || !ReferenceEquals(owner, SelectionOwner)) return;
++        ActivateSelection();
++    }
++
+     private void ActivateItem(MapItem item)
+     {
+         if (mode == 2 && item.Entry == null && !item.IsAggregate)
+@@ -1455,41 +1579,44 @@ internal sealed class MainForm : Form
+             ResetSearch(); sortColumn = "size"; sortAscending = false; UpdateView();
+         }
+         else if (item.Entry is { IsDirectory: true } directory) OpenDirectory(directory);
+-        else if (item.Entry != null) { selection = item; RevealSelection(); }
++        else if (item.Entry != null) { SelectItem(item, true); RevealSelection(); }
+     }
+ 
+     private async void RevealSelection()
+     {
+-        if (selection?.Entry is not { } entry) return;
+-        var observedScan = scan;
+-        if (observedScan?.Source != null)
++        if (selection?.Entry is not { } entry || !ReferenceEquals(selectionOwner, SelectionOwner)) return;
++        var observedOwner = SelectionOwner;
++        var observedScan = showingPreview ? null : scan;
++        long revision = selectionRevision;
++        reveal.Enabled = false;
++        try
+         {
+-            reveal.Enabled = false;
+-            try
++            var result = await Task.Run(() =>
+             {
+-                bool matches = await Task.Run(() =>
++                try
+                 {
+-                    try
+-                    {
+-                        return entry.Storage != null && NativeStorage.TryRead(entry.Path, entry.IsDirectory,
+-                            File.GetAttributes(entry.Path), out var live, out _) && live?.Identity == entry.Storage.Identity;
+-                    }
+-                    catch { return false; }
+-                });
+-                if (IsDisposed || Disposing || !ReferenceEquals(scan, observedScan)) return;
+-                if (!matches)
+-                {
+-                    MessageBox.Show(this, "该路径已变化或无法核对身份，请重新扫描后再定位。", "快照项目已变化", MessageBoxButtons.OK, MessageBoxIcon.Information);
+-                    return;
++                    if (!File.Exists(entry.Path) && !Directory.Exists(entry.Path)) return 1;
++                    if (observedScan?.Source != null && !(entry.Storage != null && NativeStorage.TryRead(entry.Path, entry.IsDirectory,
++                        File.GetAttributes(entry.Path), out var live, out _) && live?.Identity == entry.Storage.Identity)) return 2;
++                    return 0;
+                 }
++                catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
++                { return 2; }
++            });
++            if (IsDisposed || Disposing || selectionRevision != revision || !ReferenceEquals(SelectionOwner, observedOwner) ||
++                !ReferenceEquals(selection?.Entry, entry)) return;
++            if (result != 0)
++            {
++                MessageBox.Show(this, result == 1 ? "该项目已移动或删除，请重新扫描。" : "该路径已变化或无法核对身份，请重新扫描后再定位。",
++                    "无法定位当前项目", MessageBoxButtons.OK, MessageBoxIcon.Information);
++                return;
+             }
+-            finally { if (!IsDisposed && !Disposing) reveal.Enabled = selection?.Entry != null; }
++            TryAction(() => Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{entry.Path}\"") { UseShellExecute = true }));
+         }
+-        TryAction(() =>
++        finally
+         {
+-            if (!File.Exists(entry.Path) && !Directory.Exists(entry.Path)) throw new IOException("该项目已移动或删除，请重新扫描。" );
+-            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{entry.Path}\"") { UseShellExecute = true });
+-        });
++            if (!IsDisposed && !Disposing) UpdateSelectionActions();
++        }
+     }
+ 
+     private void TryAction(Action action)
+diff --git a/README.en.md b/README.en.md
+index 2d7b05e0fd3dd1693c61804752b0a517aebd1683..3e78afff25398ca4f6e4b43ee2714168438d0e9a 100644
+--- a/README.en.md
++++ b/README.en.md
+@@ -42,6 +42,8 @@ Get the SDK or runtime from [Microsoft](https://dotnet.microsoft.com/en-us/downl
+ 
+ Also includes Automatic / Low-impact / High-speed strategies, live partial previews, cancellation and result recovery, NTFS journal-assisted refresh, local background cropping and accent colors, and [local diagnostics and problem notes](docs/diagnostics.md) (Chinese).
+ 
++The stage-two development build adds [linked treemap selection, list location and item details](docs/selection-linkage.md) (Chinese). Selecting an internal file keeps the overview; the explicit list action enters its parent. Full paths and allocation notes are available in the details dialog. Maintainer acceptance is pending, and these changes are not in a new Release.
++
+ Ordinary startup in the development build now uses the accepted **C57 composition background and DIB rendering**. The light theme, visible wallpaper and animated edge glow are retained; composition failures fall back to C55 rendering. Local user acceptance and the necessary UI checks passed. The maintainer chose to skip Windows 10 validation of this new rendering path in this round; real cross-monitor DPI remains untested. This default change has not been released as a new package.
+ 
+ **Disk activity** is a small sidebar card below the color legend, off by default. Enable it for a mini graph, activity and read/write summary; use **详情** (Details) for the full graph, response time and disk selection. Disabling it or minimizing pauses sampling. Up to 60 seconds stay in memory; metrics cover the entire physical disk, including other processes. See [scope and limitations](docs/disk-activity.md) (Chinese).
+diff --git a/README.md b/README.md
+index 0139ea5ec3d6dd286ec34b4bab19789066f6ce01..692a00d249cd3ae03dc2633c979663f52ea82b53 100644
+--- a/README.md
++++ b/README.md
+@@ -42,6 +42,8 @@ SDK 和运行时从[微软官方下载页](https://dotnet.microsoft.com/en-us/do
+ 
+ 另有自动 / 低占用 / 高速三种策略、边扫边显示、取消与结果恢复、NTFS 日志增量刷新、本地背景裁切与强调色适配，以及[本地诊断和问题记录](docs/diagnostics.md)。
+ 
++第二阶段开发版已加入[图表、列表与详情联动](docs/selection-linkage.md)：单击内部文件保留总览，主动“在列表中查看”后进入所在目录；完整路径和占用事实在“详情”查看。真实程序已交给维护者体验，阶段验收仍待反馈；这些变化尚未作为新版 Release 发布。
++
+ 当前开发版在普通启动时默认采用已验收的 **C57 背景合成与 DIB 绘制**，保持浅色、背景透出和沿边柔光；合成不可用时自动回退到 C55 绘制。C57 已通过本机体验验收及必要界面检查；本轮按维护者决定不做 Windows 10 新路径验证，真实跨屏也尚未验收。此默认切换尚未作为新版 Release 发布。
+ 
+ **磁盘活动**位于左侧颜色索引下方，默认关闭。启用后查看迷你曲线、活动时间和读写摘要，点击“详情”查看完整曲线、响应时间和磁盘选择。关闭或最小化时暂停采样，最多60秒数据仅留在内存；指标代表整块物理盘，包含其他进程。[查看使用边界](docs/disk-activity.md)。
+diff --git a/TreemapControl.cs b/TreemapControl.cs
+index 43a64a0fb924c1eba816ea5ce12a61e189eea5b6..be859fe4f395ee262b448e9ef67e795e610c9419 100644
+--- a/TreemapControl.cs
++++ b/TreemapControl.cs
+@@ -11,6 +11,8 @@ internal sealed class TreemapControl : Control
+     private List<MapTile> tiles = [];
+     private readonly Dictionary<MapItem, List<MapTile>> nestedLayouts = [];
+     private readonly Dictionary<MapItem, MapTile> tileLookup = [];
++    private readonly Dictionary<DiskEntry, MapItem> entryLookup = new(ReferenceEqualityComparer.Instance);
++    private readonly HashSet<MapItem> nestedItems = [];
+     private Bitmap? staticLayer;
+     private PixelSurface? staticPixels;
+     private CacheKey? cacheKey, rejectedKey;
+@@ -81,6 +83,7 @@ internal sealed class TreemapControl : Control
+     }
+     public void SelectItem(MapItem? value)
+     {
++        if (value?.Entry is { } entry && entryLookup.TryGetValue(entry, out var display)) value = display;
+         if (selected == value) return;
+         var previous = selected; selected = value; InvalidateItem(previous); InvalidateItem(value);
+         SyncMotion();
+@@ -98,10 +101,14 @@ internal sealed class TreemapControl : Control
+         var layout = TreemapDensityLayout.Build(items,
+             new RectangleF(pad, pad, Math.Max(0, Width - 2 * pad), Math.Max(0, Height - 2 * pad)), DeviceDpi);
+         tiles = layout.Tiles;
+-        nestedLayouts.Clear(); tileLookup.Clear();
++        nestedLayouts.Clear(); tileLookup.Clear(); entryLookup.Clear(); nestedItems.Clear();
+         // Original list selections retain their identity, while an entry folded
+         // into the remainder uses that displayed tile's outline and bounds.
+-        foreach (var pair in layout.TileLookup) tileLookup[pair.Key] = pair.Value;
++        foreach (var pair in layout.TileLookup)
++        {
++            tileLookup[pair.Key] = pair.Value;
++            if (pair.Key.Entry is { } entry) entryLookup[entry] = pair.Key;
++        }
+         float s = DeviceDpi / 96f;
+         if (!ShowNested) return;
+         foreach (var tile in tiles)
+@@ -109,12 +116,28 @@ internal sealed class TreemapControl : Control
+             var rect = RectangleF.Inflate(tile.Bounds, -2 * s, -2 * s);
+             if (tile.Item.Entry is not { IsDirectory: true } dir || rect.Width <= 90 * s || rect.Height <= 110 * s) continue;
+             var nestedBounds = new RectangleF(rect.X + 7 * s, rect.Y + 63 * s, rect.Width - 14 * s, rect.Height - 70 * s);
+-            var nested = dir.Children.Where(c => c.Bytes(Metric) > 0).Take(36).Select(c => new MapItem(c.Name, c.Bytes(Metric), c, Theme.Category(c.Extension))).ToList();
++            var nested = dir.Children.Where(c => c.Bytes(Metric) > 0).Take(36).Select(c => new MapItem(c.Name, c.Bytes(Metric), c, Theme.Category(c.Extension),
++                UnknownFiles: Metric == SizeMetric.Allocated ? c.UnknownAllocationFiles : 0)).ToList();
+             long rest = dir.Bytes(Metric) - nested.Sum(i => i.Size);
+-            if (rest > 0) nested.Add(new MapItem("其他", rest, null, "其他", IsAggregate: true));
+-            nestedLayouts[tile.Item] = TreemapLayout.Build(nested, nestedBounds);
++            if (rest > 0) nested.Add(new MapItem("其他", rest, null, "其他", Math.Max(1, dir.Children.Count - nested.Count), true,
++                Metric == SizeMetric.Allocated ? Math.Max(0, dir.UnknownAllocationFiles - nested.Sum(i => i.UnknownFiles)) : 0));
++            var childTiles = TreemapLayout.Build(nested, nestedBounds);
++            nestedLayouts[tile.Item] = childTiles;
++            foreach (var child in childTiles)
++            {
++                tileLookup[child.Item] = child;
++                nestedItems.Add(child.Item);
++                if (child.Item.Entry is { } entry) entryLookup[entry] = child.Item;
++            }
+         }
+     }
++    private MapItem? HitTestItem(Point point)
++    {
++        var tile = tiles.FirstOrDefault(t => t.Bounds.Contains(point));
++        if (tile == null) return null;
++        return nestedLayouts.TryGetValue(tile.Item, out var children)
++            ? children.FirstOrDefault(child => child.Bounds.Contains(point))?.Item ?? tile.Item : tile.Item;
++    }
+     protected override void OnPaint(PaintEventArgs e)
+     {
+         base.OnPaint(e);
+@@ -253,7 +276,7 @@ internal sealed class TreemapControl : Control
+         var state = g.Save();
+         try
+         {
+-            ClipGlowToEdge(g, tile.Bounds, contour.Scale);
++            ClipInteractionEdge(g, item, tile.Bounds, contour.Scale);
+             contour.DrawBase(g, !AnimationsEnabled);
+         }
+         finally { g.Restore(state); }
+@@ -271,6 +294,16 @@ internal sealed class TreemapControl : Control
+         if (body.Width > 0 && body.Height > 0) graphics.SetClip(body, CombineMode.Exclude);
+     }
+ 
++    private void ClipInteractionEdge(Graphics graphics, MapItem item, RectangleF bounds, float scale)
++    {
++        if (!nestedItems.Contains(item)) { ClipGlowToEdge(graphics, bounds, scale); return; }
++        graphics.SetClip(bounds, CombineMode.Intersect);
++        // Internal labels start 5 DIP from the edge. Their new glow must stay
++        // outside that body rather than reuse the parent's wider halo ring.
++        var body = RectangleF.Inflate(bounds, -4 * scale, -4 * scale);
++        if (body.Width > 0 && body.Height > 0) graphics.SetClip(body, CombineMode.Exclude);
++    }
++
+     internal static RectangleF GlowBounds(RectangleF bounds, float scale)
+     {
+         if (!float.IsFinite(scale) || scale <= 0 || !float.IsFinite(bounds.X) || !float.IsFinite(bounds.Y) ||
+@@ -286,7 +319,8 @@ internal sealed class TreemapControl : Control
+     private GlowContour? GetGlowContour(MapItem item, RectangleF bounds)
+     {
+         float scale = DeviceDpi / 96f;
+-        var fill = GlowBounds(bounds, scale);
++        bool nested = nestedItems.Contains(item);
++        var fill = nested ? RectangleF.Inflate(bounds, -scale, -scale) : GlowBounds(bounds, scale);
+         if (fill.IsEmpty) return null;
+         int accent = Theme.Accent.ToArgb();
+         if (glowContours.TryGetValue(item, out var existing))
+@@ -294,7 +328,7 @@ internal sealed class TreemapControl : Control
+             if (existing.Bounds == fill && existing.Accent == accent && existing.Scale == scale) return existing;
+             existing.Dispose(); glowContours.Remove(item);
+         }
+-        var result = new GlowContour(fill, scale, accent);
++        var result = new GlowContour(fill, scale, accent, nested);
+         glowContours[item] = result;
+         return result;
+     }
+@@ -308,7 +342,8 @@ internal sealed class TreemapControl : Control
+         private readonly Pen edgeBase, travel, reducedTravel;
+         private readonly Pen[] movingHalo, reducedHalo;
+         private readonly float perimeter;
+-        public GlowContour(RectangleF bounds, float scale, int accent)
++        public GlowContour(RectangleF bounds, float scale, int accent) : this(bounds, scale, accent, false) { }
++        public GlowContour(RectangleF bounds, float scale, int accent, bool nested)
+         {
+             Bounds = bounds; Scale = scale; Accent = accent;
+             // The approved SVG inset its 1.5px base stroke by .75px and reduced
+@@ -316,7 +351,7 @@ internal sealed class TreemapControl : Control
+             // on the same rounded corners rather than drawing a second box.
+             float inset = Math.Min(.75f * scale, Math.Min(bounds.Width, bounds.Height) / 4);
+             var lineBounds = RectangleF.Inflate(bounds, -inset, -inset);
+-            float radius = Math.Max(.01f, Math.Min(8 * scale, Math.Min(bounds.Width, bounds.Height) / 4) - inset);
++            float radius = Math.Max(.01f, Math.Min((nested ? 4 : 8) * scale, Math.Min(bounds.Width, bounds.Height) / 4) - inset);
+             Path = Theme.Round(lineBounds, radius);
+             var color = Color.FromArgb(accent);
+             Color Adapt(Color reference) => accent == Theme.DefaultAccent.ToArgb()
+@@ -404,7 +439,7 @@ internal sealed class TreemapControl : Control
+         var state = g.Save();
+         try
+         {
+-            ClipGlowToEdge(g, bounds, contour.Scale);
++            ClipInteractionEdge(g, item, bounds, contour.Scale);
+             contour.DrawMovingHighlight(g, phase);
+         }
+         finally { g.Restore(state); }
+@@ -459,7 +494,7 @@ internal sealed class TreemapControl : Control
+     protected override void OnMouseMove(MouseEventArgs e)
+     {
+         base.OnMouseMove(e);
+-        var item = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
++        var item = HitTestItem(e.Location);
+         if (item == hovered) return;
+         var previous = hovered; hovered = item;
+         InvalidateItem(previous); InvalidateItem(item); SyncMotion();
+@@ -483,13 +518,13 @@ internal sealed class TreemapControl : Control
+     protected override void OnMouseClick(MouseEventArgs e)
+     {
+         base.OnMouseClick(e);
+-        SelectItem(tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item);
++        SelectItem(HitTestItem(e.Location));
+         ItemSelected?.Invoke(selected);
+     }
+     protected override void OnMouseDoubleClick(MouseEventArgs e)
+     {
+         base.OnMouseDoubleClick(e);
+-        var item = tiles.FirstOrDefault(t => t.Bounds.Contains(e.Location))?.Item;
++        var item = HitTestItem(e.Location);
+         if (item != null) ItemActivated?.Invoke(item);
+     }
+     private void ClearHover()
+diff --git a/Wallpaper.cs b/Wallpaper.cs
+index c0eaa4efb68048a8b3abf158ac8243d68d9143c2..3c0e84f1f73502bc8b14409327bb8b8e84e5b5c0 100644
+--- a/Wallpaper.cs
++++ b/Wallpaper.cs
+@@ -346,6 +346,32 @@ internal sealed class WallpaperTable : TableLayoutPanel
+ 
+ internal sealed class WallpaperGrid : DataGridView
+ {
++    private readonly System.Windows.Forms.Timer locateTimer = new() { Interval = 33 };
++    private long locateStarted;
++    private int locateRow = -1, containingRow = -1;
++    internal bool LocateFlashRunning => locateTimer.Enabled;
++    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
++    internal bool LocateAnimationEnabled { get; set; } = true;
++    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
++    internal int ContainingRow
++    {
++        get => containingRow;
++        set { int old = containingRow; containingRow = value; DirtyRow(old); DirtyRow(value); }
++    }
++    internal void FlashLocatedRow(int row)
++    {
++        StopLocateFlash();
++        if (!LocateAnimationEnabled || SystemInformation.HighContrast || row < 0 || row >= RowCount || !Visible) return;
++        locateRow = row; locateStarted = System.Diagnostics.Stopwatch.GetTimestamp(); locateTimer.Start(); DirtyRow(row);
++    }
++    internal void StopLocateFlash()
++    {
++        locateTimer.Stop(); int old = locateRow; locateRow = -1; DirtyRow(old);
++    }
++    private void DirtyRow(int row)
++    {
++        if (!disposed && IsHandleCreated && row >= 0 && row < RowCount) InvalidateRow(row);
++    }
+     private GridScrollbarSkin? scrollbarSkin;
+     internal int SkinnedScrollbarCount => scrollbarSkin?.Count ?? 0;
+     internal bool ScrollbarPaintingPaused
+@@ -392,6 +418,13 @@ internal sealed class WallpaperGrid : DataGridView
+         DoubleBuffered = true;
+         scrollbarSkin = new GridScrollbarSkin(this);
+         ShowCellToolTips = false;
++        locateTimer.Tick += (_, _) =>
++        {
++            if (!LocateAnimationEnabled || !Visible || FindForm()?.WindowState == FormWindowState.Minimized ||
++                ScrollbarPaintingPaused || System.Diagnostics.Stopwatch.GetElapsedTime(locateStarted).TotalMilliseconds >= 700)
++                StopLocateFlash();
++            else DirtyRow(locateRow);
++        };
+     }
+ 
+     internal void PaintScrollbarBackdrop(ScrollBar bar, Graphics graphics)
+@@ -591,6 +624,20 @@ internal sealed class WallpaperGrid : DataGridView
+                 using var selection = new SolidBrush(Color.FromArgb(96, Theme.Selection));
+                 e.Graphics.FillRectangle(selection, e.CellBounds);
+             }
++            if (!SystemInformation.HighContrast && e.RowIndex >= 0)
++            {
++                if (e.RowIndex == containingRow)
++                {
++                    using var context = new SolidBrush(Color.FromArgb(26, Theme.Selection));
++                    e.Graphics.FillRectangle(context, e.CellBounds);
++                }
++                if (e.RowIndex == locateRow && locateTimer.Enabled)
++                {
++                    double phase = Math.Clamp(System.Diagnostics.Stopwatch.GetElapsedTime(locateStarted).TotalMilliseconds / 700d, 0, 1);
++                    using var glow = new SolidBrush(Color.FromArgb((int)(76 * (1 - phase)), Theme.Surface));
++                    e.Graphics.FillRectangle(glow, e.CellBounds);
++                }
++            }
+         }
+         finally { e.Graphics.Restore(saved); }
+     }
+@@ -614,16 +661,16 @@ internal sealed class WallpaperGrid : DataGridView
+     }
+     protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); ReleaseBackdrop(); Invalidate(); }
+     protected override void OnParentChanged(EventArgs e) { base.OnParentChanged(e); ReleaseBackdrop(); }
+-    protected override void OnHandleDestroyed(EventArgs e) { redrawHeldHandle = IntPtr.Zero; base.OnHandleDestroyed(e); ReleaseBackdrop(); }
++    protected override void OnHandleDestroyed(EventArgs e) { StopLocateFlash(); redrawHeldHandle = IntPtr.Zero; base.OnHandleDestroyed(e); ReleaseBackdrop(); }
+     protected override void OnVisibleChanged(EventArgs e)
+     {
+         base.OnVisibleChanged(e);
+-        if (!Visible) ReleaseBackdrop();
++        if (!Visible) { StopLocateFlash(); ReleaseBackdrop(); }
+         else if (scrollDepth == 0) { RestoreRedraw(); PresentScroll(); }
+     }
+     protected override void Dispose(bool disposing)
+     {
+-        if (disposing) { disposed = true; scrollbarSkin?.Dispose(); scrollbarSkin = null; ReleaseBackdrop(); }
++        if (disposing) { StopLocateFlash(); locateTimer.Dispose(); disposed = true; scrollbarSkin?.Dispose(); scrollbarSkin = null; ReleaseBackdrop(); }
+         base.Dispose(disposing);
+     }
+ }
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 745cf9a811b9f741a674dcbdbac086e883a72925..42736fa100955a2152f99112f9bb4557fe76f46b 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,5 +1,13 @@
+ # 后续开发计划
+ 
++## 第二阶段联动开发版已展示，等待使用反馈（2026-11-22）
++
++用户已批准C60方案实施；基线main/origin `93b80ab`，开始时工作区干净。已完成图块/列表按对象身份双向选择、就近滚动及跨页定位、目录内部文件真实命中、父目录归属标记和主动“在列表中查看”。固定底部摘要为长名称与两种大小分别留位；“详情”按需显示完整路径、修改时间、未知/共享和统计范围。查询连续切换有pending选择交接及结果代际隔离，不用同名/大小/硬链接身份猜测路径，不增加选择时整树I/O。
++
++应用/测试构建零警告。最终联动专项在144DPI/96DPI各44项通过；普通及C57完整UI、滚动/背景缓存、布局、图块状态、双行列表、无悬停策略、纯合成快扫主窗等受影响检查通过。修复并保留证据的发现包括连续查询丢失书签、原柔光反射入口兼容、长名称挤占两种大小、详情窗口初始DPI尺寸。首次受限进程在SplitContainer缩放时发生GDI+启动异常、尚未进入UI断言；可交互复验通过，但成因未证明，原失败留在本机，不以通过抹掉失败。
++
++已在真实常用窗口检查内部文件保留总览、主动进入后同一文件选中和详情；另用隔离配置、自建目录观察最小窗口的大文件双行列表和修正后的详情弹窗。正常功能AsukaLens已打开，留给用户实际测试；**第二阶段尚未获用户整体接受**，不自动进入第三阶段。保留C57默认/C55回退、现有布局/背景聚焦/字号及1.15倍沿边柔光，没有悬停文字、自动说明框、录屏、系统设置或个人卷操作。Windows10新路径及真实跨屏仍未验。源码、文档和精选证据随本轮提交同步，最终提交/远程状态以Git为准；没有打包、标签或Release。见[C61记录](../iterations/2026-11-22-61-selection-linkage/README.md)及[使用说明](selection-linkage.md)。
++
+ ## 第一阶段整体通过；第二阶段只准备方案与预览（2026-11-21）
+ 
+ 用户明确确认“第一阶段可以收尾了”，阶段一整体验收结束。已采用C57/C55回退、沿边柔光1.15倍、双行大文件列表、透明背景与C59高DPI构图修复保留。既有Windows10新绘制路径/真实跨屏待验和柔光恢复早期失败记录继续保留，不因阶段接受将未验写为通过。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 7107b1d0eb095a4cd8adbaa60e3d724662989383..6f5c83070d4dec600afb7525996b04e591c58c76 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,13 @@
+ # AsukaLens 项目现状
+ 
++## 第二阶段联动开发版已展示，等待使用反馈（2026-11-22）
++
++用户已批准C60方案实施；基线main/origin `93b80ab`，开始时工作区干净。已完成图块/列表按对象身份双向选择、就近滚动及跨页定位、目录内部文件真实命中、父目录归属标记和主动“在列表中查看”。固定底部摘要为长名称与两种大小分别留位；“详情”按需显示完整路径、修改时间、未知/共享和统计范围。查询连续切换有pending选择交接及结果代际隔离，不用同名/大小/硬链接身份猜测路径，不增加选择时整树I/O。
++
++应用/测试构建零警告。最终联动专项在144DPI/96DPI各44项通过；普通及C57完整UI、滚动/背景缓存、布局、图块状态、双行列表、无悬停策略、纯合成快扫主窗等受影响检查通过。修复并保留证据的发现包括连续查询丢失书签、原柔光反射入口兼容、长名称挤占两种大小、详情窗口初始DPI尺寸。首次受限进程在SplitContainer缩放时发生GDI+启动异常、尚未进入UI断言；可交互复验通过，但成因未证明，原失败留在本机，不以通过抹掉失败。
++
++已在真实常用窗口检查内部文件保留总览、主动进入后同一文件选中和详情；另用隔离配置、自建目录观察最小窗口的大文件双行列表和修正后的详情弹窗。正常功能AsukaLens已打开，留给用户实际测试；**第二阶段尚未获用户整体接受**，不自动进入第三阶段。保留C57默认/C55回退、现有布局/背景聚焦/字号及1.15倍沿边柔光，没有悬停文字、自动说明框、录屏、系统设置或个人卷操作。Windows10新路径及真实跨屏仍未验。源码、文档和精选证据随本轮提交同步，最终提交/远程状态以Git为准；没有打包、标签或Release。见[C61记录](../iterations/2026-11-22-61-selection-linkage/README.md)及[使用说明](selection-linkage.md)。
++
+ ## 第一阶段整体通过；第二阶段只准备方案与预览（2026-11-21）
+ 
+ 用户明确确认“第一阶段可以收尾了”，阶段一整体验收结束。已采用C57/C55回退、沿边柔光1.15倍、双行大文件列表、透明背景与C59高DPI构图修复保留。既有Windows10新绘制路径/真实跨屏待验和柔光恢复早期失败记录继续保留，不因阶段接受将未验写为通过。
+diff --git a/docs/selection-linkage.md b/docs/selection-linkage.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..3439a997d8a0644294ccd26b99826eba2899d4c3
+--- /dev/null
++++ b/docs/selection-linkage.md
+@@ -0,0 +1,15 @@
++# 图表、列表与项目详情
++
++适用于当前第二阶段开发版，尚未打包发布；阶段是否结束等待用户对真实程序的反馈。背景、原布局和1.15倍沿边柔光保留。
++
++- 单击图块选择项目，列表定位到相同对象；已可见的行不会被重复拉到列表顶端。跨页在现有页脚显示定位结果，目标行短暂提亮；开启“减弱动效”后不提亮。
++- 单击列表行，图表反向指出同一对象。选择以当前结果树中的对象身份区分，不以同名或同一硬链接身份猜测路径。排序、切换大小口径和连续查询保留仍有效的选择；过滤掉或换为新的结果树时解除失效选择。
++- 点击目录内部文件会保留总览，底部显示该文件。当前层列表只有父目录时，父目录仅标“所在目录”，并不作为文件的选中行；点“在列表中查看”才进入文件所在目录并选中它。
++- 底部固定两行摘要，长名称省略时为两种大小独立预留位置。点击“详情”核对完整路径、修改时间、两种大小和必要的占用/范围事实；没有悬停气泡或自动说明框。
++- 目录的主要动作是“进入目录”，文件是“定位文件”，类型汇总是“查看明细”。合并图块只能查看当前列表，不能定位为一个文件。原有右键定位、复制路径及双击行为继续保留；对快照文件仍进行路径/身份核验。
++
++“实际占用未知”不等于0；目录可显示“已知量＋未知”。硬链接详情展示原生分配量，并说明当前路径是否重复计入范围；实际占用并不等于删除可释放量。类型或合并块只提供当前口径汇总，不为了显示另一口径额外扫描整树。
++
++局限：没有可靠成员映射的旧聚合块不会反向猜测单项；占用未知或没有独立面积的项可能只在列表中可见。跨结果树不自动延续旧选择。完整二维键盘图块导航、UIA子项树、新的导航历史和自定义工作区不在本轮。
++
++实施范围、取舍与验收见[第二阶段方案](ui-stage-two-linkage-plan.md)。软件仍只读分析目录，没有增加删除、移动或运行文件的能力。
+diff --git a/docs/testing.md b/docs/testing.md
+index 25bfc0a80ee076c75137ba6c9bbdcbd7ce9a2d87..e99c6fcf5eb3c24ee294fe510c7c945e742a51b5 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -1,5 +1,11 @@
+ # 开发验证与可选基准
+ 
++## 第二阶段选择联动
++
++构建测试项目后运行 `--selection-linkage-tests`，另用独立进程追加 `--dpi-96`；专项自行构造C57主窗，勿在前面添加 `--composition-tests`。只用合成结果树和自有窗口，覆盖同名/硬链接路径身份、内部图块/父归属、就近/跨页定位、查询交接与过期导航、未知/共享/聚合详情、长名称与两种大小保留位置、详情DPI和定时器释放。
++
++另运行普通/C57的两档 `--ui-regression`，按改动核对 `--treemap-state-tests`、`--wallpaper-scroll-tests`、`--wallpaper-grid-cache-tests`、布局及双行列表/无悬停策略。真实窗口观察常用/最小尺寸及“选中→定位→核对详情”闭环；合成检查不代表个人卷统计、连续帧或跨屏验收。边界见[联动说明](selection-linkage.md)。
++
+ 从项目根目录运行。普通迭代按 [AGENTS.md](../AGENTS.md) 选择相关检查；不要把全部性能基准作为每次提交的前置条件。PERF-001 已按用户要求延期到初版后，本页保留方法，不代表应立即追测。
+ 
+ ```powershell
+diff --git a/docs/ui-design-roadmap.md b/docs/ui-design-roadmap.md
+index 97b3e14f43decf544f626274a40339aab8877698..2e26e658e436063ad31073de8eb784dd2beb36ea 100644
+--- a/docs/ui-design-roadmap.md
++++ b/docs/ui-design-roadmap.md
+@@ -4,6 +4,8 @@
+ 
+ ## 当前进度
+ 
++2026-11-22最新：第二阶段已按C60方案实施图表选择、列表定位和主动详情联动，保持现有布局、背景、C57/C55及动效；相关回归与实际窗口检查已完成，正常版交给用户测试，阶段是否收尾仍待反馈，不进入第三阶段或打包发布。见[C61](../iterations/2026-11-22-61-selection-linkage/README.md)。以下保留历史时点。
++
+ 2026-11-21最新：用户已明确确认第一阶段整体收尾。当前仅准备[第二阶段联动方案](ui-stage-two-linkage-plan.md)与对话交互预览，不实施产品功能；已确认内嵌文件先保留视角、主动进入所在目录。C57默认与C55回退、C59构图及既定动效保持。该状态取代下方历史“整体待确认”的描述；新绘制路径Win10/跨屏及早期测试失败的原记录不抹去。
+ 
+ 2026-11-21第一阶段收尾：用户批准默认采纳C57，本机必要检查完成，已验收历史实现/测试以8efdf11提交并推送，双语README和实际截图更新，旧临时产物清理。Windows 10验证按本轮明确指令跳过，保留待验；不打包发布。正常默认版交给用户复审，第一阶段整体结束及阶段二实施仍不自动确认。详见[C58](../iterations/2026-11-21-58-stage-one-closeout/README.md)。以下保留历史时点。
+diff --git a/docs/ui-stage-two-linkage-plan.md b/docs/ui-stage-two-linkage-plan.md
+index 3a8b400b5a69225de4c2e520201552dab6a79bcf..646b584a0f2efb35b8466456f577e9980d08c17d 100644
+--- a/docs/ui-stage-two-linkage-plan.md
++++ b/docs/ui-stage-two-linkage-plan.md
+@@ -1,4 +1,6 @@
+-# 第二阶段方案：图表、列表与详情联动（待实施确认）
++# 第二阶段方案：图表、列表与详情联动
++
++> 2026-11-22状态更新：用户已认可预览并授权按本方案实施；C61已形成可运行开发版并完成相关检查、真实窗口展示，等待用户反馈决定阶段是否收尾。下文“待确认／未实施”是2026-11-21方案时点，已由本状态替代。实现与边界见[联动说明](selection-linkage.md)，证据见[C61](../iterations/2026-11-22-61-selection-linkage/README.md)。
+ 
+ 2026-11-21，核对基线 `bb864b6`。用户明确确认第一阶段可以收尾，并要求先给第二阶段具体方案和预览，暂不实施。本文件取代2026-11-14暂缓的首版方案；仅更新设计和阶段状态，不修改产品代码、编译产物或设置。实现授权仍待预览反馈。
+ 
+diff --git a/src/UI/SelectionDetailsDialog.cs b/src/UI/SelectionDetailsDialog.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..fb6032048ff49ffbb111026ccc5e4db961a1c48e
+--- /dev/null
++++ b/src/UI/SelectionDetailsDialog.cs
+@@ -0,0 +1,89 @@
++namespace DiskAtlas;
++
++// An immutable local snapshot; it performs no filesystem work and writes no log.
++internal sealed class SelectionDetailsDialog : Form
++{
++    internal readonly ActionButton Primary;
++    internal readonly ActionButton CopyPath;
++    internal readonly TextBox FullPath;
++    private readonly Font bodyFont = Theme.Font(Theme.BodyFontSize);
++    private readonly Font captionFont = Theme.Font(Theme.CaptionFontSize);
++    private readonly Font nameFont = Theme.Font(12, FontStyle.Bold);
++    private bool initialLayoutPrepared;
++
++    internal SelectionDetailsDialog(SelectionDetails details)
++    {
++        Text = "AsukaLens · 项目详情";
++        StartPosition = FormStartPosition.CenterParent; ShowInTaskbar = false;
++        MinimizeBox = MaximizeBox = false;
++        AutoScaleMode = AutoScaleMode.None;
++        Font = bodyFont; BackColor = Theme.Surface; ForeColor = Theme.Text;
++        ClientSize = new Size(760, 470); MinimumSize = new Size(560, 390);
++        Padding = new Padding(18);
++        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6, Margin = Padding.Empty };
++        foreach (int height in new[] { 50, 105, 23, 98 }) layout.RowStyles.Add(new(SizeType.Absolute, height));
++        layout.RowStyles.Add(new(SizeType.Percent, 100)); layout.RowStyles.Add(new(SizeType.Absolute, 42));
++        layout.Controls.Add(new NoHoverLabel { Text = details.Name, Font = nameFont, Dock = DockStyle.Fill,
++            AutoEllipsis = false, AutoSize = false, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
++        var fields = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, Margin = Padding.Empty };
++        fields.ColumnStyles.Add(new(SizeType.Percent, 50)); fields.ColumnStyles.Add(new(SizeType.Percent, 50));
++        fields.RowStyles.Add(new(SizeType.Percent, 50)); fields.RowStyles.Add(new(SizeType.Percent, 50));
++        (string Label, string Value)[] values = [("对象类型", details.Kind), ("修改时间", details.Modified),
++            ("文件大小", details.LogicalSize), ("实际占用", details.Allocation)];
++        for (int i = 0; i < values.Length; i++)
++        {
++            var cell = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1, Margin = Padding.Empty };
++            cell.RowStyles.Add(new(SizeType.Absolute, 20)); cell.RowStyles.Add(new(SizeType.Percent, 100));
++            cell.Controls.Add(new NoHoverLabel { Text = values[i].Label, Font = captionFont, ForeColor = Theme.Muted, Dock = DockStyle.Fill }, 0, 0);
++            cell.Controls.Add(new NoHoverLabel { Text = values[i].Value, Dock = DockStyle.Fill, AutoEllipsis = false }, 0, 1);
++            fields.Controls.Add(cell, i % 2, i / 2);
++        }
++        layout.Controls.Add(fields, 0, 1);
++        layout.Controls.Add(new NoHoverLabel { Text = "完整路径", Font = captionFont, ForeColor = Theme.Muted, Dock = DockStyle.Fill }, 0, 2);
++        FullPath = new TextBox { ReadOnly = true, Multiline = true, WordWrap = true, ScrollBars = ScrollBars.Vertical,
++            Text = details.Path, Dock = DockStyle.Fill, BackColor = Theme.Surface, ForeColor = Theme.Text,
++            BorderStyle = BorderStyle.None, AccessibleName = "完整路径", Font = bodyFont };
++        layout.Controls.Add(FullPath, 0, 3);
++        var notes = new TextBox { ReadOnly = true, Multiline = true, WordWrap = true, ScrollBars = ScrollBars.Vertical,
++            Text = string.Join("\r\n\r\n", new[] { details.Note, details.Scope }.Where(s => s.Length > 0)),
++            Dock = DockStyle.Fill, BackColor = Theme.Surface, ForeColor = Theme.Muted, Font = captionFont,
++            BorderStyle = BorderStyle.None, AccessibleName = "占用及统计范围" };
++        layout.Controls.Add(notes, 0, 4);
++        var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft,
++            WrapContents = false, Padding = Padding.Empty, Margin = Padding.Empty };
++        var close = new ActionButton("关闭") { Width = 80, Height = 34, DialogResult = DialogResult.Cancel };
++        Primary = new ActionButton(details.ActionText, true) { Width = 118, Height = 34, DialogResult = DialogResult.OK,
++            Enabled = details.Action != SelectionAction.None };
++        CopyPath = new ActionButton("复制路径") { Width = 96, Height = 34, Enabled = details.Path.Length > 0 };
++        CopyPath.Click += (_, _) =>
++        {
++            try { Clipboard.SetText(details.Path); CopyPath.Text = "已复制"; }
++            catch (Exception error) when (error is System.Runtime.InteropServices.ExternalException or System.Threading.ThreadStateException)
++            { FullPath.Focus(); FullPath.SelectAll(); CopyPath.Text = "请按Ctrl+C"; }
++        };
++        actions.Controls.Add(close); actions.Controls.Add(Primary); actions.Controls.Add(CopyPath);
++        layout.Controls.Add(actions, 0, 5); Controls.Add(layout);
++        CancelButton = close;
++        Shown += (_, _) => close.Focus();
++    }
++
++    protected override void OnLoad(EventArgs e)
++    {
++        if (!initialLayoutPrepared)
++        {
++            initialLayoutPrepared = true;
++            float scale = DeviceDpi / 96f;
++            if (Math.Abs(scale - 1) > .01f) Scale(new SizeF(scale, scale));
++        }
++        base.OnLoad(e);
++        var area = Screen.FromControl(Owner ?? this).WorkingArea;
++        MinimumSize = new(Math.Min(MinimumSize.Width, area.Width), Math.Min(MinimumSize.Height, area.Height));
++        Size = new(Math.Min(Width, area.Width), Math.Min(Height, area.Height));
++    }
++
++    protected override void Dispose(bool disposing)
++    {
++        base.Dispose(disposing);
++        if (disposing) { bodyFont.Dispose(); captionFont.Dispose(); nameFont.Dispose(); }
++    }
++}
+diff --git a/src/UI/SelectionLinkage.cs b/src/UI/SelectionLinkage.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..73d1e99055534dccb2342c09cf9394bd33a658c7
+--- /dev/null
++++ b/src/UI/SelectionLinkage.cs
+@@ -0,0 +1,93 @@
++namespace DiskAtlas;
++
++// All matches stay inside one published result tree. Names, sizes and native
++// file IDs alone cannot distinguish two paths of the same hard-linked file.
++internal static class SelectionLinkage
++{
++    internal static int FindRow(IReadOnlyList<MapItem> rows, MapItem? item)
++    {
++        if (item == null) return -1;
++        for (int i = 0; i < rows.Count; i++)
++        {
++            var candidate = rows[i];
++            if (item.Entry != null ? ReferenceEquals(candidate.Entry, item.Entry) :
++                item.IsAggregate ? ReferenceEquals(candidate, item) :
++                candidate.Entry == null && !candidate.IsAggregate &&
++                StringComparer.OrdinalIgnoreCase.Equals(candidate.Name, item.Name) && candidate.Category == item.Category)
++                return i;
++        }
++        return -1;
++    }
++
++    internal static int ContainingRow(IReadOnlyList<MapItem> rows, MapItem? item, DiskEntry? directory)
++    {
++        if (item?.Entry == null || directory == null) return -1;
++        var ancestor = item.Entry.Parent;
++        if (ReferenceEquals(ancestor, directory)) return -1;
++        while (ancestor?.Parent != null && !ReferenceEquals(ancestor.Parent, directory)) ancestor = ancestor.Parent;
++        return ancestor != null && ReferenceEquals(ancestor.Parent, directory)
++            ? FindRow(rows, new(ancestor.Name, 0, ancestor, "")) : -1;
++    }
++
++    internal static MapItem? Rebind(IReadOnlyList<MapItem> rows, MapItem? previous, DiskEntry directory, SizeMetric metric, int mode)
++    {
++        int index = FindRow(rows, previous);
++        if (index >= 0) return rows[index];
++        // Only a still-visible ancestor can justify preserving an internal
++        // selection. Never clear filters or traverse the result tree to guess.
++        if (mode != 0 || previous?.Entry is not { } entry || ContainingRow(rows, previous, directory) < 0) return null;
++        return new(entry.Name, entry.Bytes(metric), entry, FileKinds.Category(entry.Extension),
++            UnknownFiles: metric == SizeMetric.Allocated ? entry.UnknownAllocationFiles : 0);
++    }
++
++    internal static int ScrollTarget(int first, int fullyVisibleRows, int target)
++    {
++        if (first < 0) return target;
++        int count = Math.Max(1, fullyVisibleRows);
++        return target < first ? target : target >= first + count ? Math.Max(0, target - count + 1) : first;
++    }
++}
++
++internal enum SelectionAction { None, EnterDirectory, RevealFile, ShowType, ShowList }
++
++internal sealed record SelectionDetails(string Name, string Kind, string LogicalSize, string Allocation,
++    string Path, string Modified, string Note, string Scope, SelectionAction Action)
++{
++    internal static SelectionDetails Create(MapItem item, SizeMetric metric, int mode, string scope)
++    {
++        if (item.Entry is not { } entry)
++        {
++            bool type = !item.IsAggregate && mode == 2;
++            string value = item.UnknownFiles > 0 ? item.Size > 0 ? SizeFormat.Bytes(item.Size) + " + 未知" : "未知" : SizeFormat.Bytes(item.Size);
++            return new(item.Name, type ? "文件类型汇总" : "合并图块",
++                metric == SizeMetric.Logical ? value : "未在当前汇总中计算",
++                metric == SizeMetric.Allocated ? value : "未在当前汇总中计算", "", "—",
++                type ? $"{item.Count:N0} 个文件（含子目录）。查看明细后可选择具体文件。" :
++                    $"合并展示 {item.Count:N0} 项；这不是单个文件。请在当前列表选择单项，不能据名称猜测成员。",
++                scope, type ? SelectionAction.ShowType : SelectionAction.ShowList);
++        }
++        long nativeAllocation = entry.IsDirectory ? entry.AllocatedSize : entry.Storage?.AllocatedBytes ?? entry.AllocatedSize;
++        string allocation = entry.UnknownAllocationFiles > 0
++            ? entry.IsDirectory && nativeAllocation > 0 ? SizeFormat.Bytes(nativeAllocation) + " + 未知" : "未知"
++            : SizeFormat.Bytes(nativeAllocation);
++        var notes = new List<string>();
++        if (entry.UnknownAllocationFiles > 0) notes.Add("实际占用包含未知项；未知不按零计算。");
++        if (entry.Storage is { LinkCount: > 1 } storage)
++            notes.Add($"{storage.LinkCount:N0} 个硬链接。" + (entry.SharedAllocation
++                ? "此路径共享同一对象，本路径未重复计入范围占用。" : "范围占用已按文件身份去重。"));
++        if (entry.Incomplete) notes.Add("部分内容未读取，目录统计并不完整。");
++        notes.Add("实际占用不等于删除后一定释放的空间；当前统计仅覆盖支持的文件数据分配。");
++        return new(entry.Name, entry.IsDirectory ? "文件夹" : "文件", SizeFormat.Bytes(entry.Size), allocation,
++            entry.Path, entry.Modified == default ? "未知" : entry.Modified.ToString("yyyy-MM-dd HH:mm:ss"),
++            string.Join("\r\n", notes), scope, entry.IsDirectory ? SelectionAction.EnterDirectory : SelectionAction.RevealFile);
++    }
++
++    internal string Summary => Kind is "文件" or "文件夹"
++        ? $"{Name} · 文件大小 {LogicalSize} · 实际占用 {Allocation}"
++        : $"{Name} · {Kind}";
++    internal string ActionText => Action switch
++    {
++        SelectionAction.EnterDirectory => "进入目录", SelectionAction.RevealFile => "定位文件",
++        SelectionAction.ShowType => "查看明细", SelectionAction.ShowList => "查看当前列表", _ => "定位文件"
++    };
++}
+diff --git a/src/UI/SelectionSummaryLabel.cs b/src/UI/SelectionSummaryLabel.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..a7a53b421c2259e507e3f51a742d3b4001f50d97
+--- /dev/null
++++ b/src/UI/SelectionSummaryLabel.cs
+@@ -0,0 +1,61 @@
++namespace DiskAtlas;
++
++// Keep one existing label surface. A long name may elide, but cannot consume
++// the space reserved for both size metrics. No native ellipsis tooltip.
++internal sealed class SelectionSummaryLabel : Label
++{
++    private string displayName = "未选择项目", metadata = "";
++    private Font? metadataFont;
++    private int desiredMetadataWidth;
++    internal Rectangle NameBounds { get; private set; }
++    internal Rectangle MetadataBounds { get; private set; }
++
++    internal SelectionSummaryLabel()
++    {
++        AutoSize = AutoEllipsis = false; Dock = DockStyle.Fill;
++        BackColor = Color.Transparent; ForeColor = Theme.Text;
++        TextAlign = ContentAlignment.MiddleLeft; Text = displayName;
++    }
++
++    internal void SetDetails(SelectionDetails? details, Font captionFont)
++    {
++        metadataFont = captionFont;
++        displayName = details?.Name ?? "未选择项目";
++        metadata = details == null ? "" : details.Kind is "文件" or "文件夹"
++            ? $"文件大小 {details.LogicalSize} · 实际占用 {details.Allocation}"
++            : details.Kind;
++        Text = details?.Summary ?? displayName;
++        MeasureMetadata(); Invalidate();
++    }
++    private void MeasureMetadata()
++    {
++        desiredMetadataWidth = metadata.Length == 0 ? 0 : TextRenderer.MeasureText(metadata, metadataFont ?? Font,
++            Size.Empty, TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix).Width;
++        UpdateBands();
++    }
++    private void UpdateBands()
++    {
++        int gap = metadata.Length > 0 ? (int)Math.Round(10 * DeviceDpi / 96f) : 0;
++        int width = Math.Min(desiredMetadataWidth, Math.Max(0, ClientSize.Width * 3 / 4 - gap));
++        MetadataBounds = new(Math.Max(0, ClientSize.Width - width), 0, width, ClientSize.Height);
++        NameBounds = new(0, 0, Math.Max(0, MetadataBounds.Left - gap), ClientSize.Height);
++    }
++    protected override void OnSizeChanged(EventArgs e) { base.OnSizeChanged(e); UpdateBands(); }
++    protected override void OnFontChanged(EventArgs e) { base.OnFontChanged(e); MeasureMetadata(); }
++    protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); MeasureMetadata(); }
++    protected override void OnPaint(PaintEventArgs e)
++    {
++        const TextFormatFlags flags = TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis |
++            TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsClipping;
++        var state = e.Graphics.Save();
++        try
++        {
++            e.Graphics.SetClip(ClientRectangle, System.Drawing.Drawing2D.CombineMode.Intersect);
++            Color text = SystemInformation.HighContrast ? SystemColors.ControlText : Theme.Text;
++            if (NameBounds.Width > 0) TextRenderer.DrawText(e.Graphics, displayName, Font, NameBounds, text, flags);
++            if (MetadataBounds.Width > 0) TextRenderer.DrawText(e.Graphics, metadata, metadataFont ?? Font, MetadataBounds,
++                SystemInformation.HighContrast ? text : Theme.Muted, flags | TextFormatFlags.Right);
++        }
++        finally { e.Graphics.Restore(state); }
++    }
++}
+diff --git a/tests/FastScanMainFormTests.cs b/tests/FastScanMainFormTests.cs
+index 5c1ac48dcf280199cf0c979e2c2d0742a18ea1cc..367c80499ccd1724290169a1e2e8f4bb8d87470c 100644
+--- a/tests/FastScanMainFormTests.cs
++++ b/tests/FastScanMainFormTests.cs
+@@ -201,7 +201,8 @@ internal static class FastScanMainFormTests
+                         var file = Field<List<MapItem>>("sortedRows").Single(row => row.Name == "notes.txt");
+                         Invoke("SelectItem", file, true);
+                         Check(Field<ActionButton>("reveal").Enabled && Field<Label>("detailPath").Text.Contains(file.Entry!.Path) &&
+-                            Field<Label>("detailTitle").Text.Contains("硬链接") && grid.ContextMenuStrip!.Items.Cast<ToolStripItem>().Any(item => item.Text == "复制完整路径"), "FILE_DETAILS_LOCATION_AND_COPY_AUXILIARIES_RETAINED");
++                            Field<Label>("detailTitle").AccessibleDescription!.Contains("硬链接") && Field<ActionButton>("selectionDetails").Enabled &&
++                            grid.ContextMenuStrip!.Items.Cast<ToolStripItem>().Any(item => item.Text == "复制完整路径"), "FILE_DETAILS_LOCATION_AND_COPY_AUXILIARIES_RETAINED");
+                         metric.SelectedIndex = 1; await View();
+                         Check(Field<StatCard>("totalCard").Title == "实际占用空间" && Field<TreemapControl>("map").TotalSize == 20512 &&
+                             Field<List<MapItem>>("sortedRows").Sum(row => row.Size) == 20512, "ALLOCATED_METRIC_REACHES_CARD_MAP_AND_ROWS");
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 175a1bcdb8af3021e0bfa8d30e5eab5e96a83266..0f8c3758428b62a8714a77adc784ca26b8aa27f8 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -1,6 +1,8 @@
+ using DiskAtlas;
+ using System.Drawing;
+ 
++if(args.Contains("--selection-linkage-tests")) return SelectionLinkageTests.Run(args.Contains("--dpi-96"));
++
+ if(args.Length==1 && args[0]=="--background-pixel-mapping-tests")return BackgroundPixelMappingTests.Run();
+ 
+ if(args.Length==1 && args[0]=="--desktop-rendering-tests")return DesktopRenderingTests.Run();
+diff --git a/tests/SelectionLinkageTests.cs b/tests/SelectionLinkageTests.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..707cf5ba51e8a15a7c298a6e5e113378c8f9ce5f
+--- /dev/null
++++ b/tests/SelectionLinkageTests.cs
+@@ -0,0 +1,212 @@
++using DiskAtlas;
++using System.Reflection;
++
++internal static class SelectionLinkageTests
++{
++    private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
++    private sealed class Failure(string code) : Exception { internal string Code => code; }
++    internal static int Run(bool dpi96)
++    {
++        int checks = 0; string? failure = null;
++        var thread = new Thread(() =>
++        {
++            MainForm? form = null;
++            try
++            {
++                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles(); Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++                var root = Fixture(); var video = root.Children.First(x => x.Name == "a-videos");
++                var other = root.Children.First(x => x.Name == "b-apps");
++                var left = video.Children[0]; var right = other.Children[0];
++                MapItem Item(DiskEntry entry, SizeMetric metric = SizeMetric.Logical) =>
++                    new(entry.Name, entry.Bytes(metric), entry, FileKinds.Category(entry.Extension), UnknownFiles: metric == SizeMetric.Allocated ? entry.UnknownAllocationFiles : 0);
++                var sameNames = new[] { Item(left), Item(right) };
++                Check(SelectionLinkage.FindRow(sameNames, Item(right)) == 1, "SameNameUsesExactEntry");
++                Check(SelectionLinkage.FindRow(sameNames, Item(right, SizeMetric.Allocated)) == 1, "MetricDoesNotChangeSelectionIdentity");
++                var replacement = new DiskEntry(right.Path, false, other) { Size = right.Size };
++                Check(SelectionLinkage.FindRow(sameNames, Item(replacement)) == -1, "ReplacementAtSamePathDoesNotReuseIdentity");
++                var aggregate = new MapItem("other", 10, null, "其他", 3, true);
++                Check(SelectionLinkage.FindRow([aggregate], aggregate with { }) == -1, "AggregateDoesNotGuessMembership");
++                Check(SelectionLinkage.ContainingRow([Item(video), Item(other)], Item(right), root) == 1, "InternalFileResolvesContainingDirectory");
++                Check(SelectionLinkage.ScrollTarget(20, 8, 23) == 20, "VisibleRowDoesNotJump");
++                Check(SelectionLinkage.ScrollTarget(20, 8, 40) == 33 && SelectionLinkage.ScrollTarget(20, 8, 10) == 10, "OffscreenRowMovesNearestEdge");
++                var unknown = root.Children.First(x => x.Name == "unknown.bin");
++                Check(SelectionDetails.Create(Item(unknown), SizeMetric.Logical, 0, "").Allocation == "未知", "UnknownIsNotZero");
++                var shared = root.Children.First(x => x.Name == "shared.bin");
++                var sharedDetails = SelectionDetails.Create(Item(shared), SizeMetric.Allocated, 0, "");
++                Check(sharedDetails.Allocation == SizeFormat.Bytes(8192) && sharedDetails.Note.Contains("未重复"), "NativeAllocationSeparateFromSharedAccounting");
++                var directoryDetails = SelectionDetails.Create(Item(root), SizeMetric.Logical, 0, "partial scope");
++                Check(directoryDetails.Allocation.Contains("未知") && directoryDetails.Scope == "partial scope", "DirectoryKnownPlusUnknownAndScope");
++                var groupDetails = SelectionDetails.Create(aggregate, SizeMetric.Logical, 0, "");
++                Check(groupDetails.Path == "" && groupDetails.Action == SelectionAction.ShowList && groupDetails.Allocation.Contains("未在"), "AggregateHasNoFileOperationOrInventedSecondMetric");
++                Check(SelectionDetails.Create(new(".txt", 50, null, "文档", 5), SizeMetric.Logical, 2, "").Action == SelectionAction.ShowType, "TypeSummaryHasDetailAction");
++
++                form = new MainForm(null, compositionCandidate: true, showCandidateLabel: false);
++                form.Shown += async (_, _) =>
++                {
++                    try
++                    {
++                        Set("scan", new ScanResult(root, TimeSpan.FromSeconds(1), 0, [])); Set("current", root);
++                        Set("sortColumn", "name"); Set("sortAscending", true);
++                        await Query(false);
++                        var grid = Field<WallpaperGrid>("grid"); var map = Field<TreemapControl>("map");
++                        var rows = Field<List<MapItem>>("sortedRows");
++                        var large = rows.Single(x => x.Name == "z-large.bin");
++                        map.Focus(); Select(large);
++                        Check(Field<int>("pageIndex") == 1 && grid.SelectedRows.Count == 1 && EntryOfSelected() == large.Entry, "MapCrossPageLocatesActualRow");
++                        Check(Field<Label>("pageInfo").Text.Contains("跨页"), "CrossPageFeedbackUsesExistingFooter");
++                        Check(map.Focused, "MapSelectionDoesNotStealFocus");
++                        var nearby = rows[1002]; Select(nearby);
++                        int first = grid.FirstDisplayedScrollingRowIndex; Select(nearby);
++                        Check(first == grid.FirstDisplayedScrollingRowIndex, "RepeatedVisibleSelectionKeepsScroll");
++                        Check(grid.LocateFlashRunning, "LocateFlashStarts");
++                        using (var before = new Bitmap(grid.Width, grid.Height)) grid.DrawToBitmap(before, grid.ClientRectangle);
++                        int builds = grid.BackdropBuilds; Pump(100);
++                        using (var after = new Bitmap(grid.Width, grid.Height)) grid.DrawToBitmap(after, grid.ClientRectangle);
++                        Check(grid.BackdropBuilds == builds, "RowFlashDoesNotRebuildBackdrop");
++                        Pump(750); Check(!grid.LocateFlashRunning, "LocateFlashEndsWithinBound");
++                        Field<CheckBox>("reduceMotion").Checked = true; Select(nearby);
++                        Check(!grid.LocateFlashRunning && !map.AnimationsEnabled, "ReducedMotionDisablesLocatePulse");
++                        Field<CheckBox>("reduceMotion").Checked = false;
++
++                        Select(rows.Single(x => ReferenceEquals(x.Entry, video)));
++                        using (var frame = new Bitmap(map.Width, map.Height)) map.DrawToBitmap(frame, map.ClientRectangle);
++                        var nested = (Dictionary<MapItem, List<MapTile>>)typeof(TreemapControl).GetField("nestedLayouts", Private)!.GetValue(map)!;
++                        var child = nested.Values.SelectMany(x => x).Single(x => ReferenceEquals(x.Item.Entry, left));
++                        typeof(TreemapControl).GetMethod("OnMouseClick", Private)!.Invoke(map,
++                            [new MouseEventArgs(MouseButtons.Left, 1, (int)(child.Bounds.X + child.Bounds.Width / 2), (int)(child.Bounds.Y + child.Bounds.Height / 2), 0)]);
++                        Check(ReferenceEquals(Field<DiskEntry>("current"), root) && ReferenceEquals(Field<MapItem>("selection").Entry, left), "InternalClickKeepsOverviewAndSelectsFile");
++                        Check(grid.SelectedRows.Count == 0 && grid.ContainingRow >= 0, "ContainingDirectoryNotPretendedAsSelectedFile");
++                        Check(Field<ActionButton>("showInList").Visible && Field<ActionButton>("showInList").Enabled, "ExplicitListActionAvailable");
++                        Check(Field<Label>("detailTitle").Text.Contains(left.Name) && Field<Label>("detailPath").Text == left.Path, "SummaryFieldsReferToOneObject");
++                        var selectedMap = (MapItem)typeof(TreemapControl).GetField("selected", Private)!.GetValue(map)!;
++                        Check(ReferenceEquals(selectedMap.Entry, left) && map.OrbitRunning, "InternalSelectionUsesExistingEdgeMotion");
++                        using (var lit = new Bitmap(map.Width, map.Height))
++                        using (var plain = new Bitmap(map.Width, map.Height))
++                        {
++                            typeof(TreemapControl).GetMethod("OnMouseLeave", Private)!.Invoke(map, [EventArgs.Empty]);
++                            map.DrawToBitmap(lit, map.ClientRectangle); map.SelectItem(null); map.DrawToBitmap(plain, map.ClientRectangle);
++                            var body = Rectangle.Ceiling(RectangleF.Inflate(child.Bounds, -6 * map.DeviceDpi / 96f, -6 * map.DeviceDpi / 96f));
++                            int changed = 0;
++                            for (int y = body.Top; y < body.Bottom; y++) for (int x = body.Left; x < body.Right; x++)
++                                if (lit.GetPixel(x, y).ToArgb() != plain.GetPixel(x, y).ToArgb()) changed++;
++                            Check(changed == 0, "InternalEdgeGlowPreservesLabelBodyPixels");
++                            map.SelectItem(selectedMap);
++                        }
++                        await (Task)Invoke("NavigateToEntryAsync", left)!;
++                        Check(ReferenceEquals(Field<DiskEntry>("current"), video) && ReferenceEquals(EntryOfSelected(), left), "ExplicitListActionEntersAndLocates");
++                        Check(!Field<ActionButton>("showInList").Visible && Field<ActionButton>("reveal").Text == "定位文件", "FileActionAndLayoutSettle");
++
++                        Invoke("OpenDirectory", root); await Query(false); Invoke("SetMode", 1); await Query(false);
++                        rows = Field<List<MapItem>>("sortedRows"); Select(rows.Single(x => ReferenceEquals(x.Entry, right)));
++                        Check(Field<Label>("detailPath").Text == right.Path, "SameNameSecondPathShown");
++                        Field<ComboBox>("metricCombo").SelectedIndex = 1; await Query(true);
++                        Check(ReferenceEquals(Field<MapItem>("selection").Entry, right) && ReferenceEquals(EntryOfSelected(), right), "MetricRebindsByIdentity");
++                        Set("sortColumn", "name"); Set("sortAscending", false); await Query(true);
++                        Check(ReferenceEquals(EntryOfSelected(), right), "SortRebindsByIdentity");
++                        Select(Field<List<MapItem>>("sortedRows").Single(x => ReferenceEquals(x.Entry, left)));
++                        Field<TextBox>("search").Text = "no-such-file"; await Query(true);
++                        Check(grid.RowCount == 0 && Field<MapItem?>("selection") == null && !Field<ActionButton>("selectionDetails").Enabled, "FilterClearsUnavailableSelectionWithoutClearingSearch");
++                        Check(Field<TextBox>("search").Text == "no-such-file", "SelectionNeverSilentlyClearsFilter");
++                        Field<TextBox>("search").Text = "duplicate"; Task stale = Query(true);
++                        Field<TextBox>("search").Text = "z-large"; Task latest = Query(false);
++                        await Task.WhenAll(stale, latest);
++                        Check(Field<List<MapItem>>("sortedRows").All(x => x.Name.Contains("z-large")), "OnlyLatestQueryPublishes");
++
++                        Invoke("ResetSearch"); Set("current", root); Set("mode", 0); await Query(false);
++                        Select(new(left.Name, left.Size, left, "其他"));
++                        Task entering = (Task)Invoke("NavigateToEntryAsync", left)!;
++                        Invoke("OpenDirectory", other); await Query(false); await entering;
++                        Check(ReferenceEquals(Field<DiskEntry>("current"), other) && Field<MapItem?>("selection") == null, "SupersededEntryNavigationCannotReselectOldFile");
++
++                        using (var details = new SelectionDetailsDialog(sharedDetails))
++                        {
++                            details.Show(form); Application.DoEvents();
++                            Check(details.FullPath.ReadOnly && details.FullPath.Text == shared.Path && details.CopyPath.Enabled, "DialogHasCompleteLocalPath");
++                            Check(details.Primary.Text == "定位文件" && details.ClientSize.Width > 0, "DialogUsesObjectAction");
++                            Check(Math.Abs(details.ClientSize.Width - 760 * details.DeviceDpi / 96f) <= 3 ||
++                                details.Width == Screen.FromControl(details).WorkingArea.Width, "DialogScalesLikeMainWindow");
++                            details.Close();
++                        }
++                        using (var details = new SelectionDetailsDialog(groupDetails))
++                        {
++                            details.Show(form); Application.DoEvents();
++                            Check(!details.CopyPath.Enabled && details.Primary.Text == "查看当前列表", "AggregateDialogDoesNotOfferFileLocation");
++                            details.Close();
++                        }
++                        Size common = form.Size; form.Size = form.MinimumSize; Application.DoEvents();
++                        Select(Field<List<MapItem>>("sortedRows").First());
++                        Check(Field<ActionButton>("selectionDetails").Bounds.Width > 0 && Field<ActionButton>("reveal").Bounds.Width > 0, "MinimumWindowActionsRemainAvailable");
++                        var summary = Field<SelectionSummaryLabel>("detailTitle");
++                        summary.SetDetails(new(new string('N', 240), "文件", "12.34 GB", "56.78 GB", left.Path, "未知", "", "", SelectionAction.RevealFile), form.Font);
++                        using (var frame = new Bitmap(summary.Width, summary.Height)) summary.DrawToBitmap(frame, summary.ClientRectangle);
++                        Check(summary.MetadataBounds.Width > 0 && summary.NameBounds.Right <= summary.MetadataBounds.Left &&
++                            summary.MetadataBounds.Right <= summary.ClientSize.Width, "LongNameCannotCoverSizeMetrics");
++                        form.Size = common;
++                        var replacementRoot = Fixture(); Set("scan", new ScanResult(replacementRoot, TimeSpan.Zero, 0, [])); Set("current", replacementRoot);
++                        await Query(true);
++                        Check(Field<MapItem?>("selection") == null, "NewResultTreeCannotRestoreOldSelection");
++                        Check(TreemapControl.OrbitPeriodMilliseconds == 2800d / 1.15d, "ExistingGlowSpeedUnchanged");
++                    }
++                    catch (Exception e) { failure = Code(e); }
++                    finally { form.Close(); }
++                };
++                Application.Run(form);
++                Check(!Field<WallpaperGrid>("grid").LocateFlashRunning, "CloseStopsLocateTimer");
++                form.Dispose();
++                T Field<T>(string name) => (T)typeof(MainForm).GetField(name, Private)!.GetValue(form)!;
++                void Set(string name, object value) => typeof(MainForm).GetField(name, Private)!.SetValue(form, value);
++                object? Invoke(string name, params object[] args) => typeof(MainForm).GetMethod(name, Private)!.Invoke(form, args);
++                Task Query(bool preserve) { Field<System.Windows.Forms.Timer>("searchTimer").Stop(); return (Task)Invoke("UpdateViewAsync", preserve)!; }
++                void Select(MapItem item) => Invoke("SelectItem", item, true);
++                DiskEntry? EntryOfSelected() => Field<DataGridView>("grid").SelectedRows.Count > 0
++                    ? ((MapItem)Invoke("RowItem", Field<DataGridView>("grid").SelectedRows[0].Index)!).Entry : null;
++            }
++            catch (Exception e) { failure = Code(e); form?.Dispose(); }
++            void Check(bool ok, string code) { checks++; if (!ok) throw new Failure(code); }
++        }) { IsBackground = true };
++        thread.SetApartmentState(ApartmentState.STA); thread.Start();
++        if (!thread.Join(TimeSpan.FromSeconds(55))) { Console.Error.WriteLine("FAIL SelectionLinkageDeadline"); return 1; }
++        if (failure != null) { Console.Error.WriteLine($"FAIL {failure}; completed_checks={checks}"); return 1; }
++        Console.WriteLine($"PASS selection linkage checks={checks}; synthetic only; dpi96={dpi96}"); return 0;
++    }
++    private static string Code(Exception error)
++    {
++        while (error is TargetInvocationException { InnerException: { } inner }) error = inner;
++        if (error is Failure f) return f.Code;
++        string category = error switch { InvalidOperationException => "InvalidOperation", NullReferenceException => "NullReference",
++            ArgumentException => "Argument", System.Runtime.InteropServices.ExternalException => "Graphics", _ => "Other" };
++        var frame = new System.Diagnostics.StackTrace(error, false).GetFrames()?.FirstOrDefault(f => f.GetMethod()?.DeclaringType == typeof(SelectionLinkageTests) || f.GetMethod()?.DeclaringType == typeof(MainForm));
++        return "UnexpectedSelectionLinkage_" + category + "_" + (frame?.GetMethod()?.Name ?? error.TargetSite?.Name ?? "Boundary");
++    }
++    private static void Pump(int milliseconds)
++    {
++        var clock = System.Diagnostics.Stopwatch.StartNew();
++        while (clock.ElapsedMilliseconds < milliseconds) { Application.DoEvents(); Thread.Sleep(5); }
++    }
++    private static DiskEntry Fixture()
++    {
++        var root = new DiskEntry(@"X:\AsukaLens-Linkage-Test", true);
++        var video = new DiskEntry(Path.Combine(root.Path, "a-videos"), true, root);
++        var other = new DiskEntry(Path.Combine(root.Path, "b-apps"), true, root);
++        root.MutableChildren.Add(video); root.MutableChildren.Add(other);
++        Add(video, "duplicate-demo.exe", 4_000_000, 4_001_792);
++        Add(other, "duplicate-demo.exe", 3_500_000, 3_502_080);
++        Add(video, "second-long-name-for-details-and-path-demo.mp4", 2_000_000, 2_002_944);
++        for (int i = 0; i < 1105; i++) Add(root, $"sample-{i:0000}.txt", 17, 4096);
++        Add(root, "z-large.bin", 3_000_000, 3_002_368);
++        var unknown = Add(root, "unknown.bin", 33, 0); unknown.UnknownAllocationFiles = 1; unknown.Storage = null;
++        var shared = Add(root, "shared.bin", 100, 0); shared.SharedAllocation = true;
++        shared.Storage = new(new(1, 7000, 0), 8192, 2, false);
++        root.Size = root.Children.Sum(x => x.Size); root.AllocatedSize = root.Children.Sum(x => x.AllocatedSize);
++        root.UnknownAllocationFiles = 1; root.FileCount = root.Descendants().Count(x => !x.IsDirectory); root.FolderCount = 2;
++        return root;
++        static DiskEntry Add(DiskEntry parent, string name, long size, long allocated)
++        {
++            var entry = new DiskEntry(Path.Combine(parent.Path, name), false, parent) { Size = size, AllocatedSize = allocated, FileCount = 1,
++                Modified = new DateTime(2026, 1, 1), Storage = new(new(1, (ulong)parent.Children.Count, (ulong)parent.Name.Length), allocated, 1, false) };
++            parent.MutableChildren.Add(entry); parent.Size += size; parent.AllocatedSize += allocated; parent.FileCount++;
++            return entry;
++        }
++    }
++}

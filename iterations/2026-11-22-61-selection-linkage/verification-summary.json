@@ -1,0 +1,327 @@
+{
+  "initial_matrix": [
+    {
+      "arguments": [
+        "--ui-regression"
+      ],
+      "milliseconds": 13488,
+      "exit": 0,
+      "name": "ui-ordinary-144"
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--ui-regression"
+      ],
+      "milliseconds": 11303,
+      "exit": 0,
+      "name": "ui-composition-144"
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--wallpaper-scroll-tests"
+      ],
+      "milliseconds": 2143,
+      "exit": 0,
+      "name": "wallpaper-scroll-144"
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--treemap-state-tests"
+      ],
+      "milliseconds": 4441,
+      "exit": 0,
+      "name": "treemap-state-144"
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--layout-transition-tests"
+      ],
+      "milliseconds": 2762,
+      "exit": 0,
+      "name": "layout-transition-144"
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--layout-presentation-tests"
+      ],
+      "milliseconds": 5094,
+      "exit": 0,
+      "name": "layout-presentation-144"
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--visual-surface-tests"
+      ],
+      "milliseconds": 3820,
+      "exit": 0,
+      "name": "visual-surface-144"
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--large-file-row-tests"
+      ],
+      "milliseconds": 2740,
+      "exit": 0,
+      "name": "large-file-row-144"
+    },
+    {
+      "arguments": [
+        "--desktop-default-tests"
+      ],
+      "milliseconds": 5061,
+      "exit": 0,
+      "name": "default-144"
+    },
+    {
+      "arguments": [
+        "--ui-regression",
+        "--dpi-96"
+      ],
+      "milliseconds": 11906,
+      "exit": 0,
+      "name": "ui-ordinary-96"
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--ui-regression",
+        "--dpi-96"
+      ],
+      "milliseconds": 10294,
+      "exit": 0,
+      "name": "ui-composition-96"
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--wallpaper-scroll-tests",
+        "--dpi-96"
+      ],
+      "milliseconds": 1673,
+      "exit": 0,
+      "name": "wallpaper-scroll-96"
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--treemap-state-tests",
+        "--dpi-96"
+      ],
+      "milliseconds": 3765,
+      "exit": 0,
+      "name": "treemap-state-96"
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--layout-transition-tests",
+        "--dpi-96"
+      ],
+      "milliseconds": 1894,
+      "exit": 0,
+      "name": "layout-transition-96"
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--layout-presentation-tests",
+        "--dpi-96"
+      ],
+      "milliseconds": 4940,
+      "exit": 0,
+      "name": "layout-presentation-96"
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--visual-surface-tests",
+        "--dpi-96"
+      ],
+      "milliseconds": 2879,
+      "exit": 0,
+      "name": "visual-surface-96"
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--large-file-row-tests",
+        "--dpi-96"
+      ],
+      "milliseconds": 2151,
+      "exit": 0,
+      "name": "large-file-row-96"
+    },
+    {
+      "arguments": [
+        "--desktop-default-tests",
+        "--dpi-96"
+      ],
+      "milliseconds": 4383,
+      "exit": 0,
+      "name": "default-96"
+    }
+  ],
+  "after_nested_clip": [
+    {
+      "name": "final-ui-regression-144",
+      "exit": 0
+    },
+    {
+      "name": "final-treemap-state-tests-144",
+      "exit": 0
+    },
+    {
+      "name": "final-wallpaper-grid-cache-tests-144",
+      "exit": 0
+    },
+    {
+      "name": "final-ui-regression-96",
+      "exit": 0
+    },
+    {
+      "name": "final-treemap-state-tests-96",
+      "exit": 0
+    },
+    {
+      "name": "final-wallpaper-grid-cache-tests-96",
+      "exit": 0
+    }
+  ],
+  "after_summary": [
+    {
+      "arguments": [
+        "--selection-linkage-tests"
+      ],
+      "name": "summary-selection-linkage-tests-144",
+      "exit": 0
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--fast-scan-mainform-tests"
+      ],
+      "name": "summary-fast-scan-mainform-tests-144",
+      "exit": 0
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--visual-surface-tests"
+      ],
+      "name": "summary-visual-surface-tests-144",
+      "exit": 0
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--hover-popup-policy-tests"
+      ],
+      "name": "summary-hover-popup-policy-tests-144",
+      "exit": 0
+    },
+    {
+      "name": "summary-ui-ordinary-144",
+      "exit": 0
+    },
+    {
+      "name": "summary-ui-composition-144",
+      "exit": 0
+    },
+    {
+      "arguments": [
+        "--selection-linkage-tests",
+        "--dpi-96"
+      ],
+      "name": "summary-selection-linkage-tests-96",
+      "exit": 0
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--fast-scan-mainform-tests",
+        "--dpi-96"
+      ],
+      "name": "summary-fast-scan-mainform-tests-96",
+      "exit": 0
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--visual-surface-tests",
+        "--dpi-96"
+      ],
+      "name": "summary-visual-surface-tests-96",
+      "exit": 0
+    },
+    {
+      "arguments": [
+        "--composition-tests",
+        "--hover-popup-policy-tests",
+        "--dpi-96"
+      ],
+      "name": "summary-hover-popup-policy-tests-96",
+      "exit": 0
+    },
+    {
+      "name": "summary-ui-ordinary-96",
+      "exit": 0
+    },
+    {
+      "name": "summary-ui-composition-96",
+      "exit": 0
+    }
+  ],
+  "baseline": "93b80abcd32272cb7ba860c4a48aaf00dd657374",
+  "date": "2026-11-22",
+  "final_linkage_checks": {
+    "dpi_144": 44,
+    "dpi_96": 44
+  },
+  "density_synthetic_checks": 78,
+  "build": {
+    "application": "passed-zero-warnings",
+    "tests": "passed-zero-warnings"
+  },
+  "sequence_note": "18 initial groups; 6 after child-clip change; 12 after summary change. Final dialog-only DPI correction reran affected 44-check suite in both processes. Repeated groups are not added as independent checks.",
+  "preserved_failures": [
+    {
+      "code": "STARTUP_GDI_SPLIT_SCALE",
+      "status": "interactive-reruns-passed-cause-unproven",
+      "raw_log": "local-only"
+    },
+    {
+      "code": "PENDING_SELECTION_LOST",
+      "status": "fixed-original-assertions-passed"
+    },
+    {
+      "code": "GLOW_THREE_ARGUMENT_REFLECTION",
+      "status": "compatibility-entry-restored-original-assertions-passed"
+    },
+    {
+      "code": "DETAIL_DIALOG_INITIAL_DPI_SIZE",
+      "status": "fixed-two-dpi-checks-and-real-window-observation"
+    }
+  ],
+  "desktop_observation": [
+    "common-real-scanned-owned-fixture",
+    "internal-selection-preserves-overview",
+    "explicit-parent-navigation-and-exact-selection",
+    "minimum-large-file-list",
+    "details-dialog-path-metrics-actions"
+  ],
+  "stage_acceptance": "awaiting-user-feedback",
+  "not_validated": [
+    "Windows10-new-render-path",
+    "real-multi-monitor-DPI",
+    "universal-continuous-frame-performance"
+  ],
+  "personal_volume_access": false,
+  "package_or_release": false
+}

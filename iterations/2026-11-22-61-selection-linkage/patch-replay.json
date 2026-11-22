@@ -1,0 +1,88 @@
+{
+  "baseline": "93b80abcd32272cb7ba860c4a48aaf00dd657374",
+  "apply_check": true,
+  "canonical_index_bytes_match": true,
+  "files": [
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "DC1D34E153A2E9231D512E82D2A4891D819D59E95664413349226B784C57B229"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "A12F848A22F8C1ACB7A7F99D335E4E19B782ABBD980DD2841356CE5F41CDED12"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "4B8EBF3151B248DC77B222349DD716B1110EA735D85D5BBFDDAA9AE90A00DBCA"
+    },
+    {
+      "path": "MainForm.cs",
+      "sha256": "0205113F7C30F47EF1CDE826057F3CD9DEEC5DD52619F37DEF8961BECB3A61C1"
+    },
+    {
+      "path": "README.md",
+      "sha256": "F9698EE30B9892188719711C076FA09881CE6B9C4907260ADC2946995C193CF4"
+    },
+    {
+      "path": "README.en.md",
+      "sha256": "CC5E0C43C9D14676BC2ACBBB5DE41B88A0B910863D41E477E0C29F5D08519C27"
+    },
+    {
+      "path": "TreemapControl.cs",
+      "sha256": "257E767B1330913F621E5A547CFB326841F1421358768E52DF7E4533226105B5"
+    },
+    {
+      "path": "Wallpaper.cs",
+      "sha256": "72FA3200E6C8B5987E28FC025A78C5D6708E76B3B0D9F8B90C6B83113287C678"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "9ACDFC4665765C76FCBA0F572A8272A5DE7CF42E2B62193BDE822FC57FF2CF55"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "D3C4A058FCB6A3A8F7F96C9EC26F36FF2630038987AF25CF7ADA11ECD742CFEC"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "66E0BA19A104F6788C18E35561FCE1F6DEC290FA733ACA39F134B74845EFD0CD"
+    },
+    {
+      "path": "docs/ui-design-roadmap.md",
+      "sha256": "9C0ACC3B4C7AEFDECA7DEBC2822761F022F2CDB302D1EDC26B4B08A9D911D0C4"
+    },
+    {
+      "path": "docs/ui-stage-two-linkage-plan.md",
+      "sha256": "466719FA3629F31BD15E904B7D46A836C9B6F57560E61DA84357CF6A3CB308BE"
+    },
+    {
+      "path": "docs/selection-linkage.md",
+      "sha256": "145F494CD1AA5CAF0C49F321A3D3B5B557E7A061877E3D998786D9A4C4D13C78"
+    },
+    {
+      "path": "src/UI/SelectionDetailsDialog.cs",
+      "sha256": "C379A7DC2ABBD035139C6E2BAE651E3FD98E6A42F2CF979B59F5F3D848D3B235"
+    },
+    {
+      "path": "src/UI/SelectionLinkage.cs",
+      "sha256": "17B5570410D4F94643D23976108B9E3925E542B3E7D170913FD7085435830696"
+    },
+    {
+      "path": "src/UI/SelectionSummaryLabel.cs",
+      "sha256": "91521793885B468DCE183537A550EF344EB7A5F840442E7F12E14D84FDDCA512"
+    },
+    {
+      "path": "tests/FastScanMainFormTests.cs",
+      "sha256": "EE39CED955EF7AAA0755089A867F0F087F06403BE10CC436F07337D4E82FC4B3"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "0707380BCE52F8DB3B25170091DDA10C189F0EB5D5D405BE08D571AC0F58BB66"
+    },
+    {
+      "path": "tests/SelectionLinkageTests.cs",
+      "sha256": "C9EF16A903AF0AE7CCAA458A17B3980CB4ADF5677007F0E2B742463B06A66910"
+    }
+  ],
+  "owned_replay_directory_removed": true
+}

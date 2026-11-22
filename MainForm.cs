@@ -61,6 +61,9 @@ internal sealed class MainForm : Form
     private readonly ActionButton up = new("↑  上一级") { Width = 92, Dock = DockStyle.Fill, Enabled = false };
     private readonly ActionButton home = new("扫描根目录") { Width = 108, Dock = DockStyle.Fill, Enabled = false };
     private readonly ActionButton reveal = new("在资源管理器中定位") { Width = 170, Dock = DockStyle.Fill, Enabled = false };
+    private readonly ActionButton selectionDetails = new("详情") { Dock = DockStyle.Fill, Enabled = false, Subtle = true };
+    private readonly ActionButton showInList = new("在列表中查看") { Dock = DockStyle.Fill, Visible = false };
+    private ColumnStyle? detailActionsColumn, inListActionColumn;
     private readonly ActionButton issues = new("查看未读取项") { Width = 115, Dock = DockStyle.Fill, Visible = false };
     private readonly ActionButton restoreComplete = new("恢复上次完整结果") { Dock = DockStyle.Fill, Visible = false };
     private ColumnStyle? restoreCompleteColumn;
@@ -75,6 +78,12 @@ internal sealed class MainForm : Form
     private readonly Label pageInfo = LabelOf("", Theme.CaptionFontSize, false, true);
     private RowStyle? pagingRow;
     private int pageIndex;
+    private string listBaseCaption = "";
+    private long viewVersion, selectionRevision;
+    private object? selectionOwner;
+    private MapItem? pendingViewSelection;
+    private object? pendingSelectionOwner;
+    private object? SelectionOwner => showingPreview ? liveSession : scan;
     private string scopeDetails = "";
     private bool displayingPreviousResult;
     private bool wasMinimized;
@@ -83,7 +92,7 @@ internal sealed class MainForm : Form
     private readonly Label mapCaption = LabelOf("", Theme.CaptionFontSize, false, true);
     private readonly Label listTitle = LabelOf("文件与文件夹", 12, true);
     private readonly Label listCaption = LabelOf("", Theme.CaptionFontSize, false, true);
-    private readonly Label detailTitle = LabelOf("未选择项目", Theme.BodyFontSize, true);
+    private readonly SelectionSummaryLabel detailTitle = new() { Font = Theme.Font(Theme.BodyFontSize, FontStyle.Bold) };
     private readonly Label detailPath = LabelOf("", Theme.CaptionFontSize, false, true);
     private readonly Label status = LabelOf("就绪", Theme.CaptionFontSize, false, true);
     private readonly TextBox pathBox = new() { ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = Theme.Surface, ForeColor = Theme.Text, Dock = DockStyle.Fill };
@@ -234,7 +243,12 @@ internal sealed class MainForm : Form
             }
             else if (scan != null) OpenDirectory(scan.Root);
         };
-        reveal.Click += (_, _) => RevealSelection();
+        reveal.Click += (_, _) => ActivateSelection();
+        selectionDetails.Click += (_, _) => ShowSelectionDetails();
+        showInList.Click += async (_, _) =>
+        {
+            if (selection?.Entry is { } entry) await NavigateToEntryAsync(entry);
+        };
         issues.Click += (_, _) => ShowIssues();
         restoreComplete.Click += (_, _) => RestoreCompleteResult();
         clearType.Click += (_, _) => { typeFilter = null; UpdateView(); };
@@ -244,7 +258,7 @@ internal sealed class MainForm : Form
         map.ItemSelected += item => SelectItem(item, true);
         map.ItemActivated += ActivateItem;
         search.TextChanged += (_, _) => { if (!clearingSearch) { searchTimer.Stop(); searchTimer.Start(); } };
-        searchTimer.Tick += (_, _) => { searchTimer.Stop(); UpdateView(); };
+        searchTimer.Tick += (_, _) => { searchTimer.Stop(); UpdateView(true); };
         previewTimer.Tick += async (_, _) => { if (liveSession != null && viewCancellation == null) await UpdatePreviewAsync(); };
         KeyDown += HandleKeys;
         DragEnter += (_, e) => { if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1 && Directory.Exists(paths[0])) e.Effect = DragDropEffects.Copy; };
@@ -632,12 +646,19 @@ internal sealed class MainForm : Form
         detail.Margin = Padding.Empty;
         detail.Surface = WallpaperSurface.Chrome;
         detail.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        detail.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
+        detailActionsColumn = new ColumnStyle(SizeType.Absolute, 180);
+        detail.ColumnStyles.Add(detailActionsColumn);
         var detailText = Table(1, 2); detailText.Surface = WallpaperSurface.Chrome;
         detailText.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         detailText.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         detailText.Controls.Add(detailTitle, 0, 0); detailText.Controls.Add(detailPath, 0, 1);
-        detail.Controls.Add(detailText, 0, 0); detail.Controls.Add(reveal, 1, 0);
+        var detailActions = Table(3, 1); detailActions.Surface = WallpaperSurface.Chrome;
+        inListActionColumn = new ColumnStyle(SizeType.Absolute, 0);
+        detailActions.ColumnStyles.Add(inListActionColumn);
+        detailActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
+        detailActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
+        detailActions.Controls.Add(showInList, 0, 0); detailActions.Controls.Add(selectionDetails, 1, 0); detailActions.Controls.Add(reveal, 2, 0);
+        detail.Controls.Add(detailText, 0, 0); detail.Controls.Add(detailActions, 1, 0);
         bottom.Controls.Add(detail, 0, 0);
         bottom.Controls.Add(progressBar, 0, 1);
         var footer = Table(3, 1); footer.Surface = WallpaperSurface.Chrome;
@@ -772,8 +793,16 @@ internal sealed class MainForm : Form
                     ? (e.State & DataGridViewElementStates.Selected) != 0 ? SystemColors.HighlightText : SystemColors.WindowText
                     : Theme.Text;
                 const TextFormatFlags flags = TextFormatFlags.SingleLine | TextFormatFlags.PreserveGraphicsClipping;
-                if (bands.Name.Width > 0 && bands.Name.Height > 0)
-                    Theme.TextAt(graphics, item.Name, e.CellStyle!.Font ?? grid.Font, foreground, bands.Name, flags);
+                var nameBounds = bands.Name;
+                if (((WallpaperGrid)grid).ContainingRow == e.RowIndex && nameBounds.Width > 150 * grid.DeviceDpi / 96)
+                {
+                    int width = 66 * grid.DeviceDpi / 96;
+                    var badge = new Rectangle(nameBounds.Right - width, nameBounds.Top, width, nameBounds.Height);
+                    nameBounds.Width -= width;
+                    Theme.TextAt(graphics, "所在目录", filePathFont, SystemInformation.HighContrast ? foreground : Theme.Accent, badge, flags);
+                }
+                if (nameBounds.Width > 0 && nameBounds.Height > 0)
+                    Theme.TextAt(graphics, item.Name, e.CellStyle!.Font ?? grid.Font, foreground, nameBounds, flags);
                 if (detailed && bands.Path.Width > 0 && bands.Path.Height > 0)
                     TextRenderer.DrawText(graphics, FileListPresentation.RelativeLocation(item, current), filePathFont,
                         bands.Path, SystemInformation.HighContrast ? foreground : Theme.Muted,
@@ -1090,6 +1119,8 @@ internal sealed class MainForm : Form
     private void ApplyMotionPreference()
     {
         map.AnimationsEnabled = progressBar.AnimationsEnabled = !reduceMotion.Checked;
+        ((WallpaperGrid)grid).LocateAnimationEnabled = !reduceMotion.Checked;
+        if (reduceMotion.Checked) ((WallpaperGrid)grid).StopLocateFlash();
         Apply(this);
         void Apply(Control parent)
         {
@@ -1129,7 +1160,8 @@ internal sealed class MainForm : Form
         var scanSource = scanCancellation;
         if (session == null || scanSource == null || scanSource.IsCancellationRequested) return;
         string? requestedPath = showingPreview ? current?.Path : null;
-        string? selectedName = showingPreview ? selection?.Entry?.Name : null;
+        var previewSelection = showingPreview && ReferenceEquals(selectionOwner, session) ? selection?.Entry : null;
+        string? selectedPath = previewSelection?.Path;
         int firstVisibleRow = requestedPath == previewDisplayedPath ? grid.FirstDisplayedScrollingRowIndex : -1;
         viewCancellation?.Cancel();
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(scanSource.Token);
@@ -1176,14 +1208,16 @@ internal sealed class MainForm : Form
             up.Enabled = current.Parent != null; home.Enabled = current != preview.Root;
             mapTitle.Text = "空间分布 · 扫描中"; listTitle.Text = "已发现的文件与文件夹";
             mapCaption.Text = "文件大小预览";
-            listCaption.Text = $"{preview.DiscoveredChildren:N0} 项已发现";
+            listBaseCaption = listCaption.Text = $"{preview.DiscoveredChildren:N0} 项已发现";
             ApplyGridPresentation(0);
             map.LoadingView = map.Scanning = false; map.ShowNested = false; map.TotalSize = current.Size;
             map.EmptyTitle = view.Rows.Count == 0 ? "这个目录还在读取中" : "已发现项目的大小暂为 0 B";
             map.EmptyCaption = "预览会自动更新；扫描完成后恢复搜索、大文件与文件类型视图";
             map.SetItems(view.MapItems); PopulateGrid(view.Rows);
-            var selected = selectedName == null ? null : view.Rows.FirstOrDefault(i => i.Name == selectedName);
-            if (selected != null) SelectItem(selected, true);
+            var selected = selectedPath == null ? null : view.Rows.FirstOrDefault(i => i.Entry is { } entry &&
+                entry.Path.Equals(selectedPath, StringComparison.Ordinal) && entry.IsDirectory == previewSelection!.IsDirectory &&
+                (entry.Storage == null || previewSelection.Storage == null || entry.Storage.Identity == previewSelection.Storage.Identity));
+            if (selected != null) ApplySelection(selected, true, false);
             if (firstVisibleRow >= 0 && grid.RowCount > 0)
                 ((WallpaperGrid)grid).PerformBufferedScroll(() => grid.FirstDisplayedScrollingRowIndex = Math.Min(firstVisibleRow, grid.RowCount - 1));
             previewDisplayedPath = current.Path;
@@ -1211,7 +1245,7 @@ internal sealed class MainForm : Form
         mode = index; navigation.SelectedIndex = index; navigation.Invalidate();
         ResetSearch();
         sortColumn = "size"; sortAscending = false;
-        UpdateView();
+        UpdateView(true);
     }
 
     private void OpenDirectory(DiskEntry directory)
@@ -1232,6 +1266,7 @@ internal sealed class MainForm : Form
 
     private async Task UpdateViewAsync(bool preserveSelection)
     {
+        viewVersion++;
         if (liveSession != null) { await UpdatePreviewAsync(); return; }
         if (current == null || scan == null) return;
         viewCancellation?.Cancel();
@@ -1240,7 +1275,9 @@ internal sealed class MainForm : Form
         var token = cancellation.Token;
         var directory = current;
         int requestedMode = mode;
-        var previous = preserveSelection ? selection : null;
+        var previous = !preserveSelection ? null : selection != null && ReferenceEquals(selectionOwner, SelectionOwner)
+            ? selection : ReferenceEquals(pendingSelectionOwner, SelectionOwner) ? pendingViewSelection : null;
+        pendingViewSelection = previous; pendingSelectionOwner = SelectionOwner;
         var sort = sortColumn switch { "name" => ViewSort.Name, "count" => ViewSort.Count, "location" => ViewSort.Location, _ => ViewSort.Size };
         var request = new ViewRequest(directory, (ViewMode)requestedMode, search.Text, sort, sortAscending, typeFilter, metric);
         pathBox.Text = current.Path;
@@ -1279,13 +1316,20 @@ internal sealed class MainForm : Form
             ApplyGridPresentation(requestedMode);
         }
         finally { updating = false; }
-        SelectItem(null, false);
+        ApplySelection(null, false, false);
         map.Enabled = false; map.LoadingView = true; map.SetItems([]);
         mapCaption.Text = "正在整理视图…";
         try
         {
-            var result = await Task.Run(() => ViewQuery.Build(request, token), token);
+            var built = await Task.Run(() =>
+            {
+                var result = ViewQuery.Build(request, token);
+                var rebound = SelectionLinkage.Rebind(result.Rows, previous, directory, request.Metric, requestedMode);
+                token.ThrowIfCancellationRequested();
+                return (Result: result, Selected: rebound);
+            }, token);
             if (IsDisposed || Disposing || !ReferenceEquals(viewCancellation, cancellation) || token.IsCancellationRequested) return;
+            var result = built.Result;
             if (requestedMode == 2)
             {
                 mapTitle.Text = "类型分布"; listTitle.Text = "文件类型";
@@ -1301,7 +1345,7 @@ internal sealed class MainForm : Form
             search.PlaceholderText = requestedMode switch { 1 => "搜索所有子目录的文件名…", 2 => "搜索扩展名或类型…", _ => "搜索当前层级名称…" };
             search.AccessibleDescription = search.PlaceholderText;
             SetScopeDetails(string.Join(" · ", scopeFacts));
-            listCaption.Text = $"{result.Rows.Count:N0} 项";
+            listBaseCaption = listCaption.Text = $"{result.Rows.Count:N0} 项";
             listCaption.AccessibleDescription = (requestedMode == 1 ? $"含子目录 · 匹配 {result.MatchedCount:N0} 个，显示最大 {result.Rows.Count:N0} 个。" : "") +
                 "当前视图所列项目的数量与大小占比（大文件最多 500 个），分页只改变列表显示；分母为当前目录未筛选的大小。" +
                 (request.Metric == SizeMetric.Allocated ? "占比仅按已知分配量计算，未知不计为零。" : "");
@@ -1316,7 +1360,7 @@ internal sealed class MainForm : Form
             if (request.Metric == SizeMetric.Allocated && directory.UnknownAllocationFiles > 0) map.EmptyCaption = "右侧保留文件名和文件大小；底部可查看占用未知的原因";
             map.SetItems(result.MapItems);
             PopulateGrid(result.Rows);
-            if (previous != null && result.Rows.Contains(previous)) SelectItem(previous, true);
+            if (built.Selected != null) ApplySelection(built.Selected, true, false);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -1332,7 +1376,8 @@ internal sealed class MainForm : Form
             if (ReferenceEquals(viewCancellation, cancellation))
             {
                 viewCancellation = null;
-                if (!IsDisposed && !Disposing) { map.LoadingView = false; map.Enabled = true; grid.Enabled = true; map.Invalidate(); }
+                pendingViewSelection = null; pendingSelectionOwner = null;
+                if (!IsDisposed && !Disposing) { map.LoadingView = false; map.Enabled = true; grid.Enabled = true; UpdateSelectionActions(); map.Invalidate(); }
             }
         }
     }
@@ -1354,11 +1399,13 @@ internal sealed class MainForm : Form
                     (col.Name == sortColumn || col.Name == "name" && mode == 1 && sortColumn == "location" ? sortAscending ? " ↑" : " ↓" : "");
         }
         finally { grid.ResumeLayout(); updating = false; }
-        SelectItem(null, false);
+        ApplySelection(null, false, false);
     }
 
     private void PopulatePage(int requestedPage)
     {
+        ((WallpaperGrid)grid).StopLocateFlash();
+        ((WallpaperGrid)grid).ContainingRow = -1;
         var page = PageSlice.Create(sortedRows.Count, requestedPage);
         pageIndex = page.Index;
         bool wasUpdating = updating;
@@ -1408,7 +1455,18 @@ internal sealed class MainForm : Form
 
     private void SelectItem(MapItem? item, bool syncGrid)
     {
-        selection = item; map.SelectItem(item); reveal.Enabled = item?.Entry != null;
+        pendingViewSelection = null; pendingSelectionOwner = null;
+        ApplySelection(item, syncGrid, syncGrid);
+    }
+
+    private void ApplySelection(MapItem? item, bool syncGrid, bool feedback)
+    {
+        selectionRevision++;
+        selection = item; selectionOwner = item == null ? null : SelectionOwner;
+        map.SelectItem(item);
+        var surface = (WallpaperGrid)grid;
+        surface.StopLocateFlash(); surface.ContainingRow = -1;
+        string? hint = null;
         if (syncGrid)
         {
             bool previousUpdating = updating;
@@ -1416,35 +1474,101 @@ internal sealed class MainForm : Form
             try
             {
                 grid.ClearSelection();
-                int index = item == null ? -1 : sortedRows.IndexOf(item);
+                int exact = SelectionLinkage.FindRow(sortedRows, item);
+                int index = exact >= 0 ? exact : SelectionLinkage.ContainingRow(sortedRows, item, current);
                 if (index >= 0)
                 {
-                    if (index / PageSlice.Size != pageIndex) PopulatePage(index / PageSlice.Size);
+                    bool acrossPages = index / PageSlice.Size != pageIndex;
+                    if (acrossPages) PopulatePage(index / PageSlice.Size);
                     int row = index % PageSlice.Size;
-                    ((WallpaperGrid)grid).PerformBufferedScroll(() =>
+                    surface.PerformBufferedScroll(() =>
                     {
-                        grid.Rows[row].Selected = true; grid.FirstDisplayedScrollingRowIndex = row;
+                        int before = grid.FirstDisplayedScrollingRowIndex;
+                        int target = SelectionLinkage.ScrollTarget(before, grid.DisplayedRowCount(false), row);
+                        if (before != target) grid.FirstDisplayedScrollingRowIndex = target;
+                        if (exact >= 0)
+                        {
+                            grid.CurrentCell = grid.Rows[row].Cells[grid.Columns.GetFirstColumn(DataGridViewElementStates.Visible)!.Index];
+                            grid.Rows[row].Selected = true;
+                        }
+                        else { grid.CurrentCell = null; surface.ContainingRow = row; }
                     });
+                    hint = exact < 0 ? "所在目录" : acrossPages ? "已跨页定位" : feedback ? "已定位" : null;
+                    if (feedback && exact >= 0) surface.FlashLocatedRow(row);
                 }
             }
             finally { updating = previousUpdating; }
         }
+        SetLocationFeedback(hint);
+        UpdateSelectionActions();
         if (item == null)
         {
-            detailTitle.Text = "未选择项目";
+            detailTitle.SetDetails(null, filePathFont);
             detailPath.Text = "";
             return;
         }
-        detailTitle.Text = $"{item.Name} · {(item.UnknownFiles > 0 ? item.Size == 0 ? "占用未知" : SizeFormat.Bytes(item.Size) + " + 未知" : SizeFormat.Bytes(item.Size))} · {SizeFormat.Percent(item.Size, current?.Bytes(metric) ?? 0)}";
-        detailPath.Text = item.Entry is { } entry
-            ? $"{entry.Path}  ·  修改于 {entry.Modified:yyyy-MM-dd HH:mm}" + (entry.Incomplete ? " · 部分内容未读取" : "")
-            : !item.IsAggregate && mode == 2 ? $"{item.Category}  ·  {item.Count:N0} 个文件（含所有子目录）" : $"合并展示的 {item.Count:N0} 项，可在右侧列表查看单个项目";
-        if (item.Entry is { } metadata)
+        var details = SelectionDetails.Create(item, metric, mode, scopeDetails);
+        detailTitle.SetDetails(details, filePathFont);
+        detailPath.Text = details.Path.Length > 0 ? details.Path : details.Note;
+        detailTitle.AccessibleDescription = details.Note;
+    }
+
+    private void SetLocationFeedback(string? hint)
+    {
+        string count = listBaseCaption.Length > 0 ? listBaseCaption : $"{sortedRows.Count:N0} 项";
+        listCaption.Text = count + (hint == null ? "" : " · " + hint);
+        var page = PageSlice.Create(sortedRows.Count, pageIndex);
+        pageInfo.Text = (hint == null ? "" : hint + " · ") + $"第 {page.Index + 1:N0} / {page.Pages:N0} 页";
+    }
+
+    private void UpdateSelectionActions()
+    {
+        var details = selection == null ? null : SelectionDetails.Create(selection, metric, mode, scopeDetails);
+        reveal.Text = details?.ActionText ?? "定位文件";
+        reveal.Enabled = selection != null && grid.Enabled && map.Enabled;
+        selectionDetails.Enabled = selection != null;
+        bool internalEntry = selection?.Entry?.Parent != null && mode == 0 &&
+            SelectionLinkage.FindRow(sortedRows, selection) < 0 && SelectionLinkage.ContainingRow(sortedRows, selection, current) >= 0;
+        showInList.Visible = internalEntry;
+        showInList.Enabled = internalEntry && liveSession == null && grid.Enabled;
+        if (detailActionsColumn != null && inListActionColumn != null)
         {
-            string allocation = metadata.UnknownAllocationFiles > 0 ? "占用未知" : SizeFormat.Bytes(metadata.IsDirectory ? metadata.AllocatedSize : metadata.Storage?.AllocatedBytes ?? 0);
-            detailTitle.Text = $"{item.Name} · 文件大小 {SizeFormat.Bytes(metadata.Size)} · 实际占用 {allocation}" +
-                (metadata.Storage is { LinkCount: > 1 } storage ? $" · {storage.LinkCount} 个硬链接{(metadata.SharedAllocation ? "（本路径共享，不重复计入）" : "")}" : "");
+            float scale = DeviceDpi / 96f;
+            inListActionColumn.Width = internalEntry ? 112 * scale : 0;
+            detailActionsColumn.Width = (internalEntry ? 292 : 180) * scale;
         }
+    }
+
+    private void ActivateSelection()
+    {
+        if (selection == null || !ReferenceEquals(selectionOwner, SelectionOwner)) return;
+        if (selection.IsAggregate) { grid.Focus(); return; }
+        ActivateItem(selection);
+    }
+
+    private async Task NavigateToEntryAsync(DiskEntry entry)
+    {
+        if (entry.Parent == null || liveSession != null || scan == null || !ReferenceEquals(selectionOwner, scan)) return;
+        var owner = scan;
+        current = entry.Parent; selection = null; typeFilter = null; mode = 0; ResetSearch();
+        if (sortColumn is "count" or "location") { sortColumn = "size"; sortAscending = false; }
+        navigation.SelectedIndex = 0; navigation.Invalidate();
+        var update = UpdateViewAsync(false); long version = viewVersion;
+        await update;
+        if (IsDisposed || Disposing || viewVersion != version || !ReferenceEquals(scan, owner) || !ReferenceEquals(current, entry.Parent)) return;
+        var row = sortedRows.FirstOrDefault(i => ReferenceEquals(i.Entry, entry));
+        if (row != null) ApplySelection(row, true, true);
+    }
+
+    private void ShowSelectionDetails()
+    {
+        if (selection == null) return;
+        long revision = selectionRevision;
+        object? owner = SelectionOwner;
+        using var dialog = new SelectionDetailsDialog(SelectionDetails.Create(selection, metric, mode, scopeDetails));
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        if (IsDisposed || Disposing || selectionRevision != revision || !ReferenceEquals(owner, SelectionOwner)) return;
+        ActivateSelection();
     }
 
     private void ActivateItem(MapItem item)
@@ -1455,41 +1579,44 @@ internal sealed class MainForm : Form
             ResetSearch(); sortColumn = "size"; sortAscending = false; UpdateView();
         }
         else if (item.Entry is { IsDirectory: true } directory) OpenDirectory(directory);
-        else if (item.Entry != null) { selection = item; RevealSelection(); }
+        else if (item.Entry != null) { SelectItem(item, true); RevealSelection(); }
     }
 
     private async void RevealSelection()
     {
-        if (selection?.Entry is not { } entry) return;
-        var observedScan = scan;
-        if (observedScan?.Source != null)
+        if (selection?.Entry is not { } entry || !ReferenceEquals(selectionOwner, SelectionOwner)) return;
+        var observedOwner = SelectionOwner;
+        var observedScan = showingPreview ? null : scan;
+        long revision = selectionRevision;
+        reveal.Enabled = false;
+        try
         {
-            reveal.Enabled = false;
-            try
+            var result = await Task.Run(() =>
             {
-                bool matches = await Task.Run(() =>
+                try
                 {
-                    try
-                    {
-                        return entry.Storage != null && NativeStorage.TryRead(entry.Path, entry.IsDirectory,
-                            File.GetAttributes(entry.Path), out var live, out _) && live?.Identity == entry.Storage.Identity;
-                    }
-                    catch { return false; }
-                });
-                if (IsDisposed || Disposing || !ReferenceEquals(scan, observedScan)) return;
-                if (!matches)
-                {
-                    MessageBox.Show(this, "该路径已变化或无法核对身份，请重新扫描后再定位。", "快照项目已变化", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
+                    if (!File.Exists(entry.Path) && !Directory.Exists(entry.Path)) return 1;
+                    if (observedScan?.Source != null && !(entry.Storage != null && NativeStorage.TryRead(entry.Path, entry.IsDirectory,
+                        File.GetAttributes(entry.Path), out var live, out _) && live?.Identity == entry.Storage.Identity)) return 2;
+                    return 0;
                 }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+                { return 2; }
+            });
+            if (IsDisposed || Disposing || selectionRevision != revision || !ReferenceEquals(SelectionOwner, observedOwner) ||
+                !ReferenceEquals(selection?.Entry, entry)) return;
+            if (result != 0)
+            {
+                MessageBox.Show(this, result == 1 ? "该项目已移动或删除，请重新扫描。" : "该路径已变化或无法核对身份，请重新扫描后再定位。",
+                    "无法定位当前项目", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
-            finally { if (!IsDisposed && !Disposing) reveal.Enabled = selection?.Entry != null; }
+            TryAction(() => Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{entry.Path}\"") { UseShellExecute = true }));
         }
-        TryAction(() =>
+        finally
         {
-            if (!File.Exists(entry.Path) && !Directory.Exists(entry.Path)) throw new IOException("该项目已移动或删除，请重新扫描。" );
-            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{entry.Path}\"") { UseShellExecute = true });
-        });
+            if (!IsDisposed && !Disposing) UpdateSelectionActions();
+        }
     }
 
     private void TryAction(Action action)

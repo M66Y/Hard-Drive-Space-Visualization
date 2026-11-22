@@ -1,0 +1,27 @@
+[
+  {
+    "name": "build-manifest.json",
+    "length": 897,
+    "sha256": "5AF1EC6E0B1AA322CB1D71D2C1545E5E9E1F7D5C7B46B73AF33E2787997E02C4"
+  },
+  {
+    "name": "changes.patch",
+    "length": 107618,
+    "sha256": "FB3C110A938A514CAECB1E964A688B98C0AA0DC4F2B9C57BC5B0A7AE451D8425"
+  },
+  {
+    "name": "patch-replay.json",
+    "length": 3056,
+    "sha256": "0E4C52FDB21D13FA538CB0F05B3082A221D7B00FA43474963BA61142125D6149"
+  },
+  {
+    "name": "README.md",
+    "length": 4238,
+    "sha256": "0C7D55845F0C027BDF8F71DC9D8CB89D38A1CDA15C5FEE732226CAE8E3022CC7"
+  },
+  {
+    "name": "verification-summary.json",
+    "length": 7542,
+    "sha256": "C7844241EAF9445A688CFA49FCF613DCBC96C6968221001A4CF07A2C0C624766"
+  }
+]
