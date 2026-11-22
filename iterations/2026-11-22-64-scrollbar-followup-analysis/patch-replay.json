@@ -1,0 +1,23 @@
+{
+  "baseline": "eee2104fc03584bddf9f1c0a202d9c78c4ccaace",
+  "apply_check": true,
+  "canonical_commit_bytes_match": true,
+  "files": [
+    {
+      "path": "docs/project-status.md",
+      "sha256": "B90410296CD630993E8C9E55CCC06C871B7D999D6B06A610AF87BF0F92123679"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "EBA7322534D040E59B05BDC508515CB15E9D4AA51843D6C0A79354F9FF379820"
+    },
+    {
+      "path": "docs/ui-scrollbar-tracking-plan.md",
+      "sha256": "89B6D9B010CFE64E507582F077812FAD56B5147F950EDD57E90EF26C2AC21A6C"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "12F896875BE220F6666F0D4EC04DEFBB7F997511C00800DB2047FF230F99DDFC"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index 291417c1b9c432904af09a1d860974cc7b6a0da6..26fe1c94cdb2ad9db5033cab983a087b06d04c20 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,5 +1,13 @@
+ # AsukaLens 开发检查点
+ 
++## 更新：C64新视频证明仍有滚动残留，只分析未修（2026-11-22）
++
++当前main/origin eee2104。C63用户接受事实保留，但扩展快速长按/缓慢滚动又发现列表背景接缝和底部临时重复行，滚动显示缺陷重新打开；不要继续将整项描述为已解决，也不要让用户重复证明。新视频1238帧，约2.33/18.03秒有明确画面；原片和帧只在本机，未上传。
++
++代码首要缺口：ScrollbarPointerTracking.Emit直接raise Scroll事件，没有进入WallpaperGrid.PerformBufferedScroll；官方DataGridView ScrollRows先ScrollWindow再OnScroll，事后补画不能阻止中间旧像素曝光。此为可核对的高相关路径，**完整因果对照未做，不称唯一根因**。现有专项检查轨道边缘/值，滚动回归还延迟并Update，未证明连续全列表背景正确。见iterations/2026-11-22-64-scrollbar-followup-analysis。
++
++本轮用户只要求看视频分析；不改C#、不重建、不换当前运行软件、不改系统/背景，不自动修下一版。建议先补全背景反例，再统一滚动提交和发布边界，收到确认后实施；阶段三仍只有方案。下方C63为当时结论。
++
+ ## 当前：C63滚动条修正已接受并收尾（2026-11-22）
+ 
+ 本轮基线main/origin 5e07a71；C63源码、测试、说明和归档为本轮所有，最终提交/推送状态以Git为准。第一、二阶段已获接受；第三阶段只有docs/ui-stage-three-plan.md与合成预览，**产品实施未授权**。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 0b93e92e6e252a0159fc100400dff422c78fb56f..2e24c0d48abcf9dc3f02777b502b1beba6bc2dc5 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,5 +1,11 @@
+ # 后续开发计划
+ 
++## C64 扩展实测再次发现滚动中间画面残留（2026-11-22）
++
++C63几何版此前确实获用户通过；后续视频覆盖快速长按往返和列表内缓慢滚动，又观察到背景横向接缝及列表底部临时重复行。旧的大面积系统灰轨道在本次抽帧中没有同样明显重现，但不能据此宣布整个滚动显示已解决。当前交付代码仍为`eee2104`，本轮只分析并更新记录，未改产品或重建。
++
++对照代码找到新指针入口直接触发Scroll事件、未进入既有PerformBufferedScroll保护的缺口；官方DataGridView源码确认滚动会先搬移现有客户区像素，再发Scroll事件。此链路与视频吻合，是下一次因果对照的首要目标，尚未验证其为唯一原因。此前轨道/滑块状态检查和延后补画检查不足以覆盖连续中间帧。建议先补全列表背景反例，再统一鼠标、滚轮和键盘的滚动提交与画面发布；实施仍待用户确认。证据见[C64分析](../iterations/2026-11-22-64-scrollbar-followup-analysis/README.md)。第三阶段仍未授权，不发布。
++
+ ## C63 滚动条修复已获用户通过（2026-11-22）
+ 
+ 在保留原滚动条、布局、背景和1.15倍沿边柔光的前提下，修复鼠标拖动中的系统灰轨道，以及范围/位置变化后滑块几何未同步造成的回跳。只接管原条指针操作；键盘、滚轮、范围和可访问身份继续沿用原控件，系统全拖动偏好不变。抑制原生直接上屏后，通过私有条形缓冲刷新原生几何，再完整发布主题画面，分配失败保持原生回退。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 10c1092368c083425124000b6777c0394add994f..d0e48a622ece92492f037d0513a639b212567899 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,11 @@
+ # AsukaLens 项目现状
+ 
++## C64 扩展实测再次发现滚动中间画面残留（2026-11-22）
++
++C63几何版此前确实获用户通过；后续视频覆盖快速长按往返和列表内缓慢滚动，又观察到背景横向接缝及列表底部临时重复行。旧的大面积系统灰轨道在本次抽帧中没有同样明显重现，但不能据此宣布整个滚动显示已解决。当前交付代码仍为`eee2104`，本轮只分析并更新记录，未改产品或重建。
++
++对照代码找到新指针入口直接触发Scroll事件、未进入既有PerformBufferedScroll保护的缺口；官方DataGridView源码确认滚动会先搬移现有客户区像素，再发Scroll事件。此链路与视频吻合，是下一次因果对照的首要目标，尚未验证其为唯一原因。此前轨道/滑块状态检查和延后补画检查不足以覆盖连续中间帧。建议先补全列表背景反例，再统一鼠标、滚轮和键盘的滚动提交与画面发布；实施仍待用户确认。证据见[C64分析](../iterations/2026-11-22-64-scrollbar-followup-analysis/README.md)。第三阶段仍未授权，不发布。
++
+ ## C63 滚动条修复已获用户通过（2026-11-22）
+ 
+ 在保留原滚动条、布局、背景和1.15倍沿边柔光的前提下，修复鼠标拖动中的系统灰轨道，以及范围/位置变化后滑块几何未同步造成的回跳。只接管原条指针操作；键盘、滚轮、范围和可访问身份继续沿用原控件，系统全拖动偏好不变。抑制原生直接上屏后，通过私有条形缓冲刷新原生几何，再完整发布主题画面，分配失败保持原生回退。
+diff --git a/docs/ui-scrollbar-tracking-plan.md b/docs/ui-scrollbar-tracking-plan.md
+index 84d5368345ee109e6769615ae0c546420c07a7cd..832cbbf08b0602701968ec204cba3e8c7d9c2e83 100644
+--- a/docs/ui-scrollbar-tracking-plan.md
++++ b/docs/ui-scrollbar-tracking-plan.md
+@@ -32,3 +32,7 @@
+ 另用不修改系统的偏好注入暴露“延迟模式先失捕获再提交”边界，改为提交ThumbPosition后释放捕获，最后EndScroll。原生范围、受处理器调整的NewValue、原条身份和背景采样关系保持。
+ 
+ 几何修正版16组相关检查通过，用户明确接受真实操作结果；最终松手边界修正两档各42项指针、34项表面及完整UI通过，正常功能版已重新打开。完整证据与失败保留见[C63](../iterations/2026-11-22-63-scrollbar-tracking/README.md)。未扩大到新HWND、重做列表或第三阶段，没有录屏、系统改动或正式发布。
++
++## 扩展复审更新（C64）
++
++新视频仍有列表底部重复行与背景接缝，原先接受不覆盖本次新发现，整块列表的连续显示尚未通过。代码中直接Scroll事件入口绕过既有缓冲滚动保护，官方DataGridView的ScrollWindow→OnScroll顺序说明事后补画可能来不及；需完整因果对照，不能只增加PaintCurrent/Update调用。建议先以列表背景和轨道同时不动为反例，再统一滚动入口和最终呈现，保留原控件和背景。用户本轮只要求分析，尚未实施此建议，见[C64](../iterations/2026-11-22-64-scrollbar-followup-analysis/README.md)。

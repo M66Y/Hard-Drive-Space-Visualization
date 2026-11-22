@@ -1,0 +1,19 @@
+{
+  "baseline": "eee2104fc03584bddf9f1c0a202d9c78c4ccaace",
+  "video_frames": 1238,
+  "approx_duration_seconds": 22.54,
+  "visible_examples_seconds": [
+    2.32525,
+    18.030633
+  ],
+  "observed": [
+    "temporary_duplicate_bottom_row",
+    "fixed_background_horizontal_seam"
+  ],
+  "primary_code_gap": "managed_scroll_event_bypasses_buffered_scroll_boundary",
+  "causality_proven": false,
+  "product_source_changed": false,
+  "fix_implemented": false,
+  "original_video_uploaded": false,
+  "stage_three_authorized": false
+}
