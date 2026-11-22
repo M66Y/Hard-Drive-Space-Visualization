@@ -1,0 +1,20 @@
+{
+  "implementation_commit": "63888222be3041bc62cb86c95116f02cae0b46fc",
+  "date": "2026-11-22",
+  "user_feedback": "quick_drag_and_slow_scroll_normal_keep_and_close",
+  "status": "accepted_on_current_computer",
+  "current_build_hashes_match_original_manifest": true,
+  "private_evidence_zip_crc": "passed",
+  "original_evidence_unchanged": true,
+  "source_changed": false,
+  "rebuilt": false,
+  "current_app_and_c55_retained": true,
+  "active_demo_retained": true,
+  "release_created": false,
+  "stage_three_implementation_authorized": false,
+  "unverified": [
+    "Windows10_new_rendering",
+    "real_cross_monitor_dpi",
+    "all_devices"
+  ]
+}

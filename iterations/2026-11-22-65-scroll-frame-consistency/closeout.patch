@@ -1,0 +1,135 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index 30a9bf632e78cdce9aa6c5925235783328a095b3..7c37195f75eb018e2326dd41d9a0905e74af244a 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,21 +1,17 @@
+ # AsukaLens 开发检查点
+ 
+-## 当前：C65整块背景修正版待用户复审（2026-11-22）
++## 当前：C65用户验收通过，本轮修复已收尾（2026-11-22）
+ 
+-本轮基线main/origin 3282f8b（C64分析），工作区归本轮：Wallpaper.cs、src/UI/ScrollbarPointerTracking.cs、tests/ScrollFrameConsistencyTests.cs及Program入口、受影响说明/规则/记忆和C65归档。用户已批准先做整体背景反例、统一滚动提交/发布、快拖和缓滚都验，保持布局/背景/动效；用户正常关闭旧程序后已替换打开。最终提交/推送以Git为准。
++实现main/origin 6388822已推送。用户明确确认“这次快速拖动和缓慢滚动都正常了，可以保留”，批准收尾、暂不打包发布。记录为当前电脑实际场景通过，不再要求重复证明或复测已通过现象；最终文档提交/远程状态以Git为准。
+ 
+-旧代码整屏跳转没抓到撕裂，补入小幅连续拖动后，两档原反例观察11/14次背景搬移；延迟模式另有3次松手只改条值、不移动实际列表。先保留失败，后修指针Emit包入既有PerformBufferedScroll、父列表Update后再PresentationResumed；延迟松手补一次实际ThumbTrack，随后ThumbPosition/捕获释放/EndScroll。不改原条身份、键盘/滚轮、范围/事件NewValue与系统偏好。
++C65先补真实MainForm整块背景反例：小幅原拖动两档观察11/14次背景搬移，延迟松手各3次只改条值不移动行。修正将指针事件/值提交包入既有PerformBufferedScroll，父列表Update后才发布轨道；延迟松手补交一次实际ThumbTrack。两档各92新检查、42指针/34表面及滚动/缓存/完整UI/联动/布局共16组通过。C63最初接受、C64残留、新旧失败对照与采样限制均保留，不抹历史。
+ 
+-最终两档各92新检查、42指针/34表面及列表缓存/滚动/完整UI/联动/布局，共16组全通过。原反例的未受保护阶段会读可视区跨列背景；修正后所有事件都有真实native redraw hold，返回时背景与轨道正确、发布顺序正确、实际行移动。受保护阶段不采中间DC，不将0次采样冒充DWM零闪动。没有以延后Update或DrawToBitmap掩盖反例。
++当前正常程序、测试程序集和C55哈希已与C65 build-manifest核对一致；收尾只改说明/记忆和追加用户反馈，不重建或操作窗口。原始输出已压缩核验并清理散落中间物，当前程序、C55和仍可使用的自建140文件demo保留。证据入口iterations/2026-11-22-65-scroll-frame-consistency/user-feedback.md，原冻结验证不重写。
+ 
+-正常入口bin/Release/net10.0-windows/AsukaLens.exe已重新打开，仍扫描自建140文件demo。已实际顶部→底部→顶部拖动和列表内小幅滚轮，看到位置及背景完整；真实连续观感**等待用户复审**，异步问题已发出，不自动判整个缺陷解决。不要再次操作正在供用户体验的窗口或要求录视频。
++## 下一步与边界
+ 
+-保留C63用户最初接受、C64新视频残留和本轮原失败；证据见iterations/2026-11-22-65-scroll-frame-consistency。应用/测试零警告，C55 DLL SHA256仍D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498。当前程序和活跃C63 demo保留，原视频未动、无新录屏/系统设置/个人卷/VSS/打包/标签/Release。
+-
+-## 下一步及长期边界
+-
+-- 等待本轮实际反馈决定缺陷是否收尾；改善不等于全部通过，有新残留先定位，不重复让用户证明故障存在。
+-- 第一、二阶段已接受，第三阶段只有docs/ui-stage-three-plan.md和设计预览，产品实施尚未授权。不因滚动修复自动开工。
+-- C57普通默认/C55失败回退、背景图片/聚焦/Zoom、字号和1.15倍沿边柔光保持，无悬停文字/自动说明框。C61内嵌文件先保留总览，主动进入父目录后选中。
+-- Windows10新绘制、真实跨屏未验；用户已跳过Win10，不重复追问。C28同快照已Matched；快扫默认关闭，个人raw/VSS须当轮授权；PERF-001仍P2延期。
+-- 项目现状、计划、决策和Git优先于记忆；只存精简交接事实，不存个人路径/视频帧/文件清单或NTFS页。
++- 本轮滚动修复结束，等待用户指定下一项，不自动扩大到其他优化。第一、二阶段已接受；第三阶段只有docs/ui-stage-three-plan.md和设计预览，产品实施尚未授权。
++- C57普通默认/C55失败回退、背景图片/聚焦/Zoom、字号、完整圆角和1.15倍沿边柔光保持，无悬停文字或自动说明框。C61内部文件保留总览，主动进入父目录后选中。
++- C55 DLL SHA256 D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498，保留不覆盖。正常入口bin/Release/net10.0-windows/AsukaLens.exe；不为收尾关闭用户程序或删除活跃夹具。
++- 本机通过不等于Windows10新绘制/真实跨屏已验；用户已跳过Win10，不重复追问。C28同快照已Matched，快扫默认关闭，个人raw/VSS须当轮授权；PERF-001仍P2延期。
++- 无录屏、系统设置、个人卷、打包、标签或Release。项目现状、计划、决策和Git优先于记忆；不存个人路径、原始日志/视频或NTFS页。
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index 5182439ba65399b39557922ed799185ffdfb4a2c..62aa2b9297fa2df55236003887ee0b8e32211cb7 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,5 +1,7 @@
+ # 影响后续开发的决定
+ 
++- 2026-11-22 C65最终反馈：用户确认快速拖动、缓慢滚动都正常，允许保留并收尾、暂不发布。实现6388822保留，本机滚动缺陷按此范围通过，不再重复要求验证；原C63/C64和反例失败证据不改写。仅追加验收/状态、核程序及C55哈希和压缩归档，不重建、不关闭用户窗口、不自动进入第三阶段；见iterations/2026-11-22-65-scroll-frame-consistency/user-feedback.md。
++
+ - 2026-11-22 C65：用户批准补全背景反例后统一滚动提交/发布，拒绝再只补轨道。小幅原反例两档失败支持指针绕过保护的因果；延迟模式必须验实际列表位置，不能只看条值。复用既有缓冲保护并把子条发布放在父列表完成之后，不扩大架构或改背景。92项及16组通过、正常版已打开，连续观感等待用户反馈；见iterations/2026-11-22-65-scroll-frame-consistency。
+ 
+ - 2026-11-22 C63：用户认可几何修正版滚动体验并允许保留；不重复请求证明。保留原条及Scroll事件，只接管会触发系统灰轨道的指针循环；原生即时重绘抑制必须同时刷新位置/长度缓存。采用私有DC原生打印后覆盖完整主题帧，不把临时系统像素上屏；缓冲失败以正确性回退。延迟模式先提交再释放捕获，避免旧值中间帧。两档42/34及相关UI通过，背景/布局/1.15倍动效不变；第三阶段仍未授权。证据iterations/2026-11-22-63-scrollbar-tracking。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index d7512a6a53825ff087d72ecb04fdcc8b2e219bee..bfee64e576e64a1b812e560debcdfe820c55e1ca 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,5 +1,11 @@
+ # 后续开发计划
+ 
++## C65 快速拖动与缓慢滚动已获用户通过，修复收尾（2026-11-22）
++
++用户明确确认“这次快速拖动和缓慢滚动都正常了，可以保留”，并授权本轮收尾、暂不打包发布。保留实现`6388822`，将本次列表背景接缝/残留、轨道闪动及延迟提交缺陷在当前电脑实际测试范围内记为通过；不重复要求用户验证同一现象。
++
++原两档各92项背景/发布检查、42项指针、34项表面及16组回归不变，收尾只核对当前程序/C55哈希、证据压缩包、文档链接与隐私，不为反馈记录重复构建。C63初次接受、C64新发现、C65反例失败与修复证据均保留，追加[本次用户验收](../iterations/2026-11-22-65-scroll-frame-consistency/user-feedback.md)，不改写冻结证据。背景、布局、1.15倍动效和C57/C55保留；Windows10新绘制/真实跨屏未验范围不外推。第三阶段仍只有方案，尚未授权实施；没有打包、标签或Release。以下为各时点历史状态。
++
+ ## C65 整块列表背景修正版已打开，待实际复审（2026-11-22）
+ 
+ 用户批准先补整块背景反例，再统一快速拖动和缓慢滚动的提交/发布。旧实现的小幅连续拖动反例在两档DPI分别观察到11/14次背景搬移；同时发现延迟模式只更新滑块值、未实际移动列表。先保留原失败，再将指针事件纳入既有缓冲滚动保护，列表绘制完成后才通知轨道发布；延迟模式松手时向实际列表交付一次ThumbTrack，再完成位置/结束事件。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index d863c43ff5488de0005b1bc4a9d9105d07cd89e0..4a6ab926f1a3e71d41dabd84150dec3e0a055b6b 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,11 @@
+ # AsukaLens 项目现状
+ 
++## C65 快速拖动与缓慢滚动已获用户通过，修复收尾（2026-11-22）
++
++用户明确确认“这次快速拖动和缓慢滚动都正常了，可以保留”，并授权本轮收尾、暂不打包发布。保留实现`6388822`，将本次列表背景接缝/残留、轨道闪动及延迟提交缺陷在当前电脑实际测试范围内记为通过；不重复要求用户验证同一现象。
++
++原两档各92项背景/发布检查、42项指针、34项表面及16组回归不变，收尾只核对当前程序/C55哈希、证据压缩包、文档链接与隐私，不为反馈记录重复构建。C63初次接受、C64新发现、C65反例失败与修复证据均保留，追加[本次用户验收](../iterations/2026-11-22-65-scroll-frame-consistency/user-feedback.md)，不改写冻结证据。背景、布局、1.15倍动效和C57/C55保留；Windows10新绘制/真实跨屏未验范围不外推。第三阶段仍只有方案，尚未授权实施；没有打包、标签或Release。以下为各时点历史状态。
++
+ ## C65 整块列表背景修正版已打开，待实际复审（2026-11-22）
+ 
+ 用户批准先补整块背景反例，再统一快速拖动和缓慢滚动的提交/发布。旧实现的小幅连续拖动反例在两档DPI分别观察到11/14次背景搬移；同时发现延迟模式只更新滑块值、未实际移动列表。先保留原失败，再将指针事件纳入既有缓冲滚动保护，列表绘制完成后才通知轨道发布；延迟模式松手时向实际列表交付一次ThumbTrack，再完成位置/结束事件。
+diff --git a/docs/ui-scrollbar-tracking-plan.md b/docs/ui-scrollbar-tracking-plan.md
+index bdc67516ddacdac9722170a106843b32d35e154f..4f6eada34d9d8f8c5827753b136e860a8f1b900b 100644
+--- a/docs/ui-scrollbar-tracking-plan.md
++++ b/docs/ui-scrollbar-tracking-plan.md
+@@ -42,3 +42,7 @@
+ 用户已批准按C64方向修复。首先以真实列表背景跨列取点补出旧代码反例，两档分别11/14次中间背景搬移；整屏跳转本身不够，必须包含小幅拖动。另查出延迟模式只有ThumbPosition时DataGridView不移动行，原测试只看滑块值漏检。现在指针事件与滚轮/键盘共用PerformBufferedScroll；恢复原生重绘后先完成列表Update，才通知轨道发布；延迟松手只在提交时补交一次ThumbTrack，捕获释放顺序和旧NewValue契约保持。
+ 
+ 最终新92项及受影响16组两档通过，正常版已打开供用户按原视频方式复审，尚不宣称连续呈现问题彻底消失。背景/布局/动效不变，不创建覆盖窗口，不录屏或改系统设置。见[C65](../iterations/2026-11-22-65-scroll-frame-consistency/README.md)。
++
++## C65 用户最终验收
++
++2026-11-22，用户确认快速拖动和缓慢滚动均正常，允许保留并完成本轮修复收尾，暂不打包发布。本机所测场景已通过，不再列为等待反馈；具体接受范围及未验边界见[用户反馈](../iterations/2026-11-22-65-scroll-frame-consistency/user-feedback.md)。实现6388822及原失败/回归证据保持，不扩展第三阶段实施授权。
+diff --git a/iterations/2026-11-22-65-scroll-frame-consistency/user-acceptance.json b/iterations/2026-11-22-65-scroll-frame-consistency/user-acceptance.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..15f2850bcf3204900a92b29cd69eacf4b5ceb34b
+--- /dev/null
++++ b/iterations/2026-11-22-65-scroll-frame-consistency/user-acceptance.json
+@@ -0,0 +1,20 @@
++{
++  "implementation_commit": "63888222be3041bc62cb86c95116f02cae0b46fc",
++  "date": "2026-11-22",
++  "user_feedback": "quick_drag_and_slow_scroll_normal_keep_and_close",
++  "status": "accepted_on_current_computer",
++  "current_build_hashes_match_original_manifest": true,
++  "private_evidence_zip_crc": "passed",
++  "original_evidence_unchanged": true,
++  "source_changed": false,
++  "rebuilt": false,
++  "current_app_and_c55_retained": true,
++  "active_demo_retained": true,
++  "release_created": false,
++  "stage_three_implementation_authorized": false,
++  "unverified": [
++    "Windows10_new_rendering",
++    "real_cross_monitor_dpi",
++    "all_devices"
++  ]
++}
+diff --git a/iterations/2026-11-22-65-scroll-frame-consistency/user-feedback.md b/iterations/2026-11-22-65-scroll-frame-consistency/user-feedback.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..860878bb1b00ddd70138b40d042cde15b77c5383
+--- /dev/null
++++ b/iterations/2026-11-22-65-scroll-frame-consistency/user-feedback.md
+@@ -0,0 +1,11 @@
++# C65 用户验收与收尾
++
++2026-11-22，验收实现`63888222be3041bc62cb86c95116f02cae0b46fc`。用户明确反馈：
++
++> 这次快速拖动和缓慢滚动都正常了，可以保留，完成本轮修复收尾，暂不打包发布。
++
++据此接受当前正常版在本机快速往返拖动与缓慢滚动的实际效果，保留修正并完成本轮收尾；停止重复要求证明同一现象。背景、布局、字号、原生控件、1.15倍沿边动效及C57/C55保持。此接受不扩展为Windows10新绘制、真实跨屏或全部设备均已验收，也不授权第三阶段实施。
++
++原两档各92项背景/发布专项、42项指针、34项表面及16组回归继续有效。本次没有修改产品源码、重建、重新录屏或改变系统设置；只核对当前应用/测试程序集和C55与原build-manifest完全一致、原始输出压缩包CRC、文档链接/隐私及Git状态。此前失败与待验文字属于其各时点记录，原README、verification-summary及证据清单均不重写。
++
++本轮中间物已清理，仅保留核验后的本机私有证据压缩包与清理回执；当前正常程序、C55、仍可使用的自建演示目录及正式快照保留，不关闭用户程序。没有创建安装包、版本标签或Release。完整修复见[本轮README](README.md)，原构建身份见[build-manifest](build-manifest.json)。

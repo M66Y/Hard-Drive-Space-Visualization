@@ -1,0 +1,35 @@
+{
+  "baseline": "63888222be3041bc62cb86c95116f02cae0b46fc",
+  "apply_check": true,
+  "canonical_index_bytes_match": true,
+  "files": [
+    {
+      "path": "docs/project-status.md",
+      "sha256": "463CEEFD3C106660D07DA9905DBDA18561E2BE8CEFE0531A5DD959D99A367C1F"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "2E0306B0A62B475A8307622D89D266187A214CC97F7445AE7C3418CA9EFED677"
+    },
+    {
+      "path": "docs/ui-scrollbar-tracking-plan.md",
+      "sha256": "5E03B45D51124CAAB06A257E18724C6E4D259D4D01E62EB978FE77F358E42053"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "61217C766E6351ADA1473065B66B13FD223FCC6AF478E49BA567B5E3E57DD164"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "B11BB937BE1823E0B2B1ABD589A4204A88776737FE6F352CDED53BB16BD3C079"
+    },
+    {
+      "path": "iterations/2026-11-22-65-scroll-frame-consistency/user-feedback.md",
+      "sha256": "712AC5DF0F58E315C30AA0841905BF855B290CF7E04A383F2967049B017B0AC1"
+    },
+    {
+      "path": "iterations/2026-11-22-65-scroll-frame-consistency/user-acceptance.json",
+      "sha256": "FE16D2E6A0A67E43FEA68FC662BB837D76C907DE03FC94DFCCDA98BE42F38120"
+    }
+  ]
+}

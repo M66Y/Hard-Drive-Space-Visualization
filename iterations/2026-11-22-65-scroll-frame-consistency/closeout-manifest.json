@@ -1,0 +1,22 @@
+[
+  {
+    "name": "user-feedback.md",
+    "length": 1378,
+    "sha256": "712AC5DF0F58E315C30AA0841905BF855B290CF7E04A383F2967049B017B0AC1"
+  },
+  {
+    "name": "user-acceptance.json",
+    "length": 647,
+    "sha256": "FE16D2E6A0A67E43FEA68FC662BB837D76C907DE03FC94DFCCDA98BE42F38120"
+  },
+  {
+    "name": "closeout.patch",
+    "length": 15679,
+    "sha256": "1F03364704ECDB35EBD919D0E643A2661C5C94536ED03A5C7C2610396CFEDEA5"
+  },
+  {
+    "name": "closeout-replay.json",
+    "length": 1316,
+    "sha256": "DC9AF71BEBE5136A06A3CF8AB893AFD7AC747A60F062A2D04F6EC75B227020DF"
+  }
+]
