@@ -44,7 +44,7 @@ Also includes Automatic / Low-impact / High-speed strategies, live partial previ
 
 The current source build adds size/extension filters and display preferences: background strength (40–100%, with 100% retaining the current appearance), original/clearer category colors, and comfortable/compact spacing without smaller fonts. Use **筛选** in Largest files and **背景设置 → 显示** for display options. Apply saves; Cancel restores the previous appearance. These additions are not included in the older release packages. See the [behavior and limits](docs/display-and-large-file-filters.md) (Chinese).
 
-The stage-two development build adds [linked treemap selection, list location and item details](docs/selection-linkage.md) (Chinese). Selecting an internal file keeps the overview; the explicit list action enters its parent. Full paths and allocation notes are available in the details dialog. Stage-two maintainer acceptance has passed; these changes are not in a new Release. Stage three is only a [proposal](docs/ui-stage-three-plan.md) (Chinese), awaiting approval.
+The stage-two build adds [linked treemap selection, list location and item details](docs/selection-linkage.md) (Chinese). Selecting an internal file keeps the overview; the explicit list action enters its parent. Full paths and allocation notes are available in the details dialog. Stage-three large-file filters and display preferences are also implemented and accepted by the maintainer on the current computer. All three UI phases are closed; these changes are not in a new Release.
 
 Ordinary startup in the development build now uses the accepted **C57 composition background and DIB rendering**. The light theme, visible wallpaper and animated edge glow are retained; composition failures fall back to C55 rendering. Local user acceptance and the necessary UI checks passed. The maintainer chose to skip Windows 10 validation of this new rendering path in this round; real cross-monitor DPI remains untested. This default change has not been released as a new package.
 
@@ -106,7 +106,7 @@ The application does not automatically upload files, paths, images or logs. Mini
 
 ## Planned work and limits
 
-- **UI phase three:** large-file filters and display preferences are implemented and awaiting user review in the real application; custom workspaces remain deferred.
+- **Three UI phases completed:** visual/rendering polish, linked chart/list/details, and large-file filters/display preferences have local maintainer acceptance. The next proposed focus is end-to-end NTFS performance validation; custom workspaces remain deferred.
 - **Future release acceptance:** v1.5.0 is published. Later versions still need a new freeze, packages and acceptance; existing clean-environment gaps remain recorded. See the [release guide](docs/releasing.md) (Chinese).
 - **After the initial version (P2):** High-speed mode is not consistently faster than Automatic. Nonblocking restructuring and additional visual polish are deferred to the same stage.
 - **Current limits:** Automatic chooses concurrency by device, without load adaptation. If the change journal is unavailable, refresh still verifies metadata for all directories and files and may not be much faster. The cache exists only within the current process.

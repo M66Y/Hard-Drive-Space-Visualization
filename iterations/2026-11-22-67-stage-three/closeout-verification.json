@@ -1,0 +1,41 @@
+{
+  "cleanup_review": "No new build or disposable fixture created; active fixture and retained evidence preserved",
+  "patch_sha256": "8F55218D4890FD659184C9179C5760BEA3254DBB253ACF63581BBFC93DFC2AF5",
+  "rebuild": false,
+  "assets": [
+    {
+      "path": "bin/Release/net10.0-windows/AsukaLens.exe",
+      "sha256": "CECED1AAD199593B644ABF94AD8DED77C06E5A8285F6C2AEDE531AB3537A2F64",
+      "matches_frozen": true
+    },
+    {
+      "path": "bin/Release/net10.0-windows/DiskAtlas.dll",
+      "sha256": "F871B57CFB0F62B391294C9BD99676385350CDC2FDF315DFA60F4047427B8197",
+      "matches_frozen": true
+    },
+    {
+      "path": "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll",
+      "sha256": "47625F36BCF9166C9AB65D399CE93295DEB57556F941804226A1903160D81559",
+      "matches_frozen": true
+    },
+    {
+      "path": "artifacts/dib-mainform-C55/app/DiskAtlas.dll",
+      "sha256": "D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498",
+      "matches_frozen": true
+    }
+  ],
+  "private_evidence_sha256": "0DE60083ECC4CBFB378EC2A9B5E167EE52D7093294404AC6F6B16A7D8C4E870D",
+  "packaged": false,
+  "next_implementation_authorized": false,
+  "next_direction": "Review NTFS end-to-end benefit plan",
+  "date": "2026-11-22",
+  "accepted_implementation": "e578eb7",
+  "documentation_only": true,
+  "new_volume_authorization": false,
+  "historical_evidence_unmodified": true,
+  "private_evidence_entries": 40,
+  "user_accepted": true,
+  "baseline": "18c35ec",
+  "stage_three_closed": true,
+  "released": false
+}
