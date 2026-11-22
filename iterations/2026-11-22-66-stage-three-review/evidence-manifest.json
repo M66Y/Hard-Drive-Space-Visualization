@@ -1,0 +1,22 @@
+[
+  {
+    "name": "changes.patch",
+    "length": 16333,
+    "sha256": "5F3A5D34DD8110F9F2A19DD74E4AFDF7A27100977F19132497682D35DB1D86E4"
+  },
+  {
+    "name": "patch-replay.json",
+    "length": 1289,
+    "sha256": "6802EB31B46617D033BC2899926E022268540544CA6EC272513B35B094C015CA"
+  },
+  {
+    "name": "preview-review.json",
+    "length": 580,
+    "sha256": "BA41D0B6226E287F04B408ADA4DE60F10144A55AA6466BAC53D50C88AD7FE672"
+  },
+  {
+    "name": "README.md",
+    "length": 1841,
+    "sha256": "4B51538A60891DD7460E05F899F89A7C99D2A5B3DD9B851550FEF015980224B1"
+  }
+]

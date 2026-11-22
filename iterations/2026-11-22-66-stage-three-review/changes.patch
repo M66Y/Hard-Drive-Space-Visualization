@@ -1,0 +1,141 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index 7c37195f75eb018e2326dd41d9a0905e74af244a..b46ec5cdb006f511ca9aba51cbe4fe68bfc3a0d1 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,17 +1,19 @@
+ # AsukaLens 开发检查点
+ 
+-## 当前：C65用户验收通过，本轮修复已收尾（2026-11-22）
++## 当前：C66第三阶段重新审阅，仅方案/预览（2026-11-22）
+ 
+-实现main/origin 6388822已推送。用户明确确认“这次快速拖动和缓慢滚动都正常了，可以保留”，批准收尾、暂不打包发布。记录为当前电脑实际场景通过，不再要求重复证明或复测已通过现象；最终文档提交/远程状态以Git为准。
++基线main/origin 9f5540c，产品实现6388822。用户已通过C65快速拖动与缓慢滚动，修复收尾；当前要求重新看大文件分析和个性化设置的具体方案/预览，保持背景/动效，明确确认后才实施、不发布。**第三阶段产品开发尚未授权，预览点击或旧widget状态不构成批准。**
+ 
+-C65先补真实MainForm整块背景反例：小幅原拖动两档观察11/14次背景搬移，延迟松手各3次只改条值不移动行。修正将指针事件/值提交包入既有PerformBufferedScroll，父列表Update后才发布轨道；延迟松手补交一次实际ThumbTrack。两档各92新检查、42指针/34表面及滚动/缓存/完整UI/联动/布局共16组通过。C63最初接受、C64残留、新旧失败对照与采样限制均保留，不抹历史。
++建议仍为四项合并：全结果范围先按逻辑大小门槛/扩展名/名称过滤，再选top500；背景强度40–100（100=当前效果）、原有/类别分明配色、舒适/紧凑密度（保留字号）。默认不限＋100＋原有＋舒适，复用大文件标题筛选与背景设置显示页，不增说明行、悬停、顶栏第五按钮。工作区拖拽布局后置，避免扩大刚稳定的布局恢复复杂度。
+ 
+-当前正常程序、测试程序集和C55哈希已与C65 build-manifest核对一致；收尾只改说明/记忆和追加用户反馈，不重建或操作窗口。原始输出已压缩核验并清理散落中间物，当前程序、C55和仍可使用的自建140文件demo保留。证据入口iterations/2026-11-22-65-scroll-frame-consistency/user-feedback.md，原冻结验证不重写。
++会话条件建议同根刷新/切换工作空间保留，只影响大文件，换根重置。显示取消恢复进入值，应用成功才保存，恢复显示默认不删背景/改聚焦。方案docs/ui-stage-three-plan.md已按C65保留约束补充；沿用C62可恢复模板，两页重新提供独立预览，不是WinForms交付。浏览器实际检查了两页、5GiB过滤8→1及配色/密度取消恢复，无控制台错误；普通/测试程序集及C55与C65冻结哈希一致，未重建。
+ 
+-## 下一步与边界
++记录iterations/2026-11-22-66-stage-three-review；最终文档提交/远程状态以Git为准。交付预览只用合成对象/公开别名，不读个人目录，不写应用设置；不操作用户正常窗口、不录屏/改系统/打包/标签/Release。等待用户反馈具体范围和两处效果，不自动进入开发。
+ 
+-- 本轮滚动修复结束，等待用户指定下一项，不自动扩大到其他优化。第一、二阶段已接受；第三阶段只有docs/ui-stage-three-plan.md和设计预览，产品实施尚未授权。
+-- C57普通默认/C55失败回退、背景图片/聚焦/Zoom、字号、完整圆角和1.15倍沿边柔光保持，无悬停文字或自动说明框。C61内部文件保留总览，主动进入父目录后选中。
+-- C55 DLL SHA256 D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498，保留不覆盖。正常入口bin/Release/net10.0-windows/AsukaLens.exe；不为收尾关闭用户程序或删除活跃夹具。
+-- 本机通过不等于Windows10新绘制/真实跨屏已验；用户已跳过Win10，不重复追问。C28同快照已Matched，快扫默认关闭，个人raw/VSS须当轮授权；PERF-001仍P2延期。
+-- 无录屏、系统设置、个人卷、打包、标签或Release。项目现状、计划、决策和Git优先于记忆；不存个人路径、原始日志/视频或NTFS页。
++## 保留边界
++
++- C65修复已接受，不重复要求证明。原小幅拖动反例两档11/14次搬移，修后各92项及16组通过，后续显示缓存更新必须保留统一提交/发布及快拖/缓滚检查；不以静态网页证明新WinForms已通过。
++- C57普通默认/C55失败回退、背景图片/裁切/Zoom/聚焦、完整圆角及1.15倍沿边柔光不变，无悬停文字/自动说明框。C61对象联动、内部文件保留总览后主动进入父目录保持。
++- C55 DLL SHA256 D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498保留；当前程序和活跃自建demo不清理或关闭。第一/二阶段已接受。
++- Windows10新绘制、真实跨屏未验；用户跳过Win10，不重复追问。C28同快照已Matched，快扫默认关闭，个人raw/VSS须当轮授权；PERF-001仍P2延期。
++- 项目现状、计划、决策和Git优先于记忆；不保存个人路径/视频帧/文件清单或NTFS页。
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index 62aa2b9297fa2df55236003887ee0b8e32211cb7..573b9d9044e3f6b3be7406f213bcafc69c7a5ddd 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,5 +1,7 @@
+ # 影响后续开发的决定
+ 
++- 2026-11-22 C66：滚动修复验收后用户重回第三阶段，仅要求重看方案与预览，实施继续等待明确确认。复用C62两页设计、保持默认外观，以C65提交/发布为显示缓存更新约束；补明确同根条件保留/换根重置及新滚动专项。当前产品/测试/C55哈希不变，不借本轮重排布局或开发功能；见iterations/2026-11-22-66-stage-three-review。
++
+ - 2026-11-22 C65最终反馈：用户确认快速拖动、缓慢滚动都正常，允许保留并收尾、暂不发布。实现6388822保留，本机滚动缺陷按此范围通过，不再重复要求验证；原C63/C64和反例失败证据不改写。仅追加验收/状态、核程序及C55哈希和压缩归档，不重建、不关闭用户窗口、不自动进入第三阶段；见iterations/2026-11-22-65-scroll-frame-consistency/user-feedback.md。
+ 
+ - 2026-11-22 C65：用户批准补全背景反例后统一滚动提交/发布，拒绝再只补轨道。小幅原反例两档失败支持指针绕过保护的因果；延迟模式必须验实际列表位置，不能只看条值。复用既有缓冲保护并把子条发布放在父列表完成之后，不扩大架构或改背景。92项及16组通过、正常版已打开，连续观感等待用户反馈；见iterations/2026-11-22-65-scroll-frame-consistency。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index bfee64e576e64a1b812e560debcdfe820c55e1ca..f163c6180c70d304896abe53f16d9e42a99d781b 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,5 +1,11 @@
+ # 后续开发计划
+ 
++## 第三阶段重新审阅，仍未实施（2026-11-22）
++
++C65滚动修复已获用户通过并收尾，当前main/origin 9f5540c。按用户要求重新展示[第三阶段方案](ui-stage-three-plan.md)及“大文件分析／显示设置”两页可操作预览；建议大文件大小/扩展名筛选与背景强度、类别配色、阅读密度四项合并，默认保持当前外观，工作区定制后置。刚验收的滚动保护、C57/C55、背景构图与1.15倍柔光是保留基线。
++
++本轮仅核对/补充方案与复查C62设计，不修改产品源码、程序集或配置；当前程序/测试/C55哈希不变，无打包、标签或Release。预览点击不等于批准开发，等待明确确认范围后实施；记录见[C66](../iterations/2026-11-22-66-stage-three-review/README.md)。以下保留历史状态。
++
+ ## C65 快速拖动与缓慢滚动已获用户通过，修复收尾（2026-11-22）
+ 
+ 用户明确确认“这次快速拖动和缓慢滚动都正常了，可以保留”，并授权本轮收尾、暂不打包发布。保留实现`6388822`，将本次列表背景接缝/残留、轨道闪动及延迟提交缺陷在当前电脑实际测试范围内记为通过；不重复要求用户验证同一现象。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 4a6ab926f1a3e71d41dabd84150dec3e0a055b6b..ef3afe2061b85b39fce7cf65ecfe5b7737aa630b 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,11 @@
+ # AsukaLens 项目现状
+ 
++## 第三阶段重新审阅，仍未实施（2026-11-22）
++
++C65滚动修复已获用户通过并收尾，当前main/origin 9f5540c。按用户要求重新展示[第三阶段方案](ui-stage-three-plan.md)及“大文件分析／显示设置”两页可操作预览；建议大文件大小/扩展名筛选与背景强度、类别配色、阅读密度四项合并，默认保持当前外观，工作区定制后置。刚验收的滚动保护、C57/C55、背景构图与1.15倍柔光是保留基线。
++
++本轮仅核对/补充方案与复查C62设计，不修改产品源码、程序集或配置；当前程序/测试/C55哈希不变，无打包、标签或Release。预览点击不等于批准开发，等待明确确认范围后实施；记录见[C66](../iterations/2026-11-22-66-stage-three-review/README.md)。以下保留历史状态。
++
+ ## C65 快速拖动与缓慢滚动已获用户通过，修复收尾（2026-11-22）
+ 
+ 用户明确确认“这次快速拖动和缓慢滚动都正常了，可以保留”，并授权本轮收尾、暂不打包发布。保留实现`6388822`，将本次列表背景接缝/残留、轨道闪动及延迟提交缺陷在当前电脑实际测试范围内记为通过；不重复要求用户验证同一现象。
+diff --git a/docs/ui-stage-three-plan.md b/docs/ui-stage-three-plan.md
+index aaa933e801ad97124eb1994770c76d8515e00bdc..820c5cfc36d2eff340aab77169cb0b7a3056a6a5 100644
+--- a/docs/ui-stage-three-plan.md
++++ b/docs/ui-stage-three-plan.md
+@@ -1,5 +1,17 @@
+ # 第三阶段方案：大文件分析与可选显示偏好
+ 
++## C66 重新审阅：以滚动修复验收后的正常版为基线
++
++2026-11-22，当前main/origin `9f5540c`，产品实现`6388822`。用户已通过C65快速拖动与缓慢滚动，要求回到第三阶段，重新查看具体方案与两页预览，确认后才实施、暂不发布。下方原方案的功能范围继续作为建议，尚未授权产品开发；本次不修改C#、二进制、用户配置或正常软件。
++
++我的建议仍是合并“大文件筛选＋三项可选显示偏好”，先不做工作区拖拽布局。理由是复用当前三个工作空间和设置入口，默认外观精确保持当前效果，让分析范围和阅读偏好各自可控。预览复用C62设计，不重新放大背景、不改原图聚焦/Zoom和1.15倍沿边动效；实际实施必须保留C65统一滚动提交/发布，显示强度、密度和配色切换后的缓存更新也走一致的呈现边界。
++
++建议明确的会话规则：同一结果中切换工作空间保留大文件条件，只作用于大文件视图；刷新同一扫描根保留并重新核对选择，更换扫描根重置为不限。显示偏好仅在应用成功后保存、取消恢复进入设置时的值；恢复显示默认不删除自定义背景。大小门槛始终按逻辑文件大小，筛选全范围后再取前500，不先截500再筛选。
++
++预览两页为“大文件分析”和“显示设置”，采用当前默认不限、背景当前100%、原有类别色、舒适密度。大小、数量、时间均为合成值；点击筛选或设置只是预览行为，不是实施授权。实际检查了两页、5GiB过滤8→1、配色/紧凑试调后取消恢复及控制台无错误；当前应用、测试程序集和C55哈希与C65冻结清单一致。未为方案重复构建，原C62可恢复模板/生成器保留。见[C66审阅记录](../iterations/2026-11-22-66-stage-three-review/README.md)。
++
++确认后的受影响检查补入`--scroll-frame-tests`两档DPI，与原指针/表面、查询/联动、背景、布局和完整UI合并验证；快速拖动与缓慢滚动、强度/密度切换后都要实际观察，不能以静态预览当WinForms验收。默认设置、入口和四项范围等待用户反馈，完成后仍先展示真实程序再决定阶段收尾。
++
+ 2026-11-22，核对源码基线 `a35812767e8d53a74232936717dde997d8a540b3`。用户已确认第二阶段联动效果可以，并要求先完成本阶段收尾，再看第三阶段方案与预览；**本文件及预览不是第三阶段产品开发授权**。本轮不修改产品源码、编译产物、用户配置，不打包发布。
+ 
+ ## 判断与建议范围
+diff --git a/iterations/2026-11-22-66-stage-three-review/README.md b/iterations/2026-11-22-66-stage-three-review/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..71aad37211e2b28741185023e26629569272633f
+--- /dev/null
++++ b/iterations/2026-11-22-66-stage-three-review/README.md
+@@ -0,0 +1,11 @@
++# C66：第三阶段方案与预览重新审阅
++
++2026-11-22，基线`9f5540c739ff5f09667bdf4fea1528b2493b2f85`；产品实现6388822，C65快拖/缓滚已获用户通过。本轮用户只要求重新看大文件分析、个性化设置方案与预览，保持现有背景和动效，确认后才实施，不发布。
++
++复用[C62可恢复模板与生成器](../2026-11-22-62-stage-two-closeout-stage-three-plan/README.md)，不重复存500KiB内嵌图片；两页在新交付预览中重新提供，背景比例、焦点和默认显示不改。方案补充C65滚动保护、先列表后轨道发布、同根筛选条件保留/换根重置，以及未来显示设置缓存更新后的滚动验收。建议四项合并，工作区定制后置；尚未授权产品实施。
++
++浏览器实际查看“大文件分析”和“显示设置”；大小筛选5GiB使8个合成对象变1，配色/密度切换可取消恢复，控制台无错误。选择控件第一次按数值填写被工具拒绝，按可见标签重试成功，未修改预览或产品。预览不是WinForms交付，不代表top500真实数据/绘制性能已经通过；C62旧检查保留为其当时证据，不包装成全部本轮重测。
++
++当前应用、测试和C55哈希与C65 build-manifest一致；本轮无C#、编译产物或用户配置变化，无重建、个人卷、录屏、系统设置、安装包、标签或Release。预览仅合成数据，交互不等于批准；最终等待用户对四项范围、入口与默认值反馈，再实施并先看真实效果。
++
++精选验证见preview-review.json；changes.patch只保存本轮说明/记忆，不递归收录本目录。原始浏览器截图未落仓库，关闭自有测试页后删除临时standalone包装，保留对话可继续查看的预览与精简记录，不操作正常软件或清理活跃demo。
+diff --git a/iterations/2026-11-22-66-stage-three-review/preview-review.json b/iterations/2026-11-22-66-stage-three-review/preview-review.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..b3e23ca5864cac355335645c310dc1a61f641f03
+--- /dev/null
++++ b/iterations/2026-11-22-66-stage-three-review/preview-review.json
+@@ -0,0 +1,18 @@
++{
++  "baseline": "9f5540c739ff5f09667bdf4fea1528b2493b2f85",
++  "preview_reused_from": "C62",
++  "delivered_preview_sha256": "E4C8E8248BD512759DCFF420EB50F803C814BBEC18FAAE334990C1F6DE7ADC37",
++  "delivered_preview_bytes": 500073,
++  "product_assets_match_C65": true,
++  "design_browser_checks": {
++    "two_pages_observed": true,
++    "minimum_5GiB_matches": 1,
++    "unfiltered_matches": 8,
++    "palette_and_density_cancel_restored": true,
++    "console_errors": 0
++  },
++  "new_windows_functionality": false,
++  "implementation_authorized": false,
++  "rebuilt": false,
++  "released": false
++}

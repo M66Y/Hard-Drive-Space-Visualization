@@ -1,0 +1,35 @@
+{
+  "baseline": "9f5540c739ff5f09667bdf4fea1528b2493b2f85",
+  "apply_check": true,
+  "canonical_index_bytes_match": true,
+  "files": [
+    {
+      "path": "docs/ui-stage-three-plan.md",
+      "sha256": "BCDD69C3EC5083DC590B88E422FEFC4780F2CB02D9B1E6850393DA05A639A33C"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "55723EB397B54D9A8AF89428618DDAE11E376A054BE9E100B6628588723E892C"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "DB139D4A3F04133B5FB1AFDC9FC9584E75ECEC69ACBE159C7F753177F454AFF7"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "277316F1F4BD1086ADF5A5A6352071755F53E1621C047D6652F57A185F485DD6"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "8FCB195BD71206F00BE0EA996F7055537B4AF4BB78B9F07BB083D8503067A78A"
+    },
+    {
+      "path": "iterations/2026-11-22-66-stage-three-review/README.md",
+      "sha256": "4B51538A60891DD7460E05F899F89A7C99D2A5B3DD9B851550FEF015980224B1"
+    },
+    {
+      "path": "iterations/2026-11-22-66-stage-three-review/preview-review.json",
+      "sha256": "BA41D0B6226E287F04B408ADA4DE60F10144A55AA6466BAC53D50C88AD7FE672"
+    }
+  ]
+}

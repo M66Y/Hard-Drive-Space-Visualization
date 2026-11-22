@@ -1,0 +1,18 @@
+{
+  "baseline": "9f5540c739ff5f09667bdf4fea1528b2493b2f85",
+  "preview_reused_from": "C62",
+  "delivered_preview_sha256": "E4C8E8248BD512759DCFF420EB50F803C814BBEC18FAAE334990C1F6DE7ADC37",
+  "delivered_preview_bytes": 500073,
+  "product_assets_match_C65": true,
+  "design_browser_checks": {
+    "two_pages_observed": true,
+    "minimum_5GiB_matches": 1,
+    "unfiltered_matches": 8,
+    "palette_and_density_cancel_restored": true,
+    "console_errors": 0
+  },
+  "new_windows_functionality": false,
+  "implementation_authorized": false,
+  "rebuilt": false,
+  "released": false
+}
