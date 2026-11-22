@@ -1,0 +1,617 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index dbed4da..823e970 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,6 +1,15 @@
+ # AsukaLens 开发检查点
+ 
+-## 当前：三阶段用户验收通过，文档收尾（2026-11-22）
++## 当前C68：工具与获准的一对诊断已完成（2026-11-22）
++
++本轮基线cbaf917，开始干净。用户批准计时核查/补齐＋一对完整扫描，不发布；另行指定真实目录并确认本轮VSS/raw边界（1048576入口、1GiB+2MiB、65536请求，每次10分钟另留清理），只经stdin，不在仓库记私有路径。现在F/O各一次都已返回、清理确认、无回退；身份/范围增删未观察到，但文件大小/分配量及根统计比较失败，有差异项mtime晚于快照，不能证明全由外部写入。exit3是拒绝性能结论而非扫描失败，不计算倍数、不追加扫描、不重开C28。此轮许可已用完，不延续到新测量。实际时间/资源与布尔原文只留本机ignored artifacts/ntfs-product-timing-C68，用户报告local-result.md；公开仅固定码/布尔/边界。
++
++新--ntfs-personal-timing-ui包含真实MainForm查询/同步最终绘制及生产协调器核验，初始化排除、不测DWM。FastScanBridge只加四个测试apphost观测点，普通Scan不用；工作区新工具/测试、driver/Program、规则/文档与记忆均归C68。34项新检查（两次自有小目录UI/容量/资源/错误传播）、原计时58、bridge45/coordinator68/wire277、核心38/advanced25通过，非法argv真实apphost拒绝，测试/独立应用构建零警告。当前已接受正常C67程序与C55不替换。
++
++客户端阶段区间可聚合，128条细节有界，超限不丢时长；UAC人工与启动不能精确拆，清理/传输/解码合并。主窗/助手250ms资源采样，非物理IO，助手退出时末工作集不可用。定位指向目录范围核验、其次特殊补查，UI末端非主因；未修改扫描策略。实测输出先在被测范围外，期间暂停项目写入，结束/核对清理后才恢复归档。无原始页/清单保存上传、VHD、录屏、系统配置、包/标签/Release。
++
++下一步仅建议先审查范围核验重复元信息工作，并为正式对照确定稳定数据源/新权限，不自动优化或重复扫描。C68补丁/证据、文档与实现随本轮收尾提交，最终Git为准。三阶段界面接受状态见下方，不因计时回退到待验。
++## 历史C67：三阶段用户验收通过，文档收尾（2026-11-22）
+ 
+ 本轮开始main/origin 18c35ec且干净。第三阶段实现e578eb7，用户明确“四项整体可以，保留这版”，批准阶段收尾、暂不打包发布。第一阶段视觉/绘制、第二阶段联动、第三阶段筛选/显示偏好均获本机认可。C57缩放、C59构图、C65滚动不再列当前缺陷或重复要求证明；不扩大为未验系统/DPI均通过。
+ 
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index f037806..80a8ebf 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,5 +1,7 @@
+ # 影响后续开发的决定
+ 
++- 2026-11-22 C68：用户批准工具＋一对定位并另行授权真实读取；两路完成且清理确认，但跨时点大小/占用guard失败，按约定停止倍数结论和追加扫描，不重开C28正确性。完整主窗计时、阶段/资源及34项专项完成；实际数字只本机、公开布尔，普通界面不改。后续先审查范围核验重复工作，稳定测量来源和新权限另定。见iterations/2026-11-22-68-ntfs-product-timing与docs/ntfs-product-timing.md。
++
+ - 2026-11-22 C67最终反馈：用户认可四项，第三阶段收尾，三阶段整体均接受；旧pending只作历史，不再重复验证已通过的缩放/滚动。用户选择先看NTFS端到端耗时/瓶颈方案，仅确定下一方向，不启动开发、扫描或个人卷授权；PERF-001仍P2，不发布。见iterations/2026-11-22-67-stage-three/user-feedback.md与docs/ntfs-end-to-end-benefit-plan.md。
+ 
+ - 2026-11-22 C67：用户明确四项一起实施，以C65滚动修复后基线实现筛选与可选强度/配色/密度；默认外观不变，仍等待真实程序反馈再收尾。显示单独保存不改写图片，常规写入回退，恢复失败保留本机副本并准确提示；配置不收集路径/搜索。保留C57/C55及1.15倍柔光，不打包发布。见iterations/2026-11-22-67-stage-three。
+diff --git a/AGENTS.md b/AGENTS.md
+index 31fe5e9..90065d4 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -113,6 +113,8 @@
+ 
+ ## 检查与现有命令
+ 
++- 计时工具修改运行`--ntfs-product-timing-tests`、原`--ntfs-personal-timing-tests`及受影响bridge/coordinator/wire检查。`--ntfs-personal-timing-ui`只由测试apphost从stdin接受顺序/目录，包含真实MainForm查询/同步最终绘制，不测DWM；正式个人实测必须当轮范围授权，先将输出放到被测目录之外并暂停开发侧写盘。不可比/回退/清理不确定即停止结论、不追加扫描；一对不作稳定倍数，实际数字/资源仅本机，公开只保留白名单状态。见[计时工具](docs/ntfs-product-timing.md)。
++
+ - 大文件筛选/显示偏好修改运行`--stage-three-model-tests`及`--stage-three-ui-tests`两档，保持先过滤全范围再top500、逻辑大小门槛、同根保留/换根重置/取消恢复、独立有界配置及显示取消/失败恢复。显示缓存/密度修改另用`--scroll-frame-tests --display-variants`两档核C65发布合同，并运行受影响UI/背景/根合成/缓存检查；实际观感不由离散像素断言代替。行为与保存限制见[使用说明](docs/display-and-large-file-filters.md)。
+ 
+ - 个人卷当前合同见 [NTFS 快扫说明](docs/ntfs-personal-scan.md)，不从历史夹具授权推导个人卷权限。扩展布局、紧凑预算与边界策略改动运行 `--ntfs-mft-metadata-tests`、`--ntfs-continuation-record-tests`、`--ntfs-bitmap-bundle-tests`、`--ntfs-large-profile-tests`、`--ntfs-reparse-policy-tests`，并核对旧 Map/namespace/size/reader 回归。`--ntfs-personal-acceptance-tests` 是纯审计反例，`--ntfs-snapshot-metadata-tests` 仅用自有临时文件；通信与主窗检查仍按下方入口执行。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 92ca019..5c2d946 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -4,11 +4,11 @@
+ 
+ 三阶段均已获用户认可，第三阶段保留实现`e578eb7`并完成收尾，见[C67反馈](../iterations/2026-11-22-67-stage-three/user-feedback.md)。当前重点应从继续修饰界面，转到“扫描收益能否兑现”和“分析入口是否更有用”。以下是建议顺序，**不是新一轮实施授权**；每项先看具体方案/必要预览，确认后再开发，完成后再看真实效果。
+ 
+-用户已选择下一项先看[NTFS快扫耗时与瓶颈验证方案](ntfs-end-to-end-benefit-plan.md)，仅确定方向，不启动开发。建议先限定工具核查及一对完整扫描定位，正式交替测量按另定总预算推进；来源/目录与本轮VSS/raw权限仍待具体确认。
++用户随后已批准[NTFS快扫耗时与瓶颈验证方案](ntfs-end-to-end-benefit-plan.md)的工具核查/补齐和一对定位，并单独确认真实读取边界。C68两路均完成，但跨时点大小/占用比较不通过，故停止性能判定、不追加扫描。阶段定位已可指导下一步审查目录范围核验的重复工作；正式测量先确定稳定数据源。具体优化、正式组和新一轮VSS/raw均需另行确认，实际数据不公开。见[C68](../iterations/2026-11-22-68-ntfs-product-timing/README.md)。
+ 
+ | 建议顺序 | 目标与理由 | 交付和验收方式 |
+ | --- | --- | --- |
+-| 1：NTFS快扫实际收益 | 已接入实验入口且C28同快照正确性通过，应验证完整产品链路，而非重做已通过的对照或继续堆解析器 | 先给合并测量方案；计入权限/来源建立、扫描、补查、统计、传输、发布核验和清理，同工作量交替比较普通完整扫描，报告总耗时、首个可用结果、内存及取消/回退；无收益则先定位阶段瓶颈，不保证接近WizTree |
++| 1：按耗时定位审查NTFS | C68工具和一对定位已完成，但不满足等工作量性能结论；C28正确性不重做 | 先审查目录范围核验/特殊补查的重复元信息工作，再给针对性优化方案；正式对照须稳定数据源及新授权，不继续盲目加并发或反复扫个人目录 |
+ | 2：必要兼容与稳定性补验 | 新显示选项和快扫有尚未覆盖的组合，需要明确范围，而非把未验写成缺陷 | 优先本机小窗口舒适/紧凑、长路径/多次设置切换及取消恢复；真实跨屏、磁盘活动高负载/热插拔等按设备条件补验。用户已跳过Windows10新路径验收，不重复催促，条件变化后另议 |
+ | 3：按软件查看占用（APP-01） | 从“哪个文件夹大”扩展为“这个软件占在哪里”，比继续增加装饰更有使用价值 | 先展示只读入口/归属标记预览，首版支持少量明确软件及用户指定EXE，展示安装目录、数据、日志和缓存的关联依据；共享/疑似目录分开，复用图表/列表/详情，不默认扫整盘，不执行目标程序或删除文件 |
+ | 4：缓存建议与后续个性化 | 依赖可靠的软件归属和真实使用反馈，暂不同时扩张 | APP-02先给经过验证的缓存候选与定位建议；实际删除/恢复另立方案。可定制工作区、更多配色/布局先收集具体需求，避免破坏刚稳定的布局/绘制 |
+diff --git a/docs/ntfs-end-to-end-benefit-plan.md b/docs/ntfs-end-to-end-benefit-plan.md
+index 2bbc06e..1418fd6 100644
+--- a/docs/ntfs-end-to-end-benefit-plan.md
++++ b/docs/ntfs-end-to-end-benefit-plan.md
+@@ -1,5 +1,7 @@
+ # NTFS 快扫耗时与瓶颈验证方案
+ 
++2026-11-22执行更新：用户已批准工具补齐和一对定位，并另行确认本轮真实范围/读取预算。C68工具与必要检查完成，两路完整结果返回、清理确认，但大小/占用可比检查未通过，停止提速判定、不追加扫描。实际数据只留本机，见[C68记录](../iterations/2026-11-22-68-ntfs-product-timing/README.md)和[计时工具说明](ntfs-product-timing.md)。后续正式组、优化实施和新卷操作未获授权；下方保留原提案。
++
+ 2026-11-22，用户选择此项作为三阶段收尾后的下一份具体方案；**仅确定方向，未启动开发、扫描、提权、VSS或原始页读取**。现有产品实现`e578eb7`，当前记录基线`18c35ec`；执行前重新核对Git与程序。C28同快照正确性已通过，本方案不再重复该逐项对照。
+ 
+ ## 要回答的问题
+diff --git a/docs/ntfs-product-timing.md b/docs/ntfs-product-timing.md
+new file mode 100644
+index 0000000..8180b09
+--- /dev/null
++++ b/docs/ntfs-product-timing.md
+@@ -0,0 +1,27 @@
++# NTFS 完整主窗计时工具
++
++2026-11-22，C68在原后台计时工具上补齐真实主窗交付与阶段/资源观察。普通启动、扫描策略、统计契约及默认快扫开关不变；计时入口只位于测试apphost，不是正式发行功能。
++
++## 入口与测量范围
++
++先构建测试项目。`tests/bin/Release/net10.0-windows/DiskAtlas.Tests.exe --ntfs-personal-timing-ui`从stdin读取顺序及目录两行；目录不得放入argv、脚本正文或公开归档。原`--ntfs-personal-timing`保留旧后台口径，新入口必须单独命名；两者不能混作同一组。真实目录、VSS/raw读取和预算按本轮明确授权执行，不从工具存在推导永久权限。
++
++新入口每条路线创建真实MainForm，采用当前默认C57/DIB配置和隔离的默认外观、不读取用户设置、不开启磁盘活动/诊断。初始化与图片解码在计时前完成，从主窗发起扫描计时：普通使用自动策略强制完整，快扫复用生产桥接与协调器核验，回退视为失败而不是合格快扫。扫描完成后等待查询就绪，完成现有失效区域的同步最终绘制后停止；没有增加第二次查询或额外Native审计。协调器通过测试注入接入MainForm，DWM实际呈现时刻与连续帧率不在测量内。
++
++原有内存指纹在计时外比较范围、身份、两种大小、根统计和排除项，禁止将不同工作量比较发布为提速。跨时点大小不一致不等于已证明统计错误，也不能证明所有差异来自外部写入。只有一对时仍是诊断；新UI入口不会给稳定提速结论，不自动启动正式组。关闭测量窗口请求取消，等待当前任务退出后关闭；超时/清理不确定停止后续路线，不强杀助手或删除未知快照。
++
++## 阶段与资源的准确含义
++
++- 新增桥接观测点为LaunchStarting、LaunchReturned、Connected、ResultDecoded，仅经受测试apphost校验的ScanForTiming传入，普通生产Scan不启用。无需修改通信版本或发送额外用户数据。
++- 阶段是客户端接收固定状态的区间，可聚合重复Reading等阶段。区间不重叠，嵌套bridge/publication指标另列，不相加冒充总时间。最多保留128条详细转换，超出只累计时长/丢弃计数，不使扫描失败。
++- LaunchStarting至LaunchReturned包含管理员确认和系统启动，不能精确拆出人工时间。Snapshot不只是纯VSS内核耗时；Cleanup至ResultDecoded仍合并清理、传输和解码，不伪装成独立精确字段。
++- 主进程与助手各250ms采样CPU累计、工作集和可取得的进程I/O；记录起止基线和采样最大值，未取得为null。助手窗口从启动返回到结果解码，不包含更早初始化/更晚退出；退出可能使最后工作集不可用。进程I/O包括管道/缓存语义，不代表物理盘吞吐；分进程峰值不能相加当成同时整机峰值。
++- 普通的首个预览由100ms UI观察器记录，不代表逐帧精确时刻；快扫尚未提供完成前预览，保持null。前一路紧凑指纹会保留到比较，资源基线明确包含该影响。
++
++## 本轮检查和诊断
++
++`--ntfs-product-timing-tests`使用固定时钟和自有小目录，检查区间覆盖/合并/容量、白名单、借用句柄、两次真实MainForm、同步交付与原错误/清理状态传播；不访问原始卷。原`--ntfs-personal-timing-tests`与bridge/coordinator/wire检查继续保留。
++
++C68已按当轮许可执行快扫和普通各一次，两个结果返回、快照清理确认，无回退；范围身份未观察到增删变化，但大小/占用及根统计可比检查不通过，因而按约定停止性能判定、不追加扫描。C28同快照正确性记录不因此重开。阶段表用于定位范围核验与特殊补查的成本，不能替代等工作量收益证据。
++
++实测时暂停开发侧写盘，stdout先写到被测范围以外；结束并核对清理后才归档。实际时间、资源和比较细节仅在本机ignored artifacts中，公开只保留检查码、布尔与边界，不公开目录、文件清单、身份/指纹、原始记录或真实目录计时。完整证据见[C68](../iterations/2026-11-22-68-ntfs-product-timing/README.md)。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 1426b0c..5235be8 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,11 @@
+ # AsukaLens 项目现状
+ 
++## C68 计时工具与一对耗时定位完成（2026-11-22）
++
++以`cbaf917`为基线补齐测试专用完整主窗计时，新增34项、原计时58及bridge/coordinator/wire、核心/advanced回归通过，独立应用与测试构建零警告。仅测试apphost启用桥接观测，普通扫描/界面/默认开关不改，当前已接受的C67正常程序及C55保留。
++
++当轮获准的快扫和普通完整扫描各一次已完成，快照清理确认、无回退；跨时点大小/分配量及根统计比较不通过，所以不计算提速倍数、不追加扫描。原C28同快照正确性不重开。耗时定位指向目录范围核验及特殊补查，下一步先审查重复工作与稳定测量来源，不自动实施优化或正式组。实际数字仅本机、公开只保留布尔和边界；无包/标签/Release。见[C68](../iterations/2026-11-22-68-ntfs-product-timing/README.md)。
++
+ ## 第三阶段已获用户通过，三阶段收尾（2026-11-22）
+ 
+ 用户明确“四项整体可以，保留这版”，批准第三阶段收尾、暂不打包发布。保留实现`e578eb7`；第一阶段视觉/绘制、第二阶段图表/列表/详情联动、第三阶段大文件筛选与显示偏好均已获当前电脑实际体验认可。C57缩放和C65滚动问题不再作为当前待修项重复验证；未验系统/设备和历史偶发测试记录仍保留。
+diff --git a/docs/testing.md b/docs/testing.md
+index 5ebb0cd..29d227f 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -1,5 +1,9 @@
+ # 开发验证与可选基准
+ 
++## C68 完整主窗NTFS计时
++
++`--ntfs-product-timing-tests`运行固定时间/白名单/容量/资源所有权与两次自有小目录真实MainForm检查，不访问raw/VSS。保留`--ntfs-personal-timing-tests`及bridge/coordinator/wire回归。实际`DiskAtlas.Tests.exe --ntfs-personal-timing-ui`必须使用测试apphost、stdin顺序/目录和当轮真实权限；旧无UI入口不混入同组。仅一对为诊断，不可比立即终止结论，无DWM、物理IO或独立人工UAC时间保证。使用与公开证据边界见[工具说明](ntfs-product-timing.md)。
++
+ ## C67 大文件筛选与显示偏好
+ 
+ `--stage-three-model-tests`检查全范围先筛选后top500、边界/取消/未知占用，以及有界配置、普通保存失败回退和图片不重写。`--stage-three-ui-tests [--dpi-96]`使用真实MainForm和隔离配置，核联动、过期查询、同根刷新/换根/取消、两行与字号、默认像素还原、显示预览取消/应用/失败及独立重启。仅使用合成树和自建临时文件，不访问个人卷。
+diff --git a/src/Scanning/Ntfs/FastScanBridge.cs b/src/Scanning/Ntfs/FastScanBridge.cs
+index 7b3ae0b..fe3c65c 100644
+--- a/src/Scanning/Ntfs/FastScanBridge.cs
++++ b/src/Scanning/Ntfs/FastScanBridge.cs
+@@ -9,6 +9,8 @@ using DiskAtlas.NtfsPrototype;
+ 
+ namespace DiskAtlas;
+ 
++internal enum FastScanTimingPoint { LaunchStarting, LaunchReturned, Connected, ResultDecoded }
++
+ // The elevated process accepts one bounded request from its verified, same-binary parent.
+ // Paths, identities and result nodes travel only through the private in-memory pipe.
+ internal static class FastScanBridge
+@@ -20,23 +22,23 @@ internal static class FastScanBridge
+     private static int cleanupUnconfirmed;
+ 
+     internal static ScanResult Scan(string path, IProgress<ScanProgress>? progress, CancellationToken token) =>
+-        ScanCore(path, progress, token, false, null);
++        ScanCore(path, progress, token, false, null, null);
+ 
+     internal static ScanResult ScanForTiming(string path, IProgress<ScanProgress>? progress, CancellationToken token,
+-        Action<FastScanWireStage>? observeStage = null)
++        Action<FastScanWireStage>? observeStage = null, Action<FastScanTimingPoint, Process?>? observeTiming = null)
+     {
+         if (!IsTimingHost(Environment.ProcessPath, System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name))
+             throw new FastScanUnavailableException(FastScanWireError.Unsupported, true);
+         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+         timeout.CancelAfter(TimeSpan.FromMinutes(10));
+-        return ScanCore(path, progress, timeout.Token, true, observeStage);
++        return ScanCore(path, progress, timeout.Token, true, observeStage, observeTiming);
+     }
+ 
+     internal static bool IsTimingHost(string? executable, string? assembly) =>
+         string.Equals(Path.GetFileName(executable), "DiskAtlas.Tests.exe", StringComparison.OrdinalIgnoreCase) && assembly == "DiskAtlas.Tests";
+ 
+     private static ScanResult ScanCore(string path, IProgress<ScanProgress>? progress, CancellationToken token, bool timing,
+-        Action<FastScanWireStage>? observeStage)
++        Action<FastScanWireStage>? observeStage, Action<FastScanTimingPoint, Process?>? observeTiming)
+     {
+         token.ThrowIfCancellationRequested();
+         if (Volatile.Read(ref cleanupUnconfirmed) != 0)
+@@ -69,6 +71,7 @@ internal static class FastScanBridge
+             start.ArgumentList.Add(parent.StartTime.ToUniversalTime().Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
+             try
+             {
++                if (timing) observeTiming?.Invoke(FastScanTimingPoint.LaunchStarting, null);
+                 if (!timing) child = Process.Start(start);
+                 else
+                 {
+@@ -88,6 +91,7 @@ internal static class FastScanBridge
+             catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
+             { token.ThrowIfCancellationRequested(); throw new FastScanUnavailableException(FastScanWireError.PermissionDenied, true); }
+             if (child == null) throw new FastScanUnavailableException(FastScanWireError.PermissionDenied, true);
++            if (timing) observeTiming?.Invoke(FastScanTimingPoint.LaunchReturned, child);
+             using var connection = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token);
+             connection.CancelAfter(TimeSpan.FromMinutes(2));
+             while (true)
+@@ -104,6 +108,7 @@ internal static class FastScanBridge
+                 server.Disconnect();
+             }
+             token.ThrowIfCancellationRequested();
++            if (timing) observeTiming?.Invoke(FastScanTimingPoint.Connected, child);
+             requested = true;
+             FastScanWire.WriteRequest(server, path, token);
+             server.Flush();
+@@ -131,6 +136,7 @@ internal static class FastScanBridge
+                 {
+                     terminalCleanupConfirmed = true;
+                     token.ThrowIfCancellationRequested();
++                    if (timing) observeTiming?.Invoke(FastScanTimingPoint.ResultDecoded, child);
+                     return FromWireResult(result, timer.Elapsed);
+                 }
+             }
+diff --git a/tests/NtfsPersonalTimingDriver.cs b/tests/NtfsPersonalTimingDriver.cs
+index 8ed1a55..4654f34 100644
+--- a/tests/NtfsPersonalTimingDriver.cs
++++ b/tests/NtfsPersonalTimingDriver.cs
+@@ -8,9 +8,10 @@ namespace DiskAtlas;
+ 
+ // Explicit, local-only timing entry. No scope, filename, identity, count, hash,
+ // exception text or result tree is written to stdout or a file.
+-internal static class NtfsPersonalTimingDriver
++internal static partial class NtfsPersonalTimingDriver
+ {
+     internal const string Argument = "--ntfs-personal-timing";
++    internal const string UiArgument = "--ntfs-personal-timing-ui";
+     internal static bool ValidInvocation(string[] args) => args.Length == 1 && args[0] == Argument;
+     internal static bool ValidOrder(string order) => order is "FO" or "OF" or "FOOF";
+     internal static (string Order, string Scope) ReadInput(TextReader input)
+@@ -34,7 +35,7 @@ internal static class NtfsPersonalTimingDriver
+         catch { throw new InvalidDataException("TimingInput"); }
+     }
+ 
+-    internal static int Run()
++    internal static int Run(bool includeUi = false)
+     {
+         string stage = "Preparing";
+         try
+@@ -55,7 +56,8 @@ internal static class NtfsPersonalTimingDriver
+                     // Prior trees are no longer retained. Collection happens
+                     // outside the measured scan and before the next run.
+                     GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+-                    var current = (Mode: mode, Value: RunOne(input.Scope, mode, cancelled.Token, value => stage = value));
++                    var current = (Mode: mode, Value: includeUi ? RunVisibleOne(input.Scope, mode, cancelled.Token, value => stage = value)
++                        : RunOne(input.Scope, mode, cancelled.Token, value => stage = value));
+                     completed++;
+                     if (previous is not { } left) { previous = current; continue; }
+                     var comparison = left.Value.Compare(current.Value, cancelled.Token);
+@@ -83,7 +85,8 @@ internal static class NtfsPersonalTimingDriver
+                     previous = current;
+                 }
+                 Console.WriteLine(JsonSerializer.Serialize(new { revision = "personal-ntfs-timing-v2", kind = "complete", order = input.Order,
+-                    compared = true, all_equal = true, requested_order_finished = true, performance_conclusion_allowed = true, files_written = false }));
++                    compared = true, all_equal = true, requested_order_finished = true, performance_conclusion_allowed = !includeUi,
++                    diagnostic_pair_only = includeUi, stable_speedup_claim_allowed = false, ui_drawing_included = includeUi, files_written = false }));
+                 return 0;
+             }
+             finally { Console.CancelKeyPress -= handler; }
+diff --git a/tests/NtfsProductTiming.cs b/tests/NtfsProductTiming.cs
+new file mode 100644
+index 0000000..02c9b85
+--- /dev/null
++++ b/tests/NtfsProductTiming.cs
+@@ -0,0 +1,239 @@
++using System.Diagnostics;
++using System.Reflection;
++using System.Runtime.ExceptionServices;
++using System.Runtime.InteropServices;
++using System.Text.Json;
++
++namespace DiskAtlas;
++
++// Test apphost only. All result trees/fingerprints remain in memory; reports
++// contain fixed phase names, time/resource measurements and booleans only.
++internal static partial class NtfsPersonalTimingDriver
++{
++    private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
++    private static int productUiInitialized;
++    internal static bool ValidUiInvocation(string[] args) => args.Length == 1 && args[0] == UiArgument;
++    internal static NtfsTimingFingerprint RunVisibleOne(string scope, char mode, CancellationToken cancellation, Action<string> observed,
++        Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult>? ordinary = null)
++    {
++        using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
++        limit.CancelAfter(TimeSpan.FromMinutes(10));
++        ScanResult? result = null; ExceptionDispatchInfo? failure = null;
++        object? sample = null;
++        var thread = new Thread(() =>
++        {
++            try
++            {
++                if (Interlocked.Exchange(ref productUiInitialized, 1) == 0)
++                {
++                    Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++                    Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); Application.EnableVisualStyles();
++                    Application.SetDefaultFont(new Font("Microsoft YaHei UI", 9F));
++                }
++                var rendering = DesktopRendering.Resolve([], "AsukaLens.exe");
++                var clock = new Stopwatch(); var timeline = new NtfsTimingTimeline(() => clock.Elapsed.TotalMilliseconds);
++                object? helper = null;
++                FastMeasurement? fast = null; double? coordinatorDone = null, firstPreview = null;
++                void Stage(string value)
++                {
++                    bool changed = timeline.Mark(value); observed(value);
++                    if (changed && timeline.DroppedTransitions == 0)
++                        Console.WriteLine(JsonSerializer.Serialize(new { revision = "personal-ntfs-product-timing-v1", kind = "stage", mode = mode.ToString(), stage = value }));
++                }
++                string isolated = Path.Combine(Path.GetTempPath(), "AsukaLens-timing-unused-" + Guid.NewGuid().ToString("N"), "background.dat");
++                using var form = new MainForm(null, false, isolated, dibCandidate: rendering.Dib,
++                    compositionCandidate: rendering.Composition, showCandidateLabel: false)
++                {
++                    Text = "AsukaLens · 单次扫描计时", FastScanConfirmation = () => true,
++                    ScanRunner = (path, progress, token, session) =>
++                    {
++                        using var linked = CancellationTokenSource.CreateLinkedTokenSource(limit.Token, token);
++                        try
++                        {
++                            if (mode == 'F')
++                            {
++                                NtfsTimingResources? helperProbe = null;
++                                try
++                                {
++                                fast = MeasureFast(path, linked.Token, (selected, _, cancel) => FastScanBridge.ScanForTiming(selected, progress, cancel,
++                                    stage => Stage("Fast_" + stage), (point, process) =>
++                                    {
++                                        Stage("Bridge_" + point);
++                                        if (point == FastScanTimingPoint.LaunchReturned && process != null)
++                                        { helperProbe = new NtfsTimingResources(process); helperProbe.Start(); }
++                                        if (point == FastScanTimingPoint.ResultDecoded && helperProbe != null)
++                                        { helperProbe.Stop(); helper = helperProbe.Result; }
++                                    }));
++                                }
++                                finally { helperProbe?.Dispose(); }
++                                result = fast.Result;
++                                if (result.Source == null || result.FastScanFallback != null || result.Checkpoint != null)
++                                    throw new InvalidDataException("TimingFastContract");
++                            }
++                            else
++                            {
++                                Stage("Ordinary_Start");
++                                var reporter = new TimingProgress(progress, value => Stage("Ordinary_" + value.Phase));
++                                result = ordinary != null ? ordinary(path, reporter, linked.Token, session) :
++                                    new ScanCoordinator().Scan(path, null, new(ScanMode.Automatic), reporter, linked.Token, session, forceFull: true);
++                                if (result.Source != null || result.Statistics is not { Mode: ScanMode.Automatic, Method: RefreshMethod.FullScan })
++                                    throw new InvalidDataException("TimingOrdinaryContract");
++                            }
++                            coordinatorDone = clock.Elapsed.TotalMilliseconds; Stage("UiHandoff"); return result;
++                        }
++                        catch (Exception error)
++                        {
++                            failure = ExceptionDispatchInfo.Capture(error);
++                            // Suppress only this owned probe's error dialog. Preserve and
++                            // rethrow the actual category/cleanup result after it closes.
++                            throw new OperationCanceledException(linked.Token);
++                        }
++                    }
++                };
++                form.NtfsFastEnabled = mode == 'F';
++                bool done = false;
++                form.FormClosing += (_, args) =>
++                {
++                    if (done) return;
++                    args.Cancel = true; limit.Cancel(); form.Text = "AsukaLens · 取消计时，等待本次资源清理";
++                };
++                form.Shown += async (_, _) =>
++                {
++                    try
++                    {
++                        // Initialization and image decoding precede the scan click interval.
++                        using var resources = new NtfsTimingResources();
++                        using var preview = new System.Windows.Forms.Timer { Interval = 100 };
++                        preview.Tick += (_, _) =>
++                        {
++                            if (firstPreview == null && Field<bool>(form, "showingPreview") && Field<DataGridView>(form, "grid").RowCount > 0)
++                                firstPreview = clock.Elapsed.TotalMilliseconds;
++                        };
++                        typeof(MainForm).GetField("forceFullNext", Hidden)!.SetValue(form, true);
++                        timeline.Mark("UiStart"); clock.Start(); resources.Start(); preview.Start();
++                        await (Task)typeof(MainForm).GetMethod("ScanFolder", Hidden)!.Invoke(form, [scope])!;
++                        failure?.Throw(); limit.Token.ThrowIfCancellationRequested();
++                        if (result == null) throw new InvalidDataException("TimingNoResult");
++                        while (Field<CancellationTokenSource?>(form, "viewCancellation") != null || !Field<DataGridView>(form, "grid").Enabled)
++                        { limit.Token.ThrowIfCancellationRequested(); await Task.Delay(10); }
++                        if (Field<TreemapControl>(form, "map").LoadingView) throw new InvalidDataException("TimingViewNotReady");
++                        // Publish the existing invalid regions; no extra query or scanner.
++                        // This includes synchronous final paints, not DWM presentation time.
++                        form.Update(); Field<TreemapControl>(form, "map").Update(); Field<DataGridView>(form, "grid").Update();
++                        preview.Stop(); clock.Stop(); resources.Stop(); timeline.Finish();
++                        sample = new
++                        {
++                            revision = "personal-ntfs-product-timing-v1", kind = "sample", mode = mode.ToString(),
++                            total_ms = clock.Elapsed.TotalMilliseconds, coordinator_available_ms = coordinatorDone,
++                            ui_handoff_query_and_final_paint_ms = coordinatorDone == null ? (double?)null : clock.Elapsed.TotalMilliseconds - coordinatorDone,
++                            bridge_ms = fast?.Bridge.TotalMilliseconds, publication_validation_ms = fast?.PublicationValidation.TotalMilliseconds,
++                            first_observed_preview_ms = firstPreview, intervals = timeline.Intervals, transitions = timeline.Transitions,
++                            dropped_transition_details = timeline.DroppedTransitions,
++                            ui_resources = resources.Result, helper_resources_at_result = helper,
++                            helper_resource_scope = "launch returned to decoded result; excludes earlier initialization and later shutdown",
++                            launch_wait_includes_consent_and_startup = mode == 'F', human_wait_separately_measurable = false,
++                            phases_observed_at_client = true, cleanup_transfer_decode_combined = mode == 'F',
++                            ui_drawing_included = true, synchronous_final_paint_included = true, dwm_presentation_measured = false,
++                            initialization_excluded = true, audit_added = false, cleanup_confirmed = true, fallback = false,
++                            physical_io_measured = false, resource_sample_interval_ms = 250, gc_between_runs = true,
++                            compact_diagnostics_retained_between_runs = true
++                        };
++                    }
++                    catch (Exception error) { failure ??= ExceptionDispatchInfo.Capture(error); }
++                    finally { done = true; form.Close(); }
++                };
++                Application.Run(form);
++            }
++            catch (Exception error) { failure ??= ExceptionDispatchInfo.Capture(error); }
++        }) { IsBackground = true };
++        thread.SetApartmentState(ApartmentState.STA); thread.Start();
++        if (!thread.Join(TimeSpan.FromMinutes(13))) throw new FastScanUnavailableException(FastScanWireError.CleanupUnconfirmed, false);
++        failure?.Throw();
++        if (result == null || sample == null) throw new InvalidDataException("TimingNoResult");
++        Console.WriteLine(JsonSerializer.Serialize(sample));
++        observed("FingerprintOutsideTiming");
++        return NtfsTimingFingerprint.Capture(result, cancellation);
++    }
++    private static T Field<T>(MainForm form, string name) => (T)typeof(MainForm).GetField(name, Hidden)!.GetValue(form)!;
++    private sealed class TimingProgress(IProgress<ScanProgress> destination, Action<ScanProgress> observe) : IProgress<ScanProgress>
++    {
++        private ScanPhase? previous;
++        public void Report(ScanProgress value)
++        {
++            lock (this) { if (previous != value.Phase) { previous = value.Phase; observe(value); } }
++            destination.Report(value);
++        }
++    }
++}
++
++internal sealed class NtfsTimingTimeline(Func<double> elapsed)
++{
++    private readonly object gate = new();
++    private readonly Dictionary<string, double> intervals = new(StringComparer.Ordinal);
++    private readonly List<object> transitions = [];
++    private string? current; private double started;
++    internal long DroppedTransitions { get; private set; }
++    internal IReadOnlyDictionary<string, double> Intervals => intervals;
++    internal IReadOnlyList<object> Transitions => transitions;
++    internal bool Mark(string phase)
++    {
++        if (!Allowed(phase)) throw new InvalidDataException("TimingPhase");
++        lock (gate)
++        {
++            if (current == phase) return false;
++            double now = elapsed(); Accumulate(now); current = phase; started = now;
++            if (transitions.Count < 128) transitions.Add(new { phase, at_ms = now });
++            else DroppedTransitions++;
++            return true;
++        }
++    }
++    internal void Finish() { lock (gate) { Accumulate(elapsed()); current = null; } }
++    private void Accumulate(double now)
++    {
++        if (!double.IsFinite(now) || now < started) throw new InvalidDataException("TimingClock");
++        if (current != null) intervals[current] = intervals.GetValueOrDefault(current) + now - started;
++    }
++    internal static bool Allowed(string phase) => phase is "UiStart" or "UiHandoff" or "Ordinary_Start" ||
++        Enum.GetNames<FastScanWireStage>().Any(x => phase == "Fast_" + x) ||
++        Enum.GetNames<FastScanTimingPoint>().Any(x => phase == "Bridge_" + x) ||
++        Enum.GetNames<ScanPhase>().Any(x => phase == "Ordinary_" + x);
++}
++
++internal sealed class NtfsTimingResources : IDisposable
++{
++    internal sealed record Snapshot(double? CpuMs, long? WorkingSetBytes, ulong? ReadBytes, ulong? WriteBytes);
++    private readonly Process process;
++    private readonly bool ownsProcess;
++    private readonly CancellationTokenSource stop = new();
++    private Task? sampler; private Snapshot? start, end; private long sampledPeak; private int samples, stopped;
++    internal NtfsTimingResources(Process? observed = null) { process = observed ?? Process.GetCurrentProcess(); ownsProcess = observed == null; }
++    internal object Result => new { cpu_ms = Delta(start?.CpuMs, end?.CpuMs), sampled_peak_working_set_bytes = samples == 0 ? (long?)null : sampledPeak,
++        process_read_bytes = Delta(start?.ReadBytes, end?.ReadBytes), process_write_bytes = Delta(start?.WriteBytes, end?.WriteBytes),
++        start_working_set_bytes = start?.WorkingSetBytes, end_working_set_bytes = end?.WorkingSetBytes, samples };
++    private static double? Delta(double? a, double? b) => a.HasValue && b >= a ? b - a : null;
++    private static ulong? Delta(ulong? a, ulong? b) => a.HasValue && b >= a ? b - a : null;
++    internal void Start()
++    {
++        start = Read(process); Sample();
++        sampler = Task.Run(async () =>
++        {
++            try { using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(250)); while (await timer.WaitForNextTickAsync(stop.Token).ConfigureAwait(false)) Sample(); }
++            catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
++        });
++    }
++    private void Sample() { var value = Read(process); if (value.WorkingSetBytes is { } bytes) { sampledPeak = Math.Max(sampledPeak, bytes); samples++; } }
++    internal void Stop() { if (Interlocked.Exchange(ref stopped, 1) != 0) return; stop.Cancel(); sampler?.GetAwaiter().GetResult(); Sample(); end = Read(process); }
++    internal static Snapshot Read(Process process)
++    {
++        double? cpu = null; long? working = null; ulong? read = null, written = null;
++        try { process.Refresh(); cpu = process.TotalProcessorTime.TotalMilliseconds; working = process.WorkingSet64; }
++        catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException or ObjectDisposedException) { }
++        try { if (GetProcessIoCounters(process.Handle, out var io)) { read = io.ReadTransferCount; written = io.WriteTransferCount; } }
++        catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException or ObjectDisposedException) { }
++        return new(cpu, working, read, written);
++    }
++    public void Dispose() { Stop(); stop.Dispose(); if (ownsProcess) process.Dispose(); }
++    [StructLayout(LayoutKind.Sequential)] private struct IoCounters
++    { public ulong ReadOperationCount, WriteOperationCount, OtherOperationCount, ReadTransferCount, WriteTransferCount, OtherTransferCount; }
++    [DllImport("kernel32.dll", SetLastError = true)] private static extern bool GetProcessIoCounters(IntPtr process, out IoCounters counters);
++}
+diff --git a/tests/NtfsProductTimingTests.cs b/tests/NtfsProductTimingTests.cs
+new file mode 100644
+index 0000000..851c30c
+--- /dev/null
++++ b/tests/NtfsProductTimingTests.cs
+@@ -0,0 +1,92 @@
++using System.Text.Json;
++
++namespace DiskAtlas;
++
++internal static class NtfsProductTimingTests
++{
++    internal static int Run()
++    {
++        int checks = 0; string? failure = null;
++        string directory = Path.Combine(Path.GetTempPath(), "AsukaLens-product-timing-" + Guid.NewGuid().ToString("N"));
++        var original = Console.Out;
++        try
++        {
++            Check(NtfsPersonalTimingDriver.ValidUiInvocation([NtfsPersonalTimingDriver.UiArgument]), "ExplicitUiVerb");
++            Check(!NtfsPersonalTimingDriver.ValidUiInvocation([NtfsPersonalTimingDriver.UiArgument, @"B:\private"]), "ScopeNeverInArguments");
++            Check(!NtfsPersonalTimingDriver.ValidUiInvocation([NtfsPersonalTimingDriver.Argument]), "HeadlessEntryDistinct");
++            double now = 0;
++            var timeline = new NtfsTimingTimeline(() => now);
++            timeline.Mark("UiStart"); now = 2; timeline.Mark("Bridge_LaunchStarting"); now = 7; timeline.Mark("Bridge_LaunchReturned");
++            now = 10; timeline.Mark("Fast_Snapshot"); now = 20; timeline.Mark("Fast_Cleanup"); now = 28; timeline.Mark("UiHandoff"); now = 31; timeline.Finish();
++            Check(timeline.Intervals.Values.Sum() == 31, "DisjointIntervalsCoverFullWindow");
++            Check(timeline.Intervals["Bridge_LaunchStarting"] == 5, "ConsentAndStartupWindowSeparate");
++            Check(timeline.Intervals["Fast_Cleanup"] == 8, "CleanupTransferCombinedAndNotLost");
++            Check(timeline.Intervals["UiHandoff"] == 3, "FinalQueryAndPaintIncluded");
++            int transitions = timeline.Transitions.Count; timeline.Finish();
++            Check(timeline.Intervals.Values.Sum() == 31 && timeline.Transitions.Count == transitions, "FinishIdempotent");
++            foreach (var stage in Enum.GetNames<FastScanWireStage>()) Check(NtfsTimingTimeline.Allowed("Fast_" + stage), "FixedWorkerPhaseAllowed");
++            Check(!NtfsTimingTimeline.Allowed(directory) && !NtfsTimingTimeline.Allowed("Fast_999"), "NoPrivateOrUndefinedPhaseNames");
++            bool invalid = false; try { timeline.Mark(directory); } catch (InvalidDataException) { invalid = true; }
++            Check(invalid, "InvalidTimelineInputRejected");
++            now = 0; var bounded = new NtfsTimingTimeline(() => now);
++            for (int i = 0; i < 200; i++) { bounded.Mark(i % 2 == 0 ? "UiStart" : "UiHandoff"); now++; }
++            bounded.Finish();
++            Check(bounded.Transitions.Count == 128 && bounded.DroppedTransitions == 72, "TransitionDetailsBoundedWithoutFailingScan");
++            Check(bounded.Intervals.Values.Sum() == 200, "AllDurationsRetainedAfterDetailLimit");
++            using (var process = System.Diagnostics.Process.GetCurrentProcess())
++            {
++                using (var borrowed = new NtfsTimingResources(process)) { borrowed.Start(); borrowed.Stop(); borrowed.Stop(); }
++                Check(!process.HasExited, "SamplerDoesNotDisposeBorrowedHelperHandle");
++            }
++            Directory.CreateDirectory(directory);
++            for (int i = 0; i < 8; i++) File.WriteAllText(Path.Combine(directory, $"synthetic-{i}.txt"), "Owned test data");
++            string? previous = null;
++            // Two calls prove that UI initialization and resource ownership are
++            // reusable within the same FO/OF process, without accessing a volume.
++            for (int pass = 0; pass < 2; pass++)
++            {
++                using var output = new StringWriter(); Console.SetOut(output);
++                var value = NtfsPersonalTimingDriver.RunVisibleOne(directory, 'O', default, _ => { });
++                Console.SetOut(original);
++                string text = output.ToString();
++                Check(!text.Contains(directory) && !text.Contains("synthetic-"), "PublicOutputContainsNoScopeOrFileName");
++                var sampleLine = text.Split('\n', StringSplitOptions.RemoveEmptyEntries).Single(x => x.Contains("\"kind\":\"sample\""));
++                using var sample = JsonDocument.Parse(sampleLine);
++                var sampleRoot = sample.RootElement;
++                Check(sampleRoot.GetProperty("ui_drawing_included").GetBoolean() && sampleRoot.GetProperty("synchronous_final_paint_included").GetBoolean(), "RealMainFormPublicationIncluded");
++                Check(!sampleRoot.GetProperty("dwm_presentation_measured").GetBoolean() && !sampleRoot.GetProperty("human_wait_separately_measurable").GetBoolean(), "MeasurementLimitsExplicit");
++                double total = sampleRoot.GetProperty("total_ms").GetDouble();
++                double intervals = sampleRoot.GetProperty("intervals").EnumerateObject().Sum(x => x.Value.GetDouble());
++                Check(Math.Abs(intervals - total) < 1, "ActualUiIntervalsAccountForMeasuredWindow");
++                Check(sampleRoot.GetProperty("ui_handoff_query_and_final_paint_ms").GetDouble() >= 0, "PostScanUiTimeMeasured");
++                Check(sampleRoot.GetProperty("ui_resources").GetProperty("samples").GetInt32() >= 1, "OwnedHostResourcesSampled");
++                string scopeMarker = JsonSerializer.Serialize(new { matched = value.Compare(value).AllEqual });
++                if (previous != null) Check(previous == scopeMarker, "SecondUiSessionWorksInSameProcess");
++                previous = scopeMarker;
++            }
++            bool propagated = false;
++            using (var output = new StringWriter())
++            {
++                Console.SetOut(output);
++                try { NtfsPersonalTimingDriver.RunVisibleOne(directory, 'O', default, _ => { }, (_, _, _, _) =>
++                    throw new FastScanUnavailableException(FastScanWireError.CleanupUnconfirmed, false)); }
++                catch (FastScanUnavailableException error) { propagated = !error.CleanupConfirmed; }
++                finally { Console.SetOut(original); }
++            }
++            Check(propagated, "UiDoesNotHideUnknownCleanupOrRetryScan");
++        }
++        catch (Exception error) { failure = error is TestFailure f ? f.Code : error.GetType().Name; }
++        finally
++        {
++            Console.SetOut(original);
++            string absolute = Path.GetFullPath(directory);
++            if (Directory.Exists(absolute) && Path.GetDirectoryName(absolute) == Path.TrimEndingDirectorySeparator(Path.GetTempPath()) &&
++                Path.GetFileName(absolute).StartsWith("AsukaLens-product-timing-") && !Directory.EnumerateFileSystemEntries(absolute).Any(p => (File.GetAttributes(p) & FileAttributes.ReparsePoint) != 0))
++                Directory.Delete(absolute, true);
++        }
++        if (failure != null) { Console.Error.WriteLine($"FAIL product timing code={failure}; checks={checks}"); return 1; }
++        Console.WriteLine($"PASS product timing checks={checks}; owned_temp_and_synthetic_only=True"); return 0;
++        void Check(bool passed, string code) { checks++; if (!passed) throw new TestFailure(code); }
++    }
++    private sealed class TestFailure(string code) : Exception { internal string Code => code; }
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 02a53ec..54f0d51 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -161,6 +161,12 @@ if (FastScanBridge.IsWorkerRequest(args))
+     return FastScanBridge.RunWorker(args, DiskAtlas.NtfsPrototype.NtfsPersonalAcceptanceDriver.Validate);
+ if (FastScanBridge.IsTimingWorkerRequest(args))
+     return FastScanBridge.RunTimingWorker(args);
++if (args.Length > 0 && args[0] == NtfsPersonalTimingDriver.UiArgument)
++{
++    if (!NtfsPersonalTimingDriver.ValidUiInvocation(args)) { Console.Error.WriteLine("FAIL product timing arguments"); return 1; }
++    return NtfsPersonalTimingDriver.Run(includeUi: true);
++}
++if (args.Length == 1 && args[0] == "--ntfs-product-timing-tests") return NtfsProductTimingTests.Run();
+ if (args.Length > 0 && args[0] == NtfsPersonalTimingDriver.Argument)
+ {
+     if (!NtfsPersonalTimingDriver.ValidInvocation(args)) { Console.Error.WriteLine("FAIL personal timing arguments"); return 1; }

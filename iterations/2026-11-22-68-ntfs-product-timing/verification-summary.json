@@ -1,0 +1,53 @@
+{
+  "measurement": {
+    "cleanup_transfer_decode_combined": true,
+    "private_figures_public": false,
+    "coordinator_validation_included": true,
+    "helper_end_working_set_available": false,
+    "human_consent_time_separately_measurable": false,
+    "dwm_presentation_measured": false,
+    "physical_io_measured": false,
+    "mainform_query_and_final_paint_included": true,
+    "test_output_during_scan_outside_scope": true,
+    "project_writes_paused_during_pair": true,
+    "client_observed_intervals": true
+  },
+  "packaged": false,
+  "baseline": "cbaf917",
+  "real_pair": {
+    "external_writes_prove_all_differences": false,
+    "type_identity_or_link_changes_observed": false,
+    "native_route_used": true,
+    "added_or_removed_observed": false,
+    "exclusions_equal": true,
+    "fallback": false,
+    "fast_runs": 1,
+    "additional_runs_started": false,
+    "other_issues_absent": true,
+    "ordinary_forced_full_automatic": true,
+    "requested_order_finished": true,
+    "logical_and_allocation_changes_observed": true,
+    "cleanup_confirmed": true,
+    "comparison_guard_exit": 3,
+    "root_metrics_equal": false,
+    "ordinary_runs": 1,
+    "changed_mtime_after_snapshot": true,
+    "included_scope_equal": false,
+    "allocation_known": true,
+    "samples_completed": 2,
+    "raw_reader_limits_unchanged": true,
+    "performance_conclusion_allowed": false
+  },
+  "date": "2026-11-22",
+  "released": false,
+  "synthetic_checks": {
+    "wire": 277,
+    "advanced": 25,
+    "core": 38,
+    "legacy_timing": 58,
+    "coordinator": 68,
+    "bridge": 45,
+    "product_timing": 34,
+    "invalid_argv_rejected": true
+  }
+}

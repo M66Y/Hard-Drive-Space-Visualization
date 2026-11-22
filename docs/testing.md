@@ -1,5 +1,9 @@
 # 开发验证与可选基准
 
+## C68 完整主窗NTFS计时
+
+`--ntfs-product-timing-tests`运行固定时间/白名单/容量/资源所有权与两次自有小目录真实MainForm检查，不访问raw/VSS。保留`--ntfs-personal-timing-tests`及bridge/coordinator/wire回归。实际`DiskAtlas.Tests.exe --ntfs-personal-timing-ui`必须使用测试apphost、stdin顺序/目录和当轮真实权限；旧无UI入口不混入同组。仅一对为诊断，不可比立即终止结论，无DWM、物理IO或独立人工UAC时间保证。使用与公开证据边界见[工具说明](ntfs-product-timing.md)。
+
 ## C67 大文件筛选与显示偏好
 
 `--stage-three-model-tests`检查全范围先筛选后top500、边界/取消/未知占用，以及有界配置、普通保存失败回退和图片不重写。`--stage-three-ui-tests [--dpi-96]`使用真实MainForm和隔离配置，核联动、过期查询、同根刷新/换根/取消、两行与字号、默认像素还原、显示预览取消/应用/失败及独立重启。仅使用合成树和自建临时文件，不访问个人卷。

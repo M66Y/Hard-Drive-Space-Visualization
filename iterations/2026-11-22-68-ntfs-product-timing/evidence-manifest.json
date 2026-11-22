@@ -1,0 +1,91 @@
+{
+    "actual_figures_public":  false,
+    "entries":  [
+                    {
+                        "sha256":  "35BF82C77BCD5A65D59ADFF685C7A9F8A50C02CF823A522945DAC16C46BBFBB5",
+                        "file":  "advanced.log",
+                        "bytes":  2138
+                    },
+                    {
+                        "sha256":  "F8B2C1663415758F2D6EDC1A6F9C0D4424D4FD2C6C1D046A622D92D8F6C18AC4",
+                        "file":  "build-app.log",
+                        "bytes":  276
+                    },
+                    {
+                        "sha256":  "0C2AA9884375519B433A41E5EB5E88BAF84FA5B192DE7C842D278FC152ACD954",
+                        "file":  "build-final-tests.log",
+                        "bytes":  284
+                    },
+                    {
+                        "sha256":  "18FA0B9CE8BE05BEACF84AD87B790D91508B2CAE5954AD23BD0E246E6CC68111",
+                        "file":  "build-initial.log",
+                        "bytes":  284
+                    },
+                    {
+                        "sha256":  "A851C7FFBB9322F95625570F92E4FEBA2E03CD027176F79D3287B587214DB9D1",
+                        "file":  "build-ready.log",
+                        "bytes":  284
+                    },
+                    {
+                        "sha256":  "D4AD218775BFBE839788B76FC2DFD7EC96BE7C131D3CCDA8A8351E602C35032C",
+                        "file":  "build-tests.log",
+                        "bytes":  284
+                    },
+                    {
+                        "sha256":  "783C80BAAADD42FC6028B0C54FAB6E14D98B0E976431935CC5F27F76F4896145",
+                        "file":  "core.log",
+                        "bytes":  2593
+                    },
+                    {
+                        "sha256":  "7A16F3A7A8D54C00C77AD49B6C078CBE80EC7F553DB284D52968B9930FE9918E",
+                        "file":  "fast-scan-bridge-tests.log",
+                        "bytes":  2968
+                    },
+                    {
+                        "sha256":  "57AC77AEABBB827CF3322A821A8D6CFF0729D1E504C09806AA2109DE6DF6D751",
+                        "file":  "fast-scan-coordinator-tests.log",
+                        "bytes":  5491
+                    },
+                    {
+                        "sha256":  "BC60321CFC3E16AAFB2204190ADD2A73D08C728803B8BBF63EDE7A6C1E333ADC",
+                        "file":  "fast-scan-wire-tests.log",
+                        "bytes":  17052
+                    },
+                    {
+                        "sha256":  "2F3DF436735DB70677A5AC464FF31424AE9FBE632AAAEC4EC808DC995074D2A2",
+                        "file":  "ntfs-personal-timing-tests.log",
+                        "bytes":  5051
+                    },
+                    {
+                        "sha256":  "015B88893402C8EACADA4ACC3FBF7CBB03AB3CF36E5B43EADEB1C61FD5A32514",
+                        "file":  "ntfs-product-timing-tests.log",
+                        "bytes":  67
+                    },
+                    {
+                        "sha256":  "015B88893402C8EACADA4ACC3FBF7CBB03AB3CF36E5B43EADEB1C61FD5A32514",
+                        "file":  "product-final.log",
+                        "bytes":  67
+                    },
+                    {
+                        "sha256":  "3E063C8AC13B725134846237E438F0637193952BD0BD9FBFFEF2A57FA9159F49",
+                        "file":  "product-ready.log",
+                        "bytes":  67
+                    },
+                    {
+                        "sha256":  "520FA6B2B691D4B4D63DAE01FA0A3D464D7BCA684328316E948DED8D6D9282CE",
+                        "file":  "rejected-arguments.log",
+                        "bytes":  31
+                    }
+                ],
+    "sha256":  "584ECED4D8649D8E329A2CB058E216E0CC7D452899D770CAD22ABBC84147113B",
+    "private_report":  {
+                           "sha256":  "983236383AA0829664F7601148F39D40EAEB50A1EB09CCAD7F855B6A09263615",
+                           "path":  "artifacts/ntfs-product-timing-C68/local-result.md"
+                       },
+    "private_pair":  {
+                         "sha256":  "737F9BA5E59C300D612F2F3FAECDBD5CE500947ED5D909BCCACCF83897DFAC15",
+                         "path":  "artifacts/ntfs-product-timing-C68/personal-pair.jsonl"
+                     },
+    "verified":  true,
+    "private_check_archive":  "artifacts/ntfs-product-timing-C68/check-logs.zip"
+}

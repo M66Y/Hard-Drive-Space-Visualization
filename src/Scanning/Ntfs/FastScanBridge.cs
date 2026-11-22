@@ -9,6 +9,8 @@ using DiskAtlas.NtfsPrototype;
 
 namespace DiskAtlas;
 
+internal enum FastScanTimingPoint { LaunchStarting, LaunchReturned, Connected, ResultDecoded }
+
 // The elevated process accepts one bounded request from its verified, same-binary parent.
 // Paths, identities and result nodes travel only through the private in-memory pipe.
 internal static class FastScanBridge
@@ -20,23 +22,23 @@ internal static class FastScanBridge
     private static int cleanupUnconfirmed;
 
     internal static ScanResult Scan(string path, IProgress<ScanProgress>? progress, CancellationToken token) =>
-        ScanCore(path, progress, token, false, null);
+        ScanCore(path, progress, token, false, null, null);
 
     internal static ScanResult ScanForTiming(string path, IProgress<ScanProgress>? progress, CancellationToken token,
-        Action<FastScanWireStage>? observeStage = null)
+        Action<FastScanWireStage>? observeStage = null, Action<FastScanTimingPoint, Process?>? observeTiming = null)
     {
         if (!IsTimingHost(Environment.ProcessPath, System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name))
             throw new FastScanUnavailableException(FastScanWireError.Unsupported, true);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(TimeSpan.FromMinutes(10));
-        return ScanCore(path, progress, timeout.Token, true, observeStage);
+        return ScanCore(path, progress, timeout.Token, true, observeStage, observeTiming);
     }
 
     internal static bool IsTimingHost(string? executable, string? assembly) =>
         string.Equals(Path.GetFileName(executable), "DiskAtlas.Tests.exe", StringComparison.OrdinalIgnoreCase) && assembly == "DiskAtlas.Tests";
 
     private static ScanResult ScanCore(string path, IProgress<ScanProgress>? progress, CancellationToken token, bool timing,
-        Action<FastScanWireStage>? observeStage)
+        Action<FastScanWireStage>? observeStage, Action<FastScanTimingPoint, Process?>? observeTiming)
     {
         token.ThrowIfCancellationRequested();
         if (Volatile.Read(ref cleanupUnconfirmed) != 0)
@@ -69,6 +71,7 @@ internal static class FastScanBridge
             start.ArgumentList.Add(parent.StartTime.ToUniversalTime().Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
             try
             {
+                if (timing) observeTiming?.Invoke(FastScanTimingPoint.LaunchStarting, null);
                 if (!timing) child = Process.Start(start);
                 else
                 {
@@ -88,6 +91,7 @@ internal static class FastScanBridge
             catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
             { token.ThrowIfCancellationRequested(); throw new FastScanUnavailableException(FastScanWireError.PermissionDenied, true); }
             if (child == null) throw new FastScanUnavailableException(FastScanWireError.PermissionDenied, true);
+            if (timing) observeTiming?.Invoke(FastScanTimingPoint.LaunchReturned, child);
             using var connection = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token);
             connection.CancelAfter(TimeSpan.FromMinutes(2));
             while (true)
@@ -104,6 +108,7 @@ internal static class FastScanBridge
                 server.Disconnect();
             }
             token.ThrowIfCancellationRequested();
+            if (timing) observeTiming?.Invoke(FastScanTimingPoint.Connected, child);
             requested = true;
             FastScanWire.WriteRequest(server, path, token);
             server.Flush();
@@ -131,6 +136,7 @@ internal static class FastScanBridge
                 {
                     terminalCleanupConfirmed = true;
                     token.ThrowIfCancellationRequested();
+                    if (timing) observeTiming?.Invoke(FastScanTimingPoint.ResultDecoded, child);
                     return FromWireResult(result, timer.Elapsed);
                 }
             }

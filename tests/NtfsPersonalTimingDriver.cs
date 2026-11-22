@@ -8,9 +8,10 @@ namespace DiskAtlas;
 
 // Explicit, local-only timing entry. No scope, filename, identity, count, hash,
 // exception text or result tree is written to stdout or a file.
-internal static class NtfsPersonalTimingDriver
+internal static partial class NtfsPersonalTimingDriver
 {
     internal const string Argument = "--ntfs-personal-timing";
+    internal const string UiArgument = "--ntfs-personal-timing-ui";
     internal static bool ValidInvocation(string[] args) => args.Length == 1 && args[0] == Argument;
     internal static bool ValidOrder(string order) => order is "FO" or "OF" or "FOOF";
     internal static (string Order, string Scope) ReadInput(TextReader input)
@@ -34,7 +35,7 @@ internal static class NtfsPersonalTimingDriver
         catch { throw new InvalidDataException("TimingInput"); }
     }
 
-    internal static int Run()
+    internal static int Run(bool includeUi = false)
     {
         string stage = "Preparing";
         try
@@ -55,7 +56,8 @@ internal static class NtfsPersonalTimingDriver
                     // Prior trees are no longer retained. Collection happens
                     // outside the measured scan and before the next run.
                     GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
-                    var current = (Mode: mode, Value: RunOne(input.Scope, mode, cancelled.Token, value => stage = value));
+                    var current = (Mode: mode, Value: includeUi ? RunVisibleOne(input.Scope, mode, cancelled.Token, value => stage = value)
+                        : RunOne(input.Scope, mode, cancelled.Token, value => stage = value));
                     completed++;
                     if (previous is not { } left) { previous = current; continue; }
                     var comparison = left.Value.Compare(current.Value, cancelled.Token);
@@ -83,7 +85,8 @@ internal static class NtfsPersonalTimingDriver
                     previous = current;
                 }
                 Console.WriteLine(JsonSerializer.Serialize(new { revision = "personal-ntfs-timing-v2", kind = "complete", order = input.Order,
-                    compared = true, all_equal = true, requested_order_finished = true, performance_conclusion_allowed = true, files_written = false }));
+                    compared = true, all_equal = true, requested_order_finished = true, performance_conclusion_allowed = !includeUi,
+                    diagnostic_pair_only = includeUi, stable_speedup_claim_allowed = false, ui_drawing_included = includeUi, files_written = false }));
                 return 0;
             }
             finally { Console.CancelKeyPress -= handler; }

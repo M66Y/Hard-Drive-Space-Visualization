@@ -113,6 +113,8 @@
 
 ## 检查与现有命令
 
+- 计时工具修改运行`--ntfs-product-timing-tests`、原`--ntfs-personal-timing-tests`及受影响bridge/coordinator/wire检查。`--ntfs-personal-timing-ui`只由测试apphost从stdin接受顺序/目录，包含真实MainForm查询/同步最终绘制，不测DWM；正式个人实测必须当轮范围授权，先将输出放到被测目录之外并暂停开发侧写盘。不可比/回退/清理不确定即停止结论、不追加扫描；一对不作稳定倍数，实际数字/资源仅本机，公开只保留白名单状态。见[计时工具](docs/ntfs-product-timing.md)。
+
 - 大文件筛选/显示偏好修改运行`--stage-three-model-tests`及`--stage-three-ui-tests`两档，保持先过滤全范围再top500、逻辑大小门槛、同根保留/换根重置/取消恢复、独立有界配置及显示取消/失败恢复。显示缓存/密度修改另用`--scroll-frame-tests --display-variants`两档核C65发布合同，并运行受影响UI/背景/根合成/缓存检查；实际观感不由离散像素断言代替。行为与保存限制见[使用说明](docs/display-and-large-file-filters.md)。
 
 - 个人卷当前合同见 [NTFS 快扫说明](docs/ntfs-personal-scan.md)，不从历史夹具授权推导个人卷权限。扩展布局、紧凑预算与边界策略改动运行 `--ntfs-mft-metadata-tests`、`--ntfs-continuation-record-tests`、`--ntfs-bitmap-bundle-tests`、`--ntfs-large-profile-tests`、`--ntfs-reparse-policy-tests`，并核对旧 Map/namespace/size/reader 回归。`--ntfs-personal-acceptance-tests` 是纯审计反例，`--ntfs-snapshot-metadata-tests` 仅用自有临时文件；通信与主窗检查仍按下方入口执行。

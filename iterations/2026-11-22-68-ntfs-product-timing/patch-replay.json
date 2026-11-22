@@ -1,0 +1,23 @@
+{
+    "patch_sha256":  "246BBFD2AE936411C8D3BED66EF911102A3A59C0F173A10D0031E903A7FEFC9F",
+    "files":  [
+                  ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+                  ".agents/skills/asukalens-project-memory/references/decisions.md",
+                  "AGENTS.md",
+                  "docs/development-plan.md",
+                  "docs/ntfs-end-to-end-benefit-plan.md",
+                  "docs/ntfs-product-timing.md",
+                  "docs/project-status.md",
+                  "docs/testing.md",
+                  "src/Scanning/Ntfs/FastScanBridge.cs",
+                  "tests/NtfsPersonalTimingDriver.cs",
+                  "tests/NtfsProductTiming.cs",
+                  "tests/NtfsProductTimingTests.cs",
+                  "tests/Program.cs"
+              ],
+    "apply_checked":  true,
+    "baseline":  "cbaf917",
+    "canonical_git_bytes_match":  true,
+    "file_count":  13,
+    "private_replay_removed":  true
+}

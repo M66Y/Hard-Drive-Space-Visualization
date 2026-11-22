@@ -1,0 +1,39 @@
+{
+    "actual_measurement_uses_tests_apphost":  true,
+    "warnings":  0,
+    "errors":  0,
+    "normal_application_preserved":  true,
+    "assets":  [
+                   {
+                       "bytes":  162304,
+                       "sha256":  "8C0241B8406AE6C344200D797774CAD5CCCD39C64BEAE6563D0D3912D6AB8A45",
+                       "path":  "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.exe",
+                       "retained":  true
+                   },
+                   {
+                       "bytes":  6428160,
+                       "sha256":  "EF3C43C08C5D00727D442C72250C7B6F5ED87436A8B3B9214B03E8B8EA4C5BE0",
+                       "path":  "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll",
+                       "retained":  true
+                   },
+                   {
+                       "bytes":  3596288,
+                       "sha256":  "DD1AEB0B7C61D2AEDBA98194A030BFBE41161BDF09B29F8FBC5E0B5438E116E4",
+                       "path":  "artifacts/ntfs-product-timing-C68/app/DiskAtlas.dll",
+                       "retained":  false
+                   },
+                   {
+                       "bytes":  3595776,
+                       "sha256":  "F871B57CFB0F62B391294C9BD99676385350CDC2FDF315DFA60F4047427B8197",
+                       "path":  "bin/Release/net10.0-windows/DiskAtlas.dll",
+                       "retained":  true
+                   },
+                   {
+                       "bytes":  3529728,
+                       "sha256":  "D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498",
+                       "path":  "artifacts/dib-mainform-C55/app/DiskAtlas.dll",
+                       "retained":  true
+                   }
+               ],
+    "baseline":  "cbaf917"
+}

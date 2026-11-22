@@ -161,6 +161,12 @@ if (FastScanBridge.IsWorkerRequest(args))
     return FastScanBridge.RunWorker(args, DiskAtlas.NtfsPrototype.NtfsPersonalAcceptanceDriver.Validate);
 if (FastScanBridge.IsTimingWorkerRequest(args))
     return FastScanBridge.RunTimingWorker(args);
+if (args.Length > 0 && args[0] == NtfsPersonalTimingDriver.UiArgument)
+{
+    if (!NtfsPersonalTimingDriver.ValidUiInvocation(args)) { Console.Error.WriteLine("FAIL product timing arguments"); return 1; }
+    return NtfsPersonalTimingDriver.Run(includeUi: true);
+}
+if (args.Length == 1 && args[0] == "--ntfs-product-timing-tests") return NtfsProductTimingTests.Run();
 if (args.Length > 0 && args[0] == NtfsPersonalTimingDriver.Argument)
 {
     if (!NtfsPersonalTimingDriver.ValidInvocation(args)) { Console.Error.WriteLine("FAIL personal timing arguments"); return 1; }
