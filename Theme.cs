@@ -717,7 +717,7 @@ internal sealed class NavigationPanel : Control
         for (int i = 0; i < Theme.Categories.Length; i++)
         {
             int column = i % 2, row = i / 2;
-            using var brush = new SolidBrush(Theme.Categories[i].Color);
+            using var brush = new SolidBrush(DisplayPreferences.For(this).CategoryColor(Theme.Categories[i].Name));
             g.FillEllipse(brush, R(26 + column * 99, 505 + row * 28, 8, 8));
             Theme.TextAt(g, Theme.Categories[i].Name, labelFont, Theme.Muted, R(42 + column * 99, 497 + row * 28, 74, 24));
         }

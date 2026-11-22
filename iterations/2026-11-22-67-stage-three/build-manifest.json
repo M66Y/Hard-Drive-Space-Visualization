@@ -1,0 +1,31 @@
+{
+    "errors":  0,
+    "rendering":  "C57 with C55 fallback",
+    "warnings":  0,
+    "baseline":  "739f94ebd1e3e7cc58cb8f89382b9c6f1ea1d42c",
+    "formal_release":  false,
+    "assets":  [
+                   {
+                       "path":  "bin/Release/net10.0-windows/AsukaLens.exe",
+                       "sha256":  "CECED1AAD199593B644ABF94AD8DED77C06E5A8285F6C2AEDE531AB3537A2F64",
+                       "bytes":  319488
+                   },
+                   {
+                       "path":  "bin/Release/net10.0-windows/DiskAtlas.dll",
+                       "sha256":  "F871B57CFB0F62B391294C9BD99676385350CDC2FDF315DFA60F4047427B8197",
+                       "bytes":  3595776
+                   },
+                   {
+                       "path":  "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll",
+                       "sha256":  "47625F36BCF9166C9AB65D399CE93295DEB57556F941804226A1903160D81559",
+                       "bytes":  6387200
+                   },
+                   {
+                       "path":  "artifacts/dib-mainform-C55/app/DiskAtlas.dll",
+                       "sha256":  "D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498",
+                       "bytes":  3529728
+                   }
+               ],
+    "build":  "Release net10.0-windows",
+    "normal_entry":  "AsukaLens.exe"
+}

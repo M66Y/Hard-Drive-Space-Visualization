@@ -1,7 +1,9 @@
 using DiskAtlas;
 using System.Drawing;
 
-if(args.Contains("--scroll-frame-tests")) return ScrollFrameConsistencyTests.Run(args.Contains("--dpi-96"));
+if(args.Contains("--stage-three-model-tests")) return StageThreeModelTests.Run();
+if(args.Contains("--stage-three-ui-tests")) return StageThreeUiTests.Run(args.Contains("--dpi-96"));
+if(args.Contains("--scroll-frame-tests")) return ScrollFrameConsistencyTests.Run(args.Contains("--dpi-96"), args.Contains("--display-variants"));
 if(args.Contains("--scrollbar-tracking-preview")) return ScrollbarTrackingPreview.Run(args.Contains("--dpi-96"));
 if(args.Contains("--scrollbar-pointer-tests")) return ScrollbarPointerTests.Run(args.Contains("--dpi-96"));
 

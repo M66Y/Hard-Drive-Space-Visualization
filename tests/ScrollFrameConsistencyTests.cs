@@ -11,7 +11,7 @@ internal static class ScrollFrameConsistencyTests
     [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr window, IntPtr dc);
     [DllImport("gdi32.dll")] private static extern uint GetPixel(IntPtr dc, int x, int y);
     [DllImport("user32.dll", EntryPoint = "GetPropW", CharSet = CharSet.Unicode)] private static extern IntPtr GetProp(IntPtr window, string name);
-    internal static int Run(bool dpi96)
+    internal static int Run(bool dpi96, bool displayVariants = false)
     {
         string? failure = null;
         int checks = 0, observed = 0, protectedEvents = 0, shiftedEvents = 0, compared = 0, finalMismatch = 0, deferredNotMoved = 0, maxChanged = 0;
@@ -40,6 +40,7 @@ internal static class ScrollFrameConsistencyTests
                 }
                 typeof(MainForm).GetField("current", Hidden)!.SetValue(form, root);
                 typeof(MainForm).GetMethod("PopulateGrid", Hidden)!.Invoke(form, [items]);
+                if (displayVariants) form.ApplyDisplayOptions(new DisplayPreferences(65, CategoryPalette.Clearer, ReadingDensity.Compact));
                 var pattern = Pattern();
                 typeof(MainForm).GetMethod("ApplyBackground", Hidden)!.Invoke(form,
                     [pattern, BackgroundView.Default, Theme.DefaultAccent, true]);
@@ -135,8 +136,8 @@ internal static class ScrollFrameConsistencyTests
             catch (Exception error) { failure = "Unexpected_" + error.GetType().Name; }
         }) { IsBackground = true };
         thread.SetApartmentState(ApartmentState.STA); thread.Start();
-        if (!thread.Join(TimeSpan.FromSeconds(35))) failure = "WorkerDeadline";
-        Console.WriteLine($"OBSERVE scroll frames checks={checks}; scroll_events={observed}; protected={protectedEvents}; native_holds={nativeHolds}; shifted={shiftedEvents}; max_changed={maxChanged}; intermediate_pixels={compared}; final_mismatch={finalMismatch}; track_mismatch={trackMismatch}; premature_resume={prematureResume}; deferred_not_moved={deferredNotMoved}; dpi96={dpi96}");
+        if (!thread.Join(TimeSpan.FromSeconds(displayVariants ? 75 : 35))) failure = "WorkerDeadline";
+        Console.WriteLine($"OBSERVE scroll frames checks={checks}; scroll_events={observed}; protected={protectedEvents}; native_holds={nativeHolds}; shifted={shiftedEvents}; max_changed={maxChanged}; intermediate_pixels={compared}; final_mismatch={finalMismatch}; track_mismatch={trackMismatch}; premature_resume={prematureResume}; deferred_not_moved={deferredNotMoved}; dpi96={dpi96}; display_variants={displayVariants}");
         if (failure != null) { Console.Error.WriteLine("FAIL scroll frames code=" + failure); return 1; }
         Console.WriteLine("PASS scroll frames; owned_synthetic=True; continuous_desktop_review_separate=True"); return 0;
         void Check(bool condition, string code) { checks++; if (!condition) throw new Failure(code); }

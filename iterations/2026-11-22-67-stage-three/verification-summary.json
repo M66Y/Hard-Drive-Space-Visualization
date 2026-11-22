@@ -1,0 +1,568 @@
+{
+    "final":  [
+                  {
+                      "sha256":  "35BF82C77BCD5A65D59ADFF685C7A9F8A50C02CF823A522945DAC16C46BBFBB5",
+                      "proof":  [
+                                    "PASS directory estimates are phase-local, bounded and honest when work grows",
+                                    "PASS scan and verification report completed task counts without claiming success",
+                                    "PASS scan policies have explicit worker limits and low-impact yielding",
+                                    "PASS low-impact work pacing carries batches across directory boundaries",
+                                    "PASS low-impact pacing honors cancellation at a yield boundary",
+                                    "PASS unpaced strategies never introduce batch waits and concurrency records a peak",
+                                    "PASS actual allocation and file identities recognize hard links without double counting",
+                                    "PASS sparse files use allocated data rather than logical length",
+                                    "PASS compressed files report compressed allocation",
+                                    "PASS all scan modes keep identical logical and physical results",
+                                    "PASS typed phases and per-stage peaks distinguish verification from cache reuse",
+                                    "PASS allocated queries preserve deduplicated totals and expose unknown values",
+                                    "PASS unchanged journal reuses the tree without enumerating directories",
+                                    "PASS deep edits with preserved timestamps rescan only the changed directory",
+                                    "PASS directory moves, deletion and newly created subtrees match a full scan",
+                                    "PASS writes through a hard link outside the root invalidate all known aliases",
+                                    "PASS already-open writers remain dirty even without another journal record",
+                                    "PASS changes during a refresh are replayed from its start checkpoint",
+                                    "PASS journal gaps and unavailable journals safely fall back to a full scan",
+                                    "PASS cancelled incremental refresh leaves old logical and physical totals untouched",
+                                    "PASS journal record parser accepts IDs and rejects unsupported or malformed records",
+                                    "PASS real NTFS refresh agrees with a full scan and reports its actual path",
+                                    "PASS metadata verification catches deep edits with restored timestamps and hard-link alias writes",
+                                    "PASS metadata verification notices new directories and incomplete baselines force a full scan",
+                                    "PASS replaced directories with identical names and timestamps do not inherit cached file identities",
+                                    "All 25 advanced checks passed."
+                                ],
+                      "file":  "check-advanced.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "B71517DB509D624B17874BF1491EAAE9D9588AD6591CA27752FDA2849CFECFEF",
+                      "proof":  [
+                                    "PASS background version compatibility, checksum, truncation and invalid fields",
+                                    "PASS background denied writes/read and reset preserve existing data and clean temporary files",
+                                    "PASS background extreme ratio, unsupported format, cancellation and all 8 EXIF orientations",
+                                    "PASS background real dialog apply, controls, focus and resized preview",
+                                    "PASS background cancel/default preview, denied save/reset feedback and retry",
+                                    "PASS background late import disposal, duplicate/close isolation and progress theme reset",
+                                    "PASS background independent-process startup, source deletion, default reset and corrupt fallback",
+                                    "All 7 background regression groups passed."
+                                ],
+                      "file":  "check-background-tests-144.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "B71517DB509D624B17874BF1491EAAE9D9588AD6591CA27752FDA2849CFECFEF",
+                      "proof":  [
+                                    "PASS background version compatibility, checksum, truncation and invalid fields",
+                                    "PASS background denied writes/read and reset preserve existing data and clean temporary files",
+                                    "PASS background extreme ratio, unsupported format, cancellation and all 8 EXIF orientations",
+                                    "PASS background real dialog apply, controls, focus and resized preview",
+                                    "PASS background cancel/default preview, denied save/reset feedback and retry",
+                                    "PASS background late import disposal, duplicate/close isolation and progress theme reset",
+                                    "PASS background independent-process startup, source deletion, default reset and corrupt fallback",
+                                    "All 7 background regression groups passed."
+                                ],
+                      "file":  "check-background-tests-96.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "BF973DF459A4FE83F7503142EA579B91CF90DA871176D1233983FF4336BAE4A3",
+                      "proof":  [
+                                    "PASS recursive totals, Unicode paths, empty folders, zero-byte files, sort order",
+                                    "PASS directory totals and parent references",
+                                    "PASS empty root",
+                                    "PASS missing root has explicit error",
+                                    "PASS pre-cancelled and mid-scan cancellation",
+                                    "PASS final progress matches completed scan",
+                                    "PASS deep directory traversal",
+                                    "PASS size formatting supports zero and sizes above 32-bit",
+                                    "PASS treemap empty/zero/degenerate inputs",
+                                    "PASS random treemaps preserve area, proportion, bounds, and do not overlap",
+                                    "PASS junctions are skipped to avoid cycles and duplicate counting",
+                                    "PASS hidden and system entries remain included",
+                                    "PASS root removed during scan fails rather than reporting an empty success",
+                                    "PASS cancellation on final progress is honored",
+                                    "PASS treemap extreme skew and non-finite bounds",
+                                    "PASS folder query sorting, case-insensitive search and zero-size rows",
+                                    "PASS type aggregation matches file totals and supports category search",
+                                    "PASS top-500 cutoff, exact type filter and aggregate area",
+                                    "PASS 100k-file query benchmark and deterministic top-file results",
+                                    "PASS refresh restores a surviving directory and rejects deleted/outside/file paths",
+                                    "PASS type drilldown supports extensionless/zero-byte files and combined search",
+                                    "PASS type count and file location sorting",
+                                    "PASS equal-size top-file boundary is stable across enumeration order",
+                                    "PASS type-map aggregation preserves totals and is explicitly marked",
+                                    "PASS queued directory replaced by a junction is rechecked before traversal",
+                                    "PASS pagination covers every row and clamps boundary requests",
+                                    "PASS parallel and serial scans match every entry and file timestamp",
+                                    "PASS cancelling active parallel workers stops without leaving a blocked queue",
+                                    "PASS queued directory disappearance records an issue and preserves siblings",
+                                    "PASS parallel workers count all skipped junctions exactly once",
+                                    "PASS worker exceptions propagate without deadlocking other readers",
+                                    "PASS scan concurrency bounds are explicit",
+                                    "PASS file nodes share an empty collection and scanner paths/extension storage",
+                                    "PASS preview appears before completion and held snapshots never mutate",
+                                    "PASS preview supports nested browsing, parent paths and rejects outside paths",
+                                    "PASS parallel scanning and preview queries safely run together",
+                                    "PASS preview cancellation and empty sessions have explicit behavior",
+                                    "PASS allocation-free path ordering matches full paths across prefixes and Unicode",
+                                    "All 38 tests passed."
+                                ],
+                      "file":  "check-core.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "19BAE567168F2C6D11FCDEA61DBB8DBB7214E2EDE9FB54A4FDA956B08F87E9FD",
+                      "proof":  [
+                                    "PASS hover popup policy checks=24; synthetic controls, no scan or desktop hover claim"
+                                ],
+                      "file":  "check-hover-popup-policy-tests-144.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "19BAE567168F2C6D11FCDEA61DBB8DBB7214E2EDE9FB54A4FDA956B08F87E9FD",
+                      "proof":  [
+                                    "PASS hover popup policy checks=24; synthetic controls, no scan or desktop hover claim"
+                                ],
+                      "file":  "check-hover-popup-policy-tests-96.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "9D3D8C622C04343999BCA9FC626CD264EEFE877BF90AB84D129095AF2A5C1958",
+                      "proof":  [
+                                    "PASS layout presentation policy BurstUsesOnePendingRootBeforeDispatch",
+                                    "PASS layout presentation policy BurstCoalescesToOnePresentation",
+                                    "PASS layout presentation policy EmptyRetryDoesNotCreateIdleWork",
+                                    "PASS layout presentation policy GeometryBatchRetainsDirtyWithoutEarlyQueueOrPresentation",
+                                    "PASS layout presentation policy NestedGeometryDoesNotPresentBeforeOuterEnd",
+                                    "PASS layout presentation policy GeometryBatchReleasesOnlyLocalRootHoldsBeforeFinalPass",
+                                    "PASS layout presentation policy GeometryBatchReleasesOnlyLocalRootHoldsBeforeFinalPass",
+                                    "PASS layout presentation policy GeometryBatchPresentsEachRootOnceAtFinalBoundary",
+                                    "PASS layout presentation policy GeometryBatchRejectsStaleCallbackAndRepeatedDispose",
+                                    "PASS layout presentation policy EmptyGeometryBoundaryDoesNotCreateWork",
+                                    "PASS layout presentation policy GeometryFrameworkLayoutOccursBeforeFinalPresentation",
+                                    "PASS layout presentation policy SettledGeometryDoesNotReplayRootLayout",
+                                    "PASS layout presentation policy SettledGeometryStillReconcilesClipsAndPaintsFinalRoot",
+                                    "PASS layout presentation policy OrdinaryDeferredPresentationStillPerformsRootLayout",
+                                    "PASS layout presentation policy ExternalSuspendedLayoutStillRunsAndObservedGeometrySettlesOnResume",
+                                    "PASS layout presentation policy ThrowingGeometryStillDefersRootPresentation",
+                                    "PASS layout presentation policy ThrowingGeometryFinallyPresentsPendingAndReleasesScope",
+                                    "PASS layout presentation policy NonResizeLayoutKeepsOriginalSynchronousPresentation",
+                                    "PASS layout presentation policy GeometryHandleDestructionInvalidatesPendingGeneration",
+                                    "PASS layout presentation policy GeometryScopeDoesNotRecreateDestroyedOwner",
+                                    "PASS layout presentation policy OldGeometryTokenCannotEndNewGenerationOrFlushItsDirtyArea",
+                                    "PASS layout presentation policy NewGeometryGenerationPresentsNormally",
+                                    "PASS layout presentation policy PresenterDisposeMakesGeometryTokensHarmless",
+                                    "PASS layout presentation policy GeometryNeverTakesExternallyHeldRoot",
+                                    "PASS layout presentation policy FinalGeometryBoundaryPreservesExternalHoldAndDirtyArea",
+                                    "PASS layout presentation policy GeometryResumesOnceAfterExternalOwnerReleases",
+                                    "PASS layout presentation policy NativeGeometryAcquiresIndependentOwnedRoots",
+                                    "PASS layout presentation policy NestedLayoutCannotTakeNativeGeometryOwnership",
+                                    "PASS layout presentation policy NestedLayoutCannotTakeNativeGeometryOwnership",
+                                    "PASS layout presentation policy NativeGeometryDoesNotDispatchIntermediatePresentation",
+                                    "PASS layout presentation policy NestedNativeGeometryCannotReleaseOuterHolds",
+                                    "PASS layout presentation policy NativeGeometryKeepsOwnedRedrawHeldThroughFinalClip",
+                                    "PASS layout presentation policy NativeGeometryKeepsOwnedRedrawHeldThroughFinalClip",
+                                    "PASS layout presentation policy NativeGeometryReleasesThenPresentsWithExactlyOneClipPerRoot",
+                                    "PASS layout presentation policy EmptyNativeGeometryDoesNotInvalidateOrPresent",
+                                    "PASS layout presentation policy NativeGeometryHonorsDiagnosticLogicalOnlyMode",
+                                    "PASS layout presentation policy LogicalOnlyGeometryLayoutKeepsNativeVisibilityAndRedraw",
+                                    "PASS layout presentation policy LogicalOnlyGeometryInnerEndDoesNotPresentEarly",
+                                    "PASS layout presentation policy LogicalOnlyGeometryPresentsOnceWithoutNativeVisibilityToggle",
+                                    "PASS layout presentation policy OutsideLogicalOnlyGeometryOrdinaryLayoutStillUsesNativeHold",
+                                    "PASS layout presentation policy OrdinaryLayoutAfterLogicalOnlyGeometryReleasesAndPresents",
+                                    "PASS layout presentation policy LogicalOnlyGeometryExceptionDoesNotLeakModeOutsideScope",
+                                    "PASS layout presentation policy NativeGeometryHoldsAncestorWithoutSecondDescendantNativeLock",
+                                    "PASS layout presentation policy CoveredChildCannotAcquireIntermediateLayoutHold",
+                                    "PASS layout presentation policy CoveredRootsSettleOnceAndShareAncestorFinalPaint",
+                                    "PASS layout presentation policy NativeGeometrySkipsExternalOwnerAndHoldsOnlyAvailableRoot",
+                                    "PASS layout presentation policy NativeGeometryDoesNotReleaseExternalOwnerOrLoseItsDirtyArea",
+                                    "PASS layout presentation policy ThrowingFinalClipReleasesNativeHoldAndRetainsDirtyWithOriginalFailure",
+                                    "PASS layout presentation policy PresenterDisposeReleasesNativeGeometryOwnershipWithoutLatePaint",
+                                    "PASS layout presentation policy NativeGeometryDoesNotReshowRootHiddenInsideTransaction",
+                                    "PASS layout presentation policy NativeGeometryExplicitShowRestoresNativeVisibility",
+                                    "PASS layout presentation policy NativeGeometryOldTokenNeverRecreatesDestroyedHandles",
+                                    "PASS layout presentation policy OldNativeGeometryTokenCannotReleaseNewGenerationHold",
+                                    "PASS layout presentation policy NewNativeGeometryGenerationReleasesAndPresentsNormally",
+                                    "PASS layout presentation policy ReentrantNativeAcquireKeepsReplacementGenerationHeld",
+                                    "PASS layout presentation policy ObsoleteAcquireScopeCannotEndReplacementGeometry",
+                                    "PASS layout presentation policy ReplacementAcquireGenerationFinishesOnceWithoutStaleToken",
+                                    "PASS layout presentation policy DisposeFixtureQueuesBothRoots",
+                                    "PASS layout presentation policy DisposeDuringSettleStopsBeforePaintingOtherRoots",
+                                    "PASS layout presentation policy SkippedSecondBatchRetainsOriginalDirtyArea",
+                                    "PASS layout presentation policy ExternalRedrawPauseIsPreservedWithoutBusyQueue",
+                                    "PASS layout presentation policy OwnedExternalPauseIsReleasedByTestOnly",
+                                    "PASS layout presentation policy ResumedSecondBatchPresentsExactlyOnce",
+                                    "PASS layout presentation policy LayoutHoldNeverTakesOrReleasesExistingExternalHold",
+                                    "PASS layout presentation policy InitiallyPausedRootRetainsPendingWithoutQueue",
+                                    "PASS layout presentation policy InitiallyPausedRootDoesNotPollOrReleaseExternalHold",
+                                    "PASS layout presentation policy UnchangedLayoutCanRetryExistingPendingArea",
+                                    "PASS layout presentation policy UnchangedLayoutRetryPresentsOnceWithoutNewGeometry",
+                                    "PASS layout presentation policy LayoutTokenOwnsLocalRedrawHold",
+                                    "PASS layout presentation policy ChildBoundsChangeKeepsLayoutHoldAndDefersPresentation",
+                                    "PASS layout presentation policy ChildBoundsChangeKeepsLayoutHoldAndDefersPresentation",
+                                    "PASS layout presentation policy ChildBoundsChangeKeepsLayoutHoldAndDefersPresentation",
+                                    "PASS layout presentation policy ChildBoundsChangeKeepsLayoutHoldAndDefersPresentation",
+                                    "PASS layout presentation policy NestedLayoutAttemptDoesNotStealOuterHold",
+                                    "PASS layout presentation policy LayoutTokenExitReleasesAndPresentsBeforeReturning",
+                                    "PASS layout presentation policy SynchronousLayoutExitLeavesNoDuplicateQueuedPresentation",
+                                    "PASS layout presentation policy LogicalOnlyTokenKeepsNativeVisibilityDuringBoundsAndRegionChanges",
+                                    "PASS layout presentation policy LogicalOnlyNestedAttemptDoesNotTakeOverTransaction",
+                                    "PASS layout presentation policy LogicalOnlyTokenExitStillPresentsSynchronously",
+                                    "PASS layout presentation policy LogicalOnlyModeStillRespectsExistingExternalRedrawHold",
+                                    "PASS layout presentation policy LogicalOnlyExperimentLeavesNoDuplicatePresentation",
+                                    "PASS layout presentation policy ThrowingLayoutMutationFinallyReleasesAndPresents",
+                                    "PASS layout presentation policy ThrowingLayoutMutationDoesNotLeaveRedrawOrQueueHeld",
+                                    "PASS layout presentation policy PresenterDisposeReleasesOwnedHoldAndTokenDisposeIsIdempotent",
+                                    "PASS layout presentation policy DisposedLayoutPresenterCannotQueueLatePresentation",
+                                    "PASS layout presentation policy DestroyedLayoutHandleCannotBeReleasedOrRecreatedByToken",
+                                    "PASS layout presentation policy DestroyedLayoutHoldLeavesNoDelayedOldHandleWork",
+                                    "PASS layout presentation policy OldLayoutGenerationActuallyDestroysOwnedHandles",
+                                    "PASS layout presentation policy RecreatedOwnerAndRootHaveLiveVisibleHandles",
+                                    "PASS layout presentation policy OldTokenCannotReleaseOrDeactivateNewGenerationHold",
+                                    "PASS layout presentation policy NewGenerationTokenReleasesAndPresentsNormally",
+                                    "PASS layout presentation policy RecreatedGenerationRejectsStaleQueuedCallbacks",
+                                    "PASS layout presentation policy CloseFixtureHasQueuedCallback",
+                                    "PASS layout presentation policy QueuedCloseDiscardsWorkWithoutAccessingOldControls",
+                                    "PASS layout presentation policy HandleDestructionFixtureHasQueuedCallback",
+                                    "PASS layout presentation policy QueuedHandleDestructionDoesNotRecreateOrUseOldHandle",
+                                    "PASS layout presentation policy MinimizeFixtureHasQueuedCallback",
+                                    "PASS layout presentation policy MinimizedOwnerNeverPresentsOrQueuesMoreWork",
+                                    "PASS layout presentation policy checks=98; owned_windows_closed=True; no_screen_capture=True"
+                                ],
+                      "file":  "check-layout-presentation-tests-144.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "9D3D8C622C04343999BCA9FC626CD264EEFE877BF90AB84D129095AF2A5C1958",
+                      "proof":  [
+                                    "PASS layout presentation policy BurstUsesOnePendingRootBeforeDispatch",
+                                    "PASS layout presentation policy BurstCoalescesToOnePresentation",
+                                    "PASS layout presentation policy EmptyRetryDoesNotCreateIdleWork",
+                                    "PASS layout presentation policy GeometryBatchRetainsDirtyWithoutEarlyQueueOrPresentation",
+                                    "PASS layout presentation policy NestedGeometryDoesNotPresentBeforeOuterEnd",
+                                    "PASS layout presentation policy GeometryBatchReleasesOnlyLocalRootHoldsBeforeFinalPass",
+                                    "PASS layout presentation policy GeometryBatchReleasesOnlyLocalRootHoldsBeforeFinalPass",
+                                    "PASS layout presentation policy GeometryBatchPresentsEachRootOnceAtFinalBoundary",
+                                    "PASS layout presentation policy GeometryBatchRejectsStaleCallbackAndRepeatedDispose",
+                                    "PASS layout presentation policy EmptyGeometryBoundaryDoesNotCreateWork",
+                                    "PASS layout presentation policy GeometryFrameworkLayoutOccursBeforeFinalPresentation",
+                                    "PASS layout presentation policy SettledGeometryDoesNotReplayRootLayout",
+                                    "PASS layout presentation policy SettledGeometryStillReconcilesClipsAndPaintsFinalRoot",
+                                    "PASS layout presentation policy OrdinaryDeferredPresentationStillPerformsRootLayout",
+                                    "PASS layout presentation policy ExternalSuspendedLayoutStillRunsAndObservedGeometrySettlesOnResume",
+                                    "PASS layout presentation policy ThrowingGeometryStillDefersRootPresentation",
+                                    "PASS layout presentation policy ThrowingGeometryFinallyPresentsPendingAndReleasesScope",
+                                    "PASS layout presentation policy NonResizeLayoutKeepsOriginalSynchronousPresentation",
+                                    "PASS layout presentation policy GeometryHandleDestructionInvalidatesPendingGeneration",
+                                    "PASS layout presentation policy GeometryScopeDoesNotRecreateDestroyedOwner",
+                                    "PASS layout presentation policy OldGeometryTokenCannotEndNewGenerationOrFlushItsDirtyArea",
+                                    "PASS layout presentation policy NewGeometryGenerationPresentsNormally",
+                                    "PASS layout presentation policy PresenterDisposeMakesGeometryTokensHarmless",
+                                    "PASS layout presentation policy GeometryNeverTakesExternallyHeldRoot",
+                                    "PASS layout presentation policy FinalGeometryBoundaryPreservesExternalHoldAndDirtyArea",
+                                    "PASS layout presentation policy GeometryResumesOnceAfterExternalOwnerReleases",
+                                    "PASS layout presentation policy NativeGeometryAcquiresIndependentOwnedRoots",
+                                    "PASS layout presentation policy NestedLayoutCannotTakeNativeGeometryOwnership",
+                                    "PASS layout presentation policy NestedLayoutCannotTakeNativeGeometryOwnership",
+                                    "PASS layout presentation policy NativeGeometryDoesNotDispatchIntermediatePresentation",
+                                    "PASS layout presentation policy NestedNativeGeometryCannotReleaseOuterHolds",
+                                    "PASS layout presentation policy NativeGeometryKeepsOwnedRedrawHeldThroughFinalClip",
+                                    "PASS layout presentation policy NativeGeometryKeepsOwnedRedrawHeldThroughFinalClip",
+                                    "PASS layout presentation policy NativeGeometryReleasesThenPresentsWithExactlyOneClipPerRoot",
+                                    "PASS layout presentation policy EmptyNativeGeometryDoesNotInvalidateOrPresent",
+                                    "PASS layout presentation policy NativeGeometryHonorsDiagnosticLogicalOnlyMode",
+                                    "PASS layout presentation policy LogicalOnlyGeometryLayoutKeepsNativeVisibilityAndRedraw",
+                                    "PASS layout presentation policy LogicalOnlyGeometryInnerEndDoesNotPresentEarly",
+                                    "PASS layout presentation policy LogicalOnlyGeometryPresentsOnceWithoutNativeVisibilityToggle",
+                                    "PASS layout presentation policy OutsideLogicalOnlyGeometryOrdinaryLayoutStillUsesNativeHold",
+                                    "PASS layout presentation policy OrdinaryLayoutAfterLogicalOnlyGeometryReleasesAndPresents",
+                                    "PASS layout presentation policy LogicalOnlyGeometryExceptionDoesNotLeakModeOutsideScope",
+                                    "PASS layout presentation policy NativeGeometryHoldsAncestorWithoutSecondDescendantNativeLock",
+                                    "PASS layout presentation policy CoveredChildCannotAcquireIntermediateLayoutHold",
+                                    "PASS layout presentation policy CoveredRootsSettleOnceAndShareAncestorFinalPaint",
+                                    "PASS layout presentation policy NativeGeometrySkipsExternalOwnerAndHoldsOnlyAvailableRoot",
+                                    "PASS layout presentation policy NativeGeometryDoesNotReleaseExternalOwnerOrLoseItsDirtyArea",
+                                    "PASS layout presentation policy ThrowingFinalClipReleasesNativeHoldAndRetainsDirtyWithOriginalFailure",
+                                    "PASS layout presentation policy PresenterDisposeReleasesNativeGeometryOwnershipWithoutLatePaint",
+                                    "PASS layout presentation policy NativeGeometryDoesNotReshowRootHiddenInsideTransaction",
+                                    "PASS layout presentation policy NativeGeometryExplicitShowRestoresNativeVisibility",
+                                    "PASS layout presentation policy NativeGeometryOldTokenNeverRecreatesDestroyedHandles",
+                                    "PASS layout presentation policy OldNativeGeometryTokenCannotReleaseNewGenerationHold",
+                                    "PASS layout presentation policy NewNativeGeometryGenerationReleasesAndPresentsNormally",
+                                    "PASS layout presentation policy ReentrantNativeAcquireKeepsReplacementGenerationHeld",
+                                    "PASS layout presentation policy ObsoleteAcquireScopeCannotEndReplacementGeometry",
+                                    "PASS layout presentation policy ReplacementAcquireGenerationFinishesOnceWithoutStaleToken",
+                                    "PASS layout presentation policy DisposeFixtureQueuesBothRoots",
+                                    "PASS layout presentation policy DisposeDuringSettleStopsBeforePaintingOtherRoots",
+                                    "PASS layout presentation policy SkippedSecondBatchRetainsOriginalDirtyArea",
+                                    "PASS layout presentation policy ExternalRedrawPauseIsPreservedWithoutBusyQueue",
+                                    "PASS layout presentation policy OwnedExternalPauseIsReleasedByTestOnly",
+                                    "PASS layout presentation policy ResumedSecondBatchPresentsExactlyOnce",
+                                    "PASS layout presentation policy LayoutHoldNeverTakesOrReleasesExistingExternalHold",
+                                    "PASS layout presentation policy InitiallyPausedRootRetainsPendingWithoutQueue",
+                                    "PASS layout presentation policy InitiallyPausedRootDoesNotPollOrReleaseExternalHold",
+                                    "PASS layout presentation policy UnchangedLayoutCanRetryExistingPendingArea",
+                                    "PASS layout presentation policy UnchangedLayoutRetryPresentsOnceWithoutNewGeometry",
+                                    "PASS layout presentation policy LayoutTokenOwnsLocalRedrawHold",
+                                    "PASS layout presentation policy ChildBoundsChangeKeepsLayoutHoldAndDefersPresentation",
+                                    "PASS layout presentation policy ChildBoundsChangeKeepsLayoutHoldAndDefersPresentation",
+                                    "PASS layout presentation policy ChildBoundsChangeKeepsLayoutHoldAndDefersPresentation",
+                                    "PASS layout presentation policy ChildBoundsChangeKeepsLayoutHoldAndDefersPresentation",
+                                    "PASS layout presentation policy NestedLayoutAttemptDoesNotStealOuterHold",
+                                    "PASS layout presentation policy LayoutTokenExitReleasesAndPresentsBeforeReturning",
+                                    "PASS layout presentation policy SynchronousLayoutExitLeavesNoDuplicateQueuedPresentation",
+                                    "PASS layout presentation policy LogicalOnlyTokenKeepsNativeVisibilityDuringBoundsAndRegionChanges",
+                                    "PASS layout presentation policy LogicalOnlyNestedAttemptDoesNotTakeOverTransaction",
+                                    "PASS layout presentation policy LogicalOnlyTokenExitStillPresentsSynchronously",
+                                    "PASS layout presentation policy LogicalOnlyModeStillRespectsExistingExternalRedrawHold",
+                                    "PASS layout presentation policy LogicalOnlyExperimentLeavesNoDuplicatePresentation",
+                                    "PASS layout presentation policy ThrowingLayoutMutationFinallyReleasesAndPresents",
+                                    "PASS layout presentation policy ThrowingLayoutMutationDoesNotLeaveRedrawOrQueueHeld",
+                                    "PASS layout presentation policy PresenterDisposeReleasesOwnedHoldAndTokenDisposeIsIdempotent",
+                                    "PASS layout presentation policy DisposedLayoutPresenterCannotQueueLatePresentation",
+                                    "PASS layout presentation policy DestroyedLayoutHandleCannotBeReleasedOrRecreatedByToken",
+                                    "PASS layout presentation policy DestroyedLayoutHoldLeavesNoDelayedOldHandleWork",
+                                    "PASS layout presentation policy OldLayoutGenerationActuallyDestroysOwnedHandles",
+                                    "PASS layout presentation policy RecreatedOwnerAndRootHaveLiveVisibleHandles",
+                                    "PASS layout presentation policy OldTokenCannotReleaseOrDeactivateNewGenerationHold",
+                                    "PASS layout presentation policy NewGenerationTokenReleasesAndPresentsNormally",
+                                    "PASS layout presentation policy RecreatedGenerationRejectsStaleQueuedCallbacks",
+                                    "PASS layout presentation policy CloseFixtureHasQueuedCallback",
+                                    "PASS layout presentation policy QueuedCloseDiscardsWorkWithoutAccessingOldControls",
+                                    "PASS layout presentation policy HandleDestructionFixtureHasQueuedCallback",
+                                    "PASS layout presentation policy QueuedHandleDestructionDoesNotRecreateOrUseOldHandle",
+                                    "PASS layout presentation policy MinimizeFixtureHasQueuedCallback",
+                                    "PASS layout presentation policy MinimizedOwnerNeverPresentsOrQueuesMoreWork",
+                                    "PASS layout presentation policy checks=98; owned_windows_closed=True; no_screen_capture=True"
+                                ],
+                      "file":  "check-layout-presentation-tests-96.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "7BAB9EF727D0EF878C3569CC0BB9D544B461230C908E0738073F2F24B78BF21C",
+                      "proof":  [
+                                    "PASS background pixel mapping cases=8 pixels=252800 zero_tolerance=True"
+                                ],
+                      "file":  "check-pixel-mapping.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "7F67B0509D3FD9D255A3A6D4246DD612AA6BD7CE0AB449B05231DD1D2FE8DF41",
+                      "proof":  [
+                                    "PASS root composite checks=43; rgba_pixels=155872; code=None; zero_tolerance=true"
+                                ],
+                      "file":  "check-root-composite-tests-144.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "7F67B0509D3FD9D255A3A6D4246DD612AA6BD7CE0AB449B05231DD1D2FE8DF41",
+                      "proof":  [
+                                    "PASS root composite checks=43; rgba_pixels=155872; code=None; zero_tolerance=true"
+                                ],
+                      "file":  "check-root-composite-tests-96.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "2CFC49025538DA07354C4CEFAC2A8545C0D68121DA8A16DBC05CFB013DD75054",
+                      "proof":  [
+                                    "OBSERVE scroll frames checks=92; scroll_events=51; protected=51; native_holds=51; shifted=0; max_changed=0; intermediate_pixels=0; final_mismatch=0; track_mismatch=0; premature_resume=0; deferred_not_moved=0; dpi96=False; display_variants=False",
+                                    "PASS scroll frames; owned_synthetic=True; continuous_desktop_review_separate=True"
+                                ],
+                      "file":  "check-scroll-frame-tests-144.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "D55137A8FC951B91575C272317D04713F32502CFA706BBF1A10AF85B40385688",
+                      "proof":  [
+                                    "OBSERVE scroll frames checks=92; scroll_events=54; protected=54; native_holds=54; shifted=0; max_changed=0; intermediate_pixels=0; final_mismatch=0; track_mismatch=0; premature_resume=0; deferred_not_moved=0; dpi96=True; display_variants=False",
+                                    "PASS scroll frames; owned_synthetic=True; continuous_desktop_review_separate=True"
+                                ],
+                      "file":  "check-scroll-frame-tests-96.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "02B82212A009D79F1113D40A20E299F5AB6044146DB63B29D7041D17FBBCDD77",
+                      "proof":  [
+                                    "PASS scrollbar pointer checks=42; synthetic_only=True; dpi96=False"
+                                ],
+                      "file":  "check-scrollbar-pointer-tests-144.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "9D187C090D04261A376E46252004688A7E2993B3B525243FDB56AA89746DE9FA",
+                      "proof":  [
+                                    "PASS scrollbar pointer checks=42; synthetic_only=True; dpi96=True"
+                                ],
+                      "file":  "check-scrollbar-pointer-tests-96.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "DEE84CD96BC00D7F92E934ED62CD68DA56F295A6E57CD237AFCC39C5FC29A926",
+                      "proof":  [
+                                    "PASS scrollbar surface checks=34; native_controls_retained=True; desktop_review_separate=True"
+                                ],
+                      "file":  "check-scrollbar-surface-tests-144.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "DEE84CD96BC00D7F92E934ED62CD68DA56F295A6E57CD237AFCC39C5FC29A926",
+                      "proof":  [
+                                    "PASS scrollbar surface checks=34; native_controls_retained=True; desktop_review_separate=True"
+                                ],
+                      "file":  "check-scrollbar-surface-tests-96.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "C3F1CE7205AD53A8CE4087720BC9E5A439E49239C65E828F1CA8701B20DB2626",
+                      "proof":  [
+                                    "PASS selection linkage checks=44; synthetic only; dpi96=False"
+                                ],
+                      "file":  "check-selection-linkage-tests-144.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "54D45E8EF9E37413770C8F2F53FBCC0EB22DBBDF8AAB88AB93FD69D82AF8378A",
+                      "proof":  [
+                                    "PASS selection linkage checks=44; synthetic only; dpi96=True"
+                                ],
+                      "file":  "check-selection-linkage-tests-96.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "67A9565AEF6A599F9453EC8AA69726DA0BC3F7368F02BC718CDF03CC7B9A9023",
+                      "proof":  [
+                                    "PASS UI startup layout ready at Load and one reusable bounded wallpaper raster",
+                                    "PASS UI first preview, bounded rows, partial labels and first-scan cancellation",
+                                    "PASS UI live child/root browsing, cancel restores completed scan and filtered type view",
+                                    "PASS UI final handoff, controls restored, no stale preview, refresh context preserved",
+                                    "PASS UI actual coordinator, low/high strategy selection, allocated metric, incremental refresh and force-full action",
+                                    "PASS UI closing during a high-speed file batch cancels, joins readers and ignores late results",
+                                    "PASS UI result scope, search, no matches, recursive top-500, type filter and pagination",
+                                    "PASS UI skipped, unknown and flag-only partial results, issue details, cancellation and recovery",
+                                    "PASS UI keyboard search/clear/open/parent, accessible input names and minimum layout at 144 DPI",
+                                    "PASS UI honest progress states, phase reset, reduced motion, stable animated hits/area, bounded animation and resizing",
+                                    "PASS opaque text cache: cases=6; differing=0; pixels=882000; dpi=144; lifetime=true",
+                                    "PASS UI avatar transparency/reuse, partial hover invalidation, cache reuse/cap/disposal and layout/background/metric invalidation",
+                                    "PASS UI scanned, rendered and selected a mixed-language path longer than 270 characters",
+                                    "PASS UI input layout at 144 DPI, system menu palette and theme restoration",
+                                    "PASS UI background import limits, portrait/landscape focus, contrast, persistence and reset"
+                                ],
+                      "file":  "check-ui-regression-144.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "D6A9163E9312356B318CDE019249FD1753BC32BAE9415A4BDB0A3B4C7F445B67",
+                      "proof":  [
+                                    "PASS UI startup layout ready at Load and one reusable bounded wallpaper raster",
+                                    "PASS UI first preview, bounded rows, partial labels and first-scan cancellation",
+                                    "PASS UI live child/root browsing, cancel restores completed scan and filtered type view",
+                                    "PASS UI final handoff, controls restored, no stale preview, refresh context preserved",
+                                    "PASS UI actual coordinator, low/high strategy selection, allocated metric, incremental refresh and force-full action",
+                                    "PASS UI closing during a high-speed file batch cancels, joins readers and ignores late results",
+                                    "PASS UI result scope, search, no matches, recursive top-500, type filter and pagination",
+                                    "PASS UI skipped, unknown and flag-only partial results, issue details, cancellation and recovery",
+                                    "PASS UI keyboard search/clear/open/parent, accessible input names and minimum layout at 96 DPI",
+                                    "PASS UI honest progress states, phase reset, reduced motion, stable animated hits/area, bounded animation and resizing",
+                                    "PASS opaque text cache: cases=6; differing=0; pixels=882000; dpi=96; lifetime=true",
+                                    "PASS UI avatar transparency/reuse, partial hover invalidation, cache reuse/cap/disposal and layout/background/metric invalidation",
+                                    "PASS UI scanned, rendered and selected a mixed-language path longer than 270 characters",
+                                    "PASS UI input layout at 96 DPI, system menu palette and theme restoration",
+                                    "PASS UI background import limits, portrait/landscape focus, contrast, persistence and reset"
+                                ],
+                      "file":  "check-ui-regression-96.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "AA70867543D3B56F719945818D76AC6B5347047D9ABE7D7A45334236876FE312",
+                      "proof":  [
+                                    "PASS wallpaper grid cache checks=49; owned_window_closed=True; synthetic_rendering_only=True"
+                                ],
+                      "file":  "check-wallpaper-grid-cache-tests-144.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "AA70867543D3B56F719945818D76AC6B5347047D9ABE7D7A45334236876FE312",
+                      "proof":  [
+                                    "PASS wallpaper grid cache checks=49; owned_window_closed=True; synthetic_rendering_only=True"
+                                ],
+                      "file":  "check-wallpaper-grid-cache-tests-96.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "0EB3E0589AF2E170F9E21138CE183C7036C8E06F2C9445D45DDF06A917F24D34",
+                      "proof":  [
+                                    "OBSERVE scroll frames checks=92; scroll_events=48; protected=48; native_holds=48; shifted=0; max_changed=0; intermediate_pixels=0; final_mismatch=0; track_mismatch=0; premature_resume=0; deferred_not_moved=0; dpi96=False; display_variants=True",
+                                    "PASS scroll frames; owned_synthetic=True; continuous_desktop_review_separate=True"
+                                ],
+                      "file":  "display-scroll-144-integration.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "D375DC8011782380E5ED163CD5D12C4F0BC65BA6826414953E7CB8112DCDB874",
+                      "proof":  [
+                                    "PASS stage-three model checks=32; synthetic_and_owned_temp_only=True"
+                                ],
+                      "file":  "final-model.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "4DBBDF74488D46FCF4A775020AC2EC15912348B2B3FF80422775FFF4033DA2C4",
+                      "proof":  [
+                                    "OBSERVE scroll frames checks=92; scroll_events=54; protected=54; native_holds=54; shifted=0; max_changed=0; intermediate_pixels=0; final_mismatch=0; track_mismatch=0; premature_resume=0; deferred_not_moved=0; dpi96=True; display_variants=True",
+                                    "PASS scroll frames; owned_synthetic=True; continuous_desktop_review_separate=True"
+                                ],
+                      "file":  "final-scroll-display-96.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "DB362C2A9E174E475F662C5A6E693920B6EEB6F5D2E76E4AB966B7FD0F7FF9D5",
+                      "proof":  [
+                                    "PASS stage-three UI checks=25; dpi96=False; isolated_settings=True"
+                                ],
+                      "file":  "final-ui-144.log",
+                      "result":  "passed"
+                  },
+                  {
+                      "sha256":  "646D5E371C8D61479D28EB891D4CAACEC67927EDC4D2F1226B8ABB25C5D11D6F",
+                      "proof":  [
+                                    "PASS stage-three UI checks=25; dpi96=True; isolated_settings=True"
+                                ],
+                      "file":  "final-ui-96.log",
+                      "result":  "passed"
+                  }
+              ],
+    "packaged":  false,
+    "desktop":  {
+                    "no_system_changes":  true,
+                    "user_feedback":  "pending",
+                    "normal_application":  true,
+                    "synthetic_owned_fixture_only":  true,
+                    "new_density_minimum_desktop_review":  "pending",
+                    "display_strength_preview_cancel_observed":  true,
+                    "five_gib_filter":  "165-to-1",
+                    "isolated_preferences":  true,
+                    "no_recording":  true,
+                    "clear_filter":  "1-to-165"
+                },
+    "advanced_checks":  25,
+    "first_incomplete":  {
+                             "original_thread_limit_seconds":  35,
+                             "code":  "WorkerDeadline",
+                             "not_performance_evidence":  true,
+                             "final_checks":  92,
+                             "checks_completed":  66,
+                             "final_thread_limit_seconds":  75,
+                             "file":  "display-scroll-96-integration.log"
+                         },
+    "released":  false,
+    "date":  "2026-11-22",
+    "baseline":  "739f94ebd1e3e7cc58cb8f89382b9c6f1ea1d42c",
+    "limits":  [
+                   "Win10 new rendering not tested",
+                   "Real multi-monitor DPI not tested",
+                   "Pixel/message assertions do not prove continuous DWM output",
+                   "Two-file setting commit is not crash-atomic"
+               ],
+    "model_checks":  32,
+    "core_checks":  38,
+    "ui_checks_per_dpi":  25
+}

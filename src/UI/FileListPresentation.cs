@@ -5,8 +5,8 @@ internal readonly record struct FileListRowBands(Rectangle Name, Rectangle Path,
 // Presentation only: path text does not change MapItem names, sorting or identity.
 internal static class FileListPresentation
 {
-    internal static int RowHeight(int dpi, bool detailed) =>
-        Math.Max(1, (int)Math.Round((detailed ? 58 : 44) * dpi / 96d));
+    internal static int RowHeight(int dpi, bool detailed, bool compact = false) =>
+        Math.Max(1, (int)Math.Round((detailed ? compact ? 50 : 58 : compact ? 36 : 44) * dpi / 96d));
 
     internal static FileListRowBands Bands(Rectangle cell, int dpi, bool detailed)
     {

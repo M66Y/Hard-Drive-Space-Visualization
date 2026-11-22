@@ -1,0 +1,209 @@
+{
+    "public_raw_logs":  false,
+    "private_archive":  "artifacts/stage-three-C67/evidence-logs.zip",
+    "entries":  [
+                    {
+                        "sha256":  "11504850AFDE88752060E843EFDCD37BF997B5F43193D8517A4093DBA93B491F",
+                        "file":  "build-app.log",
+                        "bytes":  266
+                    },
+                    {
+                        "sha256":  "8533D6B6CD6F0D2FD7DEBE6D77FE195E1DF7FD01B2B9374F6D7E1A4641D934C9",
+                        "file":  "build-final.log",
+                        "bytes":  284
+                    },
+                    {
+                        "sha256":  "8E1CEBE996E3DE7C1F75A50B53E37920EE23AB57E9DE66DF4D0E3E0DDEF8A1FD",
+                        "file":  "build-initial.log",
+                        "bytes":  284
+                    },
+                    {
+                        "sha256":  "0C959683DAC957EB67E4DC77A4C24AA3B3C21AA3CF25B55BE4A1F9CD9BFEBEB2",
+                        "file":  "build-integration.log",
+                        "bytes":  284
+                    },
+                    {
+                        "sha256":  "7D303CA8A75EFB560CB8B5C273F8EFF567C334050330B8A7B58DB11C15BEE4BF",
+                        "file":  "build-model.log",
+                        "bytes":  284
+                    },
+                    {
+                        "sha256":  "4F79570B7BB9B6A8AD7DDC017BABFAA8D202E79A6E9CA69D422A68730ECD60DB",
+                        "file":  "build-ui.log",
+                        "bytes":  284
+                    },
+                    {
+                        "sha256":  "35BF82C77BCD5A65D59ADFF685C7A9F8A50C02CF823A522945DAC16C46BBFBB5",
+                        "file":  "check-advanced.log",
+                        "bytes":  2138
+                    },
+                    {
+                        "sha256":  "B71517DB509D624B17874BF1491EAAE9D9588AD6591CA27752FDA2849CFECFEF",
+                        "file":  "check-background-tests-144.log",
+                        "bytes":  696
+                    },
+                    {
+                        "sha256":  "B71517DB509D624B17874BF1491EAAE9D9588AD6591CA27752FDA2849CFECFEF",
+                        "file":  "check-background-tests-96.log",
+                        "bytes":  696
+                    },
+                    {
+                        "sha256":  "BF973DF459A4FE83F7503142EA579B91CF90DA871176D1233983FF4336BAE4A3",
+                        "file":  "check-core.log",
+                        "bytes":  2594
+                    },
+                    {
+                        "sha256":  "19BAE567168F2C6D11FCDEA61DBB8DBB7214E2EDE9FB54A4FDA956B08F87E9FD",
+                        "file":  "check-hover-popup-policy-tests-144.log",
+                        "bytes":  133
+                    },
+                    {
+                        "sha256":  "19BAE567168F2C6D11FCDEA61DBB8DBB7214E2EDE9FB54A4FDA956B08F87E9FD",
+                        "file":  "check-hover-popup-policy-tests-96.log",
+                        "bytes":  133
+                    },
+                    {
+                        "sha256":  "9D3D8C622C04343999BCA9FC626CD264EEFE877BF90AB84D129095AF2A5C1958",
+                        "file":  "check-layout-presentation-tests-144.log",
+                        "bytes":  8240
+                    },
+                    {
+                        "sha256":  "9D3D8C622C04343999BCA9FC626CD264EEFE877BF90AB84D129095AF2A5C1958",
+                        "file":  "check-layout-presentation-tests-96.log",
+                        "bytes":  8240
+                    },
+                    {
+                        "sha256":  "7BAB9EF727D0EF878C3569CC0BB9D544B461230C908E0738073F2F24B78BF21C",
+                        "file":  "check-pixel-mapping.log",
+                        "bytes":  694
+                    },
+                    {
+                        "sha256":  "7F67B0509D3FD9D255A3A6D4246DD612AA6BD7CE0AB449B05231DD1D2FE8DF41",
+                        "file":  "check-root-composite-tests-144.log",
+                        "bytes":  83
+                    },
+                    {
+                        "sha256":  "7F67B0509D3FD9D255A3A6D4246DD612AA6BD7CE0AB449B05231DD1D2FE8DF41",
+                        "file":  "check-root-composite-tests-96.log",
+                        "bytes":  83
+                    },
+                    {
+                        "sha256":  "2CFC49025538DA07354C4CEFAC2A8545C0D68121DA8A16DBC05CFB013DD75054",
+                        "file":  "check-scroll-frame-tests-144.log",
+                        "bytes":  329
+                    },
+                    {
+                        "sha256":  "D55137A8FC951B91575C272317D04713F32502CFA706BBF1A10AF85B40385688",
+                        "file":  "check-scroll-frame-tests-96.log",
+                        "bytes":  328
+                    },
+                    {
+                        "sha256":  "02B82212A009D79F1113D40A20E299F5AB6044146DB63B29D7041D17FBBCDD77",
+                        "file":  "check-scrollbar-pointer-tests-144.log",
+                        "bytes":  68
+                    },
+                    {
+                        "sha256":  "9D187C090D04261A376E46252004688A7E2993B3B525243FDB56AA89746DE9FA",
+                        "file":  "check-scrollbar-pointer-tests-96.log",
+                        "bytes":  67
+                    },
+                    {
+                        "sha256":  "DEE84CD96BC00D7F92E934ED62CD68DA56F295A6E57CD237AFCC39C5FC29A926",
+                        "file":  "check-scrollbar-surface-tests-144.log",
+                        "bytes":  141
+                    },
+                    {
+                        "sha256":  "DEE84CD96BC00D7F92E934ED62CD68DA56F295A6E57CD237AFCC39C5FC29A926",
+                        "file":  "check-scrollbar-surface-tests-96.log",
+                        "bytes":  141
+                    },
+                    {
+                        "sha256":  "C3F1CE7205AD53A8CE4087720BC9E5A439E49239C65E828F1CA8701B20DB2626",
+                        "file":  "check-selection-linkage-tests-144.log",
+                        "bytes":  63
+                    },
+                    {
+                        "sha256":  "54D45E8EF9E37413770C8F2F53FBCC0EB22DBBDF8AAB88AB93FD69D82AF8378A",
+                        "file":  "check-selection-linkage-tests-96.log",
+                        "bytes":  62
+                    },
+                    {
+                        "sha256":  "67A9565AEF6A599F9453EC8AA69726DA0BC3F7368F02BC718CDF03CC7B9A9023",
+                        "file":  "check-ui-regression-144.log",
+                        "bytes":  4932
+                    },
+                    {
+                        "sha256":  "D6A9163E9312356B318CDE019249FD1753BC32BAE9415A4BDB0A3B4C7F445B67",
+                        "file":  "check-ui-regression-96.log",
+                        "bytes":  4928
+                    },
+                    {
+                        "sha256":  "AA70867543D3B56F719945818D76AC6B5347047D9ABE7D7A45334236876FE312",
+                        "file":  "check-wallpaper-grid-cache-tests-144.log",
+                        "bytes":  140
+                    },
+                    {
+                        "sha256":  "AA70867543D3B56F719945818D76AC6B5347047D9ABE7D7A45334236876FE312",
+                        "file":  "check-wallpaper-grid-cache-tests-96.log",
+                        "bytes":  140
+                    },
+                    {
+                        "sha256":  "0EB3E0589AF2E170F9E21138CE183C7036C8E06F2C9445D45DDF06A917F24D34",
+                        "file":  "display-scroll-144-integration.log",
+                        "bytes":  328
+                    },
+                    {
+                        "sha256":  "40AF0B94B9B18B0E96BFF3B6E8D9EDDFDE4F2326DEA57708E19598CACF5C96B9",
+                        "file":  "display-scroll-96-integration.log",
+                        "bytes":  284
+                    },
+                    {
+                        "sha256":  "D375DC8011782380E5ED163CD5D12C4F0BC65BA6826414953E7CB8112DCDB874",
+                        "file":  "final-model.log",
+                        "bytes":  70
+                    },
+                    {
+                        "sha256":  "4DBBDF74488D46FCF4A775020AC2EC15912348B2B3FF80422775FFF4033DA2C4",
+                        "file":  "final-scroll-display-96.log",
+                        "bytes":  327
+                    },
+                    {
+                        "sha256":  "DB362C2A9E174E475F662C5A6E693920B6EEB6F5D2E76E4AB966B7FD0F7FF9D5",
+                        "file":  "final-ui-144.log",
+                        "bytes":  68
+                    },
+                    {
+                        "sha256":  "646D5E371C8D61479D28EB891D4CAACEC67927EDC4D2F1226B8ABB25C5D11D6F",
+                        "file":  "final-ui-96.log",
+                        "bytes":  67
+                    },
+                    {
+                        "sha256":  "71D16C9489D8AA965458F679C53E140F28CF981B17E358B7C915F05510FC4978",
+                        "file":  "model-first.log",
+                        "bytes":  70
+                    },
+                    {
+                        "sha256":  "71D16C9489D8AA965458F679C53E140F28CF981B17E358B7C915F05510FC4978",
+                        "file":  "model-integration.log",
+                        "bytes":  70
+                    },
+                    {
+                        "sha256":  "225AD4D0E41AC32E19CB32A7F88A8CE3007B8DF119429C8464DA184C1723C0C2",
+                        "file":  "stage3-ui-144-integration.log",
+                        "bytes":  68
+                    },
+                    {
+                        "sha256":  "9F2F885B6B0012C595B5CE40599540833DF4C9BB79D3F23329D7B6EBA354287B",
+                        "file":  "stage3-ui-96-integration.log",
+                        "bytes":  67
+                    },
+                    {
+                        "sha256":  "225AD4D0E41AC32E19CB32A7F88A8CE3007B8DF119429C8464DA184C1723C0C2",
+                        "file":  "ui-first-144.log",
+                        "bytes":  68
+                    }
+                ],
+    "sha256":  "0DE60083ECC4CBFB378EC2A9B5E167EE52D7093294404AC6F6B16A7D8C4E870D",
+    "active_fixture_retained":  true,
+    "archive_verified":  true
+}

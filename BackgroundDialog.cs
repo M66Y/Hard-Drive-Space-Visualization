@@ -1,6 +1,6 @@
 namespace DiskAtlas;
 
-internal sealed class BackgroundDialog : Form
+internal sealed partial class BackgroundDialog : Form
 {
     private readonly Panel preview = new PreviewSurface { Dock = DockStyle.Fill, BackColor = Theme.Surface, Cursor = Cursors.Hand };
     private readonly TrackBar zoom = new() { Minimum = 100, Maximum = 300, Value = 100, TickFrequency = 50, Width = 160, Height = 38, AccessibleName = "背景缩放" };
@@ -30,7 +30,8 @@ internal sealed class BackgroundDialog : Form
 
     public BackgroundDialog(Image current, BackgroundView view, Color automaticAccent, Size referenceSize, string settingsPath,
         bool isDefault = false, Func<string, CancellationToken, BackgroundChoice>? importImage = null,
-        Action<DiagnosticKind, Exception>? reportFailure = null)
+        Action<DiagnosticKind, Exception>? reportFailure = null, DisplayPreferences? display = null,
+        string? displayPath = null, Action<DisplayPreferences>? previewDisplay = null)
     {
         this.reportFailure = reportFailure;
         this.importImage = importImage ?? BackgroundSettings.Import;
@@ -100,6 +101,7 @@ internal sealed class BackgroundDialog : Form
         };
         SetView(view);
         resetPending = isDefault;
+        if (display != null) ConfigureDisplay(display, displayPath!, previewDisplay, pick, restore);
     }
 
     internal Task ImportImageAsync(string path) => RunFileWork("读取图片", DiagnosticKind.BackgroundImportFailed, false, async () =>
@@ -109,6 +111,7 @@ internal sealed class BackgroundDialog : Form
         if (token.IsCancellationRequested || IsDisposed || Disposing) { loaded.Dispose(); return; }
         choice?.Dispose(); choice = loaded;
         SetView(loaded.View); resetPending = false;
+        imageChanged = true;
         status.Text = "图片已载入。调整后点击应用；取消会保留原设置。";
     });
 
@@ -119,14 +122,16 @@ internal sealed class BackgroundDialog : Form
         if (token.IsCancellationRequested || IsDisposed || Disposing) { image.Dispose(); return; }
         choice?.Dispose(); choice = new(image, BackgroundView.Default, Theme.DefaultAccent);
         SetView(BackgroundView.Default); resetPending = true;
+        imageChanged = true;
         status.Text = "已预览默认背景。点击应用后生效，取消会保留原设置。";
         preview.Invalidate();
     });
 
-    internal Task ApplyAsync() => RunFileWork(resetPending ? "恢复默认设置" : "保存背景",
+    internal Task ApplyAsync() => RunFileWork(initialDisplay != null ? "保存外观设置" : resetPending ? "恢复默认设置" : "保存背景",
         resetPending ? DiagnosticKind.BackgroundResetFailed : DiagnosticKind.BackgroundSaveFailed, true, async () =>
     {
         if (choice == null) return;
+        if (initialDisplay != null) { await CommitAppearanceAsync(); return; }
         if (resetPending)
         {
             await Task.Run(() => BackgroundSettings.Reset(settingsPath));
@@ -145,7 +150,7 @@ internal sealed class BackgroundDialog : Form
         DialogResult = DialogResult.OK;
     });
 
-    private void Changed() { resetPending = false; preview.Invalidate(); }
+    private void Changed() { imageChanged = true; resetPending = false; preview.Invalidate(); displayPreview?.Invalidate(); }
 
     private async Task RunFileWork(string operation, DiagnosticKind failureKind, bool commit, Func<Task> work)
     {
@@ -154,14 +159,17 @@ internal sealed class BackgroundDialog : Form
         committing = commit;
         foreach (Control control in commands.Controls) control.Enabled = !commit && control == cancel;
         adjustments.Enabled = preview.Enabled = false;
+        if (appearanceTabs != null) appearanceTabs.Enabled = false;
         status.Text = $"正在{operation}…" + (commit ? "请稍候。" : "可以取消。若读取较慢，可关闭窗口。");
         try { await work(); }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (Exception error) when (BackgroundSettings.IsFileError(error))
         {
+            if (initialDisplay != null) previewDisplay?.Invoke(initialDisplay);
             reportFailure?.Invoke(failureKind, error);
             if (!IsDisposed && !Disposing)
-                status.Text = commit ? $"{operation}失败，原设置保留。请检查本地存储是否可写，或稍后重试。"
+                status.Text = error is AppearanceRestoreException ? "设置未能完整恢复，本地恢复副本已保留。请检查存储后重试。"
+                    : commit ? $"{operation}失败，原设置保留。请检查本地存储是否可写，或稍后重试。"
                     : "读取失败。请选择可读取且不超过 24 MiB、4000 万像素的 PNG、JPEG 或 BMP。";
         }
         finally
@@ -171,6 +179,7 @@ internal sealed class BackgroundDialog : Form
             {
                 foreach (Control control in commands.Controls) control.Enabled = true;
                 adjustments.Enabled = preview.Enabled = true;
+                if (appearanceTabs != null) appearanceTabs.Enabled = true;
             }
         }
     }
@@ -196,21 +205,27 @@ internal sealed class BackgroundDialog : Form
         preview.Invalidate();
     }
 
-    private Rectangle PreviewBounds()
+    private Rectangle PreviewBounds(Control? surface = null)
     {
-        float factor = Math.Min((float)preview.Width / Math.Max(1, referenceSize.Width),
-            (float)preview.Height / Math.Max(1, referenceSize.Height));
+        surface ??= preview;
+        float factor = Math.Min((float)surface.Width / Math.Max(1, referenceSize.Width),
+            (float)surface.Height / Math.Max(1, referenceSize.Height));
         var size = new Size(Math.Max(1, (int)(referenceSize.Width * factor)), Math.Max(1, (int)(referenceSize.Height * factor)));
-        return new Rectangle((preview.Width - size.Width) / 2, (preview.Height - size.Height) / 2, size.Width, size.Height);
+        return new Rectangle((surface.Width - size.Width) / 2, (surface.Height - size.Height) / 2, size.Width, size.Height);
     }
 
     private void PaintPreview(object? sender, PaintEventArgs e)
     {
         if (choice == null) return;
-        var box = PreviewBounds();
+        var box = PreviewBounds(sender as Control);
         var state = e.Graphics.Save();
         e.Graphics.SetClip(box);
         e.Graphics.DrawImage(choice.Image, Wallpaper.CoverBounds(choice.Image, box.Size, new Point(-box.X, -box.Y), ReadView()));
+        if (initialDisplay != null && strength.Value < 100)
+        {
+            using var strengthWash = new SolidBrush(Color.FromArgb(255 - (int)Math.Round(255 * strength.Value / 100d), Theme.Surface));
+            e.Graphics.FillRectangle(strengthWash, box);
+        }
         using var wash = new SolidBrush(Color.FromArgb(42, Theme.Surface));
         e.Graphics.FillRectangle(wash, box);
         var accent = Theme.ReadableAccent(automatic.Checked ? choice.AutomaticAccent : manual);
@@ -240,7 +255,12 @@ internal sealed class BackgroundDialog : Form
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing && !IsDisposed) { lifetime.Cancel(); lifetime.Dispose(); choice?.Dispose(); choice = null; }
+        if (disposing && !IsDisposed)
+        {
+            displayTimer.Stop(); displayTimer.Dispose();
+            if (initialDisplay == null) { strength.Dispose(); palette.Dispose(); density.Dispose(); strengthValue.Dispose(); }
+            lifetime.Cancel(); lifetime.Dispose(); choice?.Dispose(); choice = null;
+        }
         base.Dispose(disposing);
     }
 

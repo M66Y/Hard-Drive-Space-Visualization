@@ -35,12 +35,14 @@ Get the SDK or runtime from [Microsoft](https://dotnet.microsoft.com/en-us/downl
 | Choose a scan folder | Folder picker, drag-and-drop, or a startup path argument |
 | Space treemap | See size by area; double-click folders to explore deeper |
 | File list | Names, sizes and details; search, sort and 1,000-item pages |
-| Largest files | The largest 500 matching files within the current folder and its descendants |
+| Largest files | Filter the current folder and descendants by name, extension and logical-size threshold, then show the largest 500 matches |
 | File types | Totals by extension; double-click a type to filter its files |
 | File helpers | Locate items in Explorer and copy paths; no deletion or moving |
 | Two size metrics | Logical length or allocated file data; hard-link deduplication and explicit unknown allocation |
 
 Also includes Automatic / Low-impact / High-speed strategies, live partial previews, cancellation and result recovery, NTFS journal-assisted refresh, local background cropping and accent colors, and [local diagnostics and problem notes](docs/diagnostics.md) (Chinese).
+
+The current source build adds size/extension filters and display preferences: background strength (40–100%, with 100% retaining the current appearance), original/clearer category colors, and comfortable/compact spacing without smaller fonts. Use **筛选** in Largest files and **背景设置 → 显示** for display options. Apply saves; Cancel restores the previous appearance. These additions are not included in the older release packages. See the [behavior and limits](docs/display-and-large-file-filters.md) (Chinese).
 
 The stage-two development build adds [linked treemap selection, list location and item details](docs/selection-linkage.md) (Chinese). Selecting an internal file keeps the overview; the explicit list action enters its parent. Full paths and allocation notes are available in the details dialog. Stage-two maintainer acceptance has passed; these changes are not in a new Release. Stage three is only a [proposal](docs/ui-stage-three-plan.md) (Chinese), awaiting approval.
 
@@ -104,7 +106,7 @@ The application does not automatically upload files, paths, images or logs. Mini
 
 ## Planned work and limits
 
-- **UI phase two:** review a chart-to-list-and-details interaction preview before implementation; background strength, palettes and density remain later proposals.
+- **UI phase three:** large-file filters and display preferences are implemented and awaiting user review in the real application; custom workspaces remain deferred.
 - **Future release acceptance:** v1.5.0 is published. Later versions still need a new freeze, packages and acceptance; existing clean-environment gaps remain recorded. See the [release guide](docs/releasing.md) (Chinese).
 - **After the initial version (P2):** High-speed mode is not consistently faster than Automatic. Nonblocking restructuring and additional visual polish are deferred to the same stage.
 - **Current limits:** Automatic chooses concurrency by device, without load adaptation. If the change journal is unavailable, refresh still verifies metadata for all directories and files and may not be much faster. The cache exists only within the current process.

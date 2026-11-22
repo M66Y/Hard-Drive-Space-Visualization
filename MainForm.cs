@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace DiskAtlas;
 
-internal sealed class MainForm : Form
+internal sealed partial class MainForm : Form
 {
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     internal Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult>? ScanRunner { get; init; }
@@ -120,7 +120,7 @@ internal sealed class MainForm : Form
     // displayed. A new complete result, restoration, or closing releases it.
     private CompleteRecovery? completeRecovery;
     private sealed record CompleteRecovery(ScanResult Result, string? Directory, int Mode, string? Type,
-        string Search, string Sort, bool Ascending, SizeMetric Metric);
+        string Search, string Sort, bool Ascending, SizeMetric Metric, long Minimum = 0, string? LargestType = null);
     private DiskEntry? current;
     private CancellationTokenSource? scanCancellation;
     private CancellationTokenSource? viewCancellation;
@@ -146,6 +146,7 @@ internal sealed class MainForm : Form
         }
         this.diagnostics = diagnostics;
         this.backgroundSettingsPath = backgroundSettingsPath ?? BackgroundSettings.PathForUser;
+        displaySettingsPath = backgroundSettingsPath == null ? DisplayPreferencesStore.PathForUser : backgroundSettingsPath + ".display.json";
         Text = AppInfo.WindowTitle;
         if (showCandidateLabel)
         {
@@ -251,7 +252,8 @@ internal sealed class MainForm : Form
         };
         issues.Click += (_, _) => ShowIssues();
         restoreComplete.Click += (_, _) => RestoreCompleteResult();
-        clearType.Click += (_, _) => { typeFilter = null; UpdateView(); };
+        clearType.Click += (_, _) => { typeFilter = largestExtension = null; largestMinimum = 0; UpdateView(true); };
+        largestFilter.Click += async (_, _) => await EditLargestFilter();
         previousPage.Click += (_, _) => { PopulatePage(pageIndex - 1); SelectItem(null, false); };
         nextPage.Click += (_, _) => { PopulatePage(pageIndex + 1); SelectItem(null, false); };
         navigation.Navigate += SetMode;
@@ -263,7 +265,7 @@ internal sealed class MainForm : Form
         KeyDown += HandleKeys;
         DragEnter += (_, e) => { if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1 && Directory.Exists(paths[0])) e.Effect = DragDropEffects.Copy; };
         DragDrop += async (_, e) => { if (scanCancellation == null && e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1) await ScanFolder(paths[0]); };
-        FormClosing += (_, _) => { scanCancellation?.Cancel(); viewCancellation?.Cancel(); activityMonitor?.Dispose(); activityDetails?.Close(); };
+        FormClosing += (_, _) => { scanCancellation?.Cancel(); viewCancellation?.Cancel(); filterChoicesCancellation?.Cancel(); activityMonitor?.Dispose(); activityDetails?.Close(); };
         backgroundSettings.Click += (_, _) => EditBackground();
         diagnosticsButton.Enabled = diagnostics != null;
         diagnosticsButton.Click += (_, _) => OpenDiagnostics();
@@ -272,7 +274,7 @@ internal sealed class MainForm : Form
         {
             if (diagnostics != null) await diagnostics.Ready;
             if (IsDisposed || Disposing) return;
-            if (loadSavedBackground) await RestoreSavedBackground();
+            if (loadSavedBackground) { await RestoreSavedDisplay(); if (!IsDisposed && !Disposing) await RestoreSavedBackground(); }
             if (!IsDisposed && !Disposing && scanCancellation == null && scan == null &&
                 !string.IsNullOrWhiteSpace(initialPath)) await ScanFolder(initialPath);
         };
@@ -285,7 +287,7 @@ internal sealed class MainForm : Form
         if (Math.Abs(scale - 1) > .01f) Scale(new SizeF(scale, scale));
         // DataGridView rows and header heights are not Control bounds and do
         // not follow the form's explicit Scale call.
-        grid.RowTemplate.Height = FileListPresentation.RowHeight(DeviceDpi, mode == 1);
+        grid.RowTemplate.Height = FileListPresentation.RowHeight(DeviceDpi, mode == 1, DisplayOptions.Density == ReadingDensity.Compact);
         grid.ColumnHeadersHeight = (int)Math.Round(38 * scale);
         foreach (var (column, width) in new[] { ("name", 100), ("size", 105), ("percent", 78), ("count", 80), ("location", 140) })
             grid.Columns[column]!.MinimumWidth = (int)Math.Round(width * scale);
@@ -621,7 +623,11 @@ internal sealed class MainForm : Form
         listPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         pagingRow = new RowStyle(SizeType.Absolute, 0);
         listPanel.RowStyles.Add(pagingRow);
-        listPanel.Controls.Add(PanelHeader(listTitle, listCaption, WallpaperSurface.Data), 0, 0);
+        var listHeading = (WallpaperTable)PanelHeader(listTitle, listCaption, WallpaperSurface.Data);
+        listHeading.ColumnCount = 3;
+        largestFilterColumn = new ColumnStyle(SizeType.Absolute, 0); listHeading.ColumnStyles.Add(largestFilterColumn);
+        largestFilter.Margin = new Padding(8, 0, 0, 0); listHeading.Controls.Add(largestFilter, 2, 0);
+        listPanel.Controls.Add(listHeading, 0, 0);
         listPanel.Controls.Add(grid, 0, 1);
         var pages = Table(3, 1); pages.Surface = WallpaperSurface.Data;
         pages.Padding = new Padding(8, 3, 8, 3);
@@ -787,7 +793,7 @@ internal sealed class MainForm : Form
                 ((WallpaperGrid)grid).PaintCellSurface(e);
                 bool detailed = mode == 1 && item.Entry != null;
                 var bands = FileListPresentation.Bands(e.CellBounds, grid.DeviceDpi, detailed);
-                using var brush = new SolidBrush(Theme.CategoryColor(item.Category));
+                using var brush = new SolidBrush(DisplayOptions.CategoryColor(item.Category));
                 graphics.FillRectangle(brush, bands.Dot);
                 Color foreground = SystemInformation.HighContrast
                     ? (e.State & DataGridViewElementStates.Selected) != 0 ? SystemColors.HighlightText : SystemColors.WindowText
@@ -825,11 +831,12 @@ internal sealed class MainForm : Form
 
     private void ApplyGridPresentation(int requestedMode)
     {
+        UpdateLargestFilterEntry();
         grid.Columns["count"]!.Visible = requestedMode == 2;
         // The parent path is now the second line of the name cell. Retain the
         // hidden value column and location sort for existing query/context state.
         grid.Columns["location"]!.Visible = false;
-        grid.RowTemplate.Height = FileListPresentation.RowHeight(grid.DeviceDpi, requestedMode == 1);
+        grid.RowTemplate.Height = FileListPresentation.RowHeight(grid.DeviceDpi, requestedMode == 1, DisplayOptions.Density == ReadingDensity.Compact);
         grid.Columns["name"]!.FillWeight = requestedMode == 1 ? 70 : 50;
         grid.Columns["size"]!.FillWeight = requestedMode == 1 ? 18 : 28;
         grid.Columns["percent"]!.FillWeight = requestedMode == 1 ? 12 : 22;
@@ -882,6 +889,8 @@ internal sealed class MainForm : Form
         var previousDirectory = current;
         int previousMode = mode;
         string? previousType = typeFilter;
+        long previousMinimum = largestMinimum;
+        string? previousLargestExtension = largestExtension;
         string previousSearch = search.Text, previousSort = sortColumn;
         bool previousAscending = sortAscending;
         var previousMetric = metric;
@@ -975,10 +984,11 @@ internal sealed class MainForm : Form
             {
                 if (previousScan != null && !IsIncomplete(previousScan))
                     completeRecovery = new(previousScan, previousDirectory?.Path, previousMode, previousType,
-                        previousSearch, previousSort, previousAscending, previousMetric);
+                        previousSearch, previousSort, previousAscending, previousMetric, previousMinimum, previousLargestExtension);
             }
             else completeRecovery = null;
             scan = result;
+            if (!isRefresh) { largestMinimum = 0; largestExtension = null; }
             displayingPreviousResult = false;
             current = restored ?? result.Root;
             navigation.RootName = scan.Root.Name; navigation.RootPath = scan.Root.Path; navigation.Invalidate();
@@ -1045,12 +1055,14 @@ internal sealed class MainForm : Form
                 map.Scanning = false; map.Invalidate();
                 if (cancellation.IsCancellationRequested || scan == previousScan) UpdateStrategyHint();
                 UpdateRecoveryAvailability();
+                UpdateLargestFilterEntry();
             }
         }
 
         void RestoreQuery()
         {
             mode = previousMode; typeFilter = previousType; sortColumn = previousSort; sortAscending = previousAscending;
+            largestMinimum = previousMinimum; largestExtension = previousLargestExtension;
             clearingSearch = true;
             try { search.Text = previousSearch; } finally { clearingSearch = false; }
             navigation.SelectedIndex = mode;
@@ -1098,6 +1110,7 @@ internal sealed class MainForm : Form
         scan = saved.Result; completeRecovery = null; displayingPreviousResult = true;
         current = saved.Directory == null ? scan.Root : scan.Root.FindDirectory(saved.Directory) ?? scan.Root;
         mode = saved.Mode; typeFilter = saved.Type; sortColumn = saved.Sort; sortAscending = saved.Ascending;
+        largestMinimum = saved.Minimum; largestExtension = saved.LargestType;
         clearingSearch = true;
         try { search.Text = saved.Search; } finally { clearingSearch = false; }
         SetMetric(saved.Metric); navigation.SelectedIndex = mode;
@@ -1241,7 +1254,7 @@ internal sealed class MainForm : Form
     private void SetMode(int index)
     {
         if (showingPreview) return;
-        typeFilter = null;
+        typeFilter = index == 1 ? largestExtension : null;
         mode = index; navigation.SelectedIndex = index; navigation.Invalidate();
         ResetSearch();
         sortColumn = "size"; sortAscending = false;
@@ -1279,7 +1292,9 @@ internal sealed class MainForm : Form
             ? selection : ReferenceEquals(pendingSelectionOwner, SelectionOwner) ? pendingViewSelection : null;
         pendingViewSelection = previous; pendingSelectionOwner = SelectionOwner;
         var sort = sortColumn switch { "name" => ViewSort.Name, "count" => ViewSort.Count, "location" => ViewSort.Location, _ => ViewSort.Size };
-        var request = new ViewRequest(directory, (ViewMode)requestedMode, search.Text, sort, sortAscending, typeFilter, metric);
+        var request = new ViewRequest(directory, (ViewMode)requestedMode, search.Text, sort, sortAscending, typeFilter, metric,
+            requestedMode == 1 ? largestMinimum : 0);
+        UpdateLargestFilterEntry();
         pathBox.Text = current.Path;
         var scopeFacts = new List<string>();
         if (displayingPreviousResult) scopeFacts.Add("当前显示上一次扫描结果");
@@ -1294,8 +1309,10 @@ internal sealed class MainForm : Form
             if (source.ExcludedReparseEntries > 0) scopeFacts.Add($"跳过 {source.ExcludedReparseEntries:N0} 个链接，目标未纳入");
         }
         SetScopeDetails(string.Join(" · ", scopeFacts));
-        clearType.Visible = typeFilter != null;
-        if (filterColumn != null) filterColumn.Width = typeFilter != null ? 142 * DeviceDpi / 96f : 0;
+        bool hasFilter = typeFilter != null || requestedMode == 1 && largestMinimum > 0;
+        clearType.Visible = hasFilter;
+        clearType.Text = requestedMode == 1 ? "清除筛选" : "清除类型筛选";
+        if (filterColumn != null) filterColumn.Width = hasFilter ? 142 * DeviceDpi / 96f : 0;
         totalCard.Value = SizeFormat.Bytes(directory.Bytes(metric)) + (metric == SizeMetric.Allocated && directory.UnknownAllocationFiles > 0 ? " + 未知" : "");
         totalCard.Title = metric == SizeMetric.Allocated ? "实际占用空间" : "当前目录大小";
         totalCard.Caption = (metric == SizeMetric.Allocated ? "已知分配量 · 硬链接去重" : "文件逻辑大小 · 1024 进制") +
@@ -1345,7 +1362,7 @@ internal sealed class MainForm : Form
             search.PlaceholderText = requestedMode switch { 1 => "搜索所有子目录的文件名…", 2 => "搜索扩展名或类型…", _ => "搜索当前层级名称…" };
             search.AccessibleDescription = search.PlaceholderText;
             SetScopeDetails(string.Join(" · ", scopeFacts));
-            listBaseCaption = listCaption.Text = $"{result.Rows.Count:N0} 项";
+            listBaseCaption = listCaption.Text = requestedMode == 1 ? $"{result.Rows.Count:N0} / {result.MatchedCount:N0}" : $"{result.Rows.Count:N0} 项";
             listCaption.AccessibleDescription = (requestedMode == 1 ? $"含子目录 · 匹配 {result.MatchedCount:N0} 个，显示最大 {result.Rows.Count:N0} 个。" : "") +
                 "当前视图所列项目的数量与大小占比（大文件最多 500 个），分页只改变列表显示；分母为当前目录未筛选的大小。" +
                 (request.Metric == SizeMetric.Allocated ? "占比仅按已知分配量计算，未知不计为零。" : "");
@@ -1575,7 +1592,7 @@ internal sealed class MainForm : Form
     {
         if (mode == 2 && item.Entry == null && !item.IsAggregate)
         {
-            typeFilter = item.Name; mode = 1; navigation.SelectedIndex = 1;
+            typeFilter = largestExtension = item.Name; mode = 1; navigation.SelectedIndex = 1;
             ResetSearch(); sortColumn = "size"; sortAscending = false; UpdateView();
         }
         else if (item.Entry is { IsDirectory: true } directory) OpenDirectory(directory);
@@ -1680,12 +1697,15 @@ internal sealed class MainForm : Form
     private void EditBackground()
     {
         if (BackgroundImage is not { } current) return;
+        var originalDisplay = DisplayOptions;
         using var dialog = new BackgroundDialog(current, BackgroundCrop, automaticBackgroundAccent, ClientSize,
             backgroundSettingsPath, isDefault: !HasCustomBackground,
-            reportFailure: (kind, error) => diagnostics?.Failure(kind, error));
-        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            reportFailure: (kind, error) => diagnostics?.Failure(kind, error), display: DisplayOptions,
+            displayPath: displaySettingsPath, previewDisplay: ApplyDisplayOptions);
+        if (dialog.ShowDialog(this) != DialogResult.OK) { ApplyDisplayOptions(originalDisplay); return; }
         if (dialog.RestoredDefault) ApplyBackground(Wallpaper.Load(), BackgroundView.Default, Theme.DefaultAccent, useDefault: true);
         else if (dialog.Result is { } result) ApplyBackground(result.Image, result.View, result.AutomaticAccent);
+        ApplyDisplayOptions(dialog.DisplayResult ?? originalDisplay);
     }
 
     private void ApplyBackground(Bitmap image, BackgroundView view, Color automatic, bool useDefault = false)

@@ -23,7 +23,7 @@ internal sealed class TreemapControl : Control
     internal const double OrbitPeriodMilliseconds = 2800d / 1.15d;
     internal int StaticLayerBuilds { get; private set; }
     internal long StaticLayerBytes => staticLayer == null ? 0 : (long)staticLayer.Width * staticLayer.Height * 4;
-    private readonly record struct CacheKey(Size ViewSize, Size WindowSize, Point Offset, Image? Wallpaper, int Dpi, bool CustomBackground);
+    private readonly record struct CacheKey(Size ViewSize, Size WindowSize, Point Offset, Image? Wallpaper, int Dpi, bool CustomBackground, DisplayPreferences Display);
     private MapItem? hovered;
     private MapItem? selected;
     private bool pointerFocus;
@@ -215,7 +215,7 @@ internal sealed class TreemapControl : Control
             if (!clip.IntersectsWith(Rectangle.Ceiling(tile.Bounds))) continue;
             RectangleF rect = GlowBounds(tile.Bounds, s);
             if (rect.Width < 1 || rect.Height < 1) continue;
-            Color baseColor = Theme.CategoryColor(tile.Item.Category);
+            Color baseColor = DisplayPreferences.For(this).CategoryColor(tile.Item.Category);
             using var fill = new SolidBrush(Color.FromArgb(fillAlpha, baseColor));
             using var path = TileOutline(rect, s);
             g.FillPath(fill, path);
@@ -449,7 +449,7 @@ internal sealed class TreemapControl : Control
     {
         var form = FindForm(); var offset = Point.Empty;
         for (Control? node = this; node != null && node != form; node = node.Parent) offset.Offset(node.Left, node.Top);
-        return new(ClientSize, form?.ClientSize ?? Size.Empty, offset, form?.BackgroundImage, DeviceDpi, form is MainForm { HasCustomBackground: true });
+        return new(ClientSize, form?.ClientSize ?? Size.Empty, offset, form?.BackgroundImage, DeviceDpi, form is MainForm { HasCustomBackground: true }, DisplayPreferences.For(this));
     }
     private bool EnsureStaticLayer()
     {

@@ -1,0 +1,1417 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index b46ec5c..6b8e221 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,5 +1,12 @@
+ # AsukaLens 开发检查点
+ 
++## C67 四项实现与检查通过，等待用户复审（2026-11-22）
++
++用户“四项一起推进”，基线739f94e且开始干净。四项代码已集成，32项模型、两档各25项UI、核心38/advanced25及受影响C57完整UI/背景/根合成/像素映射/缓存/布局/联动/无悬停/指针/表面/默认与显示变体滚动通过。96DPI变体首次35秒限超时，保留原记录；75秒限复测92项完成，非性能收益。应用和测试构建零警告。
++
++正常版已实际展示自建稀疏夹具：5GiB条件165→1，清除恢复；显示页强度预览/取消已观察，布局/图片/聚焦/字号/1.15柔光/C57-C55保留。活跃程序用隔离配置artifacts/stage-three-C67，164个测试文件＋归属标记；4个稀疏文件真实占用262144字节，尚不清理。右侧悬浮工具遮挡后移开自有窗口观察、已恢复位置；未保存含第三方浮窗截图。实际最小窗口拖动未改变尺寸，不能追认为该新组合的人工通过。已询问用户四项真实体验，待反馈，不自动收尾阶段。
++
++本轮改动均归C67；正在归档清理和提交推送。新使用说明docs/display-and-large-file-filters.md；完整证据iterations/2026-11-22-67-stage-three。显示默认100/原有/舒适；单独显示保存不重写图片，普通保存失败回退、回退失败保留恢复副本并提示，不承诺断电双文件原子。无个人卷、录屏、系统改动、包、标签、Release或自定义工作区。下方C66是授权前历史。
+ ## 当前：C66第三阶段重新审阅，仅方案/预览（2026-11-22）
+ 
+ 基线main/origin 9f5540c，产品实现6388822。用户已通过C65快速拖动与缓慢滚动，修复收尾；当前要求重新看大文件分析和个性化设置的具体方案/预览，保持背景/动效，明确确认后才实施、不发布。**第三阶段产品开发尚未授权，预览点击或旧widget状态不构成批准。**
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index 573b9d9..f027e4c 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,5 +1,7 @@
+ # 影响后续开发的决定
+ 
++- 2026-11-22 C67：用户明确四项一起实施，以C65滚动修复后基线实现筛选与可选强度/配色/密度；默认外观不变，仍等待真实程序反馈再收尾。显示单独保存不改写图片，常规写入回退，恢复失败保留本机副本并准确提示；配置不收集路径/搜索。保留C57/C55及1.15倍柔光，不打包发布。见iterations/2026-11-22-67-stage-three。
++
+ - 2026-11-22 C66：滚动修复验收后用户重回第三阶段，仅要求重看方案与预览，实施继续等待明确确认。复用C62两页设计、保持默认外观，以C65提交/发布为显示缓存更新约束；补明确同根条件保留/换根重置及新滚动专项。当前产品/测试/C55哈希不变，不借本轮重排布局或开发功能；见iterations/2026-11-22-66-stage-three-review。
+ 
+ - 2026-11-22 C65最终反馈：用户确认快速拖动、缓慢滚动都正常，允许保留并收尾、暂不发布。实现6388822保留，本机滚动缺陷按此范围通过，不再重复要求验证；原C63/C64和反例失败证据不改写。仅追加验收/状态、核程序及C55哈希和压缩归档，不重建、不关闭用户窗口、不自动进入第三阶段；见iterations/2026-11-22-65-scroll-frame-consistency/user-feedback.md。
+diff --git a/AGENTS.md b/AGENTS.md
+index 6283cda..31fe5e9 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -113,6 +113,8 @@
+ 
+ ## 检查与现有命令
+ 
++- 大文件筛选/显示偏好修改运行`--stage-three-model-tests`及`--stage-three-ui-tests`两档，保持先过滤全范围再top500、逻辑大小门槛、同根保留/换根重置/取消恢复、独立有界配置及显示取消/失败恢复。显示缓存/密度修改另用`--scroll-frame-tests --display-variants`两档核C65发布合同，并运行受影响UI/背景/根合成/缓存检查；实际观感不由离散像素断言代替。行为与保存限制见[使用说明](docs/display-and-large-file-filters.md)。
++
+ - 个人卷当前合同见 [NTFS 快扫说明](docs/ntfs-personal-scan.md)，不从历史夹具授权推导个人卷权限。扩展布局、紧凑预算与边界策略改动运行 `--ntfs-mft-metadata-tests`、`--ntfs-continuation-record-tests`、`--ntfs-bitmap-bundle-tests`、`--ntfs-large-profile-tests`、`--ntfs-reparse-policy-tests`，并核对旧 Map/namespace/size/reader 回归。`--ntfs-personal-acceptance-tests` 是纯审计反例，`--ntfs-snapshot-metadata-tests` 仅用自有临时文件；通信与主窗检查仍按下方入口执行。
+ - 真实个人卷验收必须有当轮范围、快照及原始页读取授权；测试 apphost 的 `--ntfs-personal-acceptance` 从 stdin 接收目录，复用生产管道并在清理前逐对象独立核验，仅输出固定码和布尔摘要。`passed-partial` 明确排除重解析点及目标，不等于整个目录全读完；只有声明的链接边界允许部分成功，读取错误、未知大小和矛盾不能混入。`--cancel-on-discovery` 在快照建立后取消；独立审计成本不作为产品性能。实际窗口观察、合成 UI 回归和真实后台核验分别记录。
+ 
+diff --git a/BackgroundDialog.cs b/BackgroundDialog.cs
+index 30e82c2..8cf792f 100644
+--- a/BackgroundDialog.cs
++++ b/BackgroundDialog.cs
+@@ -1,6 +1,6 @@
+ namespace DiskAtlas;
+ 
+-internal sealed class BackgroundDialog : Form
++internal sealed partial class BackgroundDialog : Form
+ {
+     private readonly Panel preview = new PreviewSurface { Dock = DockStyle.Fill, BackColor = Theme.Surface, Cursor = Cursors.Hand };
+     private readonly TrackBar zoom = new() { Minimum = 100, Maximum = 300, Value = 100, TickFrequency = 50, Width = 160, Height = 38, AccessibleName = "背景缩放" };
+@@ -30,7 +30,8 @@ internal sealed class BackgroundDialog : Form
+ 
+     public BackgroundDialog(Image current, BackgroundView view, Color automaticAccent, Size referenceSize, string settingsPath,
+         bool isDefault = false, Func<string, CancellationToken, BackgroundChoice>? importImage = null,
+-        Action<DiagnosticKind, Exception>? reportFailure = null)
++        Action<DiagnosticKind, Exception>? reportFailure = null, DisplayPreferences? display = null,
++        string? displayPath = null, Action<DisplayPreferences>? previewDisplay = null)
+     {
+         this.reportFailure = reportFailure;
+         this.importImage = importImage ?? BackgroundSettings.Import;
+@@ -100,6 +101,7 @@ internal sealed class BackgroundDialog : Form
+         };
+         SetView(view);
+         resetPending = isDefault;
++        if (display != null) ConfigureDisplay(display, displayPath!, previewDisplay, pick, restore);
+     }
+ 
+     internal Task ImportImageAsync(string path) => RunFileWork("读取图片", DiagnosticKind.BackgroundImportFailed, false, async () =>
+@@ -109,6 +111,7 @@ internal sealed class BackgroundDialog : Form
+         if (token.IsCancellationRequested || IsDisposed || Disposing) { loaded.Dispose(); return; }
+         choice?.Dispose(); choice = loaded;
+         SetView(loaded.View); resetPending = false;
++        imageChanged = true;
+         status.Text = "图片已载入。调整后点击应用；取消会保留原设置。";
+     });
+ 
+@@ -119,14 +122,16 @@ internal sealed class BackgroundDialog : Form
+         if (token.IsCancellationRequested || IsDisposed || Disposing) { image.Dispose(); return; }
+         choice?.Dispose(); choice = new(image, BackgroundView.Default, Theme.DefaultAccent);
+         SetView(BackgroundView.Default); resetPending = true;
++        imageChanged = true;
+         status.Text = "已预览默认背景。点击应用后生效，取消会保留原设置。";
+         preview.Invalidate();
+     });
+ 
+-    internal Task ApplyAsync() => RunFileWork(resetPending ? "恢复默认设置" : "保存背景",
++    internal Task ApplyAsync() => RunFileWork(initialDisplay != null ? "保存外观设置" : resetPending ? "恢复默认设置" : "保存背景",
+         resetPending ? DiagnosticKind.BackgroundResetFailed : DiagnosticKind.BackgroundSaveFailed, true, async () =>
+     {
+         if (choice == null) return;
++        if (initialDisplay != null) { await CommitAppearanceAsync(); return; }
+         if (resetPending)
+         {
+             await Task.Run(() => BackgroundSettings.Reset(settingsPath));
+@@ -145,7 +150,7 @@ internal sealed class BackgroundDialog : Form
+         DialogResult = DialogResult.OK;
+     });
+ 
+-    private void Changed() { resetPending = false; preview.Invalidate(); }
++    private void Changed() { imageChanged = true; resetPending = false; preview.Invalidate(); displayPreview?.Invalidate(); }
+ 
+     private async Task RunFileWork(string operation, DiagnosticKind failureKind, bool commit, Func<Task> work)
+     {
+@@ -154,14 +159,17 @@ internal sealed class BackgroundDialog : Form
+         committing = commit;
+         foreach (Control control in commands.Controls) control.Enabled = !commit && control == cancel;
+         adjustments.Enabled = preview.Enabled = false;
++        if (appearanceTabs != null) appearanceTabs.Enabled = false;
+         status.Text = $"正在{operation}…" + (commit ? "请稍候。" : "可以取消。若读取较慢，可关闭窗口。");
+         try { await work(); }
+         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
+         catch (Exception error) when (BackgroundSettings.IsFileError(error))
+         {
++            if (initialDisplay != null) previewDisplay?.Invoke(initialDisplay);
+             reportFailure?.Invoke(failureKind, error);
+             if (!IsDisposed && !Disposing)
+-                status.Text = commit ? $"{operation}失败，原设置保留。请检查本地存储是否可写，或稍后重试。"
++                status.Text = error is AppearanceRestoreException ? "设置未能完整恢复，本地恢复副本已保留。请检查存储后重试。"
++                    : commit ? $"{operation}失败，原设置保留。请检查本地存储是否可写，或稍后重试。"
+                     : "读取失败。请选择可读取且不超过 24 MiB、4000 万像素的 PNG、JPEG 或 BMP。";
+         }
+         finally
+@@ -171,6 +179,7 @@ internal sealed class BackgroundDialog : Form
+             {
+                 foreach (Control control in commands.Controls) control.Enabled = true;
+                 adjustments.Enabled = preview.Enabled = true;
++                if (appearanceTabs != null) appearanceTabs.Enabled = true;
+             }
+         }
+     }
+@@ -196,21 +205,27 @@ internal sealed class BackgroundDialog : Form
+         preview.Invalidate();
+     }
+ 
+-    private Rectangle PreviewBounds()
++    private Rectangle PreviewBounds(Control? surface = null)
+     {
+-        float factor = Math.Min((float)preview.Width / Math.Max(1, referenceSize.Width),
+-            (float)preview.Height / Math.Max(1, referenceSize.Height));
++        surface ??= preview;
++        float factor = Math.Min((float)surface.Width / Math.Max(1, referenceSize.Width),
++            (float)surface.Height / Math.Max(1, referenceSize.Height));
+         var size = new Size(Math.Max(1, (int)(referenceSize.Width * factor)), Math.Max(1, (int)(referenceSize.Height * factor)));
+-        return new Rectangle((preview.Width - size.Width) / 2, (preview.Height - size.Height) / 2, size.Width, size.Height);
++        return new Rectangle((surface.Width - size.Width) / 2, (surface.Height - size.Height) / 2, size.Width, size.Height);
+     }
+ 
+     private void PaintPreview(object? sender, PaintEventArgs e)
+     {
+         if (choice == null) return;
+-        var box = PreviewBounds();
++        var box = PreviewBounds(sender as Control);
+         var state = e.Graphics.Save();
+         e.Graphics.SetClip(box);
+         e.Graphics.DrawImage(choice.Image, Wallpaper.CoverBounds(choice.Image, box.Size, new Point(-box.X, -box.Y), ReadView()));
++        if (initialDisplay != null && strength.Value < 100)
++        {
++            using var strengthWash = new SolidBrush(Color.FromArgb(255 - (int)Math.Round(255 * strength.Value / 100d), Theme.Surface));
++            e.Graphics.FillRectangle(strengthWash, box);
++        }
+         using var wash = new SolidBrush(Color.FromArgb(42, Theme.Surface));
+         e.Graphics.FillRectangle(wash, box);
+         var accent = Theme.ReadableAccent(automatic.Checked ? choice.AutomaticAccent : manual);
+@@ -240,7 +255,12 @@ internal sealed class BackgroundDialog : Form
+ 
+     protected override void Dispose(bool disposing)
+     {
+-        if (disposing && !IsDisposed) { lifetime.Cancel(); lifetime.Dispose(); choice?.Dispose(); choice = null; }
++        if (disposing && !IsDisposed)
++        {
++            displayTimer.Stop(); displayTimer.Dispose();
++            if (initialDisplay == null) { strength.Dispose(); palette.Dispose(); density.Dispose(); strengthValue.Dispose(); }
++            lifetime.Cancel(); lifetime.Dispose(); choice?.Dispose(); choice = null;
++        }
+         base.Dispose(disposing);
+     }
+ 
+diff --git a/MainForm.cs b/MainForm.cs
+index 8887f98..cc1bd09 100644
+--- a/MainForm.cs
++++ b/MainForm.cs
+@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
+ 
+ namespace DiskAtlas;
+ 
+-internal sealed class MainForm : Form
++internal sealed partial class MainForm : Form
+ {
+     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+     internal Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult>? ScanRunner { get; init; }
+@@ -120,7 +120,7 @@ internal sealed class MainForm : Form
+     // displayed. A new complete result, restoration, or closing releases it.
+     private CompleteRecovery? completeRecovery;
+     private sealed record CompleteRecovery(ScanResult Result, string? Directory, int Mode, string? Type,
+-        string Search, string Sort, bool Ascending, SizeMetric Metric);
++        string Search, string Sort, bool Ascending, SizeMetric Metric, long Minimum = 0, string? LargestType = null);
+     private DiskEntry? current;
+     private CancellationTokenSource? scanCancellation;
+     private CancellationTokenSource? viewCancellation;
+@@ -146,6 +146,7 @@ internal sealed class MainForm : Form
+         }
+         this.diagnostics = diagnostics;
+         this.backgroundSettingsPath = backgroundSettingsPath ?? BackgroundSettings.PathForUser;
++        displaySettingsPath = backgroundSettingsPath == null ? DisplayPreferencesStore.PathForUser : backgroundSettingsPath + ".display.json";
+         Text = AppInfo.WindowTitle;
+         if (showCandidateLabel)
+         {
+@@ -251,7 +252,8 @@ internal sealed class MainForm : Form
+         };
+         issues.Click += (_, _) => ShowIssues();
+         restoreComplete.Click += (_, _) => RestoreCompleteResult();
+-        clearType.Click += (_, _) => { typeFilter = null; UpdateView(); };
++        clearType.Click += (_, _) => { typeFilter = largestExtension = null; largestMinimum = 0; UpdateView(true); };
++        largestFilter.Click += async (_, _) => await EditLargestFilter();
+         previousPage.Click += (_, _) => { PopulatePage(pageIndex - 1); SelectItem(null, false); };
+         nextPage.Click += (_, _) => { PopulatePage(pageIndex + 1); SelectItem(null, false); };
+         navigation.Navigate += SetMode;
+@@ -263,7 +265,7 @@ internal sealed class MainForm : Form
+         KeyDown += HandleKeys;
+         DragEnter += (_, e) => { if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1 && Directory.Exists(paths[0])) e.Effect = DragDropEffects.Copy; };
+         DragDrop += async (_, e) => { if (scanCancellation == null && e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length == 1) await ScanFolder(paths[0]); };
+-        FormClosing += (_, _) => { scanCancellation?.Cancel(); viewCancellation?.Cancel(); activityMonitor?.Dispose(); activityDetails?.Close(); };
++        FormClosing += (_, _) => { scanCancellation?.Cancel(); viewCancellation?.Cancel(); filterChoicesCancellation?.Cancel(); activityMonitor?.Dispose(); activityDetails?.Close(); };
+         backgroundSettings.Click += (_, _) => EditBackground();
+         diagnosticsButton.Enabled = diagnostics != null;
+         diagnosticsButton.Click += (_, _) => OpenDiagnostics();
+@@ -272,7 +274,7 @@ internal sealed class MainForm : Form
+         {
+             if (diagnostics != null) await diagnostics.Ready;
+             if (IsDisposed || Disposing) return;
+-            if (loadSavedBackground) await RestoreSavedBackground();
++            if (loadSavedBackground) { await RestoreSavedDisplay(); if (!IsDisposed && !Disposing) await RestoreSavedBackground(); }
+             if (!IsDisposed && !Disposing && scanCancellation == null && scan == null &&
+                 !string.IsNullOrWhiteSpace(initialPath)) await ScanFolder(initialPath);
+         };
+@@ -285,7 +287,7 @@ internal sealed class MainForm : Form
+         if (Math.Abs(scale - 1) > .01f) Scale(new SizeF(scale, scale));
+         // DataGridView rows and header heights are not Control bounds and do
+         // not follow the form's explicit Scale call.
+-        grid.RowTemplate.Height = FileListPresentation.RowHeight(DeviceDpi, mode == 1);
++        grid.RowTemplate.Height = FileListPresentation.RowHeight(DeviceDpi, mode == 1, DisplayOptions.Density == ReadingDensity.Compact);
+         grid.ColumnHeadersHeight = (int)Math.Round(38 * scale);
+         foreach (var (column, width) in new[] { ("name", 100), ("size", 105), ("percent", 78), ("count", 80), ("location", 140) })
+             grid.Columns[column]!.MinimumWidth = (int)Math.Round(width * scale);
+@@ -621,7 +623,11 @@ internal sealed class MainForm : Form
+         listPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+         pagingRow = new RowStyle(SizeType.Absolute, 0);
+         listPanel.RowStyles.Add(pagingRow);
+-        listPanel.Controls.Add(PanelHeader(listTitle, listCaption, WallpaperSurface.Data), 0, 0);
++        var listHeading = (WallpaperTable)PanelHeader(listTitle, listCaption, WallpaperSurface.Data);
++        listHeading.ColumnCount = 3;
++        largestFilterColumn = new ColumnStyle(SizeType.Absolute, 0); listHeading.ColumnStyles.Add(largestFilterColumn);
++        largestFilter.Margin = new Padding(8, 0, 0, 0); listHeading.Controls.Add(largestFilter, 2, 0);
++        listPanel.Controls.Add(listHeading, 0, 0);
+         listPanel.Controls.Add(grid, 0, 1);
+         var pages = Table(3, 1); pages.Surface = WallpaperSurface.Data;
+         pages.Padding = new Padding(8, 3, 8, 3);
+@@ -787,7 +793,7 @@ internal sealed class MainForm : Form
+                 ((WallpaperGrid)grid).PaintCellSurface(e);
+                 bool detailed = mode == 1 && item.Entry != null;
+                 var bands = FileListPresentation.Bands(e.CellBounds, grid.DeviceDpi, detailed);
+-                using var brush = new SolidBrush(Theme.CategoryColor(item.Category));
++                using var brush = new SolidBrush(DisplayOptions.CategoryColor(item.Category));
+                 graphics.FillRectangle(brush, bands.Dot);
+                 Color foreground = SystemInformation.HighContrast
+                     ? (e.State & DataGridViewElementStates.Selected) != 0 ? SystemColors.HighlightText : SystemColors.WindowText
+@@ -825,11 +831,12 @@ internal sealed class MainForm : Form
+ 
+     private void ApplyGridPresentation(int requestedMode)
+     {
++        UpdateLargestFilterEntry();
+         grid.Columns["count"]!.Visible = requestedMode == 2;
+         // The parent path is now the second line of the name cell. Retain the
+         // hidden value column and location sort for existing query/context state.
+         grid.Columns["location"]!.Visible = false;
+-        grid.RowTemplate.Height = FileListPresentation.RowHeight(grid.DeviceDpi, requestedMode == 1);
++        grid.RowTemplate.Height = FileListPresentation.RowHeight(grid.DeviceDpi, requestedMode == 1, DisplayOptions.Density == ReadingDensity.Compact);
+         grid.Columns["name"]!.FillWeight = requestedMode == 1 ? 70 : 50;
+         grid.Columns["size"]!.FillWeight = requestedMode == 1 ? 18 : 28;
+         grid.Columns["percent"]!.FillWeight = requestedMode == 1 ? 12 : 22;
+@@ -882,6 +889,8 @@ internal sealed class MainForm : Form
+         var previousDirectory = current;
+         int previousMode = mode;
+         string? previousType = typeFilter;
++        long previousMinimum = largestMinimum;
++        string? previousLargestExtension = largestExtension;
+         string previousSearch = search.Text, previousSort = sortColumn;
+         bool previousAscending = sortAscending;
+         var previousMetric = metric;
+@@ -975,10 +984,11 @@ internal sealed class MainForm : Form
+             {
+                 if (previousScan != null && !IsIncomplete(previousScan))
+                     completeRecovery = new(previousScan, previousDirectory?.Path, previousMode, previousType,
+-                        previousSearch, previousSort, previousAscending, previousMetric);
++                        previousSearch, previousSort, previousAscending, previousMetric, previousMinimum, previousLargestExtension);
+             }
+             else completeRecovery = null;
+             scan = result;
++            if (!isRefresh) { largestMinimum = 0; largestExtension = null; }
+             displayingPreviousResult = false;
+             current = restored ?? result.Root;
+             navigation.RootName = scan.Root.Name; navigation.RootPath = scan.Root.Path; navigation.Invalidate();
+@@ -1045,12 +1055,14 @@ internal sealed class MainForm : Form
+                 map.Scanning = false; map.Invalidate();
+                 if (cancellation.IsCancellationRequested || scan == previousScan) UpdateStrategyHint();
+                 UpdateRecoveryAvailability();
++                UpdateLargestFilterEntry();
+             }
+         }
+ 
+         void RestoreQuery()
+         {
+             mode = previousMode; typeFilter = previousType; sortColumn = previousSort; sortAscending = previousAscending;
++            largestMinimum = previousMinimum; largestExtension = previousLargestExtension;
+             clearingSearch = true;
+             try { search.Text = previousSearch; } finally { clearingSearch = false; }
+             navigation.SelectedIndex = mode;
+@@ -1098,6 +1110,7 @@ internal sealed class MainForm : Form
+         scan = saved.Result; completeRecovery = null; displayingPreviousResult = true;
+         current = saved.Directory == null ? scan.Root : scan.Root.FindDirectory(saved.Directory) ?? scan.Root;
+         mode = saved.Mode; typeFilter = saved.Type; sortColumn = saved.Sort; sortAscending = saved.Ascending;
++        largestMinimum = saved.Minimum; largestExtension = saved.LargestType;
+         clearingSearch = true;
+         try { search.Text = saved.Search; } finally { clearingSearch = false; }
+         SetMetric(saved.Metric); navigation.SelectedIndex = mode;
+@@ -1241,7 +1254,7 @@ internal sealed class MainForm : Form
+     private void SetMode(int index)
+     {
+         if (showingPreview) return;
+-        typeFilter = null;
++        typeFilter = index == 1 ? largestExtension : null;
+         mode = index; navigation.SelectedIndex = index; navigation.Invalidate();
+         ResetSearch();
+         sortColumn = "size"; sortAscending = false;
+@@ -1279,7 +1292,9 @@ internal sealed class MainForm : Form
+             ? selection : ReferenceEquals(pendingSelectionOwner, SelectionOwner) ? pendingViewSelection : null;
+         pendingViewSelection = previous; pendingSelectionOwner = SelectionOwner;
+         var sort = sortColumn switch { "name" => ViewSort.Name, "count" => ViewSort.Count, "location" => ViewSort.Location, _ => ViewSort.Size };
+-        var request = new ViewRequest(directory, (ViewMode)requestedMode, search.Text, sort, sortAscending, typeFilter, metric);
++        var request = new ViewRequest(directory, (ViewMode)requestedMode, search.Text, sort, sortAscending, typeFilter, metric,
++            requestedMode == 1 ? largestMinimum : 0);
++        UpdateLargestFilterEntry();
+         pathBox.Text = current.Path;
+         var scopeFacts = new List<string>();
+         if (displayingPreviousResult) scopeFacts.Add("当前显示上一次扫描结果");
+@@ -1294,8 +1309,10 @@ internal sealed class MainForm : Form
+             if (source.ExcludedReparseEntries > 0) scopeFacts.Add($"跳过 {source.ExcludedReparseEntries:N0} 个链接，目标未纳入");
+         }
+         SetScopeDetails(string.Join(" · ", scopeFacts));
+-        clearType.Visible = typeFilter != null;
+-        if (filterColumn != null) filterColumn.Width = typeFilter != null ? 142 * DeviceDpi / 96f : 0;
++        bool hasFilter = typeFilter != null || requestedMode == 1 && largestMinimum > 0;
++        clearType.Visible = hasFilter;
++        clearType.Text = requestedMode == 1 ? "清除筛选" : "清除类型筛选";
++        if (filterColumn != null) filterColumn.Width = hasFilter ? 142 * DeviceDpi / 96f : 0;
+         totalCard.Value = SizeFormat.Bytes(directory.Bytes(metric)) + (metric == SizeMetric.Allocated && directory.UnknownAllocationFiles > 0 ? " + 未知" : "");
+         totalCard.Title = metric == SizeMetric.Allocated ? "实际占用空间" : "当前目录大小";
+         totalCard.Caption = (metric == SizeMetric.Allocated ? "已知分配量 · 硬链接去重" : "文件逻辑大小 · 1024 进制") +
+@@ -1345,7 +1362,7 @@ internal sealed class MainForm : Form
+             search.PlaceholderText = requestedMode switch { 1 => "搜索所有子目录的文件名…", 2 => "搜索扩展名或类型…", _ => "搜索当前层级名称…" };
+             search.AccessibleDescription = search.PlaceholderText;
+             SetScopeDetails(string.Join(" · ", scopeFacts));
+-            listBaseCaption = listCaption.Text = $"{result.Rows.Count:N0} 项";
++            listBaseCaption = listCaption.Text = requestedMode == 1 ? $"{result.Rows.Count:N0} / {result.MatchedCount:N0}" : $"{result.Rows.Count:N0} 项";
+             listCaption.AccessibleDescription = (requestedMode == 1 ? $"含子目录 · 匹配 {result.MatchedCount:N0} 个，显示最大 {result.Rows.Count:N0} 个。" : "") +
+                 "当前视图所列项目的数量与大小占比（大文件最多 500 个），分页只改变列表显示；分母为当前目录未筛选的大小。" +
+                 (request.Metric == SizeMetric.Allocated ? "占比仅按已知分配量计算，未知不计为零。" : "");
+@@ -1575,7 +1592,7 @@ internal sealed class MainForm : Form
+     {
+         if (mode == 2 && item.Entry == null && !item.IsAggregate)
+         {
+-            typeFilter = item.Name; mode = 1; navigation.SelectedIndex = 1;
++            typeFilter = largestExtension = item.Name; mode = 1; navigation.SelectedIndex = 1;
+             ResetSearch(); sortColumn = "size"; sortAscending = false; UpdateView();
+         }
+         else if (item.Entry is { IsDirectory: true } directory) OpenDirectory(directory);
+@@ -1680,12 +1697,15 @@ internal sealed class MainForm : Form
+     private void EditBackground()
+     {
+         if (BackgroundImage is not { } current) return;
++        var originalDisplay = DisplayOptions;
+         using var dialog = new BackgroundDialog(current, BackgroundCrop, automaticBackgroundAccent, ClientSize,
+             backgroundSettingsPath, isDefault: !HasCustomBackground,
+-            reportFailure: (kind, error) => diagnostics?.Failure(kind, error));
+-        if (dialog.ShowDialog(this) != DialogResult.OK) return;
++            reportFailure: (kind, error) => diagnostics?.Failure(kind, error), display: DisplayOptions,
++            displayPath: displaySettingsPath, previewDisplay: ApplyDisplayOptions);
++        if (dialog.ShowDialog(this) != DialogResult.OK) { ApplyDisplayOptions(originalDisplay); return; }
+         if (dialog.RestoredDefault) ApplyBackground(Wallpaper.Load(), BackgroundView.Default, Theme.DefaultAccent, useDefault: true);
+         else if (dialog.Result is { } result) ApplyBackground(result.Image, result.View, result.AutomaticAccent);
++        ApplyDisplayOptions(dialog.DisplayResult ?? originalDisplay);
+     }
+ 
+     private void ApplyBackground(Bitmap image, BackgroundView view, Color automatic, bool useDefault = false)
+diff --git a/README.en.md b/README.en.md
+index efb2d66..d668434 100644
+--- a/README.en.md
++++ b/README.en.md
+@@ -35,13 +35,15 @@ Get the SDK or runtime from [Microsoft](https://dotnet.microsoft.com/en-us/downl
+ | Choose a scan folder | Folder picker, drag-and-drop, or a startup path argument |
+ | Space treemap | See size by area; double-click folders to explore deeper |
+ | File list | Names, sizes and details; search, sort and 1,000-item pages |
+-| Largest files | The largest 500 matching files within the current folder and its descendants |
++| Largest files | Filter the current folder and descendants by name, extension and logical-size threshold, then show the largest 500 matches |
+ | File types | Totals by extension; double-click a type to filter its files |
+ | File helpers | Locate items in Explorer and copy paths; no deletion or moving |
+ | Two size metrics | Logical length or allocated file data; hard-link deduplication and explicit unknown allocation |
+ 
+ Also includes Automatic / Low-impact / High-speed strategies, live partial previews, cancellation and result recovery, NTFS journal-assisted refresh, local background cropping and accent colors, and [local diagnostics and problem notes](docs/diagnostics.md) (Chinese).
+ 
++The current source build adds size/extension filters and display preferences: background strength (40–100%, with 100% retaining the current appearance), original/clearer category colors, and comfortable/compact spacing without smaller fonts. Use **筛选** in Largest files and **背景设置 → 显示** for display options. Apply saves; Cancel restores the previous appearance. These additions are not included in the older release packages. See the [behavior and limits](docs/display-and-large-file-filters.md) (Chinese).
++
+ The stage-two development build adds [linked treemap selection, list location and item details](docs/selection-linkage.md) (Chinese). Selecting an internal file keeps the overview; the explicit list action enters its parent. Full paths and allocation notes are available in the details dialog. Stage-two maintainer acceptance has passed; these changes are not in a new Release. Stage three is only a [proposal](docs/ui-stage-three-plan.md) (Chinese), awaiting approval.
+ 
+ Ordinary startup in the development build now uses the accepted **C57 composition background and DIB rendering**. The light theme, visible wallpaper and animated edge glow are retained; composition failures fall back to C55 rendering. Local user acceptance and the necessary UI checks passed. The maintainer chose to skip Windows 10 validation of this new rendering path in this round; real cross-monitor DPI remains untested. This default change has not been released as a new package.
+@@ -104,7 +106,7 @@ The application does not automatically upload files, paths, images or logs. Mini
+ 
+ ## Planned work and limits
+ 
+-- **UI phase two:** review a chart-to-list-and-details interaction preview before implementation; background strength, palettes and density remain later proposals.
++- **UI phase three:** large-file filters and display preferences are implemented and awaiting user review in the real application; custom workspaces remain deferred.
+ - **Future release acceptance:** v1.5.0 is published. Later versions still need a new freeze, packages and acceptance; existing clean-environment gaps remain recorded. See the [release guide](docs/releasing.md) (Chinese).
+ - **After the initial version (P2):** High-speed mode is not consistently faster than Automatic. Nonblocking restructuring and additional visual polish are deferred to the same stage.
+ - **Current limits:** Automatic chooses concurrency by device, without load adaptation. If the change journal is unavailable, refresh still verifies metadata for all directories and files and may not be much faster. The cache exists only within the current process.
+diff --git a/README.md b/README.md
+index 2986ee2..4ff1fc6 100644
+--- a/README.md
++++ b/README.md
+@@ -35,13 +35,15 @@ SDK 和运行时从[微软官方下载页](https://dotnet.microsoft.com/en-us/do
+ | 选择扫描目录 | 选择文件夹、拖入目录或通过启动参数指定目录 |
+ | 空间分布图 | 通过面积查看占用来源，双击文件夹逐层进入 |
+ | 文件列表 | 查看名称、大小和详情，搜索、排序；每页 1,000 项 |
+-| 大文件视图 | 在当前目录及子目录中查找最大的 500 个匹配文件 |
++| 大文件视图 | 按名称、扩展名和文件大小门槛筛选当前目录及子目录，再展示最大的 500 个匹配文件 |
+ | 文件类型统计 | 按扩展名汇总，双击类型筛选文件 |
+ | 文件操作辅助 | 在资源管理器中定位、复制完整路径；不删除或移动文件 |
+ | 两种大小口径 | 切换逻辑大小与实际分配空间；处理硬链接去重和未知占用 |
+ 
+ 另有自动 / 低占用 / 高速三种策略、边扫边显示、取消与结果恢复、NTFS 日志增量刷新、本地背景裁切与强调色适配，以及[本地诊断和问题记录](docs/diagnostics.md)。
+ 
++当前源码开发版增加[大文件筛选与显示偏好](docs/display-and-large-file-filters.md)：背景强度、类别配色、舒适/紧凑密度，默认保持现有效果；旧发行包不包含本轮新功能。
++
+ 第二阶段开发版已加入[图表、列表与详情联动](docs/selection-linkage.md)：单击内部文件保留总览，主动“在列表中查看”后进入所在目录；完整路径和占用事实在“详情”查看。第二阶段已获维护者实际体验通过；这些变化尚未作为新版 Release 发布。第三阶段仅准备[方案](docs/ui-stage-three-plan.md)，尚未实施。
+ 
+ 当前开发版在普通启动时默认采用已验收的 **C57 背景合成与 DIB 绘制**，保持浅色、背景透出和沿边柔光；合成不可用时自动回退到 C55 绘制。C57 已通过本机体验验收及必要界面检查；本轮按维护者决定不做 Windows 10 新路径验证，真实跨屏也尚未验收。此默认切换尚未作为新版 Release 发布。
+@@ -104,7 +106,7 @@ dotnet run --project DiskAtlas.csproj -- "X:\ExampleFolder"
+ 
+ ## 待优化与开发
+ 
+-- **界面第二阶段**：先看图表定位、列表可见与详情核对的交互预览，经用户确认后实施；之后再评审背景强度、类别配色和布局密度。
++- **界面第三阶段**：大文件筛选与显示偏好已实现，等待真实程序体验反馈；阶段是否收尾由用户决定，可定制工作区暂缓。
+ 
+ - **后续发行验收**：v1.5.0 已公开发布；后续版本仍需重新冻结、打包和验收，既有干净环境缺口继续保留，见[发布说明](docs/releasing.md)。
+ - **初版后处理（P2）**：高速模式尚不能稳定快于自动，非阻塞结构整理与额外视觉打磨同级延期。
+diff --git a/Theme.cs b/Theme.cs
+index 7b179f8..5e85f2c 100644
+--- a/Theme.cs
++++ b/Theme.cs
+@@ -717,7 +717,7 @@ internal sealed class NavigationPanel : Control
+         for (int i = 0; i < Theme.Categories.Length; i++)
+         {
+             int column = i % 2, row = i / 2;
+-            using var brush = new SolidBrush(Theme.Categories[i].Color);
++            using var brush = new SolidBrush(DisplayPreferences.For(this).CategoryColor(Theme.Categories[i].Name));
+             g.FillEllipse(brush, R(26 + column * 99, 505 + row * 28, 8, 8));
+             Theme.TextAt(g, Theme.Categories[i].Name, labelFont, Theme.Muted, R(42 + column * 99, 497 + row * 28, 74, 24));
+         }
+diff --git a/TreemapControl.cs b/TreemapControl.cs
+index be859fe..38d5104 100644
+--- a/TreemapControl.cs
++++ b/TreemapControl.cs
+@@ -23,7 +23,7 @@ internal sealed class TreemapControl : Control
+     internal const double OrbitPeriodMilliseconds = 2800d / 1.15d;
+     internal int StaticLayerBuilds { get; private set; }
+     internal long StaticLayerBytes => staticLayer == null ? 0 : (long)staticLayer.Width * staticLayer.Height * 4;
+-    private readonly record struct CacheKey(Size ViewSize, Size WindowSize, Point Offset, Image? Wallpaper, int Dpi, bool CustomBackground);
++    private readonly record struct CacheKey(Size ViewSize, Size WindowSize, Point Offset, Image? Wallpaper, int Dpi, bool CustomBackground, DisplayPreferences Display);
+     private MapItem? hovered;
+     private MapItem? selected;
+     private bool pointerFocus;
+@@ -215,7 +215,7 @@ internal sealed class TreemapControl : Control
+             if (!clip.IntersectsWith(Rectangle.Ceiling(tile.Bounds))) continue;
+             RectangleF rect = GlowBounds(tile.Bounds, s);
+             if (rect.Width < 1 || rect.Height < 1) continue;
+-            Color baseColor = Theme.CategoryColor(tile.Item.Category);
++            Color baseColor = DisplayPreferences.For(this).CategoryColor(tile.Item.Category);
+             using var fill = new SolidBrush(Color.FromArgb(fillAlpha, baseColor));
+             using var path = TileOutline(rect, s);
+             g.FillPath(fill, path);
+@@ -449,7 +449,7 @@ internal sealed class TreemapControl : Control
+     {
+         var form = FindForm(); var offset = Point.Empty;
+         for (Control? node = this; node != null && node != form; node = node.Parent) offset.Offset(node.Left, node.Top);
+-        return new(ClientSize, form?.ClientSize ?? Size.Empty, offset, form?.BackgroundImage, DeviceDpi, form is MainForm { HasCustomBackground: true });
++        return new(ClientSize, form?.ClientSize ?? Size.Empty, offset, form?.BackgroundImage, DeviceDpi, form is MainForm { HasCustomBackground: true }, DisplayPreferences.For(this));
+     }
+     private bool EnsureStaticLayer()
+     {
+diff --git a/ViewQuery.cs b/ViewQuery.cs
+index 47f649b..d59c252 100644
+--- a/ViewQuery.cs
++++ b/ViewQuery.cs
+@@ -2,7 +2,7 @@ namespace DiskAtlas;
+ 
+ public enum ViewMode { Folder, LargestFiles, FileTypes }
+ public enum ViewSort { Size, Name, Count, Location }
+-public record ViewRequest(DiskEntry Directory, ViewMode Mode, string Search = "", ViewSort Sort = ViewSort.Size, bool Ascending = false, string? ExtensionFilter = null, SizeMetric Metric = SizeMetric.Logical);
++public record ViewRequest(DiskEntry Directory, ViewMode Mode, string Search = "", ViewSort Sort = ViewSort.Size, bool Ascending = false, string? ExtensionFilter = null, SizeMetric Metric = SizeMetric.Logical, long MinimumLogicalSize = 0);
+ public record ViewResult(List<MapItem> Rows, List<MapItem> MapItems, long VisibleBytes, long MatchedCount);
+ 
+ public readonly record struct PageSlice(int Index, int Pages, int Offset, int Length)
+@@ -33,6 +33,7 @@ public static class ViewQuery
+     public static ViewResult Build(ViewRequest request, CancellationToken token)
+     {
+         token.ThrowIfCancellationRequested();
++        if (request.MinimumLogicalSize < 0) throw new ArgumentOutOfRangeException(nameof(request));
+         var rows = new List<MapItem>();
+         string query = request.Search.Trim();
+         long matched = 0;
+@@ -63,6 +64,7 @@ public static class ViewQuery
+             {
+                 token.ThrowIfCancellationRequested();
+                 if (request.Mode == ViewMode.LargestFiles && entry.IsDirectory) continue;
++                if (request.Mode == ViewMode.LargestFiles && entry.Size < request.MinimumLogicalSize) continue;
+                 if (request.ExtensionFilter != null && !entry.Extension.Equals(request.ExtensionFilter, StringComparison.OrdinalIgnoreCase)) continue;
+                 if (!Matches(entry.Name)) continue;
+                 matched++;
+diff --git a/Wallpaper.cs b/Wallpaper.cs
+index 8ae538b..1c2a269 100644
+--- a/Wallpaper.cs
++++ b/Wallpaper.cs
+@@ -30,7 +30,7 @@ internal static class Wallpaper
+             surface is WallpaperSurface.Chrome or WallpaperSurface.Data or WallpaperSurface.Card)
+         {
+             var key = (surface, alpha, Theme.Text.ToArgb(), Theme.Muted.ToArgb(), Theme.Accent.ToArgb());
+-            lock (alphaGate) if (protectedAlphas.TryGetValue(key, out int cached)) return cached;
++            lock (alphaGate) if (protectedAlphas.TryGetValue(key, out int cached)) return DisplayAlpha(control, cached);
+             while (alpha < 255)
+             {
+                 var darkest = Composite(Color.Black, alpha);
+@@ -44,7 +44,14 @@ internal static class Wallpaper
+                 protectedAlphas[key] = alpha;
+             }
+         }
+-        return alpha;
++        return DisplayAlpha(control, alpha);
++    }
++
++    private static int DisplayAlpha(Control control, int alpha)
++    {
++        if (control.FindForm() is not MainForm main) return alpha;
++        if (main.HasCustomBackground && control is NavigationPanel) alpha = Math.Max(alpha, 235);
++        return 255 - (int)Math.Round((255 - alpha) * main.DisplayOptions.BackgroundStrength / 100d);
+     }
+ 
+     internal static Color SampleSurfaceColor(Control control, Rectangle localArea, WallpaperSurface surface, int fallback = 42)
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index f163c61..0e2d9e9 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,5 +1,9 @@
+ # 后续开发计划
+ 
++## C67 四项已集成，先验收真实程序（2026-11-22）
++
++用户已确认四项一起实施，当前已完成大文件筛选、背景强度、类别配色和阅读密度及必要回归。下一步先体验正常版的筛选、显示预览/取消和应用；根据用户意见调整或收尾第三阶段。当前条件与显示保存规则见[使用说明](display-and-large-file-filters.md)，不继续自动开发自定义工作区、清理或发布。C57/C55、C65滚动保护和原背景/动效保留。Windows10新绘制与跨屏未验、其他历史扫描优先级不变。见[C67](../iterations/2026-11-22-67-stage-three/README.md)，下方为各时点历史。
++
+ ## 第三阶段重新审阅，仍未实施（2026-11-22）
+ 
+ C65滚动修复已获用户通过并收尾，当前main/origin 9f5540c。按用户要求重新展示[第三阶段方案](ui-stage-three-plan.md)及“大文件分析／显示设置”两页可操作预览；建议大文件大小/扩展名筛选与背景强度、类别配色、阅读密度四项合并，默认保持当前外观，工作区定制后置。刚验收的滚动保护、C57/C55、背景构图与1.15倍柔光是保留基线。
+diff --git a/docs/display-and-large-file-filters.md b/docs/display-and-large-file-filters.md
+new file mode 100644
+index 0000000..5fedb7a
+--- /dev/null
++++ b/docs/display-and-large-file-filters.md
+@@ -0,0 +1,29 @@
++# 大文件筛选与显示偏好
++
++这些功能位于当前源码开发版，未包含在旧的 v1.5.0 Release 中。默认保持当前布局、背景构图与动效。
++
++## 大文件筛选
++
++进入“大文件”，点击列表标题右侧“筛选”。“文件大小至少”可选不限、100 MiB、1 GiB、5 GiB；扩展名可从本次目录中选择，也可输入如 `.zip`。条件与名称搜索共同生效：先筛选当前目录及子目录的全部文件，再展示其中最大的500项。列表摘要分别显示展示数和匹配数。
++
++门槛始终按文件逻辑大小判断。排序、图块面积和占比仍按当前大小口径；统计卡和占比分母仍为未筛选的当前目录范围，未知占用不会变成已知零。条件只影响大文件视图，不重新扫盘，也不保存文件名、路径、扩展名清单或搜索词。
++
++切换工作空间或刷新同一扫描根目录时保留条件；成功更换扫描根目录时重置。取消或失败恢复原条件。选中的文件仍符合条件时保留选择，否则清除旧详情。“清除筛选”或筛选窗口中的“恢复不限”可重置门槛与扩展名。
++
++## 显示偏好
++
++原“背景设置”入口新增“图片 / 显示”页。“图片”保留导入、缩放、焦点和强调色设置；“显示”提供：
++
++| 选项 | 默认 | 可选行为 |
++| --- | --- | --- |
++| 背景显示强度 | 当前100% | 40–100%，降低时增加浅色遮罩，不改原图、裁切或聚焦 |
++| 图块配色 | 原有类别色 | 类别分明，图块与侧栏图例同步，品牌强调色和柔光不变 |
++| 阅读密度 | 舒适 | 紧凑仅收紧行高、卡片和间距，保留字号、双行名称/路径和完整详情 |
++
++修改可预览，点击“应用”成功后才保存；“取消”恢复进入窗口时的值。“恢复显示默认”不会删除背景或更改图片焦点。单独应用显示偏好不会重新编码或改写背景图片。
++
++显示配置是软件本地数据目录内、与背景配置对应的独立小文件，版本为1、最多4 KiB，只含三个枚举/数值选项。损坏或未知版本回退显示默认值并提示。设置写入先准备临时文件，再逐个替换；普通写入失败会尝试恢复旧文件。若恢复本身失败，会明确提示并保留本地恢复副本，不能承诺两文件在断电或多进程并发下完全原子提交。
++
++## 当前验收边界
++
++核心查询、保存/取消/失败回退、隔离重启和两档UI检查覆盖本轮改动，滚动发布检查同时覆盖强度65%、类别分明和紧凑组合。连续观感仍由真实程序体验确认；没有由此扩大到 Windows 10 新绘制路径或多显示器DPI验收。没有新增清理、删除、上传或自定义工作区功能。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index ef3afe2..1877880 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,10 @@
+ # AsukaLens 项目现状
+ 
++## C67 四项集成完成，真实体验待复审（2026-11-22）
++
++用户明确“四项一起推进”，本轮基线main/origin `739f94e`。新增全范围先筛选后top500的逻辑大小/扩展名条件，以及背景设置“显示”页的强度、类别配色和阅读密度。默认100%/原有/舒适保持现有效果；背景图片、聚焦、布局位置、字号、1.15倍动效及C57/C55、C65滚动保护保留。规则与使用见[大文件与显示偏好](display-and-large-file-filters.md)。
++
++专项32项模型、两档各25项真实MainForm检查通过；默认和显示变体滚动、完整UI、背景、根合成、缓存、布局、联动、无悬停及指针/表面检查已完成。变体96DPI首次35秒上限超时，保留原记录；采用75秒测试上限复测完成且最终像素/轨道失配为0，不把此结果称为性能改进或连续屏幕证明。正常版使用自建稀疏目录与隔离配置展示，等待用户实际反馈，不提前收尾第三阶段。没有打包、标签或Release，Windows10新路径及真实跨屏缺口仍保留。证据见[C67](../iterations/2026-11-22-67-stage-three/README.md)。以下均为相应时点历史。
+ ## 第三阶段重新审阅，仍未实施（2026-11-22）
+ 
+ C65滚动修复已获用户通过并收尾，当前main/origin 9f5540c。按用户要求重新展示[第三阶段方案](ui-stage-three-plan.md)及“大文件分析／显示设置”两页可操作预览；建议大文件大小/扩展名筛选与背景强度、类别配色、阅读密度四项合并，默认保持当前外观，工作区定制后置。刚验收的滚动保护、C57/C55、背景构图与1.15倍柔光是保留基线。
+diff --git a/docs/testing.md b/docs/testing.md
+index 867810b..5ebb0cd 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -1,5 +1,11 @@
+ # 开发验证与可选基准
+ 
++## C67 大文件筛选与显示偏好
++
++`--stage-three-model-tests`检查全范围先筛选后top500、边界/取消/未知占用，以及有界配置、普通保存失败回退和图片不重写。`--stage-three-ui-tests [--dpi-96]`使用真实MainForm和隔离配置，核联动、过期查询、同根刷新/换根/取消、两行与字号、默认像素还原、显示预览取消/应用/失败及独立重启。仅使用合成树和自建临时文件，不访问个人卷。
++
++`--scroll-frame-tests --display-variants [--dpi-96]`在C65合同上启用强度65%、类别分明及紧凑组合。默认组仍保留，变体测试因更多可见行和像素检查采用75秒工作线程上限；这不是帧时间或产品性能保证。两档完整UI、背景、根合成、像素映射、列表缓存、布局、联动、无悬停和指针/表面检查按受影响范围运行，真实连续观感另验。使用说明见[大文件与显示偏好](display-and-large-file-filters.md)。
++
+ ## C65 整块滚动背景与提交顺序
+ 
+ `--scroll-frame-tests [--dpi-96]`在真实MainForm、自有纹理背景和合成列表中测试快速小幅/整屏往返拖动、延迟松手及缓慢正反滚轮；两档各92项。Scroll事件入口在事后Invalidate/Update之前读未受保护的可视区背景；旧版因此失败。修正版核对每次滚动都有真实原生重绘保护，输入返回前跨列背景及轨道稳定、父列表先画再发布子条，并核实际列表行位置而非只核bar.Value。即时与延迟偏好只注入测试对象，不改Windows设置。
+diff --git a/docs/ui-stage-three-plan.md b/docs/ui-stage-three-plan.md
+index 820c5cf..e57f07b 100644
+--- a/docs/ui-stage-three-plan.md
++++ b/docs/ui-stage-three-plan.md
+@@ -1,5 +1,9 @@
+ # 第三阶段方案：大文件分析与可选显示偏好
+ 
++## C67 已确认实施，待真实体验反馈（2026-11-22）
++
++用户明确“四项一起推进”，以`739f94e`为实施基线。大文件门槛/扩展名筛选及三项显示偏好已集成到正常功能程序，默认保持现有效果；专项与受影响回归通过，实际展示后由用户决定本阶段是否收尾。行为与限制见[使用说明](display-and-large-file-filters.md)，证据见[C67](../iterations/2026-11-22-67-stage-three/README.md)。下方“尚未授权”均是方案阶段的历史状态，不再代表当前授权；本轮仍不打包发布、不扩展可定制工作区。
++
+ ## C66 重新审阅：以滚动修复验收后的正常版为基线
+ 
+ 2026-11-22，当前main/origin `9f5540c`，产品实现`6388822`。用户已通过C65快速拖动与缓慢滚动，要求回到第三阶段，重新查看具体方案与两页预览，确认后才实施、暂不发布。下方原方案的功能范围继续作为建议，尚未授权产品开发；本次不修改C#、二进制、用户配置或正常软件。
+@@ -78,4 +82,4 @@
+ - 运行受影响核心ViewQuery、第二阶段联动、普通/C57完整UI、背景/根合成/滚动/布局/无悬停及资源检查；通过后无新问题不无条件重复全量扫描/性能矩阵。
+ - 最后打开真实程序，先由用户比较实际默认和可选项；收到反馈再决定第三阶段收尾。不自动进入可定制工作区或清理功能，不打包发布。
+ 
+-当前等待用户决定：是否采用这组范围、是否删减其中选项、两处预览的入口与默认效果是否合适。
++方案范围已由用户确认，实施后的真实效果等待反馈；不因内部回归通过自动结束第三阶段。
+diff --git a/src/UI/BackgroundDialog.Display.cs b/src/UI/BackgroundDialog.Display.cs
+new file mode 100644
+index 0000000..f30829f
+--- /dev/null
++++ b/src/UI/BackgroundDialog.Display.cs
+@@ -0,0 +1,87 @@
++namespace DiskAtlas;
++
++internal sealed partial class BackgroundDialog
++{
++    private DisplayPreferences? initialDisplay;
++    private string? displayPath;
++    private Action<DisplayPreferences>? previewDisplay;
++    private bool imageChanged;
++    private Panel? displayPreview;
++    private TabControl? appearanceTabs;
++    private readonly TrackBar strength = new() { Minimum = 40, Maximum = 100, Value = 100, TickFrequency = 10, Dock = DockStyle.Fill, AccessibleName = "背景显示强度" };
++    private readonly ComboBox palette = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, AccessibleName = "图块配色" };
++    private readonly ComboBox density = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, AccessibleName = "阅读密度" };
++    private readonly Label strengthValue = new() { AutoSize = true, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight };
++    private readonly System.Windows.Forms.Timer displayTimer = new() { Interval = 120 };
++    internal DisplayPreferences? DisplayResult { get; private set; }
++    internal DisplayPreferences DisplayDraft => new(strength.Value, (CategoryPalette)Math.Max(0, palette.SelectedIndex), (ReadingDensity)Math.Max(0, density.SelectedIndex));
++
++    private void ConfigureDisplay(DisplayPreferences value, string path, Action<DisplayPreferences>? previewCallback, Button pick, Button restore)
++    {
++        if (!value.IsValid || string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Invalid display settings.");
++        initialDisplay = value; displayPath = path; previewDisplay = previewCallback;
++        Font = Theme.Font(Theme.BodyFontSize);
++        var tabs = new TabControl { Dock = DockStyle.Fill, AccessibleName = "背景设置页面" };
++        appearanceTabs = tabs;
++        var imagePage = new TabPage("图片") { BackColor = Theme.Surface };
++        var displayPage = new TabPage("显示") { BackColor = Theme.Surface, Padding = new(14) };
++        Controls.Remove(preview); Controls.Remove(adjustments);
++        imagePage.Controls.Add(preview); imagePage.Controls.Add(adjustments);
++        tabs.TabPages.AddRange([imagePage, displayPage]); Controls.Add(tabs); tabs.BringToFront();
++        var settings = new TableLayoutPanel { Dock = DockStyle.Top, Height = 195, ColumnCount = 2, RowCount = 4 };
++        settings.ColumnStyles.Add(new(SizeType.Percent, 35)); settings.ColumnStyles.Add(new(SizeType.Percent, 65));
++        foreach (int h in new[] { 44, 48, 46, 46 }) settings.RowStyles.Add(new(SizeType.Absolute, h));
++        settings.Controls.Add(new Label { Text = "背景显示强度", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
++        settings.Controls.Add(strengthValue, 1, 0); settings.Controls.Add(strength, 0, 1); settings.SetColumnSpan(strength, 2);
++        settings.Controls.Add(new Label { Text = "图块配色", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 2); settings.Controls.Add(palette, 1, 2);
++        settings.Controls.Add(new Label { Text = "阅读密度", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 3); settings.Controls.Add(density, 1, 3);
++        palette.Items.AddRange(["原有类别色", "类别分明"]); density.Items.AddRange(["舒适（当前）", "紧凑"]);
++        displayPreview = new PreviewSurface { Dock = DockStyle.Fill, BackColor = Theme.Background };
++        displayPreview.Paint += PaintPreview;
++        displayPage.Controls.Add(displayPreview); displayPage.Controls.Add(settings);
++        var resetDisplay = new Button { Text = "恢复显示默认", AutoSize = true, Visible = false };
++        commands.Controls.Add(resetDisplay); commands.Controls.SetChildIndex(resetDisplay, 0);
++        resetDisplay.Click += (_, _) => SetDisplayDraft(DisplayPreferences.Default);
++        tabs.SelectedIndexChanged += (_, _) =>
++        {
++            bool image = tabs.SelectedTab == imagePage;
++            pick.Visible = restore.Visible = image; resetDisplay.Visible = !image;
++        };
++        displayTimer.Tick += (_, _) => { displayTimer.Stop(); if (!busy && !IsDisposed && !Disposing) previewDisplay?.Invoke(DisplayDraft); };
++        void ChangedDisplay()
++        {
++            strengthValue.Text = strength.Value == 100 ? "当前 100%" : strength.Value + "%";
++            displayPreview.Invalidate(); displayTimer.Stop(); displayTimer.Start();
++        }
++        strength.ValueChanged += (_, _) => ChangedDisplay(); palette.SelectedIndexChanged += (_, _) => ChangedDisplay(); density.SelectedIndexChanged += (_, _) => ChangedDisplay();
++        SetDisplayDraft(value); displayTimer.Stop(); imageChanged = false;
++        status.Text = "";
++    }
++
++    internal void SetDisplayDraft(DisplayPreferences value)
++    {
++        if (!value.IsValid) throw new InvalidDataException();
++        strength.Value = value.BackgroundStrength; palette.SelectedIndex = (int)value.Palette; density.SelectedIndex = (int)value.Density;
++        strengthValue.Text = value.BackgroundStrength == 100 ? "当前 100%" : value.BackgroundStrength + "%";
++    }
++
++    private async Task CommitAppearanceAsync()
++    {
++        if (choice == null || initialDisplay == null) return;
++        displayTimer.Stop();
++        var preferences = DisplayDraft;
++        var selected = choice with { View = ReadView() };
++        using var snapshot = imageChanged && !resetPending ? selected with { Image = new Bitmap(selected.Image) } : null;
++        bool reset = imageChanged && resetPending;
++        await Task.Run(() => AppearanceSettingsCommit.Save(settingsPath, displayPath!, snapshot, reset,
++            preferences == initialDisplay ? null : preferences));
++        if (IsDisposed || Disposing) return;
++        DisplayResult = preferences;
++        if (imageChanged)
++        {
++            if (reset) RestoredDefault = true;
++            else { Result = selected; choice = null; }
++        }
++        DialogResult = DialogResult.OK;
++    }
++}
+diff --git a/src/UI/DisplayPreferences.cs b/src/UI/DisplayPreferences.cs
+new file mode 100644
+index 0000000..3aa5fad
+--- /dev/null
++++ b/src/UI/DisplayPreferences.cs
+@@ -0,0 +1,134 @@
++using System.Text.Json;
++
++namespace DiskAtlas;
++
++internal enum CategoryPalette { Original, Clearer }
++internal enum ReadingDensity { Comfortable, Compact }
++internal sealed record DisplayPreferences(int BackgroundStrength = 100,
++    CategoryPalette Palette = CategoryPalette.Original, ReadingDensity Density = ReadingDensity.Comfortable)
++{
++    private static readonly Color[] ClearerColors = [Color.FromArgb(231,173,138), Color.FromArgb(223,139,136), Color.FromArgb(229,193,110),
++        Color.FromArgb(196,151,182), Color.FromArgb(173,153,198), Color.FromArgb(129,179,165),
++        Color.FromArgb(141,174,208), Color.FromArgb(183,176,166)];
++    internal static DisplayPreferences Default { get; } = new();
++    internal bool IsValid => BackgroundStrength is >= 40 and <= 100 && Enum.IsDefined(Palette) && Enum.IsDefined(Density);
++    internal static DisplayPreferences For(Control control) => (control.FindForm() as MainForm)?.DisplayOptions ?? Default;
++    internal Color CategoryColor(string category)
++    {
++        int index = Array.FindIndex(Theme.Categories, c => c.Name == category);
++        if (index < 0) index = Theme.Categories.Length - 1;
++        if (Palette == CategoryPalette.Original) return Theme.Categories[index].Color;
++        return ClearerColors[index];
++    }
++}
++
++internal static class DisplayPreferencesStore
++{
++    internal const int MaxBytes = 4096;
++    internal static string PathForUser => Path.Combine(Path.GetDirectoryName(BackgroundSettings.PathForUser)!, "display.json");
++    internal static DisplayPreferences Load(string path)
++    {
++        FileStream stream;
++        try { stream = File.OpenRead(path); }
++        catch (FileNotFoundException) { return DisplayPreferences.Default; }
++        catch (DirectoryNotFoundException) { return DisplayPreferences.Default; }
++        using (stream)
++        {
++            if (stream.Length is <= 0 or > MaxBytes) throw new InvalidDataException();
++            using var document = JsonDocument.Parse(stream, new JsonDocumentOptions { MaxDepth = 4 });
++            var root = document.RootElement;
++            if (root.ValueKind != JsonValueKind.Object) throw new InvalidDataException();
++            var names = new HashSet<string>(StringComparer.Ordinal);
++            foreach (var property in root.EnumerateObject())
++                if (!names.Add(property.Name) || property.Name is not ("version" or "backgroundStrength" or "palette" or "density")) throw new InvalidDataException();
++            if (names.Count != 4 || !root.GetProperty("version").TryGetInt32(out int version) || version != 1 ||
++                !root.GetProperty("backgroundStrength").TryGetInt32(out int strength)) throw new InvalidDataException();
++            var palette = root.GetProperty("palette").GetString() switch
++            { "original" => CategoryPalette.Original, "clearer" => CategoryPalette.Clearer, _ => throw new InvalidDataException() };
++            var density = root.GetProperty("density").GetString() switch
++            { "comfortable" => ReadingDensity.Comfortable, "compact" => ReadingDensity.Compact, _ => throw new InvalidDataException() };
++            var result = new DisplayPreferences(strength, palette, density);
++            return result.IsValid ? result : throw new InvalidDataException();
++        }
++    }
++    internal static void Save(string path, DisplayPreferences preferences)
++    {
++        if (!preferences.IsValid) throw new InvalidDataException();
++        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(new { version = 1, backgroundStrength = preferences.BackgroundStrength,
++            palette = preferences.Palette == CategoryPalette.Original ? "original" : "clearer",
++            density = preferences.Density == ReadingDensity.Comfortable ? "comfortable" : "compact" });
++        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
++        string pending = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
++        try
++        {
++            using (var stream = new FileStream(pending, FileMode.CreateNew, FileAccess.Write, FileShare.None))
++            { stream.Write(bytes); stream.Flush(true); }
++            File.Move(pending, path, true);
++        }
++        finally { try { File.Delete(pending); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { } }
++    }
++    internal static bool IsReadError(Exception error) => BackgroundSettings.IsFileError(error) ||
++        error is JsonException or InvalidOperationException or KeyNotFoundException or FormatException;
++}
++
++// Stage both settings before touching their destinations. Each replacement is
++// atomic; an ordinary multi-file commit failure restores the previous bytes.
++// Display-only changes never encode or replace the image file.
++internal sealed class AppearanceRestoreException() : IOException("Appearance rollback incomplete; local recovery copies retained.");
++
++internal static class AppearanceSettingsCommit
++{
++    private static readonly object gate = new();
++    internal static void Save(string backgroundPath, string displayPath, BackgroundChoice? image, bool resetImage,
++        DisplayPreferences? display, Action<int>? afterCommit = null)
++    {
++        lock (gate)
++        {
++            var entries = new List<(string Target, string Stage, string Backup, bool Existed, bool Remove)>();
++            var committed = new List<int>();
++            bool rollbackFailed = false;
++            string id = Guid.NewGuid().ToString("N");
++            void Stage(string target, bool remove, Action<string> prepare, long limit)
++            {
++                target = Path.GetFullPath(target);
++                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
++                bool existed = File.Exists(target);
++                if (existed && new FileInfo(target).Length > limit) throw new InvalidDataException();
++                string stage = target + "." + id + ".stage", backup = target + "." + id + ".backup";
++                entries.Add((target, stage, backup, existed, remove));
++                if (!remove) prepare(stage);
++                if (existed) File.Copy(target, backup, false);
++            }
++            try
++            {
++                if (resetImage || image != null)
++                    Stage(backgroundPath, resetImage, p => BackgroundSettings.Save(p, image!), 24 * 1024 * 1024);
++                if (display != null) Stage(displayPath, false, p => DisplayPreferencesStore.Save(p, display), DisplayPreferencesStore.MaxBytes);
++                for (int i = 0; i < entries.Count; i++)
++                {
++                    var entry = entries[i];
++                    if (entry.Remove) File.Delete(entry.Target); else File.Move(entry.Stage, entry.Target, true);
++                    committed.Add(i); afterCommit?.Invoke(i);
++                }
++            }
++            catch
++            {
++                foreach (int i in committed.AsEnumerable().Reverse())
++                {
++                    var entry = entries[i];
++                    try { if (entry.Existed) File.Move(entry.Backup, entry.Target, true); else File.Delete(entry.Target); }
++                    catch (Exception e) when (e is IOException or UnauthorizedAccessException) { rollbackFailed = true; }
++                }
++                if (rollbackFailed) throw new AppearanceRestoreException();
++                throw;
++            }
++            finally
++            {
++                foreach (var entry in entries)
++                foreach (string path in new[] { entry.Stage, entry.Backup })
++                    if (!rollbackFailed || path != entry.Backup)
++                        try { File.Delete(path); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
++            }
++        }
++    }
++}
+diff --git a/src/UI/FileListPresentation.cs b/src/UI/FileListPresentation.cs
+index c069dd5..265febb 100644
+--- a/src/UI/FileListPresentation.cs
++++ b/src/UI/FileListPresentation.cs
+@@ -5,8 +5,8 @@ internal readonly record struct FileListRowBands(Rectangle Name, Rectangle Path,
+ // Presentation only: path text does not change MapItem names, sorting or identity.
+ internal static class FileListPresentation
+ {
+-    internal static int RowHeight(int dpi, bool detailed) =>
+-        Math.Max(1, (int)Math.Round((detailed ? 58 : 44) * dpi / 96d));
++    internal static int RowHeight(int dpi, bool detailed, bool compact = false) =>
++        Math.Max(1, (int)Math.Round((detailed ? compact ? 50 : 58 : compact ? 36 : 44) * dpi / 96d));
+ 
+     internal static FileListRowBands Bands(Rectangle cell, int dpi, bool detailed)
+     {
+diff --git a/src/UI/LargestFileFilterDialog.cs b/src/UI/LargestFileFilterDialog.cs
+new file mode 100644
+index 0000000..a56bd0c
+--- /dev/null
++++ b/src/UI/LargestFileFilterDialog.cs
+@@ -0,0 +1,54 @@
++namespace DiskAtlas;
++
++internal sealed class LargestFileFilterDialog : Form
++{
++    private sealed record Limit(string Name, long Bytes) { public override string ToString() => Name; }
++    private readonly ComboBox minimum = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
++    private readonly ComboBox extension = new() { DropDownStyle = ComboBoxStyle.DropDown, Dock = DockStyle.Fill, MaxLength = 255 };
++    private readonly Label error = new() { AutoSize = true, ForeColor = Theme.Accent, Dock = DockStyle.Fill };
++    internal long MinimumLogicalSize => ((Limit)minimum.SelectedItem!).Bytes;
++    internal string? Extension => extension.Text.Trim() is "" or "全部扩展名" ? null : extension.Text.Trim();
++    internal LargestFileFilterDialog(long size, string? type, IReadOnlyList<string> extensions)
++    {
++        Text = "大文件筛选"; StartPosition = FormStartPosition.CenterParent; AutoScaleMode = AutoScaleMode.Dpi;
++        Font = Theme.Font(Theme.BodyFontSize); BackColor = Theme.Surface; ForeColor = Theme.Text;
++        ClientSize = new(340, 245); FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false;
++        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new(18), ColumnCount = 1, RowCount = 6 };
++        layout.RowStyles.Add(new(SizeType.Absolute, 25)); layout.RowStyles.Add(new(SizeType.Absolute, 35));
++        layout.RowStyles.Add(new(SizeType.Absolute, 28)); layout.RowStyles.Add(new(SizeType.Absolute, 35));
++        layout.RowStyles.Add(new(SizeType.Percent, 100)); layout.RowStyles.Add(new(SizeType.Absolute, 36));
++        minimum.AccessibleName = "文件大小至少"; extension.AccessibleName = "扩展名（可输入）";
++        minimum.Items.AddRange([new Limit("不限", 0), new Limit("100 MiB", 100L * 1024 * 1024),
++            new Limit("1 GiB", 1L << 30), new Limit("5 GiB", 5L << 30)]);
++        minimum.SelectedIndex = Math.Max(0, minimum.Items.Cast<Limit>().ToList().FindIndex(x => x.Bytes == size));
++        extension.Items.Add("全部扩展名"); extension.Items.AddRange(extensions.Take(4096).Cast<object>().ToArray());
++        extension.Text = type ?? "全部扩展名";
++        layout.Controls.Add(new Label { Text = "文件大小至少", AutoSize = true }, 0, 0); layout.Controls.Add(minimum, 0, 1);
++        layout.Controls.Add(new Label { Text = "扩展名（可输入）", AutoSize = true }, 0, 2); layout.Controls.Add(extension, 0, 3);
++        layout.Controls.Add(error, 0, 4);
++        var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft };
++        var apply = new Button { Text = "应用", AutoSize = true };
++        var cancel = new Button { Text = "取消", AutoSize = true, DialogResult = DialogResult.Cancel };
++        var clear = new Button { Text = "恢复不限", AutoSize = true };
++        clear.Click += (_, _) => { minimum.SelectedIndex = 0; extension.Text = "全部扩展名"; };
++        apply.Click += (_, _) =>
++        {
++            string? value = Extension;
++            if (value != null && value != "无扩展名" && (!value.StartsWith('.') || value.Length < 2 || value.IndexOfAny(['\\','/',':','*','?','"','<','>','|']) >= 0))
++            { error.Text = "请输入如 .zip 的扩展名，或选择全部。"; return; }
++            DialogResult = DialogResult.OK;
++        };
++        actions.Controls.AddRange([apply, cancel, clear]); layout.Controls.Add(actions, 0, 5); Controls.Add(layout);
++        AcceptButton = apply; CancelButton = cancel;
++    }
++    internal static IReadOnlyList<string> Extensions(DiskEntry directory, CancellationToken token)
++    {
++        var values = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
++        foreach (var entry in directory.Descendants())
++        {
++            token.ThrowIfCancellationRequested();
++            if (!entry.IsDirectory && values.Count < 4096) values.Add(entry.Extension);
++        }
++        return values.Order(StringComparer.OrdinalIgnoreCase).ToArray();
++    }
++}
+diff --git a/src/UI/MainForm.Display.cs b/src/UI/MainForm.Display.cs
+new file mode 100644
+index 0000000..1fe7312
+--- /dev/null
++++ b/src/UI/MainForm.Display.cs
+@@ -0,0 +1,98 @@
++namespace DiskAtlas;
++
++internal sealed partial class MainForm
++{
++    internal DisplayPreferences DisplayOptions { get; private set; } = DisplayPreferences.Default;
++    private string displaySettingsPath = DisplayPreferencesStore.PathForUser;
++    private long largestMinimum;
++    private string? largestExtension;
++    private readonly ActionButton largestFilter = new("筛选") { Dock = DockStyle.Fill, Subtle = true, Visible = false };
++    private ColumnStyle? largestFilterColumn;
++    private CancellationTokenSource? filterChoicesCancellation;
++
++    private async Task EditLargestFilter()
++    {
++        if (mode != 1 || current == null || showingPreview || scanCancellation != null) return;
++        var directory = current; var resultOwner = scan;
++        filterChoicesCancellation?.Cancel();
++        using var source = new CancellationTokenSource(); filterChoicesCancellation = source;
++        largestFilter.Enabled = false;
++        try
++        {
++            var extensions = await Task.Run(() => LargestFileFilterDialog.Extensions(directory, source.Token), source.Token);
++            if (IsDisposed || Disposing || source.IsCancellationRequested || !ReferenceEquals(scan, resultOwner) || !ReferenceEquals(current, directory) || mode != 1) return;
++            using var dialog = new LargestFileFilterDialog(largestMinimum, typeFilter, extensions);
++            if (dialog.ShowDialog(this) != DialogResult.OK) return;
++            if (IsDisposed || Disposing || !ReferenceEquals(scan, resultOwner) || !ReferenceEquals(current, directory) || mode != 1) return;
++            largestMinimum = dialog.MinimumLogicalSize; typeFilter = largestExtension = dialog.Extension;
++            UpdateView(true);
++        }
++        catch (OperationCanceledException) { }
++        catch (Exception error) when (error is InvalidOperationException or ArgumentException or OutOfMemoryException)
++        { if (!IsDisposed && !Disposing) status.Text = "无法准备筛选选项，请稍后重试。"; }
++        finally
++        {
++            if (ReferenceEquals(filterChoicesCancellation, source)) filterChoicesCancellation = null;
++            if (!IsDisposed && !Disposing) largestFilter.Enabled = true;
++        }
++    }
++
++    private void UpdateLargestFilterEntry()
++    {
++        bool visible = mode == 1 && !showingPreview;
++        largestFilter.Visible = visible;
++        largestFilter.Enabled = scanCancellation == null && filterChoicesCancellation == null;
++        largestFilter.Text = largestMinimum > 0 || typeFilter != null ? "筛选 · 已启用" : "筛选";
++        if (largestFilterColumn != null) largestFilterColumn.Width = visible ? 114 * DeviceDpi / 96f : 0;
++    }
++
++    internal void ApplyDisplayOptions(DisplayPreferences value)
++    {
++        if (!value.IsValid) throw new InvalidDataException();
++        if (IsDisposed || Disposing || value == DisplayOptions) return;
++        var previous = DisplayOptions;
++        using var hold = layoutPresentation?.BeginGeometry(holdRedraw: true);
++        DisplayOptions = value;
++        if (previous.Density != value.Density) ApplyReadingDensity();
++        // The original image/crop and raw raster remain owned and unchanged.
++        // Display-aware cache keys retire only their opaque composites.
++        if (compositionReady) PublishCompositionBackdrop(dibCoverage?.RootFrame(ClientSize));
++        layoutPresentation?.ResizeSurfaces();
++        Invalidate(true);
++    }
++
++    private void ApplyReadingDensity()
++    {
++        if (contentLayoutRoot == null) return;
++        float scale = DeviceDpi / 96f;
++        bool compact = DisplayOptions.Density == ReadingDensity.Compact;
++        float[] heights = compact ? [44, 46, 68, 46] : [50, 52, 80, 52];
++        contentLayoutRoot.SuspendLayout();
++        try
++        {
++            for (int i = 0; i < heights.Length; i++) contentLayoutRoot.RowStyles[i].Height = heights[i] * scale;
++            contentLayoutRoot.RowStyles[5].Height = (compact ? 58 : 66) * scale;
++            contentLayoutRoot.RowStyles[6].Height = (compact ? 42 : 48) * scale;
++            contentLayoutRoot.Padding = new Padding((int)(28 * scale), (int)((compact ? 14 : 18) * scale), (int)(28 * scale), (int)((compact ? 10 : 12) * scale));
++            ((WallpaperGrid)grid).PerformBufferedScroll(() =>
++            {
++                grid.RowTemplate.Height = FileListPresentation.RowHeight(DeviceDpi, mode == 1, compact);
++                foreach (DataGridViewRow row in grid.Rows) row.Height = grid.RowTemplate.Height;
++            });
++        }
++        finally { contentLayoutRoot.ResumeLayout(true); }
++    }
++
++    private async Task RestoreSavedDisplay()
++    {
++        try
++        {
++            var saved = await Task.Run(() => DisplayPreferencesStore.Load(displaySettingsPath));
++            if (!IsDisposed && !Disposing) ApplyDisplayOptions(saved);
++        }
++        catch (Exception error) when (DisplayPreferencesStore.IsReadError(error))
++        {
++            if (!IsDisposed && !Disposing) status.Text = "显示设置无法读取，已使用显示默认值。";
++        }
++    }
++}
+diff --git a/src/UI/Rendering/DibWindowCoverage.cs b/src/UI/Rendering/DibWindowCoverage.cs
+index 9896b7d..0034166 100644
+--- a/src/UI/Rendering/DibWindowCoverage.cs
++++ b/src/UI/Rendering/DibWindowCoverage.cs
+@@ -154,7 +154,7 @@ internal sealed class DibWindowCoverage : IDisposable
+     }
+     internal bool TryPaintCachedRoot(Control control, Graphics graphics, Size size, Point offset, int wash)
+     {
+-        if(!UseRootCache || rootFrame == null || owner.Rendering?.Active != true || wash != 42 ||
++        if(!UseRootCache || rootFrame == null || owner.Rendering?.Active != true || wash != Wallpaper.SurfaceAlpha(owner, WallpaperSurface.Ambient, 42) ||
+             control is NavigationPanel && owner.HasCustomBackground ||
+             rootKey != new RootKey(size,owner.BackgroundImage,owner.BackgroundCrop,owner.DeviceDpi,
+                 Theme.Surface.ToArgb(),Theme.Background.ToArgb(),wash))
+diff --git a/tests/Program.cs b/tests/Program.cs
+index a1b7864..02a53ec 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -1,7 +1,9 @@
+ using DiskAtlas;
+ using System.Drawing;
+ 
+-if(args.Contains("--scroll-frame-tests")) return ScrollFrameConsistencyTests.Run(args.Contains("--dpi-96"));
++if(args.Contains("--stage-three-model-tests")) return StageThreeModelTests.Run();
++if(args.Contains("--stage-three-ui-tests")) return StageThreeUiTests.Run(args.Contains("--dpi-96"));
++if(args.Contains("--scroll-frame-tests")) return ScrollFrameConsistencyTests.Run(args.Contains("--dpi-96"), args.Contains("--display-variants"));
+ if(args.Contains("--scrollbar-tracking-preview")) return ScrollbarTrackingPreview.Run(args.Contains("--dpi-96"));
+ if(args.Contains("--scrollbar-pointer-tests")) return ScrollbarPointerTests.Run(args.Contains("--dpi-96"));
+ 
+diff --git a/tests/ScrollFrameConsistencyTests.cs b/tests/ScrollFrameConsistencyTests.cs
+index 75586b8..35b6791 100644
+--- a/tests/ScrollFrameConsistencyTests.cs
++++ b/tests/ScrollFrameConsistencyTests.cs
+@@ -11,7 +11,7 @@ internal static class ScrollFrameConsistencyTests
+     [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr window, IntPtr dc);
+     [DllImport("gdi32.dll")] private static extern uint GetPixel(IntPtr dc, int x, int y);
+     [DllImport("user32.dll", EntryPoint = "GetPropW", CharSet = CharSet.Unicode)] private static extern IntPtr GetProp(IntPtr window, string name);
+-    internal static int Run(bool dpi96)
++    internal static int Run(bool dpi96, bool displayVariants = false)
+     {
+         string? failure = null;
+         int checks = 0, observed = 0, protectedEvents = 0, shiftedEvents = 0, compared = 0, finalMismatch = 0, deferredNotMoved = 0, maxChanged = 0;
+@@ -40,6 +40,7 @@ internal static class ScrollFrameConsistencyTests
+                 }
+                 typeof(MainForm).GetField("current", Hidden)!.SetValue(form, root);
+                 typeof(MainForm).GetMethod("PopulateGrid", Hidden)!.Invoke(form, [items]);
++                if (displayVariants) form.ApplyDisplayOptions(new DisplayPreferences(65, CategoryPalette.Clearer, ReadingDensity.Compact));
+                 var pattern = Pattern();
+                 typeof(MainForm).GetMethod("ApplyBackground", Hidden)!.Invoke(form,
+                     [pattern, BackgroundView.Default, Theme.DefaultAccent, true]);
+@@ -135,8 +136,8 @@ internal static class ScrollFrameConsistencyTests
+             catch (Exception error) { failure = "Unexpected_" + error.GetType().Name; }
+         }) { IsBackground = true };
+         thread.SetApartmentState(ApartmentState.STA); thread.Start();
+-        if (!thread.Join(TimeSpan.FromSeconds(35))) failure = "WorkerDeadline";
+-        Console.WriteLine($"OBSERVE scroll frames checks={checks}; scroll_events={observed}; protected={protectedEvents}; native_holds={nativeHolds}; shifted={shiftedEvents}; max_changed={maxChanged}; intermediate_pixels={compared}; final_mismatch={finalMismatch}; track_mismatch={trackMismatch}; premature_resume={prematureResume}; deferred_not_moved={deferredNotMoved}; dpi96={dpi96}");
++        if (!thread.Join(TimeSpan.FromSeconds(displayVariants ? 75 : 35))) failure = "WorkerDeadline";
++        Console.WriteLine($"OBSERVE scroll frames checks={checks}; scroll_events={observed}; protected={protectedEvents}; native_holds={nativeHolds}; shifted={shiftedEvents}; max_changed={maxChanged}; intermediate_pixels={compared}; final_mismatch={finalMismatch}; track_mismatch={trackMismatch}; premature_resume={prematureResume}; deferred_not_moved={deferredNotMoved}; dpi96={dpi96}; display_variants={displayVariants}");
+         if (failure != null) { Console.Error.WriteLine("FAIL scroll frames code=" + failure); return 1; }
+         Console.WriteLine("PASS scroll frames; owned_synthetic=True; continuous_desktop_review_separate=True"); return 0;
+         void Check(bool condition, string code) { checks++; if (!condition) throw new Failure(code); }
+diff --git a/tests/StageThreeModelTests.cs b/tests/StageThreeModelTests.cs
+new file mode 100644
+index 0000000..d6832ab
+--- /dev/null
++++ b/tests/StageThreeModelTests.cs
+@@ -0,0 +1,105 @@
++using DiskAtlas;
++using System.Security.Cryptography;
++
++internal static class StageThreeModelTests
++{
++    internal static int Run()
++    {
++        int checks = 0; string? failure = null;
++        string directory = Path.Combine(Path.GetTempPath(), "AsukaLens-stage3-model-" + Guid.NewGuid().ToString("N"));
++        Directory.CreateDirectory(directory);
++        try
++        {
++            var root = Fixture();
++            var request = new ViewRequest(root, ViewMode.LargestFiles);
++            var all = ViewQuery.Build(request, default);
++            Check(all.Rows.Count == 500 && all.MatchedCount == 1103, "UnfilteredTop500AndFullMatchCount");
++            var zip = ViewQuery.Build(request with { ExtensionFilter = ".ZIP", MinimumLogicalSize = 1000 }, default);
++            var expected = root.Descendants().Where(x => !x.IsDirectory && x.Extension.Equals(".zip", StringComparison.OrdinalIgnoreCase) && x.Size >= 1000)
++                .OrderByDescending(x => x.Size).ThenBy(x => x.Path, StringComparer.OrdinalIgnoreCase).Take(500).ToArray();
++            Check(zip.Rows.Select(x => x.Entry).SequenceEqual(expected), "FilterWholeScopeBeforeTop500");
++            Check(zip.MatchedCount == 550 && zip.Rows.Count == 500, "MatchedCountNotTruncatedToDisplayLimit");
++            var needle = ViewQuery.Build(request with { Search = "below-top", ExtensionFilter = ".bin", MinimumLogicalSize = 1000 }, default);
++            Check(needle.Rows.Count == 1 && needle.Rows[0].Name == "below-top.bin", "FileOutsideOriginalTop500CanBecomeMatch");
++            var boundary = ViewQuery.Build(request with { Search = "boundary", MinimumLogicalSize = 1000 }, default);
++            Check(boundary.MatchedCount == 1 && boundary.Rows.Single().Entry!.Size == 1000, "MinimumIsInclusiveAndRejectsOneByteBelow");
++            var occupied = ViewQuery.Build(request with { Search = "below-top", Metric = SizeMetric.Allocated, MinimumLogicalSize = 1000 }, default);
++            Check(occupied.Rows.Count == 1 && occupied.Rows[0].Size == 0 && occupied.Rows[0].UnknownFiles == 1 && occupied.MapItems.Count == 0,
++                "LogicalThresholdIndependentOfUnknownAllocatedMetric");
++            Check(ViewQuery.Build(request with { MinimumLogicalSize = long.MaxValue }, default).Rows.Count == 0, "ExtremeMinimumProducesEmptyResult");
++            Check(ViewQuery.Build(request with { Mode = ViewMode.Folder, MinimumLogicalSize = long.MaxValue }, default).Rows.Count == root.Children.Count, "LargestMinimumDoesNotFilterFolderMode");
++            bool cancelled = false; using(var cancellation = new CancellationTokenSource())
++            { cancellation.Cancel(); try { ViewQuery.Build(request, cancellation.Token); } catch(OperationCanceledException) { cancelled = true; } }
++            Check(cancelled, "FilterHonorsCancellation");
++            string display = Path.Combine(directory, "display.json"), background = Path.Combine(directory, "background.dat");
++            Check(DisplayPreferencesStore.Load(display) == DisplayPreferences.Default, "MissingPreferencesUseExactExistingDefaults");
++            var preference = new DisplayPreferences(65, CategoryPalette.Clearer, ReadingDensity.Compact);
++            DisplayPreferencesStore.Save(display, preference);
++            Check(DisplayPreferencesStore.Load(display) == preference, "DisplayRoundTrip");
++            Check(new FileInfo(display).Length < DisplayPreferencesStore.MaxBytes, "DisplayStorageBounded");
++            string content = File.ReadAllText(display);
++            Check(!content.Contains(directory) && !content.Contains("path", StringComparison.OrdinalIgnoreCase), "NoPathsOrFileListsPersisted");
++            string[] invalid = ["{}", "[]", "{\"version\":2,\"backgroundStrength\":100,\"palette\":\"original\",\"density\":\"comfortable\"}",
++                "{\"version\":1,\"backgroundStrength\":39,\"palette\":\"original\",\"density\":\"comfortable\"}",
++                "{\"version\":1,\"backgroundStrength\":101,\"palette\":\"original\",\"density\":\"comfortable\"}",
++                "{\"version\":1,\"backgroundStrength\":100,\"palette\":\"other\",\"density\":\"comfortable\"}",
++                "{\"version\":1,\"backgroundStrength\":100,\"palette\":\"original\",\"density\":\"comfortable\",\"version\":1}", new string('x', 4097)];
++            foreach(string bad in invalid)
++            {
++                File.WriteAllText(display, bad); bool rejected = false;
++                try { DisplayPreferencesStore.Load(display); } catch(Exception e) when(DisplayPreferencesStore.IsReadError(e)) { rejected = true; }
++                Check(rejected, "InvalidDisplayPreferencesRejected");
++            }
++            DisplayPreferencesStore.Save(display, preference);
++            File.WriteAllBytes(background, [1, 2, 3, 4]);
++            byte[] oldImage = File.ReadAllBytes(background), oldDisplay = File.ReadAllBytes(display);
++            using var choice = new BackgroundChoice(new Bitmap(2, 2), BackgroundView.Default, Theme.DefaultAccent);
++            bool failed = false;
++            try { AppearanceSettingsCommit.Save(background, display, choice, false, DisplayPreferences.Default, _ => throw new IOException("SyntheticCommitFailure")); }
++            catch(IOException) { failed = true; }
++            Check(failed && File.ReadAllBytes(background).SequenceEqual(oldImage) && File.ReadAllBytes(display).SequenceEqual(oldDisplay), "FailedPairCommitRestoresBothPreviousFiles");
++            Check(Directory.GetFiles(directory).Length == 2, "FailedCommitCleansStagesAndBackups");
++            failed = false;
++            try { AppearanceSettingsCommit.Save(background, display, choice, false, DisplayPreferences.Default,
++                index => { if (index == 1) throw new IOException("SyntheticSecondCommitFailure"); }); }
++            catch (IOException) { failed = true; }
++            Check(failed && File.ReadAllBytes(background).SequenceEqual(oldImage) && File.ReadAllBytes(display).SequenceEqual(oldDisplay),
++                "SecondCommitFailureRestoresBothPreviousFiles");
++            Check(Directory.GetFiles(directory).Length == 2, "SecondFailureCleansStagesAndBackups");
++            var stamp = File.GetLastWriteTimeUtc(background);
++            AppearanceSettingsCommit.Save(background, display, null, false, DisplayPreferences.Default);
++            Check(File.ReadAllBytes(background).SequenceEqual(oldImage) && File.GetLastWriteTimeUtc(background) == stamp, "DisplayOnlyDoesNotRewriteImage");
++            Check(DisplayPreferencesStore.Load(display) == DisplayPreferences.Default, "DisplayOnlySaved");
++            AppearanceSettingsCommit.Save(background, display, choice, false, preference);
++            using(var loaded = BackgroundSettings.Load(background)) Check(loaded != null && loaded.View == BackgroundView.Default, "ImageAndDisplayApplyTogether");
++            Check(DisplayPreferencesStore.Load(display) == preference, "PairedDisplaySaved");
++            AppearanceSettingsCommit.Save(background, display, null, true, null);
++            Check(!File.Exists(background) && DisplayPreferencesStore.Load(display) == preference, "ImageResetDoesNotResetDisplay");
++            Check(Theme.Categories.All(c => DisplayPreferences.Default.CategoryColor(c.Name) == c.Color), "OriginalPaletteExactlyRetained");
++            Check(Theme.Categories.Any(c => preference.CategoryColor(c.Name) != c.Color), "AlternativePaletteDistinct");
++        }
++        catch(Failure e) { failure = e.Code; }
++        catch(Exception e) { failure = "Unexpected_" + e.GetType().Name; }
++        finally
++        {
++            string absolute = Path.GetFullPath(directory), temp = Path.GetFullPath(Path.GetTempPath());
++            if (absolute.StartsWith(temp, StringComparison.OrdinalIgnoreCase) && Path.GetFileName(absolute).StartsWith("AsukaLens-stage3-model-", StringComparison.Ordinal) &&
++                !Directory.EnumerateFileSystemEntries(absolute).Any(p => (File.GetAttributes(p) & FileAttributes.ReparsePoint) != 0)) Directory.Delete(absolute, true);
++        }
++        if(failure != null) { Console.Error.WriteLine($"FAIL stage-three model code={failure}; checks={checks}"); return 1; }
++        Console.WriteLine($"PASS stage-three model checks={checks}; synthetic_and_owned_temp_only=True"); return 0;
++        void Check(bool condition,string code) { checks++; if(!condition)throw new Failure(code); }
++    }
++    internal static DiskEntry Fixture()
++    {
++        var root = new DiskEntry(Path.Combine(Path.GetTempPath(), "AsukaLens-stage3-synthetic"), true);
++        for(int i=0;i<1100;i++)
++            root.MutableChildren.Add(new DiskEntry(Path.Combine(root.Path,$"item-{i:0000}"+(i%2==0?".zip":".mp4")),false,root)
++                { Size = 2000+i, AllocatedSize = 4000+i, FileCount = 1 });
++        foreach(var pair in new[]{("below-top.bin",1000L),("boundary-low.bin",999L),("boundary-equal.bin",1000L)})
++            root.MutableChildren.Add(new DiskEntry(Path.Combine(root.Path,pair.Item1),false,root){Size=pair.Item2,UnknownAllocationFiles=1,FileCount=1});
++        root.Size=root.Children.Sum(x=>x.Size);root.FileCount=root.Children.Count;root.AllocatedSize=root.Children.Sum(x=>x.AllocatedSize);root.UnknownAllocationFiles=3;
++        return root;
++    }
++    private sealed class Failure(string code):Exception { internal string Code=>code; }
++}
+diff --git a/tests/StageThreeUiTests.cs b/tests/StageThreeUiTests.cs
+new file mode 100644
+index 0000000..bc11e98
+--- /dev/null
++++ b/tests/StageThreeUiTests.cs
+@@ -0,0 +1,168 @@
++using DiskAtlas;
++using System.Reflection;
++
++internal static class StageThreeUiTests
++{
++    private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
++    internal static int Run(bool dpi96)
++    {
++        string? failure = null; int checks = 0;
++        string directory = Path.Combine(Path.GetTempPath(), "AsukaLens-stage3-ui-" + Guid.NewGuid().ToString("N"));
++        Directory.CreateDirectory(directory);
++        string backgroundPath = Path.Combine(directory, "background.dat");
++        var thread = new Thread(() =>
++        {
++            try
++            {
++                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles();
++                int scanBehavior = 0;
++                using var form = new MainForm(null, false, backgroundPath, compositionCandidate: true, showCandidateLabel: false)
++                {
++                    ShowInTaskbar = false,
++                    ScanRunner = (path, progress, token, session) =>
++                    {
++                        if (scanBehavior == 1) throw new OperationCanceledException(token);
++                        var next = StageThreeModelTests.Fixture();
++                        return new ScanResult(new DiskEntry(path, true) { Size = next.Size, FileCount = next.FileCount }, TimeSpan.Zero, 0, []);
++                    }
++                };
++                DisplayPreferences? committed = null;
++                form.Shown += async (_, _) =>
++                {
++                    try
++                    {
++                        var root = StageThreeModelTests.Fixture();
++                        Set("scan", new ScanResult(root, TimeSpan.FromMilliseconds(5), 0, [])); Set("current", root);
++                        Invoke("SetMode", 1); await Query(false);
++                        var grid = Field<WallpaperGrid>("grid"); var map = Field<TreemapControl>("map");
++                        Check(Field<ActionButton>("largestFilter").Visible && Rows().Count == 500, "LargestFilterEntryAndTop500Visible");
++                        Check(Field<Label>("listCaption").Text.Contains("1,103"), "VisibleFullMatchCount");
++                        var kept = Rows().First(x => x.Entry!.Extension == ".zip");
++                        Invoke("SelectItem", kept, true);
++                        Set("largestMinimum", 3000L); Set("typeFilter", ".zip"); Set("largestExtension", ".zip"); await Query(true);
++                        Check(Rows().Count == 50 && Rows().All(x => x.Entry!.Size >= 3000 && x.Entry.Extension == ".zip"), "CombinedLargestFiltersApplied");
++                        Check(ReferenceEquals(Field<MapItem>("selection").Entry, kept.Entry), "ValidSelectionPreserved");
++                        Check(Field<StatCard>("totalCard").Value == SizeFormat.Bytes(root.Size), "FilteringDoesNotReplaceDirectoryStatistic");
++                        Invoke("SetMode", 0); await Query(false);
++                        Check(Rows().Count == root.Children.Count && Field<string?>("typeFilter") == null, "FolderViewUnaffectedByLargestConditions");
++                        Invoke("SetMode", 1); await Query(false);
++                        Check(Rows().Count == 50 && Field<long>("largestMinimum") == 3000, "LargestConditionsRestoreWithinSession");
++                        Set("largestMinimum", long.MaxValue); await Query(true);
++                        Check(Rows().Count == 0 && Field<MapItem?>("selection") == null && !Field<ActionButton>("selectionDetails").Enabled, "EmptyFilterClearsStaleDetails");
++                        Set("largestMinimum", 0L); Set("typeFilter", null); Set("largestExtension", null); Task stale = Query(false);
++                        Set("largestMinimum", long.MaxValue); Task latest = Query(false); await Task.WhenAll(stale, latest);
++                        Check(Rows().Count == 0, "LatestLargestFilterWins");
++                        Set("largestMinimum", 0L); await Query(false);
++                        var selected = Rows()[0]; Invoke("SelectItem", selected, true);
++                        Image? originalImage = form.BackgroundImage; var crop = form.BackgroundCrop;
++                        var originalRaster = form.WallpaperRaster.Get(originalImage, form.ClientSize, crop);
++                        var font = grid.DefaultCellStyle.Font; int comfortable = grid.RowTemplate.Height;
++                        using var before = PaintRoot();
++                        form.ApplyDisplayOptions(new DisplayPreferences(60, CategoryPalette.Clearer, ReadingDensity.Compact));
++                        await Task.Delay(180);
++                        using var after = PaintRoot();
++                        Check(ReferenceEquals(originalImage, form.BackgroundImage) && crop == form.BackgroundCrop &&
++                            ReferenceEquals(originalRaster, form.WallpaperRaster.Get(originalImage, form.ClientSize, crop)), "DisplayKeepsImageCropAndRawRaster");
++                        Check(!Same(before, after), "BackgroundStrengthChangesActualComposite");
++                        Check(grid.RowTemplate.Height < comfortable && ReferenceEquals(font, grid.DefaultCellStyle.Font), "CompactKeepsFontAndReducesRows");
++                        var bands = FileListPresentation.Bands(new Rectangle(0, 0, 400, grid.RowTemplate.Height), grid.DeviceDpi, true);
++                        Check(bands.Name.Height > 0 && bands.Path.Height > 0 && bands.Path.Bottom <= grid.RowTemplate.Height, "CompactKeepsBothNameAndPathLines");
++                        Check(ReferenceEquals(Field<MapItem>("selection").Entry, selected.Entry), "DisplayKeepsObjectSelection");
++                        Check(form.DisplayOptions.CategoryColor("视频") != Theme.CategoryColor("视频") && map.AnimationsEnabled,
++                            "PaletteChangesCategoriesWithoutDisablingMotion");
++                        form.ApplyDisplayOptions(DisplayPreferences.Default); await Task.Delay(140);
++                        using var restored = PaintRoot();
++                        Check(Same(before, restored) && grid.RowTemplate.Height == comfortable, "DisplayDefaultsExactlyRestoreRootAndRowHeight");
++                        await Appearance(false, new(65, CategoryPalette.Clearer, ReadingDensity.Compact));
++                        Check(form.DisplayOptions == DisplayPreferences.Default && !File.Exists(backgroundPath + ".display.json"), "CancelRestoresLivePreviewWithoutSaving");
++                        committed = new(80, CategoryPalette.Clearer, ReadingDensity.Comfortable);
++                        await Appearance(true, committed);
++                        Check(form.DisplayOptions == committed && DisplayPreferencesStore.Load(backgroundPath + ".display.json") == committed, "ApplyPersistsDisplayAndFinalPreview");
++                        Check(ReferenceEquals(originalImage, form.BackgroundImage) && !File.Exists(backgroundPath), "DisplayOnlyApplyDoesNotSaveOrReplaceBackground");
++                        byte[] prior = File.ReadAllBytes(backgroundPath + ".display.json");
++                        string blocked = Path.Combine(directory, "blocked"); File.WriteAllText(blocked, "synthetic");
++                        Set("displaySettingsPath", Path.Combine(blocked, "display.json"));
++                        bool sawFailure = await Appearance(true, new(45, CategoryPalette.Original, ReadingDensity.Compact));
++                        Check(sawFailure && form.DisplayOptions == committed && File.ReadAllBytes(backgroundPath + ".display.json").SequenceEqual(prior),
++                            "SaveFailureIsVisibleAndPreservesCommittedDisplay");
++                        Check(!File.Exists(backgroundPath), "SaveFailureDoesNotWriteImage");
++
++                        Set("largestMinimum", 3000L); Set("largestExtension", ".zip"); Set("typeFilter", ".zip");
++                        await (Task)Invoke("ScanFolder", root.Path)!;
++                        Check(Field<long>("largestMinimum") == 3000 && Field<string?>("largestExtension") == ".zip", "SameRootRefreshKeepsLargestConditions");
++                        scanBehavior = 1;
++                        await (Task)Invoke("ScanFolder", Path.Combine(directory, "new-synthetic-root"))!;
++                        Check(Field<long>("largestMinimum") == 3000 && Field<string?>("largestExtension") == ".zip", "CancelledNewRootRestoresLargestConditions");
++                        scanBehavior = 0;
++                        await (Task)Invoke("ScanFolder", Path.Combine(directory, "new-synthetic-root"))!;
++                        Check(Field<long>("largestMinimum") == 0 && Field<string?>("largestExtension") == null && Field<int>("mode") == 0, "SuccessfulNewRootResetsLargestConditions");
++
++                        async Task<bool> Appearance(bool apply, DisplayPreferences value)
++                        {
++                            using var timer = new System.Windows.Forms.Timer { Interval = 30 };
++                            BackgroundDialog? dialog = null; Task? work = null; int ticks = 0; bool failed = false;
++                            timer.Tick += (_, _) =>
++                            {
++                                dialog ??= Application.OpenForms.OfType<BackgroundDialog>().FirstOrDefault();
++                                if (dialog == null) return;
++                                ticks++;
++                                if (ticks == 1) { dialog.SetDisplayDraft(value); return; }
++                                if (ticks < 8) return;
++                                if (apply && work == null) { work = dialog.ApplyAsync(); return; }
++                                if (work != null && !work.IsCompleted) return;
++                                failed = ((Label)typeof(BackgroundDialog).GetField("status", Hidden)!.GetValue(dialog)!).Text.Contains("失败");
++                                if (!dialog.IsDisposed && dialog.Visible) dialog.DialogResult = DialogResult.Cancel;
++                                timer.Stop();
++                            };
++                            timer.Start(); Invoke("EditBackground"); timer.Stop();
++                            if (work != null) await work;
++                            return failed;
++                        }
++                    }
++                    catch(Failure e) { failure = e.Code; }
++                    catch(Exception e) { failure = "Unexpected_" + (e is TargetInvocationException { InnerException: { } inner } ? inner.GetType().Name : e.GetType().Name); }
++                    finally { form.Close(); }
++                };
++                Application.Run(form);
++                if (failure == null && committed != null)
++                {
++                    using var restart = new MainForm(null, true, backgroundPath, compositionCandidate: true, showCandidateLabel: false) { ShowInTaskbar = false };
++                    restart.Show(); Pump(400);
++                    Check(restart.DisplayOptions == committed, "RestartLoadsCommittedDisplayPreferences"); restart.Close();
++                }
++                T Field<T>(string name) => (T)typeof(MainForm).GetField(name, Hidden)!.GetValue(form)!;
++                void Set(string name,object? value) => typeof(MainForm).GetField(name, Hidden)!.SetValue(form,value);
++                object? Invoke(string name, params object?[] args) => typeof(MainForm).GetMethod(name, Hidden)!.Invoke(form,args);
++                Task Query(bool preserve) => (Task)Invoke("UpdateViewAsync", preserve)!;
++                List<MapItem> Rows() => Field<List<MapItem>>("sortedRows");
++                Bitmap PaintRoot()
++                {
++                    var bitmap = new Bitmap(70,70); using var g=Graphics.FromImage(bitmap);
++                    Wallpaper.Paint(form,g,nativeCopy:false); return bitmap;
++                }
++            }
++            catch(Failure e) { failure=e.Code; }
++            catch(Exception e) { failure="Worker_"+e.GetType().Name; }
++        }) { IsBackground=true };
++        thread.SetApartmentState(ApartmentState.STA);thread.Start();
++        bool finished=thread.Join(TimeSpan.FromSeconds(75)); if(!finished)failure="WorkerDeadline";
++        if(finished)
++        {
++            string absolute=Path.GetFullPath(directory);
++            if(absolute.StartsWith(Path.GetFullPath(Path.GetTempPath()),StringComparison.OrdinalIgnoreCase) && Path.GetFileName(absolute).StartsWith("AsukaLens-stage3-ui-") &&
++                !Directory.EnumerateFileSystemEntries(absolute).Any(p=>(File.GetAttributes(p)&FileAttributes.ReparsePoint)!=0))Directory.Delete(absolute,true);
++        }
++        if(failure!=null){Console.Error.WriteLine($"FAIL stage-three UI code={failure}; checks={checks}; worker_finished={finished}");return 1;}
++        Console.WriteLine($"PASS stage-three UI checks={checks}; dpi96={dpi96}; isolated_settings=True");return 0;
++        void Check(bool ok,string code){checks++;if(!ok)throw new Failure(code);}
++    }
++    private static bool Same(Bitmap a,Bitmap b)
++    {
++        for(int y=0;y<a.Height;y++)for(int x=0;x<a.Width;x++)if(a.GetPixel(x,y)!=b.GetPixel(x,y))return false;
++        return true;
++    }
++    private static void Pump(int ms){var clock=System.Diagnostics.Stopwatch.StartNew();while(clock.ElapsedMilliseconds<ms){Application.DoEvents();Thread.Sleep(5);}}
++    private sealed class Failure(string code):Exception{internal string Code=>code;}
++}

@@ -154,7 +154,7 @@ internal sealed class DibWindowCoverage : IDisposable
     }
     internal bool TryPaintCachedRoot(Control control, Graphics graphics, Size size, Point offset, int wash)
     {
-        if(!UseRootCache || rootFrame == null || owner.Rendering?.Active != true || wash != 42 ||
+        if(!UseRootCache || rootFrame == null || owner.Rendering?.Active != true || wash != Wallpaper.SurfaceAlpha(owner, WallpaperSurface.Ambient, 42) ||
             control is NavigationPanel && owner.HasCustomBackground ||
             rootKey != new RootKey(size,owner.BackgroundImage,owner.BackgroundCrop,owner.DeviceDpi,
                 Theme.Surface.ToArgb(),Theme.Background.ToArgb(),wash))

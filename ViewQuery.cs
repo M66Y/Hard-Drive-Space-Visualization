@@ -2,7 +2,7 @@ namespace DiskAtlas;
 
 public enum ViewMode { Folder, LargestFiles, FileTypes }
 public enum ViewSort { Size, Name, Count, Location }
-public record ViewRequest(DiskEntry Directory, ViewMode Mode, string Search = "", ViewSort Sort = ViewSort.Size, bool Ascending = false, string? ExtensionFilter = null, SizeMetric Metric = SizeMetric.Logical);
+public record ViewRequest(DiskEntry Directory, ViewMode Mode, string Search = "", ViewSort Sort = ViewSort.Size, bool Ascending = false, string? ExtensionFilter = null, SizeMetric Metric = SizeMetric.Logical, long MinimumLogicalSize = 0);
 public record ViewResult(List<MapItem> Rows, List<MapItem> MapItems, long VisibleBytes, long MatchedCount);
 
 public readonly record struct PageSlice(int Index, int Pages, int Offset, int Length)
@@ -33,6 +33,7 @@ public static class ViewQuery
     public static ViewResult Build(ViewRequest request, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        if (request.MinimumLogicalSize < 0) throw new ArgumentOutOfRangeException(nameof(request));
         var rows = new List<MapItem>();
         string query = request.Search.Trim();
         long matched = 0;
@@ -63,6 +64,7 @@ public static class ViewQuery
             {
                 token.ThrowIfCancellationRequested();
                 if (request.Mode == ViewMode.LargestFiles && entry.IsDirectory) continue;
+                if (request.Mode == ViewMode.LargestFiles && entry.Size < request.MinimumLogicalSize) continue;
                 if (request.ExtensionFilter != null && !entry.Extension.Equals(request.ExtensionFilter, StringComparison.OrdinalIgnoreCase)) continue;
                 if (!Matches(entry.Name)) continue;
                 matched++;

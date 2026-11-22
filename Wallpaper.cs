@@ -30,7 +30,7 @@ internal static class Wallpaper
             surface is WallpaperSurface.Chrome or WallpaperSurface.Data or WallpaperSurface.Card)
         {
             var key = (surface, alpha, Theme.Text.ToArgb(), Theme.Muted.ToArgb(), Theme.Accent.ToArgb());
-            lock (alphaGate) if (protectedAlphas.TryGetValue(key, out int cached)) return cached;
+            lock (alphaGate) if (protectedAlphas.TryGetValue(key, out int cached)) return DisplayAlpha(control, cached);
             while (alpha < 255)
             {
                 var darkest = Composite(Color.Black, alpha);
@@ -44,7 +44,14 @@ internal static class Wallpaper
                 protectedAlphas[key] = alpha;
             }
         }
-        return alpha;
+        return DisplayAlpha(control, alpha);
+    }
+
+    private static int DisplayAlpha(Control control, int alpha)
+    {
+        if (control.FindForm() is not MainForm main) return alpha;
+        if (main.HasCustomBackground && control is NavigationPanel) alpha = Math.Max(alpha, 235);
+        return 255 - (int)Math.Round((255 - alpha) * main.DisplayOptions.BackgroundStrength / 100d);
     }
 
     internal static Color SampleSurfaceColor(Control control, Rectangle localArea, WallpaperSurface surface, int fallback = 42)
