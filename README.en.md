@@ -42,7 +42,7 @@ Get the SDK or runtime from [Microsoft](https://dotnet.microsoft.com/en-us/downl
 
 Also includes Automatic / Low-impact / High-speed strategies, live partial previews, cancellation and result recovery, NTFS journal-assisted refresh, local background cropping and accent colors, and [local diagnostics and problem notes](docs/diagnostics.md) (Chinese).
 
-The stage-two development build adds [linked treemap selection, list location and item details](docs/selection-linkage.md) (Chinese). Selecting an internal file keeps the overview; the explicit list action enters its parent. Full paths and allocation notes are available in the details dialog. Maintainer acceptance is pending, and these changes are not in a new Release.
+The stage-two development build adds [linked treemap selection, list location and item details](docs/selection-linkage.md) (Chinese). Selecting an internal file keeps the overview; the explicit list action enters its parent. Full paths and allocation notes are available in the details dialog. Stage-two maintainer acceptance has passed; these changes are not in a new Release. Stage three is only a [proposal](docs/ui-stage-three-plan.md) (Chinese), awaiting approval.
 
 Ordinary startup in the development build now uses the accepted **C57 composition background and DIB rendering**. The light theme, visible wallpaper and animated edge glow are retained; composition failures fall back to C55 rendering. Local user acceptance and the necessary UI checks passed. The maintainer chose to skip Windows 10 validation of this new rendering path in this round; real cross-monitor DPI remains untested. This default change has not been released as a new package.
 

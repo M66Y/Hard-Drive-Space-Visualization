@@ -1,0 +1,573 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index 7a4424fe61d09f6d6209d4350df3c741f15e2169..a6c97724819082d2f5d3c5efd63896c5343feb71 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,27 +1,25 @@
+ # AsukaLens 开发检查点
+ 
+-## 当前：C61联动开发版已展示，待用户体验反馈（2026-11-22）
++## 当前：第二阶段已接受，第三阶段仅方案/预览（2026-11-22）
+ 
+-用户已确认C60方案并授权实施第二阶段，保持布局/背景/动效，完成后开真实程序测试，阶段收尾由反馈决定，不发布。基线干净main/origin 93b80abcd32272cb7ba860c4a48aaf00dd657374；本轮实现、测试、文档及归档均归C61，提交/推送状态核对Git，不从此处推断HEAD。
++用户明确反馈“第二阶段的联动效果可以”，要求完成本阶段收尾，再给第三阶段具体方案和预览，确认后才实施、不发布。当前产品实现main/origin a35812767e8d53a74232936717dde997d8a540b3；本轮C62只改文档、记忆和独立预览，不改C#、项目文件、assets、编译产物或用户设置。最终提交/远程状态以Git为准。
+ 
+-已完成对象身份双向选择、pending选择交接、内部图块命中及原1.15倍柔光、父目录只标归属、主动进入并选中、就近/跨页定位及700ms有界提亮、固定两行摘要和主动详情。长名称不能挤掉两种大小；详情按主窗DPI缩放，路径可复制，不写日志。合并/类型/未知/硬链接保持各自语义，不改扫描后端。
++C61对象身份双向选择、pending交接、内部命中及原1.15倍柔光、父归属与主动进入、就近/跨页/700ms提亮、固定摘要/主动详情已获实际体验认可。应用/tests零警告，最终144/96DPI各44项及受影响UI/滚动/布局等证据保留；用户反馈追加至C61/user-feedback.md，原冻结摘要不重写。
+ 
+-应用/tests零警告构建，最终144/96DPI专项各44项通过；普通/C57两档完整UI及受影响滚动/缓存/布局/图块/双行/无悬停/合成快扫检查完成。修复连续查询丢书签、三参柔光反射入口兼容、摘要分配和详情DPI问题。首次受限启动在SplitContainer Scale发生GDI+异常，可交互复验通过但原因未证明，原失败保留本机；不得改写为首次全过。详情DPI最后修改后仅重跑受影响44项两档，不反复扩大矩阵。
++第三阶段建议首轮合并大文件逻辑大小门槛/扩展名筛选与显示偏好：背景强度40–100（100=当前默认）、原有/增强类别色、舒适/紧凑（保留字号）。入口复用列表标题筛选与背景设置显示页，无说明行/悬停；工作区定制后置。方案见docs/ui-stage-three-plan.md，两页合成设计预览已准备；不是WinForms交付。**第三阶段实施尚未授权**，不因预览操作或旧widget状态自动开工。
+ 
+-真实常用程序已检查内部文件保留总览/主动进入/详情；最小窗口的双行列表及详情通过桌面观察。自建演示目录正常版已留前台，用户实际体验反馈待回；暂不结束第二阶段或进入第三阶段。原始日志只留ignored artifacts，公共证据见iterations/2026-11-22-61-selection-linkage；软件运行所需自建demo暂保留，用户测试结束后再按归属清理。
++## 保留与边界
+ 
+-## 已接受行为与未验边界
++- 第一、二阶段已接受。C57普通默认/C55失败回退、图片/聚焦/Zoom、完整圆角、1.15倍沿边动效保持，不录屏/改系统/个人卷操作。
++- 内嵌文件保留总览，主动“在列表中查看”进入父目录；无悬停文字或自动说明框。已有明确选择不重复询问。
++- C55独立DLL SHA256 D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498，保留并核哈希。当前程序哈希看C61 build-manifest。
++- C61受限启动SplitContainer Scale GDI+异常原因未证明，可交互复验通过但不抹失败；C59早期96DPI柔光失败亦保留。Win10新绘制/真实跨屏未验，用户已跳过Win10，不重复追问。
++- C61原始输出已压缩核验清理；自建demo仍可能被运行程序使用，保留所有权标记，不强制关软件或删除活跃夹具。本轮生成的预览测试中间物收尾清理。
+ 
+-- 第一阶段整体已接受，C57普通默认/C55回退保持；背景图片/聚焦/Zoom、完整圆角和动效未改，不录屏或改系统设置。
+-- 内嵌文件先保留总览，主动“在列表中查看”进入父目录，是用户已选定的决定，不重复询问。无悬停文字、无自动解释框；详细事实集中主动详情。
+-- C55独立DLL SHA256 D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498，保留且核哈希。历史版本看各轮build-manifest，不把候选名称当Git冻结。
+-- Windows10新绘制、真实跨屏未验；用户已明确跳过本轮Win10，不重复追问。两档进程DPI不替代真实多显示器。
+-- C59早期96DPI柔光两次失败保留，观察版原断言通过、原因未明；C56未消除用户闪黑，不能恢复默认。C57后续反馈已接受，勿重复要求证明旧问题。
++## 下一步
+ 
+-## 下一步与授权
++等待用户审阅第三阶段范围、预览和默认值，再按确认合并开发/必要验证/真实展示；完成后再由用户决定收尾，不机械推进全部候选。软件占用/清理、高速稳定提速另行评审。
+ 
+-等待用户对C61真实程序反馈，必要时只修本阶段范围；反馈同意后再做阶段二最终收尾。第三阶段个性化、软件占用/清理、高速稳定提速仍需方案确认。
++C28同快照统计对照已Matched并清理，不重复列为待做。实验快扫默认关闭；个人raw/VSS须当轮明确授权。PERF-001仍P2延期。本轮不构建包、标签或Release。
+ 
+-C28同快照统计对照已Matched并清理，不重列为待做。实验快扫默认关闭；个人卷raw/VSS须当轮明确授权，旧VHD/快照许可不延续。本轮没有个人卷/VHD/VSS、打包或发布。PERF-001仍P2延期。
+-
+-项目现状/计划/决策及Git优先于记忆；此Skill只作交接索引，不存个人路径、原始诊断或原始NTFS页。
++项目现状/计划/决策及Git优先于记忆；此Skill只作交接索引，不存个人路径、原始日志或NTFS页。
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index 78233c120fb6f3ef1c6c5f0fa1831b6924a23cd9..ebf034403ec517443a0a2668c07a8a5efa560d0a 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,5 +1,7 @@
+ # 影响后续开发的决定
+ 
++- 2026-11-22 C62：用户明确接受第二阶段联动，批准收尾后先看第三阶段方案/预览，未授权产品实施、不发布。推荐大文件大小门槛/扩展名筛选和主动显示偏好，保留当前背景/构图/C57/C55与1.15倍柔光；不采纳与用户决定冲突的悬停、说明行、一律厚白底或重排NTFS开关。可定制工作区后置，避免默认布局刚稳定又扩大恢复/DPI复杂度；见docs/ui-stage-three-plan.md。
++
+ - 2026-11-22 C61：用户批准C60联动实施、阶段结束仍待真实程序反馈。以当前结果树DiskEntry引用区别同名与硬链接路径；跨查询用pending交接避免清空选择时丢书签；内部图块必须真实命中，单击保留总览，父目录只标归属，主动进入后再选中文件。固定底部给两种大小独立空间，完整事实按需详情，不恢复悬停/自动说明。保持C57/C55与1.15倍动效，未改扫描后端；证据见iterations/2026-11-22-61-selection-linkage。
+ 
+ - 2026-11-21 C60：用户明确通过第一阶段整体收尾；第二阶段只授权方案和交互预览，未授权实施。重点复用现有图表/列表/详情联动，保持背景/布局/1.15倍动效及C57/C55回退。内嵌文件先显示详情并保留视角，主动“在列表中查看”后进入所在目录（用户已选定，避免自动跳走）。底部固定摘要、完整详情按需查看，不恢复悬停/自动说明，不把合并/未知/共享当单文件；见docs/ui-stage-two-linkage-plan.md。
+diff --git a/README.en.md b/README.en.md
+index 3e78afff25398ca4f6e4b43ee2714168438d0e9a..efb2d6628b752c25709074406bc81781f64af22b 100644
+--- a/README.en.md
++++ b/README.en.md
+@@ -42,7 +42,7 @@ Get the SDK or runtime from [Microsoft](https://dotnet.microsoft.com/en-us/downl
+ 
+ Also includes Automatic / Low-impact / High-speed strategies, live partial previews, cancellation and result recovery, NTFS journal-assisted refresh, local background cropping and accent colors, and [local diagnostics and problem notes](docs/diagnostics.md) (Chinese).
+ 
+-The stage-two development build adds [linked treemap selection, list location and item details](docs/selection-linkage.md) (Chinese). Selecting an internal file keeps the overview; the explicit list action enters its parent. Full paths and allocation notes are available in the details dialog. Maintainer acceptance is pending, and these changes are not in a new Release.
++The stage-two development build adds [linked treemap selection, list location and item details](docs/selection-linkage.md) (Chinese). Selecting an internal file keeps the overview; the explicit list action enters its parent. Full paths and allocation notes are available in the details dialog. Stage-two maintainer acceptance has passed; these changes are not in a new Release. Stage three is only a [proposal](docs/ui-stage-three-plan.md) (Chinese), awaiting approval.
+ 
+ Ordinary startup in the development build now uses the accepted **C57 composition background and DIB rendering**. The light theme, visible wallpaper and animated edge glow are retained; composition failures fall back to C55 rendering. Local user acceptance and the necessary UI checks passed. The maintainer chose to skip Windows 10 validation of this new rendering path in this round; real cross-monitor DPI remains untested. This default change has not been released as a new package.
+ 
+diff --git a/README.md b/README.md
+index 692a00d249cd3ae03dc2633c979663f52ea82b53..2986ee2fa73ca164661b598fa091339a2bffd77d 100644
+--- a/README.md
++++ b/README.md
+@@ -42,7 +42,7 @@ SDK 和运行时从[微软官方下载页](https://dotnet.microsoft.com/en-us/do
+ 
+ 另有自动 / 低占用 / 高速三种策略、边扫边显示、取消与结果恢复、NTFS 日志增量刷新、本地背景裁切与强调色适配，以及[本地诊断和问题记录](docs/diagnostics.md)。
+ 
+-第二阶段开发版已加入[图表、列表与详情联动](docs/selection-linkage.md)：单击内部文件保留总览，主动“在列表中查看”后进入所在目录；完整路径和占用事实在“详情”查看。真实程序已交给维护者体验，阶段验收仍待反馈；这些变化尚未作为新版 Release 发布。
++第二阶段开发版已加入[图表、列表与详情联动](docs/selection-linkage.md)：单击内部文件保留总览，主动“在列表中查看”后进入所在目录；完整路径和占用事实在“详情”查看。第二阶段已获维护者实际体验通过；这些变化尚未作为新版 Release 发布。第三阶段仅准备[方案](docs/ui-stage-three-plan.md)，尚未实施。
+ 
+ 当前开发版在普通启动时默认采用已验收的 **C57 背景合成与 DIB 绘制**，保持浅色、背景透出和沿边柔光；合成不可用时自动回退到 C55 绘制。C57 已通过本机体验验收及必要界面检查；本轮按维护者决定不做 Windows 10 新路径验证，真实跨屏也尚未验收。此默认切换尚未作为新版 Release 发布。
+ 
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 42736fa100955a2152f99112f9bb4557fe76f46b..f73d98ae6ae207fdf3b1204998da7f2d394e8010 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,5 +1,13 @@
+ # 后续开发计划
+ 
++## 第二阶段已获用户通过，第三阶段仅准备方案（2026-11-22）
++
++用户明确反馈“第二阶段的联动效果可以”，批准本阶段收尾；对应实现 `a358127` 已提交并推送main。图表/列表双向选择、内部文件保留视角后主动进入、就近/跨页定位和详情获实际体验认可。C61两档各44项联动检查及受影响UI证据不变，本轮只复核程序/C55哈希、归档完整性、链接/隐私和清理，不为文档重复构建。
++
++已准备[第三阶段具体方案](ui-stage-three-plan.md)和两页设计预览，建议第一轮合并“大文件大小/扩展名筛选＋显示偏好（背景强度、两种类别配色、舒适/紧凑密度）”；可定制工作区后置。当前背景、聚焦/Zoom、C57/C55与1.15倍沿边柔光为保留基线，默认效果不变；不恢复悬停文字或说明框。**第三阶段产品实施尚未授权**，预览不是功能交付；等待用户意见后再确定范围。
++
++没有改动产品源码、二进制、用户配置或扫描权限，没有打包、标签、Release。Windows10新绘制/真实跨屏以及首次受限GDI启动成因未明等历史边界继续保留。C61冻结证据不重写，只追加[用户反馈](../iterations/2026-11-22-61-selection-linkage/user-feedback.md)；本轮证据见[C62](../iterations/2026-11-22-62-stage-two-closeout-stage-three-plan/README.md)。以下保留各轮当时状态。
++
+ ## 第二阶段联动开发版已展示，等待使用反馈（2026-11-22）
+ 
+ 用户已批准C60方案实施；基线main/origin `93b80ab`，开始时工作区干净。已完成图块/列表按对象身份双向选择、就近滚动及跨页定位、目录内部文件真实命中、父目录归属标记和主动“在列表中查看”。固定底部摘要为长名称与两种大小分别留位；“详情”按需显示完整路径、修改时间、未知/共享和统计范围。查询连续切换有pending选择交接及结果代际隔离，不用同名/大小/硬链接身份猜测路径，不增加选择时整树I/O。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 6f5c83070d4dec600afb7525996b04e591c58c76..1172351cea68fcccddf44ef6c73761747c1a9a11 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,13 @@
+ # AsukaLens 项目现状
+ 
++## 第二阶段已获用户通过，第三阶段仅准备方案（2026-11-22）
++
++用户明确反馈“第二阶段的联动效果可以”，批准本阶段收尾；对应实现 `a358127` 已提交并推送main。图表/列表双向选择、内部文件保留视角后主动进入、就近/跨页定位和详情获实际体验认可。C61两档各44项联动检查及受影响UI证据不变，本轮只复核程序/C55哈希、归档完整性、链接/隐私和清理，不为文档重复构建。
++
++已准备[第三阶段具体方案](ui-stage-three-plan.md)和两页设计预览，建议第一轮合并“大文件大小/扩展名筛选＋显示偏好（背景强度、两种类别配色、舒适/紧凑密度）”；可定制工作区后置。当前背景、聚焦/Zoom、C57/C55与1.15倍沿边柔光为保留基线，默认效果不变；不恢复悬停文字或说明框。**第三阶段产品实施尚未授权**，预览不是功能交付；等待用户意见后再确定范围。
++
++没有改动产品源码、二进制、用户配置或扫描权限，没有打包、标签、Release。Windows10新绘制/真实跨屏以及首次受限GDI启动成因未明等历史边界继续保留。C61冻结证据不重写，只追加[用户反馈](../iterations/2026-11-22-61-selection-linkage/user-feedback.md)；本轮证据见[C62](../iterations/2026-11-22-62-stage-two-closeout-stage-three-plan/README.md)。以下保留各轮当时状态。
++
+ ## 第二阶段联动开发版已展示，等待使用反馈（2026-11-22）
+ 
+ 用户已批准C60方案实施；基线main/origin `93b80ab`，开始时工作区干净。已完成图块/列表按对象身份双向选择、就近滚动及跨页定位、目录内部文件真实命中、父目录归属标记和主动“在列表中查看”。固定底部摘要为长名称与两种大小分别留位；“详情”按需显示完整路径、修改时间、未知/共享和统计范围。查询连续切换有pending选择交接及结果代际隔离，不用同名/大小/硬链接身份猜测路径，不增加选择时整树I/O。
+diff --git a/docs/selection-linkage.md b/docs/selection-linkage.md
+index 3439a997d8a0644294ccd26b99826eba2899d4c3..4d3e95eb3b8a2d2d85ee7f09c57d13d735240077 100644
+--- a/docs/selection-linkage.md
++++ b/docs/selection-linkage.md
+@@ -1,6 +1,6 @@
+ # 图表、列表与项目详情
+ 
+-适用于当前第二阶段开发版，尚未打包发布；阶段是否结束等待用户对真实程序的反馈。背景、原布局和1.15倍沿边柔光保留。
++适用于当前第二阶段开发版，用户已于2026-11-22确认联动效果可以，阶段二完成收尾；这些变化尚未打包发布。背景、原布局和1.15倍沿边柔光保留。
+ 
+ - 单击图块选择项目，列表定位到相同对象；已可见的行不会被重复拉到列表顶端。跨页在现有页脚显示定位结果，目标行短暂提亮；开启“减弱动效”后不提亮。
+ - 单击列表行，图表反向指出同一对象。选择以当前结果树中的对象身份区分，不以同名或同一硬链接身份猜测路径。排序、切换大小口径和连续查询保留仍有效的选择；过滤掉或换为新的结果树时解除失效选择。
+diff --git a/docs/ui-design-roadmap.md b/docs/ui-design-roadmap.md
+index 2e26e658e436063ad31073de8eb784dd2beb36ea..42cf76892ff9a70d6fa452de4aaabdf6e1842cc9 100644
+--- a/docs/ui-design-roadmap.md
++++ b/docs/ui-design-roadmap.md
+@@ -4,6 +4,8 @@
+ 
+ ## 当前进度
+ 
++2026-11-22验收更新：用户明确通过第二阶段联动效果，阶段二收尾；实现a358127不变。下一步只准备[第三阶段方案](ui-stage-three-plan.md)与两页预览，建议大文件筛选和可选显示偏好，完整工作区后置；保持现有默认背景/动效，等待反馈确认后才实施。以下为历史时点。
++
+ 2026-11-22最新：第二阶段已按C60方案实施图表选择、列表定位和主动详情联动，保持现有布局、背景、C57/C55及动效；相关回归与实际窗口检查已完成，正常版交给用户测试，阶段是否收尾仍待反馈，不进入第三阶段或打包发布。见[C61](../iterations/2026-11-22-61-selection-linkage/README.md)。以下保留历史时点。
+ 
+ 2026-11-21最新：用户已明确确认第一阶段整体收尾。当前仅准备[第二阶段联动方案](ui-stage-two-linkage-plan.md)与对话交互预览，不实施产品功能；已确认内嵌文件先保留视角、主动进入所在目录。C57默认与C55回退、C59构图及既定动效保持。该状态取代下方历史“整体待确认”的描述；新绘制路径Win10/跨屏及早期测试失败的原记录不抹去。
+@@ -130,7 +132,7 @@
+ 
+ | 领域 | 已存在 | 待改善／候选新增 |
+ | --- | --- | --- |
+-| Treemap | 点击与列表联动、分页定位、双击、悬停提示、果冻与减弱动效 | 选择辨识、父子层次与标签呈现；不重造点击联动 |
++| Treemap | 对象身份双向选择、分页/就近定位、内部命中、双击、沿边柔光与减弱动效 | 第二阶段已接受；后续可选配色，不重造联动或恢复悬停文字 |
+ | 路径导航 | 完整路径、上一级、扫描根目录、Alt+Up | 上下文呈现；面包屑／浏览历史为候选新增 |
+ | 搜索 | 防抖、后台查询与旧请求取消、范围提示、结果和空状态、Esc／Ctrl+F | 过滤条件与清空入口的可见性 |
+ | 文件详情 | 路径、修改时间、两种大小、硬链接说明、复制与定位 | 字段分组和长文本阅读 |
+@@ -138,4 +140,4 @@
+ 
+ ## 当前下一步
+ 
+-当前已按用户确认的B实施名称＋路径双行、卡片收紧和图块密度调整，两档必要回归及144DPI常用／最小真实主窗已检查。常用预览留给用户体验，等待实际效果意见，再决定是否继续修整或第一阶段收尾；不重复询问已确认的背景与方案偏好。第二阶段尚未实施，开始前仍须审查其具体流程方案；阶段三仍为候选。没有打包或发布。存在歧义、实际效果问题或更好的替代方案时，及时询问并说明取舍。
++第一、二阶段均已获用户接受。当前只交付第三阶段方案与设计预览，先由用户决定分析筛选/显示偏好的具体范围；不把此前路线当实施授权。保留明显背景、原构图和1.15倍沿边柔光，不改变正常程序或打包发布。可定制工作区及软件占用/清理另行评审。
+diff --git a/docs/ui-stage-three-plan.md b/docs/ui-stage-three-plan.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..aaa933e801ad97124eb1994770c76d8515e00bdc
+--- /dev/null
++++ b/docs/ui-stage-three-plan.md
+@@ -0,0 +1,69 @@
++# 第三阶段方案：大文件分析与可选显示偏好
++
++2026-11-22，核对源码基线 `a35812767e8d53a74232936717dde997d8a540b3`。用户已确认第二阶段联动效果可以，并要求先完成本阶段收尾，再看第三阶段方案与预览；**本文件及预览不是第三阶段产品开发授权**。本轮不修改产品源码、编译产物、用户配置，不打包发布。
++
++## 判断与建议范围
++
++第三阶段应帮助用户回答“哪些大文件值得进一步核对”，并允许不同阅读偏好；不能变成不停添加装饰或重排窗口。建议第一轮合并交付以下四项，经用户反馈可删减；可定制工作区后置。
++
++| 内容 | 当前已有 | 本轮建议新增 | 默认与保留 |
++| --- | --- | --- | --- |
++| 大文件分析 | 名称搜索、排序、当前目录及子目录最大的500个文件、由类型视图进入的扩展名筛选 | 大文件列表标题处“筛选”，主动选择文件大小门槛和扩展名；显示匹配数/展示数，清除后回到不限 | 默认不限，不重新扫盘，保留两行名称/路径和第二阶段联动 |
++| 背景显示强度 | 图片导入、裁切、聚焦、缩放、强调色和保存 | 现有“背景设置”中增加“显示”页，提供40–100%的显示强度 | 100%表示**当前效果**，不是声称原图像素alpha为100%；原图片、裁切、Zoom和聚焦不改，降低只减弱显示 |
++| 图块配色 | 固定类别映射、文字名称/图例、品牌强调与柔光 | “原有类别色”和“类别分明”两种；后一种增加类别之间辨识度 | 原有类别色为默认，图块面积/类别含义不变；图例与图块同时更新，品牌/按钮/沿边柔光不随类别乱变 |
++| 阅读密度 | 已接受的舒适字号、双行列表、固定模块 | 可选“紧凑”：仅收紧行高、卡片及模块间留白 | 舒适为默认；不缩小正文，不折叠侧栏，不移动现有模块；两个模式均保留文件名＋路径和完整详情 |
++
++四项共享一个清晰的交付目标：**更快缩小分析范围，同时由用户主动选择阅读方式**。不是四轮逐一请求确认；确认范围后合并实现、必要检查、文档与实际展示。软件清理/删除/运行文件、导出文件清单、新扫描后端、最近目录、工作区拖拽布局均不包含。
++
++## 与此前建议的取舍
++
++依据[三阶段设计路线](ui-design-roadmap.md)对首份主界面提示词的归纳、用户后续明确意见，以及第二份《AsukaLens 外观与使用体验优化建议》的阅读/密度/配色候选来取舍。外部评审针对较早界面，不能把其中旧现象当成当前故障或把建议视为授权。
++
++- 延续“背景要明显、何时让背景退后由区域与主动选择决定”的原则，保留当前默认；不采纳一律加厚白纱或恢复说明行。
++- 双行大文件名称、图块密度、组件样式和无悬停已在第一阶段决定；准确选择/列表定位/详情已在第二阶段接受，不重复包装成第三阶段新功能。
++- 不采纳悬停卡片/文字气泡、自动说明框、把NTFS开关换位置或缩放时关闭既定动效等冲突建议。
++- 背景显示强度是可选项，不通过改图像焦点/Zoom或再次放大壁纸来实现。类别增强也不意味着引入按大小的热力配色，避免同一种颜色突然改变含义。
++- 可定制工作区先延期。当前主布局刚稳定，尚无明确证据证明拖动/保存多个布局比现有三个工作空间更有用；配置恢复、DPI与布局复杂度也会扩大。以后先收集具体使用过程再评审。
++
++旧首份提示词文件未在其原临时路径找到；本方案使用已入库的路线归纳及用户后续更明确的决定，不凭记忆补写原文。第二份评审原文件仅作本机阅读参考，不将其中个人路径或截图复制入仓库。
++
++## 大文件筛选的完整行为
++
++1. 切到“大文件”，列表标题右侧点击“筛选”，打开小面板；不新增一整条常驻行，也不向下推挤图表。
++2. “文件大小至少”提供不限、100 MiB、1 GiB、5 GiB；门槛明确按**逻辑文件大小**判断。扩展名从当前结果树实际存在的扩展名汇总，含“全部”，只在内存使用。现有从类型视图进入的筛选与此入口使用同一个字段，不出现两套相互矛盾的筛选。
++3. 名称搜索、扩展名、大小门槛先共同过滤当前目录及子目录，再从匹配对象选取最大500项；不能只筛选原来的前500条，否则会漏掉应入选的对象。
++4. 排序及图块面积仍按用户选择的“文件大小/实际占用”口径。门槛标签始终写“文件大小至少”，不会因切换口径偷偷变成分配空间条件；占用未知仍为未知，可以出现在列表/详情中，没有独立面积时不画成已知0占用。
++5. 原目录统计卡不随筛选改为子集大小；占比分母保持现有当前目录未筛选量。页脚短文本显示匹配数与展示数，例如“显示500 / 匹配1230”；条件在筛选按钮/既有摘要处表达，不增添自动解释区。
++6. 选择仍有效时保留同一个对象并就近定位；不再匹配时解除选择，不能显示已过滤文件的详情。清除只恢复本次大文件条件，不悄悄改扫描根目录或大小口径。
++7. 默认打开不限；本轮不持久化文件名、目录、扩展名清单或搜索词。切换到空间/类型视图后，筛选不得暗中影响这两个视图；返回大文件时如何恢复本次会话条件在实现时按选定交互统一，不新增最近目录记录。
++
++建议：大文件条件在当前扫描结果的会话内保留；更换扫描根目录时重置为不限。普通刷新同一目录保留条件并重新核对选择。此行为会在实际交付中主动验收。
++
++## 显示设置与保存
++
++沿用现有“背景设置”按钮，增加“图片/显示”页；不加第五个散落的顶栏按钮。图片导入、裁切和强调色原流程继续存在。“显示”页只放背景强度、图块配色、阅读密度；减弱动效的既有入口和1.15倍速度保留，不增加新的动效滑杆。
++
++调整时看当前图片、相同比例的预览；取消/Esc恢复进入设置时的显示偏好，不回滚扫描结果或用户此后发生的选择。“应用”成功后才保存；保存失败恢复旧已提交值，窗口给出明确失败状态，不假报成功。“恢复显示默认”只恢复三项显示值，不删除自定义图片，不改图像裁切/焦点/强调色。
++
++建议新增小型、版本化显示配置，仅保存强度整数、两个枚举和版本号，不混入路径/文件清单/诊断。用同目录临时文件＋原子替换，检查枚举、范围、大小上限与损坏回退；旧版本没有该配置时精确使用当前默认。背景存储原格式不为三项设置重复拷贝整张图片。
++
++显示变化带版本代际，影响到的静态图块、列表底图、根背景及C57合成源统一失效并在安全边界更新；不在动画定时器每帧重建背景，不绕过128 MiB缓冲和已有C55失败回退。拖动强度用节制的预览更新，最后一值必须发布；关闭弹窗/程序后不回写已释放表面。自定义深浅图片仍保留已有内容可读性保护。
++
++## 预览与真实实现的区别
++
++本轮提供两页可操作设计预览：“大文件分析”和“显示设置”。使用公开 `X:\AsukaLens-Demo` 合成对象，不读磁盘、不调用资源管理器、不保存应用配置。常用展示保持1440:940窗口比例，背景只在整客户区cover一次；缩略图片也不改焦点。可体验筛选、图表/列表选择、详情、显示强度/配色/密度及取消恢复。
++
++设计预览的8个对象、大小、时间均为演示值，不是实盘测量。网页布局/动画也不能证明WinForms实现、缩放性能、C57合成或真实跨屏通过。小对话视口的自动堆叠只为看清设计，不是修改软件最小窗口的承诺。可恢复模板与生成命令见[C62记录](../iterations/2026-11-22-62-stage-two-closeout-stage-three-plan/README.md)。
++
++## 确认后的实施与验收
++
++建议一次合并推进查询语义、显示偏好及应用生命周期，完成以下相称检查后再打开真实正常程序。不会按每个字段拆轮确认；范围/权限/数据边界变化时才另行询问。
++
++- 用大于500匹配项、同名异路径、硬链接、零大小、占用未知、部分结果及阈值恰好相等/差1字节的合成结果，独立核对过滤先后、top500、匹配数、口径与范围。
++- 连续输入、切换条件、排序、口径、视图、刷新/取消后只发布最新查询，第二阶段对象联动、父归属和主动进入保持；不在UI线程遍历整树或执行新的磁盘I/O。
++- 显示配置验证无文件/旧配置、损坏、越界枚举、无法写入、取消、恢复显示默认、重启加载及处理中关闭；确认用户原图和旧配置可恢复，没有个人信息进入日志或仓库。
++- 96/144DPI独立进程及最小/常用窗口检查两档密度；文字、按钮、表格与双行路径不截断，图块/图例颜色一致。保留完整圆角、背景构图及原柔光；强度/密度切换时不引入旧标题、接缝或黑区。
++- 运行受影响核心ViewQuery、第二阶段联动、普通/C57完整UI、背景/根合成/滚动/布局/无悬停及资源检查；通过后无新问题不无条件重复全量扫描/性能矩阵。
++- 最后打开真实程序，先由用户比较实际默认和可选项；收到反馈再决定第三阶段收尾。不自动进入可定制工作区或清理功能，不打包发布。
++
++当前等待用户决定：是否采用这组范围、是否删减其中选项、两处预览的入口与默认效果是否合适。
+diff --git a/docs/ui-stage-two-linkage-plan.md b/docs/ui-stage-two-linkage-plan.md
+index 646b584a0f2efb35b8466456f577e9980d08c17d..bcd8b97bda6f6825405cac624fa93148d13968bc 100644
+--- a/docs/ui-stage-two-linkage-plan.md
++++ b/docs/ui-stage-two-linkage-plan.md
+@@ -1,5 +1,7 @@
+ # 第二阶段方案：图表、列表与详情联动
+ 
++> 2026-11-22验收更新：用户确认第二阶段联动效果可以，阶段二已接受并完成收尾。实现为 `a358127`，反馈见[C61追加记录](../iterations/2026-11-22-61-selection-linkage/user-feedback.md)。下方早期“待反馈”是历史时点；第三阶段只准备方案，尚未实施。
++
+ > 2026-11-22状态更新：用户已认可预览并授权按本方案实施；C61已形成可运行开发版并完成相关检查、真实窗口展示，等待用户反馈决定阶段是否收尾。下文“待确认／未实施”是2026-11-21方案时点，已由本状态替代。实现与边界见[联动说明](selection-linkage.md)，证据见[C61](../iterations/2026-11-22-61-selection-linkage/README.md)。
+ 
+ 2026-11-21，核对基线 `bb864b6`。用户明确确认第一阶段可以收尾，并要求先给第二阶段具体方案和预览，暂不实施。本文件取代2026-11-14暂缓的首版方案；仅更新设计和阶段状态，不修改产品代码、编译产物或设置。实现授权仍待预览反馈。
+diff --git a/iterations/2026-11-22-61-selection-linkage/user-feedback.md b/iterations/2026-11-22-61-selection-linkage/user-feedback.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..828d067c8dc8e2316273375d5cd6d642c8243e4e
+--- /dev/null
++++ b/iterations/2026-11-22-61-selection-linkage/user-feedback.md
+@@ -0,0 +1,7 @@
++# 第二阶段实际体验反馈
++
++2026-11-22，用户明确反馈“第二阶段的联动效果可以”，并要求完成本阶段收尾后，准备第三阶段方案和预览，确认后才实施，不打包发布。
++
++验收对应已提交并推送的 `a35812767e8d53a74232936717dde997d8a540b3`，程序及测试哈希见本目录build-manifest。第二阶段可以收尾；本记录不追认Windows10新绘制、真实跨屏或早期GDI+启动异常原因已查清。
++
++本文件为冻结交付快照之后的追加反馈，不重写原verification-summary及evidence-manifest中的“待反馈”历史时点。追加记录及第三阶段方案归档见[本轮C62](../2026-11-22-62-stage-two-closeout-stage-three-plan/README.md)。
+diff --git a/iterations/2026-11-22-62-stage-two-closeout-stage-three-plan/make-preview.ps1 b/iterations/2026-11-22-62-stage-two-closeout-stage-three-plan/make-preview.ps1
+new file mode 100644
+index 0000000000000000000000000000000000000000..7613ec9d497fe36cce221c039cabf29d7f57d131
+--- /dev/null
++++ b/iterations/2026-11-22-62-stage-two-closeout-stage-three-plan/make-preview.ps1
+@@ -0,0 +1,31 @@
++param([Parameter(Mandatory)][string]$OutputPath)
++$ErrorActionPreference = 'Stop'
++$projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
++$destination = [IO.Path]::GetFullPath($OutputPath)
++if (Test-Path -LiteralPath $destination) { throw 'Preview output already exists.' }
++Add-Type -AssemblyName System.Drawing
++function Convert-PreviewImage([string]$RelativePath, [int]$MaxSide, [bool]$Transparent) {
++    $source = [Drawing.Image]::FromFile((Join-Path $projectRoot $RelativePath))
++    $bitmap = $null; $graphics = $null; $stream = $null
++    try {
++        $ratio = [Math]::Min(1.0, $MaxSide / [double][Math]::Max($source.Width, $source.Height))
++        $bitmap = [Drawing.Bitmap]::new([Math]::Max(1,[int]($source.Width*$ratio)), [Math]::Max(1,[int]($source.Height*$ratio)))
++        $graphics = [Drawing.Graphics]::FromImage($bitmap)
++        $graphics.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
++        $graphics.DrawImage($source, [Drawing.Rectangle]::new(0,0,$bitmap.Width,$bitmap.Height))
++        $graphics.Dispose(); $graphics = $null
++        $stream = [IO.MemoryStream]::new()
++        if ($Transparent) { $bitmap.Save($stream,[Drawing.Imaging.ImageFormat]::Png); $mime = 'png' }
++        else { $bitmap.Save($stream,[Drawing.Imaging.ImageFormat]::Jpeg); $mime = 'jpeg' }
++        return ('data:image/'+$mime+';base64,'+[Convert]::ToBase64String($stream.ToArray()))
++    } finally {
++        if ($graphics) { $graphics.Dispose() }; if ($stream) { $stream.Dispose() }
++        if ($bitmap) { $bitmap.Dispose() }; $source.Dispose()
++    }
++}
++$template = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'preview-template.html'))
++$fragment = $template.Replace('__AL3_WALL__',(Convert-PreviewImage 'assets/background.png' 1440 $false)).Replace('__AL3_ICON__',(Convert-PreviewImage 'assets/app-icon.png' 72 $true))
++$encoding = [Text.UTF8Encoding]::new($false)
++if ($encoding.GetByteCount($fragment) -ge 1000000) { throw 'Preview exceeds size budget.' }
++[IO.File]::WriteAllText($destination,$fragment,$encoding)
++Write-Output 'PASS preview generated from public repository assets; no application settings changed.'
+diff --git a/iterations/2026-11-22-62-stage-two-closeout-stage-three-plan/preview-template.html b/iterations/2026-11-22-62-stage-two-closeout-stage-three-plan/preview-template.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..f7c8e07512e11273602900e30bfe5ccca44e7fd0
+--- /dev/null
++++ b/iterations/2026-11-22-62-stage-two-closeout-stage-three-plan/preview-template.html
+@@ -0,0 +1,270 @@
++<style>
++@property --al3-orbit{syntax:'<angle>';initial-value:0deg;inherits:false}
++#al3-preview{color-scheme:light}
++#al3-preview .al3-app{--ink:#3e2928;--muted:#72554e;--accent:#a5443e;--edge:rgba(157,95,78,.27);--wall:none;--icon:none;--wall-strength:1;container-type:inline-size;aspect-ratio:1440/940;display:grid;grid-template-rows:24px minmax(0,1fr);overflow:hidden;border:1px solid var(--edge);border-radius:10px;background:#fcf6f2;color:var(--ink);font:13px/1.45 'Microsoft YaHei UI','Microsoft YaHei','Segoe UI',sans-serif}
++#al3-preview .al3-app *{box-sizing:border-box}
++#al3-preview .al3-app [hidden]{display:none!important}
++#al3-preview .al3-app button,#al3-preview .al3-app input,#al3-preview .al3-app select{font:inherit;color:inherit}
++#al3-preview .al3-title{display:flex;align-items:center;gap:7px;padding:0 10px;background:#fbf5f1;font-size:11px}
++#al3-preview .al3-icon{display:inline-block;width:18px;height:18px;flex:none;background:var(--icon) center/contain no-repeat}
++#al3-preview .al3-title small{margin-left:auto;padding-right:90px;color:var(--muted);font-size:11px}
++#al3-preview .al3-body{position:relative;isolation:isolate;display:grid;grid-template-columns:16.2% minmax(0,1fr);min-height:0;background:#fcf6f2}
++#al3-preview .al3-body::before{content:'';position:absolute;z-index:-1;inset:0;background:linear-gradient(rgba(255,250,246,.09),rgba(255,250,246,.09)),var(--wall) center/cover no-repeat;opacity:var(--wall-strength);pointer-events:none}
++#al3-preview .al3-side{display:flex;flex-direction:column;gap:18px;padding:20px 12px 10px;background:rgba(255,252,249,.86);min-width:0}
++#al3-preview .al3-brand{font-size:19px;font-weight:700;display:flex;gap:9px;align-items:center}
++#al3-preview .al3-brand-mark{display:grid;grid-template-columns:2fr 1fr;gap:3px;width:18px;height:20px}
++#al3-preview .al3-brand-mark i{background:var(--accent)}
++#al3-preview .al3-tagline{font-size:11px;letter-spacing:3px;color:var(--muted);margin-top:7px}
++#al3-preview .al3-divider{height:1px;background:var(--edge)}
++#al3-preview .al3-side-caption{color:var(--muted);font-size:11px;margin-bottom:8px}
++#al3-preview .al3-nav{display:grid;gap:8px}
++#al3-preview .al3-nav button{border:1px solid transparent;border-radius:9px;background:rgba(244,225,215,.46);text-align:left;padding:10px;font-weight:600}
++#al3-preview .al3-nav button[aria-pressed=true]{color:var(--accent);background:rgba(232,164,143,.31);border-color:rgba(173,85,66,.18)}
++#al3-preview .al3-root{font-weight:600;overflow-wrap:anywhere}
++#al3-preview .al3-side-path{font-size:11px;color:var(--muted);margin-top:7px;overflow-wrap:anywhere}
++#al3-preview .al3-legend{display:grid;grid-template-columns:1fr 1fr;gap:9px 5px;font-size:11px;color:var(--muted)}
++#al3-preview .al3-key{display:flex;gap:6px;align-items:center}
++#al3-preview .al3-key i{width:7px;height:7px;border-radius:2px;flex:none}
++#al3-preview .al3-disk{margin-top:auto;border:1px solid var(--edge);border-radius:8px;padding:7px;font-size:11px;background:rgba(255,250,246,.56)}
++#al3-preview .al3-disk div{display:flex;align-items:center;gap:5px;justify-content:space-between}
++#al3-preview .al3-disk span{display:block;color:var(--muted);margin-top:3px}
++#al3-preview .al3-work{display:grid;grid-template-rows:32px 32px 58px 34px minmax(0,1fr) 64px 32px;gap:9px;padding:15px 18px 12px;min-width:0;min-height:0}
++#al3-preview .al3-tools{display:flex;align-items:center;gap:7px}
++#al3-preview .al3-btn{border:1px solid var(--edge);border-radius:9px;background:rgba(255,249,244,.88);padding:5px 12px;min-height:29px;white-space:nowrap}
++#al3-preview .al3-btn:disabled{opacity:.48}
++#al3-preview .al3-primary{background:var(--accent);color:#fffaf7!important;border-color:transparent}
++#al3-preview .al3-tools .al3-btn{font-weight:600}
++#al3-preview .al3-settings{display:flex;align-items:center;gap:9px;font-size:11px;min-width:0}
++#al3-preview .al3-field{display:flex;align-items:center;gap:8px;padding:5px 7px;border:1px solid var(--edge);border-radius:8px;background:rgba(255,251,248,.56)}
++#al3-preview .al3-field select{border:0;background:transparent;max-width:92px}
++#al3-preview .al3-switch{display:flex;align-items:center;gap:7px;white-space:nowrap}
++#al3-preview .al3-off{display:inline-block;width:25px;height:14px;background:rgba(102,81,76,.22);border-radius:10px;position:relative}
++#al3-preview .al3-off::after{content:'';position:absolute;left:2px;top:2px;width:10px;height:10px;background:#fffaf7;border-radius:50%}
++#al3-preview .al3-complete{margin-left:auto;color:var(--muted)}
++#al3-preview .al3-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
++#al3-preview .al3-stat{border:1px solid var(--edge);border-radius:11px;background:rgba(255,251,247,.39);padding:7px 12px;min-width:0}
++#al3-preview .al3-stat span{display:block;font-size:11px;font-weight:600}
++#al3-preview .al3-stat strong{display:block;font-size:22px;line-height:1.25;font-variant-numeric:tabular-nums;white-space:nowrap}
++#al3-preview .al3-stat:first-child strong{color:var(--accent)}
++#al3-preview .al3-pathbar{display:flex;align-items:center;gap:7px;min-width:0}
++#al3-preview .al3-path{flex:1;min-width:0;border:1px solid var(--edge);border-radius:9px;background:rgba(255,251,248,.87);padding:7px 9px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px}
++#al3-preview .al3-search{width:25%;min-width:85px;border:1px solid var(--edge);border-radius:9px;background:rgba(255,251,248,.87);padding:7px 9px;font-size:11px!important}
++#al3-preview .al3-analysis{display:grid;grid-template-columns:minmax(0,1.48fr) minmax(0,1fr);gap:12px;min-width:0;min-height:0}
++#al3-preview .al3-panel{border:1px solid var(--edge);border-radius:12px;background:rgba(255,251,247,.21);padding:10px;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
++#al3-preview .al3-heading{display:flex;align-items:center;gap:6px;justify-content:space-between;min-width:0;margin-bottom:8px;min-height:24px}
++#al3-preview .al3-heading strong{font-size:13px;white-space:nowrap}
++#al3-preview .al3-heading label,#al3-preview .al3-heading small{color:var(--muted);font-size:11px;white-space:nowrap}
++#al3-preview .al3-heading input{accent-color:var(--accent);vertical-align:middle}
++#al3-preview .al3-heading .al3-btn{font-size:11px;padding:3px 9px;min-height:25px}
++#al3-preview .al3-heading .al3-btn[aria-expanded=true],#al3-preview .al3-filtered{background:rgba(245,215,201,.8)}
++#al3-preview .al3-map{position:relative;flex:1;min-height:0}
++#al3-preview .al3-tile{position:absolute;border:0;border-radius:7px;text-align:left;padding:8px;overflow:hidden;display:flex;flex-direction:column;gap:4px}
++#al3-preview .al3-tile strong{display:block;width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;font-weight:600}
++#al3-preview .al3-tile span{font-size:11px}
++#al3-preview .al3-tile[aria-pressed=true]::after,#al3-preview .al3-tile:hover::after{content:'';position:absolute;inset:0;border-radius:inherit;padding:2px;pointer-events:none;background:conic-gradient(from var(--al3-orbit),rgba(255,239,205,.5) 0deg,rgba(255,239,205,.5) 220deg,#ffe4a8 260deg,#fff8e9 294deg,rgba(255,239,205,.5) 330deg);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:al3-flow 2.43478s linear infinite;filter:drop-shadow(0 0 3px #ffd59a)}
++@keyframes al3-flow{to{--al3-orbit:360deg}}
++#al3-preview .al3-app.reduced .al3-tile::after{animation:none!important}
++#al3-preview .al3-table-head,#al3-preview .al3-row{display:grid;grid-template-columns:minmax(0,1fr) 64px 43px;gap:5px;align-items:center}
++#al3-preview .al3-table-head{padding:5px;color:var(--muted);font-size:11px}
++#al3-preview .al3-table-head span:not(:first-child){text-align:right}
++#al3-preview .al3-rows{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;overflow:hidden}
++#al3-preview .al3-row{flex:none;width:100%;height:53px;padding:6px 5px;border:0;border-bottom:1px solid rgba(157,95,78,.14);border-radius:0;text-align:left;background:rgba(255,251,247,.12);min-width:0}
++#al3-preview .al3-row[aria-selected=true]{border-radius:7px;background:rgba(215,125,99,.19)}
++#al3-preview .al3-row-name{overflow:hidden;min-width:0}
++#al3-preview .al3-row-name strong,#al3-preview .al3-row-name small{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px;font-weight:500}
++#al3-preview .al3-row-name small{font-weight:400;color:var(--muted)}
++#al3-preview .al3-row-size,#al3-preview .al3-row-percent{text-align:right;white-space:nowrap;font-size:11px;font-variant-numeric:tabular-nums}
++#al3-preview .al3-row-percent{color:var(--muted)}
++#al3-preview .al3-list-meta{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px;min-height:25px;font-size:11px;color:var(--muted)}
++#al3-preview .al3-list-meta button{padding:3px 6px;min-height:24px;font-size:11px}
++#al3-preview .al3-detail{border:1px solid var(--edge);border-radius:11px;background:rgba(255,251,247,.34);padding:8px 11px;display:flex;align-items:center;gap:8px;min-width:0}
++#al3-preview .al3-detail-text{flex:1;min-width:0}
++#al3-preview .al3-detail-name{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
++#al3-preview .al3-detail-meta,#al3-preview .al3-detail-path{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
++#al3-preview .al3-detail .al3-btn{font-size:11px;padding:5px 9px}
++#al3-preview .al3-progress{display:flex;flex-direction:column;justify-content:space-between;padding:0 10px}
++#al3-preview .al3-progress-label{display:flex;justify-content:space-between;font-size:11px}
++#al3-preview .al3-track{height:5px;border-radius:4px;background:var(--accent);position:relative;margin-bottom:4px}
++#al3-preview .al3-track .al3-icon{position:absolute;right:-7px;bottom:-6px;width:25px;height:25px;filter:drop-shadow(0 0 4px rgba(255,206,143,.9))}
++#al3-preview .al3-empty{color:var(--muted);margin:auto;text-align:center;font-size:12px;padding:10px}
++#al3-preview .al3-layer{position:absolute;z-index:8;inset:0;display:grid;place-items:center;padding:20px;background:rgba(68,39,31,.10)}
++#al3-preview .al3-dialog{width:min(510px,94%);border:1px solid rgba(166,101,80,.4);border-radius:14px;background:#fff9f4;box-shadow:0 10px 35px rgba(66,37,27,.17);padding:20px;color:var(--ink);min-width:0}
++#al3-preview .al3-dialog-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:15px}
++#al3-preview .al3-dialog-title strong{font-size:16px}
++#al3-preview .al3-dialog-tabs{display:flex;gap:7px;margin-bottom:16px}
++#al3-preview .al3-dialog-tabs button[aria-selected=true]{color:var(--accent);background:#f5dfd3}
++#al3-preview .al3-edit{display:grid;gap:17px}
++#al3-preview .al3-edit label{display:grid;gap:6px;font-size:12px}
++#al3-preview .al3-edit-line{display:flex;align-items:center;justify-content:space-between;gap:8px}
++#al3-preview .al3-edit label small{color:var(--muted);font-size:11px}
++#al3-preview .al3-edit select{width:100%;min-height:32px;padding:5px 8px;border:1px solid var(--edge);border-radius:8px;background:#fffdfb}
++#al3-preview .al3-edit input[type=range]{width:100%;accent-color:var(--accent)}
++#al3-preview .al3-dialog-foot{display:flex;justify-content:flex-end;gap:7px;margin-top:20px}
++#al3-preview .al3-dialog-foot .al3-reset{margin-right:auto}
++#al3-preview .al3-image-ref{aspect-ratio:1440/940;background:var(--wall) center/cover no-repeat;border-radius:10px}
++#al3-preview .al3-fixed-note{font-size:11px;color:var(--muted);margin-top:8px}
++#al3-preview .al3-filter-layer{place-items:start end;padding:30% 3% 0;background:transparent;pointer-events:none}
++#al3-preview .al3-filter-layer .al3-dialog{width:min(320px,92%);pointer-events:auto;padding:16px}
++#al3-preview .al3-filter-layer .al3-dialog-title strong{font-size:14px}
++#al3-preview .al3-filter-layer .al3-edit{gap:12px}
++#al3-preview .al3-file-facts{display:grid;grid-template-columns:1fr 1fr;gap:13px;font-size:12px}
++#al3-preview .al3-file-facts span{display:block;color:var(--muted);font-size:11px}
++#al3-preview .al3-fullpath{font-size:12px;overflow-wrap:anywhere;margin-top:17px;user-select:text}
++#al3-preview .al3-app.compact .al3-row{height:44px}
++#al3-preview .al3-app.compact .al3-work{grid-template-rows:30px 30px 51px 32px minmax(0,1fr) 60px 30px;gap:7px}
++@container (min-width:1150px){
++ #al3-preview .al3-work{grid-template-rows:38px 38px 72px 40px minmax(0,1fr) 76px 38px;gap:12px;padding:20px 24px 14px}
++ #al3-preview .al3-stat strong{font-size:27px}
++ #al3-preview .al3-row{height:64px}
++ #al3-preview .al3-row-name strong,#al3-preview .al3-tile strong,#al3-preview .al3-detail-name{font-size:14px}
++ #al3-preview .al3-row-name small,#al3-preview .al3-row-size,#al3-preview .al3-row-percent,#al3-preview .al3-detail-meta,#al3-preview .al3-detail-path,#al3-preview .al3-tile span{font-size:12px}
++ #al3-preview .al3-app.compact .al3-row{height:52px}
++ #al3-preview .al3-app.compact .al3-work{grid-template-rows:35px 35px 63px 38px minmax(0,1fr) 72px 34px;gap:9px}
++}
++@media(max-width:740px){
++ #al3-preview .al3-app{aspect-ratio:auto;min-height:1100px}
++ #al3-preview .al3-body{grid-template-columns:minmax(0,1fr)}
++ #al3-preview .al3-side{padding:12px;gap:9px}
++ #al3-preview .al3-brand{font-size:16px}
++ #al3-preview .al3-side>div:not(:first-child):not(.al3-nav){display:none}
++ #al3-preview .al3-nav{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
++ #al3-preview .al3-nav button{padding:8px 5px;text-align:center}
++ #al3-preview .al3-work,#al3-preview .al3-app.compact .al3-work{padding:10px;grid-template-rows:auto auto 110px auto minmax(540px,1fr) auto 32px;gap:8px}
++ #al3-preview .al3-tools,#al3-preview .al3-settings,#al3-preview .al3-pathbar{flex-wrap:wrap}
++ #al3-preview .al3-tools{padding-right:0}
++ #al3-preview .al3-complete{display:none}
++ #al3-preview .al3-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
++ #al3-preview .al3-stat{padding:5px 9px}
++ #al3-preview .al3-stat strong{font-size:19px}
++ #al3-preview .al3-path{order:2;flex-basis:100%}
++ #al3-preview .al3-search{flex:1;min-width:140px}
++ #al3-preview .al3-analysis{grid-template-columns:minmax(0,1fr);grid-template-rows:240px 300px;gap:9px}
++ #al3-preview .al3-detail{flex-wrap:wrap}
++ #al3-preview .al3-detail-text{flex-basis:100%}
++ #al3-preview .al3-layer{padding:12px;align-items:start;padding-top:160px}
++ #al3-preview .al3-dialog{width:100%;padding:14px}
++ #al3-preview .al3-filter-layer{padding-top:480px}
++ #al3-preview .al3-title small{display:none}
++}
++@media(prefers-reduced-motion:reduce){#al3-preview .al3-tile::after{animation:none!important}}
++</style>
++<div id="al3-preview">
++ <div class="viz-carousel" aria-label="AsukaLens 第三阶段两处设计预览" data-previous-label="上一页" data-next-label="下一页">
++  <section data-variant="大文件分析" aria-label="大文件筛选预览"><div class="al3-app" data-scene="analysis" aria-label="AsukaLens 大文件分析预览"></div></section>
++  <section data-variant="显示设置" aria-label="背景与显示设置预览" hidden><div class="al3-app" data-scene="appearance" aria-label="AsukaLens 显示设置预览"></div></section>
++ </div>
++</div>
++<script>
++(() => {
++ const root=document.getElementById('al3-preview');
++ const wall='__AL3_WALL__',icon='__AL3_ICON__';
++ const GiB=1073741824,MiB=1048576;
++ const defaults={strength:100,palette:'original',density:'comfortable'};
++ const original={文件夹:'#ebb199',视频:'#e8a09c',图片:'#efcf9a',音频:'#deb1c2',压缩包:'#c9b8d5',文档:'#abc7c1',代码:'#b2c4d8',其他:'#cfc6bb'};
++ const clearer={文件夹:'#e7ad8a',视频:'#df8b88',图片:'#e5c16e',音频:'#c497b6',压缩包:'#ad99c6',文档:'#81b3a5',代码:'#8daed0',其他:'#b7b0a6'};
++ const files=[
++  {id:'video',name:'travel-footage.mp4',path:'视频 Videos',logical:6*GiB,allocated:6*GiB,category:'视频'},
++  {id:'backup',name:'project-backup.zip',path:'项目 Projects',logical:4*GiB,allocated:3.8*GiB,category:'压缩包'},
++  {id:'dataset',name:'image-dataset.raw',path:'图片 Pictures',logical:3*GiB,allocated:3*GiB,category:'图片'},
++  {id:'iso',name:'tools-demo.iso',path:'应用 Apps',logical:2*GiB,allocated:2*GiB,category:'压缩包'},
++  {id:'album',name:'photo-album.zip',path:'图片 Pictures',logical:.75*GiB,allocated:.74*GiB,category:'压缩包'},
++  {id:'psd',name:'design-source.psd',path:'图片 Pictures',logical:.4*GiB,allocated:null,category:'图片'},
++  {id:'pdf',name:'project-guide.pdf',path:'项目 Projects',logical:.06*GiB,allocated:.06*GiB,category:'文档'},
++  {id:'bin',name:'sample-data.bin',path:'应用 Apps',logical:.02*GiB,allocated:.018*GiB,category:'其他'}
++ ];
++ const bytes=n=>n===null?'未知':n>=GiB?`${(n/GiB).toFixed(2).replace(/\.00$/,'')} GiB`:`${(n/MiB).toFixed(1).replace(/\.0$/,'')} MiB`;
++ const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++ function make(app){
++  app.style.setProperty('--wall',`url("${wall}")`);app.style.setProperty('--icon',`url("${icon}")`);
++  const scene=app.dataset.scene;
++  const state={...defaults,min:scene==='analysis'?GiB:0,extension:'all',search:'',selected:'video',metric:'logical',reduced:false,filterOpen:false,settingsOpen:scene==='appearance',detailsOpen:false};
++  let saved={...defaults},draft={...defaults};
++  app.innerHTML=`
++   <div class="al3-title"><span class="al3-icon" aria-hidden="true"></span>AsukaLens<small>合成数据 · 设计预览</small></div>
++   <div class="al3-body">
++    <aside class="al3-side">
++     <div><div class="al3-brand"><span class="al3-brand-mark" aria-hidden="true"><i></i><i></i></span>AsukaLens</div><div class="al3-tagline">磁盘空间可视化</div></div>
++     <div class="al3-divider"></div>
++     <nav class="al3-nav" aria-label="工作空间"><button type="button">▦　空间分布</button><button type="button" aria-pressed="true">↗　大文件</button><button type="button">≡　文件类型</button></nav>
++     <div><div class="al3-side-caption">当前扫描</div><div class="al3-root">AsukaLens-Demo</div><div class="al3-side-path">X:\\AsukaLens-Demo</div></div>
++     <div><div class="al3-side-caption">颜色索引</div><div class="al3-legend"></div></div>
++     <div class="al3-disk"><div><strong>磁盘活动</strong><span>启用　详情</span></div><span>整块磁盘 · 已暂停</span></div>
++    </aside>
++    <main class="al3-work">
++     <div class="al3-tools"><button type="button" class="al3-btn al3-primary">＋ 选择文件夹</button><button type="button" class="al3-btn">重新扫描</button><button type="button" class="al3-btn" data-open-settings>背景设置</button><button type="button" class="al3-btn">诊断</button></div>
++     <div class="al3-settings"><label class="al3-field">扫描策略<select aria-label="扫描策略"><option>自动</option><option>低占用</option><option>高速</option></select></label><label class="al3-field">统计口径<select data-metric aria-label="统计口径"><option value="logical">文件大小</option><option value="allocated">实际占用</option></select></label><span class="al3-switch">NTFS 快扫 实验 <i class="al3-off" aria-hidden="true"></i></span><span class="al3-complete">扫描完成</span></div>
++     <div class="al3-stats"><div class="al3-stat"><span data-total-title>当前目录大小</span><strong data-total></strong></div><div class="al3-stat"><span>文件数量</span><strong>8</strong></div><div class="al3-stat"><span>子文件夹</span><strong>4</strong></div><div class="al3-stat"><span>扫描耗时</span><strong>0.8 s</strong></div></div>
++     <div class="al3-pathbar"><button type="button" class="al3-btn" disabled>↑ 上一级</button><button type="button" class="al3-btn" disabled>扫描根目录</button><div class="al3-path">X:\\AsukaLens-Demo</div><input class="al3-search" aria-label="搜索所有子目录的文件名" placeholder="搜索所有子目录的文件名…"></div>
++     <div class="al3-analysis">
++      <section class="al3-panel"><div class="al3-heading"><strong>大文件分布</strong><label><input type="checkbox" data-reduced>减弱动效</label></div><div class="al3-map" aria-label="按当前口径绘制的文件面积图"></div></section>
++      <section class="al3-panel"><div class="al3-heading"><strong>最大的 500 个文件</strong><button type="button" class="al3-btn" data-open-filter aria-expanded="false">筛选</button></div><div class="al3-table-head"><span>名称</span><span>大小 ↓</span><span>占比</span></div><div class="al3-rows" role="listbox" aria-label="大文件结果"></div><div class="al3-list-meta"><span data-list-count aria-live="polite"></span><button type="button" class="al3-btn" data-clear-filter>清除筛选</button></div></section>
++     </div>
++     <section class="al3-detail"><div class="al3-detail-text"><div class="al3-detail-name"></div><div class="al3-detail-meta"></div><div class="al3-detail-path"></div></div><button type="button" class="al3-btn" data-open-details>详情</button><button type="button" class="al3-btn">定位文件</button></section>
++     <div class="al3-progress"><div class="al3-progress-label"><span>扫描完成</span><span>100%</span></div><div class="al3-track"><span class="al3-icon" aria-hidden="true"></span></div></div>
++    </main>
++    <div class="al3-layer al3-filter-layer" data-filter-layer hidden><section class="al3-dialog" role="dialog" aria-label="大文件筛选"><div class="al3-dialog-title"><strong>大文件筛选</strong><button type="button" class="al3-btn" data-close-filter>关闭</button></div><div class="al3-edit"><label>文件大小至少<select data-min><option value="0">不限</option><option value="104857600">100 MiB</option><option value="1073741824">1 GiB</option><option value="5368709120">5 GiB</option></select></label><label>扩展名<select data-extension><option value="all">全部扩展名</option><option value=".zip">.zip</option><option value=".mp4">.mp4</option><option value=".raw">.raw</option><option value=".iso">.iso</option><option value=".psd">.psd</option><option value=".pdf">.pdf</option><option value=".bin">.bin</option></select></label></div><div class="al3-dialog-foot"><button type="button" class="al3-btn al3-reset" data-reset-filter>恢复不限</button><button type="button" class="al3-btn al3-primary" data-apply-filter>应用筛选</button></div></section></div>
++    <div class="al3-layer" data-settings-layer hidden><section class="al3-dialog" role="dialog" aria-label="背景与显示设置"><div class="al3-dialog-title"><strong>背景设置</strong><span>当前图片与聚焦保留</span></div><div class="al3-dialog-tabs"><button type="button" class="al3-btn" data-setting-tab="image" aria-selected="false">图片</button><button type="button" class="al3-btn" data-setting-tab="display" aria-selected="true">显示</button></div><div data-display-tab class="al3-edit"><label><span class="al3-edit-line"><span>背景显示强度</span><output data-strength-value>当前 100%</output></span><input type="range" min="40" max="100" step="5" value="100" data-strength aria-label="背景显示强度"><small>100% 为当前效果；降低只减弱显示，不改变裁切与聚焦。</small></label><label>图块配色<select data-palette><option value="original">原有类别色</option><option value="clearer">类别分明</option></select></label><label>阅读密度<select data-density><option value="comfortable">舒适（当前）</option><option value="compact">紧凑</option></select><small>紧凑保留字号，只收紧行距和模块留白。</small></label></div><div data-image-tab hidden><div class="al3-image-ref" aria-label="原有背景示意"></div><div class="al3-fixed-note">现有图片、缩放与聚焦保持。本次预览只调整“显示”。</div></div><div class="al3-dialog-foot"><button type="button" class="al3-btn al3-reset" data-default-display>恢复显示默认</button><button type="button" class="al3-btn" data-cancel-settings>取消</button><button type="button" class="al3-btn al3-primary" data-save-settings>应用</button></div></section></div>
++    <div class="al3-layer" data-details-layer hidden><section class="al3-dialog" role="dialog" aria-label="文件详情"><div class="al3-dialog-title"><strong data-detail-heading></strong></div><div class="al3-file-facts"></div><div class="al3-fullpath"></div><div class="al3-dialog-foot"><button type="button" class="al3-btn" data-close-details>关闭</button></div></section></div>
++   </div>`;
++  const q=s=>app.querySelector(s),qa=s=>app.querySelectorAll(s);
++  function persist(){window.openai?.setWidgetState({modelContent:{preview:'第三阶段高级分析与个性化',scene,minLogicalBytes:state.min,extension:state.extension,backgroundStrength:state.strength,palette:state.palette,density:state.density},privateContent:null}).catch(()=>{});}
++  function appearance(){
++   app.style.setProperty('--wall-strength',state.strength/100);app.classList.toggle('compact',state.density==='compact');app.classList.toggle('reduced',state.reduced);
++   const colors=state.palette==='clearer'?clearer:original;
++   q('.al3-legend').innerHTML=Object.entries(colors).map(([name,color])=>`<span class="al3-key"><i style="background:${color}"></i>${name}</span>`).join('');
++   q('[data-strength]').value=state.strength;q('[data-strength-value]').textContent=state.strength===100?'当前 100%':`${state.strength}%`;
++   q('[data-palette]').value=state.palette;q('[data-density]').value=state.density;
++  }
++  function layout(items,x=0,y=0,w=100,h=100,out=[]){
++   if(!items.length)return out;if(items.length===1){out.push({file:items[0],x,y,w,h});return out;}
++   const total=items.reduce((s,f)=>s+f[state.metric],0);let subtotal=0,cut=1;
++   for(let i=0;i<items.length-1;i++){subtotal+=items[i][state.metric];cut=i+1;if(subtotal>=total/2)break;}
++   const a=items.slice(0,cut),b=items.slice(cut),ratio=a.reduce((s,f)=>s+f[state.metric],0)/total;
++   if(w>=h){layout(a,x,y,w*ratio,h,out);layout(b,x+w*ratio,y,w*(1-ratio),h,out);}else{layout(a,x,y,w,h*ratio,out);layout(b,x,y+h*ratio,w,h*(1-ratio),out);}return out;
++  }
++  function render(){
++   appearance();
++   const total=files.reduce((s,f)=>s+(f[state.metric]??0),0),unknown=files.some(f=>f[state.metric]===null);
++   q('[data-total-title]').textContent=state.metric==='logical'?'当前目录大小':'实际占用空间';q('[data-total]').textContent=bytes(total)+(unknown?' + 未知':'');
++   const matched=files.filter(f=>f.logical>=state.min&&(state.extension==='all'||f.name.endsWith(state.extension))&&f.name.toLowerCase().includes(state.search.toLowerCase()));
++   matched.sort((a,b)=>(b[state.metric]??-1)-(a[state.metric]??-1));
++   if(!matched.some(f=>f.id===state.selected))state.selected=null;
++   const colors=state.palette==='clearer'?clearer:original;
++   q('.al3-map').innerHTML=layout(matched.filter(f=>(f[state.metric]??0)>0)).map(({file:f,x,y,w,h})=>`<button type="button" class="al3-tile" data-file="${f.id}" aria-pressed="${f.id===state.selected}" aria-label="${escape(f.name)}，${bytes(f[state.metric])}" style="left:calc(${x}% + 2px);top:calc(${y}% + 2px);width:calc(${w}% - 4px);height:calc(${h}% - 4px);background:${colors[f.category]}a6"><strong>${escape(f.name)}</strong><span>${bytes(f[state.metric])}</span></button>`).join('')||'<div class="al3-empty">没有可绘制的匹配项</div>';
++   q('.al3-rows').innerHTML=matched.map(f=>`<button type="button" class="al3-row" role="option" data-file="${f.id}" aria-selected="${f.id===state.selected}"><span class="al3-row-name"><strong>${escape(f.name)}</strong><small>${escape(f.path)}</small></span><span class="al3-row-size">${bytes(f[state.metric])}</span><span class="al3-row-percent">${f[state.metric]===null?'—':(f[state.metric]/total*100).toFixed(1)+'%'}</span></button>`).join('')||'<div class="al3-empty">没有匹配项</div>';
++   q('[data-list-count]').textContent=`${matched.length} 项${state.min?' · ≥ '+bytes(state.min):''}${state.extension!=='all'?' · '+state.extension:''}`;
++   q('[data-open-filter]').textContent=state.min||state.extension!=='all'?'筛选 · 已启用':'筛选';
++   q('[data-open-filter]').classList.toggle('al3-filtered',!!(state.min||state.extension!=='all'));q('[data-clear-filter]').hidden=!state.min&&state.extension==='all';
++   const selected=files.find(f=>f.id===state.selected);
++   q('.al3-detail-name').textContent=selected?.name||'未选择项目';q('.al3-detail-meta').textContent=selected?`文件大小 ${bytes(selected.logical)} · 实际占用 ${bytes(selected.allocated)}`:'';
++   q('.al3-detail-path').textContent=selected?`X:\\AsukaLens-Demo\\${selected.path}\\${selected.name}`:'';q('[data-open-details]').disabled=!selected;
++   q('[data-settings-layer]').hidden=!state.settingsOpen;q('[data-filter-layer]').hidden=!state.filterOpen;q('[data-details-layer]').hidden=!state.detailsOpen;q('[data-open-filter]').setAttribute('aria-expanded',String(state.filterOpen));
++   qa('[data-file]').forEach(button=>button.addEventListener('click',()=>{state.selected=button.dataset.file;render();persist();}));
++  }
++  q('[data-open-filter]').onclick=()=>{state.filterOpen=!state.filterOpen;q('[data-min]').value=state.min;q('[data-extension]').value=state.extension;render();};
++  q('[data-close-filter]').onclick=()=>{state.filterOpen=false;render();};
++  q('[data-apply-filter]').onclick=()=>{state.min=Number(q('[data-min]').value);state.extension=q('[data-extension]').value;state.filterOpen=false;render();persist();};
++  q('[data-reset-filter]').onclick=()=>{q('[data-min]').value='0';q('[data-extension]').value='all';};
++  q('[data-clear-filter]').onclick=()=>{state.min=0;state.extension='all';render();persist();};
++  q('.al3-search').oninput=e=>{state.search=e.target.value;render();};
++  q('[data-metric]').onchange=e=>{state.metric=e.target.value;render();persist();};
++  q('[data-reduced]').onchange=e=>{state.reduced=e.target.checked;appearance();};
++  q('[data-open-settings]').onclick=()=>{draft={strength:state.strength,palette:state.palette,density:state.density};state.settingsOpen=true;state.filterOpen=false;render();};
++  const changeDisplay=()=>{state.strength=Number(q('[data-strength]').value);state.palette=q('[data-palette]').value;state.density=q('[data-density]').value;render();};
++  q('[data-strength]').oninput=changeDisplay;q('[data-palette]').onchange=changeDisplay;q('[data-density]').onchange=changeDisplay;
++  q('[data-cancel-settings]').onclick=()=>{Object.assign(state,draft);state.settingsOpen=false;render();};
++  q('[data-save-settings]').onclick=()=>{saved={strength:state.strength,palette:state.palette,density:state.density};draft={...saved};state.settingsOpen=false;render();persist();};
++  q('[data-default-display]').onclick=()=>{Object.assign(state,defaults);render();};
++  qa('[data-setting-tab]').forEach(button=>button.onclick=()=>{const image=button.dataset.settingTab==='image';q('[data-image-tab]').hidden=!image;q('[data-display-tab]').hidden=image;qa('[data-setting-tab]').forEach(b=>b.setAttribute('aria-selected',String(b===button)));});
++  q('[data-open-details]').onclick=()=>{const file=files.find(f=>f.id===state.selected);if(!file)return;state.detailsOpen=true;q('[data-detail-heading]').textContent=file.name;q('.al3-file-facts').innerHTML=`<div><span>文件大小</span>${bytes(file.logical)}</div><div><span>实际占用</span>${bytes(file.allocated)}</div><div><span>对象类型</span>${file.category}</div><div><span>修改时间</span>2026-11-01 10:00:00</div>`;q('.al3-fullpath').textContent=`X:\\AsukaLens-Demo\\${file.path}\\${file.name}`;render();};
++  q('[data-close-details]').onclick=()=>{state.detailsOpen=false;render();};
++  app.addEventListener('keydown',event=>{if(event.key==='Escape'){if(state.detailsOpen)state.detailsOpen=false;else if(state.filterOpen)state.filterOpen=false;else if(state.settingsOpen){Object.assign(state,draft);state.settingsOpen=false;}render();}});
++  function restore(snapshot){const incoming=snapshot?.modelContent??snapshot;if(incoming?.preview!=='第三阶段高级分析与个性化'||incoming.scene!==scene)return;if(['original','clearer'].includes(incoming.palette))state.palette=incoming.palette;if(['comfortable','compact'].includes(incoming.density))state.density=incoming.density;if(Number.isFinite(incoming.backgroundStrength))state.strength=Math.max(40,Math.min(100,incoming.backgroundStrength));if([0,100*MiB,GiB,5*GiB].includes(incoming.minLogicalBytes))state.min=incoming.minLogicalBytes;if(['all','.zip','.mp4','.raw','.iso','.psd','.pdf','.bin'].includes(incoming.extension))state.extension=incoming.extension;draft={strength:state.strength,palette:state.palette,density:state.density};render();}
++  restore(window.openai?.widgetState);
++  window.addEventListener('openai:set_globals',event=>restore(event.detail?.globals?.widgetState));
++  render();
++  if(globalThis.Tweak){const tweak=new Tweak({container:app,onChange:()=>{render();persist();}});tweak.addSlider(state,'strength',{label:'背景显示强度',min:40,max:100,step:5,unit:'%'});tweak.addSelect(state,'palette',{label:'图块配色',options:[{label:'原有类别色',value:'original'},{label:'类别分明',value:'clearer'}]});tweak.addSelect(state,'density',{label:'阅读密度',options:[{label:'舒适（当前）',value:'comfortable'},{label:'紧凑',value:'compact'}]});}
++ }
++ root.querySelectorAll('.al3-app').forEach(make);
++})();
++</script>

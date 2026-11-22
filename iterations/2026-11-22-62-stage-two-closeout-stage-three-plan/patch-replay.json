@@ -1,0 +1,60 @@
+{
+  "baseline": "a35812767e8d53a74232936717dde997d8a540b3",
+  "apply_check": true,
+  "canonical_index_bytes_match": true,
+  "owned_replay_removed": true,
+  "files": [
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "64BE26237A54547B6D155F7EF66E20B1BBCBABC5BCBB69FF8BF99EECE63102E3"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "4D04DA371844541C4CB98DE030CAA5B6C26B90CBC8E05E3E651758D0085AE074"
+    },
+    {
+      "path": "README.md",
+      "sha256": "C7B0655AE07512BD540EDF399E4BAA090D1942A0794721DC5CE00BF9A1BD7392"
+    },
+    {
+      "path": "README.en.md",
+      "sha256": "F4098B691E1F475A9FD8612EABAE07B74E3189E1E9063629C285506B84FCDC90"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "29014FF27E8DABAC09E0AB9A42161E413ABDD77CD29A6C997FB7F5D72C7826C9"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "C6229F06CAB53AA3A0E8A7FCD3707D915F9047BC00BCD2C2F9F66273661D9E30"
+    },
+    {
+      "path": "docs/selection-linkage.md",
+      "sha256": "FA567D9457600755F9FCA243BE2411F9502F195E0385986686C66C4A47213866"
+    },
+    {
+      "path": "docs/ui-design-roadmap.md",
+      "sha256": "290B10A0290D8998BF7B97E915FE32C26F99AF5A72366B48D43D29E0CF1D6C40"
+    },
+    {
+      "path": "docs/ui-stage-two-linkage-plan.md",
+      "sha256": "98979F00CD39650EC077B6D69F01B7BCF53C277B8C0E56ABB95560F7D3E70577"
+    },
+    {
+      "path": "docs/ui-stage-three-plan.md",
+      "sha256": "FD57A47F736F921D9AAE95923682B2F6C0A8B392C992D3ADF5A7165E30F0BC20"
+    },
+    {
+      "path": "iterations/2026-11-22-61-selection-linkage/user-feedback.md",
+      "sha256": "4B14BAFA4445242289113B1CF8B37D1CEEAF10F4C1AE4960CD75022A1B0A9FFE"
+    },
+    {
+      "path": "iterations/2026-11-22-62-stage-two-closeout-stage-three-plan/preview-template.html",
+      "sha256": "666C2123E7F1EEF0A28F8197051BD5633028D4145BFD93B7432C395E6478F360"
+    },
+    {
+      "path": "iterations/2026-11-22-62-stage-two-closeout-stage-three-plan/make-preview.ps1",
+      "sha256": "F2F90F0CCF9A7E93E4C986B5E085227245EC0691977E1B7F52185693BDFE8A29"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+[
+  {
+    "name": "changes.patch",
+    "length": 70428,
+    "sha256": "34A442438AAD0AFB9E5B60F7F1CB1A67B0C0BEAF71A1A3AE642DA79014E29D7A"
+  },
+  {
+    "name": "make-preview.ps1",
+    "length": 2161,
+    "sha256": "F2F90F0CCF9A7E93E4C986B5E085227245EC0691977E1B7F52185693BDFE8A29"
+  },
+  {
+    "name": "patch-replay.json",
+    "length": 2236,
+    "sha256": "EFFC4B056523BAAAA3407BA3C6E3E033536A85179E26F27B032FF06664DC19C3"
+  },
+  {
+    "name": "preview-template.html",
+    "length": 33292,
+    "sha256": "666C2123E7F1EEF0A28F8197051BD5633028D4145BFD93B7432C395E6478F360"
+  },
+  {
+    "name": "preview-verification.json",
+    "length": 1501,
+    "sha256": "D348FBEA80A33F818368068AC2DC80B5192DBFBB1A70953EF1AEB3C5DE244206"
+  },
+  {
+    "name": "product-baseline-check.json",
+    "length": 401,
+    "sha256": "D1C43227063EBEDA4F8D0A4B63B32A398C953F8EC36EB5B732B68AF75B565E69"
+  },
+  {
+    "name": "README.md",
+    "length": 4233,
+    "sha256": "94A64BFE5ED417738B583582E3E5BC13CCE96DD1887B43528F30523640E807B0"
+  }
+]

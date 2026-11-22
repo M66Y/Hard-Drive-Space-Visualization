@@ -1,0 +1,10 @@
+{
+  "baseline": "a35812767e8d53a74232936717dde997d8a540b3",
+  "product_binaries_match_C61": true,
+  "C55_unchanged": true,
+  "C61_frozen_evidence_unchanged": true,
+  "native_tests_reused": "C61 44 checks at each DPI plus affected UI matrices; no product modification in C62",
+  "user_stage_two_acceptance": true,
+  "stage_three_implementation_authorized": false,
+  "formal_release": false
+}

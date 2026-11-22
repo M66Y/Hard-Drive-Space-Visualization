@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-22",
+  "kind": "design-preview-only",
+  "stage_two_user_accepted": true,
+  "stage_three_product_implemented": false,
+  "synthetic_file_count": 8,
+  "checks": {
+    "five_gib_filter_rows": 1,
+    "one_gib_filter_rows": 4,
+    "threshold_is_logical_size": true,
+    "unknown_allocation_rows": 1,
+    "unknown_allocation_positive_tiles": 0,
+    "unknown_detail_retained": true,
+    "empty_selection_cleared": true,
+    "empty_details_disabled": true,
+    "strength_preview": 0.6,
+    "palette_preview": "clearer",
+    "compact_keeps_font_size": true,
+    "compact_reduces_row_height": true,
+    "cancel_restores_display_defaults": true,
+    "restored_global_state_strength": 0.75,
+    "restored_global_state_compact": true,
+    "restored_global_state_filtered_rows": 1,
+    "default_restored_after_checks": true,
+    "hover_text_hint_count": 0,
+    "browser_runtime_errors": 0,
+    "desktop_aspect_approx": 1.532,
+    "settings_inside_1024_view": true,
+    "horizontal_overflow_at_320_view": false,
+    "critical_settings_controls_inside_320_view": true,
+    "template_rebuild_with_repository_assets": true
+  },
+  "limitations": [
+    "Browser simulation is not WinForms implementation or native rendering acceptance.",
+    "Synthetic values are not scan performance measurements.",
+    "Narrow preview reflow is not a new application minimum-size contract.",
+    "Settings persistence shown in the preview does not write application configuration."
+  ],
+  "formal_release": false
+}

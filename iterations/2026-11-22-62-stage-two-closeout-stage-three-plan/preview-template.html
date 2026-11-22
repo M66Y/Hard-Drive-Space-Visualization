@@ -1,0 +1,270 @@
+<style>
+@property --al3-orbit{syntax:'<angle>';initial-value:0deg;inherits:false}
+#al3-preview{color-scheme:light}
+#al3-preview .al3-app{--ink:#3e2928;--muted:#72554e;--accent:#a5443e;--edge:rgba(157,95,78,.27);--wall:none;--icon:none;--wall-strength:1;container-type:inline-size;aspect-ratio:1440/940;display:grid;grid-template-rows:24px minmax(0,1fr);overflow:hidden;border:1px solid var(--edge);border-radius:10px;background:#fcf6f2;color:var(--ink);font:13px/1.45 'Microsoft YaHei UI','Microsoft YaHei','Segoe UI',sans-serif}
+#al3-preview .al3-app *{box-sizing:border-box}
+#al3-preview .al3-app [hidden]{display:none!important}
+#al3-preview .al3-app button,#al3-preview .al3-app input,#al3-preview .al3-app select{font:inherit;color:inherit}
+#al3-preview .al3-title{display:flex;align-items:center;gap:7px;padding:0 10px;background:#fbf5f1;font-size:11px}
+#al3-preview .al3-icon{display:inline-block;width:18px;height:18px;flex:none;background:var(--icon) center/contain no-repeat}
+#al3-preview .al3-title small{margin-left:auto;padding-right:90px;color:var(--muted);font-size:11px}
+#al3-preview .al3-body{position:relative;isolation:isolate;display:grid;grid-template-columns:16.2% minmax(0,1fr);min-height:0;background:#fcf6f2}
+#al3-preview .al3-body::before{content:'';position:absolute;z-index:-1;inset:0;background:linear-gradient(rgba(255,250,246,.09),rgba(255,250,246,.09)),var(--wall) center/cover no-repeat;opacity:var(--wall-strength);pointer-events:none}
+#al3-preview .al3-side{display:flex;flex-direction:column;gap:18px;padding:20px 12px 10px;background:rgba(255,252,249,.86);min-width:0}
+#al3-preview .al3-brand{font-size:19px;font-weight:700;display:flex;gap:9px;align-items:center}
+#al3-preview .al3-brand-mark{display:grid;grid-template-columns:2fr 1fr;gap:3px;width:18px;height:20px}
+#al3-preview .al3-brand-mark i{background:var(--accent)}
+#al3-preview .al3-tagline{font-size:11px;letter-spacing:3px;color:var(--muted);margin-top:7px}
+#al3-preview .al3-divider{height:1px;background:var(--edge)}
+#al3-preview .al3-side-caption{color:var(--muted);font-size:11px;margin-bottom:8px}
+#al3-preview .al3-nav{display:grid;gap:8px}
+#al3-preview .al3-nav button{border:1px solid transparent;border-radius:9px;background:rgba(244,225,215,.46);text-align:left;padding:10px;font-weight:600}
+#al3-preview .al3-nav button[aria-pressed=true]{color:var(--accent);background:rgba(232,164,143,.31);border-color:rgba(173,85,66,.18)}
+#al3-preview .al3-root{font-weight:600;overflow-wrap:anywhere}
+#al3-preview .al3-side-path{font-size:11px;color:var(--muted);margin-top:7px;overflow-wrap:anywhere}
+#al3-preview .al3-legend{display:grid;grid-template-columns:1fr 1fr;gap:9px 5px;font-size:11px;color:var(--muted)}
+#al3-preview .al3-key{display:flex;gap:6px;align-items:center}
+#al3-preview .al3-key i{width:7px;height:7px;border-radius:2px;flex:none}
+#al3-preview .al3-disk{margin-top:auto;border:1px solid var(--edge);border-radius:8px;padding:7px;font-size:11px;background:rgba(255,250,246,.56)}
+#al3-preview .al3-disk div{display:flex;align-items:center;gap:5px;justify-content:space-between}
+#al3-preview .al3-disk span{display:block;color:var(--muted);margin-top:3px}
+#al3-preview .al3-work{display:grid;grid-template-rows:32px 32px 58px 34px minmax(0,1fr) 64px 32px;gap:9px;padding:15px 18px 12px;min-width:0;min-height:0}
+#al3-preview .al3-tools{display:flex;align-items:center;gap:7px}
+#al3-preview .al3-btn{border:1px solid var(--edge);border-radius:9px;background:rgba(255,249,244,.88);padding:5px 12px;min-height:29px;white-space:nowrap}
+#al3-preview .al3-btn:disabled{opacity:.48}
+#al3-preview .al3-primary{background:var(--accent);color:#fffaf7!important;border-color:transparent}
+#al3-preview .al3-tools .al3-btn{font-weight:600}
+#al3-preview .al3-settings{display:flex;align-items:center;gap:9px;font-size:11px;min-width:0}
+#al3-preview .al3-field{display:flex;align-items:center;gap:8px;padding:5px 7px;border:1px solid var(--edge);border-radius:8px;background:rgba(255,251,248,.56)}
+#al3-preview .al3-field select{border:0;background:transparent;max-width:92px}
+#al3-preview .al3-switch{display:flex;align-items:center;gap:7px;white-space:nowrap}
+#al3-preview .al3-off{display:inline-block;width:25px;height:14px;background:rgba(102,81,76,.22);border-radius:10px;position:relative}
+#al3-preview .al3-off::after{content:'';position:absolute;left:2px;top:2px;width:10px;height:10px;background:#fffaf7;border-radius:50%}
+#al3-preview .al3-complete{margin-left:auto;color:var(--muted)}
+#al3-preview .al3-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+#al3-preview .al3-stat{border:1px solid var(--edge);border-radius:11px;background:rgba(255,251,247,.39);padding:7px 12px;min-width:0}
+#al3-preview .al3-stat span{display:block;font-size:11px;font-weight:600}
+#al3-preview .al3-stat strong{display:block;font-size:22px;line-height:1.25;font-variant-numeric:tabular-nums;white-space:nowrap}
+#al3-preview .al3-stat:first-child strong{color:var(--accent)}
+#al3-preview .al3-pathbar{display:flex;align-items:center;gap:7px;min-width:0}
+#al3-preview .al3-path{flex:1;min-width:0;border:1px solid var(--edge);border-radius:9px;background:rgba(255,251,248,.87);padding:7px 9px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px}
+#al3-preview .al3-search{width:25%;min-width:85px;border:1px solid var(--edge);border-radius:9px;background:rgba(255,251,248,.87);padding:7px 9px;font-size:11px!important}
+#al3-preview .al3-analysis{display:grid;grid-template-columns:minmax(0,1.48fr) minmax(0,1fr);gap:12px;min-width:0;min-height:0}
+#al3-preview .al3-panel{border:1px solid var(--edge);border-radius:12px;background:rgba(255,251,247,.21);padding:10px;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+#al3-preview .al3-heading{display:flex;align-items:center;gap:6px;justify-content:space-between;min-width:0;margin-bottom:8px;min-height:24px}
+#al3-preview .al3-heading strong{font-size:13px;white-space:nowrap}
+#al3-preview .al3-heading label,#al3-preview .al3-heading small{color:var(--muted);font-size:11px;white-space:nowrap}
+#al3-preview .al3-heading input{accent-color:var(--accent);vertical-align:middle}
+#al3-preview .al3-heading .al3-btn{font-size:11px;padding:3px 9px;min-height:25px}
+#al3-preview .al3-heading .al3-btn[aria-expanded=true],#al3-preview .al3-filtered{background:rgba(245,215,201,.8)}
+#al3-preview .al3-map{position:relative;flex:1;min-height:0}
+#al3-preview .al3-tile{position:absolute;border:0;border-radius:7px;text-align:left;padding:8px;overflow:hidden;display:flex;flex-direction:column;gap:4px}
+#al3-preview .al3-tile strong{display:block;width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;font-weight:600}
+#al3-preview .al3-tile span{font-size:11px}
+#al3-preview .al3-tile[aria-pressed=true]::after,#al3-preview .al3-tile:hover::after{content:'';position:absolute;inset:0;border-radius:inherit;padding:2px;pointer-events:none;background:conic-gradient(from var(--al3-orbit),rgba(255,239,205,.5) 0deg,rgba(255,239,205,.5) 220deg,#ffe4a8 260deg,#fff8e9 294deg,rgba(255,239,205,.5) 330deg);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:al3-flow 2.43478s linear infinite;filter:drop-shadow(0 0 3px #ffd59a)}
+@keyframes al3-flow{to{--al3-orbit:360deg}}
+#al3-preview .al3-app.reduced .al3-tile::after{animation:none!important}
+#al3-preview .al3-table-head,#al3-preview .al3-row{display:grid;grid-template-columns:minmax(0,1fr) 64px 43px;gap:5px;align-items:center}
+#al3-preview .al3-table-head{padding:5px;color:var(--muted);font-size:11px}
+#al3-preview .al3-table-head span:not(:first-child){text-align:right}
+#al3-preview .al3-rows{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;overflow:hidden}
+#al3-preview .al3-row{flex:none;width:100%;height:53px;padding:6px 5px;border:0;border-bottom:1px solid rgba(157,95,78,.14);border-radius:0;text-align:left;background:rgba(255,251,247,.12);min-width:0}
+#al3-preview .al3-row[aria-selected=true]{border-radius:7px;background:rgba(215,125,99,.19)}
+#al3-preview .al3-row-name{overflow:hidden;min-width:0}
+#al3-preview .al3-row-name strong,#al3-preview .al3-row-name small{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px;font-weight:500}
+#al3-preview .al3-row-name small{font-weight:400;color:var(--muted)}
+#al3-preview .al3-row-size,#al3-preview .al3-row-percent{text-align:right;white-space:nowrap;font-size:11px;font-variant-numeric:tabular-nums}
+#al3-preview .al3-row-percent{color:var(--muted)}
+#al3-preview .al3-list-meta{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px;min-height:25px;font-size:11px;color:var(--muted)}
+#al3-preview .al3-list-meta button{padding:3px 6px;min-height:24px;font-size:11px}
+#al3-preview .al3-detail{border:1px solid var(--edge);border-radius:11px;background:rgba(255,251,247,.34);padding:8px 11px;display:flex;align-items:center;gap:8px;min-width:0}
+#al3-preview .al3-detail-text{flex:1;min-width:0}
+#al3-preview .al3-detail-name{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#al3-preview .al3-detail-meta,#al3-preview .al3-detail-path{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#al3-preview .al3-detail .al3-btn{font-size:11px;padding:5px 9px}
+#al3-preview .al3-progress{display:flex;flex-direction:column;justify-content:space-between;padding:0 10px}
+#al3-preview .al3-progress-label{display:flex;justify-content:space-between;font-size:11px}
+#al3-preview .al3-track{height:5px;border-radius:4px;background:var(--accent);position:relative;margin-bottom:4px}
+#al3-preview .al3-track .al3-icon{position:absolute;right:-7px;bottom:-6px;width:25px;height:25px;filter:drop-shadow(0 0 4px rgba(255,206,143,.9))}
+#al3-preview .al3-empty{color:var(--muted);margin:auto;text-align:center;font-size:12px;padding:10px}
+#al3-preview .al3-layer{position:absolute;z-index:8;inset:0;display:grid;place-items:center;padding:20px;background:rgba(68,39,31,.10)}
+#al3-preview .al3-dialog{width:min(510px,94%);border:1px solid rgba(166,101,80,.4);border-radius:14px;background:#fff9f4;box-shadow:0 10px 35px rgba(66,37,27,.17);padding:20px;color:var(--ink);min-width:0}
+#al3-preview .al3-dialog-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:15px}
+#al3-preview .al3-dialog-title strong{font-size:16px}
+#al3-preview .al3-dialog-tabs{display:flex;gap:7px;margin-bottom:16px}
+#al3-preview .al3-dialog-tabs button[aria-selected=true]{color:var(--accent);background:#f5dfd3}
+#al3-preview .al3-edit{display:grid;gap:17px}
+#al3-preview .al3-edit label{display:grid;gap:6px;font-size:12px}
+#al3-preview .al3-edit-line{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#al3-preview .al3-edit label small{color:var(--muted);font-size:11px}
+#al3-preview .al3-edit select{width:100%;min-height:32px;padding:5px 8px;border:1px solid var(--edge);border-radius:8px;background:#fffdfb}
+#al3-preview .al3-edit input[type=range]{width:100%;accent-color:var(--accent)}
+#al3-preview .al3-dialog-foot{display:flex;justify-content:flex-end;gap:7px;margin-top:20px}
+#al3-preview .al3-dialog-foot .al3-reset{margin-right:auto}
+#al3-preview .al3-image-ref{aspect-ratio:1440/940;background:var(--wall) center/cover no-repeat;border-radius:10px}
+#al3-preview .al3-fixed-note{font-size:11px;color:var(--muted);margin-top:8px}
+#al3-preview .al3-filter-layer{place-items:start end;padding:30% 3% 0;background:transparent;pointer-events:none}
+#al3-preview .al3-filter-layer .al3-dialog{width:min(320px,92%);pointer-events:auto;padding:16px}
+#al3-preview .al3-filter-layer .al3-dialog-title strong{font-size:14px}
+#al3-preview .al3-filter-layer .al3-edit{gap:12px}
+#al3-preview .al3-file-facts{display:grid;grid-template-columns:1fr 1fr;gap:13px;font-size:12px}
+#al3-preview .al3-file-facts span{display:block;color:var(--muted);font-size:11px}
+#al3-preview .al3-fullpath{font-size:12px;overflow-wrap:anywhere;margin-top:17px;user-select:text}
+#al3-preview .al3-app.compact .al3-row{height:44px}
+#al3-preview .al3-app.compact .al3-work{grid-template-rows:30px 30px 51px 32px minmax(0,1fr) 60px 30px;gap:7px}
+@container (min-width:1150px){
+ #al3-preview .al3-work{grid-template-rows:38px 38px 72px 40px minmax(0,1fr) 76px 38px;gap:12px;padding:20px 24px 14px}
+ #al3-preview .al3-stat strong{font-size:27px}
+ #al3-preview .al3-row{height:64px}
+ #al3-preview .al3-row-name strong,#al3-preview .al3-tile strong,#al3-preview .al3-detail-name{font-size:14px}
+ #al3-preview .al3-row-name small,#al3-preview .al3-row-size,#al3-preview .al3-row-percent,#al3-preview .al3-detail-meta,#al3-preview .al3-detail-path,#al3-preview .al3-tile span{font-size:12px}
+ #al3-preview .al3-app.compact .al3-row{height:52px}
+ #al3-preview .al3-app.compact .al3-work{grid-template-rows:35px 35px 63px 38px minmax(0,1fr) 72px 34px;gap:9px}
+}
+@media(max-width:740px){
+ #al3-preview .al3-app{aspect-ratio:auto;min-height:1100px}
+ #al3-preview .al3-body{grid-template-columns:minmax(0,1fr)}
+ #al3-preview .al3-side{padding:12px;gap:9px}
+ #al3-preview .al3-brand{font-size:16px}
+ #al3-preview .al3-side>div:not(:first-child):not(.al3-nav){display:none}
+ #al3-preview .al3-nav{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+ #al3-preview .al3-nav button{padding:8px 5px;text-align:center}
+ #al3-preview .al3-work,#al3-preview .al3-app.compact .al3-work{padding:10px;grid-template-rows:auto auto 110px auto minmax(540px,1fr) auto 32px;gap:8px}
+ #al3-preview .al3-tools,#al3-preview .al3-settings,#al3-preview .al3-pathbar{flex-wrap:wrap}
+ #al3-preview .al3-tools{padding-right:0}
+ #al3-preview .al3-complete{display:none}
+ #al3-preview .al3-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #al3-preview .al3-stat{padding:5px 9px}
+ #al3-preview .al3-stat strong{font-size:19px}
+ #al3-preview .al3-path{order:2;flex-basis:100%}
+ #al3-preview .al3-search{flex:1;min-width:140px}
+ #al3-preview .al3-analysis{grid-template-columns:minmax(0,1fr);grid-template-rows:240px 300px;gap:9px}
+ #al3-preview .al3-detail{flex-wrap:wrap}
+ #al3-preview .al3-detail-text{flex-basis:100%}
+ #al3-preview .al3-layer{padding:12px;align-items:start;padding-top:160px}
+ #al3-preview .al3-dialog{width:100%;padding:14px}
+ #al3-preview .al3-filter-layer{padding-top:480px}
+ #al3-preview .al3-title small{display:none}
+}
+@media(prefers-reduced-motion:reduce){#al3-preview .al3-tile::after{animation:none!important}}
+</style>
+<div id="al3-preview">
+ <div class="viz-carousel" aria-label="AsukaLens 第三阶段两处设计预览" data-previous-label="上一页" data-next-label="下一页">
+  <section data-variant="大文件分析" aria-label="大文件筛选预览"><div class="al3-app" data-scene="analysis" aria-label="AsukaLens 大文件分析预览"></div></section>
+  <section data-variant="显示设置" aria-label="背景与显示设置预览" hidden><div class="al3-app" data-scene="appearance" aria-label="AsukaLens 显示设置预览"></div></section>
+ </div>
+</div>
+<script>
+(() => {
+ const root=document.getElementById('al3-preview');
+ const wall='__AL3_WALL__',icon='__AL3_ICON__';
+ const GiB=1073741824,MiB=1048576;
+ const defaults={strength:100,palette:'original',density:'comfortable'};
+ const original={文件夹:'#ebb199',视频:'#e8a09c',图片:'#efcf9a',音频:'#deb1c2',压缩包:'#c9b8d5',文档:'#abc7c1',代码:'#b2c4d8',其他:'#cfc6bb'};
+ const clearer={文件夹:'#e7ad8a',视频:'#df8b88',图片:'#e5c16e',音频:'#c497b6',压缩包:'#ad99c6',文档:'#81b3a5',代码:'#8daed0',其他:'#b7b0a6'};
+ const files=[
+  {id:'video',name:'travel-footage.mp4',path:'视频 Videos',logical:6*GiB,allocated:6*GiB,category:'视频'},
+  {id:'backup',name:'project-backup.zip',path:'项目 Projects',logical:4*GiB,allocated:3.8*GiB,category:'压缩包'},
+  {id:'dataset',name:'image-dataset.raw',path:'图片 Pictures',logical:3*GiB,allocated:3*GiB,category:'图片'},
+  {id:'iso',name:'tools-demo.iso',path:'应用 Apps',logical:2*GiB,allocated:2*GiB,category:'压缩包'},
+  {id:'album',name:'photo-album.zip',path:'图片 Pictures',logical:.75*GiB,allocated:.74*GiB,category:'压缩包'},
+  {id:'psd',name:'design-source.psd',path:'图片 Pictures',logical:.4*GiB,allocated:null,category:'图片'},
+  {id:'pdf',name:'project-guide.pdf',path:'项目 Projects',logical:.06*GiB,allocated:.06*GiB,category:'文档'},
+  {id:'bin',name:'sample-data.bin',path:'应用 Apps',logical:.02*GiB,allocated:.018*GiB,category:'其他'}
+ ];
+ const bytes=n=>n===null?'未知':n>=GiB?`${(n/GiB).toFixed(2).replace(/\.00$/,'')} GiB`:`${(n/MiB).toFixed(1).replace(/\.0$/,'')} MiB`;
+ const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ function make(app){
+  app.style.setProperty('--wall',`url("${wall}")`);app.style.setProperty('--icon',`url("${icon}")`);
+  const scene=app.dataset.scene;
+  const state={...defaults,min:scene==='analysis'?GiB:0,extension:'all',search:'',selected:'video',metric:'logical',reduced:false,filterOpen:false,settingsOpen:scene==='appearance',detailsOpen:false};
+  let saved={...defaults},draft={...defaults};
+  app.innerHTML=`
+   <div class="al3-title"><span class="al3-icon" aria-hidden="true"></span>AsukaLens<small>合成数据 · 设计预览</small></div>
+   <div class="al3-body">
+    <aside class="al3-side">
+     <div><div class="al3-brand"><span class="al3-brand-mark" aria-hidden="true"><i></i><i></i></span>AsukaLens</div><div class="al3-tagline">磁盘空间可视化</div></div>
+     <div class="al3-divider"></div>
+     <nav class="al3-nav" aria-label="工作空间"><button type="button">▦　空间分布</button><button type="button" aria-pressed="true">↗　大文件</button><button type="button">≡　文件类型</button></nav>
+     <div><div class="al3-side-caption">当前扫描</div><div class="al3-root">AsukaLens-Demo</div><div class="al3-side-path">X:\\AsukaLens-Demo</div></div>
+     <div><div class="al3-side-caption">颜色索引</div><div class="al3-legend"></div></div>
+     <div class="al3-disk"><div><strong>磁盘活动</strong><span>启用　详情</span></div><span>整块磁盘 · 已暂停</span></div>
+    </aside>
+    <main class="al3-work">
+     <div class="al3-tools"><button type="button" class="al3-btn al3-primary">＋ 选择文件夹</button><button type="button" class="al3-btn">重新扫描</button><button type="button" class="al3-btn" data-open-settings>背景设置</button><button type="button" class="al3-btn">诊断</button></div>
+     <div class="al3-settings"><label class="al3-field">扫描策略<select aria-label="扫描策略"><option>自动</option><option>低占用</option><option>高速</option></select></label><label class="al3-field">统计口径<select data-metric aria-label="统计口径"><option value="logical">文件大小</option><option value="allocated">实际占用</option></select></label><span class="al3-switch">NTFS 快扫 实验 <i class="al3-off" aria-hidden="true"></i></span><span class="al3-complete">扫描完成</span></div>
+     <div class="al3-stats"><div class="al3-stat"><span data-total-title>当前目录大小</span><strong data-total></strong></div><div class="al3-stat"><span>文件数量</span><strong>8</strong></div><div class="al3-stat"><span>子文件夹</span><strong>4</strong></div><div class="al3-stat"><span>扫描耗时</span><strong>0.8 s</strong></div></div>
+     <div class="al3-pathbar"><button type="button" class="al3-btn" disabled>↑ 上一级</button><button type="button" class="al3-btn" disabled>扫描根目录</button><div class="al3-path">X:\\AsukaLens-Demo</div><input class="al3-search" aria-label="搜索所有子目录的文件名" placeholder="搜索所有子目录的文件名…"></div>
+     <div class="al3-analysis">
+      <section class="al3-panel"><div class="al3-heading"><strong>大文件分布</strong><label><input type="checkbox" data-reduced>减弱动效</label></div><div class="al3-map" aria-label="按当前口径绘制的文件面积图"></div></section>
+      <section class="al3-panel"><div class="al3-heading"><strong>最大的 500 个文件</strong><button type="button" class="al3-btn" data-open-filter aria-expanded="false">筛选</button></div><div class="al3-table-head"><span>名称</span><span>大小 ↓</span><span>占比</span></div><div class="al3-rows" role="listbox" aria-label="大文件结果"></div><div class="al3-list-meta"><span data-list-count aria-live="polite"></span><button type="button" class="al3-btn" data-clear-filter>清除筛选</button></div></section>
+     </div>
+     <section class="al3-detail"><div class="al3-detail-text"><div class="al3-detail-name"></div><div class="al3-detail-meta"></div><div class="al3-detail-path"></div></div><button type="button" class="al3-btn" data-open-details>详情</button><button type="button" class="al3-btn">定位文件</button></section>
+     <div class="al3-progress"><div class="al3-progress-label"><span>扫描完成</span><span>100%</span></div><div class="al3-track"><span class="al3-icon" aria-hidden="true"></span></div></div>
+    </main>
+    <div class="al3-layer al3-filter-layer" data-filter-layer hidden><section class="al3-dialog" role="dialog" aria-label="大文件筛选"><div class="al3-dialog-title"><strong>大文件筛选</strong><button type="button" class="al3-btn" data-close-filter>关闭</button></div><div class="al3-edit"><label>文件大小至少<select data-min><option value="0">不限</option><option value="104857600">100 MiB</option><option value="1073741824">1 GiB</option><option value="5368709120">5 GiB</option></select></label><label>扩展名<select data-extension><option value="all">全部扩展名</option><option value=".zip">.zip</option><option value=".mp4">.mp4</option><option value=".raw">.raw</option><option value=".iso">.iso</option><option value=".psd">.psd</option><option value=".pdf">.pdf</option><option value=".bin">.bin</option></select></label></div><div class="al3-dialog-foot"><button type="button" class="al3-btn al3-reset" data-reset-filter>恢复不限</button><button type="button" class="al3-btn al3-primary" data-apply-filter>应用筛选</button></div></section></div>
+    <div class="al3-layer" data-settings-layer hidden><section class="al3-dialog" role="dialog" aria-label="背景与显示设置"><div class="al3-dialog-title"><strong>背景设置</strong><span>当前图片与聚焦保留</span></div><div class="al3-dialog-tabs"><button type="button" class="al3-btn" data-setting-tab="image" aria-selected="false">图片</button><button type="button" class="al3-btn" data-setting-tab="display" aria-selected="true">显示</button></div><div data-display-tab class="al3-edit"><label><span class="al3-edit-line"><span>背景显示强度</span><output data-strength-value>当前 100%</output></span><input type="range" min="40" max="100" step="5" value="100" data-strength aria-label="背景显示强度"><small>100% 为当前效果；降低只减弱显示，不改变裁切与聚焦。</small></label><label>图块配色<select data-palette><option value="original">原有类别色</option><option value="clearer">类别分明</option></select></label><label>阅读密度<select data-density><option value="comfortable">舒适（当前）</option><option value="compact">紧凑</option></select><small>紧凑保留字号，只收紧行距和模块留白。</small></label></div><div data-image-tab hidden><div class="al3-image-ref" aria-label="原有背景示意"></div><div class="al3-fixed-note">现有图片、缩放与聚焦保持。本次预览只调整“显示”。</div></div><div class="al3-dialog-foot"><button type="button" class="al3-btn al3-reset" data-default-display>恢复显示默认</button><button type="button" class="al3-btn" data-cancel-settings>取消</button><button type="button" class="al3-btn al3-primary" data-save-settings>应用</button></div></section></div>
+    <div class="al3-layer" data-details-layer hidden><section class="al3-dialog" role="dialog" aria-label="文件详情"><div class="al3-dialog-title"><strong data-detail-heading></strong></div><div class="al3-file-facts"></div><div class="al3-fullpath"></div><div class="al3-dialog-foot"><button type="button" class="al3-btn" data-close-details>关闭</button></div></section></div>
+   </div>`;
+  const q=s=>app.querySelector(s),qa=s=>app.querySelectorAll(s);
+  function persist(){window.openai?.setWidgetState({modelContent:{preview:'第三阶段高级分析与个性化',scene,minLogicalBytes:state.min,extension:state.extension,backgroundStrength:state.strength,palette:state.palette,density:state.density},privateContent:null}).catch(()=>{});}
+  function appearance(){
+   app.style.setProperty('--wall-strength',state.strength/100);app.classList.toggle('compact',state.density==='compact');app.classList.toggle('reduced',state.reduced);
+   const colors=state.palette==='clearer'?clearer:original;
+   q('.al3-legend').innerHTML=Object.entries(colors).map(([name,color])=>`<span class="al3-key"><i style="background:${color}"></i>${name}</span>`).join('');
+   q('[data-strength]').value=state.strength;q('[data-strength-value]').textContent=state.strength===100?'当前 100%':`${state.strength}%`;
+   q('[data-palette]').value=state.palette;q('[data-density]').value=state.density;
+  }
+  function layout(items,x=0,y=0,w=100,h=100,out=[]){
+   if(!items.length)return out;if(items.length===1){out.push({file:items[0],x,y,w,h});return out;}
+   const total=items.reduce((s,f)=>s+f[state.metric],0);let subtotal=0,cut=1;
+   for(let i=0;i<items.length-1;i++){subtotal+=items[i][state.metric];cut=i+1;if(subtotal>=total/2)break;}
+   const a=items.slice(0,cut),b=items.slice(cut),ratio=a.reduce((s,f)=>s+f[state.metric],0)/total;
+   if(w>=h){layout(a,x,y,w*ratio,h,out);layout(b,x+w*ratio,y,w*(1-ratio),h,out);}else{layout(a,x,y,w,h*ratio,out);layout(b,x,y+h*ratio,w,h*(1-ratio),out);}return out;
+  }
+  function render(){
+   appearance();
+   const total=files.reduce((s,f)=>s+(f[state.metric]??0),0),unknown=files.some(f=>f[state.metric]===null);
+   q('[data-total-title]').textContent=state.metric==='logical'?'当前目录大小':'实际占用空间';q('[data-total]').textContent=bytes(total)+(unknown?' + 未知':'');
+   const matched=files.filter(f=>f.logical>=state.min&&(state.extension==='all'||f.name.endsWith(state.extension))&&f.name.toLowerCase().includes(state.search.toLowerCase()));
+   matched.sort((a,b)=>(b[state.metric]??-1)-(a[state.metric]??-1));
+   if(!matched.some(f=>f.id===state.selected))state.selected=null;
+   const colors=state.palette==='clearer'?clearer:original;
+   q('.al3-map').innerHTML=layout(matched.filter(f=>(f[state.metric]??0)>0)).map(({file:f,x,y,w,h})=>`<button type="button" class="al3-tile" data-file="${f.id}" aria-pressed="${f.id===state.selected}" aria-label="${escape(f.name)}，${bytes(f[state.metric])}" style="left:calc(${x}% + 2px);top:calc(${y}% + 2px);width:calc(${w}% - 4px);height:calc(${h}% - 4px);background:${colors[f.category]}a6"><strong>${escape(f.name)}</strong><span>${bytes(f[state.metric])}</span></button>`).join('')||'<div class="al3-empty">没有可绘制的匹配项</div>';
+   q('.al3-rows').innerHTML=matched.map(f=>`<button type="button" class="al3-row" role="option" data-file="${f.id}" aria-selected="${f.id===state.selected}"><span class="al3-row-name"><strong>${escape(f.name)}</strong><small>${escape(f.path)}</small></span><span class="al3-row-size">${bytes(f[state.metric])}</span><span class="al3-row-percent">${f[state.metric]===null?'—':(f[state.metric]/total*100).toFixed(1)+'%'}</span></button>`).join('')||'<div class="al3-empty">没有匹配项</div>';
+   q('[data-list-count]').textContent=`${matched.length} 项${state.min?' · ≥ '+bytes(state.min):''}${state.extension!=='all'?' · '+state.extension:''}`;
+   q('[data-open-filter]').textContent=state.min||state.extension!=='all'?'筛选 · 已启用':'筛选';
+   q('[data-open-filter]').classList.toggle('al3-filtered',!!(state.min||state.extension!=='all'));q('[data-clear-filter]').hidden=!state.min&&state.extension==='all';
+   const selected=files.find(f=>f.id===state.selected);
+   q('.al3-detail-name').textContent=selected?.name||'未选择项目';q('.al3-detail-meta').textContent=selected?`文件大小 ${bytes(selected.logical)} · 实际占用 ${bytes(selected.allocated)}`:'';
+   q('.al3-detail-path').textContent=selected?`X:\\AsukaLens-Demo\\${selected.path}\\${selected.name}`:'';q('[data-open-details]').disabled=!selected;
+   q('[data-settings-layer]').hidden=!state.settingsOpen;q('[data-filter-layer]').hidden=!state.filterOpen;q('[data-details-layer]').hidden=!state.detailsOpen;q('[data-open-filter]').setAttribute('aria-expanded',String(state.filterOpen));
+   qa('[data-file]').forEach(button=>button.addEventListener('click',()=>{state.selected=button.dataset.file;render();persist();}));
+  }
+  q('[data-open-filter]').onclick=()=>{state.filterOpen=!state.filterOpen;q('[data-min]').value=state.min;q('[data-extension]').value=state.extension;render();};
+  q('[data-close-filter]').onclick=()=>{state.filterOpen=false;render();};
+  q('[data-apply-filter]').onclick=()=>{state.min=Number(q('[data-min]').value);state.extension=q('[data-extension]').value;state.filterOpen=false;render();persist();};
+  q('[data-reset-filter]').onclick=()=>{q('[data-min]').value='0';q('[data-extension]').value='all';};
+  q('[data-clear-filter]').onclick=()=>{state.min=0;state.extension='all';render();persist();};
+  q('.al3-search').oninput=e=>{state.search=e.target.value;render();};
+  q('[data-metric]').onchange=e=>{state.metric=e.target.value;render();persist();};
+  q('[data-reduced]').onchange=e=>{state.reduced=e.target.checked;appearance();};
+  q('[data-open-settings]').onclick=()=>{draft={strength:state.strength,palette:state.palette,density:state.density};state.settingsOpen=true;state.filterOpen=false;render();};
+  const changeDisplay=()=>{state.strength=Number(q('[data-strength]').value);state.palette=q('[data-palette]').value;state.density=q('[data-density]').value;render();};
+  q('[data-strength]').oninput=changeDisplay;q('[data-palette]').onchange=changeDisplay;q('[data-density]').onchange=changeDisplay;
+  q('[data-cancel-settings]').onclick=()=>{Object.assign(state,draft);state.settingsOpen=false;render();};
+  q('[data-save-settings]').onclick=()=>{saved={strength:state.strength,palette:state.palette,density:state.density};draft={...saved};state.settingsOpen=false;render();persist();};
+  q('[data-default-display]').onclick=()=>{Object.assign(state,defaults);render();};
+  qa('[data-setting-tab]').forEach(button=>button.onclick=()=>{const image=button.dataset.settingTab==='image';q('[data-image-tab]').hidden=!image;q('[data-display-tab]').hidden=image;qa('[data-setting-tab]').forEach(b=>b.setAttribute('aria-selected',String(b===button)));});
+  q('[data-open-details]').onclick=()=>{const file=files.find(f=>f.id===state.selected);if(!file)return;state.detailsOpen=true;q('[data-detail-heading]').textContent=file.name;q('.al3-file-facts').innerHTML=`<div><span>文件大小</span>${bytes(file.logical)}</div><div><span>实际占用</span>${bytes(file.allocated)}</div><div><span>对象类型</span>${file.category}</div><div><span>修改时间</span>2026-11-01 10:00:00</div>`;q('.al3-fullpath').textContent=`X:\\AsukaLens-Demo\\${file.path}\\${file.name}`;render();};
+  q('[data-close-details]').onclick=()=>{state.detailsOpen=false;render();};
+  app.addEventListener('keydown',event=>{if(event.key==='Escape'){if(state.detailsOpen)state.detailsOpen=false;else if(state.filterOpen)state.filterOpen=false;else if(state.settingsOpen){Object.assign(state,draft);state.settingsOpen=false;}render();}});
+  function restore(snapshot){const incoming=snapshot?.modelContent??snapshot;if(incoming?.preview!=='第三阶段高级分析与个性化'||incoming.scene!==scene)return;if(['original','clearer'].includes(incoming.palette))state.palette=incoming.palette;if(['comfortable','compact'].includes(incoming.density))state.density=incoming.density;if(Number.isFinite(incoming.backgroundStrength))state.strength=Math.max(40,Math.min(100,incoming.backgroundStrength));if([0,100*MiB,GiB,5*GiB].includes(incoming.minLogicalBytes))state.min=incoming.minLogicalBytes;if(['all','.zip','.mp4','.raw','.iso','.psd','.pdf','.bin'].includes(incoming.extension))state.extension=incoming.extension;draft={strength:state.strength,palette:state.palette,density:state.density};render();}
+  restore(window.openai?.widgetState);
+  window.addEventListener('openai:set_globals',event=>restore(event.detail?.globals?.widgetState));
+  render();
+  if(globalThis.Tweak){const tweak=new Tweak({container:app,onChange:()=>{render();persist();}});tweak.addSlider(state,'strength',{label:'背景显示强度',min:40,max:100,step:5,unit:'%'});tweak.addSelect(state,'palette',{label:'图块配色',options:[{label:'原有类别色',value:'original'},{label:'类别分明',value:'clearer'}]});tweak.addSelect(state,'density',{label:'阅读密度',options:[{label:'舒适（当前）',value:'comfortable'},{label:'紧凑',value:'compact'}]});}
+ }
+ root.querySelectorAll('.al3-app').forEach(make);
+})();
+</script>
