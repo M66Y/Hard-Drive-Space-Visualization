@@ -9,6 +9,9 @@ internal static class ScrollbarSurfaceTests
     private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
     [DllImport("user32.dll", EntryPoint = "SendMessageW")]
     private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr window);
+    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr window, IntPtr dc);
+    [DllImport("gdi32.dll")] private static extern uint GetPixel(IntPtr dc, int x, int y);
 
     internal static int Run(bool dpi96 = false)
     {
@@ -77,6 +80,19 @@ internal static class ScrollbarSurfaceTests
                         "PrintClientUsesBackdropSkin");
                 }
                 Check(grid.BackdropBuilds == builds, "BothBarsReuseTheGridBackdrop");
+                foreach (var bar in bars)
+                {
+                    bar.Value = bar.Minimum;
+                    Check(GridScrollbarSkin.TryGetGeometry(bar, out var startShape), "PositionStartGeometryAvailable");
+                    int high = ScrollbarPointerTracking.Maximum(bar.Minimum, bar.Maximum, bar.LargeChange);
+                    bar.Value = high;
+                    Check(GridScrollbarSkin.TryGetGeometry(bar, out var endShape) &&
+                        (bar is VScrollBar ? endShape.Thumb.Top > startShape.Thumb.Top : endShape.Thumb.Left > startShape.Thumb.Left),
+                        "PublishedThumbFollowsProgrammaticValue_" + (bar is VScrollBar ? "Vertical" : "Horizontal"));
+                    bar.Value = bar.Minimum;
+                }
+                Check(grid.ScrollbarBufferedBytes > 0 && grid.ScrollbarBufferedBytes <= 2L * 262_144 * 4,
+                    "ScrollbarFramesStayWithinTwoBoundedStripBuffers");
                 var corner = grid.ScrollbarCornerBounds;
                 Check(corner.Width > 1 && corner.Height > 1, "BothAxesExposeNativeResizeCorner");
                 using (var expectedGrid = new Bitmap(grid.Width, grid.Height))
@@ -100,14 +116,33 @@ internal static class ScrollbarSurfaceTests
                 int oldOffset = grid.HorizontalScrollingOffset;
                 grid.PerformBufferedScroll(() => grid.HorizontalScrollingOffset = 40);
                 Check(grid.HorizontalScrollingOffset > oldOffset && grid.BackdropBuilds == builds, "HorizontalMovementKeepsCacheReuse");
+                // Framework reflected-scroll handling updates its native range
+                // after raising Scroll. Observe the actual child DC immediately
+                // on return, before another WM_PAINT can hide a native grey rail.
+                foreach (var bar in bars)
+                {
+                    bar.Invalidate(); bar.Update();
+                    Check(GridScrollbarSkin.TryGetGeometry(bar, out var shape), "TrackingGeometryAvailable");
+                    int length = bar is VScrollBar ? bar.Height : bar.Width;
+                    int arrow = bar is VScrollBar ? shape.StartArrow.Height : shape.StartArrow.Width;
+                    var points = Enumerable.Range(arrow + 3, Math.Max(1, length - 2 * arrow - 6))
+                        .Where(at => at % 5 == 0).Select(at => bar is VScrollBar ? new Point(0, at) : new Point(at, 0)).ToArray();
+                    uint[] before = ReadRail(bar, points);
+                    int oldValue = bar.Value;
+                    SendMessage(bar.Handle, bar is VScrollBar ? 0x2115u : 0x2114u, new IntPtr(1), IntPtr.Zero);
+                    uint[] after = ReadRail(bar, points);
+                    Check(bar.Value > oldValue, "ReflectedScrollRetainsNativeValueMovement");
+                    Check(before.All(color => color != uint.MaxValue) && before.SequenceEqual(after),
+                        "ReflectedScrollReturnsWithStableRail_" + (bar is VScrollBar ? "Vertical" : "Horizontal"));
+                }
                 var verticalBar = bars.OfType<VScrollBar>().Single();
                 typeof(Control).GetMethod("RecreateHandle", Hidden)!.Invoke(verticalBar, null); Application.DoEvents();
                 Check(verticalBar.IsHandleCreated && grid.SkinnedScrollbarCount == 2, "RecreatedHandleKeepsOneSkinPerNativeBar");
                 using (var image = new Bitmap(verticalBar.Width, verticalBar.Height))
                 using (var graphics = Graphics.FromImage(image))
                     Check(GridScrollbarSkin.PaintBar(grid, verticalBar, graphics, false), "RecreatedHandleHasValidGeometryAndPaint");
-                grid.Hide(); Check(!grid.Visible, "SkinDoesNotForceHiddenGridVisible"); grid.Show(); Application.DoEvents();
-                grid.Dispose(); Check(grid.SkinnedScrollbarCount == 0 && grid.BackdropBytes == 0, "DisposalReleasesSkinHooksAndBackdrop");
+                grid.Hide(); Check(!grid.Visible && grid.ScrollbarBufferedBytes == 0, "HiddenGridReleasesStripFramesWithoutShowingIt"); grid.Show(); Application.DoEvents();
+                grid.Dispose(); Check(grid.SkinnedScrollbarCount == 0 && grid.BackdropBytes == 0 && grid.ScrollbarBufferedBytes == 0, "DisposalReleasesSkinHooksAndBackdrop");
                 form.BackgroundImage = null; form.Close();
             }
             catch (CheckFailure error) { failure = error.Code; }
@@ -128,6 +163,13 @@ internal static class ScrollbarSurfaceTests
         using var brush = new SolidBrush(Color.FromArgb(110, 145, 165));
         for (int x = 0; x < image.Width; x += 16) graphics.FillRectangle(brush, x, 0, 5, image.Height);
         return image;
+    }
+    private static uint[] ReadRail(ScrollBar bar, Point[] points)
+    {
+        IntPtr dc = GetDC(bar.Handle);
+        if (dc == IntPtr.Zero) return points.Select(_ => uint.MaxValue).ToArray();
+        try { return points.Select(point => GetPixel(dc, point.X, point.Y)).ToArray(); }
+        finally { ReleaseDC(bar.Handle, dc); }
     }
     private sealed class CheckFailure(string code) : Exception("ScrollbarSurface") { internal string Code { get; } = code; }
 }

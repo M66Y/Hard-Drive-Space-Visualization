@@ -1,0 +1,922 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index a6c97724819082d2f5d3c5efd63896c5343feb71..291417c1b9c432904af09a1d860974cc7b6a0da6 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,25 +1,21 @@
+-# AsukaLens 开发检查点
+-
+-## 当前：第二阶段已接受，第三阶段仅方案/预览（2026-11-22）
+-
+-用户明确反馈“第二阶段的联动效果可以”，要求完成本阶段收尾，再给第三阶段具体方案和预览，确认后才实施、不发布。当前产品实现main/origin a35812767e8d53a74232936717dde997d8a540b3；本轮C62只改文档、记忆和独立预览，不改C#、项目文件、assets、编译产物或用户设置。最终提交/远程状态以Git为准。
+-
+-C61对象身份双向选择、pending交接、内部命中及原1.15倍柔光、父归属与主动进入、就近/跨页/700ms提亮、固定摘要/主动详情已获实际体验认可。应用/tests零警告，最终144/96DPI各44项及受影响UI/滚动/布局等证据保留；用户反馈追加至C61/user-feedback.md，原冻结摘要不重写。
+-
+-第三阶段建议首轮合并大文件逻辑大小门槛/扩展名筛选与显示偏好：背景强度40–100（100=当前默认）、原有/增强类别色、舒适/紧凑（保留字号）。入口复用列表标题筛选与背景设置显示页，无说明行/悬停；工作区定制后置。方案见docs/ui-stage-three-plan.md，两页合成设计预览已准备；不是WinForms交付。**第三阶段实施尚未授权**，不因预览操作或旧widget状态自动开工。
+-
+-## 保留与边界
+-
+-- 第一、二阶段已接受。C57普通默认/C55失败回退、图片/聚焦/Zoom、完整圆角、1.15倍沿边动效保持，不录屏/改系统/个人卷操作。
+-- 内嵌文件保留总览，主动“在列表中查看”进入父目录；无悬停文字或自动说明框。已有明确选择不重复询问。
+-- C55独立DLL SHA256 D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498，保留并核哈希。当前程序哈希看C61 build-manifest。
+-- C61受限启动SplitContainer Scale GDI+异常原因未证明，可交互复验通过但不抹失败；C59早期96DPI柔光失败亦保留。Win10新绘制/真实跨屏未验，用户已跳过Win10，不重复追问。
+-- C61原始输出已压缩核验清理；自建demo仍可能被运行程序使用，保留所有权标记，不强制关软件或删除活跃夹具。本轮生成的预览测试中间物收尾清理。
+-
+-## 下一步
+-
+-等待用户审阅第三阶段范围、预览和默认值，再按确认合并开发/必要验证/真实展示；完成后再由用户决定收尾，不机械推进全部候选。软件占用/清理、高速稳定提速另行评审。
+-
+-C28同快照统计对照已Matched并清理，不重复列为待做。实验快扫默认关闭；个人raw/VSS须当轮明确授权。PERF-001仍P2延期。本轮不构建包、标签或Release。
+-
+-项目现状/计划/决策及Git优先于记忆；此Skill只作交接索引，不存个人路径、原始日志或NTFS页。
++# AsukaLens 开发检查点
++
++## 当前：C63滚动条修正已接受并收尾（2026-11-22）
++
++本轮基线main/origin 5e07a71；C63源码、测试、说明和归档为本轮所有，最终提交/推送状态以Git为准。第一、二阶段已获接受；第三阶段只有docs/ui-stage-three-plan.md与合成预览，**产品实施未授权**。
++
++用户批准只接管原滚动条指针拖动/箭头/轨道，保留原条范围、键盘/滚轮/UIA、布局/背景/动效与系统全拖动偏好。第一版用户拒绝，第二段视频暴露抑制native redraw后滑块位置/长度缓存未同步；新增独立几何反例失败，再用私有条形DC的原生打印刷新几何、覆盖完整主题帧后发布。几何版16组相关检查通过，正常版实际顶部/底部拖动检查后用户明确“这次正常，可以保留”。**不再要求重复证明这项已接受的现象。**
++
++最终附带边界：用测试对象偏好注入强制延迟提交，捕获释放探针证实旧顺序会短暂发布旧值；修为ThumbPosition提交→释放捕获→EndScroll。最终两档各42指针/34表面及完整UI共6组通过，已按用户关闭授权合并并重新打开正常版，扫描自建140文件demo。应用/测试构建通过，C55哈希不变；无新录屏、系统设置、个人卷或Release。
++
++实现：src/UI/GridScrollbarSkin.cs、ScrollbarPointerTracking.cs与Wallpaper.cs隐藏释放；tests的Pointer/Surface/TrackingPreview和Program入口。每条缓冲最多262144像素，遵守既有窗口预算；隐藏/失捕获/取消/句柄变化/关闭释放。原生几何打印只入私有DC，失败以原生正确性回退。不改C57/C55、背景构图、字号、1.15倍沿边柔光、扫描或统计。
++
++保留失败：无条件几何查询重入栈溢出、隐藏帧未释放、禁用人工Down、位置几何、强制延迟释放边界及构建锁；修正后原断言通过。早期16组通过不代替被拒绝的实际体验；少量GDI取点不证明DWM连续无闪动。公开精选证据见iterations/2026-11-22-63-scrollbar-tracking，原始输出仅本机压缩归档，无用户视频/路径/清单进入仓库。
++
++## 保留边界与下一步
++
++- C57普通默认/C55失败回退保留。C55 DLL SHA256 D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498；不删除或覆盖。
++- 正常入口bin/Release/net10.0-windows/AsukaLens.exe已打开；本轮自建demo及归属清单在使用时保留，关闭后才按所有权清理。正式资产和原用户视频不动。
++- 无悬停文字/自动说明框，内嵌文件保留视角、主动进入父目录，C61联动44项及用户接受事实保持。Win10新绘制/真实跨屏未验，用户跳过Win10，不重复追问。
++- 等待用户审阅第三阶段范围、预览和默认值后再实施，不从本次故障修复推导阶段三授权。C28同快照统计已Matched；快扫默认关闭，个人raw/VSS需当轮明确许可；PERF-001仍P2延期。
++- 项目现状/计划/决策及Git优先于记忆；不存个人路径、原始画面/日志或NTFS页。无打包、标签或Release。
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index ebf034403ec517443a0a2668c07a8a5efa560d0a..f629f94f09474b4b5c06cba052ef304a6b3fcd66 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,5 +1,7 @@
+ # 影响后续开发的决定
+ 
++- 2026-11-22 C63：用户认可几何修正版滚动体验并允许保留；不重复请求证明。保留原条及Scroll事件，只接管会触发系统灰轨道的指针循环；原生即时重绘抑制必须同时刷新位置/长度缓存。采用私有DC原生打印后覆盖完整主题帧，不把临时系统像素上屏；缓冲失败以正确性回退。延迟模式先提交再释放捕获，避免旧值中间帧。两档42/34及相关UI通过，背景/布局/1.15倍动效不变；第三阶段仍未授权。证据iterations/2026-11-22-63-scrollbar-tracking。
++
+ - 2026-11-22 C62：用户明确接受第二阶段联动，批准收尾后先看第三阶段方案/预览，未授权产品实施、不发布。推荐大文件大小门槛/扩展名筛选和主动显示偏好，保留当前背景/构图/C57/C55与1.15倍柔光；不采纳与用户决定冲突的悬停、说明行、一律厚白底或重排NTFS开关。可定制工作区后置，避免默认布局刚稳定又扩大恢复/DPI复杂度；见docs/ui-stage-three-plan.md。
+ 
+ - 2026-11-22 C61：用户批准C60联动实施、阶段结束仍待真实程序反馈。以当前结果树DiskEntry引用区别同名与硬链接路径；跨查询用pending交接避免清空选择时丢书签；内部图块必须真实命中，单击保留总览，父目录只标归属，主动进入后再选中文件。固定底部给两种大小独立空间，完整事实按需详情，不恢复悬停/自动说明。保持C57/C55与1.15倍动效，未改扫描后端；证据见iterations/2026-11-22-61-selection-linkage。
+diff --git a/AGENTS.md b/AGENTS.md
+index e1769730c3a9b2aa8ead7bbfeaafae3b5c0be1cd..778e3e118bf5bd22e64e9d6869c0227bc25d7297 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -121,6 +121,7 @@
+ - 表面、字体或尺寸修改可运行 `--visual-surface-tests` 及 `--dpi-96`：自有小目录真实扫描后用合成背景检查底板、合成对比和最小窗口排版；程序位图断言不替代实际桌面观察。`--stage-one-preview a|b [--minimum] [--dpi-96] [--expanded]` 为测试 apphost 的真实合成目录预览，隔离配置、显示路径使用公开别名，关闭后核归属清理；A/B 的磁盘活动使用明确标记的纯合成源，收起不采样。`baseline` 需预先保留的旧开发程序集，不支持展开，不以其名称当 Git 冻结证明。交互预览使用保持 stdin 的终端会话，精确 `close` 会先退自有弹窗再关主窗；EOF 不会自动关闭。工具细节见 [C29 记录](iterations/2026-11-13-29-visual-polish/README.md)与[C30 比例修正](iterations/2026-11-13-30-visual-proportions/README.md)。
+ - 图表/列表/详情联动修改运行 `--selection-linkage-tests` 及 `--dpi-96`（专项自行构造C57，不加composition前缀），核对象身份、内部文件/父归属、就近/跨页、查询交接、未知/共享及详情资源；另查受影响UI/滚动/柔光并实际观察。内嵌文件单击保留视角，主动“在列表中查看”才进入父目录；不靠同名或硬链接身份猜测路径，不增加悬停文字或动态说明行。见[联动说明](docs/selection-linkage.md)。
+ - 布局/圆角裁切/原生移动重绘改动另运行 `--layout-transition-tests`、`--layout-presentation-tests`，分别加 `--dpi-96`。前者观测范围行、扫描切换/取消、partial/分页及祖先移动的自然消息顺序，后者验证合并、重入、暂停恢复与句柄生命周期；它们不代表真实屏幕像素无残影。`--layout-transition-preview [--dpi-96]` 使用自建合成目录与真实扫描器，第二次扫描起受控暂停；stdin命令 `scan`、`release`、`cancel`、`scope`、`clear-scope`、`minimum`、`common`、`close` 仅作用于自有窗口，暂停不作为性能证据。关闭后等待任务退出再核归属清理，不在观测前强制刷新以掩盖瞬态，实际动态效果仍需桌面观察与用户反馈。
++- 原生列表滚动条指针、皮肤或几何修改运行`--scrollbar-pointer-tests`、`--scrollbar-surface-tests`两档DPI，独立核对位置/长度更新及延迟松手、取消/失捕获/释放；补受影响UI、列表滚动与联动检查。静态或松手后画面不能代替拖动期间验收；`--scrollbar-tracking-preview`仅采样自有合成条，不把少量GDI样本当连续呈现证明。
+ - DIB根背景缓存修改另运行 `--root-composite-tests` 及 `--dpi-96`，核对完整像素、局部/带孔裁切、尺寸/图片/聚焦失效、预算和关闭后释放。`--resize-pipeline-probe off1|on1|on2|off2 [--dpi-96] [--slow] [--pixels]` 只扫描自建临时目录，输出至ignored artifacts并拒绝覆盖；固定12步、最多256条尺寸事件，阶段耗时可嵌套不可相加。性能与离散GDI取点分开测，均不能代表真实帧率或连续屏幕无闪黑；默认程序不启用该内存探针。方案见 [C53缩放排查](docs/ui-resize-pipeline-plan.md)。
+ - 已按窗口像素准备的背景缓存必须显式按像素源/目标矩形发布，不能用按物理尺寸随DPI缩放的`DrawImageUnscaled`再次放大。修改此链路运行`--background-pixel-mapping-tests`：用独立像素参照覆盖96/120/144/192 DPI，不能只对比两条共享同一错误缩放的绘制路径。保留原焦点、Zoom及用户配置，不以改参数掩盖映射错误。
+ - 原生透明控件/布局后局部补画修改另运行 `--transparent-restore-tests`，分别加 `--dpi-96`、`--custom`（四组）；它在自然最大化/还原后先核真实控件及父空白区像素，再做明确标记的局部/父失效对照，不在取证前强刷。`--native-window-clip-tests` 两档验证普通HWND的简单/带孔裁切。两者需可交互桌面，只用自有窗口/合成背景、拒绝覆盖报告，不代替连续闪黑的人工验收。C54性能复验可在原管线探针增加 `--c54`，隔离输出至本轮目录。见[还原残留方案](docs/ui-restore-background-plan.md)。
+diff --git a/Wallpaper.cs b/Wallpaper.cs
+index 3c0e84f1f73502bc8b14409327bb8b8e84e5b5c0..ec5b38a12dea304601bf52e53e9e82acb5915bbd 100644
+--- a/Wallpaper.cs
++++ b/Wallpaper.cs
+@@ -374,6 +374,7 @@ internal sealed class WallpaperGrid : DataGridView
+     }
+     private GridScrollbarSkin? scrollbarSkin;
+     internal int SkinnedScrollbarCount => scrollbarSkin?.Count ?? 0;
++    internal long ScrollbarBufferedBytes => scrollbarSkin?.BufferedBytes ?? 0;
+     internal bool ScrollbarPaintingPaused
+     {
+         get
+@@ -665,7 +666,7 @@ internal sealed class WallpaperGrid : DataGridView
+     protected override void OnVisibleChanged(EventArgs e)
+     {
+         base.OnVisibleChanged(e);
+-        if (!Visible) { StopLocateFlash(); ReleaseBackdrop(); }
++        if (!Visible) { StopLocateFlash(); scrollbarSkin?.Pause(); ReleaseBackdrop(); }
+         else if (scrollDepth == 0) { RestoreRedraw(); PresentScroll(); }
+     }
+     protected override void Dispose(bool disposing)
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index f73d98ae6ae207fdf3b1204998da7f2d394e8010..0b93e92e6e252a0159fc100400dff422c78fb56f 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,5 +1,13 @@
+ # 后续开发计划
+ 
++## C63 滚动条修复已获用户通过（2026-11-22）
++
++在保留原滚动条、布局、背景和1.15倍沿边柔光的前提下，修复鼠标拖动中的系统灰轨道，以及范围/位置变化后滑块几何未同步造成的回跳。只接管原条指针操作；键盘、滚轮、范围和可访问身份继续沿用原控件，系统全拖动偏好不变。抑制原生直接上屏后，通过私有条形缓冲刷新原生几何，再完整发布主题画面，分配失败保持原生回退。
++
++第一版静态检查通过但用户复审失败；第二段视频帮助补出位置/长度独立反例，修正后用户明确反馈“这次正常，可以保留”。本轮同时补齐延迟提交模式松手前后的位置边界；几何版16组相关检查通过，最终边界修正再跑两档各42项指针、34项表面及完整UI，共6组通过。真实正常版已重新打开，自建演示目录暂留供使用，不要求重复证明刚通过的问题。
++
++保留开发期失败与原始输出的本机证据，离散GDI样本不等于连续帧或跨设备保证。C57默认/C55回退和七项功能未改，Windows10新绘制/真实跨屏仍未验。第三阶段仍只准备方案，未经实施确认；没有打包、标签或Release。见[C63记录](../iterations/2026-11-22-63-scrollbar-tracking/README.md)和[修复方案](ui-scrollbar-tracking-plan.md)。
++
+ ## 第二阶段已获用户通过，第三阶段仅准备方案（2026-11-22）
+ 
+ 用户明确反馈“第二阶段的联动效果可以”，批准本阶段收尾；对应实现 `a358127` 已提交并推送main。图表/列表双向选择、内部文件保留视角后主动进入、就近/跨页定位和详情获实际体验认可。C61两档各44项联动检查及受影响UI证据不变，本轮只复核程序/C55哈希、归档完整性、链接/隐私和清理，不为文档重复构建。
+diff --git a/docs/project-status.md b/docs/project-status.md
+index 1172351cea68fcccddf44ef6c73761747c1a9a11..10c1092368c083425124000b6777c0394add994f 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,13 @@
+ # AsukaLens 项目现状
+ 
++## C63 滚动条修复已获用户通过（2026-11-22）
++
++在保留原滚动条、布局、背景和1.15倍沿边柔光的前提下，修复鼠标拖动中的系统灰轨道，以及范围/位置变化后滑块几何未同步造成的回跳。只接管原条指针操作；键盘、滚轮、范围和可访问身份继续沿用原控件，系统全拖动偏好不变。抑制原生直接上屏后，通过私有条形缓冲刷新原生几何，再完整发布主题画面，分配失败保持原生回退。
++
++第一版静态检查通过但用户复审失败；第二段视频帮助补出位置/长度独立反例，修正后用户明确反馈“这次正常，可以保留”。本轮同时补齐延迟提交模式松手前后的位置边界；几何版16组相关检查通过，最终边界修正再跑两档各42项指针、34项表面及完整UI，共6组通过。真实正常版已重新打开，自建演示目录暂留供使用，不要求重复证明刚通过的问题。
++
++保留开发期失败与原始输出的本机证据，离散GDI样本不等于连续帧或跨设备保证。C57默认/C55回退和七项功能未改，Windows10新绘制/真实跨屏仍未验。第三阶段仍只准备方案，未经实施确认；没有打包、标签或Release。见[C63记录](../iterations/2026-11-22-63-scrollbar-tracking/README.md)和[修复方案](ui-scrollbar-tracking-plan.md)。
++
+ ## 第二阶段已获用户通过，第三阶段仅准备方案（2026-11-22）
+ 
+ 用户明确反馈“第二阶段的联动效果可以”，批准本阶段收尾；对应实现 `a358127` 已提交并推送main。图表/列表双向选择、内部文件保留视角后主动进入、就近/跨页定位和详情获实际体验认可。C61两档各44项联动检查及受影响UI证据不变，本轮只复核程序/C55哈希、归档完整性、链接/隐私和清理，不为文档重复构建。
+diff --git a/docs/testing.md b/docs/testing.md
+index e99c6fcf5eb3c24ee294fe510c7c945e742a51b5..cab3f06fdfdc8522a51c94d48839044c6523f28d 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -1,5 +1,11 @@
+ # 开发验证与可选基准
+ 
++## C63 滚动条指针与几何检查
++
++`--scrollbar-pointer-tests`及`--dpi-96`每档42项：原条捕获、横竖方向、RTL/有效范围/超16位、事件调整、箭头重复、取消/失捕获/释放，以及注入全拖动偏好的延迟松手边界；注入只影响测试对象，不改系统设置。`--scrollbar-surface-tests`两档各34项，独立核对程序改变位置、筛选改变长度、主题轨道、缓冲容量及隐藏/关闭释放。修改此链路还需受影响的C57滚动、列表缓存、联动、布局和完整UI检查。
++
++`--scrollbar-tracking-preview [--dpi-96]`仅打开自有合成列表，后台在其原滚动条捕获期间做有界GDI取点（最多30,000轮、间隔5ms），只输出固定计数。用保持stdin的会话输入`close`正常关闭；它不是录屏，样本不足不能作帧率、发生概率或DWM无闪动证明。实际正常版体验和用户反馈仍单独记录。详见[本轮证据](../iterations/2026-11-22-63-scrollbar-tracking/README.md)。
++
+ ## 第二阶段选择联动
+ 
+ 构建测试项目后运行 `--selection-linkage-tests`，另用独立进程追加 `--dpi-96`；专项自行构造C57主窗，勿在前面添加 `--composition-tests`。只用合成结果树和自有窗口，覆盖同名/硬链接路径身份、内部图块/父归属、就近/跨页定位、查询交接与过期导航、未知/共享/聚合详情、长名称与两种大小保留位置、详情DPI和定时器释放。
+diff --git a/docs/ui-scrollbar-tracking-plan.md b/docs/ui-scrollbar-tracking-plan.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..84d5368345ee109e6769615ae0c546420c07a7cd
+--- /dev/null
++++ b/docs/ui-scrollbar-tracking-plan.md
+@@ -0,0 +1,34 @@
++# 滚动条拖动灰轨道修复方案
++
++2026-11-22，基线5e07a71。用户要求修复结果列表滚动条/灰底闪动，保留现有布局、背景及动效；第三阶段实施仍未授权。
++
++## 已核对的事实
++
++用户提供的视频中，透明轨道在拖动期间变成完整系统灰轨道，松手后恢复。视频解码只留本机ignored artifacts，没有将其目录名称、文件清单或原始画面放入公开证据。
++
++原有静态/反射单步消息专项29项通过，不能覆盖按住滑块时的原生内部跟踪循环。增加只观察自有合成窗口的后台采样后，真实鼠标拖动观察到2个捕获样本，其中1个轨道与原皮肤不同；步进到第70行正常。样本很少，不当作帧率或发生概率。
++
++尝试限制位置/范围消息的原生重绘、恢复后同步补画及有界整条缓冲后，两档静态专项仍通过，但真实拖动同样2个样本中仍有1个轨道变化，尚未解决核心问题。原生指针跟踪会在普通WM_PAINT路径之外画系统样式；仅在消息返回/松手后重画不足以覆盖这个过程。首次候选的几何查询曾触发消息重入，已收窄到实际设置消息，原失败保留，不纳入通过结论。
++
++## 建议的针对性修复
++
++只在原来的两个滚动条上接管鼠标左键拖动、箭头和轨道点击，避免进入会画系统轨道的原生鼠标跟踪循环。保留原控件、范围/页大小/值、键盘、滚轮、UIA身份及DataGridView的现有Scroll事件；不新增覆盖窗口或替换列表，不动C57/C55和主窗绘制结构。
++
++- 坐标使用原生几何，横向RTL反转，范围端点和页大小按有效最大值处理；不能只用16位消息高字传值。
++- 使用已存在的受保护Scroll事件契约转发新位置，遵守处理器调整后的NewValue。保持系统“拖动时显示窗口内容”的既有偏好：关闭时只预览滑块，松手提交；不修改系统设置。
++- 箭头/轨道按住有界自动重复，只有按下期间启用计时器；失去捕获、取消、隐藏、禁用、尺寸/句柄变化或释放时及时停止。
++- 高对比与无法取得有效几何/事件桥时走原生回退。背景、滑块和箭头先在小缓冲合成，再一次发布；按条限制容量并纳入既有窗口总预算，不加全窗定时重绘。
++
++## 验收
++
++增加轨道几何/有效最大值/RTL/端点与大范围、拖动事件与释放/取消、重复点击/失捕获/句柄生命周期、缓冲容量/释放、两档DPI测试。用同一自有合成列表实际拖动对照，核轨道像素及列表值/滚动变化；保持被选对象和背景缓存，检查普通/C57相关UI、滚动、联动和无悬停。
++
++检查通过后打开正常功能版，供用户体验实际搜索结果和滚动条；不以离散像素样本代替用户观感，不发布安装包。若需要扩大到新增HWND、改变滚动语义或重做列表，先另给方案。
++
++## 实施及验收结果
++
++已按用户批准的范围完成。第一版指针接管明显减少灰轨道，但真实复审仍发现滑块回跳；独立程序位置→原生几何反例失败，证实只禁止原生即时绘制会留下旧滑块缓存。现将原控件WM_PRINTCLIENT送入有界私有条形缓冲刷新几何，随后以完整主题画面覆盖缓冲并发布，不把系统临时像素显示到条窗口；缓冲不可用则恢复原生正确性回退。
++
++另用不修改系统的偏好注入暴露“延迟模式先失捕获再提交”边界，改为提交ThumbPosition后释放捕获，最后EndScroll。原生范围、受处理器调整的NewValue、原条身份和背景采样关系保持。
++
++几何修正版16组相关检查通过，用户明确接受真实操作结果；最终松手边界修正两档各42项指针、34项表面及完整UI通过，正常功能版已重新打开。完整证据与失败保留见[C63](../iterations/2026-11-22-63-scrollbar-tracking/README.md)。未扩大到新HWND、重做列表或第三阶段，没有录屏、系统改动或正式发布。
+diff --git a/src/UI/GridScrollbarSkin.cs b/src/UI/GridScrollbarSkin.cs
+index 28c69c99f9273c9b7993d4c12d976c0b5a8c1788..87c9ca67ad8cc39b8b2edffbb68322a67821c87b 100644
+--- a/src/UI/GridScrollbarSkin.cs
++++ b/src/UI/GridScrollbarSkin.cs
+@@ -3,8 +3,8 @@ using System.Runtime.InteropServices;
+ 
+ namespace DiskAtlas;
+ 
+-// A skin for the existing native scrollbar controls, not a second scrolling
+-// implementation. Their ranges, capture, keys and accessibility stay native.
++// Keep the original scrollbar, range and event contract. Only pointer tracking
++// avoids the native modal loop that paints a system rail outside WM_PAINT.
+ internal sealed class GridScrollbarSkin : IDisposable
+ {
+     private readonly WallpaperGrid owner;
+@@ -18,6 +18,7 @@ internal sealed class GridScrollbarSkin : IDisposable
+         owner.ControlAdded += Added;
+         owner.ControlRemoved += Removed;
+         owner.Invalidated += OwnerInvalidated;
++        owner.PresentationResumed += Resumed;
+         foreach (var bar in owner.Controls.OfType<ScrollBar>()) Attach(bar);
+     }
+     private void Added(object? sender, ControlEventArgs e) { if (e.Control is ScrollBar bar) Attach(bar); }
+@@ -31,13 +32,24 @@ internal sealed class GridScrollbarSkin : IDisposable
+     }
+     private void OwnerInvalidated(object? sender, InvalidateEventArgs e)
+     {
+-        foreach (var bar in bars.Keys) if (!bar.IsDisposed && bar.Visible) bar.Invalidate();
++        foreach (var bar in bars.Keys)
++            if (!bar.IsDisposed && bar.Visible && bar.Bounds.IntersectsWith(e.InvalidRect)) bar.Invalidate();
++    }
++    private void Resumed(object? sender, EventArgs e)
++    {
++        foreach (var skin in bars.Values) skin.PaintCurrent();
++    }
++    internal long BufferedBytes => bars.Values.Sum(bar => bar.BufferedBytes);
++    internal void Pause()
++    {
++        foreach (var skin in bars.Values) skin.Pause();
+     }
+     public void Dispose()
+     {
+         if (disposed) return;
+         disposed = true;
+         owner.ControlAdded -= Added; owner.ControlRemoved -= Removed; owner.Invalidated -= OwnerInvalidated;
++        owner.PresentationResumed -= Resumed;
+         foreach (var skin in bars.Values) skin.Dispose();
+         bars.Clear();
+     }
+@@ -64,10 +76,11 @@ internal sealed class GridScrollbarSkin : IDisposable
+         return true;
+     }
+ 
+-    internal static bool PaintBar(WallpaperGrid owner, ScrollBar bar, Graphics graphics, bool highContrast)
++    internal static bool PaintBar(WallpaperGrid owner, ScrollBar bar, Graphics graphics, bool highContrast, Geometry? pointerGeometry = null)
+     {
+         if (highContrast || owner.IsDisposed || bar.IsDisposed || bar.Parent != owner ||
+             !TryGetGeometry(bar, out var geometry)) return false;
++        geometry = pointerGeometry ?? geometry;
+         var saved = graphics.Save();
+         try
+         {
+@@ -115,16 +128,27 @@ internal sealed class GridScrollbarSkin : IDisposable
+         private readonly WallpaperGrid owner;
+         private readonly ScrollBar bar;
+         private bool painting, disposed;
++        private readonly ScrollbarPointerTracking pointer;
++        private PixelSurface? frame;
++        private const long MaxFramePixels = 262_144;
++        internal long BufferedBytes => frame == null ? 0 : (long)frame.Bitmap.Width * frame.Bitmap.Height * 4;
+         internal BarWindow(WallpaperGrid owner, ScrollBar bar)
+         {
+             this.owner = owner; this.bar = bar;
++            pointer = new(owner, bar, PaintCurrent);
+             bar.HandleCreated += Created; bar.HandleDestroyed += Destroyed;
+-            bar.LocationChanged += Changed; bar.SizeChanged += Changed; bar.EnabledChanged += Changed;
++            bar.LocationChanged += Changed; bar.SizeChanged += Changed; bar.EnabledChanged += Changed; bar.VisibleChanged += Changed;
+             if (bar.IsHandleCreated) AssignHandle(bar.Handle);
+         }
+         private void Created(object? sender, EventArgs e) { if (!disposed && Handle == IntPtr.Zero) AssignHandle(bar.Handle); }
+-        private void Destroyed(object? sender, EventArgs e) { if (Handle != IntPtr.Zero) ReleaseHandle(); }
+-        private void Changed(object? sender, EventArgs e) { if (!disposed && !bar.IsDisposed) bar.Invalidate(); }
++        private void Destroyed(object? sender, EventArgs e) { pointer.Cancel(false); ReleaseFrame(); if (Handle != IntPtr.Zero) ReleaseHandle(); }
++        private void Changed(object? sender, EventArgs e)
++        {
++            if (disposed || bar.IsDisposed) return;
++            if (!bar.Visible || !bar.Enabled || frame?.Bitmap.Size != bar.ClientSize) pointer.Cancel(false);
++            if (!bar.Visible || frame?.Bitmap.Size != bar.ClientSize || frame?.Bitmap.HorizontalResolution != bar.DeviceDpi) ReleaseFrame();
++            bar.Invalidate();
++        }
+         protected override void WndProc(ref Message message)
+         {
+             if (disposed || painting || owner.IsDisposed)
+@@ -134,6 +158,7 @@ internal sealed class GridScrollbarSkin : IDisposable
+             if (message.Msg is 0x0317 or 0x0318 && message.WParam != IntPtr.Zero && owner.ScrollbarPaintingPaused)
+             { message.Result = IntPtr.Zero; return; }
+             if (SystemInformation.HighContrast) { base.WndProc(ref message); return; }
++            if (pointer.Handle(ref message)) return;
+             if (message.Msg == 0x0014) { message.Result = new IntPtr(1); return; } // WM_ERASEBKGND
+             if (message.Msg == 0x000F)
+             {
+@@ -162,31 +187,101 @@ internal sealed class GridScrollbarSkin : IDisposable
+                 if (Draw(graphics)) { message.Result = IntPtr.Zero; return; }
+             }
+             int msg = message.Msg;
++            var original = message;
++            bool suppressed = false;
++            // SetScrollInfo/SetScrollPos may paint the system rail immediately,
++            // bypassing WM_PAINT. Keep their state/range updates, but let this
++            // skin own publication. Parent scrolling may defer it until resume.
++            if (msg is 0x00E9 or 0x00E0 or 0x00E6 && TryGetGeometry(bar, out _))
++            {
++                if (msg == 0x00E9) { suppressed = message.WParam != IntPtr.Zero; message.WParam = IntPtr.Zero; }
++                else if (msg == 0x00E0) { suppressed = message.LParam != IntPtr.Zero; message.LParam = IntPtr.Zero; }
++                else if (msg == 0x00E6) { suppressed = true; message.Msg = 0x00E2; }
++            }
+             base.WndProc(ref message);
++            message.Msg = msg;
++            if (msg is 0x00E0 or 0x00E2 or 0x00E6 or 0x00E9)
++            {
++                // Native thumb rectangles can remain cached when redraw=false.
++                // Ask the native control to refresh them into OUR offscreen DC,
++                // then cover that temporary native image with the themed frame.
++                // No native pixels are published to the child window here.
++                if (!RefreshGeometry() && suppressed)
++                {
++                    // Geometry correctness wins if the bounded frame cannot be
++                    // allocated: preserve the original native fallback contract.
++                    base.WndProc(ref original); message.Result = original.Result;
++                }
++            }
+             // Native range/tracking messages can draw directly without posting
+             // WM_PAINT. Reapply only this tiny child surface, not the grid.
+-            if (msg is 0x00E0 or 0x00E2 or 0x00E4 or 0x00E6 or 0x00E9 or 0x0200 or 0x0201 or 0x0202 or 0x02A3 or 0x0113 or 0x0007 or 0x0008)
++            if (msg is 0x00E0 or 0x00E2 or 0x00E4 or 0x00E6 or 0x00E9 or 0x0200 or 0x0201 or 0x0202 or 0x02A3 or 0x0113 or 0x0007 or 0x0008 or 0x2114 or 0x2115 or 0x0215)
+                 PaintCurrent();
+         }
+         private bool Draw(Graphics graphics)
+         {
+             if (painting) return false;
+             painting = true;
+-            try { return PaintBar(owner, bar, graphics, SystemInformation.HighContrast); }
++            try
++            {
++                EnsureFrame();
++                Geometry? pointerGeometry = TryGetGeometry(bar, out var native) ? pointer.Geometry(native) : null;
++                if (frame == null) return PaintBar(owner, bar, graphics, SystemInformation.HighContrast, pointerGeometry);
++                using (var buffer = Graphics.FromImage(frame.Bitmap))
++                {
++                    if (!PaintBar(owner, bar, buffer, SystemInformation.HighContrast, pointerGeometry)) return false;
++                }
++                // Publish the fixed backdrop and thumb together. Never expose
++                // the erased rail between background and foreground drawing.
++                frame.Paint(graphics, new Rectangle(Point.Empty, frame.Bitmap.Size), Point.Empty, bar);
++                return true;
++            }
++            catch (Exception error) when (error is OutOfMemoryException or ExternalException)
++            { ReleaseFrame(); return false; }
++            finally { painting = false; }
++        }
++        private bool EnsureFrame()
++        {
++            if (frame?.Bitmap.Size != bar.ClientSize || frame?.Bitmap.HorizontalResolution != bar.DeviceDpi) ReleaseFrame();
++            if (frame == null && (long)bar.Width * bar.Height <= MaxFramePixels)
++                frame = PixelSurface.Create(bar.ClientSize, bar.DeviceDpi, (owner.FindForm() as MainForm)?.Rendering);
++            return frame != null;
++        }
++        private bool RefreshGeometry()
++        {
++            if (painting || disposed || bar.IsDisposed || !bar.IsHandleCreated || !EnsureFrame()) return false;
++            painting = true;
++            try
++            {
++                using var graphics = Graphics.FromImage(frame!.Bitmap);
++                IntPtr dc = graphics.GetHdc();
++                try
++                {
++                    var print = Message.Create(Handle, 0x0318, dc, new IntPtr(0x0004));
++                    base.WndProc(ref print);
++                }
++                finally { graphics.ReleaseHdc(dc); }
++                return true;
++            }
++            catch (Exception error) when (error is OutOfMemoryException or ExternalException) { return false; }
+             finally { painting = false; }
+         }
+-        private void PaintCurrent()
++        internal void PaintCurrent()
+         {
+-            if (disposed || painting || bar.IsDisposed || !bar.IsHandleCreated || !bar.Visible || owner.ScrollbarPaintingPaused) return;
++            if (disposed || painting || pointer.Notifying || bar.IsDisposed || !bar.IsHandleCreated || !bar.Visible || owner.ScrollbarPaintingPaused) return;
+             using var graphics = Graphics.FromHwnd(bar.Handle);
+             Draw(graphics);
+         }
++        private void ReleaseFrame() { frame?.Dispose(); frame = null; }
++        internal void Pause() { pointer.Cancel(false); ReleaseFrame(); }
+         public void Dispose()
+         {
+             if (disposed) return;
+             disposed = true;
++            pointer.Dispose();
+             bar.HandleCreated -= Created; bar.HandleDestroyed -= Destroyed;
+-            bar.LocationChanged -= Changed; bar.SizeChanged -= Changed; bar.EnabledChanged -= Changed;
++            bar.LocationChanged -= Changed; bar.SizeChanged -= Changed; bar.EnabledChanged -= Changed; bar.VisibleChanged -= Changed;
++            ReleaseFrame();
+             if (Handle != IntPtr.Zero) ReleaseHandle();
+         }
+     }
+diff --git a/src/UI/ScrollbarPointerTracking.cs b/src/UI/ScrollbarPointerTracking.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..be542f42b40fa370a61de5e14f360c30a099be5f
+--- /dev/null
++++ b/src/UI/ScrollbarPointerTracking.cs
+@@ -0,0 +1,182 @@
++using System.Reflection;
++
++namespace DiskAtlas;
++
++// Only pointer tracking is owned here. The same ScrollBar and its Scroll event
++// continue to own ranges, keyboard/wheel input, accessibility and grid updates.
++internal sealed class ScrollbarPointerTracking : IDisposable
++{
++    internal enum Part { None, Thumb, SmallDecrement, SmallIncrement, LargeDecrement, LargeIncrement }
++    private readonly WallpaperGrid owner;
++    private readonly ScrollBar bar;
++    private readonly Action repaint;
++    private readonly Func<bool> fullDrag;
++    private readonly System.Windows.Forms.Timer repeat = new() { Interval = 400 };
++    private static readonly Action<ScrollBar, ScrollEventArgs>? raise = CreateRaise();
++    private Part part;
++    private int offset, pointer, preview;
++    private bool active, live, disposed;
++    internal bool Notifying { get; private set; }
++    internal bool Active => active;
++    internal bool RepeatRunning => repeat.Enabled;
++
++    internal ScrollbarPointerTracking(WallpaperGrid owner, ScrollBar bar, Action repaint, Func<bool>? fullDrag = null)
++    {
++        this.owner = owner; this.bar = bar; this.repaint = repaint;
++        this.fullDrag = fullDrag ?? (() => SystemInformation.DragFullWindows);
++        repeat.Tick += (_, _) =>
++        {
++            repeat.Interval = 60;
++            if (!Available || !active || !bar.Capture) { Cancel(false); return; }
++            Step(); repaint();
++        };
++    }
++    private static Action<ScrollBar, ScrollEventArgs>? CreateRaise()
++    {
++        try { return typeof(ScrollBar).GetMethod("OnScroll", BindingFlags.Instance | BindingFlags.NonPublic,
++            null, [typeof(ScrollEventArgs)], null)?.CreateDelegate<Action<ScrollBar, ScrollEventArgs>>(); }
++        catch (Exception e) when (e is ArgumentException or MemberAccessException) { return null; }
++    }
++    private bool Vertical => bar is VScrollBar;
++    private bool Reverse => !Vertical && bar.RightToLeft == RightToLeft.Yes;
++    private bool Available => !disposed && !owner.IsDisposed && !bar.IsDisposed && bar.Visible && bar.Enabled && owner.Visible;
++    internal static int Maximum(int minimum, int maximum, int page) =>
++        (int)Math.Max(minimum, (long)maximum - Math.Max(0L, (long)page - 1));
++    internal static int Position(int coordinate, int grabOffset, int start, int travel, int minimum, int maximum, bool reverse)
++    {
++        if (travel <= 0 || maximum <= minimum) return minimum;
++        double fraction = Math.Clamp(((double)coordinate - grabOffset - start) / travel, 0, 1);
++        if (reverse) fraction = 1 - fraction;
++        return (int)Math.Clamp(minimum + Math.Round(((long)maximum - minimum) * fraction, MidpointRounding.AwayFromZero), minimum, maximum);
++    }
++    internal static int ThumbStart(int value, int start, int travel, int minimum, int maximum, bool reverse)
++    {
++        if (maximum <= minimum || travel <= 0) return start;
++        double fraction = Math.Clamp(((double)value - minimum) / ((long)maximum - minimum), 0, 1);
++        return start + (int)Math.Round(travel * (reverse ? 1 - fraction : fraction), MidpointRounding.AwayFromZero);
++    }
++    private int AxisStart(Rectangle rect) => Vertical ? rect.Top : rect.Left;
++    private int AxisLength(Rectangle rect) => Vertical ? rect.Height : rect.Width;
++    internal GridScrollbarSkin.Geometry Geometry(GridScrollbarSkin.Geometry native)
++    {
++        if (!active || part != Part.Thumb) return native;
++        int start = AxisStart(native.StartArrow) + AxisLength(native.StartArrow);
++        int travel = Math.Max(0, AxisStart(native.EndArrow) - start - AxisLength(native.Thumb));
++        int at = ThumbStart(preview, start, travel, bar.Minimum, Maximum(bar.Minimum, bar.Maximum, bar.LargeChange), Reverse);
++        var thumb = native.Thumb;
++        if (Vertical) thumb.Y = at; else thumb.X = at;
++        return native with { Thumb = thumb };
++    }
++    internal bool Handle(ref Message message)
++    {
++        if (disposed || raise == null) return false;
++        int msg = message.Msg;
++        if (msg == 0x001F || msg == 0x0215 || msg == 0x0100 && message.WParam.ToInt64() == 27)
++        {
++            if (!active) return false;
++            Cancel(true); message.Result = IntPtr.Zero; return true;
++        }
++        if (msg is not (0x0200 or 0x0201 or 0x0202 or 0x0203)) return false;
++        if (!Available)
++        {
++            if (active) Cancel(false);
++            // Posted/synthetic clicks must not enter native tracking on a
++            // disabled or hidden child either; normal hit testing skips it.
++            return msg is 0x0201 or 0x0203;
++        }
++        int x = (short)(message.LParam.ToInt64() & 0xffff), y = (short)((message.LParam.ToInt64() >> 16) & 0xffff);
++        pointer = Vertical ? y : x;
++        try
++        {
++            if (msg is 0x0201 or 0x0203)
++            {
++                if (!GridScrollbarSkin.TryGetGeometry(bar, out var native)) return false;
++                var point = new Point(x, y);
++                part = Hit(native, point);
++                if (part == Part.None) return true;
++                active = true; live = fullDrag(); preview = bar.Value;
++                offset = pointer - AxisStart(native.Thumb);
++                bar.Capture = true;
++                if (!bar.Capture) { Cancel(false); return false; }
++                if (part != Part.Thumb) { Step(); if (active) { repeat.Interval = 400; repeat.Start(); } }
++            }
++            else if (!active) return false;
++            else if (msg == 0x0200 && part == Part.Thumb)
++            {
++                if (!GridScrollbarSkin.TryGetGeometry(bar, out var native)) { Cancel(true); return true; }
++                int start = AxisStart(native.StartArrow) + AxisLength(native.StartArrow);
++                int travel = AxisStart(native.EndArrow) - start - AxisLength(native.Thumb);
++                int target = travel <= 0 ? bar.Value : Position(pointer, offset, start, travel, bar.Minimum,
++                    Maximum(bar.Minimum, bar.Maximum, bar.LargeChange), Reverse);
++                if (target != preview) { preview = target; if (live) Emit(ScrollEventType.ThumbTrack, target); }
++            }
++            else if (msg == 0x0202)
++            {
++                bool commit = part == Part.Thumb;
++                int target = preview;
++                // Commit while the preview still owns the thumb. Otherwise
++                // WM_CAPTURECHANGED can publish its old native position before
++                // the deferred ThumbPosition update has reached the grid.
++                if (commit && Available) Emit(ScrollEventType.ThumbPosition, target);
++                ReleaseCapture();
++                if (Available) Emit(ScrollEventType.EndScroll, bar.Value);
++            }
++            repaint(); message.Result = IntPtr.Zero; return true;
++        }
++        catch { Cancel(false); throw; }
++    }
++    private Part Hit(GridScrollbarSkin.Geometry shape, Point point)
++    {
++        if (shape.StartArrow.Contains(point)) return (shape.StartState & 1) == 0 ? Part.SmallDecrement : Part.None;
++        if (shape.EndArrow.Contains(point)) return (shape.EndState & 1) == 0 ? Part.SmallIncrement : Part.None;
++        if (shape.Thumb.Contains(point)) return (shape.ThumbState & 0x8001) == 0 ? Part.Thumb : Part.None;
++        if (!bar.ClientRectangle.Contains(point)) return Part.None;
++        return (Vertical ? point.Y : point.X) < AxisStart(shape.Thumb) ? Part.LargeDecrement : Part.LargeIncrement;
++    }
++    private void Step()
++    {
++        if (!GridScrollbarSkin.TryGetGeometry(bar, out var shape)) { Cancel(true); return; }
++        var point = Vertical ? new Point(bar.Width / 2, pointer) : new Point(pointer, bar.Height / 2);
++        if (Hit(shape, point) != part) return;
++        bool decrease = part is Part.SmallDecrement or Part.LargeDecrement;
++        bool large = part is Part.LargeDecrement or Part.LargeIncrement;
++        if (Reverse) decrease = !decrease;
++        long change = large ? bar.LargeChange : bar.SmallChange;
++        int value = (int)Math.Clamp(bar.Value + (decrease ? -change : change), bar.Minimum, Maximum(bar.Minimum, bar.Maximum, bar.LargeChange));
++        var type = (large, decrease) switch
++        { (true, true) => ScrollEventType.LargeDecrement, (true, false) => ScrollEventType.LargeIncrement,
++          (false, true) => ScrollEventType.SmallDecrement, _ => ScrollEventType.SmallIncrement };
++        Emit(type, value);
++    }
++    private void Emit(ScrollEventType type, int value)
++    {
++        if (!Available || raise == null) return;
++        Notifying = true;
++        try
++        {
++            var args = new ScrollEventArgs(type, bar.Value, value, Vertical ? ScrollOrientation.VerticalScroll : ScrollOrientation.HorizontalScroll);
++            raise(bar, args);
++            if (!Available) return;
++            bar.Value = Math.Clamp(args.NewValue, bar.Minimum, Maximum(bar.Minimum, bar.Maximum, bar.LargeChange));
++            preview = bar.Value;
++        }
++        finally { Notifying = false; }
++    }
++    private void ReleaseCapture()
++    {
++        repeat.Stop(); active = false; part = Part.None;
++        if (!bar.IsDisposed && bar.IsHandleCreated && bar.Capture) bar.Capture = false;
++    }
++    internal void Cancel(bool notify)
++    {
++        bool wasActive = active;
++        ReleaseCapture();
++        if (notify && wasActive && Available) Emit(ScrollEventType.EndScroll, bar.Value);
++        if (wasActive) repaint();
++    }
++    public void Dispose()
++    {
++        if (disposed) return;
++        disposed = true; ReleaseCapture(); repeat.Dispose();
++    }
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 0f8c3758428b62a8714a77adc784ca26b8aa27f8..378b12757293f6079f1bcc227c15bf5780df850d 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -1,6 +1,9 @@
+ using DiskAtlas;
+ using System.Drawing;
+ 
++if(args.Contains("--scrollbar-tracking-preview")) return ScrollbarTrackingPreview.Run(args.Contains("--dpi-96"));
++if(args.Contains("--scrollbar-pointer-tests")) return ScrollbarPointerTests.Run(args.Contains("--dpi-96"));
++
+ if(args.Contains("--selection-linkage-tests")) return SelectionLinkageTests.Run(args.Contains("--dpi-96"));
+ 
+ if(args.Length==1 && args[0]=="--background-pixel-mapping-tests")return BackgroundPixelMappingTests.Run();
+diff --git a/tests/ScrollbarPointerTests.cs b/tests/ScrollbarPointerTests.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..7e61ac4b08cb6f73f3de3846d8690741902f3048
+--- /dev/null
++++ b/tests/ScrollbarPointerTests.cs
+@@ -0,0 +1,138 @@
++using DiskAtlas;
++using System.Diagnostics;
++using System.Runtime.InteropServices;
++using System.Reflection;
++
++internal static class ScrollbarPointerTests
++{
++    [DllImport("user32.dll", EntryPoint = "SendMessageW")] private static extern IntPtr SendMessage(IntPtr hwnd, uint msg, IntPtr w, IntPtr l);
++    [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr hwnd);
++    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hwnd, IntPtr dc);
++    [DllImport("gdi32.dll")] private static extern uint GetPixel(IntPtr dc, int x, int y);
++    internal static int Run(bool dpi96)
++    {
++        int checks = 0; string? failure = null;
++        var thread = new Thread(() =>
++        {
++            try
++            {
++                Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
++                Application.EnableVisualStyles(); Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
++                Check(ScrollbarPointerTracking.Maximum(0, 100, 10) == 91 && ScrollbarPointerTracking.Maximum(5, 10, 100) == 5, "EffectiveRangeUsesPageAndMinimum");
++                Check(ScrollbarPointerTracking.Maximum(0,int.MaxValue,0)==int.MaxValue, "ZeroPageKeepsMaximumWithoutOverflow");
++                Check(ScrollbarPointerTracking.Position(10,0,10,100,0,1000,false)==0 && ScrollbarPointerTracking.Position(110,0,10,100,0,1000,false)==1000, "PointerRangeEndpoints");
++                Check(ScrollbarPointerTracking.Position(10,0,10,100,0,1000,true)==1000 && ScrollbarPointerTracking.Position(110,0,10,100,0,1000,true)==0, "RtlEndpointsReverse");
++                Check(ScrollbarPointerTracking.Position(-100,0,10,100,0,1000,false)==0 && ScrollbarPointerTracking.Position(10000,0,10,100,0,1000,false)==1000, "OutsidePointerClamps");
++                Check(ScrollbarPointerTracking.Position(60,0,10,100,0,int.MaxValue,false)>65535, "PositionRetainsFullNativeRange");
++                Check(ScrollbarPointerTracking.ThumbStart(500,10,100,0,1000,false)==60 && ScrollbarPointerTracking.ThumbStart(0,10,100,0,1000,true)==110, "PreviewThumbMatchesRangeAndRtl");
++                Check(ScrollbarPointerTracking.Position(100,0,10,0,5,5,false)==5, "ZeroTravelHasFinitePosition");
++                using var image = new Bitmap(80,64);
++                using(var g=Graphics.FromImage(image))g.Clear(Color.FromArgb(247,199,169));
++                using var form = new Form {ClientSize=new(700,460),BackgroundImage=image,ShowInTaskbar=false};
++                using var grid = new WallpaperGrid { Dock=DockStyle.Fill,AllowUserToAddRows=false,RowHeadersVisible=false,VirtualMode=true,ReadOnly=true,RowTemplate={Height=32} };
++                grid.Columns.Add("name","Name");grid.Columns.Add("size","Size");
++                foreach(DataGridViewColumn c in grid.Columns)c.Width=560;
++                grid.CellValueNeeded+=(_,e)=>e.Value="Synthetic "+e.RowIndex;grid.RowCount=100;form.Controls.Add(grid);form.Show();Pump(40);
++                var verticalNative = grid.Controls.OfType<VScrollBar>().Single(b=>b.Visible);
++                Check(GridScrollbarSkin.TryGetGeometry(verticalNative,out var originalRange),"FilterRangeGeometryAvailable");
++                grid.RowCount=50;Pump(20);
++                Check(GridScrollbarSkin.TryGetGeometry(verticalNative,out var filteredRange)&&filteredRange.Thumb.Height>originalRange.Thumb.Height,
++                    "FilteredRowCountRefreshesNativeThumbLength");
++                grid.RowCount=100;Pump(20);
++                foreach(var bar in grid.Controls.OfType<ScrollBar>().Where(b=>b.Visible).ToArray())
++                {
++                    using var releaseProbe = new ReleaseProbe(bar);
++                    bool vertical=bar is VScrollBar;
++                    bar.Value=bar.Minimum;bar.Invalidate();bar.Update();
++                    Check(GridScrollbarSkin.TryGetGeometry(bar,out var geometry),"PointerGeometryAvailable");
++                    var events=new List<ScrollEventType>();ScrollEventHandler record=(_,e)=>events.Add(e.Type);bar.Scroll+=record;
++                    var center=Center(geometry.Thumb);int oldRow=grid.FirstDisplayedScrollingRowIndex;
++                    uint[] before=Rail(bar,geometry);
++                    Message(bar,0x201,center);
++                    Check(bar.Capture,"PointerCapturesOriginalNativeBar");
++                    Point end=vertical?new(center.X,geometry.EndArrow.Top-3):new(geometry.EndArrow.Left-3,center.Y);
++                    Message(bar,0x200,end);
++                    Check(before.SequenceEqual(Rail(bar,geometry)),"TrackingRailNeverPublishesSystemGrey_"+(vertical?"Vertical":"Horizontal"));
++                    Check(SystemInformation.DragFullWindows || bar.Value==bar.Minimum,"DeferredDragKeepsNativeSystemPreference");
++                    Message(bar,0x202,end);
++                    Check(!bar.Capture&&bar.Value>bar.Minimum,"ReleaseCommitsPositionAndDropsCapture");
++                    Check(releaseProbe.ValueOnRelease==bar.Value,"CaptureReleaseCannotExposeOldThumbValue");
++                    Check(events.Contains(ScrollEventType.ThumbPosition)&&events.Count(t=>t==ScrollEventType.EndScroll)==1,"NativeScrollContractAndSingleEnd");
++                    Check(vertical?grid.FirstDisplayedScrollingRowIndex>oldRow:grid.HorizontalScrollingOffset>0,"GridMovesThroughExistingScrollHandler");
++                    bar.Value=bar.Minimum;events.Clear();GridScrollbarSkin.TryGetGeometry(bar,out geometry);
++                    Message(bar,0x201,Center(geometry.Thumb));Message(bar,0x200,end);
++                    int committed=bar.Value;bar.Capture=false;
++                    Check(!bar.Capture&&bar.Value==committed&&events.Count(t=>t==ScrollEventType.EndScroll)==1,"CaptureLossCancelsDeferredCommit");
++                    GridScrollbarSkin.TryGetGeometry(bar,out geometry);events.Clear();
++                    Message(bar,0x201,Center(geometry.EndArrow));Pump(510);Message(bar,0x202,Center(geometry.EndArrow));
++                    Check(events.Count(t=>t==ScrollEventType.SmallIncrement)>=2,"HeldArrowRepeatsAndReleases");
++                    int count=events.Count;Pump(100);Check(count==events.Count,"RepeatStopsAfterRelease");
++                    Message(bar,0x201,Center(geometry.EndArrow));grid.Hide();
++                    Check(!bar.Capture&&grid.ScrollbarBufferedBytes==0,"HidingCancelsPointerAndReleasesFrames");grid.Show();Pump(20);
++                    bar.Scroll-=record;
++                }
++                using(var large=new VScrollBar{Minimum=0,Maximum=int.MaxValue,LargeChange=10,Width=24,Height=220,Left=20,Top=40})
++                {
++                    grid.Controls.Add(large);large.BringToFront();Pump(20);
++                    large.Scroll+=(_,e)=>e.NewValue=Math.Min(e.NewValue,123456);
++                    Check(GridScrollbarSkin.TryGetGeometry(large,out var geometry),"LargeRangeGeometryAvailable");
++                    var down=Center(geometry.Thumb);var end=new Point(down.X,geometry.EndArrow.Top-2);
++                    Message(large,0x201,down);Message(large,0x200,end);Message(large,0x202,end);
++                    Check(large.Value==123456,"HandlerAdjustedNewValueHonoredBeyond16Bits");
++                    large.Value=0;GridScrollbarSkin.TryGetGeometry(large,out geometry);
++                    Message(large,0x201,Center(geometry.Thumb));Message(large,0x100,Point.Empty,27);
++                    Check(!large.Capture&&large.Value==0,"EscapeCancelsAndReleasesCapture");
++                    large.Enabled=false;Message(large,0x201,Center(geometry.Thumb));Check(!large.Capture,"DisabledBarDoesNotStartTracking");
++                    large.Enabled=true;GridScrollbarSkin.TryGetGeometry(large,out geometry);
++                    large.Value=0;
++                    using(var deferred=new ScrollbarPointerTracking(grid,large,()=>{},()=>false))
++                    using(var release=new ReleaseProbe(large))
++                    {
++                        GridScrollbarSkin.TryGetGeometry(large,out geometry);var start=Center(geometry.Thumb);
++                        var target=new Point(start.X,geometry.EndArrow.Top-2);
++                        var downMessage=System.Windows.Forms.Message.Create(large.Handle,0x201,new IntPtr(1),Pack(start));deferred.Handle(ref downMessage);
++                        var moveMessage=System.Windows.Forms.Message.Create(large.Handle,0x200,new IntPtr(1),Pack(target));deferred.Handle(ref moveMessage);
++                        Check(large.Value==0,"ForcedDeferredDragDoesNotChangeCommittedPosition");
++                        var upMessage=System.Windows.Forms.Message.Create(large.Handle,0x202,IntPtr.Zero,Pack(target));deferred.Handle(ref upMessage);
++                        Check(large.Value>0&&release.ValueOnRelease==large.Value,"DeferredReleaseCannotPublishOldThumbValue");
++                    }
++                    GridScrollbarSkin.TryGetGeometry(large,out geometry);
++                    Message(large,0x201,Center(geometry.EndArrow));large.Dispose();
++                    Check(grid.SkinnedScrollbarCount==2,"DisposingTrackedChildRemovesHooksAndTimer");
++                }
++                grid.Dispose();Check(grid.ScrollbarBufferedBytes==0&&grid.SkinnedScrollbarCount==0,"GridDisposalReleasesAllPointerAndFrameOwners");
++                form.BackgroundImage=null;form.Close();
++            }
++            catch(Failure e){failure=e.Code;}
++            catch(Exception e){failure="UnexpectedPointer_"+e.GetType().Name;}
++        }){IsBackground=true};thread.SetApartmentState(ApartmentState.STA);thread.Start();
++        if(!thread.Join(TimeSpan.FromSeconds(30)))failure="PointerDeadline";
++        if(failure!=null){Console.Error.WriteLine($"FAIL scrollbar pointer code={failure}; completed_checks={checks}");return 1;}
++        Console.WriteLine($"PASS scrollbar pointer checks={checks}; synthetic_only=True; dpi96={dpi96}");return 0;
++        void Check(bool value,string code){checks++;if(!value)throw new Failure(code);}
++    }
++    private static Point Center(Rectangle r)=>new(r.Left+r.Width/2,r.Top+r.Height/2);
++    private static IntPtr Pack(Point point)=>new((point.X&0xffff)|((point.Y&0xffff)<<16));
++    private static void Message(ScrollBar bar,uint msg,Point point,int w=1)=>SendMessage(bar.Handle,msg,new IntPtr(w),new IntPtr((point.X&0xffff)|((point.Y&0xffff)<<16)));
++    private static void Pump(int ms){var clock=Stopwatch.StartNew();while(clock.ElapsedMilliseconds<ms){Application.DoEvents();Thread.Sleep(5);}}
++    private static uint[] Rail(ScrollBar bar,GridScrollbarSkin.Geometry shape)
++    {
++        bool vertical=bar is VScrollBar;int start=vertical?shape.StartArrow.Bottom:shape.StartArrow.Right,end=vertical?shape.EndArrow.Top:shape.EndArrow.Left;
++        IntPtr dc=GetDC(bar.Handle);
++        try{return Enumerable.Range(start+3,Math.Max(1,end-start-6)).Where(i=>i%5==0).Select(i=>GetPixel(dc,vertical?0:i,vertical?i:0)).ToArray();}
++        finally{if(dc!=IntPtr.Zero)ReleaseDC(bar.Handle,dc);}
++    }
++    private sealed class Failure(string code):Exception{internal string Code=>code;}
++    private sealed class ReleaseProbe : NativeWindow, IDisposable
++    {
++        private readonly ScrollBar bar;
++        internal int? ValueOnRelease { get; private set; }
++        internal ReleaseProbe(ScrollBar bar) { this.bar=bar;AssignHandle(bar.Handle); }
++        protected override void WndProc(ref Message message)
++        {
++            base.WndProc(ref message);
++            if(message.Msg==0x0215)ValueOnRelease=bar.Value;
++        }
++        public void Dispose(){if(Handle!=IntPtr.Zero)ReleaseHandle();}
++    }
++}
+diff --git a/tests/ScrollbarSurfaceTests.cs b/tests/ScrollbarSurfaceTests.cs
+index dfe7d04e2c9decbc0c3d28cef80845dd6ba6ea21..e0591ac5d3ff350eecbd6f900bd4c92746b88ad9 100644
+--- a/tests/ScrollbarSurfaceTests.cs
++++ b/tests/ScrollbarSurfaceTests.cs
+@@ -9,6 +9,9 @@ internal static class ScrollbarSurfaceTests
+     private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
+     [DllImport("user32.dll", EntryPoint = "SendMessageW")]
+     private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
++    [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr window);
++    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr window, IntPtr dc);
++    [DllImport("gdi32.dll")] private static extern uint GetPixel(IntPtr dc, int x, int y);
+ 
+     internal static int Run(bool dpi96 = false)
+     {
+@@ -77,6 +80,19 @@ internal static class ScrollbarSurfaceTests
+                         "PrintClientUsesBackdropSkin");
+                 }
+                 Check(grid.BackdropBuilds == builds, "BothBarsReuseTheGridBackdrop");
++                foreach (var bar in bars)
++                {
++                    bar.Value = bar.Minimum;
++                    Check(GridScrollbarSkin.TryGetGeometry(bar, out var startShape), "PositionStartGeometryAvailable");
++                    int high = ScrollbarPointerTracking.Maximum(bar.Minimum, bar.Maximum, bar.LargeChange);
++                    bar.Value = high;
++                    Check(GridScrollbarSkin.TryGetGeometry(bar, out var endShape) &&
++                        (bar is VScrollBar ? endShape.Thumb.Top > startShape.Thumb.Top : endShape.Thumb.Left > startShape.Thumb.Left),
++                        "PublishedThumbFollowsProgrammaticValue_" + (bar is VScrollBar ? "Vertical" : "Horizontal"));
++                    bar.Value = bar.Minimum;
++                }
++                Check(grid.ScrollbarBufferedBytes > 0 && grid.ScrollbarBufferedBytes <= 2L * 262_144 * 4,
++                    "ScrollbarFramesStayWithinTwoBoundedStripBuffers");
+                 var corner = grid.ScrollbarCornerBounds;
+                 Check(corner.Width > 1 && corner.Height > 1, "BothAxesExposeNativeResizeCorner");
+                 using (var expectedGrid = new Bitmap(grid.Width, grid.Height))
+@@ -100,14 +116,33 @@ internal static class ScrollbarSurfaceTests
+                 int oldOffset = grid.HorizontalScrollingOffset;
+                 grid.PerformBufferedScroll(() => grid.HorizontalScrollingOffset = 40);
+                 Check(grid.HorizontalScrollingOffset > oldOffset && grid.BackdropBuilds == builds, "HorizontalMovementKeepsCacheReuse");
++                // Framework reflected-scroll handling updates its native range
++                // after raising Scroll. Observe the actual child DC immediately
++                // on return, before another WM_PAINT can hide a native grey rail.
++                foreach (var bar in bars)
++                {
++                    bar.Invalidate(); bar.Update();
++                    Check(GridScrollbarSkin.TryGetGeometry(bar, out var shape), "TrackingGeometryAvailable");
++                    int length = bar is VScrollBar ? bar.Height : bar.Width;
++                    int arrow = bar is VScrollBar ? shape.StartArrow.Height : shape.StartArrow.Width;
++                    var points = Enumerable.Range(arrow + 3, Math.Max(1, length - 2 * arrow - 6))
++                        .Where(at => at % 5 == 0).Select(at => bar is VScrollBar ? new Point(0, at) : new Point(at, 0)).ToArray();
++                    uint[] before = ReadRail(bar, points);
++                    int oldValue = bar.Value;
++                    SendMessage(bar.Handle, bar is VScrollBar ? 0x2115u : 0x2114u, new IntPtr(1), IntPtr.Zero);
++                    uint[] after = ReadRail(bar, points);
++                    Check(bar.Value > oldValue, "ReflectedScrollRetainsNativeValueMovement");
++                    Check(before.All(color => color != uint.MaxValue) && before.SequenceEqual(after),
++                        "ReflectedScrollReturnsWithStableRail_" + (bar is VScrollBar ? "Vertical" : "Horizontal"));
++                }
+                 var verticalBar = bars.OfType<VScrollBar>().Single();
+                 typeof(Control).GetMethod("RecreateHandle", Hidden)!.Invoke(verticalBar, null); Application.DoEvents();
+                 Check(verticalBar.IsHandleCreated && grid.SkinnedScrollbarCount == 2, "RecreatedHandleKeepsOneSkinPerNativeBar");
+                 using (var image = new Bitmap(verticalBar.Width, verticalBar.Height))
+                 using (var graphics = Graphics.FromImage(image))
+                     Check(GridScrollbarSkin.PaintBar(grid, verticalBar, graphics, false), "RecreatedHandleHasValidGeometryAndPaint");
+-                grid.Hide(); Check(!grid.Visible, "SkinDoesNotForceHiddenGridVisible"); grid.Show(); Application.DoEvents();
+-                grid.Dispose(); Check(grid.SkinnedScrollbarCount == 0 && grid.BackdropBytes == 0, "DisposalReleasesSkinHooksAndBackdrop");
++                grid.Hide(); Check(!grid.Visible && grid.ScrollbarBufferedBytes == 0, "HiddenGridReleasesStripFramesWithoutShowingIt"); grid.Show(); Application.DoEvents();
++                grid.Dispose(); Check(grid.SkinnedScrollbarCount == 0 && grid.BackdropBytes == 0 && grid.ScrollbarBufferedBytes == 0, "DisposalReleasesSkinHooksAndBackdrop");
+                 form.BackgroundImage = null; form.Close();
+             }
+             catch (CheckFailure error) { failure = error.Code; }
+@@ -129,5 +164,12 @@ internal static class ScrollbarSurfaceTests
+         for (int x = 0; x < image.Width; x += 16) graphics.FillRectangle(brush, x, 0, 5, image.Height);
+         return image;
+     }
++    private static uint[] ReadRail(ScrollBar bar, Point[] points)
++    {
++        IntPtr dc = GetDC(bar.Handle);
++        if (dc == IntPtr.Zero) return points.Select(_ => uint.MaxValue).ToArray();
++        try { return points.Select(point => GetPixel(dc, point.X, point.Y)).ToArray(); }
++        finally { ReleaseDC(bar.Handle, dc); }
++    }
+     private sealed class CheckFailure(string code) : Exception("ScrollbarSurface") { internal string Code { get; } = code; }
+ }
+diff --git a/tests/ScrollbarTrackingPreview.cs b/tests/ScrollbarTrackingPreview.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..8bd7f1e2d0b325e95c7161c15527f676006ac5f2
+--- /dev/null
++++ b/tests/ScrollbarTrackingPreview.cs
+@@ -0,0 +1,91 @@
++using DiskAtlas;
++using System.Runtime.InteropServices;
++
++// Only an owned synthetic window is sampled. This is not a screen recording.
++internal static class ScrollbarTrackingPreview
++{
++    [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr window);
++    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr window, IntPtr dc);
++    [DllImport("gdi32.dll")] private static extern uint GetPixel(IntPtr dc, int x, int y);
++    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
++    [DllImport("user32.dll")] private static extern bool GetGUIThreadInfo(uint thread, ref GuiInfo info);
++    [StructLayout(LayoutKind.Sequential)] private struct GuiInfo
++    {
++        internal uint Size, Flags;
++        internal IntPtr Active, Focus, Capture, MenuOwner, MoveSize, Caret;
++        internal int Left, Top, Right, Bottom;
++    }
++    internal static int Run(bool dpi96)
++    {
++        Application.SetHighDpiMode(dpi96 ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
++        Application.EnableVisualStyles();
++        using var image = new Bitmap(128, 96);
++        using (var g = Graphics.FromImage(image))
++        {
++            g.Clear(Color.FromArgb(247, 208, 171));
++            using var ink = new SolidBrush(Color.FromArgb(154, 183, 171));
++            for (int x = 0; x < image.Width; x += 24) g.FillRectangle(ink, x, 0, 8, image.Height);
++        }
++        using var form = new Form { Text = "AsukaLens · 滚动条拖动核验（合成列表）", ClientSize = new(760, 570),
++            StartPosition = FormStartPosition.CenterScreen, BackgroundImage = image };
++        using var grid = new WallpaperGrid { Dock = DockStyle.Fill, AllowUserToAddRows = false, RowHeadersVisible = false,
++            VirtualMode = true, ReadOnly = true, RowTemplate = { Height = 48 } };
++        grid.Columns.Add("name", "Name"); grid.Columns.Add("size", "Size");
++        grid.Columns[0].Width = 700; grid.Columns[1].Width = 230;
++        grid.CellValueNeeded += (_, e) => e.Value = e.ColumnIndex == 0 ? "Synthetic item " + e.RowIndex : "17 B";
++        grid.RowCount = 100; form.Controls.Add(grid);
++        using var lifetime = new CancellationTokenSource();
++        Task? sampler = null;
++        int samples = 0, captured = 0, changed = 0, moving = 0;
++        int lastRow = 0; grid.Scroll += (_, _) => { Interlocked.Exchange(ref lastRow, grid.FirstDisplayedScrollingRowIndex); Interlocked.Increment(ref moving); };
++        var references = new Dictionary<IntPtr, (Point[] Points, uint[] Pixels)>();
++        form.Shown += (_, _) =>
++        {
++            grid.Invalidate(true); grid.Update();
++            foreach (var bar in grid.Controls.OfType<ScrollBar>().Where(b => b.Visible))
++            { bar.Invalidate(); bar.Update(); var points = Points(bar); references[bar.Handle] = (points, Read(bar.Handle, points)); }
++            uint threadId = GetWindowThreadProcessId(form.Handle, out _);
++            Console.WriteLine("READY owned synthetic scrollbar tracking; no personal data; drag vertical/horizontal thumb; stdin close");
++            sampler = Task.Run(() =>
++            {
++                while (!lifetime.IsCancellationRequested && samples < 30_000)
++                {
++                    Interlocked.Increment(ref samples);
++                    var info = new GuiInfo { Size = (uint)Marshal.SizeOf<GuiInfo>() };
++                    if (GetGUIThreadInfo(threadId, ref info) && references.TryGetValue(info.Capture, out var sample))
++                    {
++                        Interlocked.Increment(ref captured);
++                        uint[] actual = Read(info.Capture, sample.Points);
++                        if (actual.Zip(sample.Pixels).Count(pair => pair.First != pair.Second) > actual.Length / 3)
++                            Interlocked.Increment(ref changed);
++                    }
++                    Thread.Sleep(5);
++                }
++            });
++            _ = Task.Run(() =>
++            {
++                while (Console.ReadLine() is { } command)
++                    if (command == "close") { if (!form.IsDisposed && form.IsHandleCreated) form.BeginInvoke(form.Close); break; }
++            });
++        };
++        form.FormClosing += (_, _) => { lifetime.Cancel(); sampler?.Wait(TimeSpan.FromSeconds(2)); };
++        Application.Run(form); form.BackgroundImage = null;
++        Console.WriteLine($"OBSERVE owned scrollbar captured_samples={captured}; rail_changed_samples={changed}; moving_events={moving}; total_samples={samples}; final_row={lastRow}");
++        return 0;
++    }
++    private static Point[] Points(ScrollBar bar)
++    {
++        if (!GridScrollbarSkin.TryGetGeometry(bar, out var geometry)) return [];
++        bool vertical = bar is VScrollBar;
++        int start = vertical ? geometry.StartArrow.Bottom : geometry.StartArrow.Right;
++        int end = vertical ? geometry.EndArrow.Top : geometry.EndArrow.Left;
++        return Enumerable.Range(start + 3, Math.Max(1, end - start - 6)).Where(at => at % 7 == 0)
++            .Select(at => new Point(vertical ? 0 : at, vertical ? at : 0)).ToArray();
++    }
++    private static uint[] Read(IntPtr window, Point[] points)
++    {
++        IntPtr dc = GetDC(window);
++        try { return points.Select(p => GetPixel(dc,p.X,p.Y)).ToArray(); }
++        finally { if (dc != IntPtr.Zero) ReleaseDC(window,dc); }
++    }
++}

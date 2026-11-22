@@ -374,6 +374,7 @@ internal sealed class WallpaperGrid : DataGridView
     }
     private GridScrollbarSkin? scrollbarSkin;
     internal int SkinnedScrollbarCount => scrollbarSkin?.Count ?? 0;
+    internal long ScrollbarBufferedBytes => scrollbarSkin?.BufferedBytes ?? 0;
     internal bool ScrollbarPaintingPaused
     {
         get
@@ -665,7 +666,7 @@ internal sealed class WallpaperGrid : DataGridView
     protected override void OnVisibleChanged(EventArgs e)
     {
         base.OnVisibleChanged(e);
-        if (!Visible) { StopLocateFlash(); ReleaseBackdrop(); }
+        if (!Visible) { StopLocateFlash(); scrollbarSkin?.Pause(); ReleaseBackdrop(); }
         else if (scrollDepth == 0) { RestoreRedraw(); PresentScroll(); }
     }
     protected override void Dispose(bool disposing)

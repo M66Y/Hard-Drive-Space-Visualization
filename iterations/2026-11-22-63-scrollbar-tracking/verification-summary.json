@@ -1,0 +1,255 @@
+{
+  "baseline": "5e07a71803fe9e0c83334678276797326997c3b1",
+  "date": "2026-11-22",
+  "scope": "owned synthetic UI and user desktop feedback",
+  "geometry_revision": {
+    "groups": [
+      {
+        "name": "pointer",
+        "dpi": "144",
+        "arguments": [
+          "--scrollbar-pointer-tests"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "surface",
+        "dpi": "144",
+        "arguments": [
+          "--scrollbar-surface-tests"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "scroll",
+        "dpi": "144",
+        "arguments": [
+          "--composition-tests",
+          "--wallpaper-scroll-tests"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "cache",
+        "dpi": "144",
+        "arguments": [
+          "--composition-tests",
+          "--wallpaper-grid-cache-tests"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "ui",
+        "dpi": "144",
+        "arguments": [
+          "--composition-tests",
+          "--ui-regression"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "linkage",
+        "dpi": "144",
+        "arguments": [
+          "--selection-linkage-tests"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "layout",
+        "dpi": "144",
+        "arguments": [
+          "--composition-tests",
+          "--layout-presentation-tests"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "default",
+        "dpi": "144",
+        "arguments": [
+          "--desktop-default-tests"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "pointer",
+        "dpi": "96",
+        "arguments": [
+          "--scrollbar-pointer-tests",
+          "--dpi-96"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "surface",
+        "dpi": "96",
+        "arguments": [
+          "--scrollbar-surface-tests",
+          "--dpi-96"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "scroll",
+        "dpi": "96",
+        "arguments": [
+          "--composition-tests",
+          "--wallpaper-scroll-tests",
+          "--dpi-96"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "cache",
+        "dpi": "96",
+        "arguments": [
+          "--composition-tests",
+          "--wallpaper-grid-cache-tests",
+          "--dpi-96"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "ui",
+        "dpi": "96",
+        "arguments": [
+          "--composition-tests",
+          "--ui-regression",
+          "--dpi-96"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "linkage",
+        "dpi": "96",
+        "arguments": [
+          "--selection-linkage-tests",
+          "--dpi-96"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "layout",
+        "dpi": "96",
+        "arguments": [
+          "--composition-tests",
+          "--layout-presentation-tests",
+          "--dpi-96"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "default",
+        "dpi": "96",
+        "arguments": [
+          "--desktop-default-tests",
+          "--dpi-96"
+        ],
+        "exit": 0
+      }
+    ],
+    "pointer_checks_each_dpi": 38,
+    "surface_checks_each_dpi": 34,
+    "user_feedback": "accepted"
+  },
+  "final_release_boundary_revision": {
+    "groups": [
+      {
+        "name": "pointer",
+        "dpi": "144",
+        "exit": 0,
+        "arguments": [
+          "--scrollbar-pointer-tests"
+        ]
+      },
+      {
+        "name": "surface",
+        "dpi": "144",
+        "exit": 0,
+        "arguments": [
+          "--scrollbar-surface-tests"
+        ]
+      },
+      {
+        "name": "ui",
+        "dpi": "144",
+        "exit": 0,
+        "arguments": [
+          "--composition-tests",
+          "--ui-regression"
+        ]
+      },
+      {
+        "name": "pointer",
+        "dpi": "96",
+        "exit": 0,
+        "arguments": [
+          "--scrollbar-pointer-tests",
+          "--dpi-96"
+        ]
+      },
+      {
+        "name": "surface",
+        "dpi": "96",
+        "exit": 0,
+        "arguments": [
+          "--scrollbar-surface-tests",
+          "--dpi-96"
+        ]
+      },
+      {
+        "name": "ui",
+        "dpi": "96",
+        "exit": 0,
+        "arguments": [
+          "--composition-tests",
+          "--ui-regression",
+          "--dpi-96"
+        ]
+      }
+    ],
+    "pointer_checks_each_dpi": 42,
+    "surface_checks_each_dpi": 34,
+    "user_retest_requested": false
+  },
+  "earlier_managed_candidate": {
+    "groups_passed": 16,
+    "user_feedback": "rejected",
+    "not_final_visual_proof": true
+  },
+  "retained_failure_codes": [
+    "NativeGeometryQueryReentry",
+    "HiddenBuffersRetained",
+    "DisabledPointerCapture",
+    "PublishedThumbFollowsProgrammaticValue_Horizontal",
+    "DeferredReleaseCannotPublishOldThumbValue",
+    "RestrictedNuGetConfig",
+    "RunningAppBuildLock"
+  ],
+  "live_observation": {
+    "old": {
+      "captured": 2,
+      "rail_changed": 1
+    },
+    "repaint_only": {
+      "captured": 2,
+      "rail_changed": 1
+    },
+    "managed_pointer": {
+      "captured": 1,
+      "rail_changed": 0
+    },
+    "sparse_gdi_only": true
+  },
+  "unverified": [
+    "Windows10_new_rendering",
+    "real_cross_monitor_dpi",
+    "all_assistive_technologies",
+    "universal_continuous_DWM_presentation"
+  ],
+  "recording": false,
+  "system_settings_changed": false,
+  "personal_volume_operations": false,
+  "release_created": false
+}

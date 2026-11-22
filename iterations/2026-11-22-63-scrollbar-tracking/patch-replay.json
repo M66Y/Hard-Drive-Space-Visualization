@@ -1,0 +1,63 @@
+{
+  "baseline": "5e07a71803fe9e0c83334678276797326997c3b1",
+  "apply_check": true,
+  "canonical_index_bytes_match": true,
+  "files": [
+    {
+      "path": "Wallpaper.cs",
+      "sha256": "6A866EA6A3C5CE67ACEC473F39CB20398E8C9F7BF5DE5530AEBDD5D2FE48C949"
+    },
+    {
+      "path": "src/UI/GridScrollbarSkin.cs",
+      "sha256": "373B8DCD0D416B83849D1AA608061438D9527F8298CD6C943A31E13305D4FFAA"
+    },
+    {
+      "path": "src/UI/ScrollbarPointerTracking.cs",
+      "sha256": "405C7057E9A6C145B3871BCC2B1EDE6BDE191F0F012BF4F7A8E7341953F38B48"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "87ACFE8531058D70B2BDD2E8F6E64082AFC479BDD9F3F4E4624DDC598267FDDB"
+    },
+    {
+      "path": "tests/ScrollbarSurfaceTests.cs",
+      "sha256": "55D4561AFBF62436D3E011EF095E3E6D49BB86482729F1BA8BC59AD88C94A9FF"
+    },
+    {
+      "path": "tests/ScrollbarPointerTests.cs",
+      "sha256": "B652C5FB64C7CDC20E3D907ED97CFB669A2CE23147F6BD3FD108B7E74F15A77F"
+    },
+    {
+      "path": "tests/ScrollbarTrackingPreview.cs",
+      "sha256": "2F22F3852BEFBA49DAECA1E22FB3FCF70E6C87C1E012A985D54307BA7182E27B"
+    },
+    {
+      "path": "docs/ui-scrollbar-tracking-plan.md",
+      "sha256": "434814693388E89EA06CCEF5D2212875A55DA804C3AA5ECCC9E0F400B9D02EB5"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "65F242CA48F9640046A0B2A38BBA109040CE420442241811B6D1747C6B6A5384"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "D81E1C7AFBC40BFD49CBD4641D7F76F645CB2B797D5058D801CE50973C5C53AC"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "61AFBF82769D455402B3D1B248AD512D04D173EB0A4E726F20E33007691E8531"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "F6ADD3D295C46A5817B3CDCAF579B853601B2EE8C0B3C57FAF549C617CABA86E"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "87B0C3319C735190EA6CA2B04DB7DF69E4B3B192BD771B85D0FB34FFBC9DB2D4"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "F1F7C494CBB364ABFC0B4C22F026B4F28E422E67CE95EC9B0A6ABCFC295E1C10"
+    }
+  ]
+}

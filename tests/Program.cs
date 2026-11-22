@@ -1,6 +1,9 @@
 using DiskAtlas;
 using System.Drawing;
 
+if(args.Contains("--scrollbar-tracking-preview")) return ScrollbarTrackingPreview.Run(args.Contains("--dpi-96"));
+if(args.Contains("--scrollbar-pointer-tests")) return ScrollbarPointerTests.Run(args.Contains("--dpi-96"));
+
 if(args.Contains("--selection-linkage-tests")) return SelectionLinkageTests.Run(args.Contains("--dpi-96"));
 
 if(args.Length==1 && args[0]=="--background-pixel-mapping-tests")return BackgroundPixelMappingTests.Run();

@@ -3,8 +3,8 @@ using System.Runtime.InteropServices;
 
 namespace DiskAtlas;
 
-// A skin for the existing native scrollbar controls, not a second scrolling
-// implementation. Their ranges, capture, keys and accessibility stay native.
+// Keep the original scrollbar, range and event contract. Only pointer tracking
+// avoids the native modal loop that paints a system rail outside WM_PAINT.
 internal sealed class GridScrollbarSkin : IDisposable
 {
     private readonly WallpaperGrid owner;
@@ -18,6 +18,7 @@ internal sealed class GridScrollbarSkin : IDisposable
         owner.ControlAdded += Added;
         owner.ControlRemoved += Removed;
         owner.Invalidated += OwnerInvalidated;
+        owner.PresentationResumed += Resumed;
         foreach (var bar in owner.Controls.OfType<ScrollBar>()) Attach(bar);
     }
     private void Added(object? sender, ControlEventArgs e) { if (e.Control is ScrollBar bar) Attach(bar); }
@@ -31,13 +32,24 @@ internal sealed class GridScrollbarSkin : IDisposable
     }
     private void OwnerInvalidated(object? sender, InvalidateEventArgs e)
     {
-        foreach (var bar in bars.Keys) if (!bar.IsDisposed && bar.Visible) bar.Invalidate();
+        foreach (var bar in bars.Keys)
+            if (!bar.IsDisposed && bar.Visible && bar.Bounds.IntersectsWith(e.InvalidRect)) bar.Invalidate();
+    }
+    private void Resumed(object? sender, EventArgs e)
+    {
+        foreach (var skin in bars.Values) skin.PaintCurrent();
+    }
+    internal long BufferedBytes => bars.Values.Sum(bar => bar.BufferedBytes);
+    internal void Pause()
+    {
+        foreach (var skin in bars.Values) skin.Pause();
     }
     public void Dispose()
     {
         if (disposed) return;
         disposed = true;
         owner.ControlAdded -= Added; owner.ControlRemoved -= Removed; owner.Invalidated -= OwnerInvalidated;
+        owner.PresentationResumed -= Resumed;
         foreach (var skin in bars.Values) skin.Dispose();
         bars.Clear();
     }
@@ -64,10 +76,11 @@ internal sealed class GridScrollbarSkin : IDisposable
         return true;
     }
 
-    internal static bool PaintBar(WallpaperGrid owner, ScrollBar bar, Graphics graphics, bool highContrast)
+    internal static bool PaintBar(WallpaperGrid owner, ScrollBar bar, Graphics graphics, bool highContrast, Geometry? pointerGeometry = null)
     {
         if (highContrast || owner.IsDisposed || bar.IsDisposed || bar.Parent != owner ||
             !TryGetGeometry(bar, out var geometry)) return false;
+        geometry = pointerGeometry ?? geometry;
         var saved = graphics.Save();
         try
         {
@@ -115,16 +128,27 @@ internal sealed class GridScrollbarSkin : IDisposable
         private readonly WallpaperGrid owner;
         private readonly ScrollBar bar;
         private bool painting, disposed;
+        private readonly ScrollbarPointerTracking pointer;
+        private PixelSurface? frame;
+        private const long MaxFramePixels = 262_144;
+        internal long BufferedBytes => frame == null ? 0 : (long)frame.Bitmap.Width * frame.Bitmap.Height * 4;
         internal BarWindow(WallpaperGrid owner, ScrollBar bar)
         {
             this.owner = owner; this.bar = bar;
+            pointer = new(owner, bar, PaintCurrent);
             bar.HandleCreated += Created; bar.HandleDestroyed += Destroyed;
-            bar.LocationChanged += Changed; bar.SizeChanged += Changed; bar.EnabledChanged += Changed;
+            bar.LocationChanged += Changed; bar.SizeChanged += Changed; bar.EnabledChanged += Changed; bar.VisibleChanged += Changed;
             if (bar.IsHandleCreated) AssignHandle(bar.Handle);
         }
         private void Created(object? sender, EventArgs e) { if (!disposed && Handle == IntPtr.Zero) AssignHandle(bar.Handle); }
-        private void Destroyed(object? sender, EventArgs e) { if (Handle != IntPtr.Zero) ReleaseHandle(); }
-        private void Changed(object? sender, EventArgs e) { if (!disposed && !bar.IsDisposed) bar.Invalidate(); }
+        private void Destroyed(object? sender, EventArgs e) { pointer.Cancel(false); ReleaseFrame(); if (Handle != IntPtr.Zero) ReleaseHandle(); }
+        private void Changed(object? sender, EventArgs e)
+        {
+            if (disposed || bar.IsDisposed) return;
+            if (!bar.Visible || !bar.Enabled || frame?.Bitmap.Size != bar.ClientSize) pointer.Cancel(false);
+            if (!bar.Visible || frame?.Bitmap.Size != bar.ClientSize || frame?.Bitmap.HorizontalResolution != bar.DeviceDpi) ReleaseFrame();
+            bar.Invalidate();
+        }
         protected override void WndProc(ref Message message)
         {
             if (disposed || painting || owner.IsDisposed)
@@ -134,6 +158,7 @@ internal sealed class GridScrollbarSkin : IDisposable
             if (message.Msg is 0x0317 or 0x0318 && message.WParam != IntPtr.Zero && owner.ScrollbarPaintingPaused)
             { message.Result = IntPtr.Zero; return; }
             if (SystemInformation.HighContrast) { base.WndProc(ref message); return; }
+            if (pointer.Handle(ref message)) return;
             if (message.Msg == 0x0014) { message.Result = new IntPtr(1); return; } // WM_ERASEBKGND
             if (message.Msg == 0x000F)
             {
@@ -162,31 +187,101 @@ internal sealed class GridScrollbarSkin : IDisposable
                 if (Draw(graphics)) { message.Result = IntPtr.Zero; return; }
             }
             int msg = message.Msg;
+            var original = message;
+            bool suppressed = false;
+            // SetScrollInfo/SetScrollPos may paint the system rail immediately,
+            // bypassing WM_PAINT. Keep their state/range updates, but let this
+            // skin own publication. Parent scrolling may defer it until resume.
+            if (msg is 0x00E9 or 0x00E0 or 0x00E6 && TryGetGeometry(bar, out _))
+            {
+                if (msg == 0x00E9) { suppressed = message.WParam != IntPtr.Zero; message.WParam = IntPtr.Zero; }
+                else if (msg == 0x00E0) { suppressed = message.LParam != IntPtr.Zero; message.LParam = IntPtr.Zero; }
+                else if (msg == 0x00E6) { suppressed = true; message.Msg = 0x00E2; }
+            }
             base.WndProc(ref message);
+            message.Msg = msg;
+            if (msg is 0x00E0 or 0x00E2 or 0x00E6 or 0x00E9)
+            {
+                // Native thumb rectangles can remain cached when redraw=false.
+                // Ask the native control to refresh them into OUR offscreen DC,
+                // then cover that temporary native image with the themed frame.
+                // No native pixels are published to the child window here.
+                if (!RefreshGeometry() && suppressed)
+                {
+                    // Geometry correctness wins if the bounded frame cannot be
+                    // allocated: preserve the original native fallback contract.
+                    base.WndProc(ref original); message.Result = original.Result;
+                }
+            }
             // Native range/tracking messages can draw directly without posting
             // WM_PAINT. Reapply only this tiny child surface, not the grid.
-            if (msg is 0x00E0 or 0x00E2 or 0x00E4 or 0x00E6 or 0x00E9 or 0x0200 or 0x0201 or 0x0202 or 0x02A3 or 0x0113 or 0x0007 or 0x0008)
+            if (msg is 0x00E0 or 0x00E2 or 0x00E4 or 0x00E6 or 0x00E9 or 0x0200 or 0x0201 or 0x0202 or 0x02A3 or 0x0113 or 0x0007 or 0x0008 or 0x2114 or 0x2115 or 0x0215)
                 PaintCurrent();
         }
         private bool Draw(Graphics graphics)
         {
             if (painting) return false;
             painting = true;
-            try { return PaintBar(owner, bar, graphics, SystemInformation.HighContrast); }
+            try
+            {
+                EnsureFrame();
+                Geometry? pointerGeometry = TryGetGeometry(bar, out var native) ? pointer.Geometry(native) : null;
+                if (frame == null) return PaintBar(owner, bar, graphics, SystemInformation.HighContrast, pointerGeometry);
+                using (var buffer = Graphics.FromImage(frame.Bitmap))
+                {
+                    if (!PaintBar(owner, bar, buffer, SystemInformation.HighContrast, pointerGeometry)) return false;
+                }
+                // Publish the fixed backdrop and thumb together. Never expose
+                // the erased rail between background and foreground drawing.
+                frame.Paint(graphics, new Rectangle(Point.Empty, frame.Bitmap.Size), Point.Empty, bar);
+                return true;
+            }
+            catch (Exception error) when (error is OutOfMemoryException or ExternalException)
+            { ReleaseFrame(); return false; }
             finally { painting = false; }
         }
-        private void PaintCurrent()
+        private bool EnsureFrame()
         {
-            if (disposed || painting || bar.IsDisposed || !bar.IsHandleCreated || !bar.Visible || owner.ScrollbarPaintingPaused) return;
+            if (frame?.Bitmap.Size != bar.ClientSize || frame?.Bitmap.HorizontalResolution != bar.DeviceDpi) ReleaseFrame();
+            if (frame == null && (long)bar.Width * bar.Height <= MaxFramePixels)
+                frame = PixelSurface.Create(bar.ClientSize, bar.DeviceDpi, (owner.FindForm() as MainForm)?.Rendering);
+            return frame != null;
+        }
+        private bool RefreshGeometry()
+        {
+            if (painting || disposed || bar.IsDisposed || !bar.IsHandleCreated || !EnsureFrame()) return false;
+            painting = true;
+            try
+            {
+                using var graphics = Graphics.FromImage(frame!.Bitmap);
+                IntPtr dc = graphics.GetHdc();
+                try
+                {
+                    var print = Message.Create(Handle, 0x0318, dc, new IntPtr(0x0004));
+                    base.WndProc(ref print);
+                }
+                finally { graphics.ReleaseHdc(dc); }
+                return true;
+            }
+            catch (Exception error) when (error is OutOfMemoryException or ExternalException) { return false; }
+            finally { painting = false; }
+        }
+        internal void PaintCurrent()
+        {
+            if (disposed || painting || pointer.Notifying || bar.IsDisposed || !bar.IsHandleCreated || !bar.Visible || owner.ScrollbarPaintingPaused) return;
             using var graphics = Graphics.FromHwnd(bar.Handle);
             Draw(graphics);
         }
+        private void ReleaseFrame() { frame?.Dispose(); frame = null; }
+        internal void Pause() { pointer.Cancel(false); ReleaseFrame(); }
         public void Dispose()
         {
             if (disposed) return;
             disposed = true;
+            pointer.Dispose();
             bar.HandleCreated -= Created; bar.HandleDestroyed -= Destroyed;
-            bar.LocationChanged -= Changed; bar.SizeChanged -= Changed; bar.EnabledChanged -= Changed;
+            bar.LocationChanged -= Changed; bar.SizeChanged -= Changed; bar.EnabledChanged -= Changed; bar.VisibleChanged -= Changed;
+            ReleaseFrame();
             if (Handle != IntPtr.Zero) ReleaseHandle();
         }
     }
