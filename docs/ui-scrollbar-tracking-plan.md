@@ -36,3 +36,9 @@
 ## 扩展复审更新（C64）
 
 新视频仍有列表底部重复行与背景接缝，原先接受不覆盖本次新发现，整块列表的连续显示尚未通过。代码中直接Scroll事件入口绕过既有缓冲滚动保护，官方DataGridView的ScrollWindow→OnScroll顺序说明事后补画可能来不及；需完整因果对照，不能只增加PaintCurrent/Update调用。建议先以列表背景和轨道同时不动为反例，再统一滚动入口和最终呈现，保留原控件和背景。用户本轮只要求分析，尚未实施此建议，见[C64](../iterations/2026-11-22-64-scrollbar-followup-analysis/README.md)。
+
+## C65 实施更新
+
+用户已批准按C64方向修复。首先以真实列表背景跨列取点补出旧代码反例，两档分别11/14次中间背景搬移；整屏跳转本身不够，必须包含小幅拖动。另查出延迟模式只有ThumbPosition时DataGridView不移动行，原测试只看滑块值漏检。现在指针事件与滚轮/键盘共用PerformBufferedScroll；恢复原生重绘后先完成列表Update，才通知轨道发布；延迟松手只在提交时补交一次ThumbTrack，捕获释放顺序和旧NewValue契约保持。
+
+最终新92项及受影响16组两档通过，正常版已打开供用户按原视频方式复审，尚不宣称连续呈现问题彻底消失。背景/布局/动效不变，不创建覆盖窗口，不录屏或改系统设置。见[C65](../iterations/2026-11-22-65-scroll-frame-consistency/README.md)。

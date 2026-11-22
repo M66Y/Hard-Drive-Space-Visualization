@@ -1,0 +1,24 @@
+{
+  "application_build": "passed_zero_warnings",
+  "tests_build": "passed_zero_warnings",
+  "assets": {
+    "bin/Release/net10.0-windows/DiskAtlas.dll": {
+      "length": 3570688,
+      "sha256": "EDA9411056C2F9B73C102A6ED06FAB6250E60706A9DBE3254360A23D025465AF"
+    },
+    "bin/Release/net10.0-windows/AsukaLens.exe": {
+      "length": 319488,
+      "sha256": "1B6013C9D689ACC7AFA9164D77FA7BE3800AB9E6A5DC26DA65A1C2500DB117BA"
+    },
+    "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll": {
+      "length": 6340096,
+      "sha256": "7BE841B5868541A271817350C7EA45986590924326AD5D0030E87E4C6B204564"
+    },
+    "artifacts/dib-mainform-C55/app/DiskAtlas.dll": {
+      "length": 3529728,
+      "sha256": "D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498"
+    }
+  },
+  "normal_app_reopened": true,
+  "packaged": false
+}

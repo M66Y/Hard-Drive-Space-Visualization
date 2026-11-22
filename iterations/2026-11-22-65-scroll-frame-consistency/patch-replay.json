@@ -1,0 +1,51 @@
+{
+  "baseline": "3282f8b7832b7937f60e25702986952d01510090",
+  "apply_check": true,
+  "canonical_index_bytes_match": true,
+  "files": [
+    {
+      "path": "Wallpaper.cs",
+      "sha256": "9C6175346D703DAEB30720608C1A47663E310111629B8F0231AC3B68443EC202"
+    },
+    {
+      "path": "src/UI/ScrollbarPointerTracking.cs",
+      "sha256": "4343D8E09070D700C5E42B8EE76E6D929FCC9C637FFD2EA386AEFB7974D6FDC8"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "21419003D0F207E0C493CE3BC220CBE7D3A6D897CEE8BEC0BD11161FCBF27DB0"
+    },
+    {
+      "path": "tests/ScrollFrameConsistencyTests.cs",
+      "sha256": "48816C8E349F05ED49A882B42A2DD3736054E0043655154A271E0C6A7FEECAE7"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "BAE3ECA5970581DE8E2DA76B58056FFB59BF3DDAFA5BCA4DE82567D436B5E329"
+    },
+    {
+      "path": "docs/project-status.md",
+      "sha256": "FBF007D86F4F27B6D25D7F0CD2810DEF21CA0DB7F8D7668B224A915D791B30A3"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "sha256": "2B55674051E11F01A8C2A3369828D9AD58FD52A76F8D87241768E4CB0CB01A6E"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "2A4DE4719CB239E4956AABA5855CB28BBD64C63F84EC788C94D4D684CCD854BB"
+    },
+    {
+      "path": "docs/ui-scrollbar-tracking-plan.md",
+      "sha256": "17BB04ED086D499082E1CCF05A957AB702B1D4F51239BCDC811CAC4CF5C9D2E9"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "sha256": "2A695D5490E9BE86A0F8CCEFB0D6F03F6138F3636DADC73111AE4CAE0C12A824"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "sha256": "FEF01A5535733E52ECFF0A735C0C8C1A61F40F7F75E17190B677E9682D60A209"
+    }
+  ]
+}

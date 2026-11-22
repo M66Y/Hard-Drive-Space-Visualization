@@ -399,7 +399,7 @@ internal sealed class WallpaperGrid : DataGridView
     private PixelSurface? backdropPixels;
     private BackdropKey? backdropKey, rejectedBackdropKey;
     private int scrollDepth;
-    private bool scrollChanged;
+    private bool scrollChanged, scrollPresentationPending;
     private IntPtr redrawHeldHandle;
     private bool disposed;
     private readonly record struct BackdropKey(Size Size, Size WindowSize, Point Offset, Image? Image,
@@ -488,15 +488,18 @@ internal sealed class WallpaperGrid : DataGridView
         IntPtr held = redrawHeldHandle; redrawHeldHandle = IntPtr.Zero;
         SendMessage(held, 0x000B, new IntPtr(1), IntPtr.Zero);
         Invalidate(true);
-        PresentationResumed?.Invoke(this, EventArgs.Empty);
+        scrollPresentationPending = true;
     }
 
     private void PresentScroll()
     {
-        if (!scrollChanged || ScrollbarPaintingPaused || !Visible ||
+        if ((!scrollChanged && !scrollPresentationPending) || ScrollbarPaintingPaused || !Visible ||
             FindForm()?.WindowState == FormWindowState.Minimized) return;
-        scrollChanged = false;
+        scrollChanged = scrollPresentationPending = false;
         Update();
+        // Publish the fixed viewport first. Native child tracks must not be
+        // presented while the grid still contains its previous scroll image.
+        if (!disposed && !ScrollbarPaintingPaused) PresentationResumed?.Invoke(this, EventArgs.Empty);
     }
 
     protected override void OnMouseWheel(MouseEventArgs e) => PerformBufferedScroll(() => base.OnMouseWheel(e));

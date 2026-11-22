@@ -1,0 +1,179 @@
+{
+  "baseline": "3282f8b7832b7937f60e25702986952d01510090",
+  "old_counterexample": {
+    "144": [
+      "OBSERVE scroll frames checks=85; scroll_events=46; protected=22; shifted=11; max_changed=522; intermediate_pixels=13920; final_mismatch=0; deferred_not_moved=3; dpi96=False",
+      "FAIL scroll frames code=NoIntermediateWholeBackgroundShift"
+    ],
+    "96": [
+      "OBSERVE scroll frames checks=85; scroll_events=49; protected=22; shifted=14; max_changed=342; intermediate_pixels=10260; final_mismatch=16; deferred_not_moved=3; dpi96=True",
+      "FAIL scroll frames code=NoIntermediateWholeBackgroundShift"
+    ]
+  },
+  "final_background_checks": {
+    "144": [
+      "OBSERVE scroll frames checks=92; scroll_events=51; protected=51; native_holds=51; shifted=0; max_changed=0; intermediate_pixels=0; final_mismatch=0; track_mismatch=0; premature_resume=0; deferred_not_moved=0; dpi96=False",
+      "PASS scroll frames; owned_synthetic=True; continuous_desktop_review_separate=True"
+    ],
+    "96": [
+      "OBSERVE scroll frames checks=92; scroll_events=54; protected=54; native_holds=54; shifted=0; max_changed=0; intermediate_pixels=0; final_mismatch=0; track_mismatch=0; premature_resume=0; deferred_not_moved=0; dpi96=True",
+      "PASS scroll frames; owned_synthetic=True; continuous_desktop_review_separate=True"
+    ]
+  },
+  "final_matrix": [
+    {
+      "exit": 0,
+      "dpi": "144",
+      "arguments": [
+        "--scroll-frame-tests"
+      ],
+      "name": "frames"
+    },
+    {
+      "exit": 0,
+      "dpi": "144",
+      "arguments": [
+        "--scrollbar-pointer-tests"
+      ],
+      "name": "pointer"
+    },
+    {
+      "exit": 0,
+      "dpi": "144",
+      "arguments": [
+        "--scrollbar-surface-tests"
+      ],
+      "name": "surface"
+    },
+    {
+      "exit": 0,
+      "dpi": "144",
+      "arguments": [
+        "--composition-tests",
+        "--wallpaper-scroll-tests"
+      ],
+      "name": "scroll"
+    },
+    {
+      "exit": 0,
+      "dpi": "144",
+      "arguments": [
+        "--composition-tests",
+        "--wallpaper-grid-cache-tests"
+      ],
+      "name": "cache"
+    },
+    {
+      "exit": 0,
+      "dpi": "144",
+      "arguments": [
+        "--composition-tests",
+        "--ui-regression"
+      ],
+      "name": "ui"
+    },
+    {
+      "exit": 0,
+      "dpi": "144",
+      "arguments": [
+        "--selection-linkage-tests"
+      ],
+      "name": "linkage"
+    },
+    {
+      "exit": 0,
+      "dpi": "144",
+      "arguments": [
+        "--composition-tests",
+        "--layout-presentation-tests"
+      ],
+      "name": "layout"
+    },
+    {
+      "exit": 0,
+      "dpi": "96",
+      "arguments": [
+        "--scroll-frame-tests",
+        "--dpi-96"
+      ],
+      "name": "frames"
+    },
+    {
+      "exit": 0,
+      "dpi": "96",
+      "arguments": [
+        "--scrollbar-pointer-tests",
+        "--dpi-96"
+      ],
+      "name": "pointer"
+    },
+    {
+      "exit": 0,
+      "dpi": "96",
+      "arguments": [
+        "--scrollbar-surface-tests",
+        "--dpi-96"
+      ],
+      "name": "surface"
+    },
+    {
+      "exit": 0,
+      "dpi": "96",
+      "arguments": [
+        "--composition-tests",
+        "--wallpaper-scroll-tests",
+        "--dpi-96"
+      ],
+      "name": "scroll"
+    },
+    {
+      "exit": 0,
+      "dpi": "96",
+      "arguments": [
+        "--composition-tests",
+        "--wallpaper-grid-cache-tests",
+        "--dpi-96"
+      ],
+      "name": "cache"
+    },
+    {
+      "exit": 0,
+      "dpi": "96",
+      "arguments": [
+        "--composition-tests",
+        "--ui-regression",
+        "--dpi-96"
+      ],
+      "name": "ui"
+    },
+    {
+      "exit": 0,
+      "dpi": "96",
+      "arguments": [
+        "--selection-linkage-tests",
+        "--dpi-96"
+      ],
+      "name": "linkage"
+    },
+    {
+      "exit": 0,
+      "dpi": "96",
+      "arguments": [
+        "--composition-tests",
+        "--layout-presentation-tests",
+        "--dpi-96"
+      ],
+      "name": "layout"
+    }
+  ],
+  "actual_window_review": [
+    "top_bottom_top_thumb_drag",
+    "small_wheel_inside_list"
+  ],
+  "user_feedback": "pending",
+  "continuous_DWM_proven": false,
+  "layout_background_motion_changed": false,
+  "recording": false,
+  "system_settings_changed": false,
+  "release_created": false
+}

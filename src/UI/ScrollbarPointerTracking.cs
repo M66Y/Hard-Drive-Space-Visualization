@@ -117,7 +117,14 @@ internal sealed class ScrollbarPointerTracking : IDisposable
                 // Commit while the preview still owns the thumb. Otherwise
                 // WM_CAPTURECHANGED can publish its old native position before
                 // the deferred ThumbPosition update has reached the grid.
-                if (commit && Available) Emit(ScrollEventType.ThumbPosition, target);
+                if (commit && Available)
+                {
+                    // DataGridView consumes ThumbTrack, not ThumbPosition, to
+                    // move its actual rows. Deferred dragging sends that one
+                    // update only at release, before the final position event.
+                    if (!live) Emit(ScrollEventType.ThumbTrack, target);
+                    if (Available) Emit(ScrollEventType.ThumbPosition, bar.Value);
+                }
                 ReleaseCapture();
                 if (Available) Emit(ScrollEventType.EndScroll, bar.Value);
             }
@@ -155,10 +162,13 @@ internal sealed class ScrollbarPointerTracking : IDisposable
         try
         {
             var args = new ScrollEventArgs(type, bar.Value, value, Vertical ? ScrollOrientation.VerticalScroll : ScrollOrientation.HorizontalScroll);
-            raise(bar, args);
-            if (!Available) return;
-            bar.Value = Math.Clamp(args.NewValue, bar.Minimum, Maximum(bar.Minimum, bar.Maximum, bar.LargeChange));
-            preview = bar.Value;
+            owner.PerformBufferedScroll(() =>
+            {
+                raise(bar, args);
+                if (!Available) return;
+                bar.Value = Math.Clamp(args.NewValue, bar.Minimum, Maximum(bar.Minimum, bar.Maximum, bar.LargeChange));
+                preview = bar.Value;
+            });
         }
         finally { Notifying = false; }
     }
