@@ -1,16 +1,16 @@
 # AsukaLens 开发检查点
 
-项目规则已按任务分流，入口见根 AGENTS.md 的“按任务读取的规则”。C69 的产品停点和授权继续有效，规则整理证据见 iterations/2026-11-24-70-project-rules/README.md。
+## 当前C71：祖先验证复用候选完成合成验证（2026-11-24）
 
-## 当前C69：重复读取审查完成，候选仅供评审（2026-11-24）
+基线7e6f21d（C70规则分流），此前产品C#为2781ebb，开始main/origin一致且工作区干净。用户批准C69目录枚举候选实现和合成验证；特殊大小补查/界面不动，真实磁盘另询问，不打包发布。此次没有VSS/raw/VHD或个人目录授权，也没有执行这些操作。
 
-从856fb1b恢复，产品C#仍2781ebb，当前任务只审查、不改界面。开始有三处未提交文档删除；用户明确保留，独立提交30bbec9（删旧暂停记录及状态/计划暂停段），不恢复旧文件。本轮新增报告docs/ntfs-namespace-metadata-audit.md和iterations/2026-11-24-69-namespace-audit，状态/计划/记忆同步；C#、普通程序、C55和配置未改。当前新增文档均归本轮，不混入未知修改。
+新增NtfsNamespaceAncestorValidation：最多8192条不可变证明，仅当前Source/Namespace租约，绑定私有代际/完整目录身份/父级与规范相对路径。保留末级属性预查、真实目录打开/ACL、句柄身份/标签和完整分页；缺父证明/容量满回原Resolve，矛盾/错误拒绝，取消/来源关闭/租约结束清空。重复打开不替换证明，避免旧证明链留存。Source工厂显式reuseValidatedAncestors:true启用；正常管道仍默认false，只增加using收尾。未新增UI开关或个人扫描入口。
 
-结论：Resolve每次根＋逐级祖先GetAttributes确有重复，单目录深度d为d+1次.NET属性调用；静态数不是物理IO或省时。NativeCursor逐目录打开及句柄ID/标签核验保留，后续getter是内存；Source.Create根常数级重复在Snapshot阶段，非Discovering主循环。SizeIndex按完整FileIdentity归组、pending每对象一次，成功时calls==pending.Length；无逐硬链接重试队列。Discovering还含目录页解析/集合和ReparsePolicy.Filter，不能把全阶段归因于属性读取；验收独立Native审计不在C68计时worker中。
+应用和测试--no-restore构建零警告；初次restore因沙箱无法读用户级NuGet配置失败，未改配置。新增纯合成94项通过，原namespace84/source52/index27/reparse36/large-profile25/size46/bridge45/coordinator68/core38/advanced25通过，共540项。计数1→1/501→201/2145→65是合成属性回调，不是实际I/O或提速。特殊LookupSize/ReadNativeSize和原Resolve、NativeCursor实际打开/核验逻辑保持基线，源指纹等价核查随归档保留。
 
-C68测试DLL哈希核对一致，无构建；纯合成namespace84/index27/source52通过。3个数学例子只是假设候选满足条件时的查询数，候选未实现。微软官方CreateFile/重解析点/VSS/目录信息文档已核对并回链，不能把来源只读当任何路径缓存的充分证明。基线源码与检查指纹保存在C69，不读取用户目录统计/原始页，不做个人扫描、VSS/VHD、录屏、系统调整或发布。
+实现及限制docs/ntfs-namespace-ancestor-candidate.md；归档iterations/2026-11-24-71-namespace-ancestor-reuse。本轮代码/测试/说明/记忆统一归档，按授权完成核验、清理和提交推送main；最终提交与上传状态以Git为准。正常在用程序、C55和活跃demo不替换/清理。真实Source兼容/权限/清理与实际收益尚未验；需要新范围确认，不沿用C68。下一步由用户决定受控实测与采纳，不自动默认启用。
 
-用户已选择下一轮**只评审目录枚举祖先复用**，不是实施授权。报告中建议仅本次Source/Namespace生命周期内有界复用已验证祖先，拟8192条，满/未命中回原核验；保留真实目录打开、权限与句柄身份/重解析点检查、来源代际/父子/path绑定；大小补查、并发和界面不动。先评审，再合成反例/计数，真实卷另获许可，不能沿用C68。最终提交推送以Git为准。
+C69审查和用户保留的3处暂停文档删除（30bbec9）已保留。C70规则整理见iterations/2026-11-24-70-project-rules，产品事实不受影响。C69审查证据见iterations/2026-11-24-69-namespace-audit，不改写其候选未实现的历史时点。
 
 ## 已接受产品与历史证据
 

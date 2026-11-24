@@ -1,0 +1,46 @@
+{
+  "baseline": "7e6f21d",
+  "previous_product_source": "2781ebb",
+  "sources": [
+    {
+      "path": "src/Scanning/Ntfs/NtfsNamespaceAncestorValidation.cs",
+      "sha256": "D56D7C20FDC7295842360E20D3A6F6EEF436DF04C0F7E8E6A34D8B7020788AFF"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsPersonalSnapshotSource.cs",
+      "sha256": "28F9E3011C81FD93348AE29BBF8D7B88292B1A07EECFC922EAA88578E8D18F1A"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsPersonalScan.cs",
+      "sha256": "14B1E28D12CB568208D39E308278A4510A3C49CA16B0CB42A0FA2464DB696919"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsSnapshotNamespace.cs",
+      "sha256": "ED6D9A5C0245C50C143F515C98D40AC7E8C2DB3CA049918A9BFF5FC48C61BC05"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsNamespaceAncestorValidationTests.cs",
+      "sha256": "B226E5B29797C551BFAD36385933DE2E8E7636FB571DBBF26432437A6565C5DA"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "7151ED20CC8C6E9D0BCB9DB7BB678FDE70034CFA98A230A8E307EEEA5B533E0F"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsSnapshotMetadata.cs",
+      "sha256": "CBC8FFA70B59642DD0FAEDA14EE5DB48B83AF5465A47F1662049CF39258D26CF"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsSnapshotSizeIndex.cs",
+      "sha256": "450646FDA7600943B2B8AB7DFCCF6AB53BC93D1BF730F7E6A2F19ABB97C9DE6A"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsReparsePolicy.cs",
+      "sha256": "3A5EAEA4B31A0614481544E4177DAA9C003297DBE91170C472316CD9ABEB38BC"
+    }
+  ],
+  "test_assembly_sha256": "B6B768DAB77C9F8FDC07256F6296678DB4C0B6F39B646B5B25D407737D5FF7A4",
+  "isolated_application_sha256": "0B40BBA05CCA4BC87473F02B59EC64C5966788E29BDA6738AB178617D35FB3A1",
+  "normal_application_sha256": "F871B57CFB0F62B391294C9BD99676385350CDC2FDF315DFA60F4047427B8197",
+  "c55_sha256": "D34D6350A54CE9F990AAF209C140D66EF922AEB538C881ECB964A7D6395F3498"
+}

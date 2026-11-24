@@ -250,6 +250,11 @@ if (args.Length > 0 && args[0] == "--ntfs-volume-preflight-tests")
     try { int n = DiskAtlas.NtfsPrototype.NtfsVolumePreflightTests.Run(); Console.WriteLine($"PASS NTFS metadata checks: {n}; synthetic only"); return 0; }
     catch { Console.Error.WriteLine("FAIL NTFS metadata checks; no private details emitted"); return 1; }
 }
+if (args.Length == 1 && args[0] == "--ntfs-namespace-ancestor-tests")
+{
+    try { int n = DiskAtlas.NtfsPrototype.NtfsNamespaceAncestorValidationTests.Run(); Console.WriteLine($"PASS NTFS namespace ancestors: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL NTFS namespace ancestors; no private details emitted"); return 1; }
+}
 if (args.Length > 0 && args[0] == "--ntfs-snapshot-namespace-tests")
 {
     try { int n = DiskAtlas.NtfsPrototype.NtfsSnapshotNamespaceTests.Run(); Console.WriteLine($"PASS NTFS snapshot namespace: {n}; synthetic only"); return 0; }

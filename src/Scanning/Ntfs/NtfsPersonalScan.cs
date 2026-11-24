@@ -81,7 +81,9 @@ internal static class NtfsPersonalScan
                 // Validate the volume's bootstrap before enumerating a potentially
                 // large namespace. An unsupported MFT layout should fail promptly.
                 Stage(FastScanWireStage.Discovering);
-                var observedScope = NtfsSnapshotNamespace.Read(source.CreateNamespaceBackend(), token, source.Limits);
+                NtfsSnapshotNamespaceResult observedScope;
+                using (var namespaceBackend = source.CreateNamespaceBackend(token: token))
+                    observedScope = NtfsSnapshotNamespace.Read(namespaceBackend, token, source.Limits);
                 if (!observedScope.Report.CompleteWithinBoundary || observedScope.RootIdentity != source.RootStorage.Identity)
                     throw new FastScanUnavailableException(FastScanWireError.SourceChanged, false);
                 boundary = NtfsReparsePolicy.Filter(observedScope, token);

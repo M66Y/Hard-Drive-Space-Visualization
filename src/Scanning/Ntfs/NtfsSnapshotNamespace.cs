@@ -74,6 +74,7 @@ internal static class NtfsSnapshotNamespace
         DateTime? RootModified => null;
         ICursor OpenDirectory(NtfsSnapshotNamespaceEntry directory, string relativePath, CancellationToken token);
     }
+    internal interface IBackendLease : IBackend, IDisposable { }
     internal interface ICursor : IDisposable
     {
         FileIdentity Identity { get; }

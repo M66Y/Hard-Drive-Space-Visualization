@@ -1,5 +1,9 @@
 # 开发验证与可选基准
 
+## C71 目录祖先验证复用候选
+
+`--ntfs-namespace-ancestor-tests`纯内存94项，核对原路径/候选的完整目录遍历、祖先属性回调计数及不变的打开/身份/标签/分页；覆盖容量、父级/路径/身份反例、取消/失效、跨来源、错误和释放。实际私有Source工厂需显式`reuseValidatedAncestors: true`，默认仍原核验，不从合成backend推断VSS真实性。修改时另跑namespace/source/index/reparse/large-profile/size及受影响协调回退检查、核心和advanced；真实卷另确认当轮范围。见[候选说明](ntfs-namespace-ancestor-candidate.md)。
+
 专项入口见本页的[通用回归](#构建与通用回归)、[界面专项](#界面与磁盘活动专项入口)以及[项目任务索引](../AGENTS.md#按任务读取的规则)。
 
 ## C68 完整主窗NTFS计时

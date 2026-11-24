@@ -1,0 +1,73 @@
+{
+  "baseline": "7e6f21d",
+  "patch_sha256": "310A2E584620352B0C76F7A4BE0C06D0090FFA2C513108C1BBA05F587B08B705",
+  "apply_check": true,
+  "staged_content_equal": true,
+  "files": [
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+      "git_blob": "e70e55c713685909b6849544ddef22275e0c7626",
+      "sha256": "94B7490D0D85CE851A27C4FA325EFC632E99C1EB28FD221CF55091FF12359834"
+    },
+    {
+      "path": ".agents/skills/asukalens-project-memory/references/decisions.md",
+      "git_blob": "45c960a64f3c0bf2be5a77b856e18f295d5711d8",
+      "sha256": "5E465883B17FA95CC34DB3E4A2CACB29CEBDC03346FE0D161D029C5EE5AE8506"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "git_blob": "7e40ed63303f26c210750adc6439105d4bf9182b",
+      "sha256": "7F884A6C2A15DB8BF158EA4C720F1EC5B0E5B2AC224D1343C55E96747E536681"
+    },
+    {
+      "path": "docs/ntfs-namespace-ancestor-candidate.md",
+      "git_blob": "c1d1c2c36092e800d38d392039c5f526d84aec6c",
+      "sha256": "B591888AAF0D66B5741D404035DC10635A16AF7D2734EB2A0CE120718145F1F9"
+    },
+    {
+      "path": "docs/ntfs-namespace-metadata-audit.md",
+      "git_blob": "3409ab455a969ede00fe2c057b479360332e2a0c",
+      "sha256": "07EB3B4AB07DE83561ED815662DC301FEC0FEB7573AE2052C7B61E599CA6836C"
+    },
+    {
+      "path": "docs/project-status.md",
+      "git_blob": "f0058cf007d41dc08b08e5711679278181d69049",
+      "sha256": "A0488973A19E760E820F2561B2A92C44BAAE530BBD3027F35ECFC57B8B3997FD"
+    },
+    {
+      "path": "docs/testing.md",
+      "git_blob": "33cc13e01f7a81025e9440316ce597969634f13c",
+      "sha256": "4EFE0997170AD02350FF23D62ECC434D1160C2303D5BD56AAFFE1306217A97DD"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsNamespaceAncestorValidation.cs",
+      "git_blob": "a43fadd591582c6769ba935b22470f80aec3dbff",
+      "sha256": "D56D7C20FDC7295842360E20D3A6F6EEF436DF04C0F7E8E6A34D8B7020788AFF"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsPersonalScan.cs",
+      "git_blob": "4325bb048ae2c9a660272ecb9c777c88edcc0653",
+      "sha256": "14B1E28D12CB568208D39E308278A4510A3C49CA16B0CB42A0FA2464DB696919"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsPersonalSnapshotSource.cs",
+      "git_blob": "3e833d251bba3d515e68e05c79c17e5982bddcb8",
+      "sha256": "28F9E3011C81FD93348AE29BBF8D7B88292B1A07EECFC922EAA88578E8D18F1A"
+    },
+    {
+      "path": "src/Scanning/Ntfs/NtfsSnapshotNamespace.cs",
+      "git_blob": "d66d0544de453b737f724a62c564c34a015fbca2",
+      "sha256": "ED6D9A5C0245C50C143F515C98D40AC7E8C2DB3CA049918A9BFF5FC48C61BC05"
+    },
+    {
+      "path": "tests/Program.cs",
+      "git_blob": "c891e7bcfa8a2fbfd635832fc7ecd81d0f3894e6",
+      "sha256": "7151ED20CC8C6E9D0BCB9DB7BB678FDE70034CFA98A230A8E307EEEA5B533E0F"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NtfsNamespaceAncestorValidationTests.cs",
+      "git_blob": "79a5aab16c74c103417d410b3e6cfd71be59513f",
+      "sha256": "B226E5B29797C551BFAD36385933DE2E8E7636FB571DBBF26432437A6565C5DA"
+    }
+  ]
+}

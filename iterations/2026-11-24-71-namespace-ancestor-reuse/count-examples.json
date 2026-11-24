@@ -1,0 +1,31 @@
+{
+  "kind": "synthetic-callback-counts",
+  "physical_io": false,
+  "native_volume_calls": false,
+  "examples": [
+    {
+      "shape": "root-only",
+      "directories": 1,
+      "full_attribute_callbacks": 1,
+      "candidate_attribute_callbacks": 1,
+      "opens_each": 1,
+      "identity_and_tag_each": 2
+    },
+    {
+      "shape": "shared-ancestors",
+      "directories": 201,
+      "full_attribute_callbacks": 501,
+      "candidate_attribute_callbacks": 201,
+      "opens_each": 201,
+      "identity_and_tag_each": 402
+    },
+    {
+      "shape": "depth-64-chain",
+      "directories": 65,
+      "full_attribute_callbacks": 2145,
+      "candidate_attribute_callbacks": 65,
+      "opens_each": 65,
+      "identity_and_tag_each": 130
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "private_evidence_archive_verified": true,
+  "loose_logs_removed": 13,
+  "redundant_early_logs_removed": true,
+  "isolated_build_removed": true,
+  "patch_replay_removed": true,
+  "normal_program_preserved": true,
+  "c55_preserved": true,
+  "active_demo_untouched": true,
+  "release_snapshots_untouched": true
+}

@@ -1,0 +1,779 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index 0345970..e70e55c 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,16 +1,16 @@
+ # AsukaLens 开发检查点
+ 
+-项目规则已按任务分流，入口见根 AGENTS.md 的“按任务读取的规则”。C69 的产品停点和授权继续有效，规则整理证据见 iterations/2026-11-24-70-project-rules/README.md。
++## 当前C71：祖先验证复用候选完成合成验证（2026-11-24）
+ 
+-## 当前C69：重复读取审查完成，候选仅供评审（2026-11-24）
++基线7e6f21d（C70规则分流），此前产品C#为2781ebb，开始main/origin一致且工作区干净。用户批准C69目录枚举候选实现和合成验证；特殊大小补查/界面不动，真实磁盘另询问，不打包发布。此次没有VSS/raw/VHD或个人目录授权，也没有执行这些操作。
+ 
+-从856fb1b恢复，产品C#仍2781ebb，当前任务只审查、不改界面。开始有三处未提交文档删除；用户明确保留，独立提交30bbec9（删旧暂停记录及状态/计划暂停段），不恢复旧文件。本轮新增报告docs/ntfs-namespace-metadata-audit.md和iterations/2026-11-24-69-namespace-audit，状态/计划/记忆同步；C#、普通程序、C55和配置未改。当前新增文档均归本轮，不混入未知修改。
++新增NtfsNamespaceAncestorValidation：最多8192条不可变证明，仅当前Source/Namespace租约，绑定私有代际/完整目录身份/父级与规范相对路径。保留末级属性预查、真实目录打开/ACL、句柄身份/标签和完整分页；缺父证明/容量满回原Resolve，矛盾/错误拒绝，取消/来源关闭/租约结束清空。重复打开不替换证明，避免旧证明链留存。Source工厂显式reuseValidatedAncestors:true启用；正常管道仍默认false，只增加using收尾。未新增UI开关或个人扫描入口。
+ 
+-结论：Resolve每次根＋逐级祖先GetAttributes确有重复，单目录深度d为d+1次.NET属性调用；静态数不是物理IO或省时。NativeCursor逐目录打开及句柄ID/标签核验保留，后续getter是内存；Source.Create根常数级重复在Snapshot阶段，非Discovering主循环。SizeIndex按完整FileIdentity归组、pending每对象一次，成功时calls==pending.Length；无逐硬链接重试队列。Discovering还含目录页解析/集合和ReparsePolicy.Filter，不能把全阶段归因于属性读取；验收独立Native审计不在C68计时worker中。
++应用和测试--no-restore构建零警告；初次restore因沙箱无法读用户级NuGet配置失败，未改配置。新增纯合成94项通过，原namespace84/source52/index27/reparse36/large-profile25/size46/bridge45/coordinator68/core38/advanced25通过，共540项。计数1→1/501→201/2145→65是合成属性回调，不是实际I/O或提速。特殊LookupSize/ReadNativeSize和原Resolve、NativeCursor实际打开/核验逻辑保持基线，源指纹等价核查随归档保留。
+ 
+-C68测试DLL哈希核对一致，无构建；纯合成namespace84/index27/source52通过。3个数学例子只是假设候选满足条件时的查询数，候选未实现。微软官方CreateFile/重解析点/VSS/目录信息文档已核对并回链，不能把来源只读当任何路径缓存的充分证明。基线源码与检查指纹保存在C69，不读取用户目录统计/原始页，不做个人扫描、VSS/VHD、录屏、系统调整或发布。
++实现及限制docs/ntfs-namespace-ancestor-candidate.md；归档iterations/2026-11-24-71-namespace-ancestor-reuse。本轮代码/测试/说明/记忆统一归档，按授权完成核验、清理和提交推送main；最终提交与上传状态以Git为准。正常在用程序、C55和活跃demo不替换/清理。真实Source兼容/权限/清理与实际收益尚未验；需要新范围确认，不沿用C68。下一步由用户决定受控实测与采纳，不自动默认启用。
+ 
+-用户已选择下一轮**只评审目录枚举祖先复用**，不是实施授权。报告中建议仅本次Source/Namespace生命周期内有界复用已验证祖先，拟8192条，满/未命中回原核验；保留真实目录打开、权限与句柄身份/重解析点检查、来源代际/父子/path绑定；大小补查、并发和界面不动。先评审，再合成反例/计数，真实卷另获许可，不能沿用C68。最终提交推送以Git为准。
++C69审查和用户保留的3处暂停文档删除（30bbec9）已保留。C70规则整理见iterations/2026-11-24-70-project-rules，产品事实不受影响。C69审查证据见iterations/2026-11-24-69-namespace-audit，不改写其候选未实现的历史时点。
+ 
+ ## 已接受产品与历史证据
+ 
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index e06833f..45c960a 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,5 +1,6 @@
+-# 影响后续开发的决定
+-
++# 影响后续开发的决定
++
++- 2026-11-24 C71：用户批准C69目录枚举祖先复用候选，保留实际打开/权限/句柄检查、容量/失效与完整核验回退，特殊补查/界面不动。已完成8192条源内/租约内证明、94项新增及相关回归共540项；合成回调数下降不当真实提速。工厂显式参数选择，正常仍false；真实来源兼容和收益未验，VSS/raw/VHD/个人扫描需新确认。先合成收尾、无发布，见docs/ntfs-namespace-ancestor-candidate.md与iterations/2026-11-24-71-namespace-ancestor-reuse。
+ - 2026-11-24 C69：用户恢复只读审查，并确认保留接续前3处暂停文档删除（独立30bbec9）。确认共有祖先属性重复，区分必要句柄核验/内存检查，硬链接补查已按对象去重；不将数学调用数写成IO或提速。用户下一轮只选择评审目录枚举祖先复用，补查/界面不动、无实施或真实卷许可；证据docs/ntfs-namespace-metadata-audit.md及iterations/2026-11-24-69-namespace-audit。
+ 
+ - 2026-11-22 C68：用户批准工具＋一对定位并另行授权真实读取；两路完成且清理确认，但跨时点大小/占用guard失败，按约定停止倍数结论和追加扫描，不重开C28正确性。完整主窗计时、阶段/资源及34项专项完成；实际数字只本机、公开布尔，普通界面不改。后续先审查范围核验重复工作，稳定测量来源和新权限另定。见iterations/2026-11-22-68-ntfs-product-timing与docs/ntfs-product-timing.md。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 2bdc934..7e40ed6 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,8 +1,8 @@
+ # 后续开发计划
+ 
+-## 当前停点：C69审查完成，候选待评审（2026-11-24）
++## 当前停点：C71候选已验证，真实来源待单独确认（2026-11-24）
+ 
+-确认重复主要在同源共有祖先的属性查询；没有发现按硬链接别名重复补查。用户已选择**只评审目录枚举祖先复用**，具体建议、边界、容量/回退和合成反例见[审查报告](ntfs-namespace-metadata-audit.md)。该候选尚未实现；收到明确实施确认后才开发，不重新扫描个人目录，也不沿用C68权限。文件大小补查、并发、界面及根元信息常数级优化后置，不把数学查询次数降幅当成真实提速。下方保留历史路线与结果。
++用户随后批准目录枚举祖先复用候选开发。C71已实现8192条有界、源内/租约内证明和原核验回退，新增94项及相关回归共540项通过；正常扫描仍不启用候选。下一步如需实测，先由用户确认来源、范围和权限，再检查真实快照上的等价性/清理及同工作量耗时，不能沿用C68许可。合成调用计数不是实际提速。见[候选说明](ntfs-namespace-ancestor-candidate.md)与[C71归档](../iterations/2026-11-24-71-namespace-ancestor-reuse/README.md)。大小补查、并发、界面及根元信息常数级优化继续后置；本轮不打包发布。下方保留历史路线与结果。
+ 
+ ## 当前后续计划（2026-11-22）
+ 
+diff --git a/docs/ntfs-namespace-ancestor-candidate.md b/docs/ntfs-namespace-ancestor-candidate.md
+new file mode 100644
+index 0000000..c1d1c2c
+--- /dev/null
++++ b/docs/ntfs-namespace-ancestor-candidate.md
+@@ -0,0 +1,37 @@
++# 目录枚举祖先验证复用候选
++
++2026-11-24，C71。实施基线`7e6f21d`，此前产品C#基线`2781ebb`。用户批准[C69候选边界](ntfs-namespace-metadata-audit.md#推荐候选的边界)的实现与合成验证；特殊大小补查、界面和真实磁盘测试不在本轮范围。
++
++## 当前交付与入口
++
++候选已实现并完成合成验证，**尚未默认采用、未验证真实卷收益**。私有VSS来源的`CreateNamespaceBackend(reuseValidatedAncestors: true, token: token)`显式启用候选；省略参数仍是原完整核验。没有新增UI、环境变量或正式程序命令行开关，不借候选提供任意路径/来源的工厂。
++
++正常管道只增加枚举租约的`using`：无论枚举完成、解析失败或取消，离开目录阶段就释放状态。大小索引建立前已结束此租约。快照创建、来源绑定、实际目录打开、读权限、NativeCursor的完整身份与属性/标签检查、分页/EOF覆盖及16个活动目录句柄上限保留。
++
++## 复用条件与回退
++
++`NtfsNamespaceAncestorValidation`只保存本次私有来源、当前枚举租约中的证明。每条包含不可变目录入口、完整对象身份、父入口及其证明和规范相对路径；来源使用不可对外提供的对象代际，不能跨Source或新的Namespace租约继承。相对路径来自现有目录路径表，不缓存绝对路径副本。任意只读字符串或合成回调都不是VSS来源证明。
++
++根仍完整核验。普通子目录只有在已有父证明、路径前缀与父入口严格对应、尚未达到容量上限时才省去共有祖先的属性查询；末级属性预查仍进行，实际目录仍打开并核验句柄。证明在句柄核验成功、来源仍有效且没有取消后才加入。
++
++最多8192条。缺少父证明或容量满时调用原`Resolve(relative, true)`，逐级检查根与全部组件；缺少父证明的目标不能凭一次完整路径检查直接变成可复用链。重复打开既有目录不替换旧证明，避免子证明额外保留旧版本对象。候选无新增并行、长期句柄或磁盘缓存。
++
++路径/父级/身份矛盾、权限拒绝、链接或类型错误、来源失效、打开或读取失败会拒绝结果并清空证明，不能以缓存命中覆盖错误。取消、枚举结束和来源关闭也使状态失效。失效来源不能继续读取；这里的“回退”是有效来源中的未命中/容量回退，不是吞掉错误后再试一次。整个快扫失败后的普通扫描回退仍由既有协调器处理。
++
++`ReadNativeSize`、`LookupSize`及原`Resolve`保持基线内容；特殊文件补查的去重、并发、权威大小、硬链接归账和根创建阶段的常数级重复均未调整。
++
++## 合成结果与限制
++
++新增`--ntfs-namespace-ancestor-tests`为纯内存测试。它以合成句柄/属性回调及目录页运行候选，并直接覆盖生产末级路径辅助方法；不打开真实目录、卷、VSS或raw。完整目录遍历对照验证入口、路径、报告、空目录EOF、多页、硬链接、链接排除以及毒化的缓存大小字段都不变。
++
++| 合成形态 | 目录数 | 原属性回调 | 候选属性回调 | 两路目录打开回调 / 身份与标签核验回调合计 |
++| --- | ---: | ---: | ---: | ---: |
++| 只有根目录 | 1 | 1 | 1 | 1 / 2 |
++| 根下100组，每组一个子目录 | 201 | 501 | 201 | 201 / 402 |
++| 深度64的单链 | 65 | 2145 | 65 | 65 / 130 |
++
++这些是**合成回调计数**，不是实际File.GetAttributes、Win32调用、物理I/O或速度测量。候选还包含路径与证明检查，不能从查询数推算节省秒数；扁平目录可能没有祖先查询收益。
++
++94项新增验证覆盖共享祖先、深链/扁平、未命中、0/1/2/8192容量及超限、伪造父级/路径/身份、权限/属性/链接拒绝、来源关闭、跨代际/跨租约、重入、取消时点、读失败、关闭失败和保留引用失效。现有namespace84、source52、index27、reparse36、large-profile25、size46、bridge45、coordinator68、核心38、advanced25项通过，共540项。应用与测试项目构建零警告。核心/advanced使用自建临时夹具，bridge仅本机管道；它们不是个人卷验收。
++
++真实卷的私有Source生命周期、Native权限/快照条件下的等价性和实际收益仍未验；需要另行确认测试来源、读取范围和权限后，才安排一次受控实测。本轮没有个人扫描、VSS/VHD/raw操作，也没有替换正在使用的正常程序、改界面、打包或发布。证据和恢复补丁见[C71归档](../iterations/2026-11-24-71-namespace-ancestor-reuse/README.md)。
+diff --git a/docs/ntfs-namespace-metadata-audit.md b/docs/ntfs-namespace-metadata-audit.md
+index c09d207..3409ab4 100644
+--- a/docs/ntfs-namespace-metadata-audit.md
++++ b/docs/ntfs-namespace-metadata-audit.md
+@@ -1,5 +1,7 @@
+ # 目录范围元信息重复读取审查
+ 
++后续状态：C69原报告保留下方审查时点的事实。用户随后批准仅目录枚举祖先复用候选开发，C71已完成合成验证，尚未默认采用或做真实卷测试；见[候选实现与限制](ntfs-namespace-ancestor-candidate.md)。
++
+ 2026-11-24。开始HEAD`856fb1b`，被审查的产品源码基线`2781ebb`。用户要求先审查、不改界面；接续前的三处文档删除经用户确认保留，独立提交为`30bbec9`。本次只审查源码、核对官方接口语义并运行现有纯合成基线；未实施缓存、删核验或重新扫描个人目录。
+ 
+ ## 结论
+diff --git a/docs/project-status.md b/docs/project-status.md
+index a9441e8..f0058cf 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,11 @@
+ # AsukaLens 项目现状
+ 
++## C71 目录祖先验证复用候选完成合成验证（2026-11-24）
++
++用户批准C69方案的候选实现。新增本次Source/Namespace租约内最多8192条证明，绑定来源代际、目录身份、父级和相对路径；保留末级预查、实际打开/权限及句柄核验。未命中/满容量走原Resolve，失败/取消/关闭/枚举结束清空状态。私有工厂需显式传`reuseValidatedAncestors: true`，正常管道默认仍是原完整核验，并用using收尾租约。
++
++新增94项、受影响回归共540项通过，应用与测试零警告构建。合成共享祖先和深链回调数下降，目录打开/身份标签/分页不减；不是实际I/O或耗时结论。特殊大小补查、原Resolve、界面和已接受的正常程序不改。未做真实磁盘/VSS/raw/VHD，未打包发布；候选待单独授权实测后再决定采纳。实现和限制见[候选说明](ntfs-namespace-ancestor-candidate.md)、[C71证据](../iterations/2026-11-24-71-namespace-ancestor-reuse/README.md)。以下为历史状态。
++
+ ## C70 项目工作规则分流（2026-11-24）
+ 
+ 根规则保留跨任务约束，专项检查、授权及回退从[任务索引](../AGENTS.md#按任务读取的规则)进入。逐条迁移与三场景走查见[C70 记录](../iterations/2026-11-24-70-project-rules/README.md)。产品源码、C69 评审范围与开发计划沿用原基线。
+diff --git a/docs/testing.md b/docs/testing.md
+index 2205e6f..33cc13e 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -1,5 +1,9 @@
+ # 开发验证与可选基准
+ 
++## C71 目录祖先验证复用候选
++
++`--ntfs-namespace-ancestor-tests`纯内存94项，核对原路径/候选的完整目录遍历、祖先属性回调计数及不变的打开/身份/标签/分页；覆盖容量、父级/路径/身份反例、取消/失效、跨来源、错误和释放。实际私有Source工厂需显式`reuseValidatedAncestors: true`，默认仍原核验，不从合成backend推断VSS真实性。修改时另跑namespace/source/index/reparse/large-profile/size及受影响协调回退检查、核心和advanced；真实卷另确认当轮范围。见[候选说明](ntfs-namespace-ancestor-candidate.md)。
++
+ 专项入口见本页的[通用回归](#构建与通用回归)、[界面专项](#界面与磁盘活动专项入口)以及[项目任务索引](../AGENTS.md#按任务读取的规则)。
+ 
+ ## C68 完整主窗NTFS计时
+diff --git a/src/Scanning/Ntfs/NtfsNamespaceAncestorValidation.cs b/src/Scanning/Ntfs/NtfsNamespaceAncestorValidation.cs
+new file mode 100644
+index 0000000..a43fadd
+--- /dev/null
++++ b/src/Scanning/Ntfs/NtfsNamespaceAncestorValidation.cs
+@@ -0,0 +1,154 @@
++using System.Diagnostics.CodeAnalysis;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// A source-local validation policy, not a snapshot factory. Only the private
++// VSS owner supplies the open/active callbacks. Synthetic callbacks prove the
++// policy, never the existence or immutability of a real source.
++internal sealed class NtfsNamespaceAncestorValidation : IDisposable
++{
++    internal const int MaximumStates = 8192;
++    internal delegate NtfsSnapshotNamespace.ICursor Open(NtfsSnapshotNamespaceEntry entry,
++        string relativePath, bool ancestorsValidated, CancellationToken token);
++    private sealed record Proof(NtfsSnapshotNamespaceEntry Entry, string Path, Proof? Parent);
++    private readonly object gate = new(), generation;
++    private readonly FileIdentity rootIdentity;
++    private readonly Action active;
++    private readonly Open open;
++    private readonly int capacity;
++    private readonly CancellationToken lifetime;
++    private readonly CancellationTokenRegistration cancellation;
++    private readonly Dictionary<int, Proof> states = new();
++    private bool retired;
++    private int opening;
++
++    internal NtfsNamespaceAncestorValidation(object generation, FileIdentity rootIdentity, Action active,
++        Open open, CancellationToken lifetime = default, int capacity = MaximumStates)
++    {
++        Require(generation != null && active != null && open != null && capacity is >= 0 and <= MaximumStates);
++        this.generation = generation; this.rootIdentity = rootIdentity; this.active = active; this.open = open;
++        this.capacity = capacity; this.lifetime = lifetime;
++        cancellation = lifetime.Register(Invalidate);
++    }
++
++    internal int Count { get { lock (gate) return states.Count; } }
++    internal bool Retired { get { lock (gate) return retired; } }
++
++    // Kept separate from the full resolver used by size supplementation. This
++    // helper is called only after the private backend has a bound parent proof;
++    // the injectable attribute accessor also permits pure path-policy tests.
++    internal static string ResolveLeaf(string root, string relative, Func<string, FileAttributes> attributes,
++        CancellationToken token)
++    {
++        token.ThrowIfCancellationRequested();
++        string[] parts = NtfsPersonalSnapshotSource.RelativeSegments(relative, true);
++        Require(parts.Length > 0);
++        string path = root.TrimEnd('\\') + "\\" + string.Join('\\', parts);
++        Require((attributes(path) & (FileAttributes.Directory | FileAttributes.ReparsePoint)) == FileAttributes.Directory);
++        token.ThrowIfCancellationRequested(); return path;
++    }
++
++    internal NtfsSnapshotNamespace.ICursor OpenDirectory(object sourceGeneration, NtfsSnapshotNamespaceEntry entry,
++        string path, CancellationToken token)
++    {
++        // Enumeration is serial. Reject re-entry rather than publish a proof
++        // whose parent or source changed while another open was in flight.
++        if (Interlocked.CompareExchange(ref opening, 1, 0) != 0) { Invalidate(); throw Failure(); }
++        NtfsSnapshotNamespace.ICursor? cursor = null;
++        try
++        {
++            CheckActive(token);
++            string[] parts = NtfsPersonalSnapshotSource.RelativeSegments(path, true);
++            Require(entry.Directory && !entry.Reparse && (entry.Attributes & FileAttributes.ReparsePoint) == 0 &&
++                entry.Identity.Volume == rootIdentity.Volume && entry.Identity.High == 0 && entry.Identity.Low >> 48 != 0);
++            bool root = parts.Length == 0;
++            Require(root ? entry.Index == 0 && entry.ParentIndex == -1 && entry.Name == "" && entry.Identity == rootIdentity :
++                entry.Index > 0 && entry.ParentIndex >= 0 && entry.ParentIndex < entry.Index && entry.Name == parts[^1]);
++            Proof? parent = null;
++            bool bound;
++            bool reuse;
++            lock (gate)
++            {
++                Require(!retired && ReferenceEquals(generation, sourceGeneration));
++                if (states.TryGetValue(entry.Index, out var existing))
++                    Require(existing.Entry == entry && existing.Path == path);
++                bound = root;
++                if (!root && states.TryGetValue(entry.ParentIndex, out parent))
++                {
++                    int slash = path.LastIndexOf('/');
++                    // Exact ordinal spelling is intentional. An alias or a
++                    // forged parent index cannot borrow a different proof.
++                    Require(slash < 0 ? parent.Path.Length == 0 :
++                        parent.Path.Length == slash && path.AsSpan(0, slash).SequenceEqual(parent.Path));
++                    bound = true;
++                }
++                reuse = !root && bound && states.Count < capacity;
++            }
++
++            // Both paths must still open the real directory with its original
++            // permissions and verify the resulting handle's ID and tag.
++            cursor = open(entry, path, reuse, token);
++            CheckActive(token);
++            Require(cursor != null && cursor.Identity == entry.Identity &&
++                (cursor.Attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) == FileAttributes.Directory);
++            lock (gate)
++            {
++                Require(!retired && ReferenceEquals(generation, sourceGeneration));
++                // Never replace a proof still referenced by a child. One
++                // immutable node per index also bounds transitive retention.
++                if (bound && states.Count < capacity && !states.ContainsKey(entry.Index))
++                    states.Add(entry.Index, new(entry, path, parent));
++            }
++            var lease = new Cursor(this, cursor, token);
++            cursor = null; return lease;
++        }
++        catch
++        {
++            Invalidate();
++            try { cursor?.Dispose(); } catch { }
++            token.ThrowIfCancellationRequested(); lifetime.ThrowIfCancellationRequested(); throw Failure();
++        }
++        finally { Volatile.Write(ref opening, 0); }
++    }
++
++    private void CheckActive(CancellationToken token)
++    {
++        token.ThrowIfCancellationRequested(); lifetime.ThrowIfCancellationRequested();
++        lock (gate) Require(!retired);
++        active();
++    }
++    private sealed class Cursor(NtfsNamespaceAncestorValidation owner, NtfsSnapshotNamespace.ICursor inner,
++        CancellationToken openedWith) : NtfsSnapshotNamespace.ICursor
++    {
++        private int disposed;
++        public FileIdentity Identity => inner.Identity;
++        public FileAttributes Attributes => inner.Attributes;
++        public NtfsSnapshotNamespaceIo Read(bool restart, Memory<byte> destination, CancellationToken token)
++        {
++            try
++            {
++                Require(Volatile.Read(ref disposed) == 0);
++                openedWith.ThrowIfCancellationRequested(); owner.CheckActive(token);
++                var result = inner.Read(restart, destination, token);
++                openedWith.ThrowIfCancellationRequested(); owner.CheckActive(token);
++                if (!result.Success && result.Error != NtfsSnapshotNamespace.NoMoreFiles) owner.Invalidate();
++                return result;
++            }
++            catch
++            {
++                owner.Invalidate(); token.ThrowIfCancellationRequested(); openedWith.ThrowIfCancellationRequested();
++                owner.lifetime.ThrowIfCancellationRequested(); throw Failure();
++            }
++        }
++        public void Dispose()
++        {
++            if (Interlocked.Exchange(ref disposed, 1) != 0) return;
++            try { inner.Dispose(); }
++            catch { owner.Invalidate(); throw Failure(); }
++        }
++    }
++    internal void Invalidate() { lock (gate) { retired = true; states.Clear(); } }
++    public void Dispose() { Invalidate(); cancellation.Dispose(); }
++    private static NtfsVssProbeException Failure() => new("VssSnapshotNative");
++    private static void Require([DoesNotReturnIf(false)] bool value) { if (!value) throw Failure(); }
++}
+diff --git a/src/Scanning/Ntfs/NtfsPersonalScan.cs b/src/Scanning/Ntfs/NtfsPersonalScan.cs
+index 05ee39c..4325bb0 100644
+--- a/src/Scanning/Ntfs/NtfsPersonalScan.cs
++++ b/src/Scanning/Ntfs/NtfsPersonalScan.cs
+@@ -81,7 +81,9 @@ internal static class NtfsPersonalScan
+                 // Validate the volume's bootstrap before enumerating a potentially
+                 // large namespace. An unsupported MFT layout should fail promptly.
+                 Stage(FastScanWireStage.Discovering);
+-                var observedScope = NtfsSnapshotNamespace.Read(source.CreateNamespaceBackend(), token, source.Limits);
++                NtfsSnapshotNamespaceResult observedScope;
++                using (var namespaceBackend = source.CreateNamespaceBackend(token: token))
++                    observedScope = NtfsSnapshotNamespace.Read(namespaceBackend, token, source.Limits);
+                 if (!observedScope.Report.CompleteWithinBoundary || observedScope.RootIdentity != source.RootStorage.Identity)
+                     throw new FastScanUnavailableException(FastScanWireError.SourceChanged, false);
+                 boundary = NtfsReparsePolicy.Filter(observedScope, token);
+diff --git a/src/Scanning/Ntfs/NtfsPersonalSnapshotSource.cs b/src/Scanning/Ntfs/NtfsPersonalSnapshotSource.cs
+index ecc9519..3e833d2 100644
+--- a/src/Scanning/Ntfs/NtfsPersonalSnapshotSource.cs
++++ b/src/Scanning/Ntfs/NtfsPersonalSnapshotSource.cs
+@@ -24,6 +24,8 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
+     private readonly NtfsVssNativeSession session = new();
+     private readonly Func<bool> closeSession;
+     private readonly HashSet<IDisposable> cursors = new();
++    private readonly object namespaceGeneration = new();
++    private NamespaceBackend? namespaceBackend;
+     private readonly NtfsSnapshotVolumeFacts liveFacts;
+     private string snapshotRoot = "", snapshotDataRoot = "";
+     private FileStorageInfo? rootStorage;
+@@ -137,24 +139,61 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
+     internal void TrackReader(NtfsSnapshotVolumeReader value)
+     { lock (gate) { Active(); Require(readerIssued && reader == null, "VssRawOpen"); reader = value; } }
+ 
+-    internal NtfsSnapshotNamespace.IBackend CreateNamespaceBackend()
+-    { lock (gate) { Active(); return new NamespaceBackend(this); } }
+-    private sealed class NamespaceBackend(NtfsPersonalSnapshotSource owner) : NtfsSnapshotNamespace.IBackend
++    // Candidate remains opt-in. No UI/default scan selection enables it.
++    internal NtfsSnapshotNamespace.IBackendLease CreateNamespaceBackend(bool reuseValidatedAncestors = false,
++        CancellationToken token = default)
+     {
++        lock (gate)
++        {
++            Active(); token.ThrowIfCancellationRequested(); Require(namespaceBackend == null, "VssSnapshotNative");
++            return namespaceBackend = new NamespaceBackend(this, reuseValidatedAncestors, token);
++        }
++    }
++    private sealed class NamespaceBackend : NtfsSnapshotNamespace.IBackendLease
++    {
++        private readonly NtfsPersonalSnapshotSource owner;
++        private readonly NtfsNamespaceAncestorValidation? validation;
++        private bool disposed;
++        internal NamespaceBackend(NtfsPersonalSnapshotSource owner, bool reuse, CancellationToken token)
++        {
++            this.owner = owner;
++            if (reuse) validation = new(owner.namespaceGeneration, owner.RootStorage.Identity,
++                EnsureActive, OpenCore, token);
++        }
++        private void EnsureActive() { lock (owner.gate) { owner.Active(); Require(!disposed, "VssSnapshotNative"); } }
+         public FileIdentity RootIdentity => owner.RootStorage.Identity;
+         public DateTime? RootModified => owner.RootStorage.Modified;
+         public NtfsSnapshotNamespace.ICursor OpenDirectory(NtfsSnapshotNamespaceEntry entry, string relativePath, CancellationToken token)
++        {
++            EnsureActive();
++            return validation == null ? OpenCore(entry, relativePath, false, token) :
++                validation.OpenDirectory(owner.namespaceGeneration, entry, relativePath, token);
++        }
++        private NtfsSnapshotNamespace.ICursor OpenCore(NtfsSnapshotNamespaceEntry entry, string relativePath,
++            bool ancestorsValidated, CancellationToken token)
+         {
+             token.ThrowIfCancellationRequested(); Require(entry.Directory && !entry.Reparse && entry.Identity.Volume == RootIdentity.Volume, "VssSnapshotNative");
+-            string path = owner.Resolve(relativePath, true);
++            string path = ancestorsValidated ? owner.ResolveNamespaceLeaf(relativePath, token) : owner.Resolve(relativePath, true);
+             var cursor = new CursorLease(owner, NtfsSnapshotNamespace.OpenNativeDirectory(path, entry.Identity, token));
+             lock (owner.gate)
+             {
+-                try { owner.Active(); Require(owner.cursors.Count < 16, "VssSnapshotNative"); owner.cursors.Add(cursor); }
++                try { owner.Active(); Require(!disposed && owner.cursors.Count < 16, "VssSnapshotNative"); owner.cursors.Add(cursor); }
+                 catch { cursor.Dispose(); throw; }
+             }
+             return cursor;
+         }
++        public void Dispose()
++        {
++            // Never wait on a cancellation callback while holding the source
++            // gate. Cleanup can close the owner before taking this path.
++            validation?.Dispose();
++            lock (owner.gate)
++            {
++                disposed = true;
++                if (ReferenceEquals(owner.namespaceBackend, this)) owner.namespaceBackend = null;
++            }
++        }
++        internal void Invalidate() => validation?.Invalidate();
+     }
+     private sealed class CursorLease(NtfsPersonalSnapshotSource owner, NtfsSnapshotNamespace.ICursor cursor) : NtfsSnapshotNamespace.ICursor
+     {
+@@ -205,6 +244,11 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
+         }
+         return parts.Length == 0 ? root : current;
+     }
++    private string ResolveNamespaceLeaf(string relative, CancellationToken token)
++    {
++        string root; lock (gate) { Active(); root = snapshotDataRoot; }
++        return NtfsNamespaceAncestorValidation.ResolveLeaf(root, relative, File.GetAttributes, token);
++    }
+     internal static string[] RelativeSegments(string relative, bool directory)
+     {
+         Require(relative != null && relative.Length <= 32768 && !Path.IsPathRooted(relative), "VssSnapshotNative");
+@@ -217,18 +261,22 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
+     private void Active() => Require(!closed, "VssCleanup");
+     internal bool Cleanup()
+     {
++        NamespaceBackend? backend;
+         lock (gate)
+         {
+             if (closed) return cleanupConfirmed;
+             if (ownerThread != Environment.CurrentManagedThreadId) return false;
+             closed = true; bool handlesClosed = true;
++            backend = namespaceBackend; backend?.Invalidate();
+             try { reader?.Dispose(); if (reader != null) handlesClosed &= reader.BufferReleased; } catch { handlesClosed = false; }
+             // The delegate was allocated before snapshot creation. Teardown
+             // neither copies the tracked set nor skips VSS cleanup if a cursor
+             // or the collection fails while the process is under pressure.
+             bool cursorsAndSessionClosed = CloseTrackedCursorsAndSession(cursors, closeSession);
+-            cleanupConfirmed = cursorsAndSessionClosed && handlesClosed; return cleanupConfirmed;
++            cleanupConfirmed = cursorsAndSessionClosed && handlesClosed;
+         }
++        backend?.Dispose();
++        return cleanupConfirmed;
+     }
+     public void Dispose() { _ = Cleanup(); }
+ 
+diff --git a/src/Scanning/Ntfs/NtfsSnapshotNamespace.cs b/src/Scanning/Ntfs/NtfsSnapshotNamespace.cs
+index 13c2115..d66d054 100644
+--- a/src/Scanning/Ntfs/NtfsSnapshotNamespace.cs
++++ b/src/Scanning/Ntfs/NtfsSnapshotNamespace.cs
+@@ -74,6 +74,7 @@ internal static class NtfsSnapshotNamespace
+         DateTime? RootModified => null;
+         ICursor OpenDirectory(NtfsSnapshotNamespaceEntry directory, string relativePath, CancellationToken token);
+     }
++    internal interface IBackendLease : IBackend, IDisposable { }
+     internal interface ICursor : IDisposable
+     {
+         FileIdentity Identity { get; }
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 54f0d51..c891e7b 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -250,6 +250,11 @@ if (args.Length > 0 && args[0] == "--ntfs-volume-preflight-tests")
+     try { int n = DiskAtlas.NtfsPrototype.NtfsVolumePreflightTests.Run(); Console.WriteLine($"PASS NTFS metadata checks: {n}; synthetic only"); return 0; }
+     catch { Console.Error.WriteLine("FAIL NTFS metadata checks; no private details emitted"); return 1; }
+ }
++if (args.Length == 1 && args[0] == "--ntfs-namespace-ancestor-tests")
++{
++    try { int n = DiskAtlas.NtfsPrototype.NtfsNamespaceAncestorValidationTests.Run(); Console.WriteLine($"PASS NTFS namespace ancestors: {n}; synthetic only"); return 0; }
++    catch { Console.Error.WriteLine("FAIL NTFS namespace ancestors; no private details emitted"); return 1; }
++}
+ if (args.Length > 0 && args[0] == "--ntfs-snapshot-namespace-tests")
+ {
+     try { int n = DiskAtlas.NtfsPrototype.NtfsSnapshotNamespaceTests.Run(); Console.WriteLine($"PASS NTFS snapshot namespace: {n}; synthetic only"); return 0; }
+diff --git a/tests/Prototypes/Ntfs/NtfsNamespaceAncestorValidationTests.cs b/tests/Prototypes/Ntfs/NtfsNamespaceAncestorValidationTests.cs
+new file mode 100644
+index 0000000..79a5aab
+--- /dev/null
++++ b/tests/Prototypes/Ntfs/NtfsNamespaceAncestorValidationTests.cs
+@@ -0,0 +1,314 @@
++using System.Buffers.Binary;
++using System.Text;
++
++namespace DiskAtlas.NtfsPrototype;
++
++// Entirely in memory: synthetic attribute callbacks, directory pages and
++// handles. No native source, filesystem, volume, VSS or raw reader is opened.
++internal static class NtfsNamespaceAncestorValidationTests
++{
++    private static readonly FileIdentity RootId = Id(1);
++    private static FileIdentity Id(int slot) => new(7, (1ul << 48) | (uint)slot, 0);
++    private static NtfsSnapshotNamespaceEntry Dir(int index, int parent, string name) =>
++        new(index, parent, name, Id(index + 1), FileAttributes.Directory, false);
++    private static NtfsSnapshotNamespaceEntry Root => Dir(0, -1, "");
++    private static Exception? Catch(Action action) { try { action(); return null; } catch (Exception e) { return e; } }
++    private static bool Fixed(Exception? e) => e is NtfsVssProbeException value && value.Code == "VssSnapshotNative" &&
++        value.Message == value.Code && value.InnerException == null;
++
++    private sealed class Model : NtfsSnapshotNamespace.IBackend, IDisposable
++    {
++        internal readonly object Generation = new();
++        internal readonly Dictionary<string, List<byte[]>> Pages = new(StringComparer.Ordinal);
++        internal readonly List<(string Path, bool Reused)> Calls = [];
++        internal readonly NtfsNamespaceAncestorValidation? Validation;
++        internal int AttributesRead, Opened, IdentityChecks, TagChecks, Reads, Closed;
++        internal bool Active = true, Deny, FailRead, FailClose;
++        internal FileIdentity? WrongIdentity;
++        internal FileAttributes HandleAttributes = FileAttributes.Directory;
++        internal string? ReparsePath, FilePath, FailAttributesAt;
++        internal Action? DuringOpen, DuringRead;
++        internal Model(bool reuse = true, int capacity = NtfsNamespaceAncestorValidation.MaximumStates,
++            CancellationToken lifetime = default)
++        {
++            if (reuse) Validation = new(Generation, RootId, EnsureActive, OpenCore, lifetime, capacity);
++        }
++        private void EnsureActive() { if (!Active) throw new IOException("SyntheticPrivateSource"); }
++        public FileIdentity RootIdentity => RootId;
++        public NtfsSnapshotNamespace.ICursor OpenDirectory(NtfsSnapshotNamespaceEntry entry, string path, CancellationToken token)
++            => Validation == null ? OpenCore(entry, path, false, token) : Validation.OpenDirectory(Generation, entry, path, token);
++        internal void OpenOnce(NtfsSnapshotNamespaceEntry entry, string path)
++        { using var cursor = OpenDirectory(entry, path, default); }
++        private NtfsSnapshotNamespace.ICursor OpenCore(NtfsSnapshotNamespaceEntry entry, string path, bool reuse, CancellationToken token)
++        {
++            token.ThrowIfCancellationRequested(); EnsureActive(); Calls.Add((path, reuse));
++            var parts = NtfsPersonalSnapshotSource.RelativeSegments(path, true);
++            void Attributes(string prefix)
++            {
++                AttributesRead++;
++                if (prefix == FailAttributesAt) throw new IOException("SyntheticPrivateAttributes");
++                if (prefix == ReparsePath || prefix == FilePath) throw new IOException("SyntheticPrivateType");
++            }
++            if (reuse) NtfsNamespaceAncestorValidation.ResolveLeaf(@"X:\SyntheticSnapshot\", path,
++                absolute => { Attributes(absolute[@"X:\SyntheticSnapshot\".Length..].Replace('\\', '/')); return FileAttributes.Directory; }, token);
++            else
++            {
++                Attributes(""); string prefix = "";
++                foreach (var part in parts) { prefix = prefix.Length == 0 ? part : prefix + "/" + part; Attributes(prefix); }
++            }
++            if (Deny) throw new UnauthorizedAccessException("SyntheticPrivateAcl");
++            Opened++; IdentityChecks++; TagChecks++;
++            var cursor = new Cursor(this, entry, path);
++            // Models NativeCursor's still-mandatory native handle checks.
++            if (cursor.Identity != entry.Identity || (cursor.Attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != FileAttributes.Directory)
++            { cursor.Dispose(); throw new IOException("SyntheticPrivateHandle"); }
++            try { DuringOpen?.Invoke(); return cursor; } catch { cursor.Dispose(); throw; }
++        }
++        private sealed class Cursor(Model model, NtfsSnapshotNamespaceEntry entry, string path) : NtfsSnapshotNamespace.ICursor
++        {
++            private int page, disposed;
++            public FileIdentity Identity => model.WrongIdentity ?? entry.Identity;
++            public FileAttributes Attributes => model.HandleAttributes;
++            public NtfsSnapshotNamespaceIo Read(bool restart, Memory<byte> destination, CancellationToken token)
++            {
++                model.Reads++; model.DuringRead?.Invoke();
++                if (model.FailRead) return new(false, 5);
++                if (!model.Pages.TryGetValue(path, out var pages) || page == pages.Count) return new(false, 18);
++                pages[page++].CopyTo(destination); return new(true, 0);
++            }
++            public void Dispose()
++            {
++                if (Interlocked.Exchange(ref disposed, 1) != 0) return;
++                model.Closed++; if (model.FailClose) throw new IOException("SyntheticPrivateClose");
++            }
++        }
++        internal void CloseSource() { Active = false; Validation?.Invalidate(); }
++        public void Dispose() => Validation?.Dispose();
++    }
++    private static byte[] Page(params NtfsSnapshotNamespaceEntry[] entries)
++    {
++        byte[] page = new byte[NtfsSnapshotNamespace.PageBytes]; int offset = 0;
++        for (int i = 0; i < entries.Length; i++)
++        {
++            var entry = entries[i]; byte[] name = Encoding.Unicode.GetBytes(entry.Name);
++            int length = (88 + name.Length + 7) & ~7;
++            BinaryPrimitives.WriteUInt32LittleEndian(page.AsSpan(offset), i + 1 < entries.Length ? (uint)length : 0);
++            BinaryPrimitives.WriteUInt64LittleEndian(page.AsSpan(offset + 40), ulong.MaxValue);
++            BinaryPrimitives.WriteUInt64LittleEndian(page.AsSpan(offset + 48), ulong.MaxValue);
++            BinaryPrimitives.WriteUInt32LittleEndian(page.AsSpan(offset + 56), (uint)entry.Attributes);
++            BinaryPrimitives.WriteUInt32LittleEndian(page.AsSpan(offset + 60), (uint)name.Length);
++            BinaryPrimitives.WriteUInt64LittleEndian(page.AsSpan(offset + 72), entry.Identity.Low);
++            name.CopyTo(page, offset + 88); offset += length;
++        }
++        return page;
++    }
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool value, string name)
++        { if (!value) throw new InvalidOperationException(name); passed++; Console.WriteLine("PASS ancestor reuse " + name); }
++        void Failed(Model model, Action action, string name)
++        { Check(Fixed(Catch(action)) && model.Validation!.Retired && model.Validation.Count == 0, name); }
++
++        {
++            int calls = 0; string? observed = null;
++            string path = NtfsNamespaceAncestorValidation.ResolveLeaf(@"X:\SyntheticSnapshot\", "a/child",
++                p => { calls++; observed = p; return FileAttributes.Directory; }, default);
++            Check(calls == 1 && path == @"X:\SyntheticSnapshot\a\child" && observed == path, "production leaf helper queries exactly the target path");
++            foreach (var attributes in new[] { FileAttributes.Archive, FileAttributes.Directory | FileAttributes.ReparsePoint })
++                Check(Fixed(Catch(() => NtfsNamespaceAncestorValidation.ResolveLeaf(@"X:\SyntheticSnapshot\", "a/child", _ => attributes, default))),
++                    "production leaf helper refuses non-directory or reparse attributes");
++            Check(Fixed(Catch(() => NtfsNamespaceAncestorValidation.ResolveLeaf(@"X:\SyntheticSnapshot\", "", _ => FileAttributes.Directory, default))),
++                "root never takes the reduced leaf path");
++        }
++
++        // Actual traversal equivalence, including empty EOF, multi-page root,
++        // hardlink aliases, excluded links and poisoned cached size fields.
++        using (var old = new Model(false))
++        using (var candidate = new Model())
++        {
++            var a = Dir(1, 0, "a"); var b = Dir(2, 0, "b"); var child = Dir(3, 1, "child");
++            var file = new NtfsSnapshotNamespaceEntry(4, 0, "one.bin", Id(100), FileAttributes.Archive, false);
++            var alias = file with { Index = 5, Name = "two.bin" };
++            var link = Dir(6, 0, "link") with { Reparse = true, Attributes = FileAttributes.Directory | FileAttributes.ReparsePoint };
++            foreach (var m in new[] { old, candidate })
++            {
++                m.Pages[""] = [Page(a, b, file), Page(alias, link)];
++                m.Pages["a"] = [Page(child)];
++            }
++            var before = NtfsSnapshotNamespace.Read(old); var after = NtfsSnapshotNamespace.Read(candidate);
++            Check(before.Report == after.Report && before.Entries.SequenceEqual(after.Entries), "complete inventory equals reference");
++            Check(Enumerable.Range(0, before.Entries.Count).All(i => before.RelativePath(i) == after.RelativePath(i)), "all relative paths equal reference");
++            Check(old.AttributesRead == 8 && candidate.AttributesRead == 4, "shared ancestors reduce only synthetic attribute calls 8 to 4");
++            Check(old.Opened == 4 && candidate.Opened == 4 && old.IdentityChecks == candidate.IdentityChecks && old.TagChecks == candidate.TagChecks,
++                "every directory retains actual open identity and tag checks");
++            Check(old.Reads == candidate.Reads && candidate.Closed == 4 && after.Report.CompleteWithinBoundary && after.Report.CompletedDirectories == 4,
++                "pages empty EOF and handle release stay complete");
++            Check(after.Report.UniqueFileObjects == 1 && after.Report.ReparseEntries == 1 && !candidate.Calls.Any(c => c.Path == "link"),
++                "hardlink aliases and reparse exclusion unchanged");
++            candidate.Dispose(); Check(candidate.Validation!.Count == 0 && candidate.Validation.Retired, "namespace end clears all proofs");
++        }
++        // Measured callback counts for the three previously analytic examples.
++        foreach (string shape in new[] { "flat", "shared", "chain" })
++        using (var old = new Model(false))
++        using (var candidate = new Model())
++        {
++            old.OpenOnce(Root, ""); candidate.OpenOnce(Root, "");
++            if (shape == "shared")
++                for (int i = 0; i < 100; i++)
++                {
++                    int index = i * 2 + 1; string name = "g" + i;
++                    foreach (var m in new[] { old, candidate })
++                    { m.OpenOnce(Dir(index, 0, name), name); m.OpenOnce(Dir(index + 1, index, "child"), name + "/child"); }
++                }
++            if (shape == "chain")
++            {
++                string path = "";
++                for (int i = 1; i <= 64; i++)
++                { path = path.Length == 0 ? "d" : path + "/d"; foreach (var m in new[] { old, candidate }) m.OpenOnce(Dir(i, i - 1, "d"), path); }
++            }
++            int dirs = shape == "flat" ? 1 : shape == "shared" ? 201 : 65;
++            int attributes = shape == "flat" ? 1 : shape == "shared" ? 501 : 2145;
++            Check(old.AttributesRead == attributes && candidate.AttributesRead == dirs, shape + " exact callback counts");
++            Check(old.Opened == dirs && candidate.Opened == dirs && candidate.IdentityChecks == dirs && candidate.TagChecks == dirs && candidate.Closed == dirs,
++                shape + " opens handle checks and close unchanged");
++        }
++        using (var m = new Model())
++        {
++            m.OpenOnce(Dir(2, 1, "child"), "missing/child");
++            Check(m.AttributesRead == 3 && m.Validation!.Count == 0 && !m.Calls[0].Reused, "missing parent uses full path and cannot seed an unbound proof");
++            m.OpenOnce(Root, ""); m.OpenOnce(Dir(1, 0, "missing"), "missing"); m.OpenOnce(Dir(2, 1, "child"), "missing/child");
++            Check(m.Calls[^1].Reused && m.Validation!.Count == 3, "later real parent opens can establish the chain");
++        }
++        foreach (int capacity in new[] { 0, 1, 2, 8192 })
++        using (var m = new Model(capacity: capacity))
++        {
++            m.OpenOnce(Root, "");
++            int count = capacity == 8192 ? 8200 : 4;
++            for (int i = 1; i <= count; i++) { string name = "d" + i; m.OpenOnce(Dir(i, 0, name), name); }
++            Check(m.Validation!.Count == capacity && !m.Calls[^1].Reused && !m.Validation.Retired, "capacity " + capacity + " remains bounded and full fallback stays usable");
++            Check(m.Opened == count + 1 && m.Closed == count + 1, "capacity " + capacity + " never skips opens");
++        }
++        foreach (int capacity in new[] { -1, 8193 })
++            Check(Fixed(Catch(() => new Model(capacity: capacity))), "invalid capacity rejected");
++        foreach (string invalid in new[] { "../x", "a//x", "a/", "a\\x", "a:x", "/x", "a/./x", "a\nx", new string('x', 256) })
++        using (var m = new Model())
++            Failed(m, () => m.OpenOnce(Dir(1, 0, "x"), invalid), "lexical path rejected before reuse");
++        foreach (string fault in new[] { "parent", "name", "index", "root", "volume", "sequence", "high", "entry-reparse", "entry-file", "contradiction" })
++        using (var m = new Model())
++        {
++            m.OpenOnce(Root, ""); m.OpenOnce(Dir(1, 0, "a"), "a");
++            var entry = Dir(2, 1, "child"); string path = "a/child";
++            switch (fault)
++            {
++                case "parent": entry = entry with { ParentIndex = 0 }; break;
++                case "name": entry = entry with { Name = "other" }; break;
++                case "index": entry = entry with { ParentIndex = 2 }; break;
++                case "root": entry = Root with { Identity = Id(99) }; path = ""; break;
++                case "volume": entry = entry with { Identity = entry.Identity with { Volume = 8 } }; break;
++                case "sequence": entry = entry with { Identity = new(7, 3, 0) }; break;
++                case "high": entry = entry with { Identity = new(7, (1ul << 48) | 3, 1) }; break;
++                case "entry-reparse": entry = entry with { Reparse = true }; break;
++                case "entry-file": entry = entry with { Attributes = FileAttributes.Archive }; break;
++                case "contradiction": entry = Dir(1, 0, "a") with { Identity = Id(99) }; path = "a"; break;
++            }
++            int calls = m.Calls.Count;
++            Failed(m, () => m.OpenOnce(entry, path), fault + " cannot reuse or publish a proof");
++            Check(m.Calls.Count == calls, fault + " rejected before native open");
++        }
++        foreach (string fault in new[] { "acl", "attributes", "reparse", "file", "identity", "tag", "closed-during-open", "open-exception" })
++        using (var m = new Model())
++        {
++            m.OpenOnce(Root, "");
++            switch (fault)
++            {
++                case "acl": m.Deny = true; break;
++                case "attributes": m.FailAttributesAt = "a"; break;
++                case "reparse": m.ReparsePath = "a"; break;
++                case "file": m.FilePath = "a"; break;
++                case "identity": m.WrongIdentity = Id(99); break;
++                case "tag": m.HandleAttributes |= FileAttributes.ReparsePoint; break;
++                case "closed-during-open": m.DuringOpen = () => m.CloseSource(); break;
++                case "open-exception": m.DuringOpen = () => throw new IOException("SyntheticPrivateOpen"); break;
++            }
++            Failed(m, () => m.OpenOnce(Dir(1, 0, "a"), "a"), fault + " is fatal and retires prior proofs");
++            Check(m.Opened == m.Closed, fault + " releases any opened handle");
++        }
++        using (var m = new Model())
++        {
++            m.OpenOnce(Root, "");
++            Failed(m, () => m.Validation!.OpenDirectory(new object(), Dir(1, 0, "a"), "a", default).Dispose(), "cross-source generation cannot borrow proofs");
++            Check(m.Opened == 1, "cross-source rejected before opening");
++        }
++        using (var first = new Model())
++        using (var second = new Model())
++        {
++            first.OpenOnce(Root, ""); second.OpenOnce(Dir(1, 0, "a"), "a");
++            Check(second.AttributesRead == 2 && !second.Calls[0].Reused && second.Validation!.Count == 0, "fresh namespace shares no proof even with same root identity");
++        }
++        foreach (string stage in new[] { "before", "open", "read", "after" })
++        {
++            using var stop = new CancellationTokenSource(); using var m = new Model(lifetime: stop.Token);
++            if (stage == "before") stop.Cancel(); else m.OpenOnce(Root, "");
++            Exception? error;
++            if (stage == "open") m.DuringOpen = stop.Cancel;
++            if (stage == "read")
++            {
++                using var cursor = m.OpenDirectory(Dir(1, 0, "a"), "a", stop.Token);
++                m.DuringRead = stop.Cancel; error = Catch(() => cursor.Read(true, new byte[65536], stop.Token));
++            }
++            else
++            {
++                if (stage == "after") stop.Cancel();
++                error = Catch(() => { using var cursor = m.OpenDirectory(Dir(1, 0, "a"), "a", stop.Token); });
++            }
++            Check(error is OperationCanceledException canceled && canceled.CancellationToken == stop.Token && m.Validation!.Retired && m.Validation.Count == 0,
++                stage + " cancellation retires proofs and preserves caller token");
++        }
++        using (var m = new Model())
++        {
++            m.OpenOnce(Root, ""); m.DuringOpen = () => m.OpenOnce(Dir(2, 0, "b"), "b");
++            Failed(m, () => m.OpenOnce(Dir(1, 0, "a"), "a"), "reentrant open retires in-flight publication");
++            Check(m.Opened == m.Closed, "reentry leaks no handle");
++        }
++        foreach (bool disposeFailure in new[] { false, true })
++        using (var m = new Model())
++        {
++            m.OpenOnce(Root, ""); var cursor = m.OpenDirectory(Dir(1, 0, "a"), "a", default);
++            if (disposeFailure)
++            { m.FailClose = true; Check(Fixed(Catch(cursor.Dispose)), "close errors are sanitized"); cursor.Dispose(); }
++            else
++            { m.FailRead = true; Check(cursor.Read(true, new byte[65536], default).Error == 5, "read errors stay errors"); cursor.Dispose(); }
++            Check(m.Validation!.Retired && m.Validation.Count == 0 && m.Opened == m.Closed, "cursor failure retires state and closes once");
++        }
++        using (var m = new Model())
++        {
++            m.OpenOnce(Root, ""); m.CloseSource();
++            Failed(m, () => m.OpenOnce(Dir(1, 0, "a"), "a"), "source close rejects retained namespace reference");
++        }
++        using (var m = new Model(capacity: 1))
++        {
++            m.OpenOnce(Root, ""); m.ReparsePath = "unproven";
++            Failed(m, () => m.OpenOnce(Dir(2, 1, "child"), "unproven/child"), "full fallback still rejects an unproven reparse ancestor");
++            Check(m.Calls[^1].Reused == false && m.Opened == 1, "fallback fails before opening a target through a link");
++        }
++        using (var m = new Model())
++        {
++            m.OpenOnce(Root, ""); m.Active = false;
++            Failed(m, () => m.OpenOnce(Dir(1, 0, "a"), "a"), "active source check prevents reuse even without an explicit invalidation callback");
++        }
++        using (var m = new Model())
++        {
++            m.OpenOnce(Root, ""); m.OpenOnce(Dir(1, 0, "a"), "a"); m.OpenOnce(Dir(2, 1, "child"), "a/child");
++            for (int i = 0; i < 100; i++) { m.OpenOnce(Root, ""); m.OpenOnce(Dir(1, 0, "a"), "a"); }
++            Check(m.Validation!.Count == 3 && m.Opened == 203 && m.Closed == 203, "repeated opens retain three proofs while repeating all real handle checks");
++        }
++        using (var m = new Model())
++        {
++            var cursor = m.OpenDirectory(Root, "", default); m.Dispose();
++            Check(Fixed(Catch(() => cursor.Read(true, new byte[65536], default))) && m.Reads == 0, "retained cursor cannot read after namespace disposal");
++            cursor.Dispose(); Check(m.Opened == m.Closed, "retained cursor still releases after namespace disposal");
++        }
++        return passed;
++    }
++}

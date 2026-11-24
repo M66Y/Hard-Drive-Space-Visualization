@@ -1,0 +1,96 @@
+{
+  "date": "2026-11-24",
+  "baseline": "7e6f21d",
+  "candidate_implemented": true,
+  "default_enabled": false,
+  "maximum_states": 8192,
+  "checks": [
+    {
+      "name": "ntfs-namespace-ancestor-tests",
+      "passed": 94,
+      "summary": "PASS NTFS namespace ancestors: 94; synthetic only",
+      "log_sha256": "42BCB369682560238E78D73DDCB2CD04964869F83CD4F67CD57F9B41E906A42E"
+    },
+    {
+      "name": "ntfs-snapshot-namespace-tests",
+      "passed": 84,
+      "summary": "PASS NTFS snapshot namespace: 84; synthetic only",
+      "log_sha256": "DFA2E19A2646B1F5E01F0C397EA907DB46D8E7D566CD446170CBA06B983569EE"
+    },
+    {
+      "name": "ntfs-personal-source-tests",
+      "passed": 52,
+      "summary": "PASS personal source: 52; synthetic only",
+      "log_sha256": "B8F197B29D8DFB485DE21C8ED8D97A905431C1FD1929E128D13D79437BC9209F"
+    },
+    {
+      "name": "ntfs-personal-index-tests",
+      "passed": 27,
+      "summary": "PASS personal index: 27; synthetic only",
+      "log_sha256": "71B896D2210AA9F7D5467E1606B0F1295EE7C13EF5205B43DC1F02B3A5C80E8D"
+    },
+    {
+      "name": "ntfs-reparse-policy-tests",
+      "passed": 36,
+      "summary": "PASS reparse policy: 36; synthetic only",
+      "log_sha256": "2D8518A8B233011DDEAD538313B2A90846F33224929D13416DA444404ABB8043"
+    },
+    {
+      "name": "ntfs-large-profile-tests",
+      "passed": 25,
+      "summary": "PASS large profile: 25; synthetic only",
+      "log_sha256": "C82B95A89F032E1E743FD80EF21BC742BD0797F31389512BDCBC94219AC3BC42"
+    },
+    {
+      "name": "ntfs-snapshot-size-tests",
+      "passed": 46,
+      "summary": "PASS NTFS snapshot sizes: 46; synthetic only",
+      "log_sha256": "4552D4DF685F268E8F8129E8F86614F4C0B88A425622E7F12EDD889EA18ED857"
+    },
+    {
+      "name": "fast-scan-bridge-tests",
+      "passed": 45,
+      "summary": "PASS fast scan bridge: 45; local pipes only",
+      "log_sha256": "7A16F3A7A8D54C00C77AD49B6C078CBE80EC7F553DB284D52968B9930FE9918E"
+    },
+    {
+      "name": "fast-scan-coordinator-tests",
+      "passed": 68,
+      "summary": "PASS fast scan coordinator: 68; synthetic only",
+      "log_sha256": "57AC77AEABBB827CF3322A821A8D6CFF0729D1E504C09806AA2109DE6DF6D751"
+    },
+    {
+      "name": "core",
+      "passed": 38,
+      "summary": "All 38 tests passed.",
+      "log_sha256": "C7B7F6A24CBE4B8A22B5B90090041C4EE27C250DEC94A57BEF7CD088CA8B14B0"
+    },
+    {
+      "name": "advanced",
+      "passed": 25,
+      "summary": "All 25 advanced checks passed.",
+      "log_sha256": "35BF82C77BCD5A65D59ADFF685C7A9F8A50C02CF823A522945DAC16C46BBFBB5"
+    }
+  ],
+  "total": 540,
+  "application_build_warnings": 0,
+  "test_build_warnings": 0,
+  "preservation_guards": {
+    "size_supplementation_unchanged": true,
+    "full_resolve_unchanged": true,
+    "native_cursor_unchanged": true,
+    "NtfsSnapshotMetadata.cs": true,
+    "NtfsSnapshotSizeIndex.cs": true,
+    "NtfsReparsePolicy.cs": true
+  },
+  "real_volume_tested": false,
+  "personal_scan": false,
+  "vss_raw_vhd": false,
+  "physical_io_measured": false,
+  "real_speedup_claimed": false,
+  "gui_modified": false,
+  "normal_program_preserved": true,
+  "c55_preserved": true,
+  "packaged": false,
+  "released": false
+}

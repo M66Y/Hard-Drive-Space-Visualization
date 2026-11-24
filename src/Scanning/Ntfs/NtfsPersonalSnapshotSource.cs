@@ -24,6 +24,8 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
     private readonly NtfsVssNativeSession session = new();
     private readonly Func<bool> closeSession;
     private readonly HashSet<IDisposable> cursors = new();
+    private readonly object namespaceGeneration = new();
+    private NamespaceBackend? namespaceBackend;
     private readonly NtfsSnapshotVolumeFacts liveFacts;
     private string snapshotRoot = "", snapshotDataRoot = "";
     private FileStorageInfo? rootStorage;
@@ -137,24 +139,61 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
     internal void TrackReader(NtfsSnapshotVolumeReader value)
     { lock (gate) { Active(); Require(readerIssued && reader == null, "VssRawOpen"); reader = value; } }
 
-    internal NtfsSnapshotNamespace.IBackend CreateNamespaceBackend()
-    { lock (gate) { Active(); return new NamespaceBackend(this); } }
-    private sealed class NamespaceBackend(NtfsPersonalSnapshotSource owner) : NtfsSnapshotNamespace.IBackend
+    // Candidate remains opt-in. No UI/default scan selection enables it.
+    internal NtfsSnapshotNamespace.IBackendLease CreateNamespaceBackend(bool reuseValidatedAncestors = false,
+        CancellationToken token = default)
     {
+        lock (gate)
+        {
+            Active(); token.ThrowIfCancellationRequested(); Require(namespaceBackend == null, "VssSnapshotNative");
+            return namespaceBackend = new NamespaceBackend(this, reuseValidatedAncestors, token);
+        }
+    }
+    private sealed class NamespaceBackend : NtfsSnapshotNamespace.IBackendLease
+    {
+        private readonly NtfsPersonalSnapshotSource owner;
+        private readonly NtfsNamespaceAncestorValidation? validation;
+        private bool disposed;
+        internal NamespaceBackend(NtfsPersonalSnapshotSource owner, bool reuse, CancellationToken token)
+        {
+            this.owner = owner;
+            if (reuse) validation = new(owner.namespaceGeneration, owner.RootStorage.Identity,
+                EnsureActive, OpenCore, token);
+        }
+        private void EnsureActive() { lock (owner.gate) { owner.Active(); Require(!disposed, "VssSnapshotNative"); } }
         public FileIdentity RootIdentity => owner.RootStorage.Identity;
         public DateTime? RootModified => owner.RootStorage.Modified;
         public NtfsSnapshotNamespace.ICursor OpenDirectory(NtfsSnapshotNamespaceEntry entry, string relativePath, CancellationToken token)
         {
+            EnsureActive();
+            return validation == null ? OpenCore(entry, relativePath, false, token) :
+                validation.OpenDirectory(owner.namespaceGeneration, entry, relativePath, token);
+        }
+        private NtfsSnapshotNamespace.ICursor OpenCore(NtfsSnapshotNamespaceEntry entry, string relativePath,
+            bool ancestorsValidated, CancellationToken token)
+        {
             token.ThrowIfCancellationRequested(); Require(entry.Directory && !entry.Reparse && entry.Identity.Volume == RootIdentity.Volume, "VssSnapshotNative");
-            string path = owner.Resolve(relativePath, true);
+            string path = ancestorsValidated ? owner.ResolveNamespaceLeaf(relativePath, token) : owner.Resolve(relativePath, true);
             var cursor = new CursorLease(owner, NtfsSnapshotNamespace.OpenNativeDirectory(path, entry.Identity, token));
             lock (owner.gate)
             {
-                try { owner.Active(); Require(owner.cursors.Count < 16, "VssSnapshotNative"); owner.cursors.Add(cursor); }
+                try { owner.Active(); Require(!disposed && owner.cursors.Count < 16, "VssSnapshotNative"); owner.cursors.Add(cursor); }
                 catch { cursor.Dispose(); throw; }
             }
             return cursor;
         }
+        public void Dispose()
+        {
+            // Never wait on a cancellation callback while holding the source
+            // gate. Cleanup can close the owner before taking this path.
+            validation?.Dispose();
+            lock (owner.gate)
+            {
+                disposed = true;
+                if (ReferenceEquals(owner.namespaceBackend, this)) owner.namespaceBackend = null;
+            }
+        }
+        internal void Invalidate() => validation?.Invalidate();
     }
     private sealed class CursorLease(NtfsPersonalSnapshotSource owner, NtfsSnapshotNamespace.ICursor cursor) : NtfsSnapshotNamespace.ICursor
     {
@@ -205,6 +244,11 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
         }
         return parts.Length == 0 ? root : current;
     }
+    private string ResolveNamespaceLeaf(string relative, CancellationToken token)
+    {
+        string root; lock (gate) { Active(); root = snapshotDataRoot; }
+        return NtfsNamespaceAncestorValidation.ResolveLeaf(root, relative, File.GetAttributes, token);
+    }
     internal static string[] RelativeSegments(string relative, bool directory)
     {
         Require(relative != null && relative.Length <= 32768 && !Path.IsPathRooted(relative), "VssSnapshotNative");
@@ -217,18 +261,22 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
     private void Active() => Require(!closed, "VssCleanup");
     internal bool Cleanup()
     {
+        NamespaceBackend? backend;
         lock (gate)
         {
             if (closed) return cleanupConfirmed;
             if (ownerThread != Environment.CurrentManagedThreadId) return false;
             closed = true; bool handlesClosed = true;
+            backend = namespaceBackend; backend?.Invalidate();
             try { reader?.Dispose(); if (reader != null) handlesClosed &= reader.BufferReleased; } catch { handlesClosed = false; }
             // The delegate was allocated before snapshot creation. Teardown
             // neither copies the tracked set nor skips VSS cleanup if a cursor
             // or the collection fails while the process is under pressure.
             bool cursorsAndSessionClosed = CloseTrackedCursorsAndSession(cursors, closeSession);
-            cleanupConfirmed = cursorsAndSessionClosed && handlesClosed; return cleanupConfirmed;
+            cleanupConfirmed = cursorsAndSessionClosed && handlesClosed;
         }
+        backend?.Dispose();
+        return cleanupConfirmed;
     }
     public void Dispose() { _ = Cleanup(); }
 
