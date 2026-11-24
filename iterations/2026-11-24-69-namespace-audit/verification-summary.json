@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-24",
+  "mathematical_examples_not_live_counts": true,
+  "released": false,
+  "personal_scan": false,
+  "shared_ancestor_attribute_calls_repeated": true,
+  "audit_completed": true,
+  "root_constant_duplicate_outside_discovering": true,
+  "native_cursor_getters_cached": true,
+  "gui_modified": false,
+  "real_speedup_claimed": false,
+  "candidate_implemented": false,
+  "directory_stage_also_includes_memory_reparse_filter": true,
+  "native_size_queue_deduplicated_by_full_identity": true,
+  "vss_or_raw_or_vhd": false,
+  "assembly_rebuilt": false,
+  "physical_io_measured": false,
+  "candidate_implementation_authorized": false,
+  "source_owner_closed_state_reviewed": true,
+  "synthetic_baseline_checks": {
+    "personal_index": 27,
+    "namespace": 84,
+    "personal_source": 52
+  },
+  "packaged": false,
+  "old_pause_document_deletion_preserved": true,
+  "next_scope_selected": "Review only namespace ancestor proof reuse"
+}

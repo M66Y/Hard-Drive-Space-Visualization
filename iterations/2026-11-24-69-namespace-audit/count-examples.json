@@ -1,0 +1,31 @@
+{
+  "kind": "static_formula_examples",
+  "candidate_implemented": false,
+  "real_filesystem_observations": false,
+  "cases": [
+    {
+      "shape": "root_only_with_many_files",
+      "directories": 1,
+      "current_attribute_calls": 1,
+      "proposed_attribute_calls_if_all_required_proofs_fit": 1,
+      "native_directory_opens_unchanged": 1,
+      "identity_and_tag_queries_unchanged": 2
+    },
+    {
+      "shape": "two_level_100_groups",
+      "directories": 201,
+      "current_attribute_calls": 501,
+      "proposed_attribute_calls_if_all_required_proofs_fit": 201,
+      "native_directory_opens_unchanged": 201,
+      "identity_and_tag_queries_unchanged": 402
+    },
+    {
+      "shape": "chain_64",
+      "directories": 65,
+      "current_attribute_calls": 2145,
+      "proposed_attribute_calls_if_all_required_proofs_fit": 65,
+      "native_directory_opens_unchanged": 65,
+      "identity_and_tag_queries_unchanged": 130
+    }
+  ]
+}

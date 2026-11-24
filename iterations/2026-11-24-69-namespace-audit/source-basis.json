@@ -1,0 +1,46 @@
+{
+  "test_assembly": {
+    "path": "tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll",
+    "c68_manifest_matched": true,
+    "sha256": "EF3C43C08C5D00727D442C72250C7B6F5ED87436A8B3B9214B03E8B8EA4C5BE0"
+  },
+  "starting_head": "856fb1b",
+  "user_confirmed_inherited_deletion_commit": "30bbec9",
+  "date": "2026-11-24",
+  "product_source_baseline": "2781ebb",
+  "product_source_modified": false,
+  "sources": [
+    {
+      "sha256": "DCE952FA4478B9EE6C797D1809119DCAEF6A4BA779BF574B7DF74EEEA3BEB5DF",
+      "path": "src/Scanning/Ntfs/NtfsPersonalScan.cs"
+    },
+    {
+      "sha256": "480877EA20BD0169D36BC3EEDF003038F0573D12E8394E1DCB679F6C4B41B644",
+      "path": "src/Scanning/Ntfs/NtfsPersonalSnapshotSource.cs"
+    },
+    {
+      "sha256": "8393B45ACC24CCB8E40850912D54E4DC55DC31805D698D8A66979772456CDF0B",
+      "path": "src/Scanning/Ntfs/NtfsSnapshotNamespace.cs"
+    },
+    {
+      "sha256": "CBC8FFA70B59642DD0FAEDA14EE5DB48B83AF5465A47F1662049CF39258D26CF",
+      "path": "src/Scanning/Ntfs/NtfsSnapshotMetadata.cs"
+    },
+    {
+      "sha256": "450646FDA7600943B2B8AB7DFCCF6AB53BC93D1BF730F7E6A2F19ABB97C9DE6A",
+      "path": "src/Scanning/Ntfs/NtfsSnapshotSizeIndex.cs"
+    },
+    {
+      "sha256": "3A5EAEA4B31A0614481544E4177DAA9C003297DBE91170C472316CD9ABEB38BC",
+      "path": "src/Scanning/Ntfs/NtfsReparsePolicy.cs"
+    },
+    {
+      "sha256": "7AE732A17C313CD9D91FF6FE354E6E519383CA279D775B6797A3FCED6DE2CB11",
+      "path": "src/Scanning/Ntfs/NtfsVssNativeSession.cs"
+    },
+    {
+      "sha256": "BEF86475B169E2C9DD7AC0C7E31FA807FC9075B3C4B63F8EA690819685773FB0",
+      "path": "src/Scanning/Ntfs/FastScanBridge.cs"
+    }
+  ]
+}

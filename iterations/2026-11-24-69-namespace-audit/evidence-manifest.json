@@ -1,0 +1,24 @@
+{
+  "entries": [
+    {
+      "bytes": 2497,
+      "file": "ntfs-personal-index-tests.log",
+      "sha256": "71B896D2210AA9F7D5467E1606B0F1295EE7C13EF5205B43DC1F02B3A5C80E8D"
+    },
+    {
+      "bytes": 4210,
+      "file": "ntfs-personal-source-tests.log",
+      "sha256": "B8F197B29D8DFB485DE21C8ED8D97A905431C1FD1929E128D13D79437BC9209F"
+    },
+    {
+      "bytes": 8115,
+      "file": "ntfs-snapshot-namespace-tests.log",
+      "sha256": "DFA2E19A2646B1F5E01F0C397EA907DB46D8E7D566CD446170CBA06B983569EE"
+    }
+  ],
+  "archive_verified": true,
+  "private_archive": "artifacts/namespace-audit-C69/synthetic-checks.zip",
+  "synthetic_only": true,
+  "sha256": "9A147704B4B14B8B19D09D48B4269E5A0530B930549FC4D1B827476CC162BD38",
+  "original_product_code_unchanged": true
+}
