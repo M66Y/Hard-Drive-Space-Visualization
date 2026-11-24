@@ -49,3 +49,12 @@ Wire v3 只传排除总数和最多 2,000 条以父目录标识／叶名表达�
 本轮用户已明确允许指定个人范围的快照与受限原始读取，具体操作仍受当轮已确定的范围和预算约束，不成为后续轮次的永久许可。没有新建 VHD、读取其他个人目录或正式发布的默认许可。已发布的 v1.5.0 不包含此实验入口；普通目录扫描仍可使用。
 
 技术依据：[VSS 请求程序安全](https://learn.microsoft.com/en-us/windows/win32/vss/security-considerations-for-requestors)、[命名管道权限](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipe-security-and-access-rights)、[本机对端进程核验](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getnamedpipeserverprocessid)。
+
+## 个人卷接入与验收检查
+
+以下条款中的“本轮”与具体夹具参数属于原始验证轮次。新任务须按当前范围取得相应授权。
+
+- 个人卷当前合同见 [NTFS 快扫说明](ntfs-personal-scan.md)，不从历史夹具授权推导个人卷权限。扩展布局、紧凑预算与边界策略改动运行 `--ntfs-mft-metadata-tests`、`--ntfs-continuation-record-tests`、`--ntfs-bitmap-bundle-tests`、`--ntfs-large-profile-tests`、`--ntfs-reparse-policy-tests`，并核对旧 Map/namespace/size/reader 回归。`--ntfs-personal-acceptance-tests` 是纯审计反例，`--ntfs-snapshot-metadata-tests` 仅用自有临时文件；通信与主窗检查仍按下方入口执行。
+- 真实个人卷验收必须有当轮范围、快照及原始页读取授权；测试 apphost 的 `--ntfs-personal-acceptance` 从 stdin 接收目录，复用生产管道并在清理前逐对象独立核验，仅输出固定码和布尔摘要。`passed-partial` 明确排除重解析点及目标，不等于整个目录全读完；只有声明的链接边界允许部分成功，读取错误、未知大小和矛盾不能混入。`--cancel-on-discovery` 在快照建立后取消；独立审计成本不作为产品性能。实际窗口观察、合成 UI 回归和真实后台核验分别记录。
+
+- NTFS 可复用核心位于 `src/Scanning/Ntfs/`，历史夹具/原型及合成测试仍位于 `tests/Prototypes/Ntfs/`；旧入口 `--ntfs-prototype-tests` 与各轮固定合同不变。个人卷与主窗实验合同见[个人卷快扫](ntfs-personal-scan.md)：新增 `--ntfs-personal-index-tests`、`--ntfs-personal-source-tests`、`--fast-scan-wire-tests`、`--fast-scan-coordinator-tests`、`--fast-scan-bridge-tests`；主窗 `--fast-scan-mainform-tests` 分别以默认 DPI 和 `--dpi-96` 验证，实际画面另观察。仅本机管道测试不访问卷。合成通过不等于个人卷实际可用或提速，默认入口关闭；个人 raw/VSS 必须按当轮范围明确确认，MFT 页可能含相邻记录/驻留内容片段，不能概括为物理上不读取正文。历史 VHD 守卫仍用 `pwsh -NoProfile -File tests/NtfsFixtureGuards.Tests.ps1`，旧许可不扩为个人卷或以后默认提权授权；实际来源必须核对归属、格式、几何及完整身份。

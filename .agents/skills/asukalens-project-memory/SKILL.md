@@ -11,7 +11,7 @@ description: 在 AsukaLens 项目接续开发、交接上下文或更新项目�
 
 先看 references/checkpoint.md，再按本次范围读取 references/decisions.md 和其链接。用 `git status --short --branch`、当前提交、相关代码及迭代验证新鲜度；明确已提交、工作区半成品、测试原型、旧预览和正式发行版。事实冲突以核实后的代码/证据为准，纠正记忆，不把计划写成已实现。
 
-长期规则仅维护在根 AGENTS.md；现状与计划分别由 docs/project-status.md、docs/development-plan.md 维护。记忆是索引和交接摘要，不复制整个规则、历史或原始日志。新需求不能仅因出现在记忆中就视为实施授权。
+跨任务长期规则及专项入口维护在根 AGENTS.md，专项条款维护在它链接的对应章节；现状与计划分别由 docs/project-status.md、docs/development-plan.md 维护。记忆是索引和交接摘要，不复制整个规则、历史或原始日志。新需求不能仅因出现在记忆中就视为实施授权。
 
 ## 更新触发
 

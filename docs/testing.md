@@ -1,5 +1,7 @@
 # 开发验证与可选基准
 
+专项入口见本页的[通用回归](#构建与通用回归)、[界面专项](#界面与磁盘活动专项入口)以及[项目任务索引](../AGENTS.md#按任务读取的规则)。
+
 ## C68 完整主窗NTFS计时
 
 `--ntfs-product-timing-tests`运行固定时间/白名单/容量/资源所有权与两次自有小目录真实MainForm检查，不访问raw/VSS。保留`--ntfs-personal-timing-tests`及bridge/coordinator/wire回归。实际`DiskAtlas.Tests.exe --ntfs-personal-timing-ui`必须使用测试apphost、stdin顺序/目录和当轮真实权限；旧无UI入口不混入同组。仅一对为诊断，不可比立即终止结论，无DWM、物理IO或独立人工UAC时间保证。使用与公开证据边界见[工具说明](ntfs-product-timing.md)。
@@ -153,3 +155,46 @@ dotnet tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll --disk-activity-mai
 CLI 探针检查使用 `pwsh -File tests/GitHubAccess.Tests.ps1`，构造本地合成可执行工具验证状态区分、分页、原始输出隔离与备用工具哈希。`pwsh -File scripts/release/Test-GitHubAccess.ps1` 则会使用真实 CLI 只读检查实际登录和目标仓库，返回固定字段诊断对象，不创建资产；两者不要混淆。上传回归同时要求每次 CLI 调用关闭遥测且结束后恢复调用者环境。
 
 离线验收工具检查使用 **64 位 Windows PowerShell 5.1**：`powershell.exe -NoProfile -File tests/OfflineAcceptance.Tests.ps1`，可用 `-Summary <新报告.json>` 保存白名单汇总。它在已有现代 .NET 的开发机验证真实环境探测，生成小型合成资产与 .NET Framework 子进程，检查校验、隔离、CLI、状态与清理；无需重新构建应用或生成发行包。目标机只需复制两个验收脚本，按[操作手册](offline-acceptance.md)执行。合成子进程不是 AsukaLens，不能据此填写真实发行入口或干净系统通过。
+
+## 构建与通用回归
+
+- 开发 SDK 由 `global.json` 固定到已验证的 .NET 10 feature band，允许补丁升级，不使用预览 SDK。运行需要 .NET 10 Windows Desktop Runtime；SDK 已包含它。
+- 当前普通构建入口：`dotnet build DiskAtlas.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。
+
+- 先构建测试项目：`dotnet build tests/DiskAtlas.Tests.csproj --configuration Release -p:TargetPlatformDisplayName=Windows -p:NuGetAudit=false`。测试 DLL 为 `tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll`，用 `dotnet` 运行，按下表选范围。
+
+| 改动范围 | 必要检查 |
+| --- | --- |
+| 扫描、统计、缓存 | 测试 DLL 无参数核心检查、`--advanced-tests`，补本轮边界 |
+| 日志增量、刷新策略 | 上述检查加 `--journal-tests`，真实路径与模拟场景分别记录 |
+| 界面、背景、绘制 | 应用与测试构建、`--ui-regression`、`--ui-regression --dpi-96`，实际受影响流程与状态观察 |
+| 背景存储、弹窗、启动恢复 | 另运行 `--background-tests` 与 `--background-tests --dpi-96`，使用隔离配置的独立进程恢复检查 |
+| 异常报告与隐私 | `--error-report-tests`，检查字段白名单、失败提示、旧报告保留和临时文件清理 |
+| 框架大版本 | 上述全部回归，加 `--desktop-compatibility` 的目录拖放/复制路径检查与实际窗口观察 |
+| 性能 | 正确性回归加对应同条件基准，不无条件跑所有基准 |
+
+- 合成目录与软件配置隔离测试，不默认扫描用户整盘或覆盖真实背景设置。缺权限/文件系统特性的跳过、程序断言、人工观察和性能实测分别记录。
+
+- 当前开发启动入口为 `run.cmd` / `run.ps1`，先普通构建再启动；`run.ps1 -BuildOnly` 只构建。程序集构建标识用于辨认二进制，不是 Git 提交号或正式发布证明。
+- 开发预览优先使用普通构建入口 `bin/Release/net10.0-windows/DiskAtlas.exe`；被运行中程序占用时使用明确标识的临时输出，记录路径与构建来源。收尾核查重复产物，不持续新增不明版本的 Preview 目录。
+
+- 调整目录或构建方式时同步更新上述命令、项目引用、测试链接文件、资源路径及文档。不得写入本机绝对路径作为公共运行要求。
+
+## 界面与磁盘活动专项入口
+
+- 大文件筛选/显示偏好修改运行`--stage-three-model-tests`及`--stage-three-ui-tests`两档，保持先过滤全范围再top500、逻辑大小门槛、同根保留/换根重置/取消恢复、独立有界配置及显示取消/失败恢复。显示缓存/密度修改另用`--scroll-frame-tests --display-variants`两档核C65发布合同，并运行受影响UI/背景/根合成/缓存检查；实际观感不由离散像素断言代替。行为与保存限制见[使用说明](display-and-large-file-filters.md)。
+
+- 表面、字体或尺寸修改可运行 `--visual-surface-tests` 及 `--dpi-96`：自有小目录真实扫描后用合成背景检查底板、合成对比和最小窗口排版；程序位图断言不替代实际桌面观察。`--stage-one-preview a|b [--minimum] [--dpi-96] [--expanded]` 为测试 apphost 的真实合成目录预览，隔离配置、显示路径使用公开别名，关闭后核归属清理；A/B 的磁盘活动使用明确标记的纯合成源，收起不采样。`baseline` 需预先保留的旧开发程序集，不支持展开，不以其名称当 Git 冻结证明。交互预览使用保持 stdin 的终端会话，精确 `close` 会先退自有弹窗再关主窗；EOF 不会自动关闭。工具细节见 [C29 记录](../iterations/2026-11-13-29-visual-polish/README.md)与[C30 比例修正](../iterations/2026-11-13-30-visual-proportions/README.md)。
+- 图表/列表/详情联动修改运行 `--selection-linkage-tests` 及 `--dpi-96`（专项自行构造C57，不加composition前缀），核对象身份、内部文件/父归属、就近/跨页、查询交接、未知/共享及详情资源；另查受影响UI/滚动/柔光并实际观察。内嵌文件单击保留视角，主动“在列表中查看”才进入父目录；不靠同名或硬链接身份猜测路径，不增加悬停文字或动态说明行。见[联动说明](selection-linkage.md)。
+- 布局/圆角裁切/原生移动重绘改动另运行 `--layout-transition-tests`、`--layout-presentation-tests`，分别加 `--dpi-96`。前者观测范围行、扫描切换/取消、partial/分页及祖先移动的自然消息顺序，后者验证合并、重入、暂停恢复与句柄生命周期；它们不代表真实屏幕像素无残影。`--layout-transition-preview [--dpi-96]` 使用自建合成目录与真实扫描器，第二次扫描起受控暂停；stdin命令 `scan`、`release`、`cancel`、`scope`、`clear-scope`、`minimum`、`common`、`close` 仅作用于自有窗口，暂停不作为性能证据。关闭后等待任务退出再核归属清理，不在观测前强制刷新以掩盖瞬态，实际动态效果仍需桌面观察与用户反馈。
+- 原生列表滚动条指针、皮肤或几何修改运行`--scrollbar-pointer-tests`、`--scrollbar-surface-tests`及`--scroll-frame-tests`两档DPI，独立核对位置/长度更新及延迟松手、取消/失捕获/释放；补受影响UI、列表滚动与联动检查。静态或松手后画面不能代替拖动期间验收；`--scrollbar-tracking-preview`仅采样自有合成条，不把少量GDI样本当连续呈现证明。
+- DIB根背景缓存修改另运行 `--root-composite-tests` 及 `--dpi-96`，核对完整像素、局部/带孔裁切、尺寸/图片/聚焦失效、预算和关闭后释放。`--resize-pipeline-probe off1|on1|on2|off2 [--dpi-96] [--slow] [--pixels]` 只扫描自建临时目录，输出至ignored artifacts并拒绝覆盖；固定12步、最多256条尺寸事件，阶段耗时可嵌套不可相加。性能与离散GDI取点分开测，均不能代表真实帧率或连续屏幕无闪黑；默认程序不启用该内存探针。方案见 [C53缩放排查](ui-resize-pipeline-plan.md)。
+- 已按窗口像素准备的背景缓存必须显式按像素源/目标矩形发布，不能用按物理尺寸随DPI缩放的`DrawImageUnscaled`再次放大。修改此链路运行`--background-pixel-mapping-tests`：用独立像素参照覆盖96/120/144/192 DPI，不能只对比两条共享同一错误缩放的绘制路径。保留原焦点、Zoom及用户配置，不以改参数掩盖映射错误。
+- 原生透明控件/布局后局部补画修改另运行 `--transparent-restore-tests`，分别加 `--dpi-96`、`--custom`（四组）；它在自然最大化/还原后先核真实控件及父空白区像素，再做明确标记的局部/父失效对照，不在取证前强刷。`--native-window-clip-tests` 两档验证普通HWND的简单/带孔裁切。两者需可交互桌面，只用自有窗口/合成背景、拒绝覆盖报告，不代替连续闪黑的人工验收。C54性能复验可在原管线探针增加 `--c54`，隔离输出至本轮目录。见[还原残留方案](ui-restore-background-plan.md)。
+- 缩放中的缓存发布或分隔面板擦背景修改另运行 `--resize-composition-tests` 及 `--dpi-96`，在自然尺寸事务后核父面板可见像素、最终补画、重绘所有权及资源释放。C55管线探针使用 `--c55` 隔离输出，默认关闭的诊断仅记录固定表面类别、透明度及计数；两档根合成回归覆盖整数位移/带孔裁切，并保持非整数、比例和旋转变换回退。中间擦背景跳过次数、同步尺寸耗时及离散GDI取点均不能直接宣布连续闪黑消失。
+- C56整窗重定向仅由显式`--opaque-redirect-candidate`或`AsukaLens.OpaqueDibCandidate.exe`启用；普通与旧DIB入口不启用。修改该模式运行`--opaque-redirect-tests`两档，核实际LWA_ALPHA=255、无色键/点击穿透、句柄代际/失败回退、原生交互及关闭资源；完整UI使用`--opaque-tests --dib-tests --ui-regression`两档，显式DIB专项可只加`--opaque-tests`保留其普通参考路径。管线`--c56`的off/on只比较重定向，双方均保留C55根缓存。系统额外窗口图像不算入应用128MiB预算，GDI存储像素、句柄稳定或后台检查通过均不等于真实屏幕无闪黑；Win10/跨屏等未验范围单列，不沿用旧发行包结论。
+
+- 用户已批准普通启动默认采用C57背景合成及DIB，失败撤下合成对象并回退C55；C55独立版本保留。`DesktopRendering`统一启动选择，显式旧DIB/C56/C57入口保持对照语义，普通标题仅AsukaLens；`--legacy-rendering`为旧绘制诊断入口。修改默认选择运行`--desktop-rendering-tests`、`--desktop-default-tests`两档，修改合成路径另运行`--composition-backdrop-tests`、`--composition-mainform-tests`两档，并以`--composition-tests`前缀运行受影响UI/布局/背景检查。`--resize-pipeline-probe off1|on1|on2|off2 --c57`比较同构建C55与C57，输出独立ignored目录；GDI取点不包含合成层，Commit完成及后台断言不替代真实屏幕反馈。新默认已获本机用户通过，不因此外推Windows 10或真实跨屏均已验收，范围见[收尾方案](ui-stage-one-closeout-plan.md)。
+
+- 磁盘活动修改运行 `--disk-activity-tests`（纯合成采样/映射和后台编排），面板运行 `--disk-activity-panel-tests`、`--disk-activity-mainform-tests` 并分别加 `--dpi-96`。真实只读采样用 `--disk-activity-live`，不打印实例、路径或设备名称。可选 `--disk-activity-resource-probe` 比较独立进程后台监测开启/关闭，不含 UI 和扫描；生命周期峰值工作集不代表单个测量窗口峰值。功能和未验收边界见 [磁盘活动说明](disk-activity.md)。
+- 可选 `--disk-activity-scan-probe` 仅创建并清理自有 30,000 文件夹具，四个独立主窗进程按 off/on/on/off 比较扫描与最终 UI 查询；单独核对扫描期间的采样重叠，不把预热期间有样本当作扫描期间有样本。缓存与外部负载未控制，少量观测不作为普遍性能保证。

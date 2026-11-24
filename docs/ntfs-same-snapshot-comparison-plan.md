@@ -38,3 +38,7 @@ C27 已修复生产助手的启动线程问题并通过真实界面验收。完�
 真实同源摘要为 `Matched`：完整比较、来源绑定、预算、已包含范围与两种大小、独立根统计、排除集合及本次快照清理均通过；未需要差异补查。首次启动仅在管理员等待阶段超时，未发送目录或建立来源；第二次启动完成本轮唯一实际快照会话。没有追加扫描或留存原始数据。详细验证与恢复材料见 [C28 归档](../iterations/2026-11-13-28-same-snapshot-comparison/README.md)。
 
 测试命令：`--ntfs-same-snapshot-comparison-tests`、`--ntfs-same-snapshot-driver-tests`、`--scan-traversal-budget-tests`。真实入口为测试 apphost 的 `--ntfs-same-snapshot-comparison`，目录只从 stdin 接收，需要本轮来源授权及用户处理管理员提示。当前父进程的 10 分钟取消上限包含授权等待，可能早于助手自身读取上限停止；超时不自动重试。原产品通信和计时入口未改。
+
+## 对照工具变更检查
+
+- 同快照比较工具的检查为 `--ntfs-same-snapshot-comparison-tests`、`--ntfs-same-snapshot-driver-tests`、`--scan-traversal-budget-tests`；共享 `Core.cs` 修改同时核对核心／高级及相关并行检查。真实测试 apphost 入口 `--ntfs-same-snapshot-comparison` 仅按当轮已批准的来源范围执行，目录走 stdin，不由合成检查或旧许可自动开启。摘要只含固定类别与布尔值，独立核对同源、完整性、预算与清理；相等不代表产品端到端提速，也不回溯证明所有旧跨时点差异来自文件变化。见 [同快照方案](ntfs-same-snapshot-comparison-plan.md)。

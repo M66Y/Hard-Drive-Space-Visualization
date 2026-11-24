@@ -153,3 +153,30 @@ pwsh -File tests/DraftUpload.Tests.ps1
 仍需正式发布前验证：**未预装 .NET 的干净 Windows 11 x64 环境、真实历史发行版迁移（如存在）、远程草稿上传和下载核验**。正式候选包仍须对其确切资产重新验收，不能将本轮临时包的证据绑定到另一份清单。本机已安装 SDK；包内运行时路径核验不能代替干净系统验收。没有启用 Windows 可选组件、安装虚拟机或进行真实 GitHub 上传。
 
 后续本机检查已补充上述离线流程，修复版本子串误匹配并核验草稿说明一致性。用户当前没有独立 Windows 测试环境，因此干净系统门槛继续保留。Windows Home 不受 [官方 Windows Sandbox](https://learn.microsoft.com/en-us/windows/security/application-security/application-isolation/windows-sandbox/) 支持；不通过修改宿主运行时或绕过版本限制来宣称完成验收。
+
+## 发布快照与工具变更检查
+
+- 仅在本次任务明确包含正式发布时打包、创建标签和 Release；普通迭代只构建、验证、记录与提交，不自行发布。用户可明确授权仅供本机验收的临时包：必须使用 `-LocalTest`、单独安装身份和测试标识，不上传包、不创建标签/Release；本轮 2026-11-07 已获得该临时验收授权，不扩展为以后迭代的默认打包授权。
+- 对外版本号统一为 `vX.X.X`，例如 `v1.5.0`；标签与展示必须一致。Release 标题为 `AsukaLens vX.X.X`。
+- .NET 项目、程序集及安装器中要求纯数字的技术字段使用对应 `X.X.X` 或 `X.X.X.0`，发布脚本从同一版本来源生成对外的 `vX.X.X`，避免多处手改失配。
+- 资产文件名使用点号分隔产品名和版本，避免 GitHub 转换空格后导致清单和链接不匹配。Release 标题仍使用空格。历史快照不重命名；旧空格名称仅保留本地验收兼容，上传必须使用新的点号名称。
+- 每个正式 Release 至少提供以下四个可用资产。两个 ZIP 用 `-source` 区分，保留统一产品名与版本前缀：
+  - `AsukaLens.vX.X.X.zip`：ZIP 便携版，包含全部必需运行文件。
+  - `AsukaLens.vX.X.X.exe`：真正的软件 EXE 安装包，不是改名后的普通启动程序。
+  - `AsukaLens.vX.X.X-source.zip`：对应发布提交的源码 ZIP。
+  - `AsukaLens.vX.X.X-source.tar.gz`：同一源码快照的 tar.gz。
+- 同步中英文发布说明、功能变更、修复、已知限制、适用环境、依赖、安装/便携使用方法和资产下载链接；提供 SHA-256 校验信息，标明是否含 .NET 运行时。
+- 在干净或受控环境验证便携版解压运行、安装器安装/启动/升级/卸载、源码解压及按文档构建；两种源码包应对应相同提交，解压后的必要文件一致。单文件启动器不等于安装器，文件存在不等于可用。
+- 源码包不得打入 `.git`、凭据、个人日志、用户图片、编译缓存和发布二进制；必须包含构建所需且可分发的资源。默认背景等第三方素材的来源和分发许可未明确时先解决，不自行声称有授权。
+- 采用“快照”机制：每版绑定明确的代码提交、标签、发布说明和校验后的资产；GitHub Release 保留每一版可用文件，不用新版本覆盖旧版，不移动已发布标签。修复发布资产优先发补丁版本并记录缘由。
+- 先在草稿中备齐并验证全部必需资产，完成后再公开发布；部分失败保持草稿并报告，不把不完整 Release 当成正式成功。
+- 历史快照主要保存在远程 Release，不要求开发电脑重复存放所有安装包。确认远程快照完整且可下载后，可清理本地旧产物；不得删除远程历史快照或唯一可恢复副本。
+
+- 根目录 `build.ps1` 是保留的旧框架依赖打包入口，不用于普通迭代检查，也不是新的正式发布入口。新的自包含/安装器/源码快照脚本位于 `scripts/release/`，用法和验收边界见 [发布说明](releasing.md)。运行 `tests/ReleaseScripts.Tests.ps1` 检查边界；包级验证用 `tests/PackageAcceptance.ps1`，不能把静态检查当运行通过。
+- 草稿上传控制流程改动运行 `tests/DraftUpload.Tests.ps1`；它使用本地替身，不调用 GitHub，不替代真实远程或安装包验收。
+- 发布前缺口与证据见 [发布准备清单](release-readiness.md)。双语发布说明使用 `docs/release-notes.template.md`，模板/内容校验改动运行 `tests/ReleaseNotes.Tests.ps1`，并对接入上传入口的改动运行上述上传回归；不把格式检查当真实功能、环境或远程验收。
+- GitHub CLI 工具来源、便携目录和只读检查见 [发布工具说明](github-publishing-access.md)。项目调用显式关闭 CLI 遥测，退出时恢复调用者环境；认证输出与设备码不得归档。探针/工具选择改动运行 `tests/GitHubAccess.Tests.ps1`；真实只读权限结果不是资产上传通过证明。
+- 离线验收入口位于 `scripts/acceptance/`，操作见 [离线验收手册](offline-acceptance.md)。改动时使用 64 位 Windows PowerShell 5.1 运行 `powershell.exe -NoProfile -File tests/OfflineAcceptance.Tests.ps1`；目标入口不依赖 PowerShell 7、Git 或现代 .NET。测试的合成子进程不是软件发行 EXE；本机工具检查、人工观察和干净系统发布门槛分开，不由工具报告自动批准上传。
+- 直接发行入口验收运行包内 `AsukaLens.exe`，按[发布说明](releasing.md#直接发行-exe-的本机使用流程)仅在该进程设置 `ASUKALENS_DATA_DIR`，不能依赖 LOCAL TEST 安装身份隔离个人数据。修改数据目录解析时运行 `--app-data-location-tests`，不在测试中读取或覆盖真实个人配置。
+
+本文件建立长期要求，不将既有软件或旧版 ZIP 追认成满足新发布规范的正式 Release。
