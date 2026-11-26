@@ -1,0 +1,1101 @@
+diff --git a/tests/NtfsNamespaceAncestorComparison.cs b/tests/NtfsNamespaceAncestorComparison.cs
+new file mode 100644
+index 0000000..3a11569
+--- /dev/null
++++ b/tests/NtfsNamespaceAncestorComparison.cs
+@@ -0,0 +1,241 @@
++using System.Diagnostics;
++using DiskAtlas.NtfsPrototype;
++
++namespace DiskAtlas;
++
++internal enum NamespaceAncestorOutcome : byte { Matched, Different, Failed, Cancelled }
++internal enum NamespaceAncestorCode : byte { None, SnapshotUnavailable, EnumerationFailed, SourceChanged, ComparisonInvalid, Cancelled, CleanupUnconfirmed, InternalFailure }
++internal enum NamespaceAncestorStage : byte { Snapshot, Original, Candidate, Compare, Cleanup }
++[Flags]
++internal enum NamespaceAncestorChecks : byte { None = 0, Paths = 1, Parents = 2, Identities = 4, Attributes = 8, Times = 16, Counts = 32, Coverage = 64, All = 127 }
++internal sealed record NamespaceAncestorMeasurement(long Milliseconds, int Entries, int Opened, int Completed, int Pages, int Queries, bool HandlesSettled);
++internal sealed record NamespaceAncestorReport
++{
++    internal NamespaceAncestorOutcome Outcome { get; init; } = NamespaceAncestorOutcome.Failed;
++    internal NamespaceAncestorCode Code { get; init; } = NamespaceAncestorCode.InternalFailure;
++    internal bool CleanupConfirmed { get; init; }
++    internal bool SameSourceVerified { get; init; }
++    internal bool ComparisonComplete { get; init; }
++    internal NamespaceAncestorChecks Checks { get; init; }
++    internal NamespaceAncestorMeasurement? Original { get; init; }
++    internal NamespaceAncestorMeasurement? Candidate { get; init; }
++    internal long SnapshotMilliseconds { get; init; }
++    internal long ComparisonMilliseconds { get; init; }
++    internal long CleanupMilliseconds { get; init; }
++}
++
++// A test-only directory-stage comparison. It does not call OpenReader,
++// LookupSize, ReadNative, the complete fast scan, or the ordinary scanner.
++internal static class NtfsNamespaceAncestorComparison
++{
++    private sealed class SourceBindingFailure : IOException { }
++    internal interface ISource : IDisposable
++    {
++        FileIdentity RootIdentity { get; }
++        NtfsSnapshotNamespace.IBackendLease Open(bool reuse, CancellationToken token);
++        bool Cleanup();
++    }
++    private sealed class RealSource(NtfsPersonalSnapshotSource source) : ISource
++    {
++        public FileIdentity RootIdentity => source.RootStorage.Identity;
++        public NtfsSnapshotNamespace.IBackendLease Open(bool reuse, CancellationToken token) => source.CreateNamespaceBackend(reuse, token);
++        public bool Cleanup() => source.Cleanup();
++        public void Dispose() => source.Dispose();
++    }
++    internal static NamespaceAncestorReport Execute(string scope, CancellationToken token, Action<NamespaceAncestorStage> stage) =>
++        Execute(() => CreateSource(scope, token), token, stage);
++    private static ISource CreateSource(string scope, CancellationToken token)
++    {
++        var owned = NtfsPersonalSnapshotSource.Create(scope, token, NtfsScanLimits.Large);
++        try { return new RealSource(owned); }
++        catch
++        {
++            bool cleaned = false;
++            try { cleaned = owned.Cleanup(); } catch { }
++            try { owned.Dispose(); } catch { cleaned = false; }
++            throw new NtfsPersonalSnapshotOpenException("VssSnapshotNative", 0, cleaned);
++        }
++    }
++
++    internal static NamespaceAncestorReport Execute(Func<ISource> create, CancellationToken token, Action<NamespaceAncestorStage> stage)
++    {
++        ISource? source = null; bool cleaned = true;
++        var report = new NamespaceAncestorReport(); var phase = NamespaceAncestorStage.Snapshot;
++        var watch = Stopwatch.StartNew();
++        try
++        {
++            token.ThrowIfCancellationRequested(); stage(phase);
++            cleaned = false; source = create();
++            report = report with { SnapshotMilliseconds = watch.ElapsedMilliseconds };
++            var root = source.RootIdentity;
++            phase = NamespaceAncestorStage.Original; stage(phase);
++            var original = Read(source, false, token);
++            report = report with { Original = original.Measurement };
++            if (source.RootIdentity != root || original.Inventory.RootIdentity != root) throw new SourceBindingFailure();
++            phase = NamespaceAncestorStage.Candidate; stage(phase);
++            var candidate = Read(source, true, token);
++            report = report with { Candidate = candidate.Measurement };
++            if (source.RootIdentity != root || candidate.Inventory.RootIdentity != root) throw new SourceBindingFailure();
++            phase = NamespaceAncestorStage.Compare; stage(phase); watch.Restart();
++            var checks = Compare(original.Inventory, candidate.Inventory, token);
++            token.ThrowIfCancellationRequested();
++            report = report with { Outcome = checks == NamespaceAncestorChecks.All ? NamespaceAncestorOutcome.Matched : NamespaceAncestorOutcome.Different,
++                Code = NamespaceAncestorCode.None, Checks = checks, SameSourceVerified = true, ComparisonComplete = true,
++                ComparisonMilliseconds = watch.ElapsedMilliseconds };
++        }
++        catch (OperationCanceledException) when (token.IsCancellationRequested)
++        { report = report with { Outcome = NamespaceAncestorOutcome.Cancelled, Code = NamespaceAncestorCode.Cancelled }; }
++        catch (NtfsPersonalSnapshotOpenException error)
++        { cleaned = error.CleanupConfirmed; report = report with { Code = NamespaceAncestorCode.SnapshotUnavailable }; }
++        catch (SourceBindingFailure)
++        { report = report with { Code = NamespaceAncestorCode.SourceChanged }; }
++        catch
++        {
++            report = report with { Outcome = token.IsCancellationRequested ? NamespaceAncestorOutcome.Cancelled : NamespaceAncestorOutcome.Failed,
++                Code = token.IsCancellationRequested ? NamespaceAncestorCode.Cancelled : phase switch
++                { NamespaceAncestorStage.Snapshot => NamespaceAncestorCode.SnapshotUnavailable, NamespaceAncestorStage.Compare => NamespaceAncestorCode.ComparisonInvalid,
++                    _ => NamespaceAncestorCode.EnumerationFailed } };
++        }
++        finally
++        {
++            try { stage(NamespaceAncestorStage.Cleanup); } catch { }
++            watch.Restart();
++            if (source != null)
++            {
++                try { cleaned = source.Cleanup(); } catch { cleaned = false; }
++                try { source.Dispose(); } catch { cleaned = false; }
++            }
++            report = report with { CleanupMilliseconds = watch.ElapsedMilliseconds, CleanupConfirmed = cleaned };
++        }
++        if (!cleaned) report = report with { Outcome = NamespaceAncestorOutcome.Failed, Code = NamespaceAncestorCode.CleanupUnconfirmed,
++            SameSourceVerified = false, ComparisonComplete = false, Checks = NamespaceAncestorChecks.None };
++        else if (token.IsCancellationRequested) report = report with { Outcome = NamespaceAncestorOutcome.Cancelled, Code = NamespaceAncestorCode.Cancelled,
++            SameSourceVerified = false, ComparisonComplete = false, Checks = NamespaceAncestorChecks.None };
++        return report;
++    }
++
++    private static (NtfsSnapshotNamespaceResult Inventory, NamespaceAncestorMeasurement Measurement) Read(ISource source, bool reuse, CancellationToken token)
++    {
++        var watch = Stopwatch.StartNew(); NtfsSnapshotNamespaceResult inventory;
++        var tracked = new TrackedBackend(source.Open(reuse, token));
++        using (tracked) inventory = NtfsSnapshotNamespace.Read(tracked, token, NtfsScanLimits.Large);
++        watch.Stop(); token.ThrowIfCancellationRequested();
++        if (!tracked.Settled || inventory.Report.OpenedDirectories != tracked.Opened) throw new InvalidDataException();
++        var r = inventory.Report;
++        return (inventory, new(watch.ElapsedMilliseconds, r.Entries, r.OpenedDirectories, r.CompletedDirectories, r.Pages, r.Queries, tracked.Settled));
++    }
++
++    private readonly record struct Key(string Parent, string Name);
++    private sealed record Value(NtfsSnapshotNamespaceEntry Entry, FileIdentity ParentIdentity)
++    { internal bool Seen; }
++    internal static NamespaceAncestorChecks Compare(NtfsSnapshotNamespaceResult original, NtfsSnapshotNamespaceResult candidate, CancellationToken token = default)
++    {
++        token.ThrowIfCancellationRequested();
++        ValidateInventory(original, token); ValidateInventory(candidate, token);
++        var flags = NamespaceAncestorChecks.All;
++        var left = new Dictionary<Key, Value>();
++        Key Locate(NtfsSnapshotNamespaceResult inventory, int index, out FileIdentity parent)
++        {
++            token.ThrowIfCancellationRequested(); var e = inventory.Entries[index];
++            if (e.Index != index || index == 0 && (e.ParentIndex != -1 || e.Name != "" || !e.Directory || e.Reparse) ||
++                index != 0 && (e.ParentIndex < 0 || e.ParentIndex >= index || !inventory.Entries[e.ParentIndex].Directory || inventory.Entries[e.ParentIndex].Reparse))
++                throw new InvalidDataException();
++            parent = index == 0 ? default : inventory.Entries[e.ParentIndex].Identity;
++            return new(index == 0 ? "" : inventory.RelativePath(e.ParentIndex), e.Name);
++        }
++        for (int i = 0; i < original.Entries.Count; i++)
++        {
++            var key = Locate(original, i, out var parent);
++            if (!left.TryAdd(key, new(original.Entries[i], parent))) throw new InvalidDataException();
++        }
++        int aligned = 0; HashSet<Key>? unmatched = null;
++        for (int i = 0; i < candidate.Entries.Count; i++)
++        {
++            var key = Locate(candidate, i, out var parent);
++            if (!left.TryGetValue(key, out var value))
++            {
++                unmatched ??= [];
++                if (!unmatched.Add(key)) throw new InvalidDataException();
++                flags &= ~NamespaceAncestorChecks.Paths; continue;
++            }
++            if (value.Seen) throw new InvalidDataException();
++            value.Seen = true; aligned++;
++            var a = value.Entry; var b = candidate.Entries[i];
++            if (value.ParentIdentity != parent) flags &= ~NamespaceAncestorChecks.Parents;
++            if (a.Identity != b.Identity) flags &= ~NamespaceAncestorChecks.Identities;
++            if (a.Directory != b.Directory || a.Reparse != b.Reparse || a.Attributes != b.Attributes) flags &= ~NamespaceAncestorChecks.Attributes;
++            if (a.Modified != b.Modified) flags &= ~NamespaceAncestorChecks.Times;
++        }
++        if (aligned != left.Count) flags &= ~NamespaceAncestorChecks.Paths;
++        if ((flags & NamespaceAncestorChecks.Paths) == 0)
++            flags &= ~(NamespaceAncestorChecks.Parents | NamespaceAncestorChecks.Identities | NamespaceAncestorChecks.Attributes | NamespaceAncestorChecks.Times);
++        if (original.RootIdentity != candidate.RootIdentity) flags &= ~NamespaceAncestorChecks.Identities;
++        var x = original.Report; var y = candidate.Report;
++        if ((x.Entries, x.FileEntries, x.Directories, x.UniqueFileObjects, x.ReparseEntries, x.NameCharacters) !=
++            (y.Entries, y.FileEntries, y.Directories, y.UniqueFileObjects, y.ReparseEntries, y.NameCharacters)) flags &= ~NamespaceAncestorChecks.Counts;
++        if (!x.CompleteWithinBoundary || !y.CompleteWithinBoundary || x.OpenedDirectories != x.CompletedDirectories ||
++            y.OpenedDirectories != y.CompletedDirectories || x.OpenedDirectories != y.OpenedDirectories) flags &= ~NamespaceAncestorChecks.Coverage;
++        token.ThrowIfCancellationRequested(); return flags;
++    }
++    private static void ValidateInventory(NtfsSnapshotNamespaceResult inventory, CancellationToken token)
++    {
++        var r = inventory.Report; var limit = NtfsScanLimits.Large;
++        if (inventory.Entries.Count is < 1 || inventory.Entries.Count > limit.MaximumEntries || r.Entries != inventory.Entries.Count ||
++            r.FileEntries < 0 || r.FileEntries >= r.Entries || r.Directories < 0 || r.Directories >= r.Entries ||
++            r.UniqueFileObjects < 0 || r.UniqueFileObjects > r.FileEntries || r.ReparseEntries < 0 || r.ReparseEntries >= r.Entries ||
++            r.CompletedDirectories < 0 || r.CompletedDirectories > r.OpenedDirectories ||
++            r.NameCharacters < 0 || r.NameCharacters > limit.MaximumCharacters || r.Queries < 1 || r.Queries > limit.MaximumEntries * 4 + 1 ||
++            r.Pages < 0 || r.Pages > r.Queries || r.OpenedDirectories < 1 || r.OpenedDirectories > r.Entries ||
++            inventory.Entries[0].Identity != inventory.RootIdentity || inventory.RelativePath(0) != "") throw new InvalidDataException();
++        long names = 0, paths = 0;
++        for (int i = 1; i < inventory.Entries.Count; i++)
++        {
++            token.ThrowIfCancellationRequested();
++            var entry = inventory.Entries[i];
++            if (entry.Name == null || entry.Name.Length is < 1 or > 255 || entry.Name is "." or ".." ||
++                entry.Name.Any(c => char.IsControl(c) || c is '/' or '\\' or ':')) throw new InvalidDataException();
++            names += entry.Name.Length;
++            if (entry.Directory)
++            {
++                var path = inventory.RelativePath(i);
++                if (path.Length > 32767 || NtfsPersonalSnapshotSource.RelativeSegments(path, true).Length > 512) throw new InvalidDataException();
++                paths += path.Length;
++            }
++            if (names > limit.MaximumCharacters || paths > limit.MaximumCharacters) throw new InvalidDataException();
++        }
++    }
++
++    private sealed class TrackedBackend(NtfsSnapshotNamespace.IBackendLease inner) : NtfsSnapshotNamespace.IBackend, IDisposable
++    {
++        private readonly HashSet<IDisposable> cursors = [];
++        private int closed; private bool disposed;
++        internal int Opened { get; private set; }
++        internal bool Settled => disposed && cursors.Count == 0 && Opened == closed;
++        public FileIdentity RootIdentity => inner.RootIdentity;
++        public DateTime? RootModified => inner.RootModified;
++        public NtfsSnapshotNamespace.ICursor OpenDirectory(NtfsSnapshotNamespaceEntry entry, string path, CancellationToken token)
++        {
++            if (disposed || cursors.Count >= 16) throw new InvalidDataException();
++            var raw = inner.OpenDirectory(entry, path, token);
++            var cursor = new Cursor(this, raw); cursors.Add(cursor); Opened++; return cursor;
++        }
++        private sealed class Cursor(TrackedBackend owner, NtfsSnapshotNamespace.ICursor raw) : NtfsSnapshotNamespace.ICursor
++        {
++            private bool disposed;
++            public FileIdentity Identity => raw.Identity;
++            public FileAttributes Attributes => raw.Attributes;
++            public NtfsSnapshotNamespaceIo Read(bool restart, Memory<byte> buffer, CancellationToken token) => raw.Read(restart, buffer, token);
++            public void Dispose()
++            {
++                if (disposed) return; disposed = true;
++                try { raw.Dispose(); owner.closed++; } finally { owner.cursors.Remove(this); }
++            }
++        }
++        public void Dispose()
++        {
++            if (disposed) return; disposed = true;
++            bool cleaned = NtfsPersonalSnapshotSource.CloseTrackedCursorsAndSession(cursors, () => { inner.Dispose(); return true; });
++            if (!cleaned || !Settled) throw new InvalidDataException();
++        }
++    }
++}
+diff --git a/tests/NtfsNamespaceAncestorComparisonTests.cs b/tests/NtfsNamespaceAncestorComparisonTests.cs
+new file mode 100644
+index 0000000..2054bb8
+--- /dev/null
++++ b/tests/NtfsNamespaceAncestorComparisonTests.cs
+@@ -0,0 +1,327 @@
++using System.Buffers.Binary;
++using System.Collections;
++using System.Text;
++using DiskAtlas.NtfsPrototype;
++
++namespace DiskAtlas;
++
++// In-memory inventories, page buffers and leases only. No source factory,
++// native handle, volume, snapshot, user directory or file is opened here.
++internal static class NtfsNamespaceAncestorComparisonTests
++{
++    private const string PrivateMarker = "SyntheticPrivateExceptionContent";
++    private static FileIdentity Id(int slot) => new(7, (1ul << 48) | (uint)slot, 0);
++    private static readonly FileIdentity RootId = Id(5);
++    private static readonly DateTime Stamp = new(2020, 1, 2, 3, 4, 5, DateTimeKind.Local);
++    private static NtfsSnapshotNamespaceEntry Entry(int index, int parent, string name, int slot, bool directory = false) =>
++        new(index, parent, name, Id(slot), directory ? FileAttributes.Directory : FileAttributes.Archive, false) { Modified = Stamp };
++    private static NtfsSnapshotNamespaceEntry[] Entries(bool reordered = false) => reordered ?
++        [Entry(0, -1, "", 5, true), Entry(1, 0, "b", 102, true), Entry(2, 0, "a", 101, true),
++         Entry(3, 1, "second.bin", 202), Entry(4, 2, "first.bin", 201)] :
++        [Entry(0, -1, "", 5, true), Entry(1, 0, "a", 101, true), Entry(2, 0, "b", 102, true),
++         Entry(3, 1, "first.bin", 201), Entry(4, 2, "second.bin", 202)];
++
++    private static NtfsSnapshotNamespaceResult Inventory(NtfsSnapshotNamespaceEntry[]? entries = null,
++        Func<NtfsSnapshotNamespaceReport, NtfsSnapshotNamespaceReport>? report = null, string?[]? suppliedPaths = null,
++        FileIdentity? root = null)
++    {
++        entries ??= Entries();
++        var paths = new string?[entries.Length];
++        for (int i = 0; i < entries.Length; i++)
++        {
++            var e = entries[i];
++            if (i == 0) paths[i] = "";
++            else if (e.Directory)
++            {
++                string prefix = e.ParentIndex >= 0 && e.ParentIndex < i ? paths[e.ParentIndex] ?? "invalid" : "invalid";
++                paths[i] = prefix.Length == 0 ? e.Name : prefix + "/" + e.Name;
++            }
++        }
++        int files = entries.Skip(1).Count(e => !e.Directory), directories = entries.Skip(1).Count(e => e.Directory);
++        int opened = 1 + entries.Skip(1).Count(e => e.Directory && !e.Reparse);
++        int pages = entries.Skip(1).Select(e => e.ParentIndex).Distinct().Count();
++        var r = new NtfsSnapshotNamespaceReport("snapshot-namespace-v1", entries.Length, files, directories,
++            entries.Where(e => !e.Directory).Select(e => e.Identity).Distinct().Count(), entries.Count(e => e.Reparse), opened,
++            pages, pages + opened, entries.Sum(e => e.Name.Length), opened, true);
++        return new(report?.Invoke(r) ?? r, entries, suppliedPaths ?? paths, root ?? entries[0].Identity, NtfsScanLimits.Large);
++    }
++    private static Exception? Catch(Action action) { try { action(); return null; } catch (Exception e) { return e; } }
++    private static bool Has(NamespaceAncestorChecks flags, NamespaceAncestorChecks value) => (flags & value) == value;
++
++    private sealed class Source : NtfsNamespaceAncestorComparison.ISource
++    {
++        internal readonly List<bool> Modes = [];
++        internal readonly List<Backend> Backends = [];
++        internal readonly List<string> Events = [];
++        internal Func<bool, Backend>? Build;
++        internal Action? OnCleanup;
++        internal bool CleanupValue = true, CleanupThrows, DisposeThrows;
++        internal int CleanupCalls, DisposeCalls, RootReads, ChangeRootAfter = int.MaxValue;
++        internal bool PriorLeaseSettled = true;
++        public FileIdentity RootIdentity => ++RootReads >= ChangeRootAfter ? Id(99) : RootId;
++        public NtfsSnapshotNamespace.IBackendLease Open(bool reuse, CancellationToken token)
++        {
++            token.ThrowIfCancellationRequested();
++            PriorLeaseSettled &= Backends.All(b => b.Disposed && b.Opened == b.Closed);
++            Modes.Add(reuse); Events.Add(reuse ? "candidate" : "original");
++            var backend = Build?.Invoke(reuse) ?? new Backend(); Backends.Add(backend); return backend;
++        }
++        public bool Cleanup()
++        {
++            Events.Add("cleanup"); CleanupCalls++; OnCleanup?.Invoke();
++            if (CleanupThrows) throw new IOException(PrivateMarker); return CleanupValue;
++        }
++        public void Dispose()
++        { Events.Add("dispose"); DisposeCalls++; if (DisposeThrows) throw new IOException(PrivateMarker); }
++    }
++    private sealed class Backend : NtfsSnapshotNamespace.IBackendLease
++    {
++        internal readonly Dictionary<string, List<byte[]>> Pages = new(StringComparer.Ordinal);
++        internal int Opened, Closed, Reads;
++        internal bool Disposed, FailOpen, FailRead, FailCursorDispose, FailDispose;
++        internal FileIdentity? RootOverride;
++        internal Action? OnRead;
++        internal Backend()
++        {
++            var e = Entries();
++            Pages[""] = [Page(e[1], e[2])]; Pages["a"] = [Page(e[3])]; Pages["b"] = [Page(e[4])];
++        }
++        public FileIdentity RootIdentity => RootOverride ?? RootId;
++        public DateTime? RootModified => Stamp;
++        public NtfsSnapshotNamespace.ICursor OpenDirectory(NtfsSnapshotNamespaceEntry directory, string path, CancellationToken token)
++        {
++            token.ThrowIfCancellationRequested();
++            if (Disposed || FailOpen) throw new IOException(PrivateMarker);
++            Opened++; return new Cursor(this, directory.Identity, path);
++        }
++        private sealed class Cursor(Backend owner, FileIdentity identity, string path) : NtfsSnapshotNamespace.ICursor
++        {
++            private int page, disposed;
++            public FileIdentity Identity => identity;
++            public FileAttributes Attributes => FileAttributes.Directory;
++            public NtfsSnapshotNamespaceIo Read(bool restart, Memory<byte> buffer, CancellationToken token)
++            {
++                token.ThrowIfCancellationRequested(); owner.Reads++; owner.OnRead?.Invoke();
++                if (owner.FailRead) throw new IOException(PrivateMarker);
++                if (!owner.Pages.TryGetValue(path, out var values) || page >= values.Count) return new(false, 18);
++                values[page++].AsMemory().CopyTo(buffer); return new(true, 0);
++            }
++            public void Dispose()
++            {
++                if (Interlocked.Exchange(ref disposed, 1) != 0) return;
++                owner.Closed++; if (owner.FailCursorDispose) throw new IOException(PrivateMarker);
++            }
++        }
++        public void Dispose()
++        { Disposed = true; if (FailDispose) throw new IOException(PrivateMarker); }
++    }
++    private static byte[] Page(params NtfsSnapshotNamespaceEntry[] entries)
++    {
++        var bytes = new byte[NtfsSnapshotNamespace.PageBytes]; int offset = 0;
++        for (int i = 0; i < entries.Length; i++)
++        {
++            var e = entries[i]; byte[] name = Encoding.Unicode.GetBytes(e.Name); int length = (88 + name.Length + 7) & ~7;
++            BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset), i + 1 == entries.Length ? 0u : (uint)length);
++            BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(offset + 16), Stamp.ToFileTimeUtc());
++            BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(offset + 40), ulong.MaxValue);
++            BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(offset + 48), ulong.MaxValue);
++            BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset + 56), (uint)e.Attributes);
++            BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset + 60), (uint)name.Length);
++            BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(offset + 72), e.Identity.Low);
++            name.CopyTo(bytes, offset + 88); offset += length;
++        }
++        return bytes;
++    }
++    private sealed class OverBudgetEntries : IReadOnlyList<NtfsSnapshotNamespaceEntry>
++    {
++        public int Count => NtfsScanLimits.Large.MaximumEntries + 1;
++        public NtfsSnapshotNamespaceEntry this[int index] => throw new IOException(PrivateMarker);
++        public IEnumerator<NtfsSnapshotNamespaceEntry> GetEnumerator() => throw new IOException(PrivateMarker);
++        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
++    }
++
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool result, string name)
++        { if (!result) throw new InvalidOperationException(name); passed++; Console.WriteLine("PASS ancestor comparison " + name); }
++        void Invalid(NtfsSnapshotNamespaceResult input, string name) =>
++            Check(Catch(() => NtfsNamespaceAncestorComparison.Compare(Inventory(), input)) is InvalidDataException or NtfsVssProbeException, name);
++        void SafeFailure(NamespaceAncestorReport r, string name) => Check(r.Outcome is NamespaceAncestorOutcome.Failed or NamespaceAncestorOutcome.Cancelled &&
++            !r.SameSourceVerified && !r.ComparisonComplete && r.Checks == NamespaceAncestorChecks.None && !r.ToString().Contains(PrivateMarker, StringComparison.Ordinal), name);
++
++        Check(NtfsNamespaceAncestorComparison.Compare(Inventory(), Inventory(Entries(true))) == NamespaceAncestorChecks.All,
++            "reordered entries compare by relative parent and name");
++        var missing = Entries().Take(4).ToArray();
++        var missingFlags = NtfsNamespaceAncestorComparison.Compare(Inventory(), Inventory(missing));
++        Check(!Has(missingFlags, NamespaceAncestorChecks.Paths) && !Has(missingFlags, NamespaceAncestorChecks.Counts), "missing object changes path and count checks");
++        foreach (string field in new[] { "identity", "parent-identity", "attributes", "time", "null-time" })
++        {
++            var entries = Entries();
++            switch (field)
++            {
++                case "identity": entries[3] = entries[3] with { Identity = Id(301) }; break;
++                case "parent-identity": entries[1] = entries[1] with { Identity = Id(302) }; break;
++                case "attributes": entries[3] = entries[3] with { Attributes = FileAttributes.Archive | FileAttributes.Hidden }; break;
++                case "time": entries[3] = entries[3] with { Modified = Stamp.AddTicks(1) }; break;
++                case "null-time": entries[3] = entries[3] with { Modified = null }; break;
++            }
++            var flags = NtfsNamespaceAncestorComparison.Compare(Inventory(), Inventory(entries));
++            var absent = field switch { "identity" => NamespaceAncestorChecks.Identities, "parent-identity" => NamespaceAncestorChecks.Parents | NamespaceAncestorChecks.Identities,
++                "attributes" => NamespaceAncestorChecks.Attributes, _ => NamespaceAncestorChecks.Times };
++            Check((flags & absent) == 0 && Has(flags, NamespaceAncestorChecks.Paths), field + " difference remains visible with unchanged paths");
++        }
++        foreach (bool complete in new[] { false, true })
++        {
++            var flags = NtfsNamespaceAncestorComparison.Compare(Inventory(), Inventory(report: r => complete ? r with { CompletedDirectories = r.CompletedDirectories - 1 } : r with { CompleteWithinBoundary = false }));
++            Check(!Has(flags, NamespaceAncestorChecks.Coverage), "unfinished coverage cannot match");
++        }
++        foreach (string kind in new[] { "parent-index", "parent-file", "parent-reparse", "index", "root-parent", "duplicate", "name-dot", "name-slash", "name-control", "name-long" })
++        {
++            var e = Entries();
++            switch (kind)
++            {
++                case "parent-index": e[3] = e[3] with { ParentIndex = 3 }; break;
++                case "parent-file": e[4] = e[4] with { ParentIndex = 3 }; break;
++                case "parent-reparse": e[1] = e[1] with { Reparse = true, Attributes = FileAttributes.Directory | FileAttributes.ReparsePoint }; break;
++                case "index": e[3] = e[3] with { Index = 9 }; break;
++                case "root-parent": e[0] = e[0] with { ParentIndex = 0 }; break;
++                case "duplicate": e[4] = e[4] with { ParentIndex = 1, Name = "first.bin" }; break;
++                case "name-dot": e[3] = e[3] with { Name = ".." }; break;
++                case "name-slash": e[3] = e[3] with { Name = "bad/name" }; break;
++                case "name-control": e[3] = e[3] with { Name = "bad\nname" }; break;
++                case "name-long": e[3] = e[3] with { Name = new string('n', 256) }; break;
++            }
++            Invalid(Inventory(e), kind + " invalid inventory rejected");
++        }
++        foreach (string kind in new[] { "files", "directories", "unique", "reparse", "completed", "names", "queries", "pages", "opened", "declared-entries", "query-budget" })
++        {
++            var input = Inventory(report: r => kind switch
++            {
++                "files" => r with { FileEntries = -1 }, "directories" => r with { Directories = -1 }, "unique" => r with { UniqueFileObjects = -1 },
++                "reparse" => r with { ReparseEntries = -1 }, "completed" => r with { CompletedDirectories = -1 }, "names" => r with { NameCharacters = -1 },
++                "queries" => r with { Queries = 0 }, "pages" => r with { Pages = -1 }, "opened" => r with { OpenedDirectories = 0 },
++                "declared-entries" => r with { Entries = r.Entries + 1 }, _ => r with { Queries = NtfsScanLimits.Large.MaximumEntries * 4 + 2 }
++            });
++            Invalid(input, kind + " budget or report bound rejected");
++        }
++        var valid = Inventory();
++        Invalid(new(valid.Report with { Entries = NtfsScanLimits.Large.MaximumEntries + 1 }, new OverBudgetEntries(), [""], RootId, NtfsScanLimits.Large),
++            "entry limit checked before touching over-budget collection");
++        var badPaths = new string?[] { "", "../a", "b", null, null };
++        Invalid(Inventory(suppliedPaths: badPaths), "noncanonical cached directory path rejected");
++        Invalid(Inventory(suppliedPaths: ["unexpected", "a", "b", null, null]), "cached root must remain empty");
++        Invalid(Inventory(suppliedPaths: ["", new string('a', 32768), "b", null, null]), "cached directory path length remains bounded");
++        Invalid(Inventory(suppliedPaths: ["", string.Join('/', Enumerable.Repeat("a", 513)), "b", null, null]), "cached directory depth remains bounded");
++        Invalid(Inventory(report: r => r with { NameCharacters = NtfsScanLimits.Large.MaximumCharacters + 1 }), "declared name characters remain bounded");
++        using (var cancellation = new CancellationTokenSource())
++        {
++            cancellation.Cancel(); var error = Catch(() => NtfsNamespaceAncestorComparison.Compare(Inventory(), Inventory(), cancellation.Token));
++            Check(error is OperationCanceledException c && c.CancellationToken == cancellation.Token, "comparison honors caller cancellation");
++        }
++
++        {
++            var source = new Source(); var stages = new List<NamespaceAncestorStage>();
++            var r = NtfsNamespaceAncestorComparison.Execute(() => source, default, stages.Add);
++            Check(r.Outcome == NamespaceAncestorOutcome.Matched && r.Code == NamespaceAncestorCode.None && r.Checks == NamespaceAncestorChecks.All &&
++                r.ComparisonComplete && r.SameSourceVerified && r.CleanupConfirmed, "same-source execute matches");
++            Check(source.Modes.SequenceEqual(new[] { false, true }) && source.PriorLeaseSettled, "original then candidate uses separately settled leases");
++            Check(stages.SequenceEqual(new[] { NamespaceAncestorStage.Snapshot, NamespaceAncestorStage.Original, NamespaceAncestorStage.Candidate, NamespaceAncestorStage.Compare, NamespaceAncestorStage.Cleanup }),
++                "fixed stages finish with cleanup");
++            Check(source.Backends.All(b => b.Disposed && b.Opened == 3 && b.Closed == 3) && source.CleanupCalls == 1 && source.DisposeCalls == 1,
++                "both real-policy leases and all synthetic handles close once");
++            Check(r.Original is { HandlesSettled: true, Entries: 5, Opened: 3, Completed: 3 } && r.Candidate is { HandlesSettled: true, Entries: 5, Opened: 3, Completed: 3 } &&
++                r.Original.Milliseconds >= 0 && r.Candidate.Milliseconds >= 0, "measurements include settled complete enumerations");
++        }
++        foreach (string fault in new[] { "open", "read", "cursor-close", "lease-close", "malformed-page" })
++        foreach (bool candidate in new[] { false, true })
++        {
++            var source = new Source { Build = mode =>
++            {
++                var b = new Backend(); if (mode != candidate) return b;
++                switch (fault)
++                {
++                    case "open": b.FailOpen = true; break; case "read": b.FailRead = true; break;
++                    case "cursor-close": b.FailCursorDispose = true; break; case "lease-close": b.FailDispose = true; break;
++                    default: b.Pages[""] = [new byte[NtfsSnapshotNamespace.PageBytes]]; break;
++                }
++                return b;
++            } };
++            var r = NtfsNamespaceAncestorComparison.Execute(() => source, default, _ => { });
++            SafeFailure(r, fault + " does not leak private exception content");
++            Check(source.Modes.Count == (candidate ? 2 : 1) && source.Backends.All(b => b.Disposed && b.Opened == b.Closed) &&
++                source.CleanupCalls == 1 && source.DisposeCalls == 1 && r.CleanupConfirmed, fault + " stops without retry and settles source");
++        }
++        {
++            var source = new Source { ChangeRootAfter = 2 };
++            var r = NtfsNamespaceAncestorComparison.Execute(() => source, default, _ => { });
++            SafeFailure(r, "changed source root cannot compare");
++            Check(r.Code == NamespaceAncestorCode.SourceChanged && source.Modes.SequenceEqual(new[] { false }) && r.CleanupConfirmed, "source mismatch stops before candidate");
++        }
++        {
++            var source = new Source { Build = _ => new Backend { RootOverride = Id(600) } };
++            var r = NtfsNamespaceAncestorComparison.Execute(() => source, default, _ => { });
++            SafeFailure(r, "inventory root must remain bound to source");
++            Check(r.Code == NamespaceAncestorCode.SourceChanged && source.Modes.SequenceEqual(new[] { false }) && r.CleanupConfirmed, "inventory root mismatch stops before candidate");
++        }
++        {
++            var source = new Source { Build = reuse =>
++            {
++                var b = new Backend();
++                if (reuse) b.Pages["a"] = [Page(Entry(3, 1, "changed.bin", 201))];
++                return b;
++            } };
++            var r = NtfsNamespaceAncestorComparison.Execute(() => source, default, _ => { });
++            Check(r.Outcome == NamespaceAncestorOutcome.Different && r.Code == NamespaceAncestorCode.None && r.CleanupConfirmed && r.ComparisonComplete && r.SameSourceVerified &&
++                !Has(r.Checks, NamespaceAncestorChecks.Paths), "observed directory difference remains a complete comparison without retry");
++        }
++        foreach (bool confirmed in new[] { true, false })
++        {
++            var r = NtfsNamespaceAncestorComparison.Execute(() => throw new NtfsPersonalSnapshotOpenException(PrivateMarker, 5, confirmed), default, _ => { });
++            SafeFailure(r, "controlled factory failure is sanitized");
++            Check(r.CleanupConfirmed == confirmed && r.Code == (confirmed ? NamespaceAncestorCode.SnapshotUnavailable : NamespaceAncestorCode.CleanupUnconfirmed),
++                "controlled factory cleanup evidence is retained");
++        }
++        {
++            var r = NtfsNamespaceAncestorComparison.Execute(() => throw new IOException(PrivateMarker), default, _ => { });
++            SafeFailure(r, "unknown factory failure is sanitized");
++            Check(!r.CleanupConfirmed && r.Code == NamespaceAncestorCode.CleanupUnconfirmed, "unknown factory exception cannot prove cleanup");
++        }
++        {
++            var r = NtfsNamespaceAncestorComparison.Execute(() => throw new OperationCanceledException(PrivateMarker), default, _ => { });
++            SafeFailure(r, "external cancellation exception content is sanitized");
++            Check(r.Outcome == NamespaceAncestorOutcome.Failed && r.Code == NamespaceAncestorCode.CleanupUnconfirmed,
++                "external cancellation type cannot impersonate caller cancellation or cleanup");
++        }
++        foreach (string kind in new[] { "cleanup-false", "cleanup-throws", "dispose-throws", "cancelled-cleanup-false" })
++        {
++            using var cancellation = new CancellationTokenSource();
++            var source = new Source { CleanupValue = kind is not ("cleanup-false" or "cancelled-cleanup-false"), CleanupThrows = kind == "cleanup-throws", DisposeThrows = kind == "dispose-throws" };
++            if (kind == "cancelled-cleanup-false") source.OnCleanup = cancellation.Cancel;
++            var r = NtfsNamespaceAncestorComparison.Execute(() => source, cancellation.Token, _ => { });
++            SafeFailure(r, kind + " clears successful comparison");
++            Check(r.Outcome == NamespaceAncestorOutcome.Failed && r.Code == NamespaceAncestorCode.CleanupUnconfirmed && !r.CleanupConfirmed && source.DisposeCalls == 1,
++                kind + " cleanup uncertainty takes priority");
++        }
++        foreach (string point in new[] { "before-factory", "original-read", "candidate-read", "cleanup" })
++        {
++            using var cancellation = new CancellationTokenSource(); int created = 0;
++            var source = new Source { Build = reuse => new Backend { OnRead = (point == "original-read" && !reuse || point == "candidate-read" && reuse) ? cancellation.Cancel : null } };
++            if (point == "before-factory") cancellation.Cancel();
++            if (point == "cleanup") source.OnCleanup = cancellation.Cancel;
++            var r = NtfsNamespaceAncestorComparison.Execute(() => { created++; return source; }, cancellation.Token, _ => { });
++            Check(r.Outcome == NamespaceAncestorOutcome.Cancelled && r.Code == NamespaceAncestorCode.Cancelled && r.CleanupConfirmed && !r.ComparisonComplete && !r.SameSourceVerified,
++                point + " cancellation is distinct from failure");
++            Check(point == "before-factory" ? created == 0 : source.CleanupCalls == 1 && source.DisposeCalls == 1 && source.Backends.All(b => b.Disposed && b.Opened == b.Closed),
++                point + " cancellation leaves no outstanding lease");
++        }
++        foreach (NamespaceAncestorStage point in new[] { NamespaceAncestorStage.Snapshot, NamespaceAncestorStage.Original, NamespaceAncestorStage.Candidate, NamespaceAncestorStage.Compare })
++        {
++            var source = new Source(); int created = 0;
++            var r = NtfsNamespaceAncestorComparison.Execute(() => { created++; return source; }, default, stage => { if (stage == point) throw new IOException(PrivateMarker); });
++            SafeFailure(r, "stage callback exception is sanitized");
++            Check(r.CleanupConfirmed && (created == 0 || source.CleanupCalls == 1 && source.DisposeCalls == 1), "stage callback failure still settles owned source");
++        }
++        return passed;
++    }
++}
+diff --git a/tests/NtfsNamespaceAncestorDriver.cs b/tests/NtfsNamespaceAncestorDriver.cs
+new file mode 100644
+index 0000000..57bf493
+--- /dev/null
++++ b/tests/NtfsNamespaceAncestorDriver.cs
+@@ -0,0 +1,246 @@
++using System.Buffers.Binary;
++using System.Diagnostics;
++using System.Globalization;
++using System.IO.Pipes;
++using System.Security.Principal;
++using System.Text;
++using System.Text.Json;
++
++namespace DiskAtlas;
++
++internal static class NtfsNamespaceAncestorDriver
++{
++    internal const string Argument = "--ntfs-namespace-ancestor-live", WorkerArgument = "--ntfs-namespace-ancestor-worker";
++    internal static bool Requested(string[] args) => args.Length > 0 && args[0] is Argument or WorkerArgument;
++    internal static bool ValidParent(string[] args) => args.Length == 1 && args[0] == Argument;
++    internal static bool ParseWorker(string[] args, out int pid, out long ticks)
++    {
++        pid = 0; ticks = 0;
++        return args.Length == 4 && args[0] == WorkerArgument && FastScanBridge.ValidPipeName(args[1]) &&
++            int.TryParse(args[2], NumberStyles.None, CultureInfo.InvariantCulture, out pid) && pid > 0 &&
++            long.TryParse(args[3], NumberStyles.None, CultureInfo.InvariantCulture, out ticks) && ticks > 0 && ticks <= DateTime.MaxValue.Ticks;
++    }
++    internal static int Run(string[] args)
++    {
++        if (!FastScanBridge.IsTimingHost(Environment.ProcessPath, System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name)) return 2;
++        if (args[0] == WorkerArgument)
++        {
++            if (!ParseWorker(args, out int pid, out long ticks)) return 2;
++            int result = 2;
++            var worker = new Thread(() => result = Worker(args[1], pid, ticks));
++            worker.SetApartmentState(ApartmentState.MTA); worker.Start(); worker.Join(); return result;
++        }
++        return Parent(args);
++    }
++    internal static NamespaceAncestorReport RespectCancellation(NamespaceAncestorReport report, bool canceled) => canceled && report.CleanupConfirmed ?
++        report with { Outcome = NamespaceAncestorOutcome.Cancelled, Code = NamespaceAncestorCode.Cancelled, SameSourceVerified = false,
++            ComparisonComplete = false, Checks = NamespaceAncestorChecks.None } : report;
++    private static int Exit(NamespaceAncestorReport report) => report.Outcome switch { NamespaceAncestorOutcome.Matched => 0, NamespaceAncestorOutcome.Different => 3, _ => 1 };
++    private static int Parent(string[] args)
++    {
++        bool requested = false;
++        if (!ValidParent(args)) return Failure("InvalidInvocation", false);
++        try
++        {
++            string scope = NtfsPrototype.NtfsPersonalAcceptanceDriver.ReadScope(Console.In);
++            using var canceled = new CancellationTokenSource();
++            ConsoleCancelEventHandler handler = (_, e) => { e.Cancel = true; canceled.Cancel(); };
++            Console.CancelKeyPress += handler;
++            try
++            {
++                string name = "AsukaLens.Ntfs." + Guid.NewGuid().ToString("N");
++                using var server = FastScanBridge.CreatePipe(name);
++                using var parent = Process.GetCurrentProcess(); Process? child = null;
++                try
++                {
++                    Console.Error.WriteLine("Elevation");
++                    var start = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden };
++                    start.ArgumentList.Add(WorkerArgument); start.ArgumentList.Add(name);
++                    start.ArgumentList.Add(parent.Id.ToString(CultureInfo.InvariantCulture));
++                    start.ArgumentList.Add(parent.StartTime.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture));
++                    using var launchStop = CancellationTokenSource.CreateLinkedTokenSource(canceled.Token);
++                    launchStop.CancelAfter(TimeSpan.FromMinutes(5));
++                    var launch = Task.Run(() => Process.Start(start));
++                    try { child = launch.WaitAsync(launchStop.Token).GetAwaiter().GetResult(); }
++                    catch
++                    {
++                        _ = launch.ContinueWith(t => { _ = t.Exception; if (t.Status == TaskStatus.RanToCompletion) t.Result?.Dispose(); }, TaskScheduler.Default);
++                        throw;
++                    }
++                    if (child == null) return Failure("LaunchFailed", false);
++                    using var connectStop = CancellationTokenSource.CreateLinkedTokenSource(canceled.Token);
++                    connectStop.CancelAfter(TimeSpan.FromMinutes(2));
++                    using var stopConnect = connectStop.Token.Register(() => { try { server.Dispose(); } catch { } });
++                    while (true)
++                    {
++                        var waiting = server.WaitForConnectionAsync(connectStop.Token);
++                        while (!waiting.IsCompleted)
++                        {
++                            if (child.HasExited) return Failure("WorkerExited", false);
++                            Task.WhenAny(waiting, Task.Delay(100, connectStop.Token)).GetAwaiter().GetResult(); connectStop.Token.ThrowIfCancellationRequested();
++                        }
++                        waiting.GetAwaiter().GetResult();
++                        if (FastScanBridge.GetNamedPipeClientProcessId(server.SafePipeHandle, out uint actual) && actual == child.Id) break;
++                        server.Disconnect();
++                    }
++                    // Reading budgets start after elevation and peer binding.
++                    // A late/abandoned elevation never receives a scope.
++                    canceled.CancelAfter(TimeSpan.FromMinutes(10));
++                    using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(12));
++                    using var stopRead = deadline.Token.Register(() => { try { server.Dispose(); } catch { } });
++                    canceled.Token.ThrowIfCancellationRequested(); requested = true;
++                    FastScanWire.WriteRequest(server, scope, canceled.Token);
++                    using var sendCancel = canceled.Token.Register(() => ThreadPool.QueueUserWorkItem(_ => { try { server.WriteByte(0x43); server.Flush(); } catch { } }));
++                    var reader = new NamespaceAncestorProtocol.Reader(server);
++                    while (true)
++                    {
++                        var message = reader.Read(deadline.Token);
++                        if (message.Stage is { } stage) { Console.Error.WriteLine(stage); continue; }
++                        var report = RespectCancellation(message.Report ?? throw new InvalidDataException(), canceled.IsCancellationRequested);
++                        Summary(report, "None", true); return Exit(report);
++                    }
++                }
++                finally { child?.Dispose(); }
++            }
++            finally { Console.CancelKeyPress -= handler; }
++        }
++        catch (System.ComponentModel.Win32Exception e) when (e.NativeErrorCode == 1223) { return Failure("ElevationDenied", requested); }
++        catch (OperationCanceledException) { return Failure("Cancelled", requested); }
++        catch (FastScanWireException) { return Failure("InvalidScopeOrRequest", requested); }
++        catch { return Failure("DriverFailed", requested); }
++    }
++    private static int Worker(string name, int pid, long ticks)
++    {
++        try
++        {
++            using var parent = Process.GetProcessById(pid);
++            if (parent.StartTime.ToUniversalTime().Ticks != ticks || !string.Equals(parent.MainModule?.FileName, Environment.ProcessPath, StringComparison.OrdinalIgnoreCase)) return 2;
++            using var pipe = new NamedPipeClientStream(".", name, PipeDirection.InOut, PipeOptions.Asynchronous, TokenImpersonationLevel.Identification);
++            pipe.Connect(30000);
++            if (!FastScanBridge.GetNamedPipeServerProcessId(pipe.SafePipeHandle, out uint actual) || actual != pid) return 2;
++            using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(12));
++            using var stopRead = deadline.Token.Register(() => { try { pipe.Dispose(); } catch { } });
++            string scope = FastScanWire.ReadRequest(pipe, deadline.Token);
++            using var canceled = new CancellationTokenSource(TimeSpan.FromMinutes(10));
++            var command = Task.Run(() => { try { _ = pipe.ReadByte(); } catch { } canceled.Cancel(); });
++            try
++            {
++                var writer = new NamespaceAncestorProtocol.Writer(pipe);
++                var report = NtfsNamespaceAncestorComparison.Execute(scope, canceled.Token, stage => writer.Stage(stage, canceled.Token));
++                report = RespectCancellation(report, canceled.IsCancellationRequested);
++                // Source owner has completed cleanup before any terminal result.
++                writer.Report(report, CancellationToken.None); return Exit(report);
++            }
++            finally { pipe.Dispose(); try { command.GetAwaiter().GetResult(); } catch { } }
++        }
++        catch { return 2; }
++    }
++    private static int Failure(string code, bool requested)
++    {
++        Summary(new() { CleanupConfirmed = !requested }, code, false); return 1;
++    }
++    internal static void Summary(NamespaceAncestorReport r, string driverCode, bool received)
++    {
++        NamespaceAncestorProtocol.Validate(r);
++        if (driverCode is not ("None" or "InvalidInvocation" or "LaunchFailed" or "WorkerExited" or "ElevationDenied" or "Cancelled" or "InvalidScopeOrRequest" or "DriverFailed"))
++            throw new InvalidDataException();
++        if (received != (driverCode == "None") || !received && r.Outcome != NamespaceAncestorOutcome.Failed)
++            throw new InvalidDataException();
++        // This output is private. Public evidence must omit timings and counts.
++        Console.WriteLine(JsonSerializer.Serialize(new { revision = "namespace-ancestor-live-v1", kind = "summary", outcome = r.Outcome.ToString(), code = r.Code.ToString(),
++            driver_code = driverCode, worker_summary_received = received, cleanup_confirmed = r.CleanupConfirmed,
++            same_source_verified = r.SameSourceVerified, comparison_complete = r.ComparisonComplete, checks = (byte)r.Checks,
++            snapshot_ms = r.SnapshotMilliseconds, original_ms = r.Original?.Milliseconds, candidate_ms = r.Candidate?.Milliseconds,
++            comparison_ms = r.ComparisonMilliseconds, cleanup_ms = r.CleanupMilliseconds,
++            original = Measurement(r.Original), candidate = Measurement(r.Candidate), raw_read = false, special_lookup = false, product_end_to_end = false }));
++    }
++    private static object? Measurement(NamespaceAncestorMeasurement? m) => m == null ? null : new
++    { entries = m.Entries, opened = m.Opened, completed = m.Completed, pages = m.Pages, queries = m.Queries, handles_settled = m.HandlesSettled };
++}
++
++internal static class NamespaceAncestorProtocol
++{
++    internal const int MaximumBytes = 4096;
++    private const uint Magic = 0x31414e41;
++    internal sealed record Message(NamespaceAncestorStage? Stage = null, NamespaceAncestorReport? Report = null);
++    private static void Need(bool condition) { if (!condition) throw new InvalidDataException("NamespaceAncestorProtocol"); }
++    internal static void Validate(NamespaceAncestorReport r)
++    {
++        Need(Enum.IsDefined(r.Outcome) && Enum.IsDefined(r.Code) && (r.Checks & ~NamespaceAncestorChecks.All) == 0);
++        foreach (long value in new[] { r.SnapshotMilliseconds, r.ComparisonMilliseconds, r.CleanupMilliseconds }) Need(value is >= 0 and <= 720000);
++        foreach (var m in new[] { r.Original, r.Candidate }) if (m != null)
++            Need(m.Milliseconds is >= 0 and <= 720000 && m.Entries is >= 1 and <= 1048576 && m.Opened >= 1 && m.Opened <= m.Entries &&
++                m.Completed == m.Opened && m.Pages >= 0 && m.Queries >= m.Completed && m.Pages <= m.Queries && m.Queries <= 4194305 &&
++                (long)m.Pages + m.Completed == m.Queries && m.HandlesSettled);
++        bool complete = r.Outcome is NamespaceAncestorOutcome.Matched or NamespaceAncestorOutcome.Different;
++        if (complete) Need(r.Code == NamespaceAncestorCode.None && r.CleanupConfirmed && r.SameSourceVerified && r.ComparisonComplete &&
++            r.Original != null && r.Candidate != null && (r.Outcome == NamespaceAncestorOutcome.Matched ? r.Checks == NamespaceAncestorChecks.All : r.Checks != NamespaceAncestorChecks.All));
++        else Need(!r.SameSourceVerified && !r.ComparisonComplete && r.Checks == NamespaceAncestorChecks.None &&
++            (r.Outcome == NamespaceAncestorOutcome.Cancelled ? r.Code == NamespaceAncestorCode.Cancelled && r.CleanupConfirmed : r.Code is not (NamespaceAncestorCode.None or NamespaceAncestorCode.Cancelled)));
++        if (r.Code == NamespaceAncestorCode.CleanupUnconfirmed) Need(!r.CleanupConfirmed);
++        if (complete && r.Original != null && r.Candidate != null)
++        {
++            if ((r.Checks & (NamespaceAncestorChecks.Paths | NamespaceAncestorChecks.Counts)) != 0) Need(r.Original.Entries == r.Candidate.Entries);
++            if ((r.Checks & NamespaceAncestorChecks.Coverage) != 0) Need(r.Original.Opened == r.Candidate.Opened);
++        }
++    }
++    private static bool Bool(BinaryReader reader) { byte b = reader.ReadByte(); Need(b <= 1); return b == 1; }
++    internal static byte[] Encode(NamespaceAncestorReport r)
++    {
++        Validate(r); using var stream = new MemoryStream(); using var w = new BinaryWriter(stream, Encoding.UTF8, true);
++        w.Write((byte)r.Outcome); w.Write((byte)r.Code); w.Write(r.CleanupConfirmed); w.Write(r.SameSourceVerified); w.Write(r.ComparisonComplete); w.Write((byte)r.Checks);
++        w.Write(r.SnapshotMilliseconds); w.Write(r.ComparisonMilliseconds); w.Write(r.CleanupMilliseconds);
++        foreach (var m in new[] { r.Original, r.Candidate })
++        {
++            w.Write(m != null); if (m == null) continue;
++            w.Write(m.Milliseconds); w.Write(m.Entries); w.Write(m.Opened); w.Write(m.Completed); w.Write(m.Pages); w.Write(m.Queries); w.Write(m.HandlesSettled);
++        }
++        return stream.ToArray();
++    }
++    internal static NamespaceAncestorReport Decode(byte[] payload)
++    {
++        try
++        {
++            using var stream = new MemoryStream(payload, false); using var r = new BinaryReader(stream, Encoding.UTF8, true);
++            var outcome = (NamespaceAncestorOutcome)r.ReadByte(); var code = (NamespaceAncestorCode)r.ReadByte();
++            bool cleanup = Bool(r), source = Bool(r), complete = Bool(r); var checks = (NamespaceAncestorChecks)r.ReadByte();
++            long snapshot = r.ReadInt64(), compare = r.ReadInt64(), closing = r.ReadInt64();
++            NamespaceAncestorMeasurement? ReadMeasurement() => !Bool(r) ? null : new(r.ReadInt64(), r.ReadInt32(), r.ReadInt32(), r.ReadInt32(), r.ReadInt32(), r.ReadInt32(), Bool(r));
++            var report = new NamespaceAncestorReport { Outcome = outcome, Code = code, CleanupConfirmed = cleanup, SameSourceVerified = source, ComparisonComplete = complete, Checks = checks,
++                SnapshotMilliseconds = snapshot, ComparisonMilliseconds = compare, CleanupMilliseconds = closing, Original = ReadMeasurement(), Candidate = ReadMeasurement() };
++            Need(stream.Position == stream.Length); Validate(report); return report;
++        }
++        catch { throw new InvalidDataException("NamespaceAncestorProtocol"); }
++    }
++    internal sealed class Writer(Stream stream)
++    {
++        private int bytes; private bool terminal;
++        internal void Stage(NamespaceAncestorStage stage, CancellationToken token = default) { token.ThrowIfCancellationRequested(); Need(Enum.IsDefined(stage)); Send(1, [(byte)stage], false, token); }
++        internal void Report(NamespaceAncestorReport report, CancellationToken token = default) { token.ThrowIfCancellationRequested(); Send(2, Encode(report), true, token); }
++        private void Send(ushort kind, byte[] payload, bool last, CancellationToken token)
++        {
++            token.ThrowIfCancellationRequested(); Need(!terminal && payload.Length <= MaximumBytes - 12 && bytes <= MaximumBytes - payload.Length - 12);
++            Span<byte> header = stackalloc byte[12]; BinaryPrimitives.WriteUInt32LittleEndian(header, Magic);
++            BinaryPrimitives.WriteUInt16LittleEndian(header[4..], 1); BinaryPrimitives.WriteUInt16LittleEndian(header[6..], kind); BinaryPrimitives.WriteInt32LittleEndian(header[8..], payload.Length);
++            stream.Write(header); stream.Write(payload); stream.Flush(); bytes += payload.Length + 12; terminal = last;
++        }
++    }
++    internal sealed class Reader(Stream stream)
++    {
++        private int bytes; private bool terminal;
++        internal Message Read(CancellationToken token = default)
++        {
++            try
++            {
++                token.ThrowIfCancellationRequested(); Need(!terminal); Span<byte> header = stackalloc byte[12]; stream.ReadExactly(header);
++                int size = BinaryPrimitives.ReadInt32LittleEndian(header[8..]); ushort kind = BinaryPrimitives.ReadUInt16LittleEndian(header[6..]);
++                Need(BinaryPrimitives.ReadUInt32LittleEndian(header) == Magic && BinaryPrimitives.ReadUInt16LittleEndian(header[4..]) == 1 && kind is 1 or 2 &&
++                    size >= 0 && size <= MaximumBytes - 12 && bytes <= MaximumBytes - size - 12);
++                byte[] payload = new byte[size]; stream.ReadExactly(payload); token.ThrowIfCancellationRequested(); bytes += size + 12;
++                if (kind == 1) { Need(payload.Length == 1 && Enum.IsDefined((NamespaceAncestorStage)payload[0])); return new(Stage: (NamespaceAncestorStage)payload[0]); }
++                var report = Decode(payload); terminal = true; return new(Report: report);
++            }
++            catch { terminal = true; token.ThrowIfCancellationRequested(); throw new InvalidDataException("NamespaceAncestorProtocol"); }
++        }
++    }
++}
+diff --git a/tests/NtfsNamespaceAncestorDriverTests.cs b/tests/NtfsNamespaceAncestorDriverTests.cs
+new file mode 100644
+index 0000000..254eef0
+--- /dev/null
++++ b/tests/NtfsNamespaceAncestorDriverTests.cs
+@@ -0,0 +1,240 @@
++using System.Buffers.Binary;
++using System.Globalization;
++using System.Text.Json;
++
++namespace DiskAtlas;
++
++// Pure bounded transport and invocation contracts. These checks only use
++// memory buffers: no real process, pipe, directory, volume or VSS is opened.
++internal static class NtfsNamespaceAncestorDriverTests
++{
++    private const string Marker = "SyntheticPrivateTransportMarker";
++    private static NamespaceAncestorMeasurement Measurement => new(10, 6, 3, 3, 4, 7, true);
++    private static NamespaceAncestorReport Matched => new()
++    {
++        Outcome = NamespaceAncestorOutcome.Matched, Code = NamespaceAncestorCode.None,
++        CleanupConfirmed = true, SameSourceVerified = true, ComparisonComplete = true,
++        Checks = NamespaceAncestorChecks.All, Original = Measurement, Candidate = Measurement with { Milliseconds = 8 },
++        SnapshotMilliseconds = 20, ComparisonMilliseconds = 2, CleanupMilliseconds = 3
++    };
++    private static byte[] Frame(ushort kind, byte[] payload, uint magic = 0x31414e41, ushort version = 1, int? size = null)
++    {
++        byte[] bytes = new byte[12 + payload.Length];
++        BinaryPrimitives.WriteUInt32LittleEndian(bytes, magic);
++        BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(4), version);
++        BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(6), kind);
++        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(8), size ?? payload.Length);
++        payload.CopyTo(bytes, 12); return bytes;
++    }
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool value, string name)
++        { if (!value) throw new InvalidOperationException("NamespaceAncestorDriverContract"); passed++; Console.WriteLine("PASS namespace ancestor driver " + name); }
++        void Reject(Action action, string name)
++        {
++            bool rejected = false;
++            try { action(); }
++            catch (InvalidDataException error) { rejected = error.InnerException == null && !error.Message.Contains(Marker, StringComparison.Ordinal); }
++            Check(rejected, name);
++        }
++        void Cancel(Action action, CancellationToken token, string name)
++        {
++            bool canceled = false;
++            try { action(); }
++            catch (OperationCanceledException error) { canceled = error.CancellationToken == token; }
++            Check(canceled, name);
++        }
++        var matched = Matched;
++        var different = matched with { Outcome = NamespaceAncestorOutcome.Different, Checks = NamespaceAncestorChecks.All & ~NamespaceAncestorChecks.Times };
++        var failed = new NamespaceAncestorReport { Outcome = NamespaceAncestorOutcome.Failed, Code = NamespaceAncestorCode.SnapshotUnavailable, CleanupConfirmed = true };
++        var uncertain = failed with { Code = NamespaceAncestorCode.CleanupUnconfirmed, CleanupConfirmed = false };
++        var canceled = failed with { Outcome = NamespaceAncestorOutcome.Cancelled, Code = NamespaceAncestorCode.Cancelled };
++        var minimum = new NamespaceAncestorMeasurement(0, 1, 1, 1, 0, 1, true);
++        var maximum = new NamespaceAncestorMeasurement(720000, 1048576, 1048576, 1048576, 3145729, 4194305, true);
++        foreach (var report in new[] { matched, different, failed, uncertain, canceled,
++            failed with { Original = Measurement }, failed with { Original = Measurement, Candidate = Measurement },
++            matched with { Original = minimum, Candidate = minimum, SnapshotMilliseconds = 0, ComparisonMilliseconds = 0, CleanupMilliseconds = 0 },
++            matched with { Original = maximum, Candidate = maximum, SnapshotMilliseconds = 720000, ComparisonMilliseconds = 720000, CleanupMilliseconds = 720000 } })
++        {
++            byte[] payload = NamespaceAncestorProtocol.Encode(report);
++            Check(NamespaceAncestorProtocol.Decode(payload) == report, "fixed reports roundtrip without new fields");
++            using var stream = new MemoryStream(); var writer = new NamespaceAncestorProtocol.Writer(stream);
++            writer.Stage(NamespaceAncestorStage.Snapshot); writer.Stage(NamespaceAncestorStage.Cleanup); writer.Report(report);
++            stream.Position = 0; var reader = new NamespaceAncestorProtocol.Reader(stream);
++            Check(reader.Read().Stage == NamespaceAncestorStage.Snapshot && reader.Read().Stage == NamespaceAncestorStage.Cleanup && reader.Read().Report == report,
++                "stage and terminal report frames roundtrip");
++            Reject(() => reader.Read(), "reader rejects data after terminal");
++            Reject(() => writer.Stage(NamespaceAncestorStage.Original), "writer rejects stage after terminal");
++            Reject(() => writer.Report(report), "writer rejects duplicate terminal report");
++        }
++        foreach (var report in new[]
++        {
++            matched with { Outcome = (NamespaceAncestorOutcome)255 }, matched with { Code = (NamespaceAncestorCode)255 },
++            matched with { Checks = (NamespaceAncestorChecks)255 }, matched with { CleanupConfirmed = false },
++            matched with { SameSourceVerified = false }, matched with { ComparisonComplete = false },
++            matched with { Checks = NamespaceAncestorChecks.None }, matched with { Code = NamespaceAncestorCode.EnumerationFailed },
++            matched with { Original = null }, matched with { Candidate = null }, different with { Checks = NamespaceAncestorChecks.All },
++            different with { CleanupConfirmed = false }, different with { SameSourceVerified = false },
++            failed with { Code = NamespaceAncestorCode.None }, failed with { Code = NamespaceAncestorCode.Cancelled },
++            failed with { SameSourceVerified = true }, failed with { ComparisonComplete = true },
++            failed with { Checks = NamespaceAncestorChecks.Paths }, failed with { Code = NamespaceAncestorCode.CleanupUnconfirmed },
++            canceled with { CleanupConfirmed = false }, canceled with { Code = NamespaceAncestorCode.InternalFailure },
++            canceled with { SameSourceVerified = true }, canceled with { ComparisonComplete = true },
++            matched with { SnapshotMilliseconds = -1 }, matched with { ComparisonMilliseconds = -1 }, matched with { CleanupMilliseconds = -1 },
++            matched with { SnapshotMilliseconds = 720001 }, matched with { ComparisonMilliseconds = 720001 }, matched with { CleanupMilliseconds = 720001 },
++            matched with { Candidate = Measurement with { Entries = 7 } },
++            matched with { Candidate = Measurement with { Opened = 2, Completed = 2, Pages = 5 } }
++        }) Reject(() => NamespaceAncestorProtocol.Encode(report), "inconsistent report state rejected");
++        foreach (var m in new[]
++        {
++            Measurement with { Milliseconds = -1 }, Measurement with { Milliseconds = 720001 },
++            Measurement with { Entries = 0 }, Measurement with { Entries = 1048577 },
++            Measurement with { Opened = 0 }, Measurement with { Opened = 7, Completed = 7, Queries = 11 },
++            Measurement with { Completed = 0 }, Measurement with { Completed = 4 },
++            Measurement with { Pages = -1 }, Measurement with { Pages = 8 },
++            Measurement with { Queries = 2 }, Measurement with { Queries = 4194306 },
++            Measurement with { Queries = 5 }, Measurement with { HandlesSettled = false }
++        }) Reject(() => NamespaceAncestorProtocol.Encode(matched with { Original = m }), "measurement bounds and page EOF identity enforced");
++
++        byte[] good = NamespaceAncestorProtocol.Encode(matched);
++        Check(good.Length == 90, "report has fixed bounded binary shape");
++        foreach (int offset in new[] { 0, 1, 2, 3, 4, 5, 30, 59, 60, 89 })
++        {
++            byte[] bytes = good.ToArray(); bytes[offset] = 255;
++            Reject(() => NamespaceAncestorProtocol.Decode(bytes), "invalid enum boolean or flags byte rejected");
++        }
++        foreach (int offset in new[] { 6, 14, 22, 31, 61 })
++        {
++            byte[] bytes = good.ToArray(); BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(offset), -1);
++            Reject(() => NamespaceAncestorProtocol.Decode(bytes), "negative encoded time rejected");
++        }
++        foreach (int offset in new[] { 39, 43, 47, 51, 55, 69, 73, 77, 81, 85 })
++        {
++            byte[] bytes = good.ToArray(); BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(offset), int.MaxValue);
++            Reject(() => NamespaceAncestorProtocol.Decode(bytes), "encoded counter overflow rejected");
++        }
++        for (int length = 0; length < good.Length; length++)
++            Reject(() => NamespaceAncestorProtocol.Decode(good[..length]), "every truncated report boundary rejected");
++        Reject(() => NamespaceAncestorProtocol.Decode([.. good, 0]), "trailing report data rejected");
++        Reject(() => NamespaceAncestorProtocol.Decode("{\"path\":\"SyntheticPrivateTransportMarker\"}"u8.ToArray()), "arbitrary JSON cannot enter binary report");
++
++        foreach (var frame in new[]
++        {
++            Frame(1, [255]), Frame(1, []), Frame(1, [0, 0]), Frame(0, [0]), Frame(3, [0]),
++            Frame(2, []), Frame(2, [.. good, 0]), Frame(1, [0], magic: 0), Frame(1, [0], version: 2),
++            Frame(1, [0], size: -1), Frame(1, [0], size: NamespaceAncestorProtocol.MaximumBytes),
++            Frame(2, good)[..^1], new byte[11]
++        }) Reject(() => new NamespaceAncestorProtocol.Reader(new MemoryStream(frame)).Read(), "corrupt truncated or oversized frame rejected");
++        Reject(() => new NamespaceAncestorProtocol.Reader(new FailingStream()).Read(), "reader sanitizes external stream exception");
++        using (var stream = new MemoryStream())
++        {
++            var writer = new NamespaceAncestorProtocol.Writer(stream);
++            int fit = NamespaceAncestorProtocol.MaximumBytes / 13;
++            for (int i = 0; i < fit; i++) writer.Stage(NamespaceAncestorStage.Snapshot);
++            Reject(() => writer.Stage(NamespaceAncestorStage.Snapshot), "writer enforces cumulative byte budget");
++            Check(stream.Length <= NamespaceAncestorProtocol.MaximumBytes, "writer never publishes over budget");
++            Reject(() => writer.Stage((NamespaceAncestorStage)255), "writer refuses unrecognized stage");
++        }
++        using (var stream = new MemoryStream())
++        {
++            byte[] stage = Frame(1, [0]); int fit = NamespaceAncestorProtocol.MaximumBytes / stage.Length;
++            for (int i = 0; i <= fit; i++) stream.Write(stage); stream.Position = 0;
++            var reader = new NamespaceAncestorProtocol.Reader(stream); bool all = true;
++            for (int i = 0; i < fit; i++) all &= reader.Read().Stage == NamespaceAncestorStage.Snapshot;
++            Check(all, "reader accepts complete stages within cumulative budget");
++            Reject(() => reader.Read(), "reader stops at cumulative byte budget");
++            Reject(() => reader.Read(), "reader remains terminal after rejection");
++        }
++        using (var stop = new CancellationTokenSource())
++        using (var stream = new MemoryStream(Frame(1, [0])))
++        {
++            stop.Cancel(); var reader = new NamespaceAncestorProtocol.Reader(stream); var writer = new NamespaceAncestorProtocol.Writer(stream);
++            Cancel(() => reader.Read(stop.Token), stop.Token, "pre-canceled reader preserves caller token");
++            Check(stream.Position == 0, "canceled reader consumes no header");
++            Cancel(() => writer.Stage(NamespaceAncestorStage.Original, stop.Token), stop.Token, "pre-canceled stage consumes no data");
++            Cancel(() => writer.Stage((NamespaceAncestorStage)255, stop.Token), stop.Token, "cancellation precedes invalid stage validation");
++            Cancel(() => writer.Report(matched, stop.Token), stop.Token, "pre-canceled report preserves caller token");
++            Cancel(() => writer.Report(matched with { Checks = (NamespaceAncestorChecks)255 }, stop.Token), stop.Token, "cancellation precedes invalid report validation");
++            Check(stream.Position == 0, "canceled writes publish no bytes");
++        }
++
++        Check(NtfsNamespaceAncestorDriver.RespectCancellation(matched, false) == matched, "no cancellation preserves result");
++        var observedCancel = NtfsNamespaceAncestorDriver.RespectCancellation(matched, true);
++        Check(observedCancel.Outcome == NamespaceAncestorOutcome.Cancelled && observedCancel.Code == NamespaceAncestorCode.Cancelled && observedCancel.CleanupConfirmed &&
++            !observedCancel.SameSourceVerified && !observedCancel.ComparisonComplete && observedCancel.Checks == NamespaceAncestorChecks.None,
++            "late cancellation cannot publish matched result");
++        NamespaceAncestorProtocol.Validate(observedCancel);
++        Check(NtfsNamespaceAncestorDriver.RespectCancellation(uncertain, true) == uncertain, "cancellation cannot hide unknown cleanup");
++        Check(NtfsNamespaceAncestorDriver.ValidParent([NtfsNamespaceAncestorDriver.Argument]), "parent accepts explicit test entry only");
++        foreach (var args in new[] { Array.Empty<string>(), new[] { "other" }, new[] { NtfsNamespaceAncestorDriver.WorkerArgument },
++            new[] { NtfsNamespaceAncestorDriver.Argument, "X:\\SyntheticPrivateTransportMarker" }, new[] { NtfsNamespaceAncestorDriver.Argument, "--extra" } })
++            Check(!NtfsNamespaceAncestorDriver.ValidParent(args), "scope or extra arguments cannot enter parent command line");
++        Check(NtfsNamespaceAncestorDriver.Requested([NtfsNamespaceAncestorDriver.Argument]) && NtfsNamespaceAncestorDriver.Requested([NtfsNamespaceAncestorDriver.WorkerArgument]),
++            "only two explicit driver entry points routed");
++        Check(!NtfsNamespaceAncestorDriver.Requested([]) && !NtfsNamespaceAncestorDriver.Requested(["other"]) &&
++            !NtfsNamespaceAncestorDriver.Requested([NtfsNamespaceAncestorDriver.Argument + "extra"]), "ordinary invocations do not route to driver");
++        string pipe = "AsukaLens.Ntfs." + new string('1', 32);
++        Check(NtfsNamespaceAncestorDriver.ParseWorker([NtfsNamespaceAncestorDriver.WorkerArgument, pipe, "17", "1"], out int pid, out long ticks) && pid == 17 && ticks == 1,
++            "worker binds a positive parent identity");
++        Check(NtfsNamespaceAncestorDriver.ParseWorker([NtfsNamespaceAncestorDriver.WorkerArgument, pipe, int.MaxValue.ToString(CultureInfo.InvariantCulture),
++            DateTime.MaxValue.Ticks.ToString(CultureInfo.InvariantCulture)], out _, out _), "worker accepts bounded identity upper endpoints");
++        foreach (var args in new[] { Array.Empty<string>(), new[] { "other", pipe, "17", "1" },
++            new[] { NtfsNamespaceAncestorDriver.WorkerArgument, "X:\\SyntheticPrivateTransportMarker", "17", "1" },
++            new[] { NtfsNamespaceAncestorDriver.WorkerArgument, pipe, "17", "1", "extra" } })
++            Check(!NtfsNamespaceAncestorDriver.ParseWorker(args, out _, out _), "worker rejects path pipe or malformed invocation");
++        foreach (string value in new[] { "0", "-1", "+1", " 1", "1 ", "2147483648", "not-number" })
++            Check(!NtfsNamespaceAncestorDriver.ParseWorker([NtfsNamespaceAncestorDriver.WorkerArgument, pipe, value, "1"], out _, out _), "worker rejects invalid parent pid");
++        foreach (string value in new[] { "0", "-1", "+1", " 1", "1 ", "3155378976000000000", "9223372036854775807", "not-number" })
++            Check(!NtfsNamespaceAncestorDriver.ParseWorker([NtfsNamespaceAncestorDriver.WorkerArgument, pipe, "17", value], out _, out _), "worker rejects invalid parent start ticks");
++        foreach (string bad in new[] { "", "AsukaLens.Ntfs." + new string('g', 32), "AsukaLens.Ntfs." + new string('1', 31), pipe + "x", "Other." + new string('1', 32) })
++            Check(!NtfsNamespaceAncestorDriver.ParseWorker([NtfsNamespaceAncestorDriver.WorkerArgument, bad, "17", "1"], out _, out _), "worker refuses unbound pipe names");
++
++        var previous = Console.Out;
++        using var captured = new StringWriter(CultureInfo.InvariantCulture);
++        try
++        {
++            Console.SetOut(captured); NtfsNamespaceAncestorDriver.Summary(matched, "None", true);
++        }
++        finally { Console.SetOut(previous); }
++        using (var json = JsonDocument.Parse(captured.ToString()))
++        {
++            var root = json.RootElement;
++            var allowed = new HashSet<string>(StringComparer.Ordinal) { "revision", "kind", "outcome", "code", "driver_code", "worker_summary_received", "cleanup_confirmed",
++                "same_source_verified", "comparison_complete", "checks", "snapshot_ms", "original_ms", "candidate_ms", "comparison_ms", "cleanup_ms", "original", "candidate",
++                "raw_read", "special_lookup", "product_end_to_end" };
++            Check(root.EnumerateObject().All(p => allowed.Remove(p.Name)) && allowed.Count == 0, "summary contains only explicit white-listed fields");
++            Check(!root.GetProperty("raw_read").GetBoolean() && !root.GetProperty("special_lookup").GetBoolean() && !root.GetProperty("product_end_to_end").GetBoolean(),
++                "summary cannot claim raw lookup or complete product timing");
++            Check(!captured.ToString().Contains(Marker, StringComparison.Ordinal) && root.GetProperty("worker_summary_received").GetBoolean(), "summary includes provenance without private text");
++        }
++        foreach (var tuple in new[] { (Report: matched, Code: Marker, Received: true), (Report: matched, Code: "DriverFailed", Received: false),
++            (Report: matched, Code: "None", Received: false), (Report: failed, Code: "DriverFailed", Received: true) })
++        {
++            using var output = new StringWriter(CultureInfo.InvariantCulture); bool rejected = false;
++            try
++            {
++                Console.SetOut(output);
++                try { NtfsNamespaceAncestorDriver.Summary(tuple.Report, tuple.Code, tuple.Received); }
++                catch (InvalidDataException error) { rejected = !error.Message.Contains(Marker, StringComparison.Ordinal); }
++            }
++            finally { Console.SetOut(previous); }
++            Check(rejected && output.ToString().Length == 0, "contradictory or private summary input publishes nothing");
++        }
++        return passed;
++    }
++    private sealed class FailingStream : Stream
++    {
++        public override bool CanRead => true;
++        public override bool CanSeek => false;
++        public override bool CanWrite => false;
++        public override long Length => throw new IOException(Marker);
++        public override long Position { get => throw new IOException(Marker); set => throw new IOException(Marker); }
++        public override int Read(byte[] buffer, int offset, int count) => throw new IOException(Marker);
++        public override int Read(Span<byte> buffer) => throw new IOException(Marker);
++        public override void Flush() => throw new NotSupportedException();
++        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
++        public override void SetLength(long value) => throw new NotSupportedException();
++        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
++    }
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+index c891e7b..741cc2b 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -138,6 +138,18 @@ if (args.Length == 1 && args[0] == "--ntfs-large-profile-tests")
+     catch { Console.Error.WriteLine("FAIL large profile; no private details emitted"); return 1; }
+ }
+ 
++if (NtfsNamespaceAncestorDriver.Requested(args))
++    return NtfsNamespaceAncestorDriver.Run(args);
++if (args.Length == 1 && args[0] == "--ntfs-namespace-ancestor-comparison-tests")
++{
++    try { int n = NtfsNamespaceAncestorComparisonTests.Run(); Console.WriteLine($"PASS namespace ancestor comparison: {n}; synthetic only"); return 0; }
++    catch { Console.Error.WriteLine("FAIL namespace ancestor comparison; no private details emitted"); return 1; }
++}
++if (args.Length == 1 && args[0] == "--ntfs-namespace-ancestor-driver-tests")
++{
++    try { int n = NtfsNamespaceAncestorDriverTests.Run(); Console.WriteLine($"PASS namespace ancestor driver: {n}; synthetic only"); return 0; }
++    catch { Console.Error.WriteLine("FAIL namespace ancestor driver; no private details emitted"); return 1; }
++}
+ if (NtfsSameSnapshotDriver.IsWorkerRequest(args))
+     return NtfsSameSnapshotDriver.RunWorker(args);
+ if (NtfsSameSnapshotDriver.IsParentRequest(args))

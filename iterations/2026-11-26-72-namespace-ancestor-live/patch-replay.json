@@ -1,0 +1,33 @@
+{
+  "baseline": "1110b6a36c2dfe53498c9adde94a03e6becb07dd",
+  "patch_sha256": "773E55F583E4B340C686524F89473ADBE748EE6C6CE731926A2F57072EA6BE62",
+  "apply_check": true,
+  "staged_content_equal": true,
+  "files": [
+    {
+      "path": "tests/Program.cs",
+      "git_blob": "741cc2b9b6ddc61b28b09c8a5db98b2f8ce3233a",
+      "sha256": "2DBE34AAF84166AE46C4C92E093BBC470530714D4358BB1E94A24593A52AD258"
+    },
+    {
+      "path": "tests/NtfsNamespaceAncestorComparison.cs",
+      "git_blob": "3a11569c936d2d8185759128524c38c8777c1256",
+      "sha256": "CF203F89A0C426CD61BE37F9A3715C6DA7D0EE37F7AB4FB0D563C34C6A5B69B5"
+    },
+    {
+      "path": "tests/NtfsNamespaceAncestorComparisonTests.cs",
+      "git_blob": "2054bb864e418045c14429a9b15b896c5f44d053",
+      "sha256": "760369B32604820BF0C9FC240890B25DBDED6B43DC44F7FF1164953E32658E3B"
+    },
+    {
+      "path": "tests/NtfsNamespaceAncestorDriver.cs",
+      "git_blob": "57bf493a7714b38aba5f17f06e30cc96317d2c1d",
+      "sha256": "6A35A886FD34533AE086D4FC3838C17CA3520DE4BAB1FD95D17E5DED252AF12F"
+    },
+    {
+      "path": "tests/NtfsNamespaceAncestorDriverTests.cs",
+      "git_blob": "254eef0dc2baaaabb54b4e97dbf193507836d499",
+      "sha256": "328F795100443B870243E1B1A24E3372D35307AB22A8FB55218A58C93B868BC7"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-26",
+  "baseline": "1110b6a",
+  "outcome": "Matched",
+  "exit_code": 0,
+  "worker_summary_received": true,
+  "same_source_verified": true,
+  "comparison_complete": true,
+  "checks": {
+    "paths": true,
+    "parent_identity": true,
+    "entry_identity": true,
+    "attributes_and_types": true,
+    "modified_time": true,
+    "counts": true,
+    "coverage": true
+  },
+  "both_runs_handles_settled": true,
+  "cleanup_confirmed": true,
+  "order": [
+    "Original",
+    "Candidate"
+  ],
+  "candidate_lower_observed_elapsed": true,
+  "stable_speedup_established": false,
+  "live_cancellation_exercised": false,
+  "raw_read": false,
+  "special_lookup": false,
+  "product_end_to_end": false,
+  "candidate_default_enabled": false,
+  "published_release": false,
+  "synthetic_comparison_checks": 99,
+  "synthetic_driver_checks": 279,
+  "total_pre_live_checks": 2181,
+  "build_warnings": 0,
+  "budget": {
+    "snapshots": 1,
+    "traversals": 2,
+    "entries_per_traversal": 1048576,
+    "name_code_units_per_traversal": 67108864,
+    "retained_directory_path_code_units_per_traversal": 67108864,
+    "depth": 512,
+    "directory_queries_per_traversal": 4194305,
+    "read_timeout_minutes": 10
+  }
+}

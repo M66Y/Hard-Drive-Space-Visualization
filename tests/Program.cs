@@ -138,6 +138,18 @@ if (args.Length == 1 && args[0] == "--ntfs-large-profile-tests")
     catch { Console.Error.WriteLine("FAIL large profile; no private details emitted"); return 1; }
 }
 
+if (NtfsNamespaceAncestorDriver.Requested(args))
+    return NtfsNamespaceAncestorDriver.Run(args);
+if (args.Length == 1 && args[0] == "--ntfs-namespace-ancestor-comparison-tests")
+{
+    try { int n = NtfsNamespaceAncestorComparisonTests.Run(); Console.WriteLine($"PASS namespace ancestor comparison: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL namespace ancestor comparison; no private details emitted"); return 1; }
+}
+if (args.Length == 1 && args[0] == "--ntfs-namespace-ancestor-driver-tests")
+{
+    try { int n = NtfsNamespaceAncestorDriverTests.Run(); Console.WriteLine($"PASS namespace ancestor driver: {n}; synthetic only"); return 0; }
+    catch { Console.Error.WriteLine("FAIL namespace ancestor driver; no private details emitted"); return 1; }
+}
 if (NtfsSameSnapshotDriver.IsWorkerRequest(args))
     return NtfsSameSnapshotDriver.RunWorker(args);
 if (NtfsSameSnapshotDriver.IsParentRequest(args))
