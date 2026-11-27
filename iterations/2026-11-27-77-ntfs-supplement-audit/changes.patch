@@ -1,0 +1,27 @@
+diff --git a/docs/ntfs-product-timing.md b/docs/ntfs-product-timing.md
+index c43efe93424d3f2a57f510e7221317895764dc41..b762942e5482480d7467f398998562bd59d01c90 100644
+--- a/docs/ntfs-product-timing.md
++++ b/docs/ntfs-product-timing.md
+@@ -1,5 +1,22 @@
+ # NTFS 完整主窗计时工具
+ 
++## C77 大小补查耗时口径
++
++产品主窗按收到阶段通知的时间计时。第一个对象发起大小补查时，助手发出 `Supplementing`。其余对象共用同一个阶段。所有补查工作结束后，程序还要遍历唯一对象、核对大小和链接数、计算合计并生成索引字典。索引返回才发出 `Building`，随后生成界面的文件树。因此，C76 记录的这段时间覆盖了并行查询、结果校验和索引收尾。它可以用来比较用户等待的阶段，无法换算成每次系统查询的耗时。[阶段起止](../src/Scanning/Ntfs/NtfsPersonalScan.cs#L111) · [并行补查与汇总](../src/Scanning/Ntfs/NtfsSnapshotSizeIndex.cs#L185) · [客户端计时](../tests/NtfsProductTiming.cs#L178)
++
++### 哪些对象可能需要补查
++
++| 已有证据 | 可以判断什么 |
++| --- | --- |
++| [固定文件生成规则](../tests/Prototypes/Ntfs/NtfsScaleExperiment.cs#L76)及[实际准备入口](../tests/Prototypes/Ntfs/NativeVssScaleExperiment.cs#L261) | 十万个独立文件中，一万个为 32 字节，一万个为空，八万个为 1,024 字节。另有十个硬链接别名，均指向 1,024 字节文件。生成器没有专门制造压缩或稀疏文件。 |
++| [记录解码](../src/Scanning/Ntfs/NtfsRecordDecoder.cs#L159)及[补查判定](../src/Scanning/Ntfs/NtfsSnapshotSizeIndex.cs#L152) | 若普通非空文件的默认数据直接存放在 NTFS 记录内，记录能给出文件大小，但当前解码器将实际占用留待系统查询。空的驻留数据在相关字段完整时可直接取零。记录不支持、大小字段不全、链接数不明等也可能触发补查。 |
++| [按文件身份归组](../src/Scanning/Ntfs/NtfsSnapshotSizeIndex.cs#L96)及[完成校验](../src/Scanning/Ntfs/NtfsSnapshotSizeIndex.cs#L221) | 成功扫描中，每个待补查的唯一对象调用一次补查。增加硬链接名称不会使同一对象多次入队。一次补查仍包含路径属性核验、打开元信息句柄和多项查询。[实际查询](../src/Scanning/Ntfs/NtfsSnapshotMetadata.cs#L24) |
++| [C24 同规模原型的公开数据](../iterations/2026-11-12-24-snapshot-scan/scale-100000.json) | 当时三个快扫样本各记录了一万次补查，均覆盖一万个唯一对象。工作量栏的 `ResidentFiles` 按生成规则填写；实际调用数单独采集。历史总量支持优先检验 32 字节这一组，但没有对象类别和补查原因的交叉统计。 |
++
++C76 成功样本显示两次快扫都进入了补查阶段。内部索引已有补查对象数、调用数及并行工作耗时，主窗计时摘要只保存客户端阶段和进程资源，没有这些索引字段，也没有按原因分类的数据。现有报告无法确定有多少个 32 字节文件实际驻留、它们占用了多少补查时间，或各原因是否重叠。[索引报告](../src/Scanning/Ntfs/NtfsSnapshotSizeIndex.cs#L12) · [主窗摘要字段](../scripts/ntfs-prototype/ProductTimingFixtureEvidence.ps1)
++
++按 C76 每一对原始耗时做上限估算，即使整段补查与索引收尾耗时全部扣除，其他耗时固定，两次快扫仍各自慢于配对的普通扫描。这说明只改补查不足以扭转该组端到端结果。若继续分析整体提速，建议优先查看请求权限、启动助手和建立快照的开销；若要判断该优化哪类文件，可先在测试工具中按唯一对象记录补查原因，并单独计量队列完成后的索引汇总。多原因对象须保留重叠关系，并行任务的耗时不能简单相加。后续实施范围另行确定。[C77 验收记录](../iterations/2026-11-27-77-ntfs-supplement-audit/README.md)
++
+ C74 已在一次性隔离盘上使用该主窗计时入口完成首对对照。使用 `scripts/ntfs-prototype/Invoke-NtfsProductTimingFixture.ps1` 需先确认当轮测试盘和快照范围。主窗使用普通权限，管理员辅助进程持有测试盘。结果指纹一致、快照清理确认并且窗口退出后，才接受耗时比较并清理镜像。[隔离盘方案](ntfs-product-timing-fixture-plan.md) · [C74 实测记录](../iterations/2026-11-27-74-ntfs-product-timing-fixture/README.md)
+ 
+ 2026-11-22，C68在原后台计时工具上补齐真实主窗交付与阶段/资源观察。普通启动、扫描策略、统计契约及默认快扫开关不变；计时入口只位于测试apphost，不是正式发行功能。
