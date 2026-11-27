@@ -18,6 +18,7 @@ $stage = 'Validate'
 $order = if ($Counterbalanced) { 'FOOF' } else { 'FO' }
 $expectedFiles = if ($Counterbalanced) { 100000 } else { 10000 }
 . (Join-Path $PSScriptRoot 'ProductTimingFixturePipe.ps1')
+. (Join-Path $PSScriptRoot 'ProductTimingProgress.ps1')
 . (Join-Path $PSScriptRoot 'KernelMatrixEvidence.ps1')
 try {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -80,22 +81,23 @@ try {
     $startTimer.ArgumentList.Add('--ntfs-personal-timing-ui')
     $window = [Diagnostics.Process]::Start($startTimer)
     if ($null -eq $window) { throw 'TIMING_WINDOW_NOT_STARTED' }
-    $output = $window.StandardOutput.ReadToEndAsync()
-    $errors = $window.StandardError.ReadToEndAsync()
+    # Error text can contain local paths. Drain it without collecting or exporting it.
+    $errors = $window.StandardError.BaseStream.CopyToAsync([IO.Stream]::Null)
     $window.StandardInput.WriteLine($order)
     $window.StandardInput.WriteLine($fixture.scope)
     $window.StandardInput.Close()
-    if (-not $window.WaitForExit($(if ($Counterbalanced) { 2520000 } else { 1320000 }))) {
-        throw 'TIMING_WINDOW_TIMEOUT'
-    }
-    $report = $output.GetAwaiter().GetResult()
-    # Error text can contain local paths. Drain the stream without exporting it.
-    [void]$errors.GetAwaiter().GetResult()
+    $deadline = [Threading.CancellationTokenSource]::new([TimeSpan]::FromMinutes($(if ($Counterbalanced) { 42 } else { 22 })))
+    try {
+        $report = [Text.StringBuilder]::new()
+        Read-ProductTimingReport -Reader $window.StandardOutput -Order $order -Report $report -Cancellation $deadline.Token
+        [void]$window.WaitForExitAsync($deadline.Token).GetAwaiter().GetResult()
+        [void]$errors.WaitAsync($deadline.Token).GetAwaiter().GetResult()
+    } finally { $deadline.Dispose() }
     Assert-ProductTimingScope $fixture.scope $fixture.volume
 
     $stage = 'Cleanup'
     Write-Output 'PRODUCT_TIMING: Measuring window exited; checking snapshot and detaching fixture'
-    $reply = [ordered]@{ revision='product-timing-fixture-v1'; order=$order; exit_code=$window.ExitCode; report=$report }
+    $reply = [ordered]@{ revision='product-timing-fixture-v1'; order=$order; exit_code=$window.ExitCode; report=$report.ToString() }
     [AsukaLensProductTimingPipe]::Write($pipe, ($reply | ConvertTo-Json -Compress), 10)
     if (-not $owner.WaitForExit(120000)) { throw 'FIXTURE_CLEANUP_TIMEOUT' }
     if (-not (Test-Path -LiteralPath $result -PathType Leaf) -or (Get-Item -LiteralPath $result).Length -gt 65536) {

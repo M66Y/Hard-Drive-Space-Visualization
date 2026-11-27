@@ -1,0 +1,21 @@
+{
+  "baseline": "2e61ccf80e723d57c50eb2efa35673587ede4e6e",
+  "fixture": "owned-1gib-ntfs-vhd",
+  "synthetic_files": 100000,
+  "requested_order": "FOOF",
+  "completed_order": "FOOF",
+  "completed_comparisons": 3,
+  "comparable": true,
+  "snapshot_cleanup_confirmed": true,
+  "detached": true,
+  "fixture_removed": true,
+  "exit_code": 0,
+  "progress_checks": 17,
+  "evidence_checks": 78,
+  "pipe_checks": 10,
+  "total_checks": 105,
+  "ordinary_faster_in_both_pairs": true,
+  "stable_speedup_established": false,
+  "production_source_unchanged": true,
+  "published_release": false
+}

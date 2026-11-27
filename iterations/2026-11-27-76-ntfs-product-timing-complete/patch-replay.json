@@ -1,0 +1,23 @@
+{
+  "baseline": "2e61ccf80e723d57c50eb2efa35673587ede4e6e",
+  "apply_check": true,
+  "staged_content_equal": true,
+  "patch_sha256": "3D1A19F7789886461AE3A04D20A156CB7FA0C1133A8ABA273ACEEEF1C3619304",
+  "files": [
+    {
+      "path": "scripts/ntfs-prototype/Invoke-NtfsProductTimingFixture.ps1",
+      "git_blob": "4f8eba22871ec229b6413611e1a5f09e0027467e",
+      "sha256": "B29ADB2E055C7664D4C7D28C96307F8054C71841D5D332BED5FE583CCA29181D"
+    },
+    {
+      "path": "scripts/ntfs-prototype/ProductTimingProgress.ps1",
+      "git_blob": "30d831b956d9b5facb2d87e989b43dd64cff5c13",
+      "sha256": "C48F61C82864AFE41760BA6502FD194822B315F983EB50BA71D95A43EA516F84"
+    },
+    {
+      "path": "tests/NtfsProductTimingProgress.Tests.ps1",
+      "git_blob": "96448afba6929b820d0ed40c90d09e86f2fea316",
+      "sha256": "AA7E2536615924F9F945ADD8DC497011CE82E97763F231B1B3C18C8A4DD3841D"
+    }
+  ]
+}
