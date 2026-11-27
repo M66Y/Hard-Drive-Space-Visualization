@@ -119,6 +119,53 @@ internal static class NtfsNamespaceAncestorDriverTests
         Reject(() => NamespaceAncestorProtocol.Decode([.. good, 0]), "trailing report data rejected");
         Reject(() => NamespaceAncestorProtocol.Decode("{\"path\":\"SyntheticPrivateTransportMarker\"}"u8.ToArray()), "arbitrary JSON cannot enter binary report");
 
+        var balanced = matched with
+        {
+            Balanced = true,
+            OriginalRepeat = Measurement with { Milliseconds = 11 },
+            CandidateRepeat = Measurement with { Milliseconds = 7 }
+        };
+        byte[] balancedPayload = NamespaceAncestorProtocol.Encode(balanced);
+        Check(NamespaceAncestorProtocol.Decode(balancedPayload, balanced: true) == balanced,
+            "balanced payload preserves both measurements of each method");
+        Reject(() => NamespaceAncestorProtocol.Decode(balancedPayload), "v1 decoder rejects balanced payload");
+        Reject(() => NamespaceAncestorProtocol.Decode(good, balanced: true), "balanced decoder rejects v1 payload");
+        foreach (var report in new[]
+        {
+            balanced with { OriginalRepeat = null },
+            balanced with { CandidateRepeat = null },
+            balanced with { Balanced = false },
+            balanced with { OriginalRepeat = Measurement with { Entries = 7 } },
+            balanced with { CandidateRepeat = Measurement with { HandlesSettled = false } },
+            balanced with { CandidateRepeat = Measurement with { Queries = 6 } }
+        }) Reject(() => NamespaceAncestorProtocol.Encode(report), "balanced success rejects missing or contradictory measurements");
+        byte[] corrupted = balancedPayload.ToArray();
+        BinaryPrimitives.WriteInt64LittleEndian(corrupted.AsSpan(corrupted.Length - 29), -1);
+        Reject(() => NamespaceAncestorProtocol.Decode(corrupted, balanced: true), "balanced decoder rejects damaged repeat measurement");
+        var balancedMismatch = different with { Balanced = true };
+        Check(NamespaceAncestorProtocol.Decode(NamespaceAncestorProtocol.Encode(balancedMismatch), balanced: true) == balancedMismatch,
+            "balanced first mismatch permits only the two completed rounds");
+        using (var stream = new MemoryStream())
+        {
+            var writer = new NamespaceAncestorProtocol.Writer(stream, balanced: true);
+            writer.Stage(NamespaceAncestorStage.Candidate);
+            writer.Report(balanced);
+            stream.Position = 0;
+            var reader = new NamespaceAncestorProtocol.Reader(stream, balanced: true);
+            Check(reader.Read().Stage == NamespaceAncestorStage.Candidate && reader.Read().Report == balanced,
+                "balanced frame sequence roundtrips");
+            stream.Position = 0;
+            Reject(() => new NamespaceAncestorProtocol.Reader(stream).Read(), "v1 reader rejects v2 frame");
+        }
+        Reject(() => new NamespaceAncestorProtocol.Reader(new MemoryStream(Frame(2, good)), balanced: true).Read(),
+            "balanced reader rejects v1 frame");
+        using (var stream = new MemoryStream())
+        {
+            Reject(() => new NamespaceAncestorProtocol.Writer(stream, balanced: true).Report(matched), "balanced writer rejects v1 report");
+            Reject(() => new NamespaceAncestorProtocol.Writer(stream).Report(balanced), "v1 writer rejects balanced report");
+            Check(stream.Length == 0, "mode mismatch publishes no frame");
+        }
+
         foreach (var frame in new[]
         {
             Frame(1, [255]), Frame(1, []), Frame(1, [0, 0]), Frame(0, [0]), Frame(3, [0]),
@@ -171,12 +218,19 @@ internal static class NtfsNamespaceAncestorDriverTests
             new[] { NtfsNamespaceAncestorDriver.Argument, "X:\\SyntheticPrivateTransportMarker" }, new[] { NtfsNamespaceAncestorDriver.Argument, "--extra" } })
             Check(!NtfsNamespaceAncestorDriver.ValidParent(args), "scope or extra arguments cannot enter parent command line");
         Check(NtfsNamespaceAncestorDriver.Requested([NtfsNamespaceAncestorDriver.Argument]) && NtfsNamespaceAncestorDriver.Requested([NtfsNamespaceAncestorDriver.WorkerArgument]),
-            "only two explicit driver entry points routed");
+            "legacy parent and worker entry points remain routed");
+        Check(NtfsNamespaceAncestorDriver.ValidParent([NtfsNamespaceAncestorDriver.BalancedArgument]) &&
+            NtfsNamespaceAncestorDriver.Requested([NtfsNamespaceAncestorDriver.BalancedArgument]) &&
+            NtfsNamespaceAncestorDriver.Requested([NtfsNamespaceAncestorDriver.BalancedWorkerArgument]) &&
+            !NtfsNamespaceAncestorDriver.ValidParent([NtfsNamespaceAncestorDriver.BalancedArgument, "extra"]),
+            "balanced mode uses explicit entry points without extra parent arguments");
         Check(!NtfsNamespaceAncestorDriver.Requested([]) && !NtfsNamespaceAncestorDriver.Requested(["other"]) &&
             !NtfsNamespaceAncestorDriver.Requested([NtfsNamespaceAncestorDriver.Argument + "extra"]), "ordinary invocations do not route to driver");
         string pipe = "AsukaLens.Ntfs." + new string('1', 32);
         Check(NtfsNamespaceAncestorDriver.ParseWorker([NtfsNamespaceAncestorDriver.WorkerArgument, pipe, "17", "1"], out int pid, out long ticks) && pid == 17 && ticks == 1,
             "worker binds a positive parent identity");
+        Check(NtfsNamespaceAncestorDriver.ParseWorker([NtfsNamespaceAncestorDriver.BalancedWorkerArgument, pipe, "17", "1"], out pid, out ticks) &&
+            pid == 17 && ticks == 1, "balanced worker binds the same parent identity");
         Check(NtfsNamespaceAncestorDriver.ParseWorker([NtfsNamespaceAncestorDriver.WorkerArgument, pipe, int.MaxValue.ToString(CultureInfo.InvariantCulture),
             DateTime.MaxValue.Ticks.ToString(CultureInfo.InvariantCulture)], out _, out _), "worker accepts bounded identity upper endpoints");
         foreach (var args in new[] { Array.Empty<string>(), new[] { "other", pipe, "17", "1" },
@@ -207,6 +261,31 @@ internal static class NtfsNamespaceAncestorDriverTests
             Check(!root.GetProperty("raw_read").GetBoolean() && !root.GetProperty("special_lookup").GetBoolean() && !root.GetProperty("product_end_to_end").GetBoolean(),
                 "summary cannot claim raw lookup or complete product timing");
             Check(!captured.ToString().Contains(Marker, StringComparison.Ordinal) && root.GetProperty("worker_summary_received").GetBoolean(), "summary includes provenance without private text");
+        }
+        using (var output = new StringWriter(CultureInfo.InvariantCulture))
+        {
+            try
+            {
+                Console.SetOut(output);
+                NtfsNamespaceAncestorDriver.Summary(balanced, "None", true);
+            }
+            finally { Console.SetOut(previous); }
+            using var json = JsonDocument.Parse(output.ToString());
+            var root = json.RootElement;
+            var allowed = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "revision", "kind", "outcome", "code", "driver_code", "worker_summary_received", "cleanup_confirmed",
+                "same_source_verified", "comparison_complete", "checks", "snapshot_ms", "original_ms", "candidate_ms",
+                "comparison_ms", "cleanup_ms", "original", "candidate", "raw_read", "special_lookup", "product_end_to_end",
+                "traversal_order", "original_repeat_ms", "candidate_repeat_ms", "original_repeat", "candidate_repeat"
+            };
+            Check(root.EnumerateObject().All(p => allowed.Remove(p.Name)) && allowed.Count == 0,
+                "balanced summary contains only explicit white-listed fields");
+            Check(root.GetProperty("revision").GetString() == "namespace-ancestor-balanced-live-v2" &&
+                root.GetProperty("traversal_order").EnumerateArray().Select(v => v.GetString()).SequenceEqual(
+                    new[] { "Candidate", "Original", "Original", "Candidate" }) &&
+                root.GetProperty("original_repeat_ms").GetInt64() == 11 && root.GetProperty("candidate_repeat_ms").GetInt64() == 7,
+                "balanced summary labels ordered repeats and fixed protocol revision");
         }
         foreach (var tuple in new[] { (Report: matched, Code: Marker, Received: true), (Report: matched, Code: "DriverFailed", Received: false),
             (Report: matched, Code: "None", Received: false), (Report: failed, Code: "DriverFailed", Received: true) })

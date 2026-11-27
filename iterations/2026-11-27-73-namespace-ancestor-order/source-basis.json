@@ -1,0 +1,26 @@
+{
+  "baseline": "9b776704e4cbfafed3bca1c9f2b6b71273356a7d",
+  "production_source_unchanged": true,
+  "test_assembly_sha256": "F9E5F5AFF6B37AD887BBCF7D203E8EBEF9BE85322B0A4171DC13086678E9BE47",
+  "test_apphost_sha256": "2AA9599931ACD493899BE4D48CA35BF0F909E7F1E009E712984A209133004579",
+  "sources": [
+    {
+      "path": "tests/NtfsNamespaceAncestorComparison.cs",
+      "sha256": "465AFA86039524823337755BF41A0092C7842C60A57CE5BB8F3F5A357B614697"
+    },
+    {
+      "path": "tests/NtfsNamespaceAncestorComparisonTests.cs",
+      "sha256": "4982E9A6E7D25BBF0A51AE4476C25078ED31B7A99EE29DF0851B02C85A9BA9D6"
+    },
+    {
+      "path": "tests/NtfsNamespaceAncestorDriver.cs",
+      "sha256": "3738F3C77C180269AF9BEF08A2D2CB3D80EB6D09C6F01249BCEB6515807BA8EA"
+    },
+    {
+      "path": "tests/NtfsNamespaceAncestorDriverTests.cs",
+      "sha256": "2560D945574FB802C65106882258F5DF7428A0BA33C5664AD8D474D1556F6AEE"
+    }
+  ],
+  "test_checks": 2153,
+  "build_warnings": 0
+}

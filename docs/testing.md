@@ -4,6 +4,8 @@
 
 `--ntfs-namespace-ancestor-comparison-tests` 校验目录结果比对与资源状态。`--ntfs-namespace-ancestor-driver-tests` 校验测试驱动的输入、协议和清理报告。实测入口 `DiskAtlas.Tests.exe --ntfs-namespace-ancestor-live` 通过标准输入接收本轮已获授权的目录，在一个临时快照上依次记录原核验和复用候选的枚举耗时。建立快照、比对和清理另计。结果摘要与具体耗时留在本机。 [实测计划](ntfs-namespace-ancestor-live-plan.md) · [验收记录](../iterations/2026-11-26-72-namespace-ancestor-live/README.md)
 
+C73 的四轮入口为 `DiskAtlas.Tests.exe --ntfs-namespace-ancestor-balanced-live`，使用独立的 v2 报告。合成检查覆盖顺序、提前停止、租约、清理失败和两个协议版本的边界。每轮真实测试仍需确认当轮范围。[四轮实测记录](../iterations/2026-11-27-73-namespace-ancestor-order/README.md)
+
 ## C71 目录祖先验证复用候选
 
 `--ntfs-namespace-ancestor-tests`纯内存94项，核对原路径/候选的完整目录遍历、祖先属性回调计数及不变的打开/身份/标签/分页；覆盖容量、父级/路径/身份反例、取消/失效、跨来源、错误和释放。实际私有Source工厂需显式`reuseValidatedAncestors: true`，默认仍原核验，不从合成backend推断VSS真实性。修改时另跑namespace/source/index/reparse/large-profile/size及受影响协调回退检查、核心和advanced；真实卷另确认当轮范围。见[候选说明](ntfs-namespace-ancestor-candidate.md)。

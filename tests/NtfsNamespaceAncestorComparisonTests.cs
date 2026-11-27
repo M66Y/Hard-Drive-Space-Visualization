@@ -232,6 +232,57 @@ internal static class NtfsNamespaceAncestorComparisonTests
                 "both real-policy leases and all synthetic handles close once");
             Check(r.Original is { HandlesSettled: true, Entries: 5, Opened: 3, Completed: 3 } && r.Candidate is { HandlesSettled: true, Entries: 5, Opened: 3, Completed: 3 } &&
                 r.Original.Milliseconds >= 0 && r.Candidate.Milliseconds >= 0, "measurements include settled complete enumerations");
+            Check(!r.Balanced && r.OriginalRepeat is null && r.CandidateRepeat is null, "default execute retains two-round measurements");
+        }
+        {
+            var source = new Source();
+            var stages = new List<NamespaceAncestorStage>();
+            var result = NtfsNamespaceAncestorComparison.Execute(() => source, default, stages.Add, balanced: true);
+            Check(result.Balanced && result.Outcome == NamespaceAncestorOutcome.Matched && result.Checks == NamespaceAncestorChecks.All &&
+                result.ComparisonComplete && result.SameSourceVerified && result.CleanupConfirmed, "balanced comparison matches on one source");
+            Check(source.Modes.SequenceEqual(new[] { true, false, false, true }) && source.PriorLeaseSettled,
+                "balanced order uses four separately settled leases");
+            Check(stages.SequenceEqual(new[] { NamespaceAncestorStage.Snapshot, NamespaceAncestorStage.Candidate,
+                NamespaceAncestorStage.Original, NamespaceAncestorStage.Compare, NamespaceAncestorStage.Original,
+                NamespaceAncestorStage.Compare, NamespaceAncestorStage.Candidate, NamespaceAncestorStage.Compare, NamespaceAncestorStage.Cleanup }),
+                "balanced comparisons run immediately after each traversal following the reference");
+            Check(new[] { result.Original, result.Candidate, result.OriginalRepeat, result.CandidateRepeat }.All(
+                m => m is { HandlesSettled: true, Entries: 5, Opened: 3, Completed: 3, Milliseconds: >= 0 }),
+                "balanced success reports four complete measurements");
+            Check(source.Backends.All(b => b.Disposed && b.Opened == 3 && b.Closed == 3) &&
+                source.CleanupCalls == 1 && source.DisposeCalls == 1, "balanced success settles all handles and cleans the source once");
+        }
+        {
+            var source = new Source();
+            source.Build = _ =>
+            {
+                var backend = new Backend();
+                if (source.Modes.Count == 2)
+                    backend.Pages["a"] = [Page(Entry(3, 1, "changed.bin", 201))];
+                return backend;
+            };
+            var result = NtfsNamespaceAncestorComparison.Execute(() => source, default, _ => { }, balanced: true);
+            Check(result.Balanced && result.Outcome == NamespaceAncestorOutcome.Different && result.CleanupConfirmed &&
+                result.ComparisonComplete && !Has(result.Checks, NamespaceAncestorChecks.Paths),
+                "balanced mode preserves first observed mismatch");
+            Check(source.Modes.SequenceEqual(new[] { true, false }) && source.PriorLeaseSettled &&
+                result.Original is not null && result.Candidate is not null && result.OriginalRepeat is null && result.CandidateRepeat is null &&
+                source.Backends.All(b => b.Disposed && b.Opened == b.Closed) && source.CleanupCalls == 1 && source.DisposeCalls == 1,
+                "balanced mismatch skips remaining traversals and settles the source");
+        }
+        foreach (int faultRound in new[] { 3, 4 })
+        {
+            var source = new Source { CleanupValue = faultRound == 3 };
+            source.Build = _ => new Backend { FailRead = source.Modes.Count == faultRound };
+            var result = NtfsNamespaceAncestorComparison.Execute(() => source, default, _ => { }, balanced: true);
+            SafeFailure(result, "balanced traversal failure keeps private details out");
+            Check(result.Balanced && result.Outcome == NamespaceAncestorOutcome.Failed && result.CleanupConfirmed == (faultRound == 3) &&
+                result.Code == (faultRound == 3 ? NamespaceAncestorCode.EnumerationFailed : NamespaceAncestorCode.CleanupUnconfirmed),
+                "balanced traversal failure gives uncertain cleanup precedence");
+            Check(source.Modes.Count == faultRound && source.PriorLeaseSettled && result.CandidateRepeat is null &&
+                (result.OriginalRepeat is not null) == (faultRound == 4) &&
+                source.Backends.All(b => b.Disposed && b.Opened == b.Closed) && source.CleanupCalls == 1 && source.DisposeCalls == 1,
+                "failed balanced round closes its lease without retry");
         }
         foreach (string fault in new[] { "open", "read", "cursor-close", "lease-close", "malformed-page" })
         foreach (bool candidate in new[] { false, true })

@@ -11,23 +11,25 @@ namespace DiskAtlas;
 internal static class NtfsNamespaceAncestorDriver
 {
     internal const string Argument = "--ntfs-namespace-ancestor-live", WorkerArgument = "--ntfs-namespace-ancestor-worker";
-    internal static bool Requested(string[] args) => args.Length > 0 && args[0] is Argument or WorkerArgument;
-    internal static bool ValidParent(string[] args) => args.Length == 1 && args[0] == Argument;
+    internal const string BalancedArgument = "--ntfs-namespace-ancestor-balanced-live", BalancedWorkerArgument = "--ntfs-namespace-ancestor-balanced-worker";
+    internal static bool Requested(string[] args) => args.Length > 0 && args[0] is Argument or WorkerArgument or BalancedArgument or BalancedWorkerArgument;
+    internal static bool ValidParent(string[] args) => args.Length == 1 && args[0] is Argument or BalancedArgument;
     internal static bool ParseWorker(string[] args, out int pid, out long ticks)
     {
         pid = 0; ticks = 0;
-        return args.Length == 4 && args[0] == WorkerArgument && FastScanBridge.ValidPipeName(args[1]) &&
+        return args.Length == 4 && args[0] is WorkerArgument or BalancedWorkerArgument && FastScanBridge.ValidPipeName(args[1]) &&
             int.TryParse(args[2], NumberStyles.None, CultureInfo.InvariantCulture, out pid) && pid > 0 &&
             long.TryParse(args[3], NumberStyles.None, CultureInfo.InvariantCulture, out ticks) && ticks > 0 && ticks <= DateTime.MaxValue.Ticks;
     }
     internal static int Run(string[] args)
     {
         if (!FastScanBridge.IsTimingHost(Environment.ProcessPath, System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name)) return 2;
-        if (args[0] == WorkerArgument)
+        if (args[0] is WorkerArgument or BalancedWorkerArgument)
         {
             if (!ParseWorker(args, out int pid, out long ticks)) return 2;
+            bool balanced = args[0] == BalancedWorkerArgument;
             int result = 2;
-            var worker = new Thread(() => result = Worker(args[1], pid, ticks));
+            var worker = new Thread(() => result = Worker(args[1], pid, ticks, balanced));
             worker.SetApartmentState(ApartmentState.MTA); worker.Start(); worker.Join(); return result;
         }
         return Parent(args);
@@ -39,7 +41,8 @@ internal static class NtfsNamespaceAncestorDriver
     private static int Parent(string[] args)
     {
         bool requested = false;
-        if (!ValidParent(args)) return Failure("InvalidInvocation", false);
+        bool balanced = args[0] == BalancedArgument;
+        if (!ValidParent(args)) return Failure("InvalidInvocation", false, balanced);
         try
         {
             string scope = NtfsPrototype.NtfsPersonalAcceptanceDriver.ReadScope(Console.In);
@@ -55,7 +58,7 @@ internal static class NtfsNamespaceAncestorDriver
                 {
                     Console.Error.WriteLine("Elevation");
                     var start = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden };
-                    start.ArgumentList.Add(WorkerArgument); start.ArgumentList.Add(name);
+                    start.ArgumentList.Add(balanced ? BalancedWorkerArgument : WorkerArgument); start.ArgumentList.Add(name);
                     start.ArgumentList.Add(parent.Id.ToString(CultureInfo.InvariantCulture));
                     start.ArgumentList.Add(parent.StartTime.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture));
                     using var launchStop = CancellationTokenSource.CreateLinkedTokenSource(canceled.Token);
@@ -67,7 +70,7 @@ internal static class NtfsNamespaceAncestorDriver
                         _ = launch.ContinueWith(t => { _ = t.Exception; if (t.Status == TaskStatus.RanToCompletion) t.Result?.Dispose(); }, TaskScheduler.Default);
                         throw;
                     }
-                    if (child == null) return Failure("LaunchFailed", false);
+                    if (child == null) return Failure("LaunchFailed", false, balanced);
                     using var connectStop = CancellationTokenSource.CreateLinkedTokenSource(canceled.Token);
                     connectStop.CancelAfter(TimeSpan.FromMinutes(2));
                     using var stopConnect = connectStop.Token.Register(() => { try { server.Dispose(); } catch { } });
@@ -76,7 +79,7 @@ internal static class NtfsNamespaceAncestorDriver
                         var waiting = server.WaitForConnectionAsync(connectStop.Token);
                         while (!waiting.IsCompleted)
                         {
-                            if (child.HasExited) return Failure("WorkerExited", false);
+                            if (child.HasExited) return Failure("WorkerExited", false, balanced);
                             Task.WhenAny(waiting, Task.Delay(100, connectStop.Token)).GetAwaiter().GetResult(); connectStop.Token.ThrowIfCancellationRequested();
                         }
                         waiting.GetAwaiter().GetResult();
@@ -91,7 +94,7 @@ internal static class NtfsNamespaceAncestorDriver
                     canceled.Token.ThrowIfCancellationRequested(); requested = true;
                     FastScanWire.WriteRequest(server, scope, canceled.Token);
                     using var sendCancel = canceled.Token.Register(() => ThreadPool.QueueUserWorkItem(_ => { try { server.WriteByte(0x43); server.Flush(); } catch { } }));
-                    var reader = new NamespaceAncestorProtocol.Reader(server);
+                    var reader = new NamespaceAncestorProtocol.Reader(server, balanced);
                     while (true)
                     {
                         var message = reader.Read(deadline.Token);
@@ -104,12 +107,12 @@ internal static class NtfsNamespaceAncestorDriver
             }
             finally { Console.CancelKeyPress -= handler; }
         }
-        catch (System.ComponentModel.Win32Exception e) when (e.NativeErrorCode == 1223) { return Failure("ElevationDenied", requested); }
-        catch (OperationCanceledException) { return Failure("Cancelled", requested); }
-        catch (FastScanWireException) { return Failure("InvalidScopeOrRequest", requested); }
-        catch { return Failure("DriverFailed", requested); }
+        catch (System.ComponentModel.Win32Exception e) when (e.NativeErrorCode == 1223) { return Failure("ElevationDenied", requested, balanced); }
+        catch (OperationCanceledException) { return Failure("Cancelled", requested, balanced); }
+        catch (FastScanWireException) { return Failure("InvalidScopeOrRequest", requested, balanced); }
+        catch { return Failure("DriverFailed", requested, balanced); }
     }
-    private static int Worker(string name, int pid, long ticks)
+    private static int Worker(string name, int pid, long ticks, bool balanced)
     {
         try
         {
@@ -125,8 +128,8 @@ internal static class NtfsNamespaceAncestorDriver
             var command = Task.Run(() => { try { _ = pipe.ReadByte(); } catch { } canceled.Cancel(); });
             try
             {
-                var writer = new NamespaceAncestorProtocol.Writer(pipe);
-                var report = NtfsNamespaceAncestorComparison.Execute(scope, canceled.Token, stage => writer.Stage(stage, canceled.Token));
+                var writer = new NamespaceAncestorProtocol.Writer(pipe, balanced);
+                var report = NtfsNamespaceAncestorComparison.Execute(scope, canceled.Token, stage => writer.Stage(stage, canceled.Token), balanced);
                 report = RespectCancellation(report, canceled.IsCancellationRequested);
                 // Source owner has completed cleanup before any terminal result.
                 writer.Report(report, CancellationToken.None); return Exit(report);
@@ -135,9 +138,9 @@ internal static class NtfsNamespaceAncestorDriver
         }
         catch { return 2; }
     }
-    private static int Failure(string code, bool requested)
+    private static int Failure(string code, bool requested, bool balanced)
     {
-        Summary(new() { CleanupConfirmed = !requested }, code, false); return 1;
+        Summary(new() { CleanupConfirmed = !requested, Balanced = balanced }, code, false); return 1;
     }
     internal static void Summary(NamespaceAncestorReport r, string driverCode, bool received)
     {
@@ -147,12 +150,24 @@ internal static class NtfsNamespaceAncestorDriver
         if (received != (driverCode == "None") || !received && r.Outcome != NamespaceAncestorOutcome.Failed)
             throw new InvalidDataException();
         // This output is private. Public evidence must omit timings and counts.
-        Console.WriteLine(JsonSerializer.Serialize(new { revision = "namespace-ancestor-live-v1", kind = "summary", outcome = r.Outcome.ToString(), code = r.Code.ToString(),
+        var summary = new { revision = r.Balanced ? "namespace-ancestor-balanced-live-v2" : "namespace-ancestor-live-v1", kind = "summary", outcome = r.Outcome.ToString(), code = r.Code.ToString(),
             driver_code = driverCode, worker_summary_received = received, cleanup_confirmed = r.CleanupConfirmed,
             same_source_verified = r.SameSourceVerified, comparison_complete = r.ComparisonComplete, checks = (byte)r.Checks,
             snapshot_ms = r.SnapshotMilliseconds, original_ms = r.Original?.Milliseconds, candidate_ms = r.Candidate?.Milliseconds,
             comparison_ms = r.ComparisonMilliseconds, cleanup_ms = r.CleanupMilliseconds,
-            original = Measurement(r.Original), candidate = Measurement(r.Candidate), raw_read = false, special_lookup = false, product_end_to_end = false }));
+            original = Measurement(r.Original), candidate = Measurement(r.Candidate), raw_read = false, special_lookup = false, product_end_to_end = false };
+        if (!r.Balanced)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(summary));
+            return;
+        }
+        var balancedSummary = JsonSerializer.SerializeToNode(summary)!.AsObject();
+        balancedSummary["traversal_order"] = JsonSerializer.SerializeToNode(new[] { "Candidate", "Original", "Original", "Candidate" });
+        balancedSummary["original_repeat_ms"] = r.OriginalRepeat?.Milliseconds;
+        balancedSummary["candidate_repeat_ms"] = r.CandidateRepeat?.Milliseconds;
+        balancedSummary["original_repeat"] = JsonSerializer.SerializeToNode(Measurement(r.OriginalRepeat));
+        balancedSummary["candidate_repeat"] = JsonSerializer.SerializeToNode(Measurement(r.CandidateRepeat));
+        Console.WriteLine(balancedSummary.ToJsonString());
     }
     private static object? Measurement(NamespaceAncestorMeasurement? m) => m == null ? null : new
     { entries = m.Entries, opened = m.Opened, completed = m.Completed, pages = m.Pages, queries = m.Queries, handles_settled = m.HandlesSettled };
@@ -168,7 +183,8 @@ internal static class NamespaceAncestorProtocol
     {
         Need(Enum.IsDefined(r.Outcome) && Enum.IsDefined(r.Code) && (r.Checks & ~NamespaceAncestorChecks.All) == 0);
         foreach (long value in new[] { r.SnapshotMilliseconds, r.ComparisonMilliseconds, r.CleanupMilliseconds }) Need(value is >= 0 and <= 720000);
-        foreach (var m in new[] { r.Original, r.Candidate }) if (m != null)
+        var measurements = new[] { r.Original, r.Candidate, r.OriginalRepeat, r.CandidateRepeat };
+        foreach (var m in measurements) if (m != null)
             Need(m.Milliseconds is >= 0 and <= 720000 && m.Entries is >= 1 and <= 1048576 && m.Opened >= 1 && m.Opened <= m.Entries &&
                 m.Completed == m.Opened && m.Pages >= 0 && m.Queries >= m.Completed && m.Pages <= m.Queries && m.Queries <= 4194305 &&
                 (long)m.Pages + m.Completed == m.Queries && m.HandlesSettled);
@@ -178,10 +194,21 @@ internal static class NamespaceAncestorProtocol
         else Need(!r.SameSourceVerified && !r.ComparisonComplete && r.Checks == NamespaceAncestorChecks.None &&
             (r.Outcome == NamespaceAncestorOutcome.Cancelled ? r.Code == NamespaceAncestorCode.Cancelled && r.CleanupConfirmed : r.Code is not (NamespaceAncestorCode.None or NamespaceAncestorCode.Cancelled)));
         if (r.Code == NamespaceAncestorCode.CleanupUnconfirmed) Need(!r.CleanupConfirmed);
-        if (complete && r.Original != null && r.Candidate != null)
+        if (!r.Balanced) Need(r.OriginalRepeat == null && r.CandidateRepeat == null);
+        else
         {
-            if ((r.Checks & (NamespaceAncestorChecks.Paths | NamespaceAncestorChecks.Counts)) != 0) Need(r.Original.Entries == r.Candidate.Entries);
-            if ((r.Checks & NamespaceAncestorChecks.Coverage) != 0) Need(r.Original.Opened == r.Candidate.Opened);
+            if (r.Original != null) Need(r.Candidate != null);
+            if (r.OriginalRepeat != null) Need(r.Original != null);
+            if (r.CandidateRepeat != null) Need(r.OriginalRepeat != null);
+            if (r.Outcome == NamespaceAncestorOutcome.Matched) Need(r.CandidateRepeat != null);
+        }
+        if (complete && r.Original != null)
+        {
+            foreach (var measurement in measurements.OfType<NamespaceAncestorMeasurement>())
+            {
+                if ((r.Checks & (NamespaceAncestorChecks.Paths | NamespaceAncestorChecks.Counts)) != 0) Need(r.Original.Entries == measurement.Entries);
+                if ((r.Checks & NamespaceAncestorChecks.Coverage) != 0) Need(r.Original.Opened == measurement.Opened);
+            }
         }
     }
     private static bool Bool(BinaryReader reader) { byte b = reader.ReadByte(); Need(b <= 1); return b == 1; }
@@ -190,14 +217,15 @@ internal static class NamespaceAncestorProtocol
         Validate(r); using var stream = new MemoryStream(); using var w = new BinaryWriter(stream, Encoding.UTF8, true);
         w.Write((byte)r.Outcome); w.Write((byte)r.Code); w.Write(r.CleanupConfirmed); w.Write(r.SameSourceVerified); w.Write(r.ComparisonComplete); w.Write((byte)r.Checks);
         w.Write(r.SnapshotMilliseconds); w.Write(r.ComparisonMilliseconds); w.Write(r.CleanupMilliseconds);
-        foreach (var m in new[] { r.Original, r.Candidate })
+        var measurements = r.Balanced ? new[] { r.Original, r.Candidate, r.OriginalRepeat, r.CandidateRepeat } : new[] { r.Original, r.Candidate };
+        foreach (var m in measurements)
         {
             w.Write(m != null); if (m == null) continue;
             w.Write(m.Milliseconds); w.Write(m.Entries); w.Write(m.Opened); w.Write(m.Completed); w.Write(m.Pages); w.Write(m.Queries); w.Write(m.HandlesSettled);
         }
         return stream.ToArray();
     }
-    internal static NamespaceAncestorReport Decode(byte[] payload)
+    internal static NamespaceAncestorReport Decode(byte[] payload, bool balanced = false)
     {
         try
         {
@@ -207,25 +235,31 @@ internal static class NamespaceAncestorProtocol
             long snapshot = r.ReadInt64(), compare = r.ReadInt64(), closing = r.ReadInt64();
             NamespaceAncestorMeasurement? ReadMeasurement() => !Bool(r) ? null : new(r.ReadInt64(), r.ReadInt32(), r.ReadInt32(), r.ReadInt32(), r.ReadInt32(), r.ReadInt32(), Bool(r));
             var report = new NamespaceAncestorReport { Outcome = outcome, Code = code, CleanupConfirmed = cleanup, SameSourceVerified = source, ComparisonComplete = complete, Checks = checks,
-                SnapshotMilliseconds = snapshot, ComparisonMilliseconds = compare, CleanupMilliseconds = closing, Original = ReadMeasurement(), Candidate = ReadMeasurement() };
+                SnapshotMilliseconds = snapshot, ComparisonMilliseconds = compare, CleanupMilliseconds = closing, Original = ReadMeasurement(), Candidate = ReadMeasurement(),
+                Balanced = balanced, OriginalRepeat = balanced ? ReadMeasurement() : null, CandidateRepeat = balanced ? ReadMeasurement() : null };
             Need(stream.Position == stream.Length); Validate(report); return report;
         }
         catch { throw new InvalidDataException("NamespaceAncestorProtocol"); }
     }
-    internal sealed class Writer(Stream stream)
+    internal sealed class Writer(Stream stream, bool balanced = false)
     {
         private int bytes; private bool terminal;
         internal void Stage(NamespaceAncestorStage stage, CancellationToken token = default) { token.ThrowIfCancellationRequested(); Need(Enum.IsDefined(stage)); Send(1, [(byte)stage], false, token); }
-        internal void Report(NamespaceAncestorReport report, CancellationToken token = default) { token.ThrowIfCancellationRequested(); Send(2, Encode(report), true, token); }
+        internal void Report(NamespaceAncestorReport report, CancellationToken token = default)
+        {
+            token.ThrowIfCancellationRequested();
+            Need(report.Balanced == balanced);
+            Send(2, Encode(report), true, token);
+        }
         private void Send(ushort kind, byte[] payload, bool last, CancellationToken token)
         {
             token.ThrowIfCancellationRequested(); Need(!terminal && payload.Length <= MaximumBytes - 12 && bytes <= MaximumBytes - payload.Length - 12);
             Span<byte> header = stackalloc byte[12]; BinaryPrimitives.WriteUInt32LittleEndian(header, Magic);
-            BinaryPrimitives.WriteUInt16LittleEndian(header[4..], 1); BinaryPrimitives.WriteUInt16LittleEndian(header[6..], kind); BinaryPrimitives.WriteInt32LittleEndian(header[8..], payload.Length);
+            BinaryPrimitives.WriteUInt16LittleEndian(header[4..], balanced ? (ushort)2 : (ushort)1); BinaryPrimitives.WriteUInt16LittleEndian(header[6..], kind); BinaryPrimitives.WriteInt32LittleEndian(header[8..], payload.Length);
             stream.Write(header); stream.Write(payload); stream.Flush(); bytes += payload.Length + 12; terminal = last;
         }
     }
-    internal sealed class Reader(Stream stream)
+    internal sealed class Reader(Stream stream, bool balanced = false)
     {
         private int bytes; private bool terminal;
         internal Message Read(CancellationToken token = default)
@@ -234,11 +268,11 @@ internal static class NamespaceAncestorProtocol
             {
                 token.ThrowIfCancellationRequested(); Need(!terminal); Span<byte> header = stackalloc byte[12]; stream.ReadExactly(header);
                 int size = BinaryPrimitives.ReadInt32LittleEndian(header[8..]); ushort kind = BinaryPrimitives.ReadUInt16LittleEndian(header[6..]);
-                Need(BinaryPrimitives.ReadUInt32LittleEndian(header) == Magic && BinaryPrimitives.ReadUInt16LittleEndian(header[4..]) == 1 && kind is 1 or 2 &&
+                Need(BinaryPrimitives.ReadUInt32LittleEndian(header) == Magic && BinaryPrimitives.ReadUInt16LittleEndian(header[4..]) == (balanced ? 2 : 1) && kind is 1 or 2 &&
                     size >= 0 && size <= MaximumBytes - 12 && bytes <= MaximumBytes - size - 12);
                 byte[] payload = new byte[size]; stream.ReadExactly(payload); token.ThrowIfCancellationRequested(); bytes += size + 12;
                 if (kind == 1) { Need(payload.Length == 1 && Enum.IsDefined((NamespaceAncestorStage)payload[0])); return new(Stage: (NamespaceAncestorStage)payload[0]); }
-                var report = Decode(payload); terminal = true; return new(Report: report);
+                var report = Decode(payload, balanced); terminal = true; return new(Report: report);
             }
             catch { terminal = true; token.ThrowIfCancellationRequested(); throw new InvalidDataException("NamespaceAncestorProtocol"); }
         }

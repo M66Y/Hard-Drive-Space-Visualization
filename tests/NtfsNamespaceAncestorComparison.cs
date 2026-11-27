@@ -19,6 +19,9 @@ internal sealed record NamespaceAncestorReport
     internal NamespaceAncestorChecks Checks { get; init; }
     internal NamespaceAncestorMeasurement? Original { get; init; }
     internal NamespaceAncestorMeasurement? Candidate { get; init; }
+    internal bool Balanced { get; init; }
+    internal NamespaceAncestorMeasurement? OriginalRepeat { get; init; }
+    internal NamespaceAncestorMeasurement? CandidateRepeat { get; init; }
     internal long SnapshotMilliseconds { get; init; }
     internal long ComparisonMilliseconds { get; init; }
     internal long CleanupMilliseconds { get; init; }
@@ -42,8 +45,8 @@ internal static class NtfsNamespaceAncestorComparison
         public bool Cleanup() => source.Cleanup();
         public void Dispose() => source.Dispose();
     }
-    internal static NamespaceAncestorReport Execute(string scope, CancellationToken token, Action<NamespaceAncestorStage> stage) =>
-        Execute(() => CreateSource(scope, token), token, stage);
+    internal static NamespaceAncestorReport Execute(string scope, CancellationToken token, Action<NamespaceAncestorStage> stage, bool balanced = false) =>
+        Execute(() => CreateSource(scope, token), token, stage, balanced);
     private static ISource CreateSource(string scope, CancellationToken token)
     {
         var owned = NtfsPersonalSnapshotSource.Create(scope, token, NtfsScanLimits.Large);
@@ -57,10 +60,10 @@ internal static class NtfsNamespaceAncestorComparison
         }
     }
 
-    internal static NamespaceAncestorReport Execute(Func<ISource> create, CancellationToken token, Action<NamespaceAncestorStage> stage)
+    internal static NamespaceAncestorReport Execute(Func<ISource> create, CancellationToken token, Action<NamespaceAncestorStage> stage, bool balanced = false)
     {
         ISource? source = null; bool cleaned = true;
-        var report = new NamespaceAncestorReport(); var phase = NamespaceAncestorStage.Snapshot;
+        var report = new NamespaceAncestorReport { Balanced = balanced }; var phase = NamespaceAncestorStage.Snapshot;
         var watch = Stopwatch.StartNew();
         try
         {
@@ -68,20 +71,46 @@ internal static class NtfsNamespaceAncestorComparison
             cleaned = false; source = create();
             report = report with { SnapshotMilliseconds = watch.ElapsedMilliseconds };
             var root = source.RootIdentity;
-            phase = NamespaceAncestorStage.Original; stage(phase);
-            var original = Read(source, false, token);
-            report = report with { Original = original.Measurement };
-            if (source.RootIdentity != root || original.Inventory.RootIdentity != root) throw new SourceBindingFailure();
-            phase = NamespaceAncestorStage.Candidate; stage(phase);
-            var candidate = Read(source, true, token);
-            report = report with { Candidate = candidate.Measurement };
-            if (source.RootIdentity != root || candidate.Inventory.RootIdentity != root) throw new SourceBindingFailure();
-            phase = NamespaceAncestorStage.Compare; stage(phase); watch.Restart();
-            var checks = Compare(original.Inventory, candidate.Inventory, token);
+
+            NtfsSnapshotNamespaceResult Traverse(bool reuse, bool repeat = false)
+            {
+                token.ThrowIfCancellationRequested();
+                phase = reuse ? NamespaceAncestorStage.Candidate : NamespaceAncestorStage.Original;
+                stage(phase);
+                var (inventory, measurement) = Read(source, reuse, token);
+                report = (reuse, repeat) switch
+                {
+                    (false, false) => report with { Original = measurement },
+                    (true, false) => report with { Candidate = measurement },
+                    (false, true) => report with { OriginalRepeat = measurement },
+                    (true, true) => report with { CandidateRepeat = measurement }
+                };
+                if (source.RootIdentity != root || inventory.RootIdentity != root) throw new SourceBindingFailure();
+                return inventory;
+            }
+
+            long comparisonMilliseconds = 0;
+            NamespaceAncestorChecks CheckAgainst(NtfsSnapshotNamespaceResult first, NtfsSnapshotNamespaceResult current)
+            {
+                phase = NamespaceAncestorStage.Compare;
+                stage(phase);
+                watch.Restart();
+                var result = Compare(first, current, token);
+                comparisonMilliseconds += watch.ElapsedMilliseconds;
+                return result;
+            }
+
+            // Keep the first inventory and only one subsequent inventory at a time.
+            var first = Traverse(balanced);
+            var checks = CheckAgainst(first, Traverse(!balanced));
+            if (balanced && checks == NamespaceAncestorChecks.All)
+                checks = CheckAgainst(first, Traverse(false, repeat: true));
+            if (balanced && checks == NamespaceAncestorChecks.All)
+                checks = CheckAgainst(first, Traverse(true, repeat: true));
             token.ThrowIfCancellationRequested();
             report = report with { Outcome = checks == NamespaceAncestorChecks.All ? NamespaceAncestorOutcome.Matched : NamespaceAncestorOutcome.Different,
                 Code = NamespaceAncestorCode.None, Checks = checks, SameSourceVerified = true, ComparisonComplete = true,
-                ComparisonMilliseconds = watch.ElapsedMilliseconds };
+                ComparisonMilliseconds = comparisonMilliseconds };
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         { report = report with { Outcome = NamespaceAncestorOutcome.Cancelled, Code = NamespaceAncestorCode.Cancelled }; }
