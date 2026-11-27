@@ -239,6 +239,8 @@ if (args.Length == 1 && args[0] == "--ntfs-personal-source-tests")
     catch { Console.Error.WriteLine("FAIL personal source; no private details emitted"); return 1; }
 }
 
+if (args.Length > 0 && args[0] == DiskAtlas.NtfsPrototype.NativeVssScaleExperiment.ProductTimingPreparationArgument)
+    return DiskAtlas.NtfsPrototype.NativeVssScaleExperiment.RunProductTimingPreparation(args.Length == 2 ? args[1] : null);
 if (args.Length > 0 && args[0] == "--ntfs-vss-scale-live")
 {
     if (args.Length != 3 || !int.TryParse(args[2], out int count) || count is not (10000 or 100000))

@@ -3,13 +3,16 @@
 param([Parameter(Mandatory)][string]$ResultPath,
     [Parameter(Mandatory,ParameterSetName='Scale')][ValidateSet(10000,100000)][int]$FileCount,
     [Parameter(Mandatory,ParameterSetName='Snapshot')][switch]$Snapshot,
-    [Parameter(Mandatory,ParameterSetName='SnapshotScale')][ValidateSet(10000,100000)][int]$SnapshotFileCount)
+    [Parameter(Mandatory,ParameterSetName='SnapshotScale')][ValidateSet(10000,100000)][int]$SnapshotFileCount,
+    [Parameter(Mandatory,ParameterSetName='ProductTiming')][ValidatePattern('^AsukaLens\.Timing\.[0-9a-f]{32}$')][string]$ProductTimingPipe,
+    [Parameter(Mandatory,ParameterSetName='ProductTiming')][ValidateRange(1,2147483647)][int]$ProductTimingParentId)
 
 # Isolated scale mode: never accepts an existing image, disk or target directory.
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 if ($PSCmdlet.ParameterSetName -ceq 'Snapshot' -and -not $Snapshot) { throw 'SNAPSHOT_SWITCH_REQUIRED' }
-$usingSnapshots=[bool]($Snapshot -or $SnapshotFileCount)
+$productTiming = $PSCmdlet.ParameterSetName -ceq 'ProductTiming'
+$usingSnapshots=[bool]($Snapshot -or $SnapshotFileCount -or $productTiming)
 $repositoryRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $artifactsRoot=[IO.Path]::GetFullPath((Join-Path $repositoryRoot 'artifacts'))
 $fixtureNonce=[guid]::NewGuid().ToString('N')
@@ -18,16 +21,21 @@ $imagePath=Join-Path $workspace 'fixture.vhd'
 $runnerPath=Join-Path $repositoryRoot 'tests/bin/Release/net10.0-windows/DiskAtlas.Tests.dll'
 $stage='ValidateArguments'; $mounted=$false; $mountAttempted=$false; $workspaceOwned=$false
 $detached=$false; $cleaned=$false; $runner=$null; $runnerExit=$null; $runnerStopped=$true
-$status='failed'; $failureCode=$(if($SnapshotFileCount){'VssScaleFailed'}elseif($Snapshot){'VssProbeFailed'}else{'ScaleFailed'}); $scaleEvidence=$null
+$status='failed'; $failureCode=$(if($productTiming){'ProductTimingFixtureFailed'}elseif($SnapshotFileCount){'VssScaleFailed'}elseif($Snapshot){'VssProbeFailed'}else{'ScaleFailed'}); $scaleEvidence=$null
 $vssEvidence=$null; $snapshotCleanupConfirmed=$false; $snapshotRunnerAttempted=$false
 $vssScaleEvidence=$null
 $snapshotNativeError=0
 $observedCounts=$null
 $diskNumber=$null; $diskPath=$null; $imageDevicePath=$null
+$productPipe=$null; $productEvidence=$null
 . (Join-Path $PSScriptRoot 'KernelMatrixEvidence.ps1')
 . (Join-Path $PSScriptRoot 'ScaleEvidence.ps1')
 if ($Snapshot) { . (Join-Path $PSScriptRoot 'VssFixtureEvidence.ps1') }
 if ($SnapshotFileCount) { . (Join-Path $PSScriptRoot 'VssScaleEvidence.ps1') }
+if ($productTiming) {
+    . (Join-Path $PSScriptRoot 'ProductTimingFixturePipe.ps1')
+    . (Join-Path $PSScriptRoot 'ProductTimingFixtureEvidence.ps1')
+}
 function Assert-NoReparsePath([string]$Path) {
     $full = [IO.Path]::GetFullPath($Path)
     $current = $full
@@ -100,6 +108,16 @@ try {
     $stage = 'AdministratorCheck'
     $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
     if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'ADMINISTRATOR_REQUIRED' }
+    if ($productTiming) {
+        $stage = 'BindTimingParent'
+        Initialize-ProductTimingFixturePipe
+        $productPipe = [IO.Pipes.NamedPipeClientStream]::new('.', $ProductTimingPipe, [IO.Pipes.PipeDirection]::InOut,
+            [IO.Pipes.PipeOptions]::Asynchronous, [Security.Principal.TokenImpersonationLevel]::Identification)
+        $productPipe.Connect(30000)
+        [uint32]$serverPid = 0
+        if (-not [AsukaLensProductTimingPipe]::GetNamedPipeServerProcessId($productPipe.SafePipeHandle, [ref]$serverPid) -or
+            $serverPid -ne $ProductTimingParentId) { throw 'PRODUCT_TIMING_PARENT_BINDING' }
+    }
     foreach ($command in @('Mount-DiskImage','Get-DiskImage','Get-Disk','Initialize-Disk','New-Partition','Get-Partition','Get-Volume','Format-Volume','Dismount-DiskImage')) {
         [void](Get-Command $command -ErrorAction Stop)
     }
@@ -192,12 +210,56 @@ public static class AsukaLensScaleImage {
     $confirmedVolume = @($confirmedPartition | Get-Volume -ErrorAction Stop)
     if ([string]$confirmedPartition.DriveLetter -cne $driveLetter -or $confirmedVolume.Count -ne 1 -or
         [string]$confirmedVolume[0].UniqueId -cne $volumeId) { throw 'VOLUME_CHANGED_BEFORE_MARKER' }
-    $mode = if ($SnapshotFileCount) { 'fixture-vss-scale' } elseif ($Snapshot) { 'fixture-vss' } else { 'fixture-scale' }
+    $mode = if ($SnapshotFileCount -or $productTiming) { 'fixture-vss-scale' } elseif ($Snapshot) { 'fixture-vss' } else { 'fixture-scale' }
     $fixture = [ordered]@{schema=1;image_path=$imagePath;volume_guid=[string]$volume.UniqueId;drive_root=$driveRoot;workspace=$workspace;nonce=$fixtureNonce;mode=$mode}
     $manifestPath = Join-Path $workspace 'fixture.json'
     Write-SafeJson $fixture $manifestPath
     Write-SafeJson $fixture (Join-Path $driveRoot '.asukalens-ntfs-fixture.json')
 
+    if ($productTiming) {
+        $stage = 'PrepareProductTimingFixture'
+        [void](Get-OwnedPartition $partitionNumber)
+        $runner = Start-Process -FilePath $dotnetPath -WorkingDirectory $repositoryRoot -ArgumentList @(
+            ('"' + $runnerPath + '"'), '--ntfs-product-timing-prepare', ('"' + $manifestPath + '"')) -WindowStyle Hidden -PassThru `
+            -RedirectStandardOutput (Join-Path $workspace 'prepare.stdout') -RedirectStandardError (Join-Path $workspace 'prepare.stderr')
+        $runnerStopped = $false
+        if (-not $runner.WaitForExit(180000)) { throw 'PREPARATION_TIMEOUT' }
+        $runnerStopped = $true
+        $prepareFile = Join-Path $workspace 'prepare.stdout'
+        if ($runner.ExitCode -ne 0 -or (Get-Item -LiteralPath $prepareFile).Length -gt 4096) { throw 'PREPARATION_FAILED' }
+        $rows = @(Get-Content -LiteralPath $prepareFile -Encoding utf8)
+        if ($rows.Count -ne 3) { throw 'PREPARATION_RESULT_SHAPE' }
+        Assert-UniqueJsonKeys $rows[2]
+        $prepared = $rows[2] | ConvertFrom-Json
+        if ($prepared.revision -cne 'product-timing-fixture-prepare-v1' -or $prepared.kind -cne 'result' -or
+            $prepared.stage -cne 'Complete' -or $prepared.status -cne 'prepared' -or $prepared.code -cne 'None') { throw 'PREPARATION_RESULT_INVALID' }
+
+        $stage = 'RunProductTiming'
+        $owned = Get-OwnedPartition $partitionNumber
+        $volumes = @($owned | Get-Volume -ErrorAction Stop)
+        if ([string]$owned.DriveLetter -cne $driveLetter -or $volumes.Count -ne 1 -or
+            [string]$volumes[0].UniqueId -cne $volumeId) { throw 'PREPARATION_VOLUME_CHANGED' }
+        $scope = Join-Path $driveRoot ('AsukaLensFixture-' + $fixtureNonce)
+        Assert-ProductTimingScope $scope $volumeId
+        # From this point only a verified terminal report can permit detachment.
+        $snapshotRunnerAttempted = $true
+        $ready = [ordered]@{ revision='product-timing-fixture-v1'; scope=$scope; volume=$volumeId }
+        [AsukaLensProductTimingPipe]::Write($productPipe, ($ready | ConvertTo-Json -Compress), 10)
+        $message = [AsukaLensProductTimingPipe]::Read($productPipe, 1500)
+        Assert-UniqueJsonKeys $message
+        $reply = $message | ConvertFrom-Json
+        if ($reply.revision -cne 'product-timing-fixture-v1' -or
+            ($reply.exit_code -isnot [int] -and $reply.exit_code -isnot [long]) -or $reply.report -isnot [string]) { throw 'PRODUCT_TIMING_REPLY_INVALID' }
+        $runnerExit = [int]$reply.exit_code
+        $productEvidence = ConvertTo-NtfsProductTimingFixtureEvidence $reply.report $runnerExit
+        $snapshotCleanupConfirmed = $productEvidence.cleanup_confirmed
+        if (-not $snapshotCleanupConfirmed) { throw 'PRODUCT_TIMING_SNAPSHOT_CLEANUP_UNKNOWN' }
+        if ($productEvidence.comparable) {
+            $status='product_timing_compared'; $failureCode='None'; $stage='ProductTimingCompared'
+        } elseif ($productEvidence.status -ceq 'not_comparable') {
+            $status='product_timing_not_comparable'; $failureCode='ResultsDiffer'; $stage='ProductTimingNotComparable'
+        }
+    } else {
     $stage = if ($SnapshotFileCount) { 'RunSnapshotScale' } elseif ($Snapshot) { 'RunSnapshotProbe' } else { 'RunScaleBenchmark' }
     [void](Get-OwnedPartition $partitionNumber)
     $runnerArgs = if ($SnapshotFileCount) {
@@ -265,6 +327,7 @@ public static class AsukaLensScaleImage {
         $scaleEvidence=ConvertTo-NtfsScaleEvidence $summary.scale_benchmark $FileCount
         $status='scale_benchmarked'; $failureCode='None'; $stage='ScaleBenchmarkCompared'
     }
+    }
 } catch {
     # Never export exception text, device identifiers, raw records or file lists.
     $status='failed'
@@ -277,19 +340,24 @@ public static class AsukaLensScaleImage {
     }
 } finally {
     if ($null -ne $runner) {
-        if (-not $runner.HasExited) {
+        if (-not $runner.HasExited -and -not $productTiming) {
             try { $runner.Kill($true); [void]$runner.WaitForExit(10000) } catch { $status='failed' }
         }
         $runnerStopped = $runner.HasExited
         $runner.Dispose()
     }
+    if ($null -ne $productPipe) { $productPipe.Dispose() }
     try {
         if (-not $runnerStopped) { throw 'RUNNER_STILL_ACTIVE' }
         if ($usingSnapshots -and $snapshotRunnerAttempted -and -not $snapshotCleanupConfirmed) { throw 'SNAPSHOT_CLEANUP_NOT_CONFIRMED' }
         if ($mountAttempted) {
+            [void](Assert-NoReparsePath $imagePath)
             $images = @(Get-DiskImage -ImagePath $imagePath -ErrorAction Stop)
             if ($images.Count -ne 1) { throw 'IMAGE_CLEANUP_BINDING' }
-            if ($images[0].Attached) { Dismount-DiskImage -ImagePath $imagePath -ErrorAction Stop }
+            if ($images[0].Attached) {
+                if ($productTiming) { [void](Get-OwnedDisk) }
+                Dismount-DiskImage -ImagePath $imagePath -ErrorAction Stop
+            }
             $images = @(Get-DiskImage -ImagePath $imagePath -ErrorAction Stop)
             $detached = $images.Count -eq 1 -and -not $images[0].Attached
             if (-not $detached) { throw 'IMAGE_STILL_ATTACHED' }
@@ -297,13 +365,14 @@ public static class AsukaLensScaleImage {
         if ($workspaceOwned) { Assert-OwnedTree; Remove-Item -LiteralPath $workspace -Recurse -Force }
         $cleaned = $true
     } catch { $status = 'cleanup_failed' }
-    $result=[ordered]@{schema=1;mode=$(if($SnapshotFileCount){'fixture-vss-scale'}elseif($Snapshot){'fixture-vss'}else{'fixture-scale'});status=$status;stage=$stage;code=$failureCode;
+    $result=[ordered]@{schema=1;mode=$(if($productTiming){'product-timing'}elseif($SnapshotFileCount){'fixture-vss-scale'}elseif($Snapshot){'fixture-vss'}else{'fixture-scale'});status=$status;stage=$stage;code=$failureCode;
         exit_code=$runnerExit;detached=$detached;cleanup_completed=$cleaned;
         scale_benchmark=$(if($status -ceq 'scale_benchmarked'){$scaleEvidence}else{$null})}
     if ($usingSnapshots) {
         $result.snapshot_cleanup_confirmed=$snapshotCleanupConfirmed
         $result.native_error=$snapshotNativeError
-        if($SnapshotFileCount){$result.vss_scale=if($status -ceq 'vss_scale_benchmarked'){$vssScaleEvidence}else{$null}}
+        if($productTiming){$result.product_timing=$productEvidence}
+        elseif($SnapshotFileCount){$result.vss_scale=if($status -ceq 'vss_scale_benchmarked'){$vssScaleEvidence}else{$null}}
         else{$result.vss_evidence=if($status -ceq 'vss_verified'){$vssEvidence}else{$null}}
     } elseif ($status -ceq 'failed' -and $null -ne $observedCounts) {
         # Failure-only diagnostic counts are not benchmark success evidence.
@@ -317,4 +386,5 @@ public static class AsukaLensScaleImage {
     } finally { if(Test-Path -LiteralPath $resultTemp){Remove-Item -LiteralPath $resultTemp -Force} }
 }
 Write-Output ('RESULT: '+$status)
-if($status -cnotin @('scale_benchmarked','vss_verified','vss_scale_benchmarked')){exit 1}
+if($status -ceq 'product_timing_not_comparable'){exit 3}
+if($status -cnotin @('scale_benchmarked','vss_verified','vss_scale_benchmarked','product_timing_compared')){exit 1}

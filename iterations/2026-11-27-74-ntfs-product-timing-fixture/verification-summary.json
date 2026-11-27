@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-27",
+  "baseline": "039759e2962deb21d2d9833117a83ec004d6e01c",
+  "fixture": "owned-1gib-ntfs-vhd",
+  "synthetic_files": 10000,
+  "order": [
+    "Fast",
+    "Ordinary"
+  ],
+  "outcome": "product_timing_compared",
+  "exit_code": 0,
+  "ordinary_privilege_window": true,
+  "production_fast_path": true,
+  "no_fast_fallback": true,
+  "comparison_passed": true,
+  "synchronous_final_paint_included": true,
+  "ordinary_lower_observed_elapsed": true,
+  "stable_speedup_established": false,
+  "snapshot_cleanup_confirmed": true,
+  "fixture_detached": true,
+  "fixture_removed": true,
+  "production_source_unchanged": true,
+  "published_release": false,
+  "budget": {
+    "vhd_count": 1,
+    "vhd_bytes": 1073741824,
+    "snapshot_count": 1,
+    "raw_bytes": 1075838976,
+    "raw_calls": 65536,
+    "entries": 1048576,
+    "timeout_minutes_per_path": 10
+  },
+  "checks": {
+    "related": 1608,
+    "build_warnings": 0,
+    "missing_prepare_arguments_rejected": true
+  }
+}

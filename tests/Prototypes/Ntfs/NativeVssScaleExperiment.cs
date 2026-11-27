@@ -23,10 +23,14 @@ internal sealed class NtfsVssScaleAttemptException(string code,string stage,int 
     internal bool CleanupConfirmed{get;}=cleanupConfirmed;
 }
 
-// Only Run may create real sources, using the fixed owned-fixture factory.
+// Only Run may create real snapshot sources, using the fixed owned-fixture factory.
 // The in-memory test seam below cannot mint a snapshot or product source proof.
 internal static class NativeVssScaleExperiment
 {
+    internal const string ProductTimingPreparationArgument = "--ntfs-product-timing-prepare";
+    private const string ProductTimingPreparationRevision = "product-timing-fixture-prepare-v1";
+    private const int ProductTimingFileCount = 10_000;
+
     internal interface IBackend:IDisposable
     {
         string RootPath{get;}
@@ -248,7 +252,7 @@ internal static class NativeVssScaleExperiment
         }
         catch{handle.Dispose();throw;}
     }
-    private static void Prepare(string manifest,int files,CancellationToken token)
+    private static FileIdentity Prepare(string manifest,int files,CancellationToken token)
     {
         using var context=NtfsVerifiedFixtureContext.CreateForVssScale(manifest,preparation:true,token:token);
         Require(!Directory.Exists(context.DataRoot)&&!File.Exists(context.DataRoot),"VssScalePreparationFailed");
@@ -274,6 +278,75 @@ internal static class NativeVssScaleExperiment
             }
         }
         token.ThrowIfCancellationRequested();
+        return root.Identity;
+    }
+
+    // The fixture owner supplies the manifest. Its image, partition, drive
+    // letter and volume are verified by the same guard as the scale benchmark.
+    internal static int RunProductTimingPreparation(string? manifest)
+    {
+        if (string.IsNullOrWhiteSpace(manifest) || manifest.Length > 32767)
+            return PreparationFailure("InvalidArguments", "InvalidArguments");
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        string stage = "Preparation";
+        try
+        {
+            WritePreparationStage(stage);
+            FileIdentity preparedRoot = Prepare(manifest, ProductTimingFileCount, timeout.Token);
+
+            stage = "VerifyBinding";
+            WritePreparationStage(stage);
+            using (var verified = NtfsVerifiedFixtureContext.CreateForVssScale(manifest, token: timeout.Token))
+            {
+                var observedRoot = verified.CaptureVssScaleRoot(timeout.Token);
+                Require(preparedRoot == observedRoot.Identity, "FixtureBindingFailed");
+            }
+            timeout.Token.ThrowIfCancellationRequested();
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                revision = ProductTimingPreparationRevision,
+                kind = "result",
+                stage = "Complete",
+                status = "prepared",
+                code = "None"
+            }));
+            return 0;
+        }
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+        {
+            return PreparationFailure(stage, "FixturePreparationCancelled");
+        }
+        catch
+        {
+            // Report fixed categories only. The errors below can carry paths.
+            return PreparationFailure(stage, stage == "VerifyBinding" ? "FixtureBindingFailed" : "FixturePreparationFailed");
+        }
+    }
+
+    private static void WritePreparationStage(string stage) =>
+        Console.WriteLine(JsonSerializer.Serialize(new
+        {
+            revision = ProductTimingPreparationRevision,
+            kind = "stage",
+            stage
+        }));
+
+    private static int PreparationFailure(string stage, string code)
+    {
+        try
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                revision = ProductTimingPreparationRevision,
+                kind = "result",
+                stage,
+                status = "failed",
+                code
+            }));
+        }
+        catch (IOException) { } // A closed output pipe still gives a nonzero exit.
+        return 1;
     }
     private sealed class Sampler:IDisposable
     {

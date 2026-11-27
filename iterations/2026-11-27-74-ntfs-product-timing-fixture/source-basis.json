@@ -1,0 +1,40 @@
+{
+  "baseline": "039759e2962deb21d2d9833117a83ec004d6e01c",
+  "source_hashes": [
+    {
+      "path": "scripts/ntfs-prototype/Invoke-NtfsScale.ps1",
+      "sha256": "F763D304D7DA144C67A6265CEB03966CF0900BBE0166DE0CECA54C73A1A0323F"
+    },
+    {
+      "path": "scripts/ntfs-prototype/Invoke-NtfsProductTimingFixture.ps1",
+      "sha256": "3A08151E2BE979C97B8F791593553C415867951B6FC8C638A3919F017CFD2B64"
+    },
+    {
+      "path": "scripts/ntfs-prototype/ProductTimingFixtureEvidence.ps1",
+      "sha256": "6075EB779BBCE774A018BB5CF04FB4A6A2D3A149928D6D9F682AB8082B42325B"
+    },
+    {
+      "path": "scripts/ntfs-prototype/ProductTimingFixturePipe.ps1",
+      "sha256": "146DFAAFF21BB8FDA7C03053984E4FBA96EB44AFA5E5B406F4902E2F51D99A83"
+    },
+    {
+      "path": "tests/NtfsProductTimingFixtureEvidence.Tests.ps1",
+      "sha256": "12DD77A726B490B6FC58231C0D6A5AC9C0BDB5E736EA946376A005171FB1EAC3"
+    },
+    {
+      "path": "tests/NtfsProductTimingFixturePipe.Tests.ps1",
+      "sha256": "A42516FC0A71349F00D5AF48F5F13234B8A55A63780AE086171DC4D2BC383C4E"
+    },
+    {
+      "path": "tests/Program.cs",
+      "sha256": "EF861C1C62E78A8A6C2F0805E28DE4B443E47C0279975F01D8A471CC0AE6122E"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NativeVssScaleExperiment.cs",
+      "sha256": "30D20EAD4BEC80A6D5C46EE5F243321B8F27F1B82B13B4342DB617F9AF45F1F8"
+    }
+  ],
+  "test_assembly_sha256": "553B3F60AD116D71E3DFD073F421CFCD85B64D2ECA5146B93D946C422194BD34",
+  "test_apphost_sha256": "7F828BF2761989018C0D420B18438618042ACD568D7605E434B7AA2FE20FA5F9",
+  "production_source_unchanged": true
+}

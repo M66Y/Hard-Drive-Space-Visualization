@@ -1,5 +1,7 @@
 # NTFS 完整主窗计时工具
 
+C74 已在一次性隔离盘上使用该主窗计时入口完成首对对照。使用 `scripts/ntfs-prototype/Invoke-NtfsProductTimingFixture.ps1` 需先确认当轮测试盘和快照范围。主窗使用普通权限，管理员辅助进程持有测试盘。结果指纹一致、快照清理确认并且窗口退出后，才接受耗时比较并清理镜像。[隔离盘方案](ntfs-product-timing-fixture-plan.md) · [C74 实测记录](../iterations/2026-11-27-74-ntfs-product-timing-fixture/README.md)
+
 2026-11-22，C68在原后台计时工具上补齐真实主窗交付与阶段/资源观察。普通启动、扫描策略、统计契约及默认快扫开关不变；计时入口只位于测试apphost，不是正式发行功能。
 
 ## 入口与测量范围
