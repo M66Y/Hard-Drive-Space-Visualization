@@ -1,0 +1,43 @@
+{
+  "baseline": "fc89677762fa3f3a77f89aaec6ede02770c9124f",
+  "patch_sha256": "EFF67BDA1C2823C9E7FCB2D4228714177F44C33B7BD21BB568275E9FBE17B477",
+  "apply_check": true,
+  "staged_content_equal": true,
+  "files": [
+    {
+      "path": "scripts/ntfs-prototype/Invoke-NtfsScale.ps1",
+      "git_blob": "c67287fe46d0c5aa603722cb8fa9ee6108e832fc",
+      "sha256": "B32ABD046C25CD4D725078540859E663493F1F24998E323684DE71377A438025"
+    },
+    {
+      "path": "scripts/ntfs-prototype/Invoke-NtfsProductTimingFixture.ps1",
+      "git_blob": "1a9fff78dc2ef87e6dac72370a1a6ff856ee0265",
+      "sha256": "9999AB8E3C6136B634C0F10453AD993A33773ABF8D0DC5D20D6B445142BA3524"
+    },
+    {
+      "path": "scripts/ntfs-prototype/ProductTimingFixtureEvidence.ps1",
+      "git_blob": "a8a3dbceb9e7007a1e84257f3e086f6216c59ff1",
+      "sha256": "98BF3C3B65D5D88D4AC38A7F829371243E5263E9990DE4CBA9854C209F372322"
+    },
+    {
+      "path": "tests/NtfsProductTimingFixtureEvidence.Tests.ps1",
+      "git_blob": "8fe31fa4834d4f835dba5790677251cb58e33a6a",
+      "sha256": "D4FF32AE1E0A08B0F25BE9C8D6C7F931EB94DA47EA8A02FFEA66E94566A54CBC"
+    },
+    {
+      "path": "tests/NtfsPersonalTimingDriver.cs",
+      "git_blob": "9752d3aeb8f7145b604d7daaf95b0b056113fd3f",
+      "sha256": "2FFBDABA138E23AB7909A9A96CE17C4665CBD5F23C80D4A51E13946DB59F2B7D"
+    },
+    {
+      "path": "tests/Program.cs",
+      "git_blob": "bfb9e0f9f6ebf4b487a66b0001d30e5d97419392",
+      "sha256": "82A736DFE72A7D4D92F024348656DA9AE3EC660DB02E184F2475C83DB39A066A"
+    },
+    {
+      "path": "tests/Prototypes/Ntfs/NativeVssScaleExperiment.cs",
+      "git_blob": "c2d4048a9de1e0f74ed6843c5b64aad2b97fbda9",
+      "sha256": "DD88BEB6A608D175220A16A8D95D7B70B576764C659574CEF19EDA3EA4ADADAC"
+    }
+  ]
+}

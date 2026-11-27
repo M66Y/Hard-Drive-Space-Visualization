@@ -28,8 +28,8 @@ internal sealed class NtfsVssScaleAttemptException(string code,string stage,int 
 internal static class NativeVssScaleExperiment
 {
     internal const string ProductTimingPreparationArgument = "--ntfs-product-timing-prepare";
+    internal const string ProductTimingLargePreparationArgument = "--ntfs-product-timing-prepare-large";
     private const string ProductTimingPreparationRevision = "product-timing-fixture-prepare-v1";
-    private const int ProductTimingFileCount = 10_000;
 
     internal interface IBackend:IDisposable
     {
@@ -283,17 +283,18 @@ internal static class NativeVssScaleExperiment
 
     // The fixture owner supplies the manifest. Its image, partition, drive
     // letter and volume are verified by the same guard as the scale benchmark.
-    internal static int RunProductTimingPreparation(string? manifest)
+    internal static int RunProductTimingPreparation(string? manifest, bool large = false)
     {
         if (string.IsNullOrWhiteSpace(manifest) || manifest.Length > 32767)
             return PreparationFailure("InvalidArguments", "InvalidArguments");
 
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        int files = large ? 100_000 : 10_000;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(large ? 5 : 2));
         string stage = "Preparation";
         try
         {
             WritePreparationStage(stage);
-            FileIdentity preparedRoot = Prepare(manifest, ProductTimingFileCount, timeout.Token);
+            FileIdentity preparedRoot = Prepare(manifest, files, timeout.Token);
 
             stage = "VerifyBinding";
             WritePreparationStage(stage);
@@ -309,7 +310,8 @@ internal static class NativeVssScaleExperiment
                 kind = "result",
                 stage = "Complete",
                 status = "prepared",
-                code = "None"
+                code = "None",
+                files
             }));
             return 0;
         }

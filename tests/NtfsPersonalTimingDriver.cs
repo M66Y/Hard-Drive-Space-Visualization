@@ -86,7 +86,7 @@ internal static partial class NtfsPersonalTimingDriver
                 }
                 Console.WriteLine(JsonSerializer.Serialize(new { revision = "personal-ntfs-timing-v2", kind = "complete", order = input.Order,
                     compared = true, all_equal = true, requested_order_finished = true, performance_conclusion_allowed = !includeUi,
-                    diagnostic_pair_only = includeUi, stable_speedup_claim_allowed = false, ui_drawing_included = includeUi, files_written = false }));
+                    diagnostic_pair_only = includeUi && input.Order.Length == 2, stable_speedup_claim_allowed = false, ui_drawing_included = includeUi, files_written = false }));
                 return 0;
             }
             finally { Console.CancelKeyPress -= handler; }

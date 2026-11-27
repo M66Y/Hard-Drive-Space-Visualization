@@ -5,13 +5,16 @@ param([Parameter(Mandatory)][string]$ResultPath,
     [Parameter(Mandatory,ParameterSetName='Snapshot')][switch]$Snapshot,
     [Parameter(Mandatory,ParameterSetName='SnapshotScale')][ValidateSet(10000,100000)][int]$SnapshotFileCount,
     [Parameter(Mandatory,ParameterSetName='ProductTiming')][ValidatePattern('^AsukaLens\.Timing\.[0-9a-f]{32}$')][string]$ProductTimingPipe,
-    [Parameter(Mandatory,ParameterSetName='ProductTiming')][ValidateRange(1,2147483647)][int]$ProductTimingParentId)
+    [Parameter(Mandatory,ParameterSetName='ProductTiming')][ValidateRange(1,2147483647)][int]$ProductTimingParentId,
+    [Parameter(ParameterSetName='ProductTiming')][ValidateSet('FO','FOOF')][string]$ProductTimingOrder = 'FO')
 
 # Isolated scale mode: never accepts an existing image, disk or target directory.
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 if ($PSCmdlet.ParameterSetName -ceq 'Snapshot' -and -not $Snapshot) { throw 'SNAPSHOT_SWITCH_REQUIRED' }
 $productTiming = $PSCmdlet.ParameterSetName -ceq 'ProductTiming'
+$productTimingLarge = $productTiming -and $ProductTimingOrder -ceq 'FOOF'
+$productTimingFiles = if ($productTimingLarge) { 100000 } else { 10000 }
 $usingSnapshots=[bool]($Snapshot -or $SnapshotFileCount -or $productTiming)
 $repositoryRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $artifactsRoot=[IO.Path]::GetFullPath((Join-Path $repositoryRoot 'artifacts'))
@@ -219,11 +222,12 @@ public static class AsukaLensScaleImage {
     if ($productTiming) {
         $stage = 'PrepareProductTimingFixture'
         [void](Get-OwnedPartition $partitionNumber)
+        $prepareArgument = if ($productTimingLarge) { '--ntfs-product-timing-prepare-large' } else { '--ntfs-product-timing-prepare' }
         $runner = Start-Process -FilePath $dotnetPath -WorkingDirectory $repositoryRoot -ArgumentList @(
-            ('"' + $runnerPath + '"'), '--ntfs-product-timing-prepare', ('"' + $manifestPath + '"')) -WindowStyle Hidden -PassThru `
+            ('"' + $runnerPath + '"'), $prepareArgument, ('"' + $manifestPath + '"')) -WindowStyle Hidden -PassThru `
             -RedirectStandardOutput (Join-Path $workspace 'prepare.stdout') -RedirectStandardError (Join-Path $workspace 'prepare.stderr')
         $runnerStopped = $false
-        if (-not $runner.WaitForExit(180000)) { throw 'PREPARATION_TIMEOUT' }
+        if (-not $runner.WaitForExit($(if ($productTimingLarge) { 360000 } else { 180000 }))) { throw 'PREPARATION_TIMEOUT' }
         $runnerStopped = $true
         $prepareFile = Join-Path $workspace 'prepare.stdout'
         if ($runner.ExitCode -ne 0 -or (Get-Item -LiteralPath $prepareFile).Length -gt 4096) { throw 'PREPARATION_FAILED' }
@@ -232,7 +236,8 @@ public static class AsukaLensScaleImage {
         Assert-UniqueJsonKeys $rows[2]
         $prepared = $rows[2] | ConvertFrom-Json
         if ($prepared.revision -cne 'product-timing-fixture-prepare-v1' -or $prepared.kind -cne 'result' -or
-            $prepared.stage -cne 'Complete' -or $prepared.status -cne 'prepared' -or $prepared.code -cne 'None') { throw 'PREPARATION_RESULT_INVALID' }
+            $prepared.stage -cne 'Complete' -or $prepared.status -cne 'prepared' -or $prepared.code -cne 'None' -or
+            $prepared.files -ne $productTimingFiles) { throw 'PREPARATION_RESULT_INVALID' }
 
         $stage = 'RunProductTiming'
         $owned = Get-OwnedPartition $partitionNumber
@@ -243,15 +248,15 @@ public static class AsukaLensScaleImage {
         Assert-ProductTimingScope $scope $volumeId
         # From this point only a verified terminal report can permit detachment.
         $snapshotRunnerAttempted = $true
-        $ready = [ordered]@{ revision='product-timing-fixture-v1'; scope=$scope; volume=$volumeId }
+        $ready = [ordered]@{ revision='product-timing-fixture-v1'; scope=$scope; volume=$volumeId; order=$ProductTimingOrder; files=$productTimingFiles }
         [AsukaLensProductTimingPipe]::Write($productPipe, ($ready | ConvertTo-Json -Compress), 10)
-        $message = [AsukaLensProductTimingPipe]::Read($productPipe, 1500)
+        $message = [AsukaLensProductTimingPipe]::Read($productPipe, $(if ($productTimingLarge) { 2700 } else { 1500 }))
         Assert-UniqueJsonKeys $message
         $reply = $message | ConvertFrom-Json
-        if ($reply.revision -cne 'product-timing-fixture-v1' -or
+        if ($reply.revision -cne 'product-timing-fixture-v1' -or $reply.order -cne $ProductTimingOrder -or
             ($reply.exit_code -isnot [int] -and $reply.exit_code -isnot [long]) -or $reply.report -isnot [string]) { throw 'PRODUCT_TIMING_REPLY_INVALID' }
         $runnerExit = [int]$reply.exit_code
-        $productEvidence = ConvertTo-NtfsProductTimingFixtureEvidence $reply.report $runnerExit
+        $productEvidence = ConvertTo-NtfsProductTimingFixtureEvidence $reply.report $runnerExit -Order $ProductTimingOrder
         $snapshotCleanupConfirmed = $productEvidence.cleanup_confirmed
         if (-not $snapshotCleanupConfirmed) { throw 'PRODUCT_TIMING_SNAPSHOT_CLEANUP_UNKNOWN' }
         if ($productEvidence.comparable) {
@@ -371,7 +376,11 @@ public static class AsukaLensScaleImage {
     if ($usingSnapshots) {
         $result.snapshot_cleanup_confirmed=$snapshotCleanupConfirmed
         $result.native_error=$snapshotNativeError
-        if($productTiming){$result.product_timing=$productEvidence}
+        if($productTiming){
+            $result.product_timing=$productEvidence
+            $result.product_timing_order=$ProductTimingOrder
+            $result.fixture_files=$productTimingFiles
+        }
         elseif($SnapshotFileCount){$result.vss_scale=if($status -ceq 'vss_scale_benchmarked'){$vssScaleEvidence}else{$null}}
         else{$result.vss_evidence=if($status -ceq 'vss_verified'){$vssEvidence}else{$null}}
     } elseif ($status -ceq 'failed' -and $null -ne $observedCounts) {

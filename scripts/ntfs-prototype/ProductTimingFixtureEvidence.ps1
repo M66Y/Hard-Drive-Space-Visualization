@@ -1,7 +1,7 @@
 #requires -Version 7.4
-# Pure stdout validation for one ordinary-desktop FO pair. The caller also
+# Pure stdout validation for an ordinary-desktop FO pair or FOOF group. The caller
 # loads KernelMatrixEvidence.ps1 for the existing strict JSON key validator.
-function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitCode) {
+function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitCode, [string]$Order = 'FO') {
     $invalid = 'PRODUCT_TIMING_FIXTURE_EVIDENCE_INVALID'
     try {
         function Assert-TimingFields($Value, [string[]]$Fields) {
@@ -132,42 +132,44 @@ function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitC
                 intervals=$intervals; ui_resources=$ui; helper_resources_at_result=$helper}
         }
 
-        if ($ExitCode -notin @(0,1,3) -or [string]::IsNullOrEmpty($Report) -or
-            [Text.Encoding]::UTF8.GetByteCount($Report) -gt 262144) { throw $invalid }
+        if ($Order -cnotin @('FO','FOOF') -or $ExitCode -notin @(0,1,3) -or [string]::IsNullOrEmpty($Report) -or
+            [Text.Encoding]::UTF8.GetByteCount($Report) -gt (131072 * $Order.Length)) { throw $invalid }
         if ($Report.EndsWith("`r`n")) { $Report = $Report.Substring(0,$Report.Length-2) }
         elseif ($Report.EndsWith("`n")) { $Report = $Report.Substring(0,$Report.Length-1) }
         $lines = $Report -split '\r?\n'
-        if ($lines.Count -gt 258) { throw $invalid }
+        if ($lines.Count -gt (129 * $Order.Length)) { throw $invalid }
         $fast = $null
         $ordinary = $null
-        $comparison = $null
+        $samples = [Collections.Generic.List[object]]::new()
+        $completedComparisons = 0
+        $lastComparisonEqual = $true
         $terminal = $null
-        $fastStagesSeen = [Collections.Generic.List[string]]::new()
-        $ordinaryStagesSeen = [Collections.Generic.List[string]]::new()
+        $stagesSeen = [Collections.Generic.List[string]]::new()
+        $fastFailureStages = $bridgeStages + $fastStages + @('Snapshot','Discovering','Reading','Supplementing','Building','Cleanup')
         foreach ($line in $lines) {
             if ($null -ne $terminal) { throw $invalid }
             Assert-UniqueJsonKeys $line
             $row = ConvertFrom-Json -InputObject $line -AsHashtable -NoEnumerate -Depth 16
             if ($row -isnot [System.Collections.IDictionary] -or $row['revision'] -isnot [string] -or $row['kind'] -isnot [string]) { throw $invalid }
+            if (-not $lastComparisonEqual -and $row.kind -cne 'complete') { throw $invalid }
+            $awaitingComparison = $samples.Count -gt 1 -and $completedComparisons -lt ($samples.Count - 1)
+            $nextMode = if ($samples.Count -lt $Order.Length) { [string]$Order[$samples.Count] }
             switch -CaseSensitive ($row['kind']) {
                 'stage' {
                     Assert-TimingFields $row @('revision','kind','mode','stage')
-                    if ($row.revision -cne 'personal-ntfs-product-timing-v1' -or $null -ne $ordinary -or
-                        $row.mode -isnot [string] -or $row.stage -isnot [string]) { throw $invalid }
-                    $mode = if ($null -eq $fast) { 'F' } else { 'O' }
-                    if ($row.mode -cne $mode) { throw $invalid }
-                    if ($mode -ceq 'F') { Assert-TimingNextStage $row.stage $mode $fastStagesSeen; $fastStagesSeen.Add($row.stage) }
-                    else { Assert-TimingNextStage $row.stage $mode $ordinaryStagesSeen; $ordinaryStagesSeen.Add($row.stage) }
+                    if ($row.revision -cne 'personal-ntfs-product-timing-v1' -or $null -eq $nextMode -or $awaitingComparison -or
+                        $row.mode -isnot [string] -or $row.mode -cne $nextMode -or $row.stage -isnot [string]) { throw $invalid }
+                    Assert-TimingNextStage $row.stage $nextMode $stagesSeen
+                    $stagesSeen.Add($row.stage)
                 }
                 'sample' {
-                    if ($row.revision -cne 'personal-ntfs-product-timing-v1' -or $null -ne $ordinary -or $row['mode'] -isnot [string]) { throw $invalid }
-                    if ($null -eq $fast) {
-                        if ($row.mode -cne 'F') { throw $invalid }
-                        $fast = Convert-TimingSample $row 'F' $fastStagesSeen
-                    } else {
-                        if ($row.mode -cne 'O') { throw $invalid }
-                        $ordinary = Convert-TimingSample $row 'O' $ordinaryStagesSeen
-                    }
+                    if ($row.revision -cne 'personal-ntfs-product-timing-v1' -or $null -eq $nextMode -or $awaitingComparison -or
+                        $row.mode -isnot [string] -or $row.mode -cne $nextMode) { throw $invalid }
+                    $sample = Convert-TimingSample $row $nextMode $stagesSeen
+                    $samples.Add([ordered]@{mode=$nextMode;sample=$sample})
+                    $stagesSeen.Clear()
+                    if ($nextMode -ceq 'F' -and $null -eq $fast) { $fast = $sample }
+                    if ($nextMode -ceq 'O' -and $null -eq $ordinary) { $ordinary = $sample }
                 }
                 'comparison' {
                     $equalFields = @('included_scope_equal','root_metrics_equal','exclusions_equal','exclusion_details_complete',
@@ -177,8 +179,9 @@ function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitC
                         'changed_entry_mtime_after_snapshot')
                     Assert-TimingFields $row (@('revision','kind','left','right','all_equal','changes_or_scope_difference_observed',
                             'snapshot_mtime_check_available','difference_categories_prove_external_changes')+$equalFields+$differenceFields)
-                    if ($row.revision -cne 'personal-ntfs-timing-v2' -or $row.left -isnot [string] -or $row.right -isnot [string] -or
-                        $row.left -cne 'F' -or $row.right -cne 'O' -or $null -eq $ordinary -or $null -ne $comparison) { throw $invalid }
+                    if ($row.revision -cne 'personal-ntfs-timing-v2' -or -not $awaitingComparison -or
+                        $row.left -isnot [string] -or $row.right -isnot [string] -or
+                        $row.left -cne $samples[$samples.Count-2].mode -or $row.right -cne $samples[$samples.Count-1].mode) { throw $invalid }
                     $allEqual = $true
                     foreach ($field in $equalFields) {
                         if ($row[$field] -isnot [bool]) { throw $invalid }
@@ -190,41 +193,50 @@ function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitC
                     Assert-TimingFlag $row.all_equal $allEqual
                     Assert-TimingFlag $row.changes_or_scope_difference_observed (-not $allEqual)
                     Assert-TimingFlag $row.difference_categories_prove_external_changes $false
-                    Assert-TimingFlag $row.snapshot_mtime_check_available $true
-                    $comparison = $row
+                    $hasSnapshot = $row.left -ceq 'F' -or $row.right -ceq 'F'
+                    Assert-TimingFlag $row.snapshot_mtime_check_available $hasSnapshot
+                    if (-not $hasSnapshot) { Assert-TimingFlag $row.changed_entry_mtime_after_snapshot $false }
+                    $lastComparisonEqual = $allEqual
+                    $completedComparisons++
                 }
                 'complete' {
-                    if ($row.revision -cne 'personal-ntfs-timing-v2' -or $null -eq $comparison) { throw $invalid }
+                    $finished = $samples.Count -eq $Order.Length
+                    if ($row.revision -cne 'personal-ntfs-timing-v2' -or $completedComparisons -eq 0 -or $awaitingComparison -or
+                        $stagesSeen.Count -gt 0 -or ($lastComparisonEqual -and -not $finished)) { throw $invalid }
                     $fields = @('revision','kind','order','compared','all_equal','requested_order_finished','performance_conclusion_allowed','files_written')
-                    if ($comparison.all_equal) { $fields += @('diagnostic_pair_only','stable_speedup_claim_allowed','ui_drawing_included') }
+                    if ($lastComparisonEqual) { $fields += @('diagnostic_pair_only','stable_speedup_claim_allowed','ui_drawing_included') }
                     Assert-TimingFields $row $fields
-                    if ($row.order -isnot [string] -or $row.order -cne 'FO' -or $ExitCode -ne $(if ($comparison.all_equal) { 0 } else { 3 })) { throw $invalid }
+                    if ($row.order -isnot [string] -or $row.order -cne $Order -or $ExitCode -ne $(if ($lastComparisonEqual) { 0 } else { 3 })) { throw $invalid }
                     Assert-TimingFlag $row.compared $true
-                    Assert-TimingFlag $row.all_equal $comparison.all_equal
-                    Assert-TimingFlag $row.requested_order_finished $true
+                    Assert-TimingFlag $row.all_equal $lastComparisonEqual
+                    Assert-TimingFlag $row.requested_order_finished $finished
                     Assert-TimingFlag $row.performance_conclusion_allowed $false
                     Assert-TimingFlag $row.files_written $false
-                    if ($comparison.all_equal) {
-                        Assert-TimingFlag $row.diagnostic_pair_only $true
+                    if ($lastComparisonEqual) {
+                        Assert-TimingFlag $row.diagnostic_pair_only ($Order.Length -eq 2)
                         Assert-TimingFlag $row.stable_speedup_claim_allowed $false
                         Assert-TimingFlag $row.ui_drawing_included $true
                     }
-                    $terminal = [ordered]@{status=$(if ($comparison.all_equal) {'comparable'} else {'not_comparable'})
-                        comparable=[bool]$comparison.all_equal;cleanup_confirmed=$true;code=$null}
+                    $terminal = [ordered]@{status=$(if ($lastComparisonEqual) {'comparable'} else {'not_comparable'})
+                        comparable=$lastComparisonEqual;cleanup_confirmed=$true;code=$null}
                 }
                 'failed' {
                     Assert-TimingFields $row @('revision','kind','code','stage','cleanup_confirmed','further_runs_started','performance_conclusion_allowed')
-                    if ($row.revision -cne 'personal-ntfs-timing-v2' -or $ExitCode -ne 1 -or $null -ne $comparison -or
+                    if ($row.revision -cne 'personal-ntfs-timing-v2' -or $ExitCode -ne 1 -or
+                        ($samples.Count -eq $Order.Length -and -not $awaitingComparison) -or
                         $row.code -isnot [string] -or $row.code -cnotin $failureCodes -or $row.stage -isnot [string] -or
                         $row.stage -cnotin (@('Preparing','UiHandoff','FingerprintOutsideTiming','Ordinary_Start')+
-                            $bridgeStages+$fastStages+$ordinaryStages+@('Snapshot','Discovering','Reading','Supplementing','Building','Cleanup'))) { throw $invalid }
+                            $fastFailureStages+$ordinaryStages) -or
+                        ($awaitingComparison -and $row.stage -cne 'FingerprintOutsideTiming') -or
+                        ($nextMode -ceq 'O' -and $row.stage -cin $fastFailureStages)) { throw $invalid }
                     if ($row.cleanup_confirmed -isnot [bool]) { throw $invalid }
                     Assert-TimingFlag $row.further_runs_started $false
                     Assert-TimingFlag $row.performance_conclusion_allowed $false
-                    # A generic failure cannot prove cleanup of an unfinished
-                    # fast scan. A validated fast sample attests that its
-                    # already-cleaned snapshot precedes any ordinary failure.
-                    $terminal = [ordered]@{status='failed';comparable=$false;cleanup_confirmed=($null -ne $fast);code=$row.code}
+                    # A validated fast sample attests cleanup only for that run.
+                    # A pending comparison precedes any next launch. Once the
+                    # next fast run could have started, require its own sample.
+                    $cleanupConfirmed = $null -ne $fast -and ($awaitingComparison -or $nextMode -cne 'F')
+                    $terminal = [ordered]@{status='failed';comparable=$false;cleanup_confirmed=$cleanupConfirmed;code=$row.code}
                 }
                 default { throw $invalid }
             }
@@ -234,6 +246,6 @@ function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitC
             cleanup_confirmed=$terminal.cleanup_confirmed;code=$terminal.code
             fast_ms=$(if ($null -ne $fast) {$fast.total_ms})
             ordinary_ms=$(if ($null -ne $ordinary) {$ordinary.total_ms})
-            fast=$fast;ordinary=$ordinary}
+            fast=$fast;ordinary=$ordinary;samples=$samples.ToArray();completed_comparisons=$completedComparisons}
     } catch { throw $invalid }
 }

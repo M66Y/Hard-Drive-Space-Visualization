@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-27",
+  "baseline": "fc89677762fa3f3a77f89aaec6ede02770c9124f",
+  "fixture": "owned-1gib-ntfs-vhd",
+  "synthetic_files": 100000,
+  "requested_order": "FOOF",
+  "completion": "partial",
+  "completed_modes": [
+    "F",
+    "O",
+    "O"
+  ],
+  "completed_comparisons": 2,
+  "all_completed_comparisons_equal": true,
+  "failure": "PermissionDenied",
+  "exit_code": 1,
+  "counterbalanced_comparison_valid": false,
+  "stable_speedup_established": false,
+  "initial_cleanup_report": "cleanup_failed",
+  "initial_snapshot_cleanup_confirmed": false,
+  "recovery": {
+    "status": "cleaned",
+    "stage": "Complete",
+    "no_remaining_snapshot_confirmed": true,
+    "detached": true,
+    "fixture_removed": true
+  },
+  "production_source_unchanged": true,
+  "published_release": false,
+  "checks": 606,
+  "build_warnings": 0,
+  "budget": {
+    "vhd_count": 1,
+    "vhd_bytes": 1073741824,
+    "max_snapshots": 2,
+    "max_concurrent_snapshots": 1,
+    "raw_bytes_per_fast_run": 1075838976,
+    "raw_calls_per_fast_run": 65536,
+    "entries_per_run": 1048576,
+    "scan_timeout_minutes_per_run": 10,
+    "overall_wait_minutes": 42
+  }
+}

@@ -1,0 +1,514 @@
+diff --git a/scripts/ntfs-prototype/Invoke-NtfsProductTimingFixture.ps1 b/scripts/ntfs-prototype/Invoke-NtfsProductTimingFixture.ps1
+index e274980..1a9fff7 100644
+--- a/scripts/ntfs-prototype/Invoke-NtfsProductTimingFixture.ps1
++++ b/scripts/ntfs-prototype/Invoke-NtfsProductTimingFixture.ps1
+@@ -1,6 +1,6 @@
+ #requires -Version 7.4
+ [CmdletBinding()]
+-param()
++param([switch]$Counterbalanced)
+ 
+ # The test window stays at ordinary integrity. Only the fixture owner and the
+ # product's own NTFS helper use the Windows administrator prompt.
+@@ -15,6 +15,8 @@ $result = Join-Path $artifacts ('ntfs-live-result-' + $tokenName + '.json')
+ $name = 'AsukaLens.Timing.' + $tokenName
+ $owner = $null; $window = $null; $pipe = $null
+ $stage = 'Validate'
++$order = if ($Counterbalanced) { 'FOOF' } else { 'FO' }
++$expectedFiles = if ($Counterbalanced) { 100000 } else { 10000 }
+ . (Join-Path $PSScriptRoot 'ProductTimingFixturePipe.ps1')
+ . (Join-Path $PSScriptRoot 'KernelMatrixEvidence.ps1')
+ try {
+@@ -44,7 +46,8 @@ try {
+     $start.Verb = 'runas'
+     $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
+     foreach ($argument in @('-NoProfile', '-NonInteractive', '-File', $ownerScript,
+-        '-ResultPath', $result, '-ProductTimingPipe', $name, '-ProductTimingParentId', [string]$PID)) {
++        '-ResultPath', $result, '-ProductTimingPipe', $name, '-ProductTimingParentId', [string]$PID,
++        '-ProductTimingOrder', $order)) {
+         $start.ArgumentList.Add($argument)
+     }
+     $owner = [Diagnostics.Process]::Start($start)
+@@ -55,15 +58,17 @@ try {
+     [uint32]$clientPid = 0
+     if (-not [AsukaLensProductTimingPipe]::GetNamedPipeClientProcessId($pipe.SafePipeHandle, [ref]$clientPid) -or
+         $clientPid -ne $owner.Id) { throw 'FIXTURE_OWNER_BINDING' }
+-    $ready = [AsukaLensProductTimingPipe]::Read($pipe, 300)
++    $ready = [AsukaLensProductTimingPipe]::Read($pipe, $(if ($Counterbalanced) { 480 } else { 300 }))
+     Assert-UniqueJsonKeys $ready
+     $fixture = $ready | ConvertFrom-Json
+     if ($fixture.revision -cne 'product-timing-fixture-v1' -or $fixture.scope -isnot [string] -or
+-        $fixture.volume -isnot [string]) { throw 'FIXTURE_READY_INVALID' }
++        $fixture.volume -isnot [string] -or $fixture.order -cne $order -or $fixture.files -ne $expectedFiles) {
++        throw 'FIXTURE_READY_INVALID'
++    }
+     Assert-ProductTimingScope $fixture.scope $fixture.volume
+ 
+     $stage = 'Run'
+-    Write-Output 'PRODUCT_TIMING: Fixture verified; starting ordinary-privilege window and NTFS prompt'
++    Write-Output ('PRODUCT_TIMING: Fixture verified; running ' + $order + ' in an ordinary-privilege window')
+     $startTimer = [Diagnostics.ProcessStartInfo]::new($timer)
+     $startTimer.WorkingDirectory = $repository
+     $startTimer.UseShellExecute = $false
+@@ -77,10 +82,12 @@ try {
+     if ($null -eq $window) { throw 'TIMING_WINDOW_NOT_STARTED' }
+     $output = $window.StandardOutput.ReadToEndAsync()
+     $errors = $window.StandardError.ReadToEndAsync()
+-    $window.StandardInput.WriteLine('FO')
++    $window.StandardInput.WriteLine($order)
+     $window.StandardInput.WriteLine($fixture.scope)
+     $window.StandardInput.Close()
+-    if (-not $window.WaitForExit(1320000)) { throw 'TIMING_WINDOW_TIMEOUT' }
++    if (-not $window.WaitForExit($(if ($Counterbalanced) { 2520000 } else { 1320000 }))) {
++        throw 'TIMING_WINDOW_TIMEOUT'
++    }
+     $report = $output.GetAwaiter().GetResult()
+     # Error text can contain local paths. Drain the stream without exporting it.
+     [void]$errors.GetAwaiter().GetResult()
+@@ -88,7 +95,7 @@ try {
+ 
+     $stage = 'Cleanup'
+     Write-Output 'PRODUCT_TIMING: Measuring window exited; checking snapshot and detaching fixture'
+-    $reply = [ordered]@{ revision='product-timing-fixture-v1'; exit_code=$window.ExitCode; report=$report }
++    $reply = [ordered]@{ revision='product-timing-fixture-v1'; order=$order; exit_code=$window.ExitCode; report=$report }
+     [AsukaLensProductTimingPipe]::Write($pipe, ($reply | ConvertTo-Json -Compress), 10)
+     if (-not $owner.WaitForExit(120000)) { throw 'FIXTURE_CLEANUP_TIMEOUT' }
+     if (-not (Test-Path -LiteralPath $result -PathType Leaf) -or (Get-Item -LiteralPath $result).Length -gt 65536) {
+@@ -97,7 +104,10 @@ try {
+     $resultText = Get-Content -LiteralPath $result -Raw -Encoding utf8
+     Assert-UniqueJsonKeys $resultText
+     $summary = $resultText | ConvertFrom-Json
+-    if ($summary.mode -cne 'product-timing' -or $summary.schema -ne 1) { throw 'FIXTURE_RESULT_INVALID' }
++    if ($summary.mode -cne 'product-timing' -or $summary.schema -ne 1 -or
++        $summary.product_timing_order -cne $order -or $summary.fixture_files -ne $expectedFiles) {
++        throw 'FIXTURE_RESULT_INVALID'
++    }
+     Write-Output $resultText
+     if ($owner.ExitCode -eq 0 -and (!$summary.detached -or !$summary.cleanup_completed -or
+         !$summary.snapshot_cleanup_confirmed -or $summary.status -cne 'product_timing_compared')) { throw 'FIXTURE_RESULT_CONTRADICTION' }
+diff --git a/scripts/ntfs-prototype/Invoke-NtfsScale.ps1 b/scripts/ntfs-prototype/Invoke-NtfsScale.ps1
+index c749a07..c67287f 100644
+--- a/scripts/ntfs-prototype/Invoke-NtfsScale.ps1
++++ b/scripts/ntfs-prototype/Invoke-NtfsScale.ps1
+@@ -5,13 +5,16 @@ param([Parameter(Mandatory)][string]$ResultPath,
+     [Parameter(Mandatory,ParameterSetName='Snapshot')][switch]$Snapshot,
+     [Parameter(Mandatory,ParameterSetName='SnapshotScale')][ValidateSet(10000,100000)][int]$SnapshotFileCount,
+     [Parameter(Mandatory,ParameterSetName='ProductTiming')][ValidatePattern('^AsukaLens\.Timing\.[0-9a-f]{32}$')][string]$ProductTimingPipe,
+-    [Parameter(Mandatory,ParameterSetName='ProductTiming')][ValidateRange(1,2147483647)][int]$ProductTimingParentId)
++    [Parameter(Mandatory,ParameterSetName='ProductTiming')][ValidateRange(1,2147483647)][int]$ProductTimingParentId,
++    [Parameter(ParameterSetName='ProductTiming')][ValidateSet('FO','FOOF')][string]$ProductTimingOrder = 'FO')
+ 
+ # Isolated scale mode: never accepts an existing image, disk or target directory.
+ $ErrorActionPreference='Stop'
+ Set-StrictMode -Version Latest
+ if ($PSCmdlet.ParameterSetName -ceq 'Snapshot' -and -not $Snapshot) { throw 'SNAPSHOT_SWITCH_REQUIRED' }
+ $productTiming = $PSCmdlet.ParameterSetName -ceq 'ProductTiming'
++$productTimingLarge = $productTiming -and $ProductTimingOrder -ceq 'FOOF'
++$productTimingFiles = if ($productTimingLarge) { 100000 } else { 10000 }
+ $usingSnapshots=[bool]($Snapshot -or $SnapshotFileCount -or $productTiming)
+ $repositoryRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+ $artifactsRoot=[IO.Path]::GetFullPath((Join-Path $repositoryRoot 'artifacts'))
+@@ -219,11 +222,12 @@ public static class AsukaLensScaleImage {
+     if ($productTiming) {
+         $stage = 'PrepareProductTimingFixture'
+         [void](Get-OwnedPartition $partitionNumber)
++        $prepareArgument = if ($productTimingLarge) { '--ntfs-product-timing-prepare-large' } else { '--ntfs-product-timing-prepare' }
+         $runner = Start-Process -FilePath $dotnetPath -WorkingDirectory $repositoryRoot -ArgumentList @(
+-            ('"' + $runnerPath + '"'), '--ntfs-product-timing-prepare', ('"' + $manifestPath + '"')) -WindowStyle Hidden -PassThru `
++            ('"' + $runnerPath + '"'), $prepareArgument, ('"' + $manifestPath + '"')) -WindowStyle Hidden -PassThru `
+             -RedirectStandardOutput (Join-Path $workspace 'prepare.stdout') -RedirectStandardError (Join-Path $workspace 'prepare.stderr')
+         $runnerStopped = $false
+-        if (-not $runner.WaitForExit(180000)) { throw 'PREPARATION_TIMEOUT' }
++        if (-not $runner.WaitForExit($(if ($productTimingLarge) { 360000 } else { 180000 }))) { throw 'PREPARATION_TIMEOUT' }
+         $runnerStopped = $true
+         $prepareFile = Join-Path $workspace 'prepare.stdout'
+         if ($runner.ExitCode -ne 0 -or (Get-Item -LiteralPath $prepareFile).Length -gt 4096) { throw 'PREPARATION_FAILED' }
+@@ -232,7 +236,8 @@ public static class AsukaLensScaleImage {
+         Assert-UniqueJsonKeys $rows[2]
+         $prepared = $rows[2] | ConvertFrom-Json
+         if ($prepared.revision -cne 'product-timing-fixture-prepare-v1' -or $prepared.kind -cne 'result' -or
+-            $prepared.stage -cne 'Complete' -or $prepared.status -cne 'prepared' -or $prepared.code -cne 'None') { throw 'PREPARATION_RESULT_INVALID' }
++            $prepared.stage -cne 'Complete' -or $prepared.status -cne 'prepared' -or $prepared.code -cne 'None' -or
++            $prepared.files -ne $productTimingFiles) { throw 'PREPARATION_RESULT_INVALID' }
+ 
+         $stage = 'RunProductTiming'
+         $owned = Get-OwnedPartition $partitionNumber
+@@ -243,15 +248,15 @@ public static class AsukaLensScaleImage {
+         Assert-ProductTimingScope $scope $volumeId
+         # From this point only a verified terminal report can permit detachment.
+         $snapshotRunnerAttempted = $true
+-        $ready = [ordered]@{ revision='product-timing-fixture-v1'; scope=$scope; volume=$volumeId }
++        $ready = [ordered]@{ revision='product-timing-fixture-v1'; scope=$scope; volume=$volumeId; order=$ProductTimingOrder; files=$productTimingFiles }
+         [AsukaLensProductTimingPipe]::Write($productPipe, ($ready | ConvertTo-Json -Compress), 10)
+-        $message = [AsukaLensProductTimingPipe]::Read($productPipe, 1500)
++        $message = [AsukaLensProductTimingPipe]::Read($productPipe, $(if ($productTimingLarge) { 2700 } else { 1500 }))
+         Assert-UniqueJsonKeys $message
+         $reply = $message | ConvertFrom-Json
+-        if ($reply.revision -cne 'product-timing-fixture-v1' -or
++        if ($reply.revision -cne 'product-timing-fixture-v1' -or $reply.order -cne $ProductTimingOrder -or
+             ($reply.exit_code -isnot [int] -and $reply.exit_code -isnot [long]) -or $reply.report -isnot [string]) { throw 'PRODUCT_TIMING_REPLY_INVALID' }
+         $runnerExit = [int]$reply.exit_code
+-        $productEvidence = ConvertTo-NtfsProductTimingFixtureEvidence $reply.report $runnerExit
++        $productEvidence = ConvertTo-NtfsProductTimingFixtureEvidence $reply.report $runnerExit -Order $ProductTimingOrder
+         $snapshotCleanupConfirmed = $productEvidence.cleanup_confirmed
+         if (-not $snapshotCleanupConfirmed) { throw 'PRODUCT_TIMING_SNAPSHOT_CLEANUP_UNKNOWN' }
+         if ($productEvidence.comparable) {
+@@ -371,7 +376,11 @@ public static class AsukaLensScaleImage {
+     if ($usingSnapshots) {
+         $result.snapshot_cleanup_confirmed=$snapshotCleanupConfirmed
+         $result.native_error=$snapshotNativeError
+-        if($productTiming){$result.product_timing=$productEvidence}
++        if($productTiming){
++            $result.product_timing=$productEvidence
++            $result.product_timing_order=$ProductTimingOrder
++            $result.fixture_files=$productTimingFiles
++        }
+         elseif($SnapshotFileCount){$result.vss_scale=if($status -ceq 'vss_scale_benchmarked'){$vssScaleEvidence}else{$null}}
+         else{$result.vss_evidence=if($status -ceq 'vss_verified'){$vssEvidence}else{$null}}
+     } elseif ($status -ceq 'failed' -and $null -ne $observedCounts) {
+diff --git a/scripts/ntfs-prototype/ProductTimingFixtureEvidence.ps1 b/scripts/ntfs-prototype/ProductTimingFixtureEvidence.ps1
+index d26a168..a8a3dbc 100644
+--- a/scripts/ntfs-prototype/ProductTimingFixtureEvidence.ps1
++++ b/scripts/ntfs-prototype/ProductTimingFixtureEvidence.ps1
+@@ -1,7 +1,7 @@
+ #requires -Version 7.4
+-# Pure stdout validation for one ordinary-desktop FO pair. The caller also
++# Pure stdout validation for an ordinary-desktop FO pair or FOOF group. The caller
+ # loads KernelMatrixEvidence.ps1 for the existing strict JSON key validator.
+-function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitCode) {
++function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitCode, [string]$Order = 'FO') {
+     $invalid = 'PRODUCT_TIMING_FIXTURE_EVIDENCE_INVALID'
+     try {
+         function Assert-TimingFields($Value, [string[]]$Fields) {
+@@ -132,42 +132,44 @@ function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitC
+                 intervals=$intervals; ui_resources=$ui; helper_resources_at_result=$helper}
+         }
+ 
+-        if ($ExitCode -notin @(0,1,3) -or [string]::IsNullOrEmpty($Report) -or
+-            [Text.Encoding]::UTF8.GetByteCount($Report) -gt 262144) { throw $invalid }
++        if ($Order -cnotin @('FO','FOOF') -or $ExitCode -notin @(0,1,3) -or [string]::IsNullOrEmpty($Report) -or
++            [Text.Encoding]::UTF8.GetByteCount($Report) -gt (131072 * $Order.Length)) { throw $invalid }
+         if ($Report.EndsWith("`r`n")) { $Report = $Report.Substring(0,$Report.Length-2) }
+         elseif ($Report.EndsWith("`n")) { $Report = $Report.Substring(0,$Report.Length-1) }
+         $lines = $Report -split '\r?\n'
+-        if ($lines.Count -gt 258) { throw $invalid }
++        if ($lines.Count -gt (129 * $Order.Length)) { throw $invalid }
+         $fast = $null
+         $ordinary = $null
+-        $comparison = $null
++        $samples = [Collections.Generic.List[object]]::new()
++        $completedComparisons = 0
++        $lastComparisonEqual = $true
+         $terminal = $null
+-        $fastStagesSeen = [Collections.Generic.List[string]]::new()
+-        $ordinaryStagesSeen = [Collections.Generic.List[string]]::new()
++        $stagesSeen = [Collections.Generic.List[string]]::new()
++        $fastFailureStages = $bridgeStages + $fastStages + @('Snapshot','Discovering','Reading','Supplementing','Building','Cleanup')
+         foreach ($line in $lines) {
+             if ($null -ne $terminal) { throw $invalid }
+             Assert-UniqueJsonKeys $line
+             $row = ConvertFrom-Json -InputObject $line -AsHashtable -NoEnumerate -Depth 16
+             if ($row -isnot [System.Collections.IDictionary] -or $row['revision'] -isnot [string] -or $row['kind'] -isnot [string]) { throw $invalid }
++            if (-not $lastComparisonEqual -and $row.kind -cne 'complete') { throw $invalid }
++            $awaitingComparison = $samples.Count -gt 1 -and $completedComparisons -lt ($samples.Count - 1)
++            $nextMode = if ($samples.Count -lt $Order.Length) { [string]$Order[$samples.Count] }
+             switch -CaseSensitive ($row['kind']) {
+                 'stage' {
+                     Assert-TimingFields $row @('revision','kind','mode','stage')
+-                    if ($row.revision -cne 'personal-ntfs-product-timing-v1' -or $null -ne $ordinary -or
+-                        $row.mode -isnot [string] -or $row.stage -isnot [string]) { throw $invalid }
+-                    $mode = if ($null -eq $fast) { 'F' } else { 'O' }
+-                    if ($row.mode -cne $mode) { throw $invalid }
+-                    if ($mode -ceq 'F') { Assert-TimingNextStage $row.stage $mode $fastStagesSeen; $fastStagesSeen.Add($row.stage) }
+-                    else { Assert-TimingNextStage $row.stage $mode $ordinaryStagesSeen; $ordinaryStagesSeen.Add($row.stage) }
++                    if ($row.revision -cne 'personal-ntfs-product-timing-v1' -or $null -eq $nextMode -or $awaitingComparison -or
++                        $row.mode -isnot [string] -or $row.mode -cne $nextMode -or $row.stage -isnot [string]) { throw $invalid }
++                    Assert-TimingNextStage $row.stage $nextMode $stagesSeen
++                    $stagesSeen.Add($row.stage)
+                 }
+                 'sample' {
+-                    if ($row.revision -cne 'personal-ntfs-product-timing-v1' -or $null -ne $ordinary -or $row['mode'] -isnot [string]) { throw $invalid }
+-                    if ($null -eq $fast) {
+-                        if ($row.mode -cne 'F') { throw $invalid }
+-                        $fast = Convert-TimingSample $row 'F' $fastStagesSeen
+-                    } else {
+-                        if ($row.mode -cne 'O') { throw $invalid }
+-                        $ordinary = Convert-TimingSample $row 'O' $ordinaryStagesSeen
+-                    }
++                    if ($row.revision -cne 'personal-ntfs-product-timing-v1' -or $null -eq $nextMode -or $awaitingComparison -or
++                        $row.mode -isnot [string] -or $row.mode -cne $nextMode) { throw $invalid }
++                    $sample = Convert-TimingSample $row $nextMode $stagesSeen
++                    $samples.Add([ordered]@{mode=$nextMode;sample=$sample})
++                    $stagesSeen.Clear()
++                    if ($nextMode -ceq 'F' -and $null -eq $fast) { $fast = $sample }
++                    if ($nextMode -ceq 'O' -and $null -eq $ordinary) { $ordinary = $sample }
+                 }
+                 'comparison' {
+                     $equalFields = @('included_scope_equal','root_metrics_equal','exclusions_equal','exclusion_details_complete',
+@@ -177,8 +179,9 @@ function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitC
+                         'changed_entry_mtime_after_snapshot')
+                     Assert-TimingFields $row (@('revision','kind','left','right','all_equal','changes_or_scope_difference_observed',
+                             'snapshot_mtime_check_available','difference_categories_prove_external_changes')+$equalFields+$differenceFields)
+-                    if ($row.revision -cne 'personal-ntfs-timing-v2' -or $row.left -isnot [string] -or $row.right -isnot [string] -or
+-                        $row.left -cne 'F' -or $row.right -cne 'O' -or $null -eq $ordinary -or $null -ne $comparison) { throw $invalid }
++                    if ($row.revision -cne 'personal-ntfs-timing-v2' -or -not $awaitingComparison -or
++                        $row.left -isnot [string] -or $row.right -isnot [string] -or
++                        $row.left -cne $samples[$samples.Count-2].mode -or $row.right -cne $samples[$samples.Count-1].mode) { throw $invalid }
+                     $allEqual = $true
+                     foreach ($field in $equalFields) {
+                         if ($row[$field] -isnot [bool]) { throw $invalid }
+@@ -190,41 +193,50 @@ function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitC
+                     Assert-TimingFlag $row.all_equal $allEqual
+                     Assert-TimingFlag $row.changes_or_scope_difference_observed (-not $allEqual)
+                     Assert-TimingFlag $row.difference_categories_prove_external_changes $false
+-                    Assert-TimingFlag $row.snapshot_mtime_check_available $true
+-                    $comparison = $row
++                    $hasSnapshot = $row.left -ceq 'F' -or $row.right -ceq 'F'
++                    Assert-TimingFlag $row.snapshot_mtime_check_available $hasSnapshot
++                    if (-not $hasSnapshot) { Assert-TimingFlag $row.changed_entry_mtime_after_snapshot $false }
++                    $lastComparisonEqual = $allEqual
++                    $completedComparisons++
+                 }
+                 'complete' {
+-                    if ($row.revision -cne 'personal-ntfs-timing-v2' -or $null -eq $comparison) { throw $invalid }
++                    $finished = $samples.Count -eq $Order.Length
++                    if ($row.revision -cne 'personal-ntfs-timing-v2' -or $completedComparisons -eq 0 -or $awaitingComparison -or
++                        $stagesSeen.Count -gt 0 -or ($lastComparisonEqual -and -not $finished)) { throw $invalid }
+                     $fields = @('revision','kind','order','compared','all_equal','requested_order_finished','performance_conclusion_allowed','files_written')
+-                    if ($comparison.all_equal) { $fields += @('diagnostic_pair_only','stable_speedup_claim_allowed','ui_drawing_included') }
++                    if ($lastComparisonEqual) { $fields += @('diagnostic_pair_only','stable_speedup_claim_allowed','ui_drawing_included') }
+                     Assert-TimingFields $row $fields
+-                    if ($row.order -isnot [string] -or $row.order -cne 'FO' -or $ExitCode -ne $(if ($comparison.all_equal) { 0 } else { 3 })) { throw $invalid }
++                    if ($row.order -isnot [string] -or $row.order -cne $Order -or $ExitCode -ne $(if ($lastComparisonEqual) { 0 } else { 3 })) { throw $invalid }
+                     Assert-TimingFlag $row.compared $true
+-                    Assert-TimingFlag $row.all_equal $comparison.all_equal
+-                    Assert-TimingFlag $row.requested_order_finished $true
++                    Assert-TimingFlag $row.all_equal $lastComparisonEqual
++                    Assert-TimingFlag $row.requested_order_finished $finished
+                     Assert-TimingFlag $row.performance_conclusion_allowed $false
+                     Assert-TimingFlag $row.files_written $false
+-                    if ($comparison.all_equal) {
+-                        Assert-TimingFlag $row.diagnostic_pair_only $true
++                    if ($lastComparisonEqual) {
++                        Assert-TimingFlag $row.diagnostic_pair_only ($Order.Length -eq 2)
+                         Assert-TimingFlag $row.stable_speedup_claim_allowed $false
+                         Assert-TimingFlag $row.ui_drawing_included $true
+                     }
+-                    $terminal = [ordered]@{status=$(if ($comparison.all_equal) {'comparable'} else {'not_comparable'})
+-                        comparable=[bool]$comparison.all_equal;cleanup_confirmed=$true;code=$null}
++                    $terminal = [ordered]@{status=$(if ($lastComparisonEqual) {'comparable'} else {'not_comparable'})
++                        comparable=$lastComparisonEqual;cleanup_confirmed=$true;code=$null}
+                 }
+                 'failed' {
+                     Assert-TimingFields $row @('revision','kind','code','stage','cleanup_confirmed','further_runs_started','performance_conclusion_allowed')
+-                    if ($row.revision -cne 'personal-ntfs-timing-v2' -or $ExitCode -ne 1 -or $null -ne $comparison -or
++                    if ($row.revision -cne 'personal-ntfs-timing-v2' -or $ExitCode -ne 1 -or
++                        ($samples.Count -eq $Order.Length -and -not $awaitingComparison) -or
+                         $row.code -isnot [string] -or $row.code -cnotin $failureCodes -or $row.stage -isnot [string] -or
+                         $row.stage -cnotin (@('Preparing','UiHandoff','FingerprintOutsideTiming','Ordinary_Start')+
+-                            $bridgeStages+$fastStages+$ordinaryStages+@('Snapshot','Discovering','Reading','Supplementing','Building','Cleanup'))) { throw $invalid }
++                            $fastFailureStages+$ordinaryStages) -or
++                        ($awaitingComparison -and $row.stage -cne 'FingerprintOutsideTiming') -or
++                        ($nextMode -ceq 'O' -and $row.stage -cin $fastFailureStages)) { throw $invalid }
+                     if ($row.cleanup_confirmed -isnot [bool]) { throw $invalid }
+                     Assert-TimingFlag $row.further_runs_started $false
+                     Assert-TimingFlag $row.performance_conclusion_allowed $false
+-                    # A generic failure cannot prove cleanup of an unfinished
+-                    # fast scan. A validated fast sample attests that its
+-                    # already-cleaned snapshot precedes any ordinary failure.
+-                    $terminal = [ordered]@{status='failed';comparable=$false;cleanup_confirmed=($null -ne $fast);code=$row.code}
++                    # A validated fast sample attests cleanup only for that run.
++                    # A pending comparison precedes any next launch. Once the
++                    # next fast run could have started, require its own sample.
++                    $cleanupConfirmed = $null -ne $fast -and ($awaitingComparison -or $nextMode -cne 'F')
++                    $terminal = [ordered]@{status='failed';comparable=$false;cleanup_confirmed=$cleanupConfirmed;code=$row.code}
+                 }
+                 default { throw $invalid }
+             }
+@@ -234,6 +246,6 @@ function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitC
+             cleanup_confirmed=$terminal.cleanup_confirmed;code=$terminal.code
+             fast_ms=$(if ($null -ne $fast) {$fast.total_ms})
+             ordinary_ms=$(if ($null -ne $ordinary) {$ordinary.total_ms})
+-            fast=$fast;ordinary=$ordinary}
++            fast=$fast;ordinary=$ordinary;samples=$samples.ToArray();completed_comparisons=$completedComparisons}
+     } catch { throw $invalid }
+ }
+diff --git a/tests/NtfsPersonalTimingDriver.cs b/tests/NtfsPersonalTimingDriver.cs
+index 4654f34..9752d3a 100644
+--- a/tests/NtfsPersonalTimingDriver.cs
++++ b/tests/NtfsPersonalTimingDriver.cs
+@@ -86,7 +86,7 @@ internal static partial class NtfsPersonalTimingDriver
+                 }
+                 Console.WriteLine(JsonSerializer.Serialize(new { revision = "personal-ntfs-timing-v2", kind = "complete", order = input.Order,
+                     compared = true, all_equal = true, requested_order_finished = true, performance_conclusion_allowed = !includeUi,
+-                    diagnostic_pair_only = includeUi, stable_speedup_claim_allowed = false, ui_drawing_included = includeUi, files_written = false }));
++                    diagnostic_pair_only = includeUi && input.Order.Length == 2, stable_speedup_claim_allowed = false, ui_drawing_included = includeUi, files_written = false }));
+                 return 0;
+             }
+             finally { Console.CancelKeyPress -= handler; }
+diff --git a/tests/NtfsProductTimingFixtureEvidence.Tests.ps1 b/tests/NtfsProductTimingFixtureEvidence.Tests.ps1
+index 82c8a0f..8fe31fa 100644
+--- a/tests/NtfsProductTimingFixtureEvidence.Tests.ps1
++++ b/tests/NtfsProductTimingFixtureEvidence.Tests.ps1
+@@ -52,19 +52,19 @@ function New-TestRecords([string]$Mode, [switch]$DropTransition, [switch]$Repeat
+         initialization_excluded=$true;audit_added=$false;cleanup_confirmed=$true;fallback=$false;physical_io_measured=$false
+         resource_sample_interval_ms=250;gc_between_runs=$true;compact_diagnostics_retained_between_runs=$true}
+ }
+-function New-TestComparison([switch]$Different) {
+-    return [ordered]@{revision='personal-ntfs-timing-v2';kind='comparison';left='F';right='O'
++function New-TestComparison([switch]$Different, [string]$Left='F', [string]$Right='O') {
++    return [ordered]@{revision='personal-ntfs-timing-v2';kind='comparison';left=$Left;right=$Right
+         included_scope_equal=(-not $Different);root_metrics_equal=(-not $Different);exclusions_equal=$true;exclusion_details_complete=$true
+         other_issues_absent=$true;allocation_known=$true;all_equal=(-not $Different);changes_or_scope_difference_observed=[bool]$Different
+         added_entries_observed=$false;removed_entries_observed=$false;entry_type_changes_observed=$false;identity_changes_observed=$false
+         file_logical_changes_observed=[bool]$Different;file_allocation_changes_observed=$false;file_link_changes_observed=$false
+-        snapshot_mtime_check_available=$true;changed_entry_mtime_after_snapshot=$false;difference_categories_prove_external_changes=$false}
++        snapshot_mtime_check_available=($Left -ceq 'F' -or $Right -ceq 'F');changed_entry_mtime_after_snapshot=$false;difference_categories_prove_external_changes=$false}
+ }
+-function New-TestComplete([switch]$Different) {
+-    $row = [ordered]@{revision='personal-ntfs-timing-v2';kind='complete';order='FO';compared=$true;all_equal=(-not $Different)
+-        requested_order_finished=$true;performance_conclusion_allowed=$false;files_written=$false}
++function New-TestComplete([switch]$Different, [string]$Order='FO', [switch]$Incomplete) {
++    $row = [ordered]@{revision='personal-ntfs-timing-v2';kind='complete';order=$Order;compared=$true;all_equal=(-not $Different)
++        requested_order_finished=(-not $Incomplete);performance_conclusion_allowed=$false;files_written=$false}
+     if (-not $Different) {
+-        $row.diagnostic_pair_only=$true
++        $row.diagnostic_pair_only=$Order.Length -eq 2
+         $row.stable_speedup_claim_allowed=$false
+         $row.ui_drawing_included=$true
+     }
+@@ -80,6 +80,21 @@ function Join-TestRecords([object[]]$Rows) {
+ function New-TestPair([switch]$Different) {
+     @(New-TestRecords F) + @(New-TestRecords O) + @((New-TestComparison -Different:$Different),(New-TestComplete -Different:$Different))
+ }
++function New-TestGroup([int]$DifferenceAt=0) {
++    $order = 'FOOF'
++    for ($index = 0; $index -lt $order.Length; $index++) {
++        $mode = [string]$order[$index]
++        New-TestRecords $mode
++        if ($index -eq 0) { continue }
++        $different = $index -eq $DifferenceAt
++        New-TestComparison -Left ([string]$order[$index-1]) -Right $mode -Different:$different
++        if ($different) {
++            New-TestComplete -Order $order -Different -Incomplete:($index -lt $order.Length-1)
++            return
++        }
++    }
++    New-TestComplete -Order $order
++}
+ 
+ $rows = @(New-TestPair)
+ $report = Join-TestRecords $rows
+@@ -146,4 +161,49 @@ Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($report.Replace('"samples":
+ Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($report.Replace('"UiHandoff","at_ms":24','"Ordinary_Start","at_ms":24')) 0 } 'nested sequence and stage stream must match'
+ Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($report.Replace('"stage":"UiHandoff"','"stage":"SyntheticPath"')) 0 } 'unknown top-level stage rejected'
+ Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords (@((New-TestFailure $true),(New-TestFailure $true)))) 1 } 'terminal failure cannot be repeated'
++
++$group = @(New-TestGroup)
++$balancedReport = Join-TestRecords $group
++$balanced = ConvertTo-NtfsProductTimingFixtureEvidence $balancedReport 0 -Order FOOF
++Check ($balanced.status -ceq 'comparable' -and $balanced.cleanup_confirmed -and
++    ($balanced.samples.mode -join '') -ceq 'FOOF' -and $balanced.completed_comparisons -eq 3) 'valid four-run group preserves sequence and three comparisons'
++Check ($balanced.samples[0].sample.total_ms -eq $balanced.fast_ms -and
++    $balanced.samples[1].sample.total_ms -eq $balanced.ordinary_ms -and
++    $balanced.samples[3].sample.bridge_ms -eq 4.5) 'first-run summary and repeat samples remain available'
++Check ($value.samples.Count -eq 2 -and $value.completed_comparisons -eq 1) 'FO reports the same pair with one validated comparison'
++
++foreach ($differenceAt in 1..3) {
++    $differentGroup = @(New-TestGroup -DifferenceAt $differenceAt)
++    $different = ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $differentGroup) 3 -Order FOOF
++    Check ($different.status -ceq 'not_comparable' -and $different.cleanup_confirmed -and
++        $different.completed_comparisons -eq $differenceAt -and $different.samples.Count -eq ($differenceAt+1)) "difference at comparison $differenceAt stops with owned snapshots settled"
++}
++$firstPair = @(New-TestRecords F) + @(New-TestRecords O) + @((New-TestComparison))
++$thirdSample = $firstPair + @(New-TestRecords O)
++$throughThird = $thirdSample + @((New-TestComparison -Left O -Right O))
++$throughFourth = $throughThird + @(New-TestRecords F)
++$duringOrdinary = $firstPair + @((New-TestRecords O)[0],(New-TestFailure $false 'Ordinary_Start'))
++$duringSecondFast = $throughThird + @( (New-TestRecords F)[0..5] ) + @((New-TestFailure $true 'Fast_Reading'))
++$afterSecondFast = $throughFourth + @((New-TestFailure $false 'FingerprintOutsideTiming'))
++$afterThirdSample = $thirdSample + @((New-TestFailure $false 'FingerprintOutsideTiming'))
++Check ((ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $duringOrdinary) 1 -Order FOOF).cleanup_confirmed) 'failure in second ordinary run keeps confirmed first snapshot cleanup'
++Check (-not (ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $duringSecondFast) 1 -Order FOOF).cleanup_confirmed) 'first fast sample cannot authorize cleanup of second fast run'
++Check (-not (ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($throughThird + @((New-TestFailure $true 'FingerprintOutsideTiming')))) 1 -Order FOOF).cleanup_confirmed) 'an unobserved second fast launch remains uncertain'
++Check ((ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $afterSecondFast) 1 -Order FOOF).cleanup_confirmed) 'fourth sample settles second snapshot even if fingerprint fails'
++Check ((ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $afterThirdSample) 1 -Order FOOF).cleanup_confirmed) 'pending third-run comparison precedes second fast launch'
++
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence $balancedReport 0 } 'FOOF requires explicit opt-in'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence $balancedReport 0 -Order FOO } 'arbitrary order rejected'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($balancedReport.Replace('"diagnostic_pair_only":false','"diagnostic_pair_only":true')) 0 -Order FOOF } 'four-run group cannot assert pair-only mode'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($balancedReport.Replace('"stable_speedup_claim_allowed":false','"stable_speedup_claim_allowed":true')) 0 -Order FOOF } 'balanced run cannot assert stable speedup'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($balancedReport.Replace('"snapshot_mtime_check_available":false','"snapshot_mtime_check_available":true')) 0 -Order FOOF } 'OO comparison cannot invent a snapshot mtime'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($balancedReport.Replace('"left":"O","right":"F"','"left":"F","right":"O"')) 0 -Order FOOF } 'third comparison must be OF in order'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($firstPair + @((New-TestComplete -Order FOOF)))) 0 -Order FOOF } 'matched prefix cannot report success'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($thirdSample + @(New-TestRecords F) + $group[-2..-1])) 0 -Order FOOF } 'next run cannot skip OO comparison'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($throughFourth + @((New-TestComplete -Order FOOF)))) 0 -Order FOOF } 'group needs final OF comparison'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($balancedReport + '{"kind":"sample"}') 0 -Order FOOF } 'reject group records after terminal'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords (@(New-TestGroup -DifferenceAt 1)[0..($firstPair.Length-1)] + @(New-TestRecords O) + @((New-TestComplete -Order FOOF -Different -Incomplete)))) 3 -Order FOOF } 'no next run can follow a mismatch'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($throughThird + @((New-TestComplete -Order FOOF -Different -Incomplete)))) 3 -Order FOOF } 'forged mismatch cannot stop matched prefix'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence ('x' * 524289) 0 -Order FOOF } 'group report byte limit'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence ("{}`n" * 517) 0 -Order FOOF } 'group report row limit'
+ Write-Output ('RESULT: PASS (' + $checks + ' checks)')
+diff --git a/tests/Program.cs b/tests/Program.cs
+index 869c82b..bfb9e0f 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -239,8 +239,10 @@ if (args.Length == 1 && args[0] == "--ntfs-personal-source-tests")
+     catch { Console.Error.WriteLine("FAIL personal source; no private details emitted"); return 1; }
+ }
+ 
+-if (args.Length > 0 && args[0] == DiskAtlas.NtfsPrototype.NativeVssScaleExperiment.ProductTimingPreparationArgument)
+-    return DiskAtlas.NtfsPrototype.NativeVssScaleExperiment.RunProductTimingPreparation(args.Length == 2 ? args[1] : null);
++if (args.Length > 0 && args[0] is DiskAtlas.NtfsPrototype.NativeVssScaleExperiment.ProductTimingPreparationArgument
++    or DiskAtlas.NtfsPrototype.NativeVssScaleExperiment.ProductTimingLargePreparationArgument)
++    return DiskAtlas.NtfsPrototype.NativeVssScaleExperiment.RunProductTimingPreparation(args.Length == 2 ? args[1] : null,
++        args[0] == DiskAtlas.NtfsPrototype.NativeVssScaleExperiment.ProductTimingLargePreparationArgument);
+ if (args.Length > 0 && args[0] == "--ntfs-vss-scale-live")
+ {
+     if (args.Length != 3 || !int.TryParse(args[2], out int count) || count is not (10000 or 100000))
+diff --git a/tests/Prototypes/Ntfs/NativeVssScaleExperiment.cs b/tests/Prototypes/Ntfs/NativeVssScaleExperiment.cs
+index 0eb2d88..c2d4048 100644
+--- a/tests/Prototypes/Ntfs/NativeVssScaleExperiment.cs
++++ b/tests/Prototypes/Ntfs/NativeVssScaleExperiment.cs
+@@ -28,8 +28,8 @@ internal sealed class NtfsVssScaleAttemptException(string code,string stage,int
+ internal static class NativeVssScaleExperiment
+ {
+     internal const string ProductTimingPreparationArgument = "--ntfs-product-timing-prepare";
++    internal const string ProductTimingLargePreparationArgument = "--ntfs-product-timing-prepare-large";
+     private const string ProductTimingPreparationRevision = "product-timing-fixture-prepare-v1";
+-    private const int ProductTimingFileCount = 10_000;
+ 
+     internal interface IBackend:IDisposable
+     {
+@@ -283,17 +283,18 @@ internal static class NativeVssScaleExperiment
+ 
+     // The fixture owner supplies the manifest. Its image, partition, drive
+     // letter and volume are verified by the same guard as the scale benchmark.
+-    internal static int RunProductTimingPreparation(string? manifest)
++    internal static int RunProductTimingPreparation(string? manifest, bool large = false)
+     {
+         if (string.IsNullOrWhiteSpace(manifest) || manifest.Length > 32767)
+             return PreparationFailure("InvalidArguments", "InvalidArguments");
+ 
+-        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
++        int files = large ? 100_000 : 10_000;
++        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(large ? 5 : 2));
+         string stage = "Preparation";
+         try
+         {
+             WritePreparationStage(stage);
+-            FileIdentity preparedRoot = Prepare(manifest, ProductTimingFileCount, timeout.Token);
++            FileIdentity preparedRoot = Prepare(manifest, files, timeout.Token);
+ 
+             stage = "VerifyBinding";
+             WritePreparationStage(stage);
+@@ -309,7 +310,8 @@ internal static class NativeVssScaleExperiment
+                 kind = "result",
+                 stage = "Complete",
+                 status = "prepared",
+-                code = "None"
++                code = "None",
++                files
+             }));
+             return 0;
+         }

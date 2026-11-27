@@ -52,19 +52,19 @@ function New-TestRecords([string]$Mode, [switch]$DropTransition, [switch]$Repeat
         initialization_excluded=$true;audit_added=$false;cleanup_confirmed=$true;fallback=$false;physical_io_measured=$false
         resource_sample_interval_ms=250;gc_between_runs=$true;compact_diagnostics_retained_between_runs=$true}
 }
-function New-TestComparison([switch]$Different) {
-    return [ordered]@{revision='personal-ntfs-timing-v2';kind='comparison';left='F';right='O'
+function New-TestComparison([switch]$Different, [string]$Left='F', [string]$Right='O') {
+    return [ordered]@{revision='personal-ntfs-timing-v2';kind='comparison';left=$Left;right=$Right
         included_scope_equal=(-not $Different);root_metrics_equal=(-not $Different);exclusions_equal=$true;exclusion_details_complete=$true
         other_issues_absent=$true;allocation_known=$true;all_equal=(-not $Different);changes_or_scope_difference_observed=[bool]$Different
         added_entries_observed=$false;removed_entries_observed=$false;entry_type_changes_observed=$false;identity_changes_observed=$false
         file_logical_changes_observed=[bool]$Different;file_allocation_changes_observed=$false;file_link_changes_observed=$false
-        snapshot_mtime_check_available=$true;changed_entry_mtime_after_snapshot=$false;difference_categories_prove_external_changes=$false}
+        snapshot_mtime_check_available=($Left -ceq 'F' -or $Right -ceq 'F');changed_entry_mtime_after_snapshot=$false;difference_categories_prove_external_changes=$false}
 }
-function New-TestComplete([switch]$Different) {
-    $row = [ordered]@{revision='personal-ntfs-timing-v2';kind='complete';order='FO';compared=$true;all_equal=(-not $Different)
-        requested_order_finished=$true;performance_conclusion_allowed=$false;files_written=$false}
+function New-TestComplete([switch]$Different, [string]$Order='FO', [switch]$Incomplete) {
+    $row = [ordered]@{revision='personal-ntfs-timing-v2';kind='complete';order=$Order;compared=$true;all_equal=(-not $Different)
+        requested_order_finished=(-not $Incomplete);performance_conclusion_allowed=$false;files_written=$false}
     if (-not $Different) {
-        $row.diagnostic_pair_only=$true
+        $row.diagnostic_pair_only=$Order.Length -eq 2
         $row.stable_speedup_claim_allowed=$false
         $row.ui_drawing_included=$true
     }
@@ -79,6 +79,21 @@ function Join-TestRecords([object[]]$Rows) {
 }
 function New-TestPair([switch]$Different) {
     @(New-TestRecords F) + @(New-TestRecords O) + @((New-TestComparison -Different:$Different),(New-TestComplete -Different:$Different))
+}
+function New-TestGroup([int]$DifferenceAt=0) {
+    $order = 'FOOF'
+    for ($index = 0; $index -lt $order.Length; $index++) {
+        $mode = [string]$order[$index]
+        New-TestRecords $mode
+        if ($index -eq 0) { continue }
+        $different = $index -eq $DifferenceAt
+        New-TestComparison -Left ([string]$order[$index-1]) -Right $mode -Different:$different
+        if ($different) {
+            New-TestComplete -Order $order -Different -Incomplete:($index -lt $order.Length-1)
+            return
+        }
+    }
+    New-TestComplete -Order $order
 }
 
 $rows = @(New-TestPair)
@@ -146,4 +161,49 @@ Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($report.Replace('"samples":
 Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($report.Replace('"UiHandoff","at_ms":24','"Ordinary_Start","at_ms":24')) 0 } 'nested sequence and stage stream must match'
 Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($report.Replace('"stage":"UiHandoff"','"stage":"SyntheticPath"')) 0 } 'unknown top-level stage rejected'
 Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords (@((New-TestFailure $true),(New-TestFailure $true)))) 1 } 'terminal failure cannot be repeated'
+
+$group = @(New-TestGroup)
+$balancedReport = Join-TestRecords $group
+$balanced = ConvertTo-NtfsProductTimingFixtureEvidence $balancedReport 0 -Order FOOF
+Check ($balanced.status -ceq 'comparable' -and $balanced.cleanup_confirmed -and
+    ($balanced.samples.mode -join '') -ceq 'FOOF' -and $balanced.completed_comparisons -eq 3) 'valid four-run group preserves sequence and three comparisons'
+Check ($balanced.samples[0].sample.total_ms -eq $balanced.fast_ms -and
+    $balanced.samples[1].sample.total_ms -eq $balanced.ordinary_ms -and
+    $balanced.samples[3].sample.bridge_ms -eq 4.5) 'first-run summary and repeat samples remain available'
+Check ($value.samples.Count -eq 2 -and $value.completed_comparisons -eq 1) 'FO reports the same pair with one validated comparison'
+
+foreach ($differenceAt in 1..3) {
+    $differentGroup = @(New-TestGroup -DifferenceAt $differenceAt)
+    $different = ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $differentGroup) 3 -Order FOOF
+    Check ($different.status -ceq 'not_comparable' -and $different.cleanup_confirmed -and
+        $different.completed_comparisons -eq $differenceAt -and $different.samples.Count -eq ($differenceAt+1)) "difference at comparison $differenceAt stops with owned snapshots settled"
+}
+$firstPair = @(New-TestRecords F) + @(New-TestRecords O) + @((New-TestComparison))
+$thirdSample = $firstPair + @(New-TestRecords O)
+$throughThird = $thirdSample + @((New-TestComparison -Left O -Right O))
+$throughFourth = $throughThird + @(New-TestRecords F)
+$duringOrdinary = $firstPair + @((New-TestRecords O)[0],(New-TestFailure $false 'Ordinary_Start'))
+$duringSecondFast = $throughThird + @( (New-TestRecords F)[0..5] ) + @((New-TestFailure $true 'Fast_Reading'))
+$afterSecondFast = $throughFourth + @((New-TestFailure $false 'FingerprintOutsideTiming'))
+$afterThirdSample = $thirdSample + @((New-TestFailure $false 'FingerprintOutsideTiming'))
+Check ((ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $duringOrdinary) 1 -Order FOOF).cleanup_confirmed) 'failure in second ordinary run keeps confirmed first snapshot cleanup'
+Check (-not (ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $duringSecondFast) 1 -Order FOOF).cleanup_confirmed) 'first fast sample cannot authorize cleanup of second fast run'
+Check (-not (ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($throughThird + @((New-TestFailure $true 'FingerprintOutsideTiming')))) 1 -Order FOOF).cleanup_confirmed) 'an unobserved second fast launch remains uncertain'
+Check ((ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $afterSecondFast) 1 -Order FOOF).cleanup_confirmed) 'fourth sample settles second snapshot even if fingerprint fails'
+Check ((ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $afterThirdSample) 1 -Order FOOF).cleanup_confirmed) 'pending third-run comparison precedes second fast launch'
+
+Reject { ConvertTo-NtfsProductTimingFixtureEvidence $balancedReport 0 } 'FOOF requires explicit opt-in'
+Reject { ConvertTo-NtfsProductTimingFixtureEvidence $balancedReport 0 -Order FOO } 'arbitrary order rejected'
+Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($balancedReport.Replace('"diagnostic_pair_only":false','"diagnostic_pair_only":true')) 0 -Order FOOF } 'four-run group cannot assert pair-only mode'
+Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($balancedReport.Replace('"stable_speedup_claim_allowed":false','"stable_speedup_claim_allowed":true')) 0 -Order FOOF } 'balanced run cannot assert stable speedup'
+Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($balancedReport.Replace('"snapshot_mtime_check_available":false','"snapshot_mtime_check_available":true')) 0 -Order FOOF } 'OO comparison cannot invent a snapshot mtime'
+Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($balancedReport.Replace('"left":"O","right":"F"','"left":"F","right":"O"')) 0 -Order FOOF } 'third comparison must be OF in order'
+Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($firstPair + @((New-TestComplete -Order FOOF)))) 0 -Order FOOF } 'matched prefix cannot report success'
+Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($thirdSample + @(New-TestRecords F) + $group[-2..-1])) 0 -Order FOOF } 'next run cannot skip OO comparison'
+Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($throughFourth + @((New-TestComplete -Order FOOF)))) 0 -Order FOOF } 'group needs final OF comparison'
+Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($balancedReport + '{"kind":"sample"}') 0 -Order FOOF } 'reject group records after terminal'
+Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords (@(New-TestGroup -DifferenceAt 1)[0..($firstPair.Length-1)] + @(New-TestRecords O) + @((New-TestComplete -Order FOOF -Different -Incomplete)))) 3 -Order FOOF } 'no next run can follow a mismatch'
+Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($throughThird + @((New-TestComplete -Order FOOF -Different -Incomplete)))) 3 -Order FOOF } 'forged mismatch cannot stop matched prefix'
+Reject { ConvertTo-NtfsProductTimingFixtureEvidence ('x' * 524289) 0 -Order FOOF } 'group report byte limit'
+Reject { ConvertTo-NtfsProductTimingFixtureEvidence ("{}`n" * 517) 0 -Order FOOF } 'group report row limit'
 Write-Output ('RESULT: PASS (' + $checks + ' checks)')
