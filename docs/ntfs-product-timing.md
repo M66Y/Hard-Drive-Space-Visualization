@@ -1,5 +1,22 @@
 # NTFS 完整主窗计时工具
 
+## C78 权限请求到首个读取阶段
+
+完整主窗计时从发起扫描开始，到结果查询就绪并完成同步绘制结束。C76 的计时窗口使用真实的 Windows 权限申请。软件内开启实验快扫的说明由测试入口在计时前自动确认。计时器记录客户端看到的阶段变化，可以按顺序核对以下四段。[主窗入口](../tests/NtfsProductTiming.cs#L44) · [开始和结束](../tests/NtfsProductTiming.cs#L100)
+
+| 一段时间的起止 | 实际包含的工作 | 现有记录能回答的问题 |
+| --- | --- | --- |
+| 请求启动助手 → `Process.Start` 返回 | 测试入口调度启动任务，通过 Windows 的 `runas` 请求提权并取得子进程。 | 可以测得整段等待。权限窗口出现、用户确认和系统创建进程都没有独立时间戳。 |
+| 启动返回 → 已核验的管道连接 | 客户端开始对助手的资源采样，等待连接并核对客户端进程身份。助手侧的进程入口、工作线程和连接前准备可与前一段重叠。 | 可以估计启动返回后等到连接的时间。该段无法单独代表整个助手初始化。 |
+| 连接核验 → 客户端收到 `Snapshot` | 父进程发送所选目录，助手核对管道对端、接收请求、准备取消处理，开始报告扫描阶段。 | C76 两次均从 `Connected` 直接进入 `Snapshot`。发送请求、子进程工作和状态传回共用同一段。 |
+| 客户端收到 `Snapshot` → 首个 `Reading` | 助手先核对原卷和所选目录链，随后创建 VSS 会话与快照、等待状态完成，最后核对快照中的目录身份和根元信息并释放临时目录句柄。 | 可以测得来源准备的总等待。创建快照本身的耗时尚未单列。首个原始读取句柄在发出 `Reading` 后才打开。 |
+
+计时桥接和管道身份核验见[父进程](../src/Scanning/Ntfs/FastScanBridge.cs#L67)、[权限助手](../src/Scanning/Ntfs/FastScanBridge.cs#L207)及[计时回调](../tests/NtfsProductTiming.cs#L58)。来源准备见[阶段通知](../src/Scanning/Ntfs/NtfsPersonalScan.cs#L38)、[原卷与快照目录核验](../src/Scanning/Ntfs/NtfsPersonalSnapshotSource.cs#L64)及[VSS 会话](../src/Scanning/Ntfs/NtfsVssNativeSession.cs#L93)。
+
+管道循环同时等待连接事件和超时检查；VSS 创建循环在等待后读取异步状态，状态完成即退出。仅凭代码中的 100 毫秒和 500 毫秒参数无法推算可节省的时间。正常权限助手在创建主窗前就分派到工作入口，产品计时也已排除主窗初始化和壁纸解码。[连接循环](../src/Scanning/Ntfs/FastScanBridge.cs#L97) · [异步状态检查](../src/Scanning/Ntfs/NtfsVssNativeSession.cs#L112) · [产品入口](../Program.cs#L9)
+
+C76 末轮快扫比首轮多出的总时间集中在启动调用。合计其余所有阶段，末轮反而用时更短。保持其他耗时固定，分别扣除启动调用后，两次快扫仍慢于配对的普通扫描；进一步假设首个读取阶段前的全部工作都瞬间完成，则第一对快扫更短，第二对仍是普通扫描更短。这个上限包括必要的权限和来源核验，只用于判断优化空间；组内缓存和预热影响仍未单独测量。[C78 审查记录](../iterations/2026-11-28-78-ntfs-startup-audit/README.md)
+
 ## C77 大小补查耗时口径
 
 产品主窗按收到阶段通知的时间计时。第一个对象发起大小补查时，助手发出 `Supplementing`。其余对象共用同一个阶段。所有补查工作结束后，程序还要遍历唯一对象、核对大小和链接数、计算合计并生成索引字典。索引返回才发出 `Building`，随后生成界面的文件树。因此，C76 记录的这段时间覆盖了并行查询、结果校验和索引收尾。它可以用来比较用户等待的阶段，无法换算成每次系统查询的耗时。[阶段起止](../src/Scanning/Ntfs/NtfsPersonalScan.cs#L111) · [并行补查与汇总](../src/Scanning/Ntfs/NtfsSnapshotSizeIndex.cs#L185) · [客户端计时](../tests/NtfsProductTiming.cs#L178)
