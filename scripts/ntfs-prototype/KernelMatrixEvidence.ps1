@@ -1,9 +1,10 @@
 #requires -Version 7.4
 # Pure whitelist conversion. Dot-sourcing only defines these functions.
-function Assert-UniqueJsonKeys([string]$Json) {
+function Assert-UniqueJsonKeys([string]$Json, [int]$MaxUtf8Bytes = 65536) {
     $document = $null
     try {
-        if ([string]::IsNullOrEmpty($Json) -or [Text.Encoding]::UTF8.GetByteCount($Json) -gt 65536) { throw 'MATRIX_JSON_INVALID' }
+        if ($MaxUtf8Bytes -lt 1 -or $MaxUtf8Bytes -gt 1048576 -or [string]::IsNullOrEmpty($Json) -or
+            [Text.Encoding]::UTF8.GetByteCount($Json) -gt $MaxUtf8Bytes) { throw 'MATRIX_JSON_INVALID' }
         $options = [Text.Json.JsonDocumentOptions]::new()
         $options.MaxDepth = 16
         $document = [Text.Json.JsonDocument]::Parse($Json, $options)

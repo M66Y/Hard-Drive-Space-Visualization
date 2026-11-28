@@ -35,7 +35,8 @@ internal static class NtfsSnapshotSizeIndex
         internal readonly bool Directory=directory;
         internal readonly int EntryIndex=entry;
         internal int Aliases=1;
-        internal bool RawSeen,Decoded,NeedsNative,ModifiedConflict;
+        internal bool RawSeen,NeedsNative,ModifiedConflict;
+        internal NtfsSupplementReason SupplementReasons;
         internal DateTime? Modified;
         internal long? Logical,Allocated;
         internal uint? Links;
@@ -52,7 +53,8 @@ internal static class NtfsSnapshotSizeIndex
     private static void Peak(ref int peak,int value){int current=Volatile.Read(ref peak);while(value>current){int actual=Interlocked.CompareExchange(ref peak,value,current);if(actual==current)break;current=actual;}}
 
     internal static async Task<NtfsSnapshotSizeIndexResult> BuildAsync(NtfsSnapshotNamespaceResult scope,NtfsMftMap map,NtfsMftReadInto read,
-        Func<ulong,bool> allocated,Func<NtfsSnapshotSizeRequest,CancellationToken,NtfsSnapshotNativeSize> lookup,CancellationToken token=default)
+        Func<ulong,bool> allocated,Func<NtfsSnapshotSizeRequest,CancellationToken,NtfsSnapshotNativeSize> lookup,CancellationToken token=default,
+        NtfsScanDiagnostics? diagnostics=null)
     {
         token.ThrowIfCancellationRequested();long totalStart=Stopwatch.GetTimestamp();
         Require(scope!=null&&map!=null&&read!=null&&allocated!=null&&lookup!=null,"SnapshotSizeInput");
@@ -138,7 +140,7 @@ internal static class NtfsSnapshotSizeIndex
                 {
                     var record=result.Record;Require(record!=null&&record.Reference==item.Identity.Low&&record.IsDirectory==item.Directory,"SourceConsistencyFailed");
                     Require(record.LinkCount>0&&record.LinkCount>=item.Aliases,"SourceConsistencyFailed");
-                    item.Decoded=true;decoded++;item.Logical=record.LogicalBytes;item.Allocated=record.AllocatedBytes;
+                    decoded++;item.Logical=record.LogicalBytes;item.Allocated=record.AllocatedBytes;
                     // The record header counts separate DOS FILE_NAME records;
                     // Native links count visible hard-link names. Compute this
                     // bounded scalar while the parsed names are still local.
@@ -161,14 +163,30 @@ internal static class NtfsSnapshotSizeIndex
                         item.Final=new(item.Identity,item.Directory,item.Directory?0:item.Logical.GetValueOrDefault(),item.Directory?0:item.Allocated.GetValueOrDefault(),item.Links.GetValueOrDefault(),false)
                             {Modified=record.Modified??item.Modified};
                     }
+                    else if (diagnostics != null)
+                    {
+                        item.SupplementReasons = SupplementReasons(record, item);
+                    }
                 }
-                else if(result.Status==NtfsDecodeStatus.Unsupported)item.NeedsNative=true;
+                else if(result.Status==NtfsDecodeStatus.Unsupported)
+                {
+                    item.NeedsNative=true;
+                    if (diagnostics != null) item.SupplementReasons=NtfsSupplementReason.UnsupportedRecord;
+                }
                 else throw new NtfsSnapshotSizeException("SnapshotSizeDecode");
             }
             parseTicks+=Stopwatch.GetTimestamp()-before;
         }
         Require(items.Values.All(item=>item.RawSeen),"SnapshotSizeCoverage");
         var pending=items.Values.Where(item=>item.NeedsNative).ToArray();Require(pending.Length<=limits.MaximumNativeObjects,"SnapshotSizeNativeBudget");
+        if (diagnostics != null)
+        {
+            foreach (var item in pending)
+            {
+                token.ThrowIfCancellationRequested();
+                diagnostics.RecordSupplement(item.SupplementReasons);
+            }
+        }
         int calls=0,active=0,peakWorkers=0,peakQueue=0;long nativeStart=Stopwatch.GetTimestamp();
         if(pending.Length>0)
         {
@@ -224,6 +242,7 @@ internal static class NtfsSnapshotSizeIndex
             Require(calls==pending.Length,"SnapshotSizeNativeCoverage");
         }
         long nativeTicks=Stopwatch.GetTimestamp()-nativeStart;
+        using var finalization = diagnostics?.Measure(NtfsDiagnosticPhase.IndexFinalization);
         long logicalBytes=0,allocatedBytes=0;int fileObjects=0,dirObjects=0;
         var values=new Dictionary<FileIdentity,NtfsSnapshotObjectSize>(items.Count);
         foreach(var item in items.Values)
@@ -243,6 +262,22 @@ internal static class NtfsSnapshotSizeIndex
             calls,peakWorkers,peakQueue,decoded,pages,0,logicalBytes,allocatedBytes,Milliseconds(readTicks),Milliseconds(parseTicks),Milliseconds(indexTicks),Milliseconds(nativeTicks),true);
         var ownedScope=new NtfsSnapshotNamespaceResult(scope.Report,Array.AsReadOnly(ownedEntries),Array.AsReadOnly(ownedPaths),root,limits);
         return new(ownedScope,new ReadOnlyDictionary<FileIdentity,NtfsSnapshotObjectSize>(values),report);
+    }
+
+    private static NtfsSupplementReason SupplementReasons(NtfsRecord record, Item item)
+    {
+        NtfsSupplementReason reasons = 0;
+        if (!item.Allocated.HasValue)
+        {
+            if (record.LookupReasons.HasFlag(NtfsLookupReason.ResidentAllocation)) reasons |= NtfsSupplementReason.ResidentAllocation;
+            if (record.LookupReasons.HasFlag(NtfsLookupReason.Compressed)) reasons |= NtfsSupplementReason.Compressed;
+            if (record.LookupReasons.HasFlag(NtfsLookupReason.Sparse)) reasons |= NtfsSupplementReason.Sparse;
+            if (reasons == 0) reasons |= NtfsSupplementReason.IncompleteMetadata;
+        }
+        if (record.BaseReference != 0 || !item.Logical.HasValue) reasons |= NtfsSupplementReason.IncompleteMetadata;
+        if (!item.Links.HasValue) reasons |= NtfsSupplementReason.IncompleteLinks;
+        if (record.Modified == null && item.ModifiedConflict) reasons |= NtfsSupplementReason.ModifiedConflict;
+        return reasons;
     }
 
     // Pure UI-tree projection. The display root is never opened, and a scalar

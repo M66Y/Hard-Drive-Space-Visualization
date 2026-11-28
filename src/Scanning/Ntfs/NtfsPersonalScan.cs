@@ -14,7 +14,8 @@ internal static class NtfsPersonalScan
     // Synchronous on the dedicated MTA owner thread. Only bounded Native lookups
     // use worker tasks; no COM owner crosses an await boundary.
     internal static NtfsPersonalScanResult Run(string path, Action<FastScanWireStage> stage, CancellationToken token,
-        Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation = null)
+        Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation = null,
+        NtfsScanDiagnostics? diagnostics = null)
     {
         var watch = Stopwatch.StartNew();
         NtfsPersonalSnapshotSource? source = null;
@@ -38,7 +39,7 @@ internal static class NtfsPersonalScan
         try
         {
             token.ThrowIfCancellationRequested(); Stage(FastScanWireStage.Snapshot);
-            source = NtfsPersonalSnapshotSource.Create(path, token, NtfsScanLimits.Large);
+            source = NtfsPersonalSnapshotSource.Create(path, token, NtfsScanLimits.Large, diagnostics);
             captured = new DateTimeOffset(DateTime.SpecifyKind(source.SnapshotCreatedUtc, DateTimeKind.Utc));
             Stage(FastScanWireStage.Reading);
             var reader = source.OpenReader(token);
@@ -113,7 +114,7 @@ internal static class NtfsPersonalScan
                     Stage(FastScanWireStage.Supplementing);
                     return source.LookupSize(scope, request, cancellation);
                 }
-                var index = NtfsSnapshotSizeIndex.BuildAsync(scope, map, Read, bits.IsAllocated, Lookup, token).GetAwaiter().GetResult();
+                var index = NtfsSnapshotSizeIndex.BuildAsync(scope, map, Read, bits.IsAllocated, Lookup, token, diagnostics: diagnostics).GetAwaiter().GetResult();
                 Stage(FastScanWireStage.Building);
                 tree = NtfsSnapshotSizeIndex.Materialize(index, path, token, requireModified: true);
                 tree.Storage = source.RootStorage;

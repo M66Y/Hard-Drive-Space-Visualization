@@ -1,0 +1,1893 @@
+diff --git a/.agents/skills/asukalens-project-memory/references/checkpoint.md b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+index 6e448a44f2c05c4549a56afcf58693839abb6a66..fde3d5129cf8fbe80be984f94d668bee0916554c 100644
+--- a/.agents/skills/asukalens-project-memory/references/checkpoint.md
++++ b/.agents/skills/asukalens-project-memory/references/checkpoint.md
+@@ -1,5 +1,11 @@
+ # AsukaLens 开发检查点
++## 当前 C79：详细计时与补查归因完成（2026-11-28）
+ 
++基线 f07105e。接续C77/C78合并实现测试入口：助手内原路径核验/VSS准备/VSS创建/快照目录核验五段（含索引收尾）、唯一对象七位原因组合。普通软件及旧计时不采集，祖先默认/特殊补查/界面不改。详细报告仅在清理确认且完整结果解码后交付，失败不伪造完整诊断；补齐清理已知时的后续失败处理。
++
++两项目构建零警告；诊断86、wire48、补查11、相关扫描/来源/VSS合成回归，计时主窗34、核心38、advanced25均通过。脚本证据174、管道10、提醒17、守卫36、共享JSON150通过，5脚本语法通过。审查补齐信封与单行大小边界、双向模式绑定、外层白名单重算及补查对象数/阶段交叉约束。
++
++本轮未创建VHD/VSS、未读取个人卷或原始页、未发布。新字段真实成本未测，下一步按docs/development-plan.md重新确认隔离盘诊断范围，不继承C76授权。C78此前网络未推送，本轮fetch已恢复；本轮收尾提交与上轮一起推送main，最终状态以Git为准。详见iterations/2026-11-28-79-ntfs-detailed-timing及docs/ntfs-product-timing.md。归档和本轮文档均属本轮改动，无外来未提交文件。
+ ## 当前 C78：权限和快照来源准备的计时审查（2026-11-28）
+ 
+ 基线 8f88716。复核已有 C76 四轮数据及主窗、助手、VSS 的时序。末轮比首轮增加的时间集中在请求启动到返回，其他阶段合计缩短。人工确认与系统启动的时间无法单独识别。两次快扫即使扣除整个启动调用仍慢于配对的普通扫描；只保留首次 Reading 后的全部耗时，则两组比较各有胜负。快照阶段包含原卷核验、VSS 调用和快照目录绑定。后续建议将助手内分段及大小补查归因合并在测试工具中验证，实施范围待确认。未新建卷或快照。见 iterations/2026-11-28-78-ntfs-startup-audit。
+diff --git a/.agents/skills/asukalens-project-memory/references/decisions.md b/.agents/skills/asukalens-project-memory/references/decisions.md
+index 5cea31b33506c89199a2b48c36dbbf20ceb96214..0711794f4210eb2b7d655f2a7a16205d999c1f8c 100644
+--- a/.agents/skills/asukalens-project-memory/references/decisions.md
++++ b/.agents/skills/asukalens-project-memory/references/decisions.md
+@@ -1,4 +1,6 @@
+-# 影响后续开发的决定
++# 影响后续开发的决定
++
++- 2026-11-28 C79：将C77/C78建议合并为测试专用详细计量，不以未验证的归因修改产品算法。五段时间与七位补查组合可选启用，默认不采集；失败不伪造零或完整报告。诊断后结果失败仍保留已确认清理，脚本端严格白名单重算。新真实卷许可另行确认，无发布。见 iterations/2026-11-28-79-ntfs-detailed-timing。
+ 
+ - 2026-11-27 C75：十万文件 FOOF 前三轮完成且已有相邻比较一致，第四轮快扫权限拒绝，整组不可用于反向配对。工具先保留镜像，管理员确认该卷无残留快照后卸载并删除测试盘。继续现有默认，后续授权独立。见 iterations/2026-11-27-75-ntfs-product-timing-counterbalanced。
+ - 2026-11-27 C74：一次性隔离 VHD 上的固定合成数据通过完整主窗 FO 对照，结果一致、快扫无回退、快照及测试盘已清理。该次普通扫描更快，快扫前置权限与启动是最大单段，顺序影响未分离。继续现有默认，下一轮实盘范围需另定。见 iterations/2026-11-27-74-ntfs-product-timing-fixture。
+diff --git a/docs/development-plan.md b/docs/development-plan.md
+index 6b6dc777d05f92c37e95d00aa32f936acf4f3c42..b3d31d6b6c62a8f19d71320f44a284043202b11a 100644
+--- a/docs/development-plan.md
++++ b/docs/development-plan.md
+@@ -1,5 +1,11 @@
+ # 后续开发计划
+ 
++## C79 下一步：一次详细隔离盘诊断（2026-11-28）
++
++C78 建议的内部计时、补查归因和索引收尾已合并实现。下一步用一次隔离盘诊断获取五段耗时和补查原因分布，并检查结果一致、快照清理及测试盘回收。现有脚本支持一万文件 FO 或十万文件 FOOF；选择规模时合并说明预算与授权，不把工具准备拆成多轮确认。该轮用于定位可优化的工作，不重复同快照逐项审计，也不据单组宣称稳定提速。
++
++新建/格式化 1 GiB 隔离 VHD、按所选顺序创建一个或两个临时 VSS 及必要原始页仍需当轮明确确认；不自动沿用 C76 许可。工具已准备好，界面、特殊补查规则和默认扫描路径不动。拿到分段数据后再按主要耗时选择优化，避免只凭调用数改算法。[详细工具](ntfs-product-timing.md#c79-可选的助手内部诊断)
++
+ ## C78 启动开销审查完成（2026-11-28）
+ 
+ 现有数据已定位整组波动最大的启动区间，也表明仅消除该区间不足以让本组快扫反超。若继续做性能开发，建议合并为一次测试工具改动：保留现有整体计时，在助手内部记录原卷核验、VSS 会话建立与异步创建、快照目录核验的分段耗时，并一起输出唯一对象补查计数和索引收尾耗时。先用合成时钟与模拟输入核对阶段顺序、失败、取消、缺失值和旧报告兼容，再决定是否值得用隔离盘一次复验。该方案只采集固定类别与耗时。每次人工确认所用时间仍列为未知。涉及助手通信的实施范围另行确定。[本轮证据](../iterations/2026-11-28-78-ntfs-startup-audit/README.md)
+diff --git a/docs/ntfs-product-timing.md b/docs/ntfs-product-timing.md
+index 1aeee1de014dc42aff0061bedb47dbeca0335de6..15d8b66523c29241de4df0716bc5dc93e371d681 100644
+--- a/docs/ntfs-product-timing.md
++++ b/docs/ntfs-product-timing.md
+@@ -1,5 +1,27 @@
+ # NTFS 完整主窗计时工具
+ 
++## C79 可选的助手内部诊断
++
++2026-11-28，新增测试专用入口 `DiskAtlas.Tests.exe --ntfs-personal-timing-details-ui`。仍从标准输入读取顺序和目录；只有该入口请求详细报告，普通软件和旧计时入口不采集。隔离盘包装器使用显式 `-Detailed`，可与 `-Counterbalanced` 合用。工具存在不代表已获新一轮建盘、快照或原始页读取许可。
++
++五段耗时由助手内部的单调时钟计量：
++
++| 字段 | 包含的工作 |
++| --- | --- |
++| `SourceValidation` | 所选原路径规范化、权限、固定祖先句柄及卷信息核验 |
++| `VssSetup` | COM/VSS 初始化、支持检查及加入快照集 |
++| `VssCreation` | 创建请求、异步等待、状态查询，以及快照属性取得、绑定检查与释放 |
++| `SnapshotValidation` | 快照内祖先和所选根目录身份、属性核验 |
++| `IndexFinalization` | 所有并行补查结束后，汇总大小、建立只读索引和复制范围摘要 |
++
++前三项和快照核验不包含原路径 pins 在原 `finally` 中的释放开销。它们不是整个客户端阶段的无缝拆分，不能与已有端到端时长再次相加。索引收尾不含后续 UI 树转换。成功报告五段必须齐全；失败或取消只走原失败终态，不把未完成阶段记成零。未新增按原因的 I/O 耗时，也不能分离人工确认与系统启动。
++
++补查按唯一对象计数，硬链接别名不重复累计。七个固定原因位为：非空驻留占用、压缩、稀疏、元信息不足、链接信息不足、修改时间冲突、严格解码不支持。一个对象可能有多个原因，用 128 个固定组合桶保留关系；各桶互斥、总和等于补查对象数。未知记录只记“不支持”，不猜文件类型。零长度且大小已知的文件不因此强制补查。原因计数指本次必须补查的对象，不是所有文件数、系统调用数或各原因耗时。
++
++聚合报告 `ntfs-scan-details-v1` 不含路径、文件名、身份、原始页或异常文本。它在快照清理确认后经原 SID/PID 绑定管道发送，且仅在结果完整解码后交给计时端。诊断帧后若结果准备失败，保留原失败和已确认的清理状态。默认接收器拒绝该额外帧；详细接收器拒绝缺失、重复、损坏和中途插入。固定报告上限为 1,048,576 对象，实际补查仍受原扫描配置更小的容量上限约束。
++
++详细模式增加少量计数及序列化开销，标记单独保留，不和旧模式混作无开销的性能样本。当前完成合成与本机回归，尚未用新字段做真实 VSS/卷计量，不能据此宣称已经提速。下一次实测应只用一组合成目录定位瓶颈，避免重复开展已通过的同快照正确性审计。[本轮记录](../iterations/2026-11-28-79-ntfs-detailed-timing/README.md)
++
+ ## C78 权限请求到首个读取阶段
+ 
+ 完整主窗计时从发起扫描开始，到结果查询就绪并完成同步绘制结束。C76 的计时窗口使用真实的 Windows 权限申请。软件内开启实验快扫的说明由测试入口在计时前自动确认。计时器记录客户端看到的阶段变化，可以按顺序核对以下四段。[主窗入口](../tests/NtfsProductTiming.cs#L44) · [开始和结束](../tests/NtfsProductTiming.cs#L100)
+diff --git a/docs/project-status.md b/docs/project-status.md
+index b31c0f5f39c6f19b518d737fd69a02073745492d..6dff5966371c8a4a9eb3fe6b561fcedfa774f300 100644
+--- a/docs/project-status.md
++++ b/docs/project-status.md
+@@ -1,5 +1,9 @@
+ # AsukaLens 项目现状
+ 
++## C79 详细计时工具已接通（2026-11-28）
++
++测试入口现可单独计量原路径核验、VSS 准备与创建、快照目录核验及索引收尾，并按唯一对象记录七类补查原因的重叠组合。普通软件、祖先验证默认选择、特殊文件处理和界面保持现状；新报告无名称、路径或原始页。合成检查与相关回归已通过，新字段的真实卷耗时仍待当轮授权后采集，本轮没有建盘或快照，也没有打包发布。[诊断口径](ntfs-product-timing.md#c79-可选的助手内部诊断) · [归档](../iterations/2026-11-28-79-ntfs-detailed-timing/README.md)
++
+ ## C78 快扫启动等待已拆分核对（2026-11-28）
+ 
+ C76 两次快扫的总耗时差异主要出现在请求管理员权限到启动调用返回的区间。现有报告能区分该区间、启动返回后的连接、请求交接及快照来源准备，无法区分用户确认与系统启动各占多久。进入首个读取阶段后仍有明显工作量。默认扫描策略沿用现状。[计时边界与判断](ntfs-product-timing.md#c78-权限请求到首个读取阶段)
+diff --git a/docs/testing.md b/docs/testing.md
+index 5c61566545c196ac8bd01e094572ddcf480aca60..21c22dc83613adb8a2372c61eda3a3d991d97200 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -1,5 +1,11 @@
+ # 开发验证与可选基准
+ 
++## C79 助手分段与补查诊断
++
++`--ntfs-scan-diagnostics-tests` 检查固定时钟、阶段缺失/重入、容量、组合计数、二进制往返及 JSON 字段；`--ntfs-scan-diagnostic-wire-tests` 检查显式 opt-in、完整结果前唯一报告、损坏/重复/截断/缺失及清理后失败；`--ntfs-supplement-diagnostics-tests` 使用内存 MFT 页核对驻留、已知零、硬链接、多原因、严格不支持、失败取消和并行结束后的计时边界。均不操作真实卷。
++
++另保留 product/personal timing、source/index/size/namespace、wire/bridge/coordinator、VSS 合成和核心/advanced 回归。脚本的 `-Detailed` 运行前以 `tests/NtfsProductTimingFixtureEvidence.Tests.ps1` 核对信封、报告白名单和旧默认兼容，并保留管道/阶段提醒/夹具守卫检查。新入口的实际 VSS 与分段数据尚待实测，不能用合成通过替代。[口径与限制](ntfs-product-timing.md#c79-可选的助手内部诊断)
++
+ ## C72 目录祖先复用同快照对照
+ 
+ `--ntfs-namespace-ancestor-comparison-tests` 校验目录结果比对与资源状态。`--ntfs-namespace-ancestor-driver-tests` 校验测试驱动的输入、协议和清理报告。实测入口 `DiskAtlas.Tests.exe --ntfs-namespace-ancestor-live` 通过标准输入接收本轮已获授权的目录，在一个临时快照上依次记录原核验和复用候选的枚举耗时。建立快照、比对和清理另计。结果摘要与具体耗时留在本机。 [实测计划](ntfs-namespace-ancestor-live-plan.md) · [验收记录](../iterations/2026-11-26-72-namespace-ancestor-live/README.md)
+diff --git a/scripts/ntfs-prototype/Invoke-NtfsProductTimingFixture.ps1 b/scripts/ntfs-prototype/Invoke-NtfsProductTimingFixture.ps1
+index 4f8eba22871ec229b6413611e1a5f09e0027467e..3fce9332c14d5c91b59c1b3a58ad714a9861d0e7 100644
+--- a/scripts/ntfs-prototype/Invoke-NtfsProductTimingFixture.ps1
++++ b/scripts/ntfs-prototype/Invoke-NtfsProductTimingFixture.ps1
+@@ -1,6 +1,6 @@
+ #requires -Version 7.4
+ [CmdletBinding()]
+-param([switch]$Counterbalanced)
++param([switch]$Counterbalanced, [switch]$Detailed)
+ 
+ # The test window stays at ordinary integrity. Only the fixture owner and the
+ # product's own NTFS helper use the Windows administrator prompt.
+@@ -16,10 +16,10 @@ $name = 'AsukaLens.Timing.' + $tokenName
+ $owner = $null; $window = $null; $pipe = $null
+ $stage = 'Validate'
+ $order = if ($Counterbalanced) { 'FOOF' } else { 'FO' }
+-$expectedFiles = if ($Counterbalanced) { 100000 } else { 10000 }
+ . (Join-Path $PSScriptRoot 'ProductTimingFixturePipe.ps1')
+ . (Join-Path $PSScriptRoot 'ProductTimingProgress.ps1')
+ . (Join-Path $PSScriptRoot 'KernelMatrixEvidence.ps1')
++. (Join-Path $PSScriptRoot 'ProductTimingFixtureEvidence.ps1')
+ try {
+     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+     try {
+@@ -51,6 +51,7 @@ try {
+         '-ProductTimingOrder', $order)) {
+         $start.ArgumentList.Add($argument)
+     }
++    if ($Detailed) { $start.ArgumentList.Add('-ProductTimingDetailed') }
+     $owner = [Diagnostics.Process]::Start($start)
+     if ($null -eq $owner) { throw 'FIXTURE_OWNER_NOT_STARTED' }
+     $connect = [Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds(90))
+@@ -60,12 +61,7 @@ try {
+     if (-not [AsukaLensProductTimingPipe]::GetNamedPipeClientProcessId($pipe.SafePipeHandle, [ref]$clientPid) -or
+         $clientPid -ne $owner.Id) { throw 'FIXTURE_OWNER_BINDING' }
+     $ready = [AsukaLensProductTimingPipe]::Read($pipe, $(if ($Counterbalanced) { 480 } else { 300 }))
+-    Assert-UniqueJsonKeys $ready
+-    $fixture = $ready | ConvertFrom-Json
+-    if ($fixture.revision -cne 'product-timing-fixture-v1' -or $fixture.scope -isnot [string] -or
+-        $fixture.volume -isnot [string] -or $fixture.order -cne $order -or $fixture.files -ne $expectedFiles) {
+-        throw 'FIXTURE_READY_INVALID'
+-    }
++    $fixture = ConvertTo-ProductTimingFixtureEnvelope $ready Ready $order -Detailed:$Detailed
+     Assert-ProductTimingScope $fixture.scope $fixture.volume
+ 
+     $stage = 'Run'
+@@ -78,7 +74,7 @@ try {
+     $startTimer.RedirectStandardOutput = $true
+     $startTimer.RedirectStandardError = $true
+     $startTimer.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
+-    $startTimer.ArgumentList.Add('--ntfs-personal-timing-ui')
++    $startTimer.ArgumentList.Add($(if ($Detailed) { '--ntfs-personal-timing-details-ui' } else { '--ntfs-personal-timing-ui' }))
+     $window = [Diagnostics.Process]::Start($startTimer)
+     if ($null -eq $window) { throw 'TIMING_WINDOW_NOT_STARTED' }
+     # Error text can contain local paths. Drain it without collecting or exporting it.
+@@ -98,21 +94,15 @@ try {
+     $stage = 'Cleanup'
+     Write-Output 'PRODUCT_TIMING: Measuring window exited; checking snapshot and detaching fixture'
+     $reply = [ordered]@{ revision='product-timing-fixture-v1'; order=$order; exit_code=$window.ExitCode; report=$report.ToString() }
++    if ($Detailed) { $reply.detailed=$true }
+     [AsukaLensProductTimingPipe]::Write($pipe, ($reply | ConvertTo-Json -Compress), 10)
+     if (-not $owner.WaitForExit(120000)) { throw 'FIXTURE_CLEANUP_TIMEOUT' }
+     if (-not (Test-Path -LiteralPath $result -PathType Leaf) -or (Get-Item -LiteralPath $result).Length -gt 65536) {
+         throw 'FIXTURE_RESULT_MISSING'
+     }
+     $resultText = Get-Content -LiteralPath $result -Raw -Encoding utf8
+-    Assert-UniqueJsonKeys $resultText
+-    $summary = $resultText | ConvertFrom-Json
+-    if ($summary.mode -cne 'product-timing' -or $summary.schema -ne 1 -or
+-        $summary.product_timing_order -cne $order -or $summary.fixture_files -ne $expectedFiles) {
+-        throw 'FIXTURE_RESULT_INVALID'
+-    }
+-    Write-Output $resultText
+-    if ($owner.ExitCode -eq 0 -and (!$summary.detached -or !$summary.cleanup_completed -or
+-        !$summary.snapshot_cleanup_confirmed -or $summary.status -cne 'product_timing_compared')) { throw 'FIXTURE_RESULT_CONTRADICTION' }
++    $summary = ConvertTo-ProductTimingFixtureSummary $resultText $report.ToString() $window.ExitCode $owner.ExitCode $order -Detailed:$Detailed
++    Write-Output ($summary | ConvertTo-Json -Depth 12)
+     exit $owner.ExitCode
+ } catch {
+     # Dispose connections, never force-stop a process which may own a snapshot.
+diff --git a/scripts/ntfs-prototype/Invoke-NtfsScale.ps1 b/scripts/ntfs-prototype/Invoke-NtfsScale.ps1
+index c67287fe46d0c5aa603722cb8fa9ee6108e832fc..149455930fe8cf3cf708f364a4418199bba45ee5 100644
+--- a/scripts/ntfs-prototype/Invoke-NtfsScale.ps1
++++ b/scripts/ntfs-prototype/Invoke-NtfsScale.ps1
+@@ -6,7 +6,8 @@ param([Parameter(Mandatory)][string]$ResultPath,
+     [Parameter(Mandatory,ParameterSetName='SnapshotScale')][ValidateSet(10000,100000)][int]$SnapshotFileCount,
+     [Parameter(Mandatory,ParameterSetName='ProductTiming')][ValidatePattern('^AsukaLens\.Timing\.[0-9a-f]{32}$')][string]$ProductTimingPipe,
+     [Parameter(Mandatory,ParameterSetName='ProductTiming')][ValidateRange(1,2147483647)][int]$ProductTimingParentId,
+-    [Parameter(ParameterSetName='ProductTiming')][ValidateSet('FO','FOOF')][string]$ProductTimingOrder = 'FO')
++    [Parameter(ParameterSetName='ProductTiming')][ValidateSet('FO','FOOF')][string]$ProductTimingOrder = 'FO',
++    [Parameter(ParameterSetName='ProductTiming')][switch]$ProductTimingDetailed)
+ 
+ # Isolated scale mode: never accepts an existing image, disk or target directory.
+ $ErrorActionPreference='Stop'
+@@ -249,14 +250,12 @@ public static class AsukaLensScaleImage {
+         # From this point only a verified terminal report can permit detachment.
+         $snapshotRunnerAttempted = $true
+         $ready = [ordered]@{ revision='product-timing-fixture-v1'; scope=$scope; volume=$volumeId; order=$ProductTimingOrder; files=$productTimingFiles }
++        if ($ProductTimingDetailed) { $ready.detailed=$true }
+         [AsukaLensProductTimingPipe]::Write($productPipe, ($ready | ConvertTo-Json -Compress), 10)
+         $message = [AsukaLensProductTimingPipe]::Read($productPipe, $(if ($productTimingLarge) { 2700 } else { 1500 }))
+-        Assert-UniqueJsonKeys $message
+-        $reply = $message | ConvertFrom-Json
+-        if ($reply.revision -cne 'product-timing-fixture-v1' -or $reply.order -cne $ProductTimingOrder -or
+-            ($reply.exit_code -isnot [int] -and $reply.exit_code -isnot [long]) -or $reply.report -isnot [string]) { throw 'PRODUCT_TIMING_REPLY_INVALID' }
++        $reply = ConvertTo-ProductTimingFixtureEnvelope $message Reply $ProductTimingOrder -Detailed:$ProductTimingDetailed
+         $runnerExit = [int]$reply.exit_code
+-        $productEvidence = ConvertTo-NtfsProductTimingFixtureEvidence $reply.report $runnerExit -Order $ProductTimingOrder
++        $productEvidence = ConvertTo-NtfsProductTimingFixtureEvidence $reply.report $runnerExit -Order $ProductTimingOrder -Detailed:$ProductTimingDetailed
+         $snapshotCleanupConfirmed = $productEvidence.cleanup_confirmed
+         if (-not $snapshotCleanupConfirmed) { throw 'PRODUCT_TIMING_SNAPSHOT_CLEANUP_UNKNOWN' }
+         if ($productEvidence.comparable) {
+@@ -380,6 +379,7 @@ public static class AsukaLensScaleImage {
+             $result.product_timing=$productEvidence
+             $result.product_timing_order=$ProductTimingOrder
+             $result.fixture_files=$productTimingFiles
++            if ($ProductTimingDetailed) { $result.product_timing_detailed=$true }
+         }
+         elseif($SnapshotFileCount){$result.vss_scale=if($status -ceq 'vss_scale_benchmarked'){$vssScaleEvidence}else{$null}}
+         else{$result.vss_evidence=if($status -ceq 'vss_verified'){$vssEvidence}else{$null}}
+diff --git a/scripts/ntfs-prototype/KernelMatrixEvidence.ps1 b/scripts/ntfs-prototype/KernelMatrixEvidence.ps1
+index da36a459e800fab6d536d530399e355693dba6fd..06d6d134169e9d7b3ad5d8268ddc888d824d4c62 100644
+--- a/scripts/ntfs-prototype/KernelMatrixEvidence.ps1
++++ b/scripts/ntfs-prototype/KernelMatrixEvidence.ps1
+@@ -1,9 +1,10 @@
+ #requires -Version 7.4
+ # Pure whitelist conversion. Dot-sourcing only defines these functions.
+-function Assert-UniqueJsonKeys([string]$Json) {
++function Assert-UniqueJsonKeys([string]$Json, [int]$MaxUtf8Bytes = 65536) {
+     $document = $null
+     try {
+-        if ([string]::IsNullOrEmpty($Json) -or [Text.Encoding]::UTF8.GetByteCount($Json) -gt 65536) { throw 'MATRIX_JSON_INVALID' }
++        if ($MaxUtf8Bytes -lt 1 -or $MaxUtf8Bytes -gt 1048576 -or [string]::IsNullOrEmpty($Json) -or
++            [Text.Encoding]::UTF8.GetByteCount($Json) -gt $MaxUtf8Bytes) { throw 'MATRIX_JSON_INVALID' }
+         $options = [Text.Json.JsonDocumentOptions]::new()
+         $options.MaxDepth = 16
+         $document = [Text.Json.JsonDocument]::Parse($Json, $options)
+diff --git a/scripts/ntfs-prototype/ProductTimingFixtureEvidence.ps1 b/scripts/ntfs-prototype/ProductTimingFixtureEvidence.ps1
+index a8a3dbceb9e7007a1e84257f3e086f6216c59ff1..040346f544ff9d0c87df4a8a7877efa5b4451c98 100644
+--- a/scripts/ntfs-prototype/ProductTimingFixtureEvidence.ps1
++++ b/scripts/ntfs-prototype/ProductTimingFixtureEvidence.ps1
+@@ -1,7 +1,91 @@
+ #requires -Version 7.4
+ # Pure stdout validation for an ordinary-desktop FO pair or FOOF group. The caller
+ # loads KernelMatrixEvidence.ps1 for the existing strict JSON key validator.
+-function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitCode, [string]$Order = 'FO') {
++function ConvertTo-ProductTimingFixtureEnvelope([string]$Json, [string]$Kind, [string]$Order, [switch]$Detailed) {
++    try {
++        if ($Kind -cnotin @('Ready','Reply') -or $Order -cnotin @('FO','FOOF')) { throw 'invalid' }
++        # The outer reply contains escaped JSONL; each report row is still
++        # independently checked with the unchanged 64 KiB JSON limit.
++        Assert-UniqueJsonKeys $Json -MaxUtf8Bytes $(if ($Kind -ceq 'Reply') { 1048576 } else { 65536 })
++        $value = ConvertFrom-Json -InputObject $Json -AsHashtable -NoEnumerate -Depth 16
++        $fields = if ($Kind -ceq 'Ready') { @('revision','scope','volume','order','files') } else { @('revision','order','exit_code','report') }
++        if ($Detailed) { $fields += 'detailed' }
++        if ($value -isnot [Collections.IDictionary] -or $value.Count -ne $fields.Length) { throw 'invalid' }
++        foreach ($key in $value.Keys) { if ($key -cnotin $fields) { throw 'invalid' } }
++        if ($value.revision -isnot [string] -or $value.revision -cne 'product-timing-fixture-v1' -or
++            $value.order -isnot [string] -or $value.order -cne $Order) { throw 'invalid' }
++        if ($Detailed -and ($value.detailed -isnot [bool] -or -not $value.detailed)) { throw 'invalid' }
++        if ($Kind -ceq 'Ready') {
++            if ($value.scope -isnot [string] -or $value.volume -isnot [string] -or
++                ($value.files -isnot [int] -and $value.files -isnot [long]) -or
++                $value.files -ne $(if ($Order -ceq 'FOOF') { 100000 } else { 10000 })) { throw 'invalid' }
++        } elseif (($value.exit_code -isnot [int] -and $value.exit_code -isnot [long]) -or
++            $value.exit_code -notin @(0,1,3) -or $value.report -isnot [string]) { throw 'invalid' }
++        return $value
++    } catch { throw 'PRODUCT_TIMING_FIXTURE_ENVELOPE_INVALID' }
++}
++
++function ConvertTo-ProductTimingFixtureSummary([string]$Json, [string]$Report, [int]$RunnerExitCode,
++    [int]$OwnerExitCode, [string]$Order = 'FO', [switch]$Detailed) {
++    try {
++        function Assert-SameTimingValue($Actual, $Expected) {
++            if ($null -eq $Expected) { if ($null -ne $Actual) { throw 'invalid' }; return }
++            if ($Expected -is [Collections.IDictionary]) {
++                if ($Actual -isnot [Collections.IDictionary] -or $Actual.Count -ne $Expected.Count) { throw 'invalid' }
++                foreach ($key in $Expected.Keys) {
++                    if ($key -cnotin @($Actual.Keys)) { throw 'invalid' }
++                    Assert-SameTimingValue $Actual[$key] $Expected[$key]
++                }
++            } elseif ($Expected -is [array]) {
++                if ($Actual -isnot [array] -or $Actual.Length -ne $Expected.Length) { throw 'invalid' }
++                for ($index=0; $index -lt $Expected.Length; $index++) { Assert-SameTimingValue $Actual[$index] $Expected[$index] }
++            } elseif ($Expected -is [bool]) {
++                if ($Actual -isnot [bool] -or $Actual -ne $Expected) { throw 'invalid' }
++            } elseif ($Expected -is [string]) {
++                if ($Actual -isnot [string] -or $Actual -cne $Expected) { throw 'invalid' }
++            } elseif (($Expected -is [int] -or $Expected -is [long]) -and
++                ($Actual -isnot [int] -and $Actual -isnot [long])) { throw 'invalid' }
++            elseif ($Actual -isnot [int] -and $Actual -isnot [long] -and $Actual -isnot [double]) { throw 'invalid' }
++            elseif (-not [double]::IsFinite([double]$Actual) -or [double]$Actual -ne [double]$Expected) { throw 'invalid' }
++        }
++        Assert-UniqueJsonKeys $Json
++        $value = ConvertFrom-Json -InputObject $Json -AsHashtable -NoEnumerate -Depth 16
++        $expected = ConvertTo-NtfsProductTimingFixtureEvidence $Report $RunnerExitCode $Order -Detailed:$Detailed
++        $status = if ($expected.comparable) { 'product_timing_compared' } elseif ($expected.status -ceq 'not_comparable') {
++            'product_timing_not_comparable'
++        } else { 'failed' }
++        $stage = switch -CaseSensitive ($status) {
++            'product_timing_compared' { 'ProductTimingCompared' }
++            'product_timing_not_comparable' { 'ProductTimingNotComparable' }
++            default { 'RunProductTiming' }
++        }
++        $code = switch -CaseSensitive ($status) {
++            'product_timing_compared' { 'None' }
++            'product_timing_not_comparable' { 'ResultsDiffer' }
++            default { 'ProductTimingFixtureFailed' }
++        }
++        if ($value -isnot [Collections.IDictionary] -or $value.status -isnot [string] -or
++            $value.status -cnotin @($status,'cleanup_failed')) { throw 'invalid' }
++        foreach ($flag in @('detached','cleanup_completed')) { if ($value[$flag] -isnot [bool]) { throw 'invalid' } }
++        $cleanupFailed = $value.status -ceq 'cleanup_failed'
++        if (($cleanupFailed -and $value.cleanup_completed) -or
++            (-not $cleanupFailed -and (-not $value.detached -or -not $value.cleanup_completed)) -or
++            (-not $expected.cleanup_confirmed -and (-not $cleanupFailed -or $value.detached))) { throw 'invalid' }
++        $exit = if ($cleanupFailed -or $status -ceq 'failed') { 1 } elseif ($status -ceq 'product_timing_not_comparable') { 3 } else { 0 }
++        if ($OwnerExitCode -ne $exit) { throw 'invalid' }
++        $safe = [ordered]@{schema=1;mode='product-timing';status=$value.status;stage=$stage;code=$code
++            exit_code=$RunnerExitCode;detached=$value.detached;cleanup_completed=$value.cleanup_completed;scale_benchmark=$null
++            snapshot_cleanup_confirmed=$expected.cleanup_confirmed;native_error=0;product_timing=$expected
++            product_timing_order=$Order;fixture_files=$(if ($Order -ceq 'FOOF') { 100000 } else { 10000 })}
++        if ($Detailed) { $safe.product_timing_detailed=$true }
++        # Check every owner field, then return only the independently rebuilt
++        # whitelist. Never echo an untrusted result file or arbitrary text.
++        Assert-SameTimingValue $value $safe
++        return $safe
++    } catch { throw 'PRODUCT_TIMING_FIXTURE_SUMMARY_INVALID' }
++}
++
++function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitCode, [string]$Order = 'FO', [switch]$Detailed) {
+     $invalid = 'PRODUCT_TIMING_FIXTURE_EVIDENCE_INVALID'
+     try {
+         function Assert-TimingFields($Value, [string[]]$Fields) {
+@@ -132,18 +216,54 @@ function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitC
+                 intervals=$intervals; ui_resources=$ui; helper_resources_at_result=$helper}
+         }
+ 
++        function Convert-TimingDetails($Value, $Sample) {
++            Assert-TimingFields $Value @('revision','kind','mode','phases_ms','supplement_objects','reason_bits',
++                'reason_combinations','helper_measured','multiple_reasons_per_object','combination_counts_disjoint','no_names_or_identities')
++            if ($Value.revision -cne 'ntfs-scan-details-v1' -or $Value.mode -isnot [string] -or $Value.mode -cne 'F') { throw $invalid }
++            $phases = @('SourceValidation','VssSetup','VssCreation','SnapshotValidation','IndexFinalization')
++            $bits = [ordered]@{ResidentAllocation=1;Compressed=2;Sparse=4;IncompleteMetadata=8;
++                IncompleteLinks=16;ModifiedConflict=32;UnsupportedRecord=64}
++            Assert-TimingFields $Value.phases_ms $phases
++            Assert-TimingFields $Value.reason_bits @($bits.Keys)
++            $phaseValues = [ordered]@{}
++            $elapsed = [double]0
++            foreach ($phase in $phases) {
++                Assert-TimingNumber $Value.phases_ms[$phase] 780000
++                $elapsed += $Value.phases_ms[$phase]
++                $phaseValues[$phase] = [double]$Value.phases_ms[$phase]
++            }
++            # These non-overlapping helper phases fit inside the client result wait.
++            if ($elapsed -gt $Sample.coordinator_available_ms + 1) { throw $invalid }
++            foreach ($reason in $bits.Keys) { Assert-TimingInteger $Value.reason_bits[$reason] $bits[$reason] $bits[$reason] }
++            Assert-TimingInteger $Value.supplement_objects 0 1048576
++            if (($Value.supplement_objects -gt 0) -ne $Sample.intervals.Contains('Fast_Supplementing')) { throw $invalid }
++            if ($Value.reason_combinations -isnot [array] -or $Value.reason_combinations.Length -ne 128) { throw $invalid }
++            $total = [long]0
++            for ($index = 0; $index -lt 128; $index++) {
++                Assert-TimingInteger $Value.reason_combinations[$index] 0 1048576
++                $total += $Value.reason_combinations[$index]
++            }
++            if ($Value.reason_combinations[0] -ne 0 -or $total -ne $Value.supplement_objects) { throw $invalid }
++            foreach ($field in @('helper_measured','multiple_reasons_per_object','combination_counts_disjoint','no_names_or_identities')) { Assert-TimingFlag $Value[$field] $true }
++            return [ordered]@{phases_ms=$phaseValues;supplement_objects=$Value.supplement_objects;reason_bits=$bits
++                reason_combinations=$Value.reason_combinations;helper_measured=$true;multiple_reasons_per_object=$true;
++                combination_counts_disjoint=$true;no_names_or_identities=$true}
++        }
++
+         if ($Order -cnotin @('FO','FOOF') -or $ExitCode -notin @(0,1,3) -or [string]::IsNullOrEmpty($Report) -or
+             [Text.Encoding]::UTF8.GetByteCount($Report) -gt (131072 * $Order.Length)) { throw $invalid }
+         if ($Report.EndsWith("`r`n")) { $Report = $Report.Substring(0,$Report.Length-2) }
+         elseif ($Report.EndsWith("`n")) { $Report = $Report.Substring(0,$Report.Length-1) }
+         $lines = $Report -split '\r?\n'
+-        if ($lines.Count -gt (129 * $Order.Length)) { throw $invalid }
++        $detailLines = if ($Detailed) { @($Order.ToCharArray() | Where-Object { $_ -ceq 'F' }).Count } else { 0 }
++        if ($lines.Count -gt (129 * $Order.Length + $detailLines)) { throw $invalid }
+         $fast = $null
+         $ordinary = $null
+         $samples = [Collections.Generic.List[object]]::new()
+         $completedComparisons = 0
+         $lastComparisonEqual = $true
+         $terminal = $null
++        $awaitingDetails = $false
+         $stagesSeen = [Collections.Generic.List[string]]::new()
+         $fastFailureStages = $bridgeStages + $fastStages + @('Snapshot','Discovering','Reading','Supplementing','Building','Cleanup')
+         foreach ($line in $lines) {
+@@ -151,6 +271,7 @@ function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitC
+             Assert-UniqueJsonKeys $line
+             $row = ConvertFrom-Json -InputObject $line -AsHashtable -NoEnumerate -Depth 16
+             if ($row -isnot [System.Collections.IDictionary] -or $row['revision'] -isnot [string] -or $row['kind'] -isnot [string]) { throw $invalid }
++            if ($awaitingDetails -and $row.kind -cne 'details') { throw $invalid }
+             if (-not $lastComparisonEqual -and $row.kind -cne 'complete') { throw $invalid }
+             $awaitingComparison = $samples.Count -gt 1 -and $completedComparisons -lt ($samples.Count - 1)
+             $nextMode = if ($samples.Count -lt $Order.Length) { [string]$Order[$samples.Count] }
+@@ -168,9 +289,17 @@ function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitC
+                     $sample = Convert-TimingSample $row $nextMode $stagesSeen
+                     $samples.Add([ordered]@{mode=$nextMode;sample=$sample})
+                     $stagesSeen.Clear()
++                    $awaitingDetails = $Detailed -and $nextMode -ceq 'F'
+                     if ($nextMode -ceq 'F' -and $null -eq $fast) { $fast = $sample }
+                     if ($nextMode -ceq 'O' -and $null -eq $ordinary) { $ordinary = $sample }
+                 }
++                'details' {
++                    if (-not $Detailed -or -not $awaitingDetails -or $samples.Count -eq 0 -or
++                        $samples[$samples.Count-1].mode -cne 'F') { throw $invalid }
++                    $sample = $samples[$samples.Count-1].sample
++                    $sample.details = Convert-TimingDetails $row $sample
++                    $awaitingDetails = $false
++                }
+                 'comparison' {
+                     $equalFields = @('included_scope_equal','root_metrics_equal','exclusions_equal','exclusion_details_complete',
+                         'other_issues_absent','allocation_known')
+@@ -241,7 +370,7 @@ function ConvertTo-NtfsProductTimingFixtureEvidence([string]$Report, [int]$ExitC
+                 default { throw $invalid }
+             }
+         }
+-        if ($null -eq $terminal) { throw $invalid }
++        if ($null -eq $terminal -or $awaitingDetails) { throw $invalid }
+         return [ordered]@{status=$terminal.status;comparable=$terminal.comparable
+             cleanup_confirmed=$terminal.cleanup_confirmed;code=$terminal.code
+             fast_ms=$(if ($null -ne $fast) {$fast.total_ms})
+diff --git a/src/Scanning/Ntfs/FastScanBridge.cs b/src/Scanning/Ntfs/FastScanBridge.cs
+index fe3c65cc03465c54f2c3098f7081fd33b14324e6..671b3ac1d3391c15243868ab52c6d154b448a62c 100644
+--- a/src/Scanning/Ntfs/FastScanBridge.cs
++++ b/src/Scanning/Ntfs/FastScanBridge.cs
+@@ -17,28 +17,31 @@ internal static class FastScanBridge
+ {
+     internal const string WorkerArgument = "--ntfs-scan-worker";
+     internal const string TimingWorkerArgument = "--ntfs-timing-worker";
++    internal const string DetailedTimingWorkerArgument = "--ntfs-detailed-timing-worker";
+     private const string PipePrefix = "AsukaLens.Ntfs.";
+     private const byte CancelCommand = 0x43;
+     private static int cleanupUnconfirmed;
+ 
+     internal static ScanResult Scan(string path, IProgress<ScanProgress>? progress, CancellationToken token) =>
+-        ScanCore(path, progress, token, false, null, null);
++        ScanCore(path, progress, token, false, null, null, null);
+ 
+     internal static ScanResult ScanForTiming(string path, IProgress<ScanProgress>? progress, CancellationToken token,
+-        Action<FastScanWireStage>? observeStage = null, Action<FastScanTimingPoint, Process?>? observeTiming = null)
++        Action<FastScanWireStage>? observeStage = null, Action<FastScanTimingPoint, Process?>? observeTiming = null,
++        Action<NtfsScanDiagnosticReport>? observeDetails = null)
+     {
+         if (!IsTimingHost(Environment.ProcessPath, System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name))
+             throw new FastScanUnavailableException(FastScanWireError.Unsupported, true);
+         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+         timeout.CancelAfter(TimeSpan.FromMinutes(10));
+-        return ScanCore(path, progress, timeout.Token, true, observeStage, observeTiming);
++        return ScanCore(path, progress, timeout.Token, true, observeStage, observeTiming, observeDetails);
+     }
+ 
+     internal static bool IsTimingHost(string? executable, string? assembly) =>
+         string.Equals(Path.GetFileName(executable), "DiskAtlas.Tests.exe", StringComparison.OrdinalIgnoreCase) && assembly == "DiskAtlas.Tests";
+ 
+     private static ScanResult ScanCore(string path, IProgress<ScanProgress>? progress, CancellationToken token, bool timing,
+-        Action<FastScanWireStage>? observeStage, Action<FastScanTimingPoint, Process?>? observeTiming)
++        Action<FastScanWireStage>? observeStage, Action<FastScanTimingPoint, Process?>? observeTiming,
++        Action<NtfsScanDiagnosticReport>? observeDetails)
+     {
+         token.ThrowIfCancellationRequested();
+         if (Volatile.Read(ref cleanupUnconfirmed) != 0)
+@@ -66,7 +69,7 @@ internal static class FastScanBridge
+         {
+             progress?.Report(new(0, 0, 0, "等待管理员授权", ScanPhase.Preparing, Message: "仅本次快扫使用短时管理员助手。"));
+             var start = new ProcessStartInfo(executable) { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden };
+-            start.ArgumentList.Add(timing ? TimingWorkerArgument : WorkerArgument); start.ArgumentList.Add(pipeName);
++            start.ArgumentList.Add(observeDetails != null ? DetailedTimingWorkerArgument : timing ? TimingWorkerArgument : WorkerArgument); start.ArgumentList.Add(pipeName);
+             start.ArgumentList.Add(parent.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+             start.ArgumentList.Add(parent.StartTime.ToUniversalTime().Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
+             try
+@@ -116,11 +119,13 @@ internal static class FastScanBridge
+             {
+                 ThreadPool.QueueUserWorkItem(_ => { try { server.WriteByte(CancelCommand); server.Flush(); } catch { } });
+             });
+-            var reader = new FastScanWireReader(server, path);
++            var reader = new FastScanWireReader(server, path, acceptDiagnostics: observeDetails != null);
++            NtfsScanDiagnosticReport? details = null;
+             while (true)
+             {
+                 var message = reader.Read(deadline.Token);
+-                if (message.Kind == FastScanWireEventKind.Status && message.Stage is { } stage)
++                if (message.Kind == FastScanWireEventKind.Diagnostics) details = message.Diagnostics;
++                else if (message.Kind == FastScanWireEventKind.Status && message.Stage is { } stage)
+                 { observeStage?.Invoke(stage); ReportStage(progress, stage); }
+                 else if (message.Kind == FastScanWireEventKind.Progress && message.Progress != null)
+                     progress?.Report(message.Progress);
+@@ -137,6 +142,7 @@ internal static class FastScanBridge
+                     terminalCleanupConfirmed = true;
+                     token.ThrowIfCancellationRequested();
+                     if (timing) observeTiming?.Invoke(FastScanTimingPoint.ResultDecoded, child);
++                    if (details != null) observeDetails?.Invoke(details);
+                     return FromWireResult(result, timer.Elapsed);
+                 }
+             }
+@@ -149,8 +155,9 @@ internal static class FastScanBridge
+         catch (OperationCanceledException) when (!requested || terminalCleanupConfirmed) { throw; }
+         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception or OperationCanceledException or InvalidDataException or ObjectDisposedException)
+         {
+-            if (requested) Volatile.Write(ref cleanupUnconfirmed, 1);
+-            throw new FastScanUnavailableException(FastScanWireError.ProtocolError, !requested);
++            bool cleanupKnown = !requested || terminalCleanupConfirmed;
++            if (!cleanupKnown) Volatile.Write(ref cleanupUnconfirmed, 1);
++            throw new FastScanUnavailableException(FastScanWireError.ProtocolError, cleanupKnown);
+         }
+         finally { child?.Dispose(); }
+     }
+@@ -195,6 +202,15 @@ internal static class FastScanBridge
+ 
+     internal static bool IsWorkerRequest(string[] args) => args.Length > 0 && args[0] == WorkerArgument;
+     internal static bool IsTimingWorkerRequest(string[] args) => args.Length > 0 && args[0] == TimingWorkerArgument;
++    internal static bool IsDetailedTimingWorkerRequest(string[] args) => args.Length > 0 && args[0] == DetailedTimingWorkerArgument;
++
++    internal static int RunDetailedTimingWorker(string[] args)
++    {
++        if (!IsTimingHost(Environment.ProcessPath, System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name) ||
++            args.Length != 4 || args[0] != DetailedTimingWorkerArgument) return 2;
++        string[] invocation = args.ToArray(); invocation[0] = WorkerArgument;
++        return RunWorker(invocation, collectDiagnostics: true);
++    }
+ 
+     internal static int RunTimingWorker(string[] args)
+     {
+@@ -205,18 +221,20 @@ internal static class FastScanBridge
+     }
+ 
+     internal static int RunWorker(string[] args,
+-        Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation = null)
++        Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation = null,
++        bool collectDiagnostics = false)
+     {
+         if (args.Length != 4 || args[0] != WorkerArgument || !ValidPipeName(args[1]) || !int.TryParse(args[2], out int parentId) || parentId <= 0 ||
+             !long.TryParse(args[3], out long parentTicks) || parentTicks <= 0) return 2;
+         int exit = 2;
+-        var thread = new Thread(() => exit = WorkerCore(args[1], parentId, parentTicks, beforeCleanupValidation));
++        if (collectDiagnostics && !IsTimingHost(Environment.ProcessPath, System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name)) return 2;
++        var thread = new Thread(() => exit = WorkerCore(args[1], parentId, parentTicks, beforeCleanupValidation, collectDiagnostics));
+         thread.SetApartmentState(ApartmentState.MTA); thread.Start(); thread.Join();
+         return exit;
+     }
+ 
+     private static int WorkerCore(string pipeName, int parentId, long parentTicks,
+-        Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation)
++        Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation, bool collectDiagnostics)
+     {
+         try
+         {
+@@ -241,9 +259,11 @@ internal static class FastScanBridge
+             bool sourceClosed = false;
+             try
+             {
+-                var result = NtfsPersonalScan.Run(root, stage => FastScanWire.WriteStatus(pipe, stage, linked.Token), linked.Token, beforeCleanupValidation);
++                var diagnostics = collectDiagnostics ? new NtfsScanDiagnostics() : null;
++                var result = NtfsPersonalScan.Run(root, stage => FastScanWire.WriteStatus(pipe, stage, linked.Token), linked.Token, beforeCleanupValidation, diagnostics);
+                 sourceClosed = true;
+                 // The scan method returns only after confirmed source cleanup.
++                if (diagnostics != null) FastScanWire.WriteDiagnostics(pipe, diagnostics.Snapshot(), CancellationToken.None);
+                 FastScanWire.WriteResult(pipe, result.Root, result.Elapsed, result.CapturedAt, CancellationToken.None,
+                     result.ExcludedReparseEntries, result.Exclusions);
+                 pipe.Flush(); return 0;
+diff --git a/src/Scanning/Ntfs/FastScanWire.cs b/src/Scanning/Ntfs/FastScanWire.cs
+index 73d5e6a17b078665df4ddd4223ab4cccb85bb5cf..21e15fd3053dc48ff0a23608c06aafd2a99e7e8e 100644
+--- a/src/Scanning/Ntfs/FastScanWire.cs
++++ b/src/Scanning/Ntfs/FastScanWire.cs
+@@ -13,12 +13,13 @@ internal enum FastScanWireError
+     Unsupported, PermissionDenied, LimitExceeded, SourceChanged, SnapshotFailed,
+     ReadFailed, Cancelled, ProtocolError, CleanupUnconfirmed, InternalError
+ }
+-internal enum FastScanWireEventKind { Status, Progress, Completed, Failure }
++internal enum FastScanWireEventKind { Status, Progress, Completed, Failure, Diagnostics }
+ internal sealed record FastScanWireResult(DiskEntry Root, TimeSpan Elapsed, DateTimeOffset CapturedAt,
+     long ExcludedReparseEntries, IReadOnlyList<ScanIssue> Issues);
+ internal sealed record FastScanWireEvent(FastScanWireEventKind Kind, FastScanWireStage? Stage = null,
+     ScanProgress? Progress = null, FastScanWireResult? Result = null,
+-    FastScanWireError? Error = null, bool CleanupConfirmed = false, FastScanFailureContext? Context = null);
++    FastScanWireError? Error = null, bool CleanupConfirmed = false, FastScanFailureContext? Context = null,
++    NtfsScanDiagnosticReport? Diagnostics = null);
+ internal sealed class FastScanWireException : IOException
+ {
+     internal FastScanWireException() : base("NTFS 快速扫描通信数据无效。") { }
+@@ -35,7 +36,9 @@ internal static class FastScanWire
+     private const uint Magic = 0x314C5341;
+     private const ushort Version = 3;
+     private static readonly UnicodeEncoding TextEncoding = new(false, false, true);
+-    internal enum Frame : ushort { Request = 1, Status, Progress, TreeBegin, Node, Done, Failure, Exclusion }
++    internal enum Frame : ushort { Request = 1, Status, Progress, TreeBegin, Node, Done, Failure, Exclusion, Diagnostics }
++    internal static void WriteDiagnostics(Stream stream, NtfsScanDiagnosticReport report, CancellationToken token) =>
++        Write(stream, Frame.Diagnostics, writer => NtfsScanDiagnosticReport.Write(writer, report), token);
+     internal sealed record Node(int Index, int Parent, bool Directory, string Name, FileStorageInfo Storage, DateTime Modified, bool Incomplete = false);
+     internal sealed record Header(int Nodes, long Files, long Directories, long Logical, long Allocated, long ElapsedTicks, long CapturedTicks,
+         long ExcludedReparseEntries = 0, int ExclusionDetails = 0);
+@@ -358,13 +361,24 @@ internal static class FastScanWire
+ internal sealed class FastScanWireReader
+ {
+     private readonly Stream stream; private readonly string root; private long bytes; private bool terminal;
+-    internal FastScanWireReader(Stream stream, string expectedRoot) { this.stream = stream; root = FastScanWire.NormalizeRoot(expectedRoot); }
++    private readonly bool acceptDiagnostics;
++    private bool diagnosticsReceived;
++    internal FastScanWireReader(Stream stream, string expectedRoot, bool acceptDiagnostics = false)
++    { this.stream = stream; root = FastScanWire.NormalizeRoot(expectedRoot); this.acceptDiagnostics = acceptDiagnostics; }
+     internal FastScanWireEvent Read(CancellationToken token = default)
+     {
+         FastScanWire.Require(!terminal);
+         try
+         {
+             var frame = FastScanWire.Read(stream, ref bytes, token);
++            if (frame.Kind == FastScanWire.Frame.Diagnostics)
++            {
++                FastScanWire.Require(acceptDiagnostics && !diagnosticsReceived);
++                var report = FastScanWire.Parse(frame.Payload, NtfsScanDiagnosticReport.Read);
++                diagnosticsReceived = true;
++                return new(FastScanWireEventKind.Diagnostics, Diagnostics: report);
++            }
++            FastScanWire.Require(!diagnosticsReceived || frame.Kind is FastScanWire.Frame.TreeBegin or FastScanWire.Frame.Failure);
+             if (frame.Kind == FastScanWire.Frame.Status)
+                 return FastScanWire.Parse(frame.Payload, reader =>
+                 {
+@@ -391,6 +405,7 @@ internal sealed class FastScanWireReader
+                 }); terminal = true; return result;
+             }
+             FastScanWire.Require(frame.Kind == FastScanWire.Frame.TreeBegin);
++            FastScanWire.Require(!acceptDiagnostics || diagnosticsReceived);
+             var header = FastScanWire.Parse(frame.Payload, FastScanWire.ReadHeader); var builder = new FastScanWire.TreeBuilder(root, header);
+             for (int i = 0; i < header.Nodes;)
+             {
+diff --git a/src/Scanning/Ntfs/NtfsPersonalScan.cs b/src/Scanning/Ntfs/NtfsPersonalScan.cs
+index 4325bb048ae2c9a660272ecb9c777c88edcc0653..5af0ce8dff0512bc7f179d5f9830ba1111a0cf56 100644
+--- a/src/Scanning/Ntfs/NtfsPersonalScan.cs
++++ b/src/Scanning/Ntfs/NtfsPersonalScan.cs
+@@ -14,7 +14,8 @@ internal static class NtfsPersonalScan
+     // Synchronous on the dedicated MTA owner thread. Only bounded Native lookups
+     // use worker tasks; no COM owner crosses an await boundary.
+     internal static NtfsPersonalScanResult Run(string path, Action<FastScanWireStage> stage, CancellationToken token,
+-        Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation = null)
++        Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation = null,
++        NtfsScanDiagnostics? diagnostics = null)
+     {
+         var watch = Stopwatch.StartNew();
+         NtfsPersonalSnapshotSource? source = null;
+@@ -38,7 +39,7 @@ internal static class NtfsPersonalScan
+         try
+         {
+             token.ThrowIfCancellationRequested(); Stage(FastScanWireStage.Snapshot);
+-            source = NtfsPersonalSnapshotSource.Create(path, token, NtfsScanLimits.Large);
++            source = NtfsPersonalSnapshotSource.Create(path, token, NtfsScanLimits.Large, diagnostics);
+             captured = new DateTimeOffset(DateTime.SpecifyKind(source.SnapshotCreatedUtc, DateTimeKind.Utc));
+             Stage(FastScanWireStage.Reading);
+             var reader = source.OpenReader(token);
+@@ -113,7 +114,7 @@ internal static class NtfsPersonalScan
+                     Stage(FastScanWireStage.Supplementing);
+                     return source.LookupSize(scope, request, cancellation);
+                 }
+-                var index = NtfsSnapshotSizeIndex.BuildAsync(scope, map, Read, bits.IsAllocated, Lookup, token).GetAwaiter().GetResult();
++                var index = NtfsSnapshotSizeIndex.BuildAsync(scope, map, Read, bits.IsAllocated, Lookup, token, diagnostics: diagnostics).GetAwaiter().GetResult();
+                 Stage(FastScanWireStage.Building);
+                 tree = NtfsSnapshotSizeIndex.Materialize(index, path, token, requireModified: true);
+                 tree.Storage = source.RootStorage;
+diff --git a/src/Scanning/Ntfs/NtfsPersonalSnapshotSource.cs b/src/Scanning/Ntfs/NtfsPersonalSnapshotSource.cs
+index 3e833d251bba3d515e68e05c79c17e5982bddcb8..c35b9c2fe99be06f100ea42c5509151852873a68 100644
+--- a/src/Scanning/Ntfs/NtfsPersonalSnapshotSource.cs
++++ b/src/Scanning/Ntfs/NtfsPersonalSnapshotSource.cs
+@@ -54,55 +54,66 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
+         return char.ToUpperInvariant(path[0]) + ":\\" + suffix;
+     }
+ 
+-    internal static NtfsPersonalSnapshotSource Create(string selectedPath, CancellationToken token = default, NtfsScanLimits? limits = null)
++    internal static NtfsPersonalSnapshotSource Create(string selectedPath, CancellationToken token = default,
++        NtfsScanLimits? limits = null, NtfsScanDiagnostics? diagnostics = null)
+     {
+         NtfsPersonalSnapshotSource? source = null;
+         var pins = new List<SafeFileHandle>();
+         var pinnedIdentities = new List<FileIdentity>();
+         try
+         {
+-            token.ThrowIfCancellationRequested();
+-            string path = NormalizeSelectedPath(selectedPath), drive = path[..3];
+-            using var identity = WindowsIdentity.GetCurrent();
+-            Require(new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator), "VssPersonalElevation");
+-            Require(GetDriveTypeW(drive) == 3, "VssPersonalVolume");
+-            string volume = VolumeName(drive);
+-            string suffix = path.Length == 3 ? "" : path[3..];
+-            string current = drive, canonical = volume;
+-            var root = Pin(current, canonical, null, token); pins.Add(root.Handle);
+-            pinnedIdentities.Add(root.Storage.Identity);
+-            ulong serial = root.Storage.Identity.Volume;
+-            FileStorageInfo selected = root.Storage;
+-            if (suffix.Length != 0)
+-                foreach (string part in suffix.Split('\\'))
+-                {
+-                    current = Path.Combine(current, part); canonical = canonical.TrimEnd('\\') + "\\" + part;
+-                    var next = Pin(current, canonical, serial, token); pins.Add(next.Handle); selected = next.Storage;
+-                    pinnedIdentities.Add(next.Storage.Identity);
+-                }
+-            var facts = ReadVolumeFacts(volume, serial, token);
++            string volume, suffix;
++            ulong serial;
++            FileStorageInfo selected;
++            NtfsSnapshotVolumeFacts facts;
++            using (diagnostics?.Measure(NtfsDiagnosticPhase.SourceValidation))
++            {
++                token.ThrowIfCancellationRequested();
++                string path = NormalizeSelectedPath(selectedPath), drive = path[..3];
++                using var identity = WindowsIdentity.GetCurrent();
++                Require(new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator), "VssPersonalElevation");
++                Require(GetDriveTypeW(drive) == 3, "VssPersonalVolume");
++                volume = VolumeName(drive);
++                suffix = path.Length == 3 ? "" : path[3..];
++                string current = drive, canonical = volume;
++                var root = Pin(current, canonical, null, token); pins.Add(root.Handle);
++                pinnedIdentities.Add(root.Storage.Identity);
++                serial = root.Storage.Identity.Volume;
++                selected = root.Storage;
++                if (suffix.Length != 0)
++                    foreach (string part in suffix.Split('\\'))
++                    {
++                        current = Path.Combine(current, part); canonical = canonical.TrimEnd('\\') + "\\" + part;
++                        var next = Pin(current, canonical, serial, token); pins.Add(next.Handle); selected = next.Storage;
++                        pinnedIdentities.Add(next.Storage.Identity);
++                    }
++                facts = ReadVolumeFacts(volume, serial, token);
++            }
+             source = new(facts, limits ?? NtfsScanLimits.Standard);
+-            source.snapshotRoot = source.session.Create(volume, token);
+-            source.snapshotDataRoot = source.snapshotRoot + "\\" + suffix;
+-            if (suffix.Length == 0) source.snapshotDataRoot = source.snapshotRoot + "\\";
+-            // An original ancestor might acquire a reparse tag while its name
+-            // remains pinned. Recheck every component in the immutable source
+-            // before allowing an operation through the selected snapshot path.
+-            string snapshotPath = source.snapshotRoot + "\\";
+-            Require(NtfsSnapshotMetadata.Read(snapshotPath, true, serial, token).Storage.Identity == pinnedIdentities[0], "VssSnapshotBinding");
+-            if (suffix.Length != 0)
++            source.snapshotRoot = source.session.Create(volume, token, diagnostics);
++            using (diagnostics?.Measure(NtfsDiagnosticPhase.SnapshotValidation))
+             {
+-                int index = 1;
+-                foreach (string part in suffix.Split('\\'))
++                source.snapshotDataRoot = source.snapshotRoot + "\\" + suffix;
++                if (suffix.Length == 0) source.snapshotDataRoot = source.snapshotRoot + "\\";
++                // An original ancestor might acquire a reparse tag while its name
++                // remains pinned. Recheck every component in the immutable source
++                // before allowing an operation through the selected snapshot path.
++                string snapshotPath = source.snapshotRoot + "\\";
++                Require(NtfsSnapshotMetadata.Read(snapshotPath, true, serial, token).Storage.Identity == pinnedIdentities[0], "VssSnapshotBinding");
++                if (suffix.Length != 0)
+                 {
+-                    snapshotPath = snapshotPath.TrimEnd('\\') + "\\" + part;
+-                    Require(NtfsSnapshotMetadata.Read(snapshotPath, true, serial, token).Storage.Identity == pinnedIdentities[index++], "VssSnapshotBinding");
++                    int index = 1;
++                    foreach (string part in suffix.Split('\\'))
++                    {
++                        snapshotPath = snapshotPath.TrimEnd('\\') + "\\" + part;
++                        Require(NtfsSnapshotMetadata.Read(snapshotPath, true, serial, token).Storage.Identity == pinnedIdentities[index++], "VssSnapshotBinding");
++                    }
+                 }
++                var snapshot = source.ReadNativeSize("", true, token);
++                Require(snapshot.Storage.Identity == selected.Identity && !snapshot.DeletePending, "VssSnapshotBinding");
++                source.rootStorage = snapshot.Storage;
++                token.ThrowIfCancellationRequested(); return source;
+             }
+-            var snapshot = source.ReadNativeSize("", true, token);
+-            Require(snapshot.Storage.Identity == selected.Identity && !snapshot.DeletePending, "VssSnapshotBinding");
+-            source.rootStorage = snapshot.Storage;
+-            token.ThrowIfCancellationRequested(); return source;
+         }
+         catch (Exception error)
+         {
+diff --git a/src/Scanning/Ntfs/NtfsScanDiagnostics.cs b/src/Scanning/Ntfs/NtfsScanDiagnostics.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..9b5fe2be783adb4550a2535808258931fea8ac80
+--- /dev/null
++++ b/src/Scanning/Ntfs/NtfsScanDiagnostics.cs
+@@ -0,0 +1,116 @@
++using System.Diagnostics;
++
++namespace DiskAtlas.NtfsPrototype;
++
++internal enum NtfsDiagnosticPhase { SourceValidation, VssSetup, VssCreation, SnapshotValidation, IndexFinalization }
++[Flags]
++internal enum NtfsSupplementReason : byte
++{
++    ResidentAllocation = 1, Compressed = 2, Sparse = 4, IncompleteMetadata = 8,
++    IncompleteLinks = 16, ModifiedConflict = 32, UnsupportedRecord = 64
++}
++
++// Opt-in test instrumentation. Fixed-size aggregates only, never names or identities.
++internal sealed class NtfsScanDiagnostics
++{
++    private readonly object gate = new();
++    private readonly Func<double> milliseconds;
++    private readonly double?[] phases = new double?[5];
++    private readonly bool[] started = new bool[5];
++    private readonly int[] reasons = new int[128];
++    private int objects;
++
++    internal NtfsScanDiagnostics(Func<double>? milliseconds = null)
++    {
++        var clock = Stopwatch.StartNew();
++        this.milliseconds = milliseconds ?? (() => clock.Elapsed.TotalMilliseconds);
++    }
++
++    internal IDisposable Measure(NtfsDiagnosticPhase phase)
++    {
++        lock (gate)
++        {
++            int index = (int)phase;
++            NtfsScanDiagnosticReport.Require(index >= 0 && index < phases.Length && !started[index]);
++            double start = milliseconds();
++            NtfsScanDiagnosticReport.Require(double.IsFinite(start) && start >= 0);
++            started[index] = true;
++            return new Measurement(this, index, start);
++        }
++    }
++
++    internal void RecordSupplement(NtfsSupplementReason reason)
++    {
++        lock (gate)
++        {
++            int mask = (int)reason;
++            NtfsScanDiagnosticReport.Require(mask is > 0 and < 128 && objects < 1_048_576);
++            reasons[mask]++; objects++;
++        }
++    }
++
++    internal NtfsScanDiagnosticReport Snapshot()
++    {
++        lock (gate) return new((double?[])phases.Clone(), objects, (int[])reasons.Clone());
++    }
++
++    private sealed class Measurement(NtfsScanDiagnostics owner, int index, double start) : IDisposable
++    {
++        private int disposed;
++        public void Dispose()
++        {
++            if (Interlocked.Exchange(ref disposed, 1) != 0) return;
++            lock (owner.gate)
++            {
++                double elapsed = owner.milliseconds() - start;
++                NtfsScanDiagnosticReport.Require(double.IsFinite(elapsed) && elapsed is >= 0 and <= 780_000);
++                owner.phases[index] = elapsed;
++            }
++        }
++    }
++}
++
++internal sealed record NtfsScanDiagnosticReport(double?[] PhaseMilliseconds, int SupplementObjects, int[] ReasonCombinations)
++{
++    internal void Validate(bool requireComplete = false)
++    {
++        Require(PhaseMilliseconds is { Length: 5 } && ReasonCombinations is { Length: 128 });
++        Require(SupplementObjects is >= 0 and <= 1_048_576);
++        foreach (double? value in PhaseMilliseconds)
++            Require(value.HasValue ? double.IsFinite(value.Value) && value.Value is >= 0 and <= 780_000 : !requireComplete);
++        long sum = 0;
++        for (int i = 0; i < ReasonCombinations.Length; i++)
++        {
++            int count = ReasonCombinations[i];
++            Require(count is >= 0 and <= 1_048_576 && (i != 0 || count == 0));
++            sum += count;
++        }
++        Require(sum == SupplementObjects);
++    }
++
++    // Success-only payload: fixed dimensions prevent hostile allocation requests.
++    internal static void Write(BinaryWriter writer, NtfsScanDiagnosticReport report)
++    {
++        report.Validate(requireComplete: true);
++        foreach (double? value in report.PhaseMilliseconds) writer.Write(value!.Value);
++        writer.Write(report.SupplementObjects);
++        foreach (int count in report.ReasonCombinations) writer.Write(count);
++    }
++
++    internal static NtfsScanDiagnosticReport Read(BinaryReader reader)
++    {
++        var phases = new double?[5];
++        for (int i = 0; i < phases.Length; i++) phases[i] = reader.ReadDouble();
++        int count = reader.ReadInt32();
++        var reasons = new int[128];
++        for (int i = 0; i < reasons.Length; i++) reasons[i] = reader.ReadInt32();
++        var report = new NtfsScanDiagnosticReport(phases, count, reasons);
++        report.Validate(requireComplete: true);
++        return report;
++    }
++
++    internal static void Require(bool condition)
++    {
++        if (!condition) throw new InvalidDataException("ScanDiagnosticInvalid");
++    }
++}
+diff --git a/src/Scanning/Ntfs/NtfsSnapshotSizeIndex.cs b/src/Scanning/Ntfs/NtfsSnapshotSizeIndex.cs
+index 9dd054f24511ba2785a8eecf4eb2df048b8882dd..facb18508ba24339e8d87c739f66ffb1c6c4b03c 100644
+--- a/src/Scanning/Ntfs/NtfsSnapshotSizeIndex.cs
++++ b/src/Scanning/Ntfs/NtfsSnapshotSizeIndex.cs
+@@ -35,7 +35,8 @@ internal static class NtfsSnapshotSizeIndex
+         internal readonly bool Directory=directory;
+         internal readonly int EntryIndex=entry;
+         internal int Aliases=1;
+-        internal bool RawSeen,Decoded,NeedsNative,ModifiedConflict;
++        internal bool RawSeen,NeedsNative,ModifiedConflict;
++        internal NtfsSupplementReason SupplementReasons;
+         internal DateTime? Modified;
+         internal long? Logical,Allocated;
+         internal uint? Links;
+@@ -52,7 +53,8 @@ internal static class NtfsSnapshotSizeIndex
+     private static void Peak(ref int peak,int value){int current=Volatile.Read(ref peak);while(value>current){int actual=Interlocked.CompareExchange(ref peak,value,current);if(actual==current)break;current=actual;}}
+ 
+     internal static async Task<NtfsSnapshotSizeIndexResult> BuildAsync(NtfsSnapshotNamespaceResult scope,NtfsMftMap map,NtfsMftReadInto read,
+-        Func<ulong,bool> allocated,Func<NtfsSnapshotSizeRequest,CancellationToken,NtfsSnapshotNativeSize> lookup,CancellationToken token=default)
++        Func<ulong,bool> allocated,Func<NtfsSnapshotSizeRequest,CancellationToken,NtfsSnapshotNativeSize> lookup,CancellationToken token=default,
++        NtfsScanDiagnostics? diagnostics=null)
+     {
+         token.ThrowIfCancellationRequested();long totalStart=Stopwatch.GetTimestamp();
+         Require(scope!=null&&map!=null&&read!=null&&allocated!=null&&lookup!=null,"SnapshotSizeInput");
+@@ -138,7 +140,7 @@ internal static class NtfsSnapshotSizeIndex
+                 {
+                     var record=result.Record;Require(record!=null&&record.Reference==item.Identity.Low&&record.IsDirectory==item.Directory,"SourceConsistencyFailed");
+                     Require(record.LinkCount>0&&record.LinkCount>=item.Aliases,"SourceConsistencyFailed");
+-                    item.Decoded=true;decoded++;item.Logical=record.LogicalBytes;item.Allocated=record.AllocatedBytes;
++                    decoded++;item.Logical=record.LogicalBytes;item.Allocated=record.AllocatedBytes;
+                     // The record header counts separate DOS FILE_NAME records;
+                     // Native links count visible hard-link names. Compute this
+                     // bounded scalar while the parsed names are still local.
+@@ -161,14 +163,30 @@ internal static class NtfsSnapshotSizeIndex
+                         item.Final=new(item.Identity,item.Directory,item.Directory?0:item.Logical.GetValueOrDefault(),item.Directory?0:item.Allocated.GetValueOrDefault(),item.Links.GetValueOrDefault(),false)
+                             {Modified=record.Modified??item.Modified};
+                     }
++                    else if (diagnostics != null)
++                    {
++                        item.SupplementReasons = SupplementReasons(record, item);
++                    }
++                }
++                else if(result.Status==NtfsDecodeStatus.Unsupported)
++                {
++                    item.NeedsNative=true;
++                    if (diagnostics != null) item.SupplementReasons=NtfsSupplementReason.UnsupportedRecord;
+                 }
+-                else if(result.Status==NtfsDecodeStatus.Unsupported)item.NeedsNative=true;
+                 else throw new NtfsSnapshotSizeException("SnapshotSizeDecode");
+             }
+             parseTicks+=Stopwatch.GetTimestamp()-before;
+         }
+         Require(items.Values.All(item=>item.RawSeen),"SnapshotSizeCoverage");
+         var pending=items.Values.Where(item=>item.NeedsNative).ToArray();Require(pending.Length<=limits.MaximumNativeObjects,"SnapshotSizeNativeBudget");
++        if (diagnostics != null)
++        {
++            foreach (var item in pending)
++            {
++                token.ThrowIfCancellationRequested();
++                diagnostics.RecordSupplement(item.SupplementReasons);
++            }
++        }
+         int calls=0,active=0,peakWorkers=0,peakQueue=0;long nativeStart=Stopwatch.GetTimestamp();
+         if(pending.Length>0)
+         {
+@@ -224,6 +242,7 @@ internal static class NtfsSnapshotSizeIndex
+             Require(calls==pending.Length,"SnapshotSizeNativeCoverage");
+         }
+         long nativeTicks=Stopwatch.GetTimestamp()-nativeStart;
++        using var finalization = diagnostics?.Measure(NtfsDiagnosticPhase.IndexFinalization);
+         long logicalBytes=0,allocatedBytes=0;int fileObjects=0,dirObjects=0;
+         var values=new Dictionary<FileIdentity,NtfsSnapshotObjectSize>(items.Count);
+         foreach(var item in items.Values)
+@@ -245,6 +264,22 @@ internal static class NtfsSnapshotSizeIndex
+         return new(ownedScope,new ReadOnlyDictionary<FileIdentity,NtfsSnapshotObjectSize>(values),report);
+     }
+ 
++    private static NtfsSupplementReason SupplementReasons(NtfsRecord record, Item item)
++    {
++        NtfsSupplementReason reasons = 0;
++        if (!item.Allocated.HasValue)
++        {
++            if (record.LookupReasons.HasFlag(NtfsLookupReason.ResidentAllocation)) reasons |= NtfsSupplementReason.ResidentAllocation;
++            if (record.LookupReasons.HasFlag(NtfsLookupReason.Compressed)) reasons |= NtfsSupplementReason.Compressed;
++            if (record.LookupReasons.HasFlag(NtfsLookupReason.Sparse)) reasons |= NtfsSupplementReason.Sparse;
++            if (reasons == 0) reasons |= NtfsSupplementReason.IncompleteMetadata;
++        }
++        if (record.BaseReference != 0 || !item.Logical.HasValue) reasons |= NtfsSupplementReason.IncompleteMetadata;
++        if (!item.Links.HasValue) reasons |= NtfsSupplementReason.IncompleteLinks;
++        if (record.Modified == null && item.ModifiedConflict) reasons |= NtfsSupplementReason.ModifiedConflict;
++        return reasons;
++    }
++
+     // Pure UI-tree projection. The display root is never opened, and a scalar
+     // size table never creates a native snapshot or product source proof.
+     internal static DiskEntry Materialize(NtfsSnapshotSizeIndexResult index,string rootPath,CancellationToken token=default,bool requireModified=false)
+diff --git a/src/Scanning/Ntfs/NtfsVssNativeSession.cs b/src/Scanning/Ntfs/NtfsVssNativeSession.cs
+index 8cf9814c9a7b6405cd95b65c8fa74299ff56741c..5a8f90dbfa5e85666188abc4a9e406d81d357067 100644
+--- a/src/Scanning/Ntfs/NtfsVssNativeSession.cs
++++ b/src/Scanning/Ntfs/NtfsVssNativeSession.cs
+@@ -90,46 +90,52 @@ internal sealed class NtfsVssNativeSession : IDisposable
+     private static T Method<T>(IntPtr value, int slot) where T : Delegate => Marshal.GetDelegateForFunctionPointer<T>(Marshal.ReadIntPtr(Marshal.ReadIntPtr(value), slot * IntPtr.Size));
+     private static void Hr(int value, string code) { if (value < 0) throw new NtfsVssProbeException(code, value); }
+ 
+-    internal string Create(string original, CancellationToken token)
++    internal string Create(string original, CancellationToken token, NtfsScanDiagnostics? diagnostics = null)
+     {
+-        token.ThrowIfCancellationRequested();
+-        Require(ownerThread == Environment.CurrentManagedThreadId && !released && backup == IntPtr.Zero && IsVolumeGuid(original), "VssSnapshotBinding");
+-        Hr(CoInitializeEx(IntPtr.Zero, 0), "VssComInitialize"); com = true;
+-        ProcessSecurity.Ensure(() => CoInitializeSecurity(IntPtr.Zero, -1, IntPtr.Zero, IntPtr.Zero, 6, 2, IntPtr.Zero, 0, IntPtr.Zero));
+-        Hr(CreateBackup(out IntPtr returnedBackup), "VssCreateBackup"); Require(returnedBackup != IntPtr.Zero, "VssCreateBackup"); backup = returnedBackup;
+-        Hr(Method<OnePointer>(backup, InitializeSlot)(backup, IntPtr.Zero), "VssInitializeBackup");
+-        Hr(Method<OneInt>(backup, ContextSlot)(backup, Context), "VssContext");
+-        Hr(Method<Supported>(backup, SupportedSlot)(backup, SystemProvider, original, out int supported), "VssVolumeUnsupported");
+-        Require(supported != 0, "VssVolumeUnsupported"); token.ThrowIfCancellationRequested();
+-        int started = Method<OutGuid>(backup, StartSlot)(backup, out Guid returnedSet);
+-        set = AdoptGuid(started, returnedSet, "VssStartSet");
+-        SaveOwner(original);
+-        int added = Method<AddVolume>(backup, AddSlot)(backup, original, SystemProvider, out Guid returnedSnapshot);
+-        snapshot = AdoptGuid(added, returnedSnapshot, "VssAddVolume");
+-        SaveOwner(original);
+-        creating = true; Hr(Method<OutPointer>(backup, SnapshotSlot)(backup, out IntPtr returnedAsync), "VssCreateSnapshot");
+-        Require(returnedAsync != IntPtr.Zero, "VssCreateSnapshot"); async = returnedAsync;
+-        var watch = Stopwatch.StartNew();
+-        while (true)
++        using (diagnostics?.Measure(NtfsDiagnosticPhase.VssSetup))
+         {
+             token.ThrowIfCancellationRequested();
+-            Hr(Method<OneInt>(async, 4)(async, 500), "VssAsyncWait");
+-            Hr(Method<QueryAsync>(async, 5)(async, out int state, IntPtr.Zero), "VssAsyncStatus");
+-            if (state == AsyncFinished) { creating = false; break; }
+-            if (state < 0) throw new NtfsVssProbeException("VssCreateSnapshot", state);
+-            Require(state == AsyncPending, "VssAsyncStatus", state);
+-            Require(watch.Elapsed < TimeSpan.FromMinutes(2), "VssAsyncTimeout");
++            Require(ownerThread == Environment.CurrentManagedThreadId && !released && backup == IntPtr.Zero && IsVolumeGuid(original), "VssSnapshotBinding");
++            Hr(CoInitializeEx(IntPtr.Zero, 0), "VssComInitialize"); com = true;
++            ProcessSecurity.Ensure(() => CoInitializeSecurity(IntPtr.Zero, -1, IntPtr.Zero, IntPtr.Zero, 6, 2, IntPtr.Zero, 0, IntPtr.Zero));
++            Hr(CreateBackup(out IntPtr returnedBackup), "VssCreateBackup"); Require(returnedBackup != IntPtr.Zero, "VssCreateBackup"); backup = returnedBackup;
++            Hr(Method<OnePointer>(backup, InitializeSlot)(backup, IntPtr.Zero), "VssInitializeBackup");
++            Hr(Method<OneInt>(backup, ContextSlot)(backup, Context), "VssContext");
++            Hr(Method<Supported>(backup, SupportedSlot)(backup, SystemProvider, original, out int supported), "VssVolumeUnsupported");
++            Require(supported != 0, "VssVolumeUnsupported"); token.ThrowIfCancellationRequested();
++            int started = Method<OutGuid>(backup, StartSlot)(backup, out Guid returnedSet);
++            set = AdoptGuid(started, returnedSet, "VssStartSet");
++            SaveOwner(original);
++            int added = Method<AddVolume>(backup, AddSlot)(backup, original, SystemProvider, out Guid returnedSnapshot);
++            snapshot = AdoptGuid(added, returnedSnapshot, "VssAddVolume");
++            SaveOwner(original);
+         }
+-        token.ThrowIfCancellationRequested();
+-        Hr(Method<Properties>(backup, PropertiesSlot)(backup, snapshot, out var properties), "VssProperties");
+-        try
++        using (diagnostics?.Measure(NtfsDiagnosticPhase.VssCreation))
+         {
+-            string device = Marshal.PtrToStringUni(properties.Device) ?? "", source = Marshal.PtrToStringUni(properties.Original) ?? "";
+-            Require(BindingValid(snapshot, set, properties.Snapshot, properties.Set, properties.Count, properties.Provider, properties.Attributes,
+-                properties.State, source, original, device), "VssSnapshotBinding");
+-            SnapshotCreatedUtc = DateTime.FromFileTimeUtc(properties.Created); return device;
++            creating = true; Hr(Method<OutPointer>(backup, SnapshotSlot)(backup, out IntPtr returnedAsync), "VssCreateSnapshot");
++            Require(returnedAsync != IntPtr.Zero, "VssCreateSnapshot"); async = returnedAsync;
++            var watch = Stopwatch.StartNew();
++            while (true)
++            {
++                token.ThrowIfCancellationRequested();
++                Hr(Method<OneInt>(async, 4)(async, 500), "VssAsyncWait");
++                Hr(Method<QueryAsync>(async, 5)(async, out int state, IntPtr.Zero), "VssAsyncStatus");
++                if (state == AsyncFinished) { creating = false; break; }
++                if (state < 0) throw new NtfsVssProbeException("VssCreateSnapshot", state);
++                Require(state == AsyncPending, "VssAsyncStatus", state);
++                Require(watch.Elapsed < TimeSpan.FromMinutes(2), "VssAsyncTimeout");
++            }
++            token.ThrowIfCancellationRequested();
++            Hr(Method<Properties>(backup, PropertiesSlot)(backup, snapshot, out var properties), "VssProperties");
++            try
++            {
++                string device = Marshal.PtrToStringUni(properties.Device) ?? "", source = Marshal.PtrToStringUni(properties.Original) ?? "";
++                Require(BindingValid(snapshot, set, properties.Snapshot, properties.Set, properties.Count, properties.Provider, properties.Attributes,
++                    properties.State, source, original, device), "VssSnapshotBinding");
++                SnapshotCreatedUtc = DateTime.FromFileTimeUtc(properties.Created); return device;
++            }
++            finally { FreeProperties(ref properties); }
+         }
+-        finally { FreeProperties(ref properties); }
+     }
+ 
+     private void SaveOwner(string original)
+diff --git a/tests/NtfsPersonalTimingDriver.cs b/tests/NtfsPersonalTimingDriver.cs
+index 9752d3aeb8f7145b604d7daaf95b0b056113fd3f..939e728c058cc529975fc8a7702fc2f51e9d6d09 100644
+--- a/tests/NtfsPersonalTimingDriver.cs
++++ b/tests/NtfsPersonalTimingDriver.cs
+@@ -12,6 +12,7 @@ internal static partial class NtfsPersonalTimingDriver
+ {
+     internal const string Argument = "--ntfs-personal-timing";
+     internal const string UiArgument = "--ntfs-personal-timing-ui";
++    internal const string DetailedUiArgument = "--ntfs-personal-timing-details-ui";
+     internal static bool ValidInvocation(string[] args) => args.Length == 1 && args[0] == Argument;
+     internal static bool ValidOrder(string order) => order is "FO" or "OF" or "FOOF";
+     internal static (string Order, string Scope) ReadInput(TextReader input)
+@@ -35,7 +36,7 @@ internal static partial class NtfsPersonalTimingDriver
+         catch { throw new InvalidDataException("TimingInput"); }
+     }
+ 
+-    internal static int Run(bool includeUi = false)
++    internal static int Run(bool includeUi = false, bool includeDetails = false)
+     {
+         string stage = "Preparing";
+         try
+@@ -56,7 +57,7 @@ internal static partial class NtfsPersonalTimingDriver
+                     // Prior trees are no longer retained. Collection happens
+                     // outside the measured scan and before the next run.
+                     GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+-                    var current = (Mode: mode, Value: includeUi ? RunVisibleOne(input.Scope, mode, cancelled.Token, value => stage = value)
++                    var current = (Mode: mode, Value: includeUi ? RunVisibleOne(input.Scope, mode, cancelled.Token, value => stage = value, includeDetails: includeDetails)
+                         : RunOne(input.Scope, mode, cancelled.Token, value => stage = value));
+                     completed++;
+                     if (previous is not { } left) { previous = current; continue; }
+diff --git a/tests/NtfsProductTiming.cs b/tests/NtfsProductTiming.cs
+index 02c9b854ee2516e9744642900a3849edf08c065d..10a037a484e412c043744c12e924992bade0f9dd 100644
+--- a/tests/NtfsProductTiming.cs
++++ b/tests/NtfsProductTiming.cs
+@@ -3,6 +3,7 @@ using System.Reflection;
+ using System.Runtime.ExceptionServices;
+ using System.Runtime.InteropServices;
+ using System.Text.Json;
++using DiskAtlas.NtfsPrototype;
+ 
+ namespace DiskAtlas;
+ 
+@@ -13,13 +14,15 @@ internal static partial class NtfsPersonalTimingDriver
+     private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
+     private static int productUiInitialized;
+     internal static bool ValidUiInvocation(string[] args) => args.Length == 1 && args[0] == UiArgument;
++    internal static bool ValidDetailedUiInvocation(string[] args) => args.Length == 1 && args[0] == DetailedUiArgument;
+     internal static NtfsTimingFingerprint RunVisibleOne(string scope, char mode, CancellationToken cancellation, Action<string> observed,
+-        Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult>? ordinary = null)
++        Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult>? ordinary = null, bool includeDetails = false)
+     {
+         using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+         limit.CancelAfter(TimeSpan.FromMinutes(10));
+         ScanResult? result = null; ExceptionDispatchInfo? failure = null;
+         object? sample = null;
++        NtfsScanDiagnosticReport? diagnosticReport = null;
+         var thread = new Thread(() =>
+         {
+             try
+@@ -63,7 +66,7 @@ internal static partial class NtfsPersonalTimingDriver
+                                         { helperProbe = new NtfsTimingResources(process); helperProbe.Start(); }
+                                         if (point == FastScanTimingPoint.ResultDecoded && helperProbe != null)
+                                         { helperProbe.Stop(); helper = helperProbe.Result; }
+-                                    }));
++                                    }, observeDetails: includeDetails ? report => diagnosticReport = report : null));
+                                 }
+                                 finally { helperProbe?.Dispose(); }
+                                 result = fast.Result;
+@@ -151,9 +154,28 @@ internal static partial class NtfsPersonalTimingDriver
+         failure?.Throw();
+         if (result == null || sample == null) throw new InvalidDataException("TimingNoResult");
+         Console.WriteLine(JsonSerializer.Serialize(sample));
++        if (includeDetails && mode == 'F')
++        {
++            if (diagnosticReport == null) throw new InvalidDataException("TimingDiagnosticsMissing");
++            Console.WriteLine(DiagnosticJson(diagnosticReport));
++        }
+         observed("FingerprintOutsideTiming");
+         return NtfsTimingFingerprint.Capture(result, cancellation);
+     }
++
++    internal static string DiagnosticJson(NtfsScanDiagnosticReport report)
++    {
++        report.Validate(requireComplete: true);
++        return JsonSerializer.Serialize(new
++        {
++            revision = "ntfs-scan-details-v1", kind = "details", mode = "F",
++            phases_ms = Enum.GetValues<NtfsDiagnosticPhase>().ToDictionary(p => p.ToString(), p => report.PhaseMilliseconds[(int)p]),
++            supplement_objects = report.SupplementObjects,
++            reason_bits = Enum.GetValues<NtfsSupplementReason>().ToDictionary(r => r.ToString(), r => (int)r),
++            reason_combinations = report.ReasonCombinations,
++            helper_measured = true, multiple_reasons_per_object = true, combination_counts_disjoint = true, no_names_or_identities = true
++        });
++    }
+     private static T Field<T>(MainForm form, string name) => (T)typeof(MainForm).GetField(name, Hidden)!.GetValue(form)!;
+     private sealed class TimingProgress(IProgress<ScanProgress> destination, Action<ScanProgress> observe) : IProgress<ScanProgress>
+     {
+diff --git a/tests/NtfsProductTimingFixtureEvidence.Tests.ps1 b/tests/NtfsProductTimingFixtureEvidence.Tests.ps1
+index 8fe31fa4834d4f835dba5790677251cb58e33a6a..7777ad0dab63517c9b867c983adef0a4697707f3 100644
+--- a/tests/NtfsProductTimingFixtureEvidence.Tests.ps1
++++ b/tests/NtfsProductTimingFixtureEvidence.Tests.ps1
+@@ -15,7 +15,7 @@ function Reject([scriptblock]$Operation, [string]$Name) {
+     try { & $Operation | Out-Null } catch { $message = $_.Exception.Message }
+     Check ($message -ceq 'PRODUCT_TIMING_FIXTURE_EVIDENCE_INVALID') $Name
+ }
+-function New-TestRecords([string]$Mode, [switch]$DropTransition, [switch]$RepeatPhase) {
++function New-TestRecords([string]$Mode, [switch]$DropTransition, [switch]$RepeatPhase, [switch]$NoSupplements) {
+     $fast = $Mode -ceq 'F'
+     $stages = if ($fast) {
+         @('Bridge_LaunchStarting','Bridge_LaunchReturned','Bridge_Connected','Fast_Snapshot','Fast_Reading','Fast_Discovering',
+@@ -27,6 +27,7 @@ function New-TestRecords([string]$Mode, [switch]$DropTransition, [switch]$Repeat
+     } else {
+         @('Ordinary_Start','Ordinary_Preparing','Ordinary_Scanning','Ordinary_Finalizing','UiHandoff')
+     }
++    if ($fast -and $NoSupplements) { $stages = @($stages | Where-Object { $_ -cne 'Fast_Supplementing' }) }
+     $revision = 'personal-ntfs-product-timing-v1'
+     $intervals = [ordered]@{UiStart=2.0}
+     $transitions = @([ordered]@{phase='UiStart';at_ms=0.0})
+@@ -77,8 +78,8 @@ function New-TestFailure([bool]$Cleanup, [string]$Stage='Preparing') {
+ function Join-TestRecords([object[]]$Rows) {
+     return (($Rows | ForEach-Object { ConvertTo-Json -InputObject $_ -Depth 12 -Compress }) -join "`n") + "`n"
+ }
+-function New-TestPair([switch]$Different) {
+-    @(New-TestRecords F) + @(New-TestRecords O) + @((New-TestComparison -Different:$Different),(New-TestComplete -Different:$Different))
++function New-TestPair([switch]$Different, [switch]$NoSupplements) {
++    @(New-TestRecords F -NoSupplements:$NoSupplements) + @(New-TestRecords O) + @((New-TestComparison -Different:$Different),(New-TestComplete -Different:$Different))
+ }
+ function New-TestGroup([int]$DifferenceAt=0) {
+     $order = 'FOOF'
+@@ -206,4 +207,197 @@ Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords (@(New-Tes
+ Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($throughThird + @((New-TestComplete -Order FOOF -Different -Incomplete)))) 3 -Order FOOF } 'forged mismatch cannot stop matched prefix'
+ Reject { ConvertTo-NtfsProductTimingFixtureEvidence ('x' * 524289) 0 -Order FOOF } 'group report byte limit'
+ Reject { ConvertTo-NtfsProductTimingFixtureEvidence ("{}`n" * 517) 0 -Order FOOF } 'group report row limit'
++
++function New-TestDetails {
++    $buckets = [int[]]::new(128)
++    $buckets[1]=2; $buckets[6]=1; $buckets[127]=1
++    return [ordered]@{revision='ntfs-scan-details-v1';kind='details';mode='F'
++        phases_ms=[ordered]@{SourceValidation=0.1;VssSetup=0.2;VssCreation=0.3;SnapshotValidation=0.4;IndexFinalization=0.5}
++        supplement_objects=4
++        reason_bits=[ordered]@{ResidentAllocation=1;Compressed=2;Sparse=4;IncompleteMetadata=8;
++            IncompleteLinks=16;ModifiedConflict=32;UnsupportedRecord=64}
++        reason_combinations=$buckets;helper_measured=$true;multiple_reasons_per_object=$true;
++        combination_counts_disjoint=$true;no_names_or_identities=$true}
++}
++function Add-TestDetails([object[]]$Records) {
++    foreach ($record in $Records) {
++        $record
++        if ($record.kind -ceq 'sample' -and $record.mode -ceq 'F') { New-TestDetails }
++    }
++}
++function Reject-DetailsChange([scriptblock]$Mutation, [string]$Name) {
++    $records = @(Add-TestDetails @(New-TestPair))
++    $detail = @($records | Where-Object { $_.kind -ceq 'details' })[0]
++    & $Mutation $detail | Out-Null
++    Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $records) 0 -Detailed } $Name
++}
++$detailRows = @(Add-TestDetails @(New-TestPair))
++$detailReport = Join-TestRecords $detailRows
++$detailEvidence = ConvertTo-NtfsProductTimingFixtureEvidence $detailReport 0 -Detailed
++Check ($detailEvidence.comparable -and $detailEvidence.fast.details.phases_ms.VssCreation -eq 0.3 -and
++    $detailEvidence.samples[0].sample.details.supplement_objects -eq 4 -and
++    $detailEvidence.fast.details.reason_combinations[6] -eq 1 -and
++    $detailEvidence.fast.details.reason_bits.UnsupportedRecord -eq 64) 'opt-in details retain fixed phase and combination aggregates'
++Check (-not $detailEvidence.ordinary.Contains('details') -and -not $value.fast.Contains('details')) 'ordinary and default samples retain original shape'
++$detailGroup = @(Add-TestDetails @(New-TestGroup))
++$detailedBalanced = ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $detailGroup) 0 -Order FOOF -Detailed
++Check ($detailedBalanced.samples[0].sample.details.supplement_objects -eq 4 -and
++    $detailedBalanced.samples[3].sample.details.supplement_objects -eq 4 -and
++    -not $detailedBalanced.samples[1].sample.Contains('details')) 'both FOOF fast runs retain their own diagnostics'
++Check ((ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords @((New-TestFailure $false))) 1 -Detailed).status -ceq 'failed') 'failed fast run does not invent success details'
++$detailAfterFast = @(Add-TestDetails $afterFast)
++Check ((ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $detailAfterFast) 1 -Detailed).cleanup_confirmed) 'validated details preserve ordinary-failure cleanup evidence'
++$zeroRecords = @(Add-TestDetails @(New-TestPair -NoSupplements))
++$zeroDetails = @($zeroRecords | Where-Object { $_.kind -ceq 'details' })[0]
++$zeroDetails.supplement_objects=0; $zeroDetails.reason_combinations=[int[]]::new(128)
++Check ((ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $zeroRecords) 0 -Detailed).fast.details.supplement_objects -eq 0) 'zero supplements retain all 128 empty buckets'
++$zeroDetails.supplement_objects=4; $zeroDetails.reason_combinations[1]=4
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $zeroRecords) 0 -Detailed } 'positive supplement count requires observed supplementing phase'
++$zeroRecords = @(Add-TestDetails @(New-TestPair))
++$zeroDetails = @($zeroRecords | Where-Object { $_.kind -ceq 'details' })[0]
++$zeroDetails.reason_combinations=[int[]]::new(128)
++$zeroDetails.supplement_objects=1048576; $zeroDetails.reason_combinations[127]=1048576
++Check ((ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $zeroRecords) 0 -Detailed).fast.details.supplement_objects -eq 1048576) 'supplement capacity upper boundary accepted'
++
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence $detailReport 0 } 'details require explicit opt-in'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence $report 0 -Detailed } 'successful fast sample must provide details in opt-in mode'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $afterFast) 1 -Detailed } 'later failure cannot waive missing fast details'
++$detailIndex = [array]::FindIndex($detailRows, [Predicate[object]]{param($r) $r.kind -ceq 'details'})
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords (@($detailRows[$detailIndex]) + $detailRows)) 0 -Detailed } 'details before a fast sample rejected'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($detailRows[0..$detailIndex] + @($detailRows[$detailIndex]) + $detailRows[($detailIndex+1)..($detailRows.Length-1)])) 0 -Detailed } 'duplicate details rejected'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($detailRows[0..($detailIndex-2)] + @($detailRows[$detailIndex],$detailRows[$detailIndex-1]) + $detailRows[($detailIndex+1)..($detailRows.Length-1)])) 0 -Detailed } 'details cannot precede final fast sample'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($detailRows[0..($detailRows.Length-3)] + @((New-TestDetails)) + $detailRows[-2..-1])) 0 -Detailed } 'ordinary sample cannot have details even labelled F'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords $detailRows[0..$detailIndex]) 0 -Detailed } 'details alone cannot finish report'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence (Join-TestRecords ($detailGroup[0..($detailGroup.Length-4)] + $detailGroup[-2..-1])) 0 -Order FOOF -Detailed } 'second fast run also requires details'
++Reject-DetailsChange {param($d) $d.revision='ntfs-scan-details-v2'} 'unknown details revision rejected'
++Reject-DetailsChange {param($d) $d.mode='O'} 'ordinary details mode rejected'
++Reject-DetailsChange {param($d) $d.path='synthetic'} 'unexpected detail identity or path field rejected'
++Reject-DetailsChange {param($d) $d.Remove('helper_measured')} 'missing details field rejected'
++Reject-DetailsChange {param($d) $d.phases_ms.Remove('VssSetup')} 'missing phase rejected'
++Reject-DetailsChange {param($d) $d.phases_ms.Unknown=0} 'unknown phase rejected'
++Reject-DetailsChange {param($d) $d.phases_ms.VssSetup=$null} 'incomplete phase rejected'
++Reject-DetailsChange {param($d) $d.phases_ms.VssSetup='0.2'} 'quoted phase time rejected'
++Reject-DetailsChange {param($d) $d.phases_ms.VssSetup=-0.1} 'negative phase time rejected'
++Reject-DetailsChange {param($d) $d.phases_ms.VssSetup=780001} 'phase time budget enforced'
++Reject-DetailsChange {param($d) $d.phases_ms.VssSetup=24} 'phase sum must fit client coordinator interval'
++Reject-DetailsChange {param($d) $d.reason_bits.Compressed=4} 'reason bit mapping cannot change'
++Reject-DetailsChange {param($d) $d.reason_bits.Compressed='2'} 'quoted bit mapping rejected'
++Reject-DetailsChange {param($d) $d.reason_bits.Remove('Sparse')} 'missing reason bit rejected'
++Reject-DetailsChange {param($d) $d.reason_bits.Unknown=128} 'unknown reason bit rejected'
++Reject-DetailsChange {param($d) $d.reason_combinations=$d.reason_combinations[0..126]} 'short combination array rejected'
++Reject-DetailsChange {param($d) $d.reason_combinations=@($d.reason_combinations)+0} 'long combination array rejected'
++Reject-DetailsChange {param($d) $d.reason_combinations=@{one=4}} 'combination object rejected'
++Reject-DetailsChange {param($d) $d.reason_combinations[0]=1;$d.supplement_objects=5} 'zero reason combination must remain empty'
++Reject-DetailsChange {param($d) $d.reason_combinations[1]=-1} 'negative combination count rejected'
++Reject-DetailsChange {param($d) $d.reason_combinations[1]=1048577;$d.supplement_objects=1048579} 'combination capacity enforced'
++Reject-DetailsChange {param($d) $d.reason_combinations=[object[]]$d.reason_combinations;$d.reason_combinations[1]='2'} 'quoted bucket count rejected'
++Reject-DetailsChange {param($d) $d.reason_combinations[1]=3} 'bucket sum must equal supplement total'
++Reject-DetailsChange {param($d) $d.supplement_objects='4'} 'quoted object count rejected'
++Reject-DetailsChange {param($d) $d.supplement_objects=-1} 'negative object count rejected'
++Reject-DetailsChange {param($d) $d.supplement_objects=1048577} 'object capacity enforced'
++Reject-DetailsChange {param($d) $d.supplement_objects=0;$d.reason_combinations=[int[]]::new(128)} 'observed supplementing phase requires a positive supplement count'
++foreach ($flag in @('helper_measured','multiple_reasons_per_object','combination_counts_disjoint','no_names_or_identities')) {
++    Reject-DetailsChange {param($d) $d[$flag]=$false} ('required details flag ' + $flag)
++}
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($detailReport.Replace('"VssSetup":0.2','"VssSetup":1e999')) 0 -Detailed } 'nonfinite details time rejected'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($detailReport.Replace('"VssSetup":0.2','"VssSetup":0.2,"vsssetup":0.2')) 0 -Detailed } 'case-alias details phase rejected'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence ($detailReport.Replace('"helper_measured":true','"helper_measured":true,"helper_measured":true')) 0 -Detailed } 'duplicate details key rejected'
++
++function Reject-Pipeline([scriptblock]$Operation, [string]$Code, [string]$Name) {
++    $message=$null
++    try { & $Operation | Out-Null } catch { $message=$_.Exception.Message }
++    Check ($message -ceq $Code) $Name
++}
++$envelopeError='PRODUCT_TIMING_FIXTURE_ENVELOPE_INVALID'
++$summaryError='PRODUCT_TIMING_FIXTURE_SUMMARY_INVALID'
++$ready=[ordered]@{revision='product-timing-fixture-v1';scope='synthetic';volume='synthetic';order='FO';files=10000}
++$readyJson=$ready | ConvertTo-Json -Compress
++Check ((ConvertTo-ProductTimingFixtureEnvelope $readyJson Ready FO).files -eq 10000) 'default ready envelope retains original shape'
++$ready.detailed=$true
++$detailedReadyJson=$ready | ConvertTo-Json -Compress
++Check ((ConvertTo-ProductTimingFixtureEnvelope $detailedReadyJson Ready FO -Detailed).detailed) 'detailed ready explicitly bound'
++Reject-Pipeline { ConvertTo-ProductTimingFixtureEnvelope $readyJson Ready FO -Detailed } $envelopeError 'detailed ready cannot omit mode'
++Reject-Pipeline { ConvertTo-ProductTimingFixtureEnvelope $detailedReadyJson Ready FO } $envelopeError 'default ready rejects unexpected detailed marker'
++Reject-Pipeline { ConvertTo-ProductTimingFixtureEnvelope ($detailedReadyJson.Replace('"detailed":true','"detailed":false')) Ready FO -Detailed } $envelopeError 'detailed ready marker must be true'
++Reject-Pipeline { ConvertTo-ProductTimingFixtureEnvelope ($readyJson.Replace('"files":10000','"files":"10000"')) Ready FO } $envelopeError 'ready file count type enforced'
++Reject-Pipeline { ConvertTo-ProductTimingFixtureEnvelope $readyJson Ready FOOF } $envelopeError 'ready order and count must agree with caller'
++Reject-Pipeline { ConvertTo-ProductTimingFixtureEnvelope ($readyJson.Replace('"files":10000','"files":10000,"private":"synthetic"')) Ready FO } $envelopeError 'ready arbitrary fields rejected'
++
++# Report padding is valid JSON whitespace, keeps each row far below 64 KiB,
++# and makes the escaped four-run envelope exceed the old shared 64 KiB limit.
++$largeReport=((($detailGroup | ForEach-Object { (' ' * 2000) + (ConvertTo-Json -InputObject $_ -Depth 12 -Compress) })) -join "`n") + "`n"
++$reply=[ordered]@{revision='product-timing-fixture-v1';order='FOOF';exit_code=0;report=$largeReport;detailed=$true}
++$largeEnvelope=$reply | ConvertTo-Json -Compress
++Check ([Text.Encoding]::UTF8.GetByteCount($largeEnvelope) -gt 65536 -and [Text.Encoding]::UTF8.GetByteCount($largeEnvelope) -le 1048576) 'synthetic four-run envelope exercises independent size budget'
++$decodedEnvelope=ConvertTo-ProductTimingFixtureEnvelope $largeEnvelope Reply FOOF -Detailed
++Check ((ConvertTo-NtfsProductTimingFixtureEvidence $decodedEnvelope.report $decodedEnvelope.exit_code FOOF -Detailed).comparable) 'large envelope and individually bounded JSONL accepted end to end'
++Reject-Pipeline { Assert-UniqueJsonKeys $largeEnvelope } 'MATRIX_JSON_INVALID' 'default JSON budget remains 64 KiB'
++Reject-Pipeline { ConvertTo-ProductTimingFixtureEnvelope $largeEnvelope Reply FOOF } $envelopeError 'default reply rejects detailed marker'
++Reject-Pipeline { ConvertTo-ProductTimingFixtureEnvelope ($largeEnvelope.Replace(',"detailed":true','')) Reply FOOF -Detailed } $envelopeError 'detailed reply requires marker'
++Reject-Pipeline { ConvertTo-ProductTimingFixtureEnvelope ($largeEnvelope.Replace('"exit_code":0','"exit_code":0,"Exit_Code":0')) Reply FOOF -Detailed } $envelopeError 'large envelope duplicate aliases rejected'
++$oversizedReply=[ordered]@{revision='product-timing-fixture-v1';order='FO';exit_code=0;report=('x' * 1048576)} | ConvertTo-Json -Compress
++Reject-Pipeline { ConvertTo-ProductTimingFixtureEnvelope $oversizedReply Reply FO } $envelopeError 'reply envelope remains capped at 1 MiB'
++Reject { ConvertTo-NtfsProductTimingFixtureEvidence ((' ' * 65536)+$detailReport) 0 -Detailed } 'envelope allowance does not widen report row limit'
++Reject-Pipeline { Assert-UniqueJsonKeys '{}' -MaxUtf8Bytes 1048577 } 'MATRIX_JSON_INVALID' 'JSON helper cannot exceed transport budget'
++
++function New-TestOwnerSummary([string]$ReportValue, [int]$RunnerExit=0, [string]$OrderValue='FO',
++    [switch]$DetailMode, [switch]$CleanupFailure, [switch]$Detached) {
++    $evidence=ConvertTo-NtfsProductTimingFixtureEvidence $ReportValue $RunnerExit $OrderValue -Detailed:$DetailMode
++    $state=if($evidence.comparable){'product_timing_compared'}elseif($evidence.status -ceq 'not_comparable'){'product_timing_not_comparable'}else{'failed'}
++    $step=if($state -ceq 'product_timing_compared'){'ProductTimingCompared'}elseif($state -ceq 'product_timing_not_comparable'){'ProductTimingNotComparable'}else{'RunProductTiming'}
++    $code=if($state -ceq 'product_timing_compared'){'None'}elseif($state -ceq 'product_timing_not_comparable'){'ResultsDiffer'}else{'ProductTimingFixtureFailed'}
++    $result=[ordered]@{schema=1;mode='product-timing';status=$(if($CleanupFailure){'cleanup_failed'}else{$state});stage=$step;code=$code
++        exit_code=$RunnerExit;detached=([bool]$Detached -or -not $CleanupFailure);cleanup_completed=(-not $CleanupFailure);scale_benchmark=$null
++        snapshot_cleanup_confirmed=$evidence.cleanup_confirmed;native_error=0;product_timing=$evidence
++        product_timing_order=$OrderValue;fixture_files=$(if($OrderValue -ceq 'FOOF'){100000}else{10000})}
++    if($DetailMode){$result.product_timing_detailed=$true}
++    return $result
++}
++function Reject-SummaryChange([scriptblock]$Mutation, [string]$Name) {
++    $candidate=New-TestOwnerSummary $detailReport -DetailMode
++    & $Mutation $candidate | Out-Null
++    Reject-Pipeline { ConvertTo-ProductTimingFixtureSummary ($candidate | ConvertTo-Json -Depth 12 -Compress) $detailReport 0 0 FO -Detailed } $summaryError $Name
++}
++$summary=New-TestOwnerSummary $report
++$summaryJson=$summary | ConvertTo-Json -Depth 12 -Compress
++Check ((ConvertTo-ProductTimingFixtureSummary $summaryJson $report 0 0).status -ceq 'product_timing_compared') 'default owner summary independently verified'
++$detailSummary=New-TestOwnerSummary $detailReport -DetailMode
++$detailSummaryJson=$detailSummary | ConvertTo-Json -Depth 12 -Compress
++$safeSummary=ConvertTo-ProductTimingFixtureSummary $detailSummaryJson $detailReport 0 0 -Detailed
++Check ($safeSummary.product_timing_detailed -and $safeSummary.product_timing.fast.details.supplement_objects -eq 4) 'detailed owner summary rebuilt from local report'
++$fourSummary=New-TestOwnerSummary (Join-TestRecords $detailGroup) -OrderValue FOOF -DetailMode
++Check ((ConvertTo-ProductTimingFixtureSummary ($fourSummary | ConvertTo-Json -Depth 12 -Compress) (Join-TestRecords $detailGroup) 0 0 FOOF -Detailed).fixture_files -eq 100000) 'detailed four-run summary retained'
++$mismatchReport=Join-TestRecords @(New-TestPair -Different)
++$mismatchSummary=New-TestOwnerSummary $mismatchReport -RunnerExit 3
++Check ((ConvertTo-ProductTimingFixtureSummary ($mismatchSummary | ConvertTo-Json -Depth 12 -Compress) $mismatchReport 3 3).status -ceq 'product_timing_not_comparable') 'incomparable owner result keeps existing exit and cleanup semantics'
++$failedReport=Join-TestRecords $afterFast
++$failedSummary=New-TestOwnerSummary $failedReport -RunnerExit 1
++Check ((ConvertTo-ProductTimingFixtureSummary ($failedSummary | ConvertTo-Json -Depth 12 -Compress) $failedReport 1 1).cleanup_completed) 'ordinary failure after settled fast run remains safely cleaned'
++$uncertainReport=Join-TestRecords $partial
++$uncertainSummary=New-TestOwnerSummary $uncertainReport -RunnerExit 1 -CleanupFailure
++Check (-not (ConvertTo-ProductTimingFixtureSummary ($uncertainSummary | ConvertTo-Json -Depth 12 -Compress) $uncertainReport 1 1).snapshot_cleanup_confirmed) 'unconfirmed snapshot keeps conservative cleanup-failed evidence'
++foreach($wasDetached in @($false,$true)) {
++    $cleanupSummary=New-TestOwnerSummary $report -CleanupFailure -Detached:$wasDetached
++    Check ((ConvertTo-ProductTimingFixtureSummary ($cleanupSummary | ConvertTo-Json -Depth 12 -Compress) $report 0 1).status -ceq 'cleanup_failed') ('settled snapshot retains later cleanup failure detached=' + $wasDetached)
++}
++Reject-Pipeline { ConvertTo-ProductTimingFixtureSummary $detailSummaryJson $report 0 0 } $summaryError 'default summary rejects detailed marker and nested diagnostics'
++Reject-Pipeline { ConvertTo-ProductTimingFixtureSummary $summaryJson $detailReport 0 0 -Detailed } $summaryError 'detailed summary cannot silently omit diagnostics'
++Reject-Pipeline { ConvertTo-ProductTimingFixtureSummary $summaryJson $report 0 1 } $summaryError 'owner exit must agree with validated success'
++Reject-SummaryChange {param($s) $s.private='synthetic'} 'summary unknown root field rejected before output'
++Reject-SummaryChange {param($s) $s.product_timing.fast.details.name='synthetic'} 'summary nested arbitrary text rejected before output'
++Reject-SummaryChange {param($s) $s.product_timing.fast.details.supplement_objects=5} 'summary diagnostic values must match local trace'
++Reject-SummaryChange {param($s) $s.product_timing.samples[0].sample.details.reason_combinations[6]=2} 'summary buckets cannot diverge from local trace'
++Reject-SummaryChange {param($s) $s.product_timing.fast.total_ms=27} 'summary timer values independently corroborated'
++Reject-SummaryChange {param($s) $s.product_timing_detailed=$false} 'summary detailed marker must be true'
++Reject-SummaryChange {param($s) $s.product_timing_detailed='true'} 'summary detailed marker type enforced'
++Reject-SummaryChange {param($s) $s.schema='1'} 'summary integer schema cannot be a string'
++Reject-SummaryChange {param($s) $s.schema=1.0} 'summary integer schema cannot be floating point'
++Reject-SummaryChange {param($s) $s.detached=$false} 'successful owner must confirm detached state'
++Reject-SummaryChange {param($s) $s.cleanup_completed=$false} 'successful owner must confirm image cleanup'
++Reject-SummaryChange {param($s) $s.snapshot_cleanup_confirmed=$false} 'owner cleanup evidence must match validated sample'
++Reject-SummaryChange {param($s) $s.stage='synthetic'} 'summary stage cannot contain arbitrary text'
++Reject-SummaryChange {param($s) $s.code='synthetic'} 'summary error code cannot contain arbitrary text'
++Reject-SummaryChange {param($s) $s.scale_benchmark=@{private='synthetic'}} 'unrelated benchmark data rejected'
++Reject-SummaryChange {param($s) $s.product_timing_order='FOOF'} 'summary order bound to caller'
++Reject-Pipeline { ConvertTo-ProductTimingFixtureSummary ($summaryJson.Replace('"schema":1','"schema":1,"Schema":1')) $report 0 0 } $summaryError 'summary duplicate alias keys rejected'
+ Write-Output ('RESULT: PASS (' + $checks + ' checks)')
+diff --git a/tests/NtfsScanDiagnosticWireTests.cs b/tests/NtfsScanDiagnosticWireTests.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..7db188c8a39d3b9765da60ed9e3622b60c8ce21b
+--- /dev/null
++++ b/tests/NtfsScanDiagnosticWireTests.cs
+@@ -0,0 +1,131 @@
++using System.Buffers.Binary;
++using DiskAtlas.NtfsPrototype;
++
++namespace DiskAtlas;
++
++// Exercise the protocol with only an in-memory tree and byte streams.
++internal static class NtfsScanDiagnosticWireTests
++{
++    private const string RootPath = @"B:\AsukaLens-Synthetic";
++
++    internal static int Run()
++    {
++        int checks = 0;
++        void Check(bool test, string name)
++        {
++            checks++;
++            if (!test) throw new InvalidOperationException(name);
++        }
++        void RejectRead(FastScanWireReader reader, string name)
++        {
++            try { reader.Read(); }
++            catch (FastScanWireException) { Check(true, name); return; }
++            Check(false, name);
++        }
++        void Reject(byte[] bytes, bool detailed, bool afterReport, string name)
++        {
++            using var stream = new MemoryStream(bytes, writable: false);
++            var reader = detailed ? new FastScanWireReader(stream, RootPath, acceptDiagnostics: true) : new FastScanWireReader(stream, RootPath);
++            if (afterReport) Check(reader.Read().Kind == FastScanWireEventKind.Diagnostics, "valid report before " + name);
++            RejectRead(reader, name);
++            RejectRead(reader, "invalid transport stays terminal");
++        }
++        try
++        {
++            int[] reasons = new int[128]; reasons[3] = 1;
++            var report = new NtfsScanDiagnosticReport([2.5, 1, 7, 0, 3], 1, reasons);
++            byte[] diagnostics = Frames(s => FastScanWire.WriteDiagnostics(s, report, default));
++            byte[] status = Frames(s => FastScanWire.WriteStatus(s, FastScanWireStage.Cleanup));
++            byte[] tree = Frames(WriteTree);
++
++            using (var stream = new MemoryStream([.. status, .. diagnostics, .. tree], writable: false))
++            {
++                var reader = new FastScanWireReader(stream, RootPath, acceptDiagnostics: true);
++                Check(reader.Read() is { Kind: FastScanWireEventKind.Status, Stage: FastScanWireStage.Cleanup, Diagnostics: null },
++                    "existing status may precede diagnostic");
++                var observed = reader.Read();
++                Check(observed is { Kind: FastScanWireEventKind.Diagnostics, CleanupConfirmed: false, Result: null } &&
++                    observed.Diagnostics is { } detail && detail.PhaseMilliseconds.SequenceEqual(report.PhaseMilliseconds)
++                    && detail.SupplementObjects == 1 && detail.ReasonCombinations.SequenceEqual(reasons), "diagnostic event round trip");
++                var final = reader.Read();
++                Check(final is { Kind: FastScanWireEventKind.Completed, CleanupConfirmed: true, Diagnostics: null } &&
++                    final.Result?.Root is { FileCount: 1, Size: 17, AllocatedSize: 32 } && stream.Position == stream.Length,
++                    "valid tree required for terminal success");
++                RejectRead(reader, "success stays terminal");
++            }
++            using (var stream = new MemoryStream(tree, writable: false))
++            {
++                var normal = new FastScanWireReader(stream, RootPath);
++                Check(normal.Read() is { Kind: FastScanWireEventKind.Completed, CleanupConfirmed: true, Diagnostics: null }, "original wire success");
++            }
++            Reject([.. diagnostics, .. tree], detailed: false, afterReport: false, "normal reader rejects report");
++            Reject(tree, detailed: true, afterReport: false, "detailed reader rejects missing report");
++            Reject([.. diagnostics, .. diagnostics, .. tree], true, true, "duplicate report");
++            Reject([.. diagnostics, .. status, .. tree], true, true, "status between report and tree");
++            Reject(diagnostics, true, true, "report alone cannot complete scan");
++            int endOfTreeHeader = 12 + BinaryPrimitives.ReadInt32LittleEndian(tree.AsSpan(8));
++            Reject([.. diagnostics, .. tree[..endOfTreeHeader], .. diagnostics, .. tree[endOfTreeHeader..]], true, true, "report inside tree");
++            Reject([.. diagnostics, .. tree[..^1]], true, true, "partial tree cannot complete scan");
++
++            foreach (int length in new[] { 1, 11, 12, diagnostics.Length - 1 })
++                Reject(diagnostics[..length], true, false, "truncated diagnostic frame");
++            byte[] corrupted = (byte[])diagnostics.Clone();
++            BinaryPrimitives.WriteDoubleLittleEndian(corrupted.AsSpan(12), double.NaN);
++            Reject([.. corrupted, .. tree], true, false, "malformed diagnostic duration");
++            byte[] trailing = [.. diagnostics, 255];
++            BinaryPrimitives.WriteInt32LittleEndian(trailing.AsSpan(8), trailing.Length - 12);
++            Reject([.. trailing, .. tree], true, false, "unexpected diagnostic payload byte");
++
++            foreach (var code in new[] { FastScanWireError.PermissionDenied, FastScanWireError.Cancelled, FastScanWireError.CleanupUnconfirmed })
++            {
++                bool cleaned = code != FastScanWireError.CleanupUnconfirmed;
++                byte[] failure = Frames(s => FastScanWire.WriteFailure(s, code, cleaned));
++                using var stream = new MemoryStream([.. status, .. failure, .. diagnostics, .. tree], writable: false);
++                var reader = new FastScanWireReader(stream, RootPath, acceptDiagnostics: true);
++                Check(reader.Read().Kind == FastScanWireEventKind.Status, "status before failure");
++                var message = reader.Read();
++                Check(message is { Kind: FastScanWireEventKind.Failure, Diagnostics: null, Result: null }
++                    && message.Error == code && message.CleanupConfirmed == cleaned, "failure preserves cleanup without report");
++                RejectRead(reader, "failure cannot become success");
++            }
++            byte[] transferFailure = Frames(s => FastScanWire.WriteFailure(s, FastScanWireError.ProtocolError, true));
++            using (var stream = new MemoryStream([.. diagnostics, .. transferFailure], writable: false))
++            {
++                var reader = new FastScanWireReader(stream, RootPath, acceptDiagnostics: true);
++                Check(reader.Read() is { Kind: FastScanWireEventKind.Diagnostics, CleanupConfirmed: false, Result: null },
++                    "diagnostics are provisional");
++                Check(reader.Read() is { Kind: FastScanWireEventKind.Failure, Error: FastScanWireError.ProtocolError,
++                    CleanupConfirmed: true, Diagnostics: null, Result: null }, "tree validation failure after report");
++                RejectRead(reader, "failed publication stays terminal");
++            }
++        }
++        catch (Exception error)
++        {
++            Console.Error.WriteLine($"FAIL NTFS scan diagnostic wire checks={checks}: {error.Message}");
++            return 1;
++        }
++        Console.WriteLine($"PASS NTFS scan diagnostic wire checks={checks}; memory_streams_only=True");
++        return 0;
++    }
++
++    private static byte[] Frames(Action<Stream> write)
++    {
++        using var stream = new MemoryStream();
++        write(stream);
++        return stream.ToArray();
++    }
++
++    private static void WriteTree(Stream stream)
++    {
++        var modified = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
++        var root = new DiskEntry(RootPath, true) { Storage = new(new(1, (1UL << 48) | 5, 0), 0, 1, false, -1, modified), Modified = modified };
++        var file = DiskEntry.FromName("demo.bin", false, root, ".bin");
++        file.Storage = new(new(1, (1UL << 48) | 6, 0), 32, 1, false, 17, modified);
++        file.Modified = modified;
++        file.FileCount = root.FileCount = 1;
++        file.Size = root.Size = 17;
++        root.MutableChildren.Add(file);
++        StorageMetrics.Calculate(root, default);
++        FastScanWire.WriteResult(stream, root, TimeSpan.FromMilliseconds(20), new DateTimeOffset(modified));
++    }
++}
+diff --git a/tests/NtfsScanDiagnosticsTests.cs b/tests/NtfsScanDiagnosticsTests.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..25775d04173e2d92cfc4bffa482b067908256c9d
+--- /dev/null
++++ b/tests/NtfsScanDiagnosticsTests.cs
+@@ -0,0 +1,196 @@
++using System.Text.Json;
++using DiskAtlas.NtfsPrototype;
++
++namespace DiskAtlas;
++
++// In-memory samples only. The clock, object reasons and binary reports are synthetic.
++internal static class NtfsScanDiagnosticsTests
++{
++    private const int ObjectLimit = 1_048_576;
++    private const string ErrorCode = "ScanDiagnosticInvalid";
++
++    internal static int Run()
++    {
++        int checks = 0;
++        void Check(bool passed, string label)
++        {
++            checks++;
++            if (!passed) throw new InvalidOperationException(label);
++        }
++        void Reject(Action action, string label)
++        {
++            try { action(); }
++            catch (InvalidDataException ex) when (ex.Message == ErrorCode) { Check(true, label); return; }
++            Check(false, label);
++        }
++
++        try
++        {
++            double now = 10;
++            var model = new NtfsScanDiagnostics(() => now);
++            var empty = model.Snapshot();
++            Check(empty.PhaseMilliseconds.Length == 5 && empty.PhaseMilliseconds.All(value => value is null), "absent phases");
++            Check(empty.ReasonCombinations.Length == 128 && empty.ReasonCombinations.All(n => n == 0)
++                && empty.SupplementObjects == 0, "absent supplements");
++            empty.Validate();
++            Reject(() => empty.Validate(requireComplete: true), "complete report requires every phase");
++            Reject(() => Encode(empty), "partial report cannot be encoded");
++            Reject(() => NtfsPersonalTimingDriver.DiagnosticJson(new([0, 0, null, 0, 0], 0, new int[128])),
++                "details JSON requires every phase");
++            Reject(() => model.Measure((NtfsDiagnosticPhase)99), "undefined phase");
++
++            var phases = new[] { NtfsDiagnosticPhase.SourceValidation, NtfsDiagnosticPhase.VssSetup, NtfsDiagnosticPhase.VssCreation,
++                NtfsDiagnosticPhase.SnapshotValidation, NtfsDiagnosticPhase.IndexFinalization };
++            for (int i = 0; i < phases.Length; i++)
++            {
++                var phase = phases[i];
++                var measuring = model.Measure(phase);
++                Check(model.Snapshot().PhaseMilliseconds[(int)phase] is null, "active phase remains unreported");
++                Reject(() => model.Measure(phase), "overlapping measurement");
++                now += i * 0.5;
++                measuring.Dispose();
++                now += 10;
++                measuring.Dispose();
++                Check(model.Snapshot().PhaseMilliseconds[(int)phase] == i * 0.5, "zero and positive durations captured once");
++                Reject(() => model.Measure(phase), "completed phase cannot be replaced");
++            }
++
++            foreach (double invalidEnd in new[] { 5d, double.NaN, double.PositiveInfinity })
++            {
++                now = 10;
++                var timer = new NtfsScanDiagnostics(() => now).Measure(NtfsDiagnosticPhase.VssCreation);
++                now = invalidEnd;
++                Reject(timer.Dispose, "invalid clock on completion");
++            }
++            var invalidStart = new NtfsScanDiagnostics(() => double.NaN);
++            Reject(() => invalidStart.Measure(NtfsDiagnosticPhase.VssCreation), "invalid clock on entry");
++
++            // Each object contributes to exactly one combination even with multiple reasons.
++            for (int mask = 1; mask < 128; mask++) model.RecordSupplement((NtfsSupplementReason)mask);
++            model.RecordSupplement((NtfsSupplementReason)3);
++            foreach (int invalid in new[] { 0, 128, 129 })
++                Reject(() => model.RecordSupplement((NtfsSupplementReason)invalid), "invalid reason mask");
++            var full = model.Snapshot();
++            full.Validate(requireComplete: true);
++            CheckDetailedOutput(full, Check);
++            Check(full.SupplementObjects == 128 && full.ReasonCombinations[0] == 0 && full.ReasonCombinations[3] == 2,
++                "overlapping categories form one bucket per object");
++            Check(Enumerable.Range(1, 127).All(mask => full.ReasonCombinations[mask] == (mask == 3 ? 2 : 1)),
++                "all seven reason bits preserved");
++
++            var data = Encode(full);
++            var restored = Decode(data);
++            Check(restored.PhaseMilliseconds.SequenceEqual(full.PhaseMilliseconds)
++                && restored.SupplementObjects == full.SupplementObjects && restored.ReasonCombinations.SequenceEqual(full.ReasonCombinations),
++                "complete binary round trip");
++            full.PhaseMilliseconds[0] = 500;
++            full.ReasonCombinations[1] = 0;
++            var unchanged = model.Snapshot();
++            Check(unchanged.PhaseMilliseconds[0] == 0 && unchanged.ReasonCombinations[1] == 1, "snapshot arrays isolated");
++            Check(empty.PhaseMilliseconds.All(value => value is null) && empty.ReasonCombinations.All(n => n == 0), "prior snapshot remains immutable from model");
++
++            var maxModel = new NtfsScanDiagnostics(() => 0);
++            for (int i = 0; i < ObjectLimit; i++) maxModel.RecordSupplement((NtfsSupplementReason)1);
++            Reject(() => maxModel.RecordSupplement((NtfsSupplementReason)1), "object cap");
++            var max = maxModel.Snapshot();
++            Check(max.SupplementObjects == ObjectLimit && max.ReasonCombinations[1] == ObjectLimit, "overflow preserves previous counts");
++
++            void InvalidReport(NtfsScanDiagnosticReport report, string label)
++            {
++                Reject(() => report.Validate(), label);
++                Reject(() => Encode(report), "encode " + label);
++            }
++            var zeroTimes = new double?[] { 0, 0, 0, 0, 0 };
++            foreach (int length in new[] { 4, 6 })
++                InvalidReport(new(new double?[length], 0, new int[128]), "phase dimension");
++            foreach (int length in new[] { 127, 129 })
++                InvalidReport(new(zeroTimes, 0, new int[length]), "bucket dimension");
++            foreach (double value in new[] { -1d, double.NaN, double.PositiveInfinity, double.NegativeInfinity, 780001d })
++                InvalidReport(new([0, 0, value, 0, 0], 0, new int[128]), "invalid phase duration");
++            foreach (int count in new[] { -1, ObjectLimit + 1 })
++                InvalidReport(new(zeroTimes, count, new int[128]), "object count out of range");
++            foreach (var (bucket, count, total) in new[] { (0, 1, 1), (1, -1, 0), (2, 1, 0), (3, 0, 1), (7, int.MaxValue, ObjectLimit) })
++            {
++                int[] counts = new int[128]; counts[bucket] = count;
++                InvalidReport(new(zeroTimes, total, counts), "invalid bucket or total");
++            }
++            Check(Decode(Encode(new([780000d, 0, 0, 0, 0], ObjectLimit, max.ReasonCombinations))).SupplementObjects == ObjectLimit,
++                "duration and count at limit");
++
++            // Locate the changing bytes with two valid reports instead of depending on field offsets.
++            var countsA = new int[128]; countsA[10] = 1;
++            var countsB = new int[128]; countsB[11] = 1;
++            byte[] encodedA = Encode(new(zeroTimes, 1, countsA)), encodedB = Encode(new(zeroTimes, 1, countsB));
++            Check(encodedA.Length == encodedB.Length, "fixed report size");
++            foreach (int length in new[] { 0, encodedA.Length - 1 })
++            {
++                bool truncated = false;
++                try { Decode(encodedA[..length]); }
++                catch (EndOfStreamException) { truncated = true; }
++                catch (InvalidDataException ex) when (ex.Message == ErrorCode) { truncated = true; }
++                Check(truncated, "truncated report rejected");
++            }
++            int bucketByte = Enumerable.Range(0, encodedA.Length).First(i => encodedA[i] == 1 && encodedB[i] == 0);
++            encodedA[bucketByte] = 0;
++            Reject(() => Decode(encodedA), "wire count sum mismatch");
++        }
++        catch (Exception ex)
++        {
++            Console.Error.WriteLine($"FAIL NTFS scan diagnostics checks={checks}: {ex.Message}");
++            return 1;
++        }
++        Console.WriteLine($"PASS NTFS scan diagnostics checks={checks}; synthetic_only=True");
++        return 0;
++    }
++
++    private static byte[] Encode(NtfsScanDiagnosticReport value)
++    {
++        using var stream = new MemoryStream();
++        using var writer = new BinaryWriter(stream);
++        NtfsScanDiagnosticReport.Write(writer, value);
++        writer.Flush();
++        return stream.ToArray();
++    }
++
++    private static void CheckDetailedOutput(NtfsScanDiagnosticReport report, Action<bool, string> check)
++    {
++        const string verb = "--ntfs-personal-timing-details-ui";
++        check(NtfsPersonalTimingDriver.ValidDetailedUiInvocation([verb]), "explicit detailed verb");
++        check(!NtfsPersonalTimingDriver.ValidDetailedUiInvocation([]) &&
++              !NtfsPersonalTimingDriver.ValidDetailedUiInvocation([NtfsPersonalTimingDriver.UiArgument]) &&
++              !NtfsPersonalTimingDriver.ValidUiInvocation([verb]), "detailed and ordinary verbs isolated");
++        check(!NtfsPersonalTimingDriver.ValidDetailedUiInvocation([verb, @"B:\Synthetic"]) &&
++              !NtfsPersonalTimingDriver.ValidDetailedUiInvocation([verb, verb]), "detailed verb rejects extra arguments");
++
++        using var json = JsonDocument.Parse(NtfsPersonalTimingDriver.DiagnosticJson(report));
++        var row = json.RootElement;
++        static bool ExactFields(JsonElement obj, params string[] expected) =>
++            obj.EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal).SequenceEqual(expected.Order(StringComparer.Ordinal));
++        check(ExactFields(row, "revision", "kind", "mode", "phases_ms", "supplement_objects", "reason_bits", "reason_combinations",
++                  "helper_measured", "multiple_reasons_per_object", "combination_counts_disjoint", "no_names_or_identities"),
++            "fixed top-level schema excludes paths and object names");
++        check(row.GetProperty("revision").GetString() == "ntfs-scan-details-v1" &&
++              row.GetProperty("kind").GetString() == "details" && row.GetProperty("mode").GetString() == "F", "fixed trace identity");
++        string[] phaseKeys = ["SourceValidation", "VssSetup", "VssCreation", "SnapshotValidation", "IndexFinalization"];
++        var durations = row.GetProperty("phases_ms");
++        check(ExactFields(durations, phaseKeys) && phaseKeys.Select(key => durations.GetProperty(key).GetDouble())
++            .SequenceEqual(report.PhaseMilliseconds.Select(ms => ms!.Value)), "five helper phase values");
++        string[] reasonKeys = ["ResidentAllocation", "Compressed", "Sparse", "IncompleteMetadata", "IncompleteLinks", "ModifiedConflict", "UnsupportedRecord"];
++        var reasonBits = row.GetProperty("reason_bits");
++        check(ExactFields(reasonBits, reasonKeys) && reasonKeys.Select((key, bit) => reasonBits.GetProperty(key).GetInt32() == (1 << bit)).All(ok => ok),
++            "seven stable reason names and bit values");
++        int[] bins = row.GetProperty("reason_combinations").EnumerateArray().Select(bucket => bucket.GetInt32()).ToArray();
++        check(bins.Length == 128 && bins.SequenceEqual(report.ReasonCombinations) && bins[0] == 0 &&
++            bins.Sum() == row.GetProperty("supplement_objects").GetInt32() && bins.Sum() == report.SupplementObjects,
++            "disjoint JSON counts sum to unique objects");
++        check(row.GetProperty("helper_measured").GetBoolean() && row.GetProperty("multiple_reasons_per_object").GetBoolean() &&
++            row.GetProperty("combination_counts_disjoint").GetBoolean() && row.GetProperty("no_names_or_identities").GetBoolean(), "diagnostic interpretation flags");
++    }
++
++    private static NtfsScanDiagnosticReport Decode(byte[] bytes)
++    {
++        using var stream = new MemoryStream(bytes, writable: false);
++        using var reader = new BinaryReader(stream);
++        return NtfsScanDiagnosticReport.Read(reader);
++    }
++}
+diff --git a/tests/NtfsSupplementDiagnosticsTests.cs b/tests/NtfsSupplementDiagnosticsTests.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..8d90421762e2cd58e3afa39860aa1554f539820a
+--- /dev/null
++++ b/tests/NtfsSupplementDiagnosticsTests.cs
+@@ -0,0 +1,112 @@
++namespace DiskAtlas.NtfsPrototype;
++
++// Exercises the real size-index decisions with one in-memory MFT page.
++internal static class NtfsSupplementDiagnosticsTests
++{
++    internal static int Run()
++    {
++        int passed = 0;
++        void Check(bool condition, string name)
++        {
++            if (!condition) throw new InvalidOperationException("NTFS supplement diagnostics: " + name);
++            passed++;
++            Console.WriteLine("PASS NTFS supplement diagnostics " + name);
++        }
++
++        var time = new DateTime(2020, 1, 1);
++        static FileIdentity Id(int slot) => new(11, NtfsRecordFixtures.Reference((ulong)slot, 3), 0);
++        NtfsSnapshotNamespaceEntry Entry(int index, int slot, string name) =>
++            new(index, 0, name, Id(slot), FileAttributes.Archive, false) { Modified = time };
++
++        NtfsSnapshotNamespaceEntry[] entries = [
++            new(0, -1, "", Id(1), FileAttributes.Directory, false),
++            Entry(1, 2, "empty"), Entry(2, 3, "resident"),
++            Entry(3, 4, "alias-a"), Entry(4, 4, "alias-b") with { Modified = time.AddSeconds(1) },
++            Entry(5, 5, "compressed-sparse"), Entry(6, 6, "unsupported"), Entry(7, 7, "missing-data"),
++            Entry(8, 8, "ordinary")
++        ];
++        var scope = new NtfsSnapshotNamespaceResult(new("snapshot-namespace-v1", entries.Length, 8, 0, 7, 0,
++            1, 1, 2, entries.Sum(entry => entry.Name.Length), 1, true), entries, entries.Select(entry => entry.Name).ToArray(), Id(1));
++        const int bytes = 16384;
++        var map = NtfsMftMap.Parse(NtfsMftMapTests.Record0([0x11, 4, 10, 0], 3, bytes, bytes, bytes),
++            new(512, 4096, 1024, 1024 * 1024, 256, 10, bytes)).Map!;
++        var page = new byte[bytes];
++        void Record(int slot, byte[] data) => data.CopyTo(page, slot * NtfsRecordFixtures.RecordLength);
++        byte[] Name(string value) => NtfsRecordFixtures.Name(value, parent: Id(1).Low);
++        Record(1, NtfsRecordFixtures.Record([Name("root")], directory: true));
++        Record(2, NtfsRecordFixtures.Record([Name("empty"), NtfsRecordFixtures.Data(0)]));
++        Record(3, NtfsRecordFixtures.Record([Name("resident"), NtfsRecordFixtures.Data(32)]));
++        // Both aliases select one object, with incomplete link names and conflicting times.
++        Record(4, NtfsRecordFixtures.Record([Name("alias-a"), NtfsRecordFixtures.Data(32)], links: 2));
++        Record(5, NtfsRecordFixtures.Record([Name("compressed-sparse"), NtfsRecordFixtures.Nonresident(flags: 0x8001)]));
++        Record(6, NtfsRecordFixtures.Record([Name("unsupported"), NtfsRecordFixtures.Resident(0x110, [])]));
++        Record(7, NtfsRecordFixtures.Record([Name("missing-data")]));
++        Record(8, NtfsRecordFixtures.Record([Name("ordinary"), NtfsRecordFixtures.Nonresident()]));
++        int Read(long offset, Memory<byte> destination, CancellationToken token)
++        {
++            token.ThrowIfCancellationRequested();
++            page.AsMemory(checked((int)offset), destination.Length).CopyTo(destination);
++            return destination.Length;
++        }
++        NtfsSnapshotNativeSize Lookup(NtfsSnapshotSizeRequest request, CancellationToken token)
++        {
++            token.ThrowIfCancellationRequested();
++            return new(new(request.Identity, 32, request.Identity == Id(4) ? 2u : 1u, false,
++                request.ExpectedLogicalBytes ?? 32, time), request.Directory);
++        }
++
++        int completedLookups = 0, clockReads = 0;
++        var diagnostics = new NtfsScanDiagnostics(() =>
++        {
++            if (Volatile.Read(ref completedLookups) != 5) throw new InvalidOperationException("Finalization started before workers finished.");
++            return Interlocked.Increment(ref clockReads) * 3;
++        });
++        NtfsSnapshotNativeSize CountedLookup(NtfsSnapshotSizeRequest request, CancellationToken token)
++        {
++            var size = Lookup(request, token);
++            Interlocked.Increment(ref completedLookups);
++            return size;
++        }
++        var result = NtfsSnapshotSizeIndex.BuildAsync(scope, map, Read, _ => true, CountedLookup, diagnostics: diagnostics).GetAwaiter().GetResult();
++        var stats = diagnostics.Snapshot();
++        Check(result.Report.Complete && result.Report.NativeCalls == 5 && stats.SupplementObjects == 5,
++            "five unique objects require one lookup each");
++        Check(!result.Objects[Id(2)].Native && !result.Objects[Id(8)].Native &&
++            stats.ReasonCombinations.Sum() == stats.SupplementObjects && stats.ReasonCombinations[0] == 0,
++            "resolved empty and nonresident objects do not contribute to any reason bucket");
++        Check(stats.ReasonCombinations[(int)NtfsSupplementReason.ResidentAllocation] == 1, "plain nonempty resident allocation");
++        Check(stats.ReasonCombinations[(int)(NtfsSupplementReason.ResidentAllocation | NtfsSupplementReason.IncompleteLinks |
++            NtfsSupplementReason.ModifiedConflict)] == 1, "two aliases preserve all three reasons in one bucket");
++        Check(stats.ReasonCombinations[(int)(NtfsSupplementReason.Compressed | NtfsSupplementReason.Sparse)] == 1,
++            "two allocation flags stay associated with the same object");
++        Check(stats.ReasonCombinations[(int)NtfsSupplementReason.IncompleteMetadata] == 1, "missing default data");
++        Check(stats.ReasonCombinations[(int)NtfsSupplementReason.UnsupportedRecord] == 1, "strictly unsupported record");
++        int final = (int)NtfsDiagnosticPhase.IndexFinalization;
++        Check(clockReads == 2 && stats.PhaseMilliseconds[final] == 3, "finalization timed once, after the final lookup completed");
++        var baseline = NtfsSnapshotSizeIndex.BuildAsync(scope, map, Read, _ => true, Lookup).GetAwaiter().GetResult();
++        Check(result.Objects.Count == baseline.Objects.Count && result.Objects.All(pair => baseline.Objects[pair.Key] == pair.Value)
++            && result.Report.LogicalBytes == baseline.Report.LogicalBytes && result.Report.AllocatedBytes == baseline.Report.AllocatedBytes,
++            "enabling observations preserves every object and both totals");
++
++        // The pre-dispatch counters describe scheduled objects; they are not successful-call counts.
++        var failed = new NtfsScanDiagnostics();
++        bool rejected = false;
++        try
++        {
++            NtfsSnapshotSizeIndex.BuildAsync(scope, map, Read, _ => true, (_, _) => throw new IOException(),
++                diagnostics: failed).GetAwaiter().GetResult();
++        }
++        catch (NtfsSnapshotSizeException error) when (error.Code == "SnapshotSizeNativeRead") { rejected = true; }
++        Check(rejected && failed.Snapshot().SupplementObjects == 5 && failed.Snapshot().PhaseMilliseconds[final] == null,
++            "lookup failure does not report completed index finalization");
++        using var stop = new CancellationTokenSource();
++        stop.Cancel();
++        var cancelled = new NtfsScanDiagnostics();
++        bool observedCancel = false;
++        try { NtfsSnapshotSizeIndex.BuildAsync(scope, map, Read, _ => true, Lookup, stop.Token, cancelled).GetAwaiter().GetResult(); }
++        catch (OperationCanceledException) { observedCancel = true; }
++        Check(observedCancel && cancelled.Snapshot().SupplementObjects == 0 && cancelled.Snapshot().PhaseMilliseconds[final] == null,
++            "pre-cancelled index records no reasons or finalization");
++        return passed;
++    }
++}
+diff --git a/tests/Program.cs b/tests/Program.cs
+index bfb9e0f9f6ebf4b487a66b0001d30e5d97419392..5cdaf9f9d4a596ed808d4fca4cb1bde77d54ee81 100644
+--- a/tests/Program.cs
++++ b/tests/Program.cs
+@@ -173,6 +173,20 @@ if (FastScanBridge.IsWorkerRequest(args))
+     return FastScanBridge.RunWorker(args, DiskAtlas.NtfsPrototype.NtfsPersonalAcceptanceDriver.Validate);
+ if (FastScanBridge.IsTimingWorkerRequest(args))
+     return FastScanBridge.RunTimingWorker(args);
++if (FastScanBridge.IsDetailedTimingWorkerRequest(args))
++    return FastScanBridge.RunDetailedTimingWorker(args);
++if (args.Length > 0 && args[0] == NtfsPersonalTimingDriver.DetailedUiArgument)
++{
++    if (!NtfsPersonalTimingDriver.ValidDetailedUiInvocation(args)) { Console.Error.WriteLine("FAIL detailed timing arguments"); return 1; }
++    return NtfsPersonalTimingDriver.Run(includeUi: true, includeDetails: true);
++}
++if (args.Length == 1 && args[0] == "--ntfs-scan-diagnostics-tests") return NtfsScanDiagnosticsTests.Run();
++if (args.Length == 1 && args[0] == "--ntfs-scan-diagnostic-wire-tests") return NtfsScanDiagnosticWireTests.Run();
++if (args.Length == 1 && args[0] == "--ntfs-supplement-diagnostics-tests")
++{
++    try { int n = DiskAtlas.NtfsPrototype.NtfsSupplementDiagnosticsTests.Run(); Console.WriteLine($"PASS supplement diagnostics checks={n}; synthetic_only=True"); return 0; }
++    catch { Console.Error.WriteLine("FAIL supplement diagnostics; synthetic_only=True"); return 1; }
++}
+ if (args.Length > 0 && args[0] == NtfsPersonalTimingDriver.UiArgument)
+ {
+     if (!NtfsPersonalTimingDriver.ValidUiInvocation(args)) { Console.Error.WriteLine("FAIL product timing arguments"); return 1; }

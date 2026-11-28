@@ -1,0 +1,33 @@
+{
+  "baseline": "f07105e68e66d32177cd304865c1001cf6fb4634",
+  "patch_sha256": "2FB04D7E31C6AC66C7A296F4F66335A8CFB0D6B3B890A3F19324EA97600B393B",
+  "target_tree": "9e9a4c6d6613aa3c122f1ea1f3495fac189fe7ed",
+  "replayed_tree": "9e9a4c6d6613aa3c122f1ea1f3495fac189fe7ed",
+  "staged_content_equal": true,
+  "paths": [
+    ".agents/skills/asukalens-project-memory/references/checkpoint.md",
+    ".agents/skills/asukalens-project-memory/references/decisions.md",
+    "docs/development-plan.md",
+    "docs/ntfs-product-timing.md",
+    "docs/project-status.md",
+    "docs/testing.md",
+    "scripts/ntfs-prototype/Invoke-NtfsProductTimingFixture.ps1",
+    "scripts/ntfs-prototype/Invoke-NtfsScale.ps1",
+    "scripts/ntfs-prototype/KernelMatrixEvidence.ps1",
+    "scripts/ntfs-prototype/ProductTimingFixtureEvidence.ps1",
+    "src/Scanning/Ntfs/FastScanBridge.cs",
+    "src/Scanning/Ntfs/FastScanWire.cs",
+    "src/Scanning/Ntfs/NtfsPersonalScan.cs",
+    "src/Scanning/Ntfs/NtfsPersonalSnapshotSource.cs",
+    "src/Scanning/Ntfs/NtfsScanDiagnostics.cs",
+    "src/Scanning/Ntfs/NtfsSnapshotSizeIndex.cs",
+    "src/Scanning/Ntfs/NtfsVssNativeSession.cs",
+    "tests/NtfsPersonalTimingDriver.cs",
+    "tests/NtfsProductTiming.cs",
+    "tests/NtfsProductTimingFixtureEvidence.Tests.ps1",
+    "tests/Program.cs",
+    "tests/NtfsScanDiagnosticWireTests.cs",
+    "tests/NtfsScanDiagnosticsTests.cs",
+    "tests/NtfsSupplementDiagnosticsTests.cs"
+  ]
+}

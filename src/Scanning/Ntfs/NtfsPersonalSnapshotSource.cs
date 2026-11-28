@@ -54,55 +54,66 @@ internal sealed class NtfsPersonalSnapshotSource : IDisposable
         return char.ToUpperInvariant(path[0]) + ":\\" + suffix;
     }
 
-    internal static NtfsPersonalSnapshotSource Create(string selectedPath, CancellationToken token = default, NtfsScanLimits? limits = null)
+    internal static NtfsPersonalSnapshotSource Create(string selectedPath, CancellationToken token = default,
+        NtfsScanLimits? limits = null, NtfsScanDiagnostics? diagnostics = null)
     {
         NtfsPersonalSnapshotSource? source = null;
         var pins = new List<SafeFileHandle>();
         var pinnedIdentities = new List<FileIdentity>();
         try
         {
-            token.ThrowIfCancellationRequested();
-            string path = NormalizeSelectedPath(selectedPath), drive = path[..3];
-            using var identity = WindowsIdentity.GetCurrent();
-            Require(new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator), "VssPersonalElevation");
-            Require(GetDriveTypeW(drive) == 3, "VssPersonalVolume");
-            string volume = VolumeName(drive);
-            string suffix = path.Length == 3 ? "" : path[3..];
-            string current = drive, canonical = volume;
-            var root = Pin(current, canonical, null, token); pins.Add(root.Handle);
-            pinnedIdentities.Add(root.Storage.Identity);
-            ulong serial = root.Storage.Identity.Volume;
-            FileStorageInfo selected = root.Storage;
-            if (suffix.Length != 0)
-                foreach (string part in suffix.Split('\\'))
-                {
-                    current = Path.Combine(current, part); canonical = canonical.TrimEnd('\\') + "\\" + part;
-                    var next = Pin(current, canonical, serial, token); pins.Add(next.Handle); selected = next.Storage;
-                    pinnedIdentities.Add(next.Storage.Identity);
-                }
-            var facts = ReadVolumeFacts(volume, serial, token);
-            source = new(facts, limits ?? NtfsScanLimits.Standard);
-            source.snapshotRoot = source.session.Create(volume, token);
-            source.snapshotDataRoot = source.snapshotRoot + "\\" + suffix;
-            if (suffix.Length == 0) source.snapshotDataRoot = source.snapshotRoot + "\\";
-            // An original ancestor might acquire a reparse tag while its name
-            // remains pinned. Recheck every component in the immutable source
-            // before allowing an operation through the selected snapshot path.
-            string snapshotPath = source.snapshotRoot + "\\";
-            Require(NtfsSnapshotMetadata.Read(snapshotPath, true, serial, token).Storage.Identity == pinnedIdentities[0], "VssSnapshotBinding");
-            if (suffix.Length != 0)
+            string volume, suffix;
+            ulong serial;
+            FileStorageInfo selected;
+            NtfsSnapshotVolumeFacts facts;
+            using (diagnostics?.Measure(NtfsDiagnosticPhase.SourceValidation))
             {
-                int index = 1;
-                foreach (string part in suffix.Split('\\'))
-                {
-                    snapshotPath = snapshotPath.TrimEnd('\\') + "\\" + part;
-                    Require(NtfsSnapshotMetadata.Read(snapshotPath, true, serial, token).Storage.Identity == pinnedIdentities[index++], "VssSnapshotBinding");
-                }
+                token.ThrowIfCancellationRequested();
+                string path = NormalizeSelectedPath(selectedPath), drive = path[..3];
+                using var identity = WindowsIdentity.GetCurrent();
+                Require(new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator), "VssPersonalElevation");
+                Require(GetDriveTypeW(drive) == 3, "VssPersonalVolume");
+                volume = VolumeName(drive);
+                suffix = path.Length == 3 ? "" : path[3..];
+                string current = drive, canonical = volume;
+                var root = Pin(current, canonical, null, token); pins.Add(root.Handle);
+                pinnedIdentities.Add(root.Storage.Identity);
+                serial = root.Storage.Identity.Volume;
+                selected = root.Storage;
+                if (suffix.Length != 0)
+                    foreach (string part in suffix.Split('\\'))
+                    {
+                        current = Path.Combine(current, part); canonical = canonical.TrimEnd('\\') + "\\" + part;
+                        var next = Pin(current, canonical, serial, token); pins.Add(next.Handle); selected = next.Storage;
+                        pinnedIdentities.Add(next.Storage.Identity);
+                    }
+                facts = ReadVolumeFacts(volume, serial, token);
             }
-            var snapshot = source.ReadNativeSize("", true, token);
-            Require(snapshot.Storage.Identity == selected.Identity && !snapshot.DeletePending, "VssSnapshotBinding");
-            source.rootStorage = snapshot.Storage;
-            token.ThrowIfCancellationRequested(); return source;
+            source = new(facts, limits ?? NtfsScanLimits.Standard);
+            source.snapshotRoot = source.session.Create(volume, token, diagnostics);
+            using (diagnostics?.Measure(NtfsDiagnosticPhase.SnapshotValidation))
+            {
+                source.snapshotDataRoot = source.snapshotRoot + "\\" + suffix;
+                if (suffix.Length == 0) source.snapshotDataRoot = source.snapshotRoot + "\\";
+                // An original ancestor might acquire a reparse tag while its name
+                // remains pinned. Recheck every component in the immutable source
+                // before allowing an operation through the selected snapshot path.
+                string snapshotPath = source.snapshotRoot + "\\";
+                Require(NtfsSnapshotMetadata.Read(snapshotPath, true, serial, token).Storage.Identity == pinnedIdentities[0], "VssSnapshotBinding");
+                if (suffix.Length != 0)
+                {
+                    int index = 1;
+                    foreach (string part in suffix.Split('\\'))
+                    {
+                        snapshotPath = snapshotPath.TrimEnd('\\') + "\\" + part;
+                        Require(NtfsSnapshotMetadata.Read(snapshotPath, true, serial, token).Storage.Identity == pinnedIdentities[index++], "VssSnapshotBinding");
+                    }
+                }
+                var snapshot = source.ReadNativeSize("", true, token);
+                Require(snapshot.Storage.Identity == selected.Identity && !snapshot.DeletePending, "VssSnapshotBinding");
+                source.rootStorage = snapshot.Storage;
+                token.ThrowIfCancellationRequested(); return source;
+            }
         }
         catch (Exception error)
         {

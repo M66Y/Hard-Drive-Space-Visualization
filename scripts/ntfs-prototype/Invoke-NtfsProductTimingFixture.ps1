@@ -1,6 +1,6 @@
 #requires -Version 7.4
 [CmdletBinding()]
-param([switch]$Counterbalanced)
+param([switch]$Counterbalanced, [switch]$Detailed)
 
 # The test window stays at ordinary integrity. Only the fixture owner and the
 # product's own NTFS helper use the Windows administrator prompt.
@@ -16,10 +16,10 @@ $name = 'AsukaLens.Timing.' + $tokenName
 $owner = $null; $window = $null; $pipe = $null
 $stage = 'Validate'
 $order = if ($Counterbalanced) { 'FOOF' } else { 'FO' }
-$expectedFiles = if ($Counterbalanced) { 100000 } else { 10000 }
 . (Join-Path $PSScriptRoot 'ProductTimingFixturePipe.ps1')
 . (Join-Path $PSScriptRoot 'ProductTimingProgress.ps1')
 . (Join-Path $PSScriptRoot 'KernelMatrixEvidence.ps1')
+. (Join-Path $PSScriptRoot 'ProductTimingFixtureEvidence.ps1')
 try {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     try {
@@ -51,6 +51,7 @@ try {
         '-ProductTimingOrder', $order)) {
         $start.ArgumentList.Add($argument)
     }
+    if ($Detailed) { $start.ArgumentList.Add('-ProductTimingDetailed') }
     $owner = [Diagnostics.Process]::Start($start)
     if ($null -eq $owner) { throw 'FIXTURE_OWNER_NOT_STARTED' }
     $connect = [Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds(90))
@@ -60,12 +61,7 @@ try {
     if (-not [AsukaLensProductTimingPipe]::GetNamedPipeClientProcessId($pipe.SafePipeHandle, [ref]$clientPid) -or
         $clientPid -ne $owner.Id) { throw 'FIXTURE_OWNER_BINDING' }
     $ready = [AsukaLensProductTimingPipe]::Read($pipe, $(if ($Counterbalanced) { 480 } else { 300 }))
-    Assert-UniqueJsonKeys $ready
-    $fixture = $ready | ConvertFrom-Json
-    if ($fixture.revision -cne 'product-timing-fixture-v1' -or $fixture.scope -isnot [string] -or
-        $fixture.volume -isnot [string] -or $fixture.order -cne $order -or $fixture.files -ne $expectedFiles) {
-        throw 'FIXTURE_READY_INVALID'
-    }
+    $fixture = ConvertTo-ProductTimingFixtureEnvelope $ready Ready $order -Detailed:$Detailed
     Assert-ProductTimingScope $fixture.scope $fixture.volume
 
     $stage = 'Run'
@@ -78,7 +74,7 @@ try {
     $startTimer.RedirectStandardOutput = $true
     $startTimer.RedirectStandardError = $true
     $startTimer.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
-    $startTimer.ArgumentList.Add('--ntfs-personal-timing-ui')
+    $startTimer.ArgumentList.Add($(if ($Detailed) { '--ntfs-personal-timing-details-ui' } else { '--ntfs-personal-timing-ui' }))
     $window = [Diagnostics.Process]::Start($startTimer)
     if ($null -eq $window) { throw 'TIMING_WINDOW_NOT_STARTED' }
     # Error text can contain local paths. Drain it without collecting or exporting it.
@@ -98,21 +94,15 @@ try {
     $stage = 'Cleanup'
     Write-Output 'PRODUCT_TIMING: Measuring window exited; checking snapshot and detaching fixture'
     $reply = [ordered]@{ revision='product-timing-fixture-v1'; order=$order; exit_code=$window.ExitCode; report=$report.ToString() }
+    if ($Detailed) { $reply.detailed=$true }
     [AsukaLensProductTimingPipe]::Write($pipe, ($reply | ConvertTo-Json -Compress), 10)
     if (-not $owner.WaitForExit(120000)) { throw 'FIXTURE_CLEANUP_TIMEOUT' }
     if (-not (Test-Path -LiteralPath $result -PathType Leaf) -or (Get-Item -LiteralPath $result).Length -gt 65536) {
         throw 'FIXTURE_RESULT_MISSING'
     }
     $resultText = Get-Content -LiteralPath $result -Raw -Encoding utf8
-    Assert-UniqueJsonKeys $resultText
-    $summary = $resultText | ConvertFrom-Json
-    if ($summary.mode -cne 'product-timing' -or $summary.schema -ne 1 -or
-        $summary.product_timing_order -cne $order -or $summary.fixture_files -ne $expectedFiles) {
-        throw 'FIXTURE_RESULT_INVALID'
-    }
-    Write-Output $resultText
-    if ($owner.ExitCode -eq 0 -and (!$summary.detached -or !$summary.cleanup_completed -or
-        !$summary.snapshot_cleanup_confirmed -or $summary.status -cne 'product_timing_compared')) { throw 'FIXTURE_RESULT_CONTRADICTION' }
+    $summary = ConvertTo-ProductTimingFixtureSummary $resultText $report.ToString() $window.ExitCode $owner.ExitCode $order -Detailed:$Detailed
+    Write-Output ($summary | ConvertTo-Json -Depth 12)
     exit $owner.ExitCode
 } catch {
     # Dispose connections, never force-stop a process which may own a snapshot.

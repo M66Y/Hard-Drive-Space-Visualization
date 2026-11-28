@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using DiskAtlas.NtfsPrototype;
 
 namespace DiskAtlas;
 
@@ -13,13 +14,15 @@ internal static partial class NtfsPersonalTimingDriver
     private const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
     private static int productUiInitialized;
     internal static bool ValidUiInvocation(string[] args) => args.Length == 1 && args[0] == UiArgument;
+    internal static bool ValidDetailedUiInvocation(string[] args) => args.Length == 1 && args[0] == DetailedUiArgument;
     internal static NtfsTimingFingerprint RunVisibleOne(string scope, char mode, CancellationToken cancellation, Action<string> observed,
-        Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult>? ordinary = null)
+        Func<string, IProgress<ScanProgress>, CancellationToken, LiveScanSession, ScanResult>? ordinary = null, bool includeDetails = false)
     {
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         limit.CancelAfter(TimeSpan.FromMinutes(10));
         ScanResult? result = null; ExceptionDispatchInfo? failure = null;
         object? sample = null;
+        NtfsScanDiagnosticReport? diagnosticReport = null;
         var thread = new Thread(() =>
         {
             try
@@ -63,7 +66,7 @@ internal static partial class NtfsPersonalTimingDriver
                                         { helperProbe = new NtfsTimingResources(process); helperProbe.Start(); }
                                         if (point == FastScanTimingPoint.ResultDecoded && helperProbe != null)
                                         { helperProbe.Stop(); helper = helperProbe.Result; }
-                                    }));
+                                    }, observeDetails: includeDetails ? report => diagnosticReport = report : null));
                                 }
                                 finally { helperProbe?.Dispose(); }
                                 result = fast.Result;
@@ -151,8 +154,27 @@ internal static partial class NtfsPersonalTimingDriver
         failure?.Throw();
         if (result == null || sample == null) throw new InvalidDataException("TimingNoResult");
         Console.WriteLine(JsonSerializer.Serialize(sample));
+        if (includeDetails && mode == 'F')
+        {
+            if (diagnosticReport == null) throw new InvalidDataException("TimingDiagnosticsMissing");
+            Console.WriteLine(DiagnosticJson(diagnosticReport));
+        }
         observed("FingerprintOutsideTiming");
         return NtfsTimingFingerprint.Capture(result, cancellation);
+    }
+
+    internal static string DiagnosticJson(NtfsScanDiagnosticReport report)
+    {
+        report.Validate(requireComplete: true);
+        return JsonSerializer.Serialize(new
+        {
+            revision = "ntfs-scan-details-v1", kind = "details", mode = "F",
+            phases_ms = Enum.GetValues<NtfsDiagnosticPhase>().ToDictionary(p => p.ToString(), p => report.PhaseMilliseconds[(int)p]),
+            supplement_objects = report.SupplementObjects,
+            reason_bits = Enum.GetValues<NtfsSupplementReason>().ToDictionary(r => r.ToString(), r => (int)r),
+            reason_combinations = report.ReasonCombinations,
+            helper_measured = true, multiple_reasons_per_object = true, combination_counts_disjoint = true, no_names_or_identities = true
+        });
     }
     private static T Field<T>(MainForm form, string name) => (T)typeof(MainForm).GetField(name, Hidden)!.GetValue(form)!;
     private sealed class TimingProgress(IProgress<ScanProgress> destination, Action<ScanProgress> observe) : IProgress<ScanProgress>

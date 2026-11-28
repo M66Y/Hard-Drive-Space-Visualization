@@ -1,5 +1,11 @@
 # 开发验证与可选基准
 
+## C79 助手分段与补查诊断
+
+`--ntfs-scan-diagnostics-tests` 检查固定时钟、阶段缺失/重入、容量、组合计数、二进制往返及 JSON 字段；`--ntfs-scan-diagnostic-wire-tests` 检查显式 opt-in、完整结果前唯一报告、损坏/重复/截断/缺失及清理后失败；`--ntfs-supplement-diagnostics-tests` 使用内存 MFT 页核对驻留、已知零、硬链接、多原因、严格不支持、失败取消和并行结束后的计时边界。均不操作真实卷。
+
+另保留 product/personal timing、source/index/size/namespace、wire/bridge/coordinator、VSS 合成和核心/advanced 回归。脚本的 `-Detailed` 运行前以 `tests/NtfsProductTimingFixtureEvidence.Tests.ps1` 核对信封、报告白名单和旧默认兼容，并保留管道/阶段提醒/夹具守卫检查。新入口的实际 VSS 与分段数据尚待实测，不能用合成通过替代。[口径与限制](ntfs-product-timing.md#c79-可选的助手内部诊断)
+
 ## C72 目录祖先复用同快照对照
 
 `--ntfs-namespace-ancestor-comparison-tests` 校验目录结果比对与资源状态。`--ntfs-namespace-ancestor-driver-tests` 校验测试驱动的输入、协议和清理报告。实测入口 `DiskAtlas.Tests.exe --ntfs-namespace-ancestor-live` 通过标准输入接收本轮已获授权的目录，在一个临时快照上依次记录原核验和复用候选的枚举耗时。建立快照、比对和清理另计。结果摘要与具体耗时留在本机。 [实测计划](ntfs-namespace-ancestor-live-plan.md) · [验收记录](../iterations/2026-11-26-72-namespace-ancestor-live/README.md)

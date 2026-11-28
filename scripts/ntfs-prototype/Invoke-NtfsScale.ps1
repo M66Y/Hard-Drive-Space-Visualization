@@ -6,7 +6,8 @@ param([Parameter(Mandatory)][string]$ResultPath,
     [Parameter(Mandatory,ParameterSetName='SnapshotScale')][ValidateSet(10000,100000)][int]$SnapshotFileCount,
     [Parameter(Mandatory,ParameterSetName='ProductTiming')][ValidatePattern('^AsukaLens\.Timing\.[0-9a-f]{32}$')][string]$ProductTimingPipe,
     [Parameter(Mandatory,ParameterSetName='ProductTiming')][ValidateRange(1,2147483647)][int]$ProductTimingParentId,
-    [Parameter(ParameterSetName='ProductTiming')][ValidateSet('FO','FOOF')][string]$ProductTimingOrder = 'FO')
+    [Parameter(ParameterSetName='ProductTiming')][ValidateSet('FO','FOOF')][string]$ProductTimingOrder = 'FO',
+    [Parameter(ParameterSetName='ProductTiming')][switch]$ProductTimingDetailed)
 
 # Isolated scale mode: never accepts an existing image, disk or target directory.
 $ErrorActionPreference='Stop'
@@ -249,14 +250,12 @@ public static class AsukaLensScaleImage {
         # From this point only a verified terminal report can permit detachment.
         $snapshotRunnerAttempted = $true
         $ready = [ordered]@{ revision='product-timing-fixture-v1'; scope=$scope; volume=$volumeId; order=$ProductTimingOrder; files=$productTimingFiles }
+        if ($ProductTimingDetailed) { $ready.detailed=$true }
         [AsukaLensProductTimingPipe]::Write($productPipe, ($ready | ConvertTo-Json -Compress), 10)
         $message = [AsukaLensProductTimingPipe]::Read($productPipe, $(if ($productTimingLarge) { 2700 } else { 1500 }))
-        Assert-UniqueJsonKeys $message
-        $reply = $message | ConvertFrom-Json
-        if ($reply.revision -cne 'product-timing-fixture-v1' -or $reply.order -cne $ProductTimingOrder -or
-            ($reply.exit_code -isnot [int] -and $reply.exit_code -isnot [long]) -or $reply.report -isnot [string]) { throw 'PRODUCT_TIMING_REPLY_INVALID' }
+        $reply = ConvertTo-ProductTimingFixtureEnvelope $message Reply $ProductTimingOrder -Detailed:$ProductTimingDetailed
         $runnerExit = [int]$reply.exit_code
-        $productEvidence = ConvertTo-NtfsProductTimingFixtureEvidence $reply.report $runnerExit -Order $ProductTimingOrder
+        $productEvidence = ConvertTo-NtfsProductTimingFixtureEvidence $reply.report $runnerExit -Order $ProductTimingOrder -Detailed:$ProductTimingDetailed
         $snapshotCleanupConfirmed = $productEvidence.cleanup_confirmed
         if (-not $snapshotCleanupConfirmed) { throw 'PRODUCT_TIMING_SNAPSHOT_CLEANUP_UNKNOWN' }
         if ($productEvidence.comparable) {
@@ -380,6 +379,7 @@ public static class AsukaLensScaleImage {
             $result.product_timing=$productEvidence
             $result.product_timing_order=$ProductTimingOrder
             $result.fixture_files=$productTimingFiles
+            if ($ProductTimingDetailed) { $result.product_timing_detailed=$true }
         }
         elseif($SnapshotFileCount){$result.vss_scale=if($status -ceq 'vss_scale_benchmarked'){$vssScaleEvidence}else{$null}}
         else{$result.vss_evidence=if($status -ceq 'vss_verified'){$vssEvidence}else{$null}}

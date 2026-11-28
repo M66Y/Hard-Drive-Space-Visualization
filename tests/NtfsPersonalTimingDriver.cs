@@ -12,6 +12,7 @@ internal static partial class NtfsPersonalTimingDriver
 {
     internal const string Argument = "--ntfs-personal-timing";
     internal const string UiArgument = "--ntfs-personal-timing-ui";
+    internal const string DetailedUiArgument = "--ntfs-personal-timing-details-ui";
     internal static bool ValidInvocation(string[] args) => args.Length == 1 && args[0] == Argument;
     internal static bool ValidOrder(string order) => order is "FO" or "OF" or "FOOF";
     internal static (string Order, string Scope) ReadInput(TextReader input)
@@ -35,7 +36,7 @@ internal static partial class NtfsPersonalTimingDriver
         catch { throw new InvalidDataException("TimingInput"); }
     }
 
-    internal static int Run(bool includeUi = false)
+    internal static int Run(bool includeUi = false, bool includeDetails = false)
     {
         string stage = "Preparing";
         try
@@ -56,7 +57,7 @@ internal static partial class NtfsPersonalTimingDriver
                     // Prior trees are no longer retained. Collection happens
                     // outside the measured scan and before the next run.
                     GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
-                    var current = (Mode: mode, Value: includeUi ? RunVisibleOne(input.Scope, mode, cancelled.Token, value => stage = value)
+                    var current = (Mode: mode, Value: includeUi ? RunVisibleOne(input.Scope, mode, cancelled.Token, value => stage = value, includeDetails: includeDetails)
                         : RunOne(input.Scope, mode, cancelled.Token, value => stage = value));
                     completed++;
                     if (previous is not { } left) { previous = current; continue; }

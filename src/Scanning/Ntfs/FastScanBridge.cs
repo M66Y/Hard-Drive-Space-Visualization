@@ -17,28 +17,31 @@ internal static class FastScanBridge
 {
     internal const string WorkerArgument = "--ntfs-scan-worker";
     internal const string TimingWorkerArgument = "--ntfs-timing-worker";
+    internal const string DetailedTimingWorkerArgument = "--ntfs-detailed-timing-worker";
     private const string PipePrefix = "AsukaLens.Ntfs.";
     private const byte CancelCommand = 0x43;
     private static int cleanupUnconfirmed;
 
     internal static ScanResult Scan(string path, IProgress<ScanProgress>? progress, CancellationToken token) =>
-        ScanCore(path, progress, token, false, null, null);
+        ScanCore(path, progress, token, false, null, null, null);
 
     internal static ScanResult ScanForTiming(string path, IProgress<ScanProgress>? progress, CancellationToken token,
-        Action<FastScanWireStage>? observeStage = null, Action<FastScanTimingPoint, Process?>? observeTiming = null)
+        Action<FastScanWireStage>? observeStage = null, Action<FastScanTimingPoint, Process?>? observeTiming = null,
+        Action<NtfsScanDiagnosticReport>? observeDetails = null)
     {
         if (!IsTimingHost(Environment.ProcessPath, System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name))
             throw new FastScanUnavailableException(FastScanWireError.Unsupported, true);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(TimeSpan.FromMinutes(10));
-        return ScanCore(path, progress, timeout.Token, true, observeStage, observeTiming);
+        return ScanCore(path, progress, timeout.Token, true, observeStage, observeTiming, observeDetails);
     }
 
     internal static bool IsTimingHost(string? executable, string? assembly) =>
         string.Equals(Path.GetFileName(executable), "DiskAtlas.Tests.exe", StringComparison.OrdinalIgnoreCase) && assembly == "DiskAtlas.Tests";
 
     private static ScanResult ScanCore(string path, IProgress<ScanProgress>? progress, CancellationToken token, bool timing,
-        Action<FastScanWireStage>? observeStage, Action<FastScanTimingPoint, Process?>? observeTiming)
+        Action<FastScanWireStage>? observeStage, Action<FastScanTimingPoint, Process?>? observeTiming,
+        Action<NtfsScanDiagnosticReport>? observeDetails)
     {
         token.ThrowIfCancellationRequested();
         if (Volatile.Read(ref cleanupUnconfirmed) != 0)
@@ -66,7 +69,7 @@ internal static class FastScanBridge
         {
             progress?.Report(new(0, 0, 0, "等待管理员授权", ScanPhase.Preparing, Message: "仅本次快扫使用短时管理员助手。"));
             var start = new ProcessStartInfo(executable) { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden };
-            start.ArgumentList.Add(timing ? TimingWorkerArgument : WorkerArgument); start.ArgumentList.Add(pipeName);
+            start.ArgumentList.Add(observeDetails != null ? DetailedTimingWorkerArgument : timing ? TimingWorkerArgument : WorkerArgument); start.ArgumentList.Add(pipeName);
             start.ArgumentList.Add(parent.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
             start.ArgumentList.Add(parent.StartTime.ToUniversalTime().Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
             try
@@ -116,11 +119,13 @@ internal static class FastScanBridge
             {
                 ThreadPool.QueueUserWorkItem(_ => { try { server.WriteByte(CancelCommand); server.Flush(); } catch { } });
             });
-            var reader = new FastScanWireReader(server, path);
+            var reader = new FastScanWireReader(server, path, acceptDiagnostics: observeDetails != null);
+            NtfsScanDiagnosticReport? details = null;
             while (true)
             {
                 var message = reader.Read(deadline.Token);
-                if (message.Kind == FastScanWireEventKind.Status && message.Stage is { } stage)
+                if (message.Kind == FastScanWireEventKind.Diagnostics) details = message.Diagnostics;
+                else if (message.Kind == FastScanWireEventKind.Status && message.Stage is { } stage)
                 { observeStage?.Invoke(stage); ReportStage(progress, stage); }
                 else if (message.Kind == FastScanWireEventKind.Progress && message.Progress != null)
                     progress?.Report(message.Progress);
@@ -137,6 +142,7 @@ internal static class FastScanBridge
                     terminalCleanupConfirmed = true;
                     token.ThrowIfCancellationRequested();
                     if (timing) observeTiming?.Invoke(FastScanTimingPoint.ResultDecoded, child);
+                    if (details != null) observeDetails?.Invoke(details);
                     return FromWireResult(result, timer.Elapsed);
                 }
             }
@@ -149,8 +155,9 @@ internal static class FastScanBridge
         catch (OperationCanceledException) when (!requested || terminalCleanupConfirmed) { throw; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception or OperationCanceledException or InvalidDataException or ObjectDisposedException)
         {
-            if (requested) Volatile.Write(ref cleanupUnconfirmed, 1);
-            throw new FastScanUnavailableException(FastScanWireError.ProtocolError, !requested);
+            bool cleanupKnown = !requested || terminalCleanupConfirmed;
+            if (!cleanupKnown) Volatile.Write(ref cleanupUnconfirmed, 1);
+            throw new FastScanUnavailableException(FastScanWireError.ProtocolError, cleanupKnown);
         }
         finally { child?.Dispose(); }
     }
@@ -195,6 +202,15 @@ internal static class FastScanBridge
 
     internal static bool IsWorkerRequest(string[] args) => args.Length > 0 && args[0] == WorkerArgument;
     internal static bool IsTimingWorkerRequest(string[] args) => args.Length > 0 && args[0] == TimingWorkerArgument;
+    internal static bool IsDetailedTimingWorkerRequest(string[] args) => args.Length > 0 && args[0] == DetailedTimingWorkerArgument;
+
+    internal static int RunDetailedTimingWorker(string[] args)
+    {
+        if (!IsTimingHost(Environment.ProcessPath, System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name) ||
+            args.Length != 4 || args[0] != DetailedTimingWorkerArgument) return 2;
+        string[] invocation = args.ToArray(); invocation[0] = WorkerArgument;
+        return RunWorker(invocation, collectDiagnostics: true);
+    }
 
     internal static int RunTimingWorker(string[] args)
     {
@@ -205,18 +221,20 @@ internal static class FastScanBridge
     }
 
     internal static int RunWorker(string[] args,
-        Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation = null)
+        Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation = null,
+        bool collectDiagnostics = false)
     {
         if (args.Length != 4 || args[0] != WorkerArgument || !ValidPipeName(args[1]) || !int.TryParse(args[2], out int parentId) || parentId <= 0 ||
             !long.TryParse(args[3], out long parentTicks) || parentTicks <= 0) return 2;
         int exit = 2;
-        var thread = new Thread(() => exit = WorkerCore(args[1], parentId, parentTicks, beforeCleanupValidation));
+        if (collectDiagnostics && !IsTimingHost(Environment.ProcessPath, System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name)) return 2;
+        var thread = new Thread(() => exit = WorkerCore(args[1], parentId, parentTicks, beforeCleanupValidation, collectDiagnostics));
         thread.SetApartmentState(ApartmentState.MTA); thread.Start(); thread.Join();
         return exit;
     }
 
     private static int WorkerCore(string pipeName, int parentId, long parentTicks,
-        Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation)
+        Action<NtfsPersonalSnapshotSource, DiskEntry, CancellationToken>? beforeCleanupValidation, bool collectDiagnostics)
     {
         try
         {
@@ -241,9 +259,11 @@ internal static class FastScanBridge
             bool sourceClosed = false;
             try
             {
-                var result = NtfsPersonalScan.Run(root, stage => FastScanWire.WriteStatus(pipe, stage, linked.Token), linked.Token, beforeCleanupValidation);
+                var diagnostics = collectDiagnostics ? new NtfsScanDiagnostics() : null;
+                var result = NtfsPersonalScan.Run(root, stage => FastScanWire.WriteStatus(pipe, stage, linked.Token), linked.Token, beforeCleanupValidation, diagnostics);
                 sourceClosed = true;
                 // The scan method returns only after confirmed source cleanup.
+                if (diagnostics != null) FastScanWire.WriteDiagnostics(pipe, diagnostics.Snapshot(), CancellationToken.None);
                 FastScanWire.WriteResult(pipe, result.Root, result.Elapsed, result.CapturedAt, CancellationToken.None,
                     result.ExcludedReparseEntries, result.Exclusions);
                 pipe.Flush(); return 0;

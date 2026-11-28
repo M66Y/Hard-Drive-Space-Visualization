@@ -13,12 +13,13 @@ internal enum FastScanWireError
     Unsupported, PermissionDenied, LimitExceeded, SourceChanged, SnapshotFailed,
     ReadFailed, Cancelled, ProtocolError, CleanupUnconfirmed, InternalError
 }
-internal enum FastScanWireEventKind { Status, Progress, Completed, Failure }
+internal enum FastScanWireEventKind { Status, Progress, Completed, Failure, Diagnostics }
 internal sealed record FastScanWireResult(DiskEntry Root, TimeSpan Elapsed, DateTimeOffset CapturedAt,
     long ExcludedReparseEntries, IReadOnlyList<ScanIssue> Issues);
 internal sealed record FastScanWireEvent(FastScanWireEventKind Kind, FastScanWireStage? Stage = null,
     ScanProgress? Progress = null, FastScanWireResult? Result = null,
-    FastScanWireError? Error = null, bool CleanupConfirmed = false, FastScanFailureContext? Context = null);
+    FastScanWireError? Error = null, bool CleanupConfirmed = false, FastScanFailureContext? Context = null,
+    NtfsScanDiagnosticReport? Diagnostics = null);
 internal sealed class FastScanWireException : IOException
 {
     internal FastScanWireException() : base("NTFS 快速扫描通信数据无效。") { }
@@ -35,7 +36,9 @@ internal static class FastScanWire
     private const uint Magic = 0x314C5341;
     private const ushort Version = 3;
     private static readonly UnicodeEncoding TextEncoding = new(false, false, true);
-    internal enum Frame : ushort { Request = 1, Status, Progress, TreeBegin, Node, Done, Failure, Exclusion }
+    internal enum Frame : ushort { Request = 1, Status, Progress, TreeBegin, Node, Done, Failure, Exclusion, Diagnostics }
+    internal static void WriteDiagnostics(Stream stream, NtfsScanDiagnosticReport report, CancellationToken token) =>
+        Write(stream, Frame.Diagnostics, writer => NtfsScanDiagnosticReport.Write(writer, report), token);
     internal sealed record Node(int Index, int Parent, bool Directory, string Name, FileStorageInfo Storage, DateTime Modified, bool Incomplete = false);
     internal sealed record Header(int Nodes, long Files, long Directories, long Logical, long Allocated, long ElapsedTicks, long CapturedTicks,
         long ExcludedReparseEntries = 0, int ExclusionDetails = 0);
@@ -358,13 +361,24 @@ internal static class FastScanWire
 internal sealed class FastScanWireReader
 {
     private readonly Stream stream; private readonly string root; private long bytes; private bool terminal;
-    internal FastScanWireReader(Stream stream, string expectedRoot) { this.stream = stream; root = FastScanWire.NormalizeRoot(expectedRoot); }
+    private readonly bool acceptDiagnostics;
+    private bool diagnosticsReceived;
+    internal FastScanWireReader(Stream stream, string expectedRoot, bool acceptDiagnostics = false)
+    { this.stream = stream; root = FastScanWire.NormalizeRoot(expectedRoot); this.acceptDiagnostics = acceptDiagnostics; }
     internal FastScanWireEvent Read(CancellationToken token = default)
     {
         FastScanWire.Require(!terminal);
         try
         {
             var frame = FastScanWire.Read(stream, ref bytes, token);
+            if (frame.Kind == FastScanWire.Frame.Diagnostics)
+            {
+                FastScanWire.Require(acceptDiagnostics && !diagnosticsReceived);
+                var report = FastScanWire.Parse(frame.Payload, NtfsScanDiagnosticReport.Read);
+                diagnosticsReceived = true;
+                return new(FastScanWireEventKind.Diagnostics, Diagnostics: report);
+            }
+            FastScanWire.Require(!diagnosticsReceived || frame.Kind is FastScanWire.Frame.TreeBegin or FastScanWire.Frame.Failure);
             if (frame.Kind == FastScanWire.Frame.Status)
                 return FastScanWire.Parse(frame.Payload, reader =>
                 {
@@ -391,6 +405,7 @@ internal sealed class FastScanWireReader
                 }); terminal = true; return result;
             }
             FastScanWire.Require(frame.Kind == FastScanWire.Frame.TreeBegin);
+            FastScanWire.Require(!acceptDiagnostics || diagnosticsReceived);
             var header = FastScanWire.Parse(frame.Payload, FastScanWire.ReadHeader); var builder = new FastScanWire.TreeBuilder(root, header);
             for (int i = 0; i < header.Nodes;)
             {

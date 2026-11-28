@@ -173,6 +173,20 @@ if (FastScanBridge.IsWorkerRequest(args))
     return FastScanBridge.RunWorker(args, DiskAtlas.NtfsPrototype.NtfsPersonalAcceptanceDriver.Validate);
 if (FastScanBridge.IsTimingWorkerRequest(args))
     return FastScanBridge.RunTimingWorker(args);
+if (FastScanBridge.IsDetailedTimingWorkerRequest(args))
+    return FastScanBridge.RunDetailedTimingWorker(args);
+if (args.Length > 0 && args[0] == NtfsPersonalTimingDriver.DetailedUiArgument)
+{
+    if (!NtfsPersonalTimingDriver.ValidDetailedUiInvocation(args)) { Console.Error.WriteLine("FAIL detailed timing arguments"); return 1; }
+    return NtfsPersonalTimingDriver.Run(includeUi: true, includeDetails: true);
+}
+if (args.Length == 1 && args[0] == "--ntfs-scan-diagnostics-tests") return NtfsScanDiagnosticsTests.Run();
+if (args.Length == 1 && args[0] == "--ntfs-scan-diagnostic-wire-tests") return NtfsScanDiagnosticWireTests.Run();
+if (args.Length == 1 && args[0] == "--ntfs-supplement-diagnostics-tests")
+{
+    try { int n = DiskAtlas.NtfsPrototype.NtfsSupplementDiagnosticsTests.Run(); Console.WriteLine($"PASS supplement diagnostics checks={n}; synthetic_only=True"); return 0; }
+    catch { Console.Error.WriteLine("FAIL supplement diagnostics; synthetic_only=True"); return 1; }
+}
 if (args.Length > 0 && args[0] == NtfsPersonalTimingDriver.UiArgument)
 {
     if (!NtfsPersonalTimingDriver.ValidUiInvocation(args)) { Console.Error.WriteLine("FAIL product timing arguments"); return 1; }

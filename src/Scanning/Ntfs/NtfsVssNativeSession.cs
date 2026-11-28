@@ -90,46 +90,52 @@ internal sealed class NtfsVssNativeSession : IDisposable
     private static T Method<T>(IntPtr value, int slot) where T : Delegate => Marshal.GetDelegateForFunctionPointer<T>(Marshal.ReadIntPtr(Marshal.ReadIntPtr(value), slot * IntPtr.Size));
     private static void Hr(int value, string code) { if (value < 0) throw new NtfsVssProbeException(code, value); }
 
-    internal string Create(string original, CancellationToken token)
+    internal string Create(string original, CancellationToken token, NtfsScanDiagnostics? diagnostics = null)
     {
-        token.ThrowIfCancellationRequested();
-        Require(ownerThread == Environment.CurrentManagedThreadId && !released && backup == IntPtr.Zero && IsVolumeGuid(original), "VssSnapshotBinding");
-        Hr(CoInitializeEx(IntPtr.Zero, 0), "VssComInitialize"); com = true;
-        ProcessSecurity.Ensure(() => CoInitializeSecurity(IntPtr.Zero, -1, IntPtr.Zero, IntPtr.Zero, 6, 2, IntPtr.Zero, 0, IntPtr.Zero));
-        Hr(CreateBackup(out IntPtr returnedBackup), "VssCreateBackup"); Require(returnedBackup != IntPtr.Zero, "VssCreateBackup"); backup = returnedBackup;
-        Hr(Method<OnePointer>(backup, InitializeSlot)(backup, IntPtr.Zero), "VssInitializeBackup");
-        Hr(Method<OneInt>(backup, ContextSlot)(backup, Context), "VssContext");
-        Hr(Method<Supported>(backup, SupportedSlot)(backup, SystemProvider, original, out int supported), "VssVolumeUnsupported");
-        Require(supported != 0, "VssVolumeUnsupported"); token.ThrowIfCancellationRequested();
-        int started = Method<OutGuid>(backup, StartSlot)(backup, out Guid returnedSet);
-        set = AdoptGuid(started, returnedSet, "VssStartSet");
-        SaveOwner(original);
-        int added = Method<AddVolume>(backup, AddSlot)(backup, original, SystemProvider, out Guid returnedSnapshot);
-        snapshot = AdoptGuid(added, returnedSnapshot, "VssAddVolume");
-        SaveOwner(original);
-        creating = true; Hr(Method<OutPointer>(backup, SnapshotSlot)(backup, out IntPtr returnedAsync), "VssCreateSnapshot");
-        Require(returnedAsync != IntPtr.Zero, "VssCreateSnapshot"); async = returnedAsync;
-        var watch = Stopwatch.StartNew();
-        while (true)
+        using (diagnostics?.Measure(NtfsDiagnosticPhase.VssSetup))
         {
             token.ThrowIfCancellationRequested();
-            Hr(Method<OneInt>(async, 4)(async, 500), "VssAsyncWait");
-            Hr(Method<QueryAsync>(async, 5)(async, out int state, IntPtr.Zero), "VssAsyncStatus");
-            if (state == AsyncFinished) { creating = false; break; }
-            if (state < 0) throw new NtfsVssProbeException("VssCreateSnapshot", state);
-            Require(state == AsyncPending, "VssAsyncStatus", state);
-            Require(watch.Elapsed < TimeSpan.FromMinutes(2), "VssAsyncTimeout");
+            Require(ownerThread == Environment.CurrentManagedThreadId && !released && backup == IntPtr.Zero && IsVolumeGuid(original), "VssSnapshotBinding");
+            Hr(CoInitializeEx(IntPtr.Zero, 0), "VssComInitialize"); com = true;
+            ProcessSecurity.Ensure(() => CoInitializeSecurity(IntPtr.Zero, -1, IntPtr.Zero, IntPtr.Zero, 6, 2, IntPtr.Zero, 0, IntPtr.Zero));
+            Hr(CreateBackup(out IntPtr returnedBackup), "VssCreateBackup"); Require(returnedBackup != IntPtr.Zero, "VssCreateBackup"); backup = returnedBackup;
+            Hr(Method<OnePointer>(backup, InitializeSlot)(backup, IntPtr.Zero), "VssInitializeBackup");
+            Hr(Method<OneInt>(backup, ContextSlot)(backup, Context), "VssContext");
+            Hr(Method<Supported>(backup, SupportedSlot)(backup, SystemProvider, original, out int supported), "VssVolumeUnsupported");
+            Require(supported != 0, "VssVolumeUnsupported"); token.ThrowIfCancellationRequested();
+            int started = Method<OutGuid>(backup, StartSlot)(backup, out Guid returnedSet);
+            set = AdoptGuid(started, returnedSet, "VssStartSet");
+            SaveOwner(original);
+            int added = Method<AddVolume>(backup, AddSlot)(backup, original, SystemProvider, out Guid returnedSnapshot);
+            snapshot = AdoptGuid(added, returnedSnapshot, "VssAddVolume");
+            SaveOwner(original);
         }
-        token.ThrowIfCancellationRequested();
-        Hr(Method<Properties>(backup, PropertiesSlot)(backup, snapshot, out var properties), "VssProperties");
-        try
+        using (diagnostics?.Measure(NtfsDiagnosticPhase.VssCreation))
         {
-            string device = Marshal.PtrToStringUni(properties.Device) ?? "", source = Marshal.PtrToStringUni(properties.Original) ?? "";
-            Require(BindingValid(snapshot, set, properties.Snapshot, properties.Set, properties.Count, properties.Provider, properties.Attributes,
-                properties.State, source, original, device), "VssSnapshotBinding");
-            SnapshotCreatedUtc = DateTime.FromFileTimeUtc(properties.Created); return device;
+            creating = true; Hr(Method<OutPointer>(backup, SnapshotSlot)(backup, out IntPtr returnedAsync), "VssCreateSnapshot");
+            Require(returnedAsync != IntPtr.Zero, "VssCreateSnapshot"); async = returnedAsync;
+            var watch = Stopwatch.StartNew();
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                Hr(Method<OneInt>(async, 4)(async, 500), "VssAsyncWait");
+                Hr(Method<QueryAsync>(async, 5)(async, out int state, IntPtr.Zero), "VssAsyncStatus");
+                if (state == AsyncFinished) { creating = false; break; }
+                if (state < 0) throw new NtfsVssProbeException("VssCreateSnapshot", state);
+                Require(state == AsyncPending, "VssAsyncStatus", state);
+                Require(watch.Elapsed < TimeSpan.FromMinutes(2), "VssAsyncTimeout");
+            }
+            token.ThrowIfCancellationRequested();
+            Hr(Method<Properties>(backup, PropertiesSlot)(backup, snapshot, out var properties), "VssProperties");
+            try
+            {
+                string device = Marshal.PtrToStringUni(properties.Device) ?? "", source = Marshal.PtrToStringUni(properties.Original) ?? "";
+                Require(BindingValid(snapshot, set, properties.Snapshot, properties.Set, properties.Count, properties.Provider, properties.Attributes,
+                    properties.State, source, original, device), "VssSnapshotBinding");
+                SnapshotCreatedUtc = DateTime.FromFileTimeUtc(properties.Created); return device;
+            }
+            finally { FreeProperties(ref properties); }
         }
-        finally { FreeProperties(ref properties); }
     }
 
     private void SaveOwner(string original)
